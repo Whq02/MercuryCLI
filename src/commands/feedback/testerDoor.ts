@@ -2,6 +2,7 @@ import { conversationIdHere, getFocusedSessionConnector, hasFocusedSession } fro
 import type { Message } from '../../types/message.js'
 import { buildAwayRecap } from '../../utils/cockpit/awaySummary.js'
 import { isDenialResultText } from '../../utils/messages/rejectionText.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const TESTER_DOOR_URL = 'https://mercury-cli.ai/report'
 export const TESTER_DOOR_LINE = `Something broke? ${TESTER_DOOR_URL}`
@@ -32,7 +33,8 @@ export function sessionSawFailure(messages: readonly Message[]): boolean {
 function focusedSessionSawFailure(): boolean {
   try {
     return hasFocusedSession() && sessionSawFailure(getFocusedSessionConnector().records())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

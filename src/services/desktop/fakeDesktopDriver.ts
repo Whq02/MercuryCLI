@@ -35,6 +35,7 @@ import {
   type DesktopClickablePoint,
 } from './driver.js'
 import { bundleWebEngine } from './webEngine.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface FakeTreeNode {
   role: string
@@ -375,7 +376,8 @@ export function readFakeActLog(path: string): FakeAct[] {
   let text: string
   try {
     text = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return text

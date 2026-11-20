@@ -7,6 +7,7 @@ import { SAMPLE_MARKS_BODY_CAP_BYTES } from './contracts.js'
 import { formatMarksMessage, parseMarksBody } from './marks.js'
 import { renderSampleShell } from './shell.js'
 import { appendMarks, getSample, readVersion, sessionOfSample, setSampleListenerAddress } from './store.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface SampleListenerAddress {
   port: number
@@ -142,7 +143,8 @@ async function handle(request: IncomingMessage, response: ServerResponse, token:
     try {
       if (!response.headersSent) response.writeHead(500, COMMON_HEADERS)
       response.end()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

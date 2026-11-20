@@ -28,6 +28,7 @@ import {
 import { EVENT_HANDLER_PROPS } from './events/event-handlers.js'
 import { Dispatcher } from './events/dispatcher.js'
 import applyStyles, { type Styles, type TextStyles } from './styles.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const dispatcher = new Dispatcher()
 
@@ -93,7 +94,8 @@ function commitLog(line: string): void {
   if (!COMMIT_LOG_PATH) return
   try {
     appendFileSync(COMMIT_LOG_PATH, `${new Date().toISOString()} ${line}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

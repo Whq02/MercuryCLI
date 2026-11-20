@@ -11,6 +11,7 @@ import {
   changeTransactionEnabled,
   isReceiptShaped,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const RING_CAP = 256
 
@@ -92,7 +93,8 @@ function record(event: ToolTerminalEvent): void {
   for (const cb of receiptSubscribers) {
     try {
       cb(receipt)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

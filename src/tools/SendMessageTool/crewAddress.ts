@@ -8,6 +8,7 @@ import { agentMessageNotice, agentMessageSummary, isLocalAgentTask, type LocalAg
 import { launchesNamed, namedLaunchReceipts, recordedLaunchesNamed, recordedNamedLaunches, type NamedLaunch } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import { isMainSessionTask } from '../../tasks/LocalMainSessionTask.js'
 import { MAIN_THREAD_AGENT } from '../../services/notices/unreadLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type MessageOutput = { success: boolean; message: string }
 export type CrewMessageInput = { to: string; message: string }
@@ -56,7 +57,8 @@ function agentTranscriptPathOf(agentId: string): string | null {
   try {
     const path = getAgentTranscriptPath(asAgentId(agentId))
     return existsSync(path) ? path : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -74,7 +76,7 @@ export async function resolveCrewAddress(to: string, context: ToolUseContext): P
   const unresolved = registered === undefined && knownId === undefined
   const receipts = unresolved ? launchesNamed(context.messages ?? [], to) : []
   const launches: NamedLaunch[] = unresolved && receipts.length === 0
-    ? await recordedLaunchesNamed(to).catch((): NamedLaunch[] => [])
+    ? await recordedLaunchesNamed(to).catch((error): NamedLaunch[] => { passedOver(error); return [] })
     : receipts
   const launch = launches[launches.length - 1]
   const agentId = registered ?? knownId ?? launch?.agentId
@@ -102,7 +104,7 @@ async function knownLaunchedAgents(context: ToolUseContext): Promise<KnownLaunch
   const state = context.getAppState()
   const statusOf = (id: string) => state.tasks?.[id] === undefined ? 'finished' : agentStatusWord(state.tasks[id]!.status)
   const byName = new Map<string, KnownLaunchedAgent>()
-  for (const launch of await recordedNamedLaunches().catch((): NamedLaunch[] => [])) {
+  for (const launch of await recordedNamedLaunches().catch((error): NamedLaunch[] => { passedOver(error); return [] })) {
     byName.set(launch.name, { name: launch.name, agentId: launch.agentId, status: statusOf(launch.agentId) })
   }
   for (const receipt of namedLaunchReceipts(context.messages ?? [])) {

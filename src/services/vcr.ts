@@ -13,6 +13,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { normalizeMessagesForAPI } from '../utils/messages.js'
 import { calculateUSDCost } from '../utils/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 type VcrMessage = AssistantMessage | BetaRawMessageStreamEvent | Message | StreamEvent
@@ -215,7 +216,8 @@ function addReplayedCost(message: VcrMessage): void {
   try {
     const cost = calculateUSDCost(inner.model, inner.usage)
     if (cost > 0) addToTotalSessionCost(cost, inner.usage, inner.model)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

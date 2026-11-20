@@ -4,6 +4,7 @@ import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { remotePrelude } from './prelude.js'
 import { authorityText, noteResolvedAuthority, remoteAuthorityFault, RemotePathError, resolvedAuthority, type RemoteAuthority, type RemoteAuthorityFacts } from './target.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const SHELLS = ['sh', 'bash', 'zsh']
 const CONNECT_DEADLINE_MS = 30_000
@@ -103,7 +104,7 @@ class Connection {
     const next = this.queue.then(() => this.attempt(request, order))
     this.queue = next.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     )
     return next
   }
@@ -115,7 +116,8 @@ class Connection {
     try {
       child.stdin?.end()
       child.kill()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -183,7 +185,8 @@ class Connection {
         }
         try {
           child.kill()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         reject(error)
       }

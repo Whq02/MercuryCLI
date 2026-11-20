@@ -8,6 +8,7 @@ import { whichSync, resolveExecutable } from '../../utils/which.js'
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { pathEntryEquals, resolveLayoutRoots, type LayoutRoots } from './installLayout.js'
 import { isNpmWrapperCommand, resolveInstallProvenance } from './installProvenance.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const PATH_SENTINEL = 'mercury-managed-path'
 export const WIN32_USER_PATH_STORE = 'the user PATH (HKCU\\Environment)'
@@ -176,7 +177,8 @@ export function ownCommand(roots: LayoutRoots, provenanceKind: string, resolveCo
 export function thisMercuryCommand(): string {
   try {
     return ownCommand(resolveLayoutRoots(), resolveInstallProvenance().kind)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'mercury'
   }
 }
@@ -218,7 +220,8 @@ export function zshStartupDir(io: Pick<PathEntryIo, 'env' | 'home' | 'zshDotDir'
   let asked: string | null = null
   try {
     asked = io.zshDotDir()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return asked !== null && asked.startsWith('/') ? asked : io.home
 }
@@ -540,7 +543,8 @@ export function realPathEntryIo(opts: { powershell?: () => string | null } = {})
       if (zsh === null) return null
       try {
         return execFileSync(zsh, ['-c', 'printf %s "${ZDOTDIR-}"'], { windowsHide: true, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 5_000, env: subprocessEnv() }).trim() || null
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     },

@@ -31,6 +31,7 @@ import { exitForCommanderError, failCli, PRINT_ONLY_VERBS, USAGE_ERROR_CODES, wa
 import { addRootOptions } from './main/rootOptions.js'
 import { registerSubcommands } from './main/subcommands.js'
 import { registerSessionDoors } from './main/sessionDoors.js'
+import { passedOver } from './utils/passedOver.js'
 export { startDeferredPrefetches } from './main/deferredPrefetches.js'
 
 profileCheckpoint('main_tsx_entry')
@@ -214,7 +215,8 @@ async function run(): Promise<void> {
         const { noteHeadlessActivity } = await import('./utils/activityLedger.js')
         noteHeadlessActivity(`verb:${names.join(':')}`)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
   program

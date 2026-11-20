@@ -6,6 +6,7 @@ import { compileDbRemedy, mercuryLspCppEnabled, probeBuiltinClangd, probeCompile
 import { probeGodotEditorReachable, probeGodotLane } from '../../../../services/lsp/godotLane.js'
 import { getInitializationStatus, getLspServerManager } from '../../../../services/lsp/manager.js'
 import { flagAsSet, type CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 function readTsVersion(tsPath: string): string | null {
   try {
@@ -13,7 +14,8 @@ function readTsVersion(tsPath: string): string | null {
     if (!existsSync(pkgPath)) return null
     const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { version?: string }
     return pkg.version ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

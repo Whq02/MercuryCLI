@@ -1,4 +1,5 @@
 import { logForDebugging } from './debug.js'
+import { passedOver } from './passedOver.js'
 
 
 const MAX_TRACKED_WARNING_KEYS = 1000
@@ -39,7 +40,8 @@ function handleWarning(warning: Error): void {
         { level: 'warn' },
       )
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

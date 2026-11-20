@@ -5,6 +5,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../services/voice/voicePack.js'
 import { cpuFloorRefusal, probeCpuFloor, whisperCpuFloorWords } from '../services/voice/whisperPack.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const EMBED_PACK_SEGMENTS = ['vendor', 'embed'] as const
 export const EMBED_PACK_PATH = 'vendor/embed'
@@ -62,7 +63,8 @@ export function readEmbedPackManifest(dir: string): EmbedPackManifest | null {
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(dir, EMBED_PACK_MANIFEST_FILE), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof raw !== 'object' || raw === null) return null

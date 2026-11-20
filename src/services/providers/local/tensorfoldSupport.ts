@@ -6,6 +6,7 @@ import { ADAPTER_SENTENCE, llamaCppWords, servedByAdapter, tensorFoldEngineLabel
 import { adapterCheckpointOf } from '../../tensorfold/adapter/models.js'
 import type { TensorFoldEngineFound } from '../../tensorfold/engine.js'
 import { readTensorFoldState, type TensorFoldServerState, type TensorFoldState, type TensorFoldStateReads } from './tensorfoldState.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface TensorFoldSupportFacts {
   version?: string
@@ -64,7 +65,8 @@ function readLinuxPrettyName(): string | undefined {
   try {
     const line = readFileSync('/etc/os-release', 'utf8').split('\n').find(row => row.startsWith('PRETTY_NAME='))
     return line?.slice('PRETTY_NAME='.length).trim().replace(/^"(.*)"$/, '$1') || undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

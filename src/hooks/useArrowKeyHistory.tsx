@@ -13,6 +13,7 @@ import {
 } from '../components/PromptInput/inputModes.js'
 import type { PromptInputMode } from '../types/textInputTypes.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type HistoryMode = PromptInputMode
 
@@ -53,7 +54,7 @@ async function loadEntries(
     if (pendingLoad.generation === loadGeneration && pendingLoad.filter === filter && pendingLoad.target >= target) {
       return pendingLoad.promise
     }
-    await pendingLoad.promise.catch(() => {})
+    await pendingLoad.promise.catch(passedOver)
   }
   const generation = loadGeneration
   const load = (async (): Promise<HistoryEntry[]> => {

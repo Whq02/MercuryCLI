@@ -5,6 +5,7 @@ import { getFsImplementation, safeResolvePath } from '../fsOperations.js'
 import { MERCURY_PROJECT_DIR } from '../projectConfig.js'
 import { preparedSecurityParse, type SimpleCommand } from './decision/commandAnalysis.js'
 import { getProjectTempDir, getScratchpadDir, MERCURY_WORKING_FOLDERS, pathInWorkingPath } from './filesystem.js'
+import { passedOver } from '../passedOver.js'
 
 const OWN_GROUND_SCRATCHPAD = "the session's scratchpad"
 const OWN_GROUND_CREATED = 'a path this session created'
@@ -55,7 +56,8 @@ function recordCreatedPaths(paths: readonly string[], cwd?: string): void {
     const file = ledgerPath()
     mkdirSync(dirname(file), { recursive: true })
     appendFileSync(file, added.map(path => `${path}\n`).join(''))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }

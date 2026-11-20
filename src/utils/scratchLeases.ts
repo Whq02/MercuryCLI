@@ -5,6 +5,7 @@ import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { errorMessage, isENOENT } from './errors.js'
 import { logError } from './log.js'
 import { getProjectTempDir } from './permissions/filesystem.js'
+import { passedOver } from './passedOver.js'
 
 const SCRATCH_LEASE_REGISTRY_VERSION = 1
 
@@ -114,7 +115,8 @@ function dirSizeBytes(root: string, budget = 20_000): number {
     let entries: string[]
     try {
       entries = readdirSync(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const e of entries) {
@@ -124,7 +126,8 @@ function dirSizeBytes(root: string, budget = 20_000): number {
         const st = statSync(p)
         if (st.isDirectory()) stack.push(p)
         else total += st.size
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }

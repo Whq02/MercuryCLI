@@ -39,6 +39,7 @@ import { panelWidth } from '../mercury-ui/geometry.js'
 import { POPUP_GUTTER } from '../PopupGutter.js'
 import { crewmateMetadataFile } from '../tasks/useCrewmateModel.js'
 import { crewmateLive, type CrewmateInView } from '../tasks/useCrewmateView.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const CREWMATE_COMMAND_RECEIPT_KEY = 'crewmate-command'
 const CREWMATE_COMPACT_INSTRUCTIONS_NOTE = 'the instructions are not carried; a crewmate compacts with the standard summary'
@@ -125,7 +126,8 @@ function contextPercentOf(crewmate: CrewmateInView, model: string): number | nul
   try {
     const window = getContextWindowForModel(crewmate.facts?.model ?? model)
     return window > 0 ? Math.round((context / window) * 100) : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

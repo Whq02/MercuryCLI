@@ -13,6 +13,7 @@ import { ensureBlenderBridgeToken, readBlenderBridgeToken } from './bridgeToken.
 import { BLENDER_ADDON_MODULE, blenderVersionDir, resolveBlenderAddonHome } from './addonHome.js'
 import { probeBlenderHeadlessRuntime } from './headlessRunner.js'
 import { locateBlender } from '../ide/blenderProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface BlenderBridgeInstallStatus {
   installed: boolean
@@ -57,7 +58,8 @@ export function readAddonBridgePort(addonHome: string): number | undefined {
     return typeof raw.port === 'number' && Number.isInteger(raw.port) && raw.port >= 1 && raw.port <= 65535
       ? raw.port
       : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

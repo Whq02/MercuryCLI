@@ -28,6 +28,7 @@ import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, dis
 import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from './worktree/baseline.js'
 import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
 import { runGit } from './worktree/git.js'
+import { passedOver, passedOverAs } from './passedOver.js'
 
 
 
@@ -77,7 +78,7 @@ function serialiseWorktreeCreation<T>(repoRoot: string, work: () => Promise<T>):
     key,
     run.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     ),
   )
   return run
@@ -229,7 +230,8 @@ async function copyWorktreeIncludeFiles(repoRoot: string, worktreePath: string, 
   let patternText: string
   try {
     patternText = await readFile(join(repoRoot, '.worktreeinclude'), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const patterns = patternText
@@ -306,7 +308,8 @@ const PACK_LINK_DIRECTORY = 'vendor'
 async function isDirectoryAt(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -373,7 +376,8 @@ async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
       if (!Array.isArray(deny)) return true
       const rules = deny.filter((entry): entry is string => typeof entry === 'string').map(entry => ({ source: 'session' as const, ruleBehavior: 'deny' as const, ruleValue: permissionRuleValueFromString(entry) }))
       if (ruleMatcherFor(applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), rules), 'read', 'deny') !== null) return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return true
     }
   }
@@ -411,10 +415,10 @@ async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: s
 
 async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string, relPaths: readonly string[], held: ((root: string) => HeldBack) | undefined): Promise<string[] | null> {
   if (relPaths.length === 0) return []
-  const before = canCloneHere() ? await lstat(worktreePath).catch(() => null) : undefined
+  const before = canCloneHere() ? await lstat(worktreePath).catch(passedOverAs(null)) : undefined
   if (before === null || (before !== undefined && !before.isDirectory())) return null
   let checked: Promise<boolean> | undefined
-  const stillHere = before === undefined ? undefined : (): Promise<boolean> => checked ??= lstat(worktreePath).then(after => after.isDirectory() && after.dev === before.dev && after.ino === before.ino, () => false)
+  const stillHere = before === undefined ? undefined : (): Promise<boolean> => checked ??= lstat(worktreePath).then(after => after.isDirectory() && after.dev === before.dev && after.ino === before.ino, passedOverAs(false))
   const outcomes = await cloneIntoWorktree(relPaths.map(relPath => ({ source: join(sourceRoot, relPath), target: join(worktreePath, relPath) })), sourceRoot, worktreePath, undefined, held, stillHere)
   if (stillHere !== undefined && !(await stillHere())) return null
   return relPaths.filter((_, index) => outcomes[index] === 'cloned')
@@ -448,7 +452,8 @@ async function holdsUserHome(sourceRoot: string): Promise<boolean> {
   try {
     const [checkout, home] = await Promise.all([realpath(sourceRoot), realpath(homedir())])
     return home === checkout || home.startsWith(checkout.endsWith(sep) ? checkout : checkout + sep)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -511,7 +516,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
           continue
         }
         const held = under?.(sourceRoot)
-        const behind = held === undefined ? undefined : async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), () => false))
+        const behind = held === undefined ? undefined : async (path: string): Promise<boolean> => held(path) || (await realpath(path).then(real => real !== path && held(real), passedOverAs(false)))
         if (behind !== undefined && (await behind(source))) {
           logForDebugging(`worktree copy skipped (it stays behind, and this account may not link it): ${relPath}`, { level: 'warn' })
           continue
@@ -519,7 +524,7 @@ async function linkCheckoutDirectories(sourceRoot: string, worktreePath: string,
         try {
           await cp(source, target, { recursive: true, dereference: true, force: false, errorOnExist: true, ...(behind !== undefined ? { filter: async (from: string) => !(await behind(from)) } : {}) })
         } catch (copyError) {
-          await rm(target, { recursive: true, force: true }).catch(() => {})
+          await rm(target, { recursive: true, force: true }).catch(passedOver)
           throw copyError
         }
       }
@@ -614,7 +619,8 @@ async function setWorktreeHooksPath(repoRoot: string, worktreePath: string): Pro
           hooksPath = candidate
           break
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (hooksPath !== null) {
@@ -645,7 +651,8 @@ async function launchWaitsForFolders(repoRoot: string): Promise<boolean> {
   try {
     await stat(join(repoRoot, '.worktreeinclude'))
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -912,7 +919,8 @@ export async function createAgentWorktree(
     try {
       const now = new Date()
       await utimes(created.worktreePath, now, now)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     logForDebugging(`resumed agent worktree ${created.worktreePath}`)
   }
@@ -981,7 +989,8 @@ export async function isAgentLane(slug: string, worktreePath: string): Promise<b
   try {
     await stat(join(adminDir, LANE_MARKER_FILENAME))
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -1009,7 +1018,8 @@ async function isDisownedWorktree(worktreePath: string): Promise<boolean> {
     const canonicalReturn = await realpath(returnLeg)
     const canonicalOwn = await realpath(join(worktreePath, '.git'))
     return canonicalReturn !== canonicalOwn
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -1042,7 +1052,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     for (const entry of await readdir(home)) {
       candidates.set(join(home, entry), entry)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   for (const [candidatePath, slug] of candidates) {
@@ -1052,7 +1063,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
     let mtimeMs: number
     try {
       mtimeMs = (await stat(candidatePath)).mtimeMs
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (mtimeMs >= cutoffMs) continue
@@ -1073,7 +1085,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
       try {
         await rm(candidatePath, { recursive: true, force: true })
         removedCount++
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       continue
     }
@@ -1101,10 +1114,12 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
           await rm(debrisPath, { recursive: true, force: true })
           removedCount++
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   if (removedCount > 0) {

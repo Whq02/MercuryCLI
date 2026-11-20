@@ -6,6 +6,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { USAGE_POLL_TTL_MS } from '../usageFreshness.js'
 import { clearOpenrouterKeyRefusal, markOpenrouterKeyRefused, markOpenrouterMintedKeyExpired, openrouterApiBase, openrouterAuthPathForDisplay, openrouterKeyRefusal, readMintedOpenrouterKey, resolveOpenrouterApiKey, resolveOpenrouterRequestAuth, type OpenrouterKeySource, type OpenrouterRequestAuth } from './openrouterAccounts.js'
 import { wordsNameTheKey } from '../catalogueBody.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const KEY_PROBE_TIMEOUT_MS = 10_000
 
@@ -176,7 +177,7 @@ async function keyErrorMessage(response: Response): Promise<string> {
     const error = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>).error : undefined
     const message = typeof error === 'object' && error !== null ? (error as Record<string, unknown>).message : undefined
     if (typeof message === 'string' && message.trim()) return message.trim().replace(/\s*[\r\n\u2028\u2029]+\s*/g, ' ')
-  } catch {}
+  } catch (error) { passedOver(error) }
   return `key endpoint returned HTTP ${response.status}`
 }
 
@@ -204,7 +205,7 @@ export async function probeOpenrouterKey(key: string, opts?: { fetchImpl?: typeo
     const refused = response.status === 401 || response.status === 403 || (response.status === 400 && wordsNameTheKey({ message }))
     return refused ? { state: 'refused', status: response.status, message } : { state: 'unreachable', message: `the key endpoint returned HTTP ${response.status}: ${message}` }
   }
-  const usage = decodeKeyPayload(await response.json().catch(() => undefined), now)
+  const usage = decodeKeyPayload(await response.json().catch(passedOverAs(undefined)), now)
   return usage ? { state: 'accepted', usage } : { state: 'unreachable', message: 'key endpoint payload undecodable' }
 }
 
@@ -320,7 +321,8 @@ export function recordOpenrouterRateHeaders(
     } else if (reset > 1e9) {
       observedLimit = { resetsAtMs: reset * 1000, observedAtMs: now() }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

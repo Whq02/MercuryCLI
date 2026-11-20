@@ -19,6 +19,7 @@ import { describeAttachedImage } from '../../utils/imageResizer.js'
 import { cacheImagePath, storeImage } from '../../utils/imageStore.js'
 import { hashPastedText, storePastedText } from '../../utils/pasteStore.js'
 import { expandTabs, stripControls } from './composerText.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ComposerAttachmentsInput = {
   input: string
@@ -168,7 +169,7 @@ export function useComposerAttachments({
         ...(sourcePath ? { sourcePath } : {}),
       } as PastedContent
       cacheImagePath(entry)
-      void storeImage(entry).catch(() => {})
+      void storeImage(entry).catch(passedOver)
       setPastedContents(prev => ({ ...prev, [id]: entry }))
       insertAtCursor(`${pendingSpace ? ' ' : ''}${formatImageRef(id)}`, { atomic: true })
       deferredSpaceArmedRef.current = true
@@ -228,7 +229,7 @@ export function useComposerAttachments({
           content: exact,
           contentHash,
         } as PastedContent
-        void storePastedText(contentHash, exact).catch(() => {})
+        void storePastedText(contentHash, exact).catch(passedOver)
         setPastedContents(prev => ({ ...prev, [id]: entry }))
         insertAtCursor(formatPastedTextRef(id, numLines), { atomic: true })
         return

@@ -11,6 +11,7 @@ import { armDaemonHomeWatch } from '../daemonHome.js'
 import { forwardFrame, predecessorSockPath } from '../handover.js'
 import { supersededByLivePlaneOwnerSync } from '../planeRecords.js'
 import type { DaemonRunState } from './state.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const PREDECESSOR_SHUTDOWN_WAIT_MS = 6_000
 const KILLED_TREES_BOUND_MS = 5_000
@@ -148,11 +149,11 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
   },
   {
     name: 'clear the control key',
-    run: state => (state.controlEnabled ? clearControlKey().catch(() => {}) : undefined),
+    run: state => (state.controlEnabled ? clearControlKey().catch(passedOver) : undefined),
   },
   {
     name: 'clear the daemon record',
-    run: state => (state.controlEnabled ? clearDaemonState().catch(() => {}) : undefined),
+    run: state => (state.controlEnabled ? clearDaemonState().catch(passedOver) : undefined),
   },
   {
     name: 'write the exit in the spawn ledger',
@@ -187,7 +188,7 @@ const WAY_OUT_THEN: readonly WayOutStep[] = [
   {
     name: 'release the daemon lock',
     run: async state => {
-      await state.daemonLock?.release().catch(() => {})
+      await state.daemonLock?.release().catch(passedOver)
       state.daemonLock = null
     },
   },
@@ -271,7 +272,7 @@ export async function stopVerb(state: DaemonRunState, { requestShutdown }: StopN
   const forwarded = forwardedFromPlane
     ? []
     : await Promise.all(
-        (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(() => null)),
+        (handover?.predecessorPids() ?? []).map(pid => forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers, forwarded: true }), PREDECESSOR_SHUTDOWN_WAIT_MS).catch(passedOverAs(null))),
       )
   let reaped = workers.length
   for (const reply of forwarded) {
@@ -321,17 +322,17 @@ export async function giveHomeBack(state: DaemonRunState, { planeAnswer, planeHe
   console.error(`[daemon] ${GLYPH.warn} control layer FAILED to start at "${state.bootStep}": ${e}`)
   logForDebugging(`[daemon] control layer failed to start — giving the home back and exiting: ${e}`)
   state.controlServer = null
-  const holder = await planeAnswer(bootBuildTree).catch(() => null)
+  const holder = await planeAnswer(bootBuildTree).catch(passedOverAs(null))
   try {
     writeSync(2, `[daemon] ${planeHeldLine(holder)}\n`)
-  } catch {}
-  await unlink(controlKeyPath()).catch(() => {})
+  } catch (error) { passedOver(error) }
+  await unlink(controlKeyPath()).catch(passedOver)
   await clearDaemonState()
   if (process.platform !== 'win32') {
     unpublishOwnPlane()
-    await unlink(predecessorSockPath(process.pid)).catch(() => {})
+    await unlink(predecessorSockPath(process.pid)).catch(passedOver)
   }
-  await state.daemonLock?.release().catch(() => {})
+  await state.daemonLock?.release().catch(passedOver)
   state.daemonLock = null
   state.teardownComplete = true
   process.exit(1)

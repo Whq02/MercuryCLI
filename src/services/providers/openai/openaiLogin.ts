@@ -2,6 +2,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { writeStoredOpenaiApiKey } from '../providerSecrets.js'
 import type { OpenaiAccountRef } from './openaiAccounts.js'
 import { refreshOpenaiCatalogue } from './openaiCatalogue.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 interface OpenaiKeyLoginOutcome {
   ok: boolean
@@ -16,7 +17,7 @@ export async function storeOpenaiApiKeyLogin(
   },
 ): Promise<OpenaiKeyLoginOutcome> {
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshOpenaiCatalogue('api-key', { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshOpenaiCatalogue('api-key', { force: true }).catch(passedOverAs(null)))
   try {
     writeStoredOpenaiApiKey(key)
   } catch (error) {
@@ -45,7 +46,7 @@ export async function finishOpenaiSubscriptionConnect(
 ): Promise<{ ok: true; receipt: string }> {
   const refresh =
     io?.refreshCatalogue ??
-    (() => refreshOpenaiCatalogue('chatgpt-subscription', { force: true }).catch(() => null))
+    (() => refreshOpenaiCatalogue('chatgpt-subscription', { force: true }).catch(passedOverAs(null)))
   const snapshot = await refresh()
   const catalogueNote = snapshot?.lastError
     ? ` · catalogue: unavailable (${snapshot.lastError})`

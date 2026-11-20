@@ -7,6 +7,7 @@ import { holdWorkerAsk } from '../permissionAsks.js'
 import { TaskRoster } from '../roster.js'
 import { onSeatIdle, onSeatApplied, answerSeatScheduleEdit, onSeatRow, onSeatSpawned, publishSeatFacts, requestSessionFacts } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
   const { dir, breaker, maxInflight: MAX_INFLIGHT } = state
@@ -45,7 +46,8 @@ export function makeDaemonRoster(state: DaemonRunState): TaskRoster {
       if (short !== undefined && short.startsWith('concourse-w')) {
         try {
           settleConcourseWorker(short)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         try {
           failWorkingDispatchesForRunner(short, reason)

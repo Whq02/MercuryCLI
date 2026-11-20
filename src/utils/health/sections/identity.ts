@@ -14,6 +14,7 @@ import { healthFixEnabled } from '../../healthFix.js'
 import { assessDeployedAssets } from '../../healthDeployedAssets.js'
 import { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } from '../../../prompt/mercuryContract.js'
 import { clientContractCheck, modelRefusalsCheck, computeWorkingTreeSha, runRemedyCmd, type CheckSpec, type HealthContext } from '../../healthReport.js'
+import { passedOver } from '../../passedOver.js'
 
 async function execGit(args: string[], cwd: string, timeoutMs = 1500): Promise<string | null> {
   const argv = await gitArgsAsync(args, cwd)
@@ -181,7 +182,8 @@ export function identityChecks(context: HealthContext): CheckSpec[] {
                 evidence: `bundle content-bound — built from exactly this source tree (${stamped.slice(0, 7)})`,
               }
             }
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
         }
         const ct = await execGit(['log', '-1', '--format=%ct', '--', 'src', 'build.ts'], root)

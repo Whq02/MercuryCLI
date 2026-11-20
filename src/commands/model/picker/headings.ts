@@ -16,6 +16,7 @@ import { catalogueEpoch } from '../../../services/providers/catalogueEpoch.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
 import { getSubscriptionType } from '../../../utils/auth.js'
 import type { ProviderHeading } from '../../../utils/model/modelPickerGroups.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const MODEL_GROUP_FAMILIES: Record<string, string> = {
   [ANTHROPIC_MODEL_GROUP]: 'anthropic',
@@ -105,7 +106,8 @@ function buildProviderHeadings(): Record<string, ProviderHeading> {
   const slotsOf = (family: string): AccountSlot[] => {
     try {
       return deriveFamilySlotGroups().find(group => group.family.id === family)?.slots ?? []
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
   }

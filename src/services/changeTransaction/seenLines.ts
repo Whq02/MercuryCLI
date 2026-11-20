@@ -9,6 +9,7 @@ import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import type { HunkSpan } from './hunks.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SEEN_LINES_BOUNDS = {
   rangeCap: 256,
@@ -141,7 +142,8 @@ function withRegularFile<Read>(path: string, read: (fd: number, stats: Stats) =>
     } finally {
       closeSync(fd)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

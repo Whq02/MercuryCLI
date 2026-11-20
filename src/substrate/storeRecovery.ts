@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeF
 import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const MAX_QUARANTINE_COPIES = 3
 
@@ -45,7 +46,7 @@ export async function quarantineDamagedStore(args: {
         .filter(n => n.startsWith(`${base}.damaged-`) && n.endsWith('.recovered'))
         .sort()
       for (const old of siblings.slice(0, Math.max(0, siblings.length - MAX_QUARANTINE_COPIES))) {
-        await unlink(join(dir, old)).catch(() => {})
+        await unlink(join(dir, old)).catch(passedOver)
       }
     } catch (e) {
       logForDebugging(`[${args.store}] quarantine write failed (recorded): ${e}`)
@@ -189,7 +190,8 @@ export async function readStoreRecoveryEvents(): Promise<StoreRecoveryEvent[]> {
   let text: string
   try {
     text = await readFile(storeRecoveryLedgerPath(), 'utf-8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: StoreRecoveryEvent[] = []

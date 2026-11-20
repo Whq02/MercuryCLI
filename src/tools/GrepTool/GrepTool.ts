@@ -56,6 +56,7 @@ import {
   renderToolUseErrorMessage,
   renderToolUseMessage,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const DEFAULT_HEAD_LIMIT = 250
@@ -764,7 +765,8 @@ export const GrepTool = buildTool({
             recordSeenLines(owner, file, generation, number, 1, omitted ? [{ line: number, visibleChars: 0 }] : [])
           }
           for (const [file, generation] of generations) if (generation !== null) context.nestedMemoryAttachmentTriggers?.add(file)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       const withContext = (input.context ?? input['-C'] ?? Math.max(input['-B'] ?? 0, input['-A'] ?? 0)) > 0

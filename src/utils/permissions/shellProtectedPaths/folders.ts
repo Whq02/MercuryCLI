@@ -8,6 +8,7 @@ import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
 import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globPartSource, mercuryHomes, wildcardSource } from './homes.js'
+import { passedOver } from '../../passedOver.js'
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
@@ -53,7 +54,8 @@ function foldersOnDisk(pattern: string): string[] {
       let names: string[] = []
       try {
         names = readdirSync(folder)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const dotLed = part.startsWith('.') || /^\{(?:[^}]*,)?\./.test(part)
       const named = names.filter(name => test.test(name) && (dotLed || !name.startsWith('.')))
@@ -77,7 +79,8 @@ function canBeEntered(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return statSync(path).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

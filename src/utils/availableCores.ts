@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { availableParallelism, cpus, platform } from 'node:os'
+import { passedOver } from './passedOver.js'
 
 const CGROUP_V2_CPU_MAX = '/sys/fs/cgroup/cpu.max'
 const CGROUP_V1_QUOTA = '/sys/fs/cgroup/cpu/cpu.cfs_quota_us'
@@ -42,7 +43,8 @@ export function resolveAvailableCores(facts: { hostCores: number; affinityCores?
 function readOrNull(path: string): string | null {
   try {
     return readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

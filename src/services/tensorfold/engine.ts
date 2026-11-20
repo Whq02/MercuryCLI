@@ -9,6 +9,7 @@ import { ADAPTER_CHECKPOINTS } from './adapter/models.js'
 import type { TensorFoldEngine, TensorFoldFamily, TensorFoldMachine } from './contracts.js'
 import { readTensorFoldMachineTruth, type MachineIo, type TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_STARTING_POINTS, type TensorFoldCheckpoint } from './starting.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
@@ -27,7 +28,8 @@ function executable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -113,7 +115,8 @@ export function parseTensorFoldCapabilities(stdout: string): TensorFoldCapabilit
     if (start < 0 || end <= start) return undefined
     try {
       parsed = JSON.parse(stdout.slice(start, end + 1))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }

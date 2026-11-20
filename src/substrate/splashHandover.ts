@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { deleteFlagEnv, flagEnv } from './flagRegistry.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { consumeCommandDispatch, requestCommandDispatch } from '../utils/cockpit/helmFocus.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const ACTIONS = new Set(['continue', 'health', 'project', 'resume', 'concourse', 'kit', 'saturn', 'logins', 'agents', 'cancel'])
 
@@ -173,7 +174,8 @@ export function consumeSplashHandover(): void {
   let home: string
   try {
     home = getMercuryHome()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   const receiptPath = join(home, 'splash-action.json')
@@ -186,7 +188,8 @@ export function consumeSplashHandover(): void {
   const decision = decideSplashReceipt(raw, Date.now(), dir => {
     try {
       return statSync(dir).isDirectory()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   }, ownLaunchId)
@@ -194,7 +197,8 @@ export function consumeSplashHandover(): void {
     for (const f of [receiptPath, join(home, 'splash-action.txt')]) {
       try {
         rmSync(f, { force: true })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -202,7 +206,8 @@ export function consumeSplashHandover(): void {
   if (decision.apply.chdir) {
     try {
       process.chdir(decision.apply.chdir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   if (decision.apply.spliceArg) {

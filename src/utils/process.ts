@@ -1,3 +1,5 @@
+import { passedOver } from './passedOver.js'
+
 const STREAM_GONE_CODES = new Set(['EPIPE', 'EIO', 'ENXIO', 'EBADF'])
 
 const PEER_GONE_WRITE_CODES = new Set([
@@ -24,7 +26,8 @@ function handleStreamGoneErrors(stream: NodeJS.WriteStream | NodeJS.ReadStream, 
     if (!code || !STREAM_GONE_CODES.has(code)) throw err
     try {
       stream.destroy()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     onGone?.(code)
   })

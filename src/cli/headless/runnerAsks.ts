@@ -17,6 +17,7 @@ import { askExpiredCause, askLimitMs, unansweredAskRefusal } from '../../utils/p
 import { BASH_TOOL_NAME } from '../../tools/BashTool/toolName.js'
 import { POWERSHELL_TOOL_NAME } from '../../tools/PowerShellTool/toolName.js'
 import { resolveShellCwd } from '../../utils/Shell.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const DOOR_CLOSED_CAUSE = 'the host closed the runner door while the ask was pending'
 
@@ -193,7 +194,7 @@ function createHostCanUseTool(channel: AskChannel): CanUseToolFn {
         const asked = raceOutcome.decision
         const hookNames = asked.outcomes.map(outcome => outcome.name).join(', ')
         requestController.abort()
-        requestPromise.catch(() => {})
+        requestPromise.catch(passedOver)
         if (asked.answer.stop !== undefined) toolUseContext.abortController.abort()
         if (asked.answer.block === undefined && asked.answer.stop === undefined) {
           if (asked.answer.rules?.length) {

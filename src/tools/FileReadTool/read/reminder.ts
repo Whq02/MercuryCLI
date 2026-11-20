@@ -1,5 +1,6 @@
 import { getCanonicalName } from '../../../utils/model/model.js'
 import type { Message } from '../../../types/message.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const REMINDER_TAKEN_CAP = 256
 const reminderTakenBy = new Set<string>()
@@ -16,7 +17,8 @@ const CYBER_RISK_REMINDER_EXEMPT_MODELS = new Set(['claude-opus-4-6'])
 export function cyberRiskReminderFor(engineModel: string): string {
   try {
     if (CYBER_RISK_REMINDER_EXEMPT_MODELS.has(getCanonicalName(engineModel))) return ''
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return CYBER_RISK_MITIGATION_REMINDER
 }

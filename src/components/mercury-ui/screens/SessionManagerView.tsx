@@ -28,6 +28,7 @@ import { useOpenEventGate } from '../useOpenEventGate.js'
 import { useStableSelection } from '../useStableSelection.js'
 import { decodeNavKey } from '../navSemantics.js'
 import { prunePaneOf, sessionListView, type OwnSessionStateWords } from './sessionManager/views.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function shellInteriorWidth(columns: number): number {
   return Math.max(40, columns - 4)
@@ -49,7 +50,8 @@ export function ownSessionStateWords(rec: { parkedAt?: number; parkReason?: stri
 function ownSessionRecord(sessionId: string): { parkedAt?: number; parkReason?: string; endedAt?: number } | undefined {
   try {
     return Object.values(readSessionWorkers()).find(rec => rec.sessionId === sessionId && rec.endedAt === undefined)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

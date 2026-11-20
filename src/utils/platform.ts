@@ -5,6 +5,7 @@ import { release } from 'node:os'
 import { memoize } from 'lodash-es'
 
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 
 export type Platform = 'macos' | 'windows' | 'wsl' | 'linux' | 'unknown'
@@ -59,7 +60,8 @@ export const getLinuxDistroInfo = memoize(async (): Promise<LinuxDistroInfo | un
       if (line.startsWith('ID=')) info.distroId = stripQuotes(line.slice('ID='.length).trim())
       else if (line.startsWith('VERSION_ID=')) info.distroVersion = stripQuotes(line.slice('VERSION_ID='.length).trim())
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return info
 })

@@ -2,13 +2,15 @@
 import { jsonStringify } from '../utils/slowOperations.js'
 import { writeOutAndExit } from './healthPresentation.js'
 import { beginReadOnlyDiagnostic } from '../utils/diagnosticReadOnly.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 function emitAndExit(value: unknown, code: number): Promise<never> {
   let text = '{}\n'
   try {
     text = jsonStringify(value, null, 2) + '\n'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return writeOutAndExit(text, code)
 }

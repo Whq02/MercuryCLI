@@ -9,6 +9,7 @@ import { HostTerminationUnconfirmed, type HostReadOnly } from '../retry.js'
 import { keptVolumes, matchesVolume } from '../volumes.js'
 
 import type { LlmHostRoad } from '../../llmHost/index.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export class VastOfferGone extends HostCreateError {
   constructor(readonly replacement?: HostOffer, detail = '') {
@@ -271,7 +272,7 @@ export class VastClient implements HostVendor {
         const created = await this.api.request('/api/v0/ssh/', z.object({ success: z.literal(true), key: z.object({ public_key: z.string() }) }), 'POST', { ssh_key: publicKey.trim() })
         if (keyMaterial(created.key.public_key) !== material) throw new Error('Vast.ai answered with a different public key.')
       } catch (error) {
-        if (await listed().catch(() => false)) return
+        if (await listed().catch(passedOverAs(false))) return
         throw new Error(this.api.redact('Vast.ai did not confirm Mercury’s SSH key on the account; no rent was sent. ' + (error instanceof Error ? error.message : String(error)) + ' Check SSH keys at https://cloud.vast.ai/manage-keys/.'))
       }
     }).catch(error => { throw new HostCreateError(this.api.redact('no instance was created — the SSH key step failed: ' + (error instanceof Error ? error.message : String(error))), 'refused') })
@@ -342,10 +343,10 @@ export class VastClient implements HostVendor {
           const reader = response.body?.getReader()
           let text = ''
           const decoder = new TextDecoder()
-          if (reader) try { while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(() => {}) }
+          if (reader) try { while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(passedOver) }
           return this.api.redact(text).split('\n').filter(Boolean).slice(-12).join('\n')
         }
-        await response.body?.cancel().catch(() => {})
+        await response.body?.cancel().catch(passedOver)
         if (jobSignal) throw new HostVendorHttpError('Vast.ai log read returned HTTP ' + response.status, response.status, retryAfterSeconds(response.headers.get('retry-after')))
         await sleep(300, signal, { throwOnAbort: true })
       }

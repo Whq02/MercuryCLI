@@ -3,6 +3,7 @@ import { getSessionMemoryContent } from '../../services/SessionMemory/sessionMem
 import { isCompactBoundaryMessage } from '../../utils/messages/systemMessages.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../../tools/AskUserQuestionTool/prompt.js'
 import type { Message } from '../../types/message.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const MESSAGE_SEPARATOR = '\n---\n'
 
@@ -59,7 +60,7 @@ export function registerSkillifySkill(): void {
     disableModelInvocation: true,
     allowedTools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', ASK_USER_QUESTION_TOOL_NAME, 'Bash(mkdir *)'],
     getPromptForCommand: async (args, context) => {
-      const memory = await getSessionMemoryContent().catch(() => null)
+      const memory = await getSessionMemoryContent().catch(passedOverAs(null))
       const userMessages = collectUserMessages(context.messages)
       const described = args.trim()
         ? `\nThe user describes the process as: ${args.trim()}`

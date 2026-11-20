@@ -17,6 +17,7 @@ import { type LiveSession, bounded, bytesWords, pageWhere } from './page.js'
 import { actConsequences, markAct, settleAfterAct } from './settle.js'
 import { actDeadline, clickGate, resolveActTarget, resolveReadTarget, settleBoundingBox } from './targets.js'
 import { humanClickPoint, pickTargetPoint } from './human.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CHOOSER_WAIT_MS = 2000
 
@@ -147,8 +148,8 @@ export async function sendUpload(
         await drag('dragCancel')
       }
     } finally {
-      await probe.evaluate(state => state.stop()).catch(() => undefined)
-      await probe.dispose().catch(() => undefined)
+      await probe.evaluate(state => state.stop()).catch(passedOverAs(undefined))
+      await probe.dispose().catch(passedOverAs(undefined))
     }
     if (accepted === true) {
       if (taken !== true) {
@@ -191,7 +192,7 @@ export async function sendUpload(
       const node = await own.send('DOM.resolveNode', { backendNodeId: chooser.backendNodeId })
       const objectId = node.object.objectId!
       const call = async <T>(body: string): Promise<T> => (await own.send('Runtime.callFunctionOn', { objectId, functionDeclaration: body, returnByValue: true })).result.value as T
-      const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(() => undefined)
+      const cancel = (): Promise<unknown> => call('function () { this.dispatchEvent(new Event("cancel", { bubbles: true })) }').catch(passedOverAs(undefined))
       const owning = s.page.frames().find(frame => (frame as { _id?: string })._id === chooser.frameId)
       const chooserOrigin = owning === undefined ? null : originOf(owning.url())
       if (judgedOrigin !== null && chooserOrigin !== judgedOrigin) {
@@ -216,7 +217,7 @@ export async function sendUpload(
       return after(`upload: ${field.desc} holds ${heldWords(held)}, chosen through the file chooser that ${selector} opened at ${pageWhere(s)} (set on the page; nothing reaches the site until the page sends it)`)
     } finally {
       own.off('Page.fileChooserOpened', onOpen)
-      await own.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(() => undefined)
+      await own.send('Page.setInterceptFileChooserDialog', { enabled: false }).catch(passedOverAs(undefined))
     }
   } finally {
     if (!delivered) await dropStagedUpload(staged.dir)

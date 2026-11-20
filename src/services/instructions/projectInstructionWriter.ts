@@ -6,6 +6,7 @@ import { NATIVE_INSTRUCTION_FILE_NAMES, mercuryNativeConvention } from './native
 import { MAX_INCLUDE_DEPTH, withinInstructionDir } from './discovery.js'
 import { clearInstructionFileCaches } from './engine.js'
 import { parseInstructionFileContent } from './sourceText.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_POINTER_DEPTH = MAX_INCLUDE_DEPTH
 
@@ -47,7 +48,8 @@ function readEstateFile(path: string): ParsedEstateFile | null {
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const { info, includePaths, bareMentionPaths } = parseInstructionFileContent(raw, path, 'Project', path)

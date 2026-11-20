@@ -4,6 +4,7 @@ import { readStoredGeminiApiKey, writeStoredGeminiApiKey } from '../providerSecr
 import { geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 type GeminiStoredSourceKind = GeminiSourceKind
 
@@ -95,7 +96,7 @@ export async function storeGeminiApiKeyLogin(
   io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string; lastStatus?: number; lastSaid?: string } | null> },
 ): Promise<GeminiKeyLoginOutcome> {
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('api-key', { force: true }).catch(passedOverAs(null)))
   const previousKey = readStoredGeminiApiKey() ?? null
   const previousSource = readPreferredGeminiSource()
   try {
@@ -134,7 +135,7 @@ export async function finishGeminiOauthConnect(io?: {
   refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>
 }): Promise<{ ok: true; receipt: string }> {
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('oauth', { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('oauth', { force: true }).catch(passedOverAs(null)))
   const snapshot = await refresh()
   const catalogueNote = snapshot?.lastError
     ? ` · catalogue: unavailable (${snapshot.lastError})`
@@ -151,7 +152,7 @@ export async function finishGeminiPlanConnect(io?: {
   refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>
 }): Promise<{ ok: true; receipt: string }> {
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('plan', { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshGeminiCatalogue('plan', { force: true }).catch(passedOverAs(null)))
   const snapshot = await refresh()
   const facts = geminiPlanFacts()
   const chat = snapshot && !snapshot.lastError ? geminiGenerateModels(snapshot as GeminiCatalogueSnapshot).length : 0

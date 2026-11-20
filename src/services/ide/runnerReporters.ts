@@ -1,5 +1,6 @@
 import * as path from 'node:path'
 import type { TestCaseResult, TestRunRecord } from './pythonTests.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface ReporterRead {
   counts: TestRunRecord['counts']
@@ -74,7 +75,8 @@ export function parseJsonReporter(text: string, root: string): ReporterRead | nu
     const parsed = JSON.parse(text) as unknown
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null
     report = parsed as JsonReport
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (!Array.isArray(report.testResults) || typeof report.numTotalTests !== 'number') return null
@@ -157,7 +159,8 @@ export function parseGoTestJson(text: string, _root: string): ReporterRead | nul
     let ev: GoEvent
     try {
       ev = JSON.parse(trimmed) as GoEvent
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (!ev || typeof ev.Action !== 'string' || !GO_TEST_ACTIONS.has(ev.Action)) continue

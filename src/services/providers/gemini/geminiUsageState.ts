@@ -1,3 +1,4 @@
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const GEMINI_PLAN_USAGE_ABSENCE_NOTE =
   "Google states no spend or credit figure for a Google sign-in; the tier it reports and the quota left per model on its roster (read with the model list) are the only meters it gives — the plan's own page at one.google.com is the view."
@@ -29,7 +30,8 @@ export function recordGeminiRateHeaders(
     if (Number.isFinite(retryAfter) && retryAfter > 0) {
       observed = { resetsAtMs: now() + retryAfter * 1000, observedAtMs: now() }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

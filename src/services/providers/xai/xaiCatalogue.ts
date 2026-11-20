@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable, quietBodyJson, serviceWordsOf, wordsNameTheKey, type ServiceWords } from '../catalogueBody.js'
 import { xaiGrokProxyListHeaders, xaiInferenceBase, resolveXaiCredentialSnapshot, resolveXaiCredential } from './xaiAccounts.js'
 import { isXaiChatModelId, xaiDisplayPin, xaiDisplayName, type XaiDisplayPin } from './xaiPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const XAI_CATALOGUE_TTL_MS = 5 * 60_000
@@ -190,7 +191,7 @@ export function kickXaiCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: t
   if (!catalogueTrafficVerdict('xai', env).allowed) return false
   const cached = getCachedXaiCatalogue(env)
   if (cached && cached.lastError === undefined) return false
-  void refreshXaiCatalogue(opts).catch(() => null)
+  void refreshXaiCatalogue(opts).catch(passedOverAs(null))
   return true
 }
 export interface XaiCatalogueRow {

@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { isEngineInternalPath, runGit, type EngineTreeFacts } from './frozenTree.js'
 import { engineLogErrors, stripEngineAnsi } from './logs.js'
 import { engineRunPath, engineRunResultFile, engineRunsDir, isEngineJobId } from './paths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type ProofTreeFacts = Pick<EngineTreeFacts, 'commit' | 'baseBlobs' | 'overlay'>
 
@@ -330,7 +331,8 @@ export function latestMatchingEvidenceRun(projectRoot: string, fingerprint: stri
   let entries: string[]
   try {
     entries = readdirSync(engineRunsDir(projectRoot))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   let newest: { id: string; endedAt: number } | null = null
@@ -343,7 +345,8 @@ export function latestMatchingEvidenceRun(projectRoot: string, fingerprint: stri
       const endedAt = record.endedAt ? Date.parse(record.endedAt) : NaN
       if (record.jobId !== id || !record.complete || !Number.isFinite(endedAt) || record.proofTreeFingerprint !== fingerprint || realpathSync(record.root) !== realpathSync(projectRoot)) continue
       if (!newest || endedAt > newest.endedAt || (endedAt === newest.endedAt && id > newest.id)) newest = { id, endedAt }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

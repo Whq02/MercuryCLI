@@ -6,6 +6,7 @@ import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
 import { getAuthConfigHomeDir } from '../envUtils.js'
 import { noteCredentialChange, publishSignInRecord } from './signInLedger.js'
+import { passedOver } from '../passedOver.js'
 
 export type SignInRefusal = { status: 401 | 403; at: number; message?: string; credential?: 'key' | 'sign-in'; remedy?: string }
 type StoredRefusal = SignInRefusal & { identity: string }
@@ -84,7 +85,7 @@ function currentCredential(family: string): Credential | undefined {
       }
       default: return undefined
     }
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 function pathOf(family: string, home: string): string | undefined {
@@ -97,7 +98,7 @@ function readFile(family: string, home: string): RefusalFile | undefined {
     if (!path) return undefined
     const value = JSON.parse(readFileSync(path, 'utf8')) as RefusalFile
     return value?.version === 1 && typeof value.generation === 'string' ? value : undefined
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 function readStored(family: string, home: string): StoredRefusal | undefined {
@@ -115,7 +116,7 @@ function openrouterKeyProbeRefusal(): SignInRefusal | undefined {
     if (!refused || !(refused.status === 401 || refused.status === 403)) return undefined
     const message = serviceMessage(refused.message)
     return { status: refused.status, at: refused.observedAtMs > 0 ? refused.observedAtMs : Date.now(), ...(message !== undefined ? { message } : {}), credential: 'key', ...(refused.source === 'env' ? { remedy: 'update OPENROUTER_API_KEY' } : {}) }
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 export function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()): void {
@@ -140,7 +141,7 @@ function reconnectWords(family: string): string {
     const { reconnectDoorFor } = require('../../services/providers/credentialWall.js') as typeof import('../../services/providers/credentialWall.js')
     const door = reconnectDoorFor(family.startsWith('compat-') ? 'openai-compat' : family)
     return door.startsWith('/') ? `${door} reconnects` : `update ${door}`
-  } catch { return '/logins reconnects' }
+  } catch (error) { passedOver(error); return '/logins reconnects' }
 }
 
 export function signInRefusalWords(refusal: SignInRefusal, family: string): string {

@@ -1,12 +1,14 @@
 
 import { projectIntelEnabled } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function refsOn(): boolean {
   try {
     const { mercuryRefsEnabled } =
       require('../resources/contracts.js') as typeof import('../resources/contracts.js')
     return mercuryRefsEnabled()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

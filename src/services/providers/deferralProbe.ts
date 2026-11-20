@@ -4,6 +4,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import type { AnthropicMessageParams } from './anthropic/anthropicWire.js'
 import type { OpenaiResponsesRequest } from './openai/openaiWire.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type GatewayProbeVerdict =
   | 'block'
@@ -42,7 +43,8 @@ function readStore(): ProbeStoreFile {
     if (parsed && parsed.version === 1 && parsed.hosts && typeof parsed.hosts === 'object') {
       file = { version: 1, hosts: { ...parsed.hosts } }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   cache = { path, file }
   return file
@@ -55,7 +57,8 @@ function writeStore(file: ProbeStoreFile): void {
     const tmp = `${path}.${process.pid}.tmp`
     writeFileSync(tmp, JSON.stringify(file, null, 2))
     renameSync(tmp, path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   cache = { path, file }
 }

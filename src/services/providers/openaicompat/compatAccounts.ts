@@ -5,6 +5,7 @@ import { COMPAT_ENDPOINT_NAME, CompatEndpointSchema, CompatProviderSchema, type 
 import { readStoredCompatApiKey } from '../providerSecrets.js'
 import { configuredProviderKeyCommand, resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { COMPAT_MODEL_PREFIX } from '../idSpaces.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface CompatEndpoint extends CompatEndpointSettings {
   name: string
@@ -18,7 +19,7 @@ function configBlock(): unknown {
   let block: unknown
   try {
     block = getGlobalConfig().compatProvider
-  } catch {}
+  } catch (error) { passedOver(error) }
   for (const source of ['userSettings', 'flagSettings', 'policySettings'] as const) {
     const value = getSettingsForSource(source)?.compatProvider
     if (value !== undefined) block = value
@@ -111,7 +112,7 @@ function rentedMachineWords(hostPodId: string): string | undefined {
     const { hostMachineName } = require('../../../commands/llmhost/words.js') as typeof import('../../../commands/llmhost/words.js')
     const record = readHostRecord(hostPodId)
     return record ? hostMachineName(record.vendor ?? 'runpod', record.id) + ' · $' + record.price.toFixed(2) + '/hr' : undefined
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 export function resolveCompatAccount(env: NodeJS.ProcessEnv = process.env, name?: string): { kind: 'api-key' | 'keyless'; label: string; keySource?: 'env' | 'stored' } | undefined {

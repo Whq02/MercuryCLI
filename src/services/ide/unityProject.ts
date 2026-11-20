@@ -6,6 +6,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { projectFolderPath } from '../../utils/projectHomeStores.js'
 import { whichSync } from '../../utils/which.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const ROOT_WALK_LIMIT = 24
 
@@ -23,7 +24,8 @@ export function unityTestResultsPath(root: string, mode: 'EditMode' | 'PlayMode'
 function isDir(p: string): boolean {
   try {
     return statSync(p).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -31,7 +33,8 @@ function isDir(p: string): boolean {
 function isFile(p: string): boolean {
   try {
     return statSync(p).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -139,7 +142,8 @@ export function locateUnityEditors(testOpts?: {
     let versionDirs: string[]
     try {
       versionDirs = readdirSync(root).filter(name => isDir(path.join(root, name)))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     versionDirs.sort(compareUnityVersionsDesc)

@@ -47,6 +47,7 @@ import {
   remoteSessionRule,
 } from '../../services/remoteFiles/target.js'
 import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
+import { passedOver } from '../passedOver.js'
 
 
 const DANGEROUS_FILES: string[] = [
@@ -310,7 +311,8 @@ export function isSettingsFilePath(filePath: string): boolean {
     try {
       const path = getSettingsFilePathForSource(source)
       if (path && normalizeCaseForComparison(expandPath(path)) === folded) return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return false
@@ -486,14 +488,16 @@ export function checkReadableInternalPath(absolutePath: string, _input?: Record<
 function isAgentMemory(path: string): boolean {
   try {
     return (require('../../tools/AgentTool/agentMemory.js') as { isAgentMemoryPath(p: string): boolean }).isAgentMemoryPath(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
 function isMneme(path: string): boolean {
   try {
     return (require('../../mneme/paths.js') as { isMnemePath(p: string): boolean }).isMnemePath(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -501,7 +505,8 @@ function isMneme(path: string): boolean {
 function ownGround(path: string): string | null {
   try {
     return (require('./ownGround.js') as { ownGroundCategory(p: string): string | null }).ownGroundCategory(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -533,12 +538,14 @@ function readableInternalCategory(path: string): string | null {
     if (folded === projectStore || folded.startsWith(projectStore + platformSep.toLowerCase()) || folded.startsWith(projectStore + '/')) {
       return 'project directory'
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const toolResults = normalizeCaseForComparison((require('../toolResultStorage.js') as { getToolResultsDir(): string }).getToolResultsDir())
     if (folded.startsWith(toolResults)) return 'tool-results directory'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (isAgentMemory(path)) return 'agent-memory directory'
   if (isMneme(path)) return 'memory directory'
@@ -636,7 +643,8 @@ function rootForSource(source: PermissionRule['source']): string | undefined {
       try {
         const path = getSettingsFilePathForSource(source)
         return path ? getDirectoryForPath(path) : undefined
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
   }

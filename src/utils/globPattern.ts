@@ -1,5 +1,6 @@
 import { existsSync, globSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { passedOver } from './passedOver.js'
 
 export function normalizeGlobPattern(pattern: string, platform: NodeJS.Platform = process.platform): string {
   if (platform !== 'win32') return pattern
@@ -42,7 +43,7 @@ export function resolveSearchGlob(pattern: string, root: string, intoMixed = tru
     return [escaped]
   }
   const directories = matches.filter(path => {
-    try { return statSync(join(root, path)).isDirectory() } catch { return false }
+    try { return statSync(join(root, path)).isDirectory() } catch (error) { passedOver(error); return false }
   })
   if (directories.length === 0 || (!intoMixed && directories.length < matches.length)) return [escaped]
   const recursive = `${escaped.replace(/\/$/, '')}/**`

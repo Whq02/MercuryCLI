@@ -4,6 +4,7 @@ import { logError } from '../../utils/log.js'
 import { resetLspFailureLedger } from './failureLedger.js'
 import { createLSPServerManager, type LSPServerManager, type LSPShutdownResult } from './LSPServerManager.js'
 import { registerLSPNotificationHandlers } from './passiveFeedback.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type InitState = 'not-started' | 'pending' | 'success' | 'failed'
@@ -63,7 +64,7 @@ export function getInitializationStatus():
 export async function waitForInitialization(): Promise<void> {
   if (initState !== 'pending') return
   if (initPromise === undefined) return
-  await initPromise.catch(() => {})
+  await initPromise.catch(passedOver)
 }
 
 export function isLspConnected(): boolean {

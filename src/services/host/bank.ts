@@ -14,6 +14,7 @@ import type { HostRecipe, HostWeightManifest as WeightManifest } from './recipes
 import { hostRecipeSchema, hostWeightManifestSchema } from './recipesFile.js'
 import { hostDirectory } from './store.js'
 import { fastLoadEstimate, keptVolumes, matchesVolume, vastVolumeBilling, volumeModel, type KeptVolume } from './volumes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const bankedModelSchema = z.object({
   path: z.string(), bytes: z.number().nonnegative(), verifiedAt: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -29,8 +30,8 @@ interface BankReceipt { sha256: string; bytes: number; files: number; check: 'ma
 export const BANK_DOOR = 'Bank · your weights'
 const registryPath = (): string => join(hostDirectory(), 'bank.json')
 const homeDirectory = (): string => process.platform === 'win32' ? homedir() : process.env.HOME?.trim() || homedir()
-const isDirectory = (path: string): boolean => { try { return statSync(path).isDirectory() } catch { return false } }
-const fileSize = (path: string): number | undefined => { try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch { return undefined } }
+const isDirectory = (path: string): boolean => { try { return statSync(path).isDirectory() } catch (error) { passedOver(error); return false } }
+const fileSize = (path: string): number | undefined => { try { const stat = lstatSync(path); return stat.isFile() ? stat.size : undefined } catch (error) { passedOver(error); return undefined } }
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex')
 export function readBankRegistry(): BankRegistry {
   try { return registrySchema.parse(JSON.parse(readFileSync(registryPath(), 'utf8'))) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { models: {} }; throw error }
@@ -53,7 +54,7 @@ export function bankedHostRecipes(folder = bankFolder()): HostRecipe[] {
 export function bankCandidates(): string[] {
   const home = homeDirectory()
   if (process.platform === 'win32' || isProofShapeRun()) return [join(home, 'mercury-model-bank'), join(home, 'models')]
-  const mounted = (root: string): string[] => { try { return readdirSync(root).sort().map(name => join(root, name, 'mercury-model-bank')) } catch { return [] } }
+  const mounted = (root: string): string[] => { try { return readdirSync(root).sort().map(name => join(root, name, 'mercury-model-bank')) } catch (error) { passedOver(error); return [] } }
   return [join(home, 'mercury-model-bank'), join(home, 'models'), ...mounted('/Volumes'), ...mounted('/mnt')]
 }
 export const bankCandidateWords = (): string => process.platform === 'win32' ? '~\\mercury-model-bank or ~\\models' : '~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank'
@@ -91,10 +92,10 @@ export function bankModelPath(folder: string, recipe: HostRecipe): string {
         try {
           const manifest = JSON.parse(readFileSync(join(path, name), 'utf8')) as { model?: string; repo_id?: string; _name_or_path?: string }
           if ([manifest.model, manifest.repo_id, manifest._name_or_path].includes(recipe.model)) return true
-        } catch {}
+        } catch (error) { passedOver(error) }
       }
       return Boolean(recipe.weightFile && basename(recipe.weightFile).startsWith(posix.basename(recipe.model) + '-') && sums.has(recipe.weightFile))
-    } catch { return false }
+    } catch (error) { passedOver(error); return false }
   })
   return matching.length === 1 ? matching[0]! : canonical
 }
@@ -172,7 +173,7 @@ export function bankState(recipe: HostRecipe, folder = bankFolder()): BankState 
   return { folder, path, banked, sealed: sums !== undefined, pinned, files: files.length, missing, bytes, ...(banked && current && entry.verifiedAt ? { verifiedAt: entry.verifiedAt, check: entry.check } : {}), ...(entry?.error ? { error: entry.error, failedAt: entry.failedAt } : {}) }
 }
 export function bankFree(folder: string): number | undefined {
-  try { const stat = statfsSync(folder); return Number(stat.bavail) * Number(stat.bsize) } catch { return undefined }
+  try { const stat = statfsSync(folder); return Number(stat.bavail) * Number(stat.bsize) } catch (error) { passedOver(error); return undefined }
 }
 export const sizeWords = (gb: number): string => gb >= 1000 ? (gb / 1000).toFixed(1) + ' TB' : gb >= 1 ? (gb >= 10 ? Math.round(gb) : Math.round(gb * 10) / 10) + ' GB' : gb >= 0.001 ? +(gb * 1000).toFixed(1) + ' MB' : +(gb * 1e6).toFixed(1) + ' KB'
 export const bytesWords = (bytes: number): string => sizeWords(bytes / 1e9)
@@ -277,11 +278,11 @@ export function folderBytes(path: string): number {
   let total = 0
   const walk = (dir: string): void => {
     let names: string[]
-    try { names = readdirSync(dir) } catch { return }
+    try { names = readdirSync(dir) } catch (error) { passedOver(error); return }
     for (const name of names) {
       const file = join(dir, name)
       let stat
-      try { stat = lstatSync(file) } catch { continue }
+      try { stat = lstatSync(file) } catch (error) { passedOver(error); continue }
       if (stat.isDirectory()) walk(file)
       else if (stat.isFile()) total += stat.size
     }

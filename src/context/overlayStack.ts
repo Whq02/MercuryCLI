@@ -1,5 +1,6 @@
 
 import { currentInputEventSeq } from '../ink/events/input-event.js'
+import { passedOver } from '../utils/passedOver.js'
 
 interface OverlayEntry {
   readonly token: number
@@ -22,7 +23,8 @@ function bump(): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -75,7 +77,8 @@ export function popOverlay(token: number): void {
   if (wasTop && entry.onFocusReturn) {
     try {
       entry.onFocusReturn()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

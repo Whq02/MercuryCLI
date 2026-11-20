@@ -12,6 +12,7 @@ import { ADAPTER_CHILD_PREFIX, ADAPTER_SERVED_BY, ADAPTER_SPEAKER, ADAPTER_VERSI
 import { readLlamaServerVersion, resolveLlamaServer, type LlamaServerVersion } from './llama.js'
 import { ADAPTER_CHECKPOINTS, adapterCheckpointOf, type AdapterCheckpoint } from './models.js'
 import { sleep } from '../../../utils/sleep.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type ServeArgs = { repo: string; name?: string; window: number; port: number; host: string; promptCacheGib: number; apiKeyFile?: string; drafter?: string }
 
@@ -268,7 +269,8 @@ async function innerHealthy(port: number): Promise<boolean> {
   try {
     const response = await fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(1_500) })
     return response.status === 200
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -278,7 +280,8 @@ async function innerContext(port: number): Promise<number | undefined> {
     const response = await fetch(`http://127.0.0.1:${port}/props`, { signal: AbortSignal.timeout(3_000) })
     const props = rec(await response.json())
     return num(rec(props?.default_generation_settings)?.n_ctx)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -306,7 +309,8 @@ export function readChildPidFile(port: number): { pid: number; token: string } |
     const [first = '', ...rest] = readFileSync(adapterChildPidFile(port), 'utf8').split('\n')
     const pid = Number(first.trim())
     return Number.isInteger(pid) && pid > 0 ? { pid, token: rest.join('\n').trim() } : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -320,7 +324,8 @@ export async function reapStaleChild(port: number, platform: NodeJS.Platform, sa
   if (!(await (io.isLlamaServer ?? (pid => isLlamaServer(pid, platform)))(stale.pid))) return false
   try {
     process.kill(stale.pid)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   say(`[${ADAPTER_SPEAKER}] stopped a llama-server left behind by an earlier serve on port ${port} (pid ${stale.pid})`)
@@ -332,7 +337,8 @@ export async function rememberChild(port: number, pid: number, startToken: (pid:
     const token = (await startToken(pid)) ?? ''
     mkdirSync(join(tmpdir(), 'mercury-tensorfold-adapter'), { recursive: true })
     writeFileSync(adapterChildPidFile(port), `${pid}\n${token}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     void 0
   }
 }

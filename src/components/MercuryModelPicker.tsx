@@ -77,6 +77,7 @@ import { focusedGptFacts } from './modelPicker/focus.js'
 import { pickerGeometry } from './modelPicker/geometry.js'
 import { pickerActs, pickerCursor } from './modelPicker/moves.js'
 import { pickerLineRenderer } from './modelPicker/renderLine.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export { fmtCtx } from './modelPicker/choice.js'
 export type { ModelChoice } from './modelPicker/choice.js'
@@ -84,7 +85,8 @@ export type { ModelChoice } from './modelPicker/choice.js'
 export function modelPickerCentred(): boolean {
   try {
     return getInitialSettings().view?.modelPicker?.centred !== false
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -302,7 +304,7 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
   const focusedLocalKey = focusedLocal !== undefined ? `${focusedLocal.server}/${focusedLocal.id}` : null
   useLoad(() => {
     if (focusedLocal === undefined || !focusedLocalCycles || focusedLocal.geometry === undefined) return
-    void refreshLocalMachineTruth(focusedLocal.server).catch(() => undefined)
+    void refreshLocalMachineTruth(focusedLocal.server).catch(passedOverAs(undefined))
   }, [focusedLocalKey])
   const panelView = view === 'tensorfold'
   const localOffer = !panelView && !filtering && headings?.[LOCAL_MODEL_GROUP]?.reason !== undefined && !groups.some(group => group.group === LOCAL_MODEL_GROUP)
@@ -311,7 +313,8 @@ export function MercuryModelPicker({ models: given, current = 'opus-4-8', ctxPct
     if (!p || focusedSupports1m || focusedGptWindow) return false
     try {
       return getContextWindowForModel(parseUserSpecifiedModel(stripContext1m(p))) >= 1_000_000
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })()

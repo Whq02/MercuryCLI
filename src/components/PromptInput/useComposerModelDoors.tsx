@@ -59,13 +59,14 @@ import { formatResetTime } from '../../utils/format.js'
 import { useNowTick } from '../mercury-ui/components.js'
 import type { OverlaySurface } from './composerOverlay.js'
 import { applyModelSelectionOf, modelDoorsSurfaceOf } from './composerModelDoorsParts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function traceCapHandoff(ev: string, fields: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
   if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ t: Date.now(), ev, ...fields })}\n`)
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 type ComposerModelDoorsInput = {

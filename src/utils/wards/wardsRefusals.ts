@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
+import { passedOver } from '../passedOver.js'
 
 type RefusalWorld = ReadWorld & {
   platform: NodeJS.Platform
@@ -230,7 +231,8 @@ function insideStartingFolder(path: string, world: RefusalWorld): boolean {
   const base = `${slashed(world.startingFolder).replace(/\/+$/, '')}/`
   try {
     return slashed(world.resolvePath(path).path).startsWith(base)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

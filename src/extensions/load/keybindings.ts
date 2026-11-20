@@ -4,11 +4,13 @@ import { getKeybindingsPath, getProjectKeybindingsPath } from '../../keybindings
 import { chordToString, parseChord } from '../../keybindings/parser.js'
 import type { KeybindingBlock } from '../../keybindings/types.js'
 import { activeFor } from '../active.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function canonical(chord: string): string | null {
   try {
     return chordToString(parseChord(chord))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -36,7 +38,8 @@ function operatorBlocks(): KeybindingBlock[] {
           if (block && typeof block === 'object' && typeof (block as KeybindingBlock).context === 'string' && (block as KeybindingBlock).bindings) blocks.push(block as KeybindingBlock)
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return blocks

@@ -23,6 +23,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const OPERATOR_KEY_VERSION = 1 as const
 
@@ -223,7 +224,8 @@ export function verifyOperatorSignature(
       pub,
       signature,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -183,7 +183,7 @@ export function useHistorySearch(
       corpus => {
         if (corpusRef.current === load) corpusValueRef.current = corpus
       },
-      () => {},
+      passedOver,
     )
     seenRef.current.clear()
     queryRef.current = ''
@@ -356,6 +356,7 @@ export function useHistorySearch(
 }
 
 import { useReducer } from 'react'
+import { passedOver } from '../utils/passedOver.js'
 function useReducerLike(): [number, () => void] {
   return useReducer((n: number) => n + 1, 0)
 }

@@ -39,6 +39,7 @@ import {
   takeBoxHeldFires,
 } from './saturnBoxSchedules.js'
 import { wakeDelayOfSpelling, type SaturnOrigin } from '../utils/messages/noticeRows.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export const DEFAULT_SATURN_CATCHUP_WINDOW_MS = 6 * 60 * 60 * 1000
@@ -753,7 +754,8 @@ export function fileMoveStamp(path: string): string {
   try {
     const st = statSync(path)
     return `${st.ino}:${st.mtimeMs}:${st.size}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'absent'
   }
 }

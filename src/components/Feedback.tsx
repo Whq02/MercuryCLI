@@ -44,6 +44,7 @@ import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
 import { feedbackView, type Step } from './feedback/feedbackView.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 
 export function redactSensitiveInfo(text: string): string {
@@ -212,7 +213,8 @@ function installLine(): string {
                     ? 'The mercury launcher over a deployed runtime'
                     : 'Unrecognized install shape'
     return `${option} — ${provenanceLine(p)}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unknown — the install probe threw'
   }
 }
@@ -248,7 +250,7 @@ async function gatherReport(
     ...entry,
     error: redactSensitiveInfo(entry.error),
   }))
-  const isGit = await getIsGit().catch(() => false)
+  const isGit = await getIsGit().catch(passedOverAs(false))
 
   let rawTranscript: string | undefined
   try {

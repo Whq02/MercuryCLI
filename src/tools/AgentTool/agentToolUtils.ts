@@ -88,6 +88,7 @@ import type { CanUseToolFn } from '../../Tool.js'
 import { AGENT_TOOL_NAME, MERCURY_SCOUT_AGENT_TYPE } from './constants.js'
 import { STRUCTURED_TAG } from '../../constants/xml.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MCP_TOOL_PREFIX = 'mcp__'
 
@@ -726,7 +727,8 @@ export async function partialResultEnvelopeBlock(args: {
         usage: args.usage,
       }),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -1275,7 +1277,8 @@ export async function runAsyncAgentLifecycle(args: {
           },
         }),
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     const notifies = (overloadEpisode === null || overloadDeathNotifies(overloadEpisode)) && !continuedOnGuidance

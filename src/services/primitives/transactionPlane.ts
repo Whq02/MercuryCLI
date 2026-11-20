@@ -14,6 +14,7 @@ import {
   type TransactionRecord,
   type TransactionState,
 } from './transaction.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const RING_CAP = 128
 
@@ -179,7 +180,8 @@ function ingestReceipt(receipt: ChangeReceipt): void {
         })
         break
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

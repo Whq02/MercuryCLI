@@ -6,6 +6,7 @@ import { collectCodeFiles, importNeighbours, pathTokens, SCAN_FILE_CAP } from '.
 export { collectCodeFiles } from './capsule.js'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const TEST_PATH_RE = /(^|\/)((tests?|__tests__|spec)\/|test_[^/]+\.py$)|\.(test|spec)\.[a-z]+$/
 
@@ -39,7 +40,8 @@ function changeStats(workspace: string, target: string): { added: number; delete
       added += Number(a) || 0
       deleted += Number(d) || 0
       any = true
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return any ? { added, deleted } : null
@@ -70,7 +72,8 @@ export function projectImpact(workspace: string, target: string): ImpactProjecti
   if (!abs.startsWith(prefix)) return null
   try {
     if (!statSync(abs).isFile()) return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 

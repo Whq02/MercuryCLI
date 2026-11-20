@@ -9,6 +9,7 @@ import { formatTextSize, readUsage, type PinRecord } from '../../../mneme/mnemeU
 import { getInstructionCompositionState, getInstructionFiles } from '../../../services/instructions/engine.js'
 import { toRelativePath, toTildePath } from '../../../utils/path.js'
 import { humanStamp, type ConventionHit, type LineageTableRow, type OverviewRow, type PageLine } from '../memoryCentreLayout.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const NOTE_COLOR: Record<'ok' | 'warn' | 'fail' | 'pending', string> = {
   ok: TEAL,
@@ -204,7 +205,8 @@ export async function instructionFileFacts(): Promise<{ count: number; profile: 
   try {
     const files = await getInstructionFiles()
     return { count: files.length, profile: getInstructionCompositionState().resolution.resolved }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -212,7 +214,8 @@ export async function instructionFileFacts(): Promise<{ count: number; profile: 
 export async function instructionTexts(): Promise<{ path: string; text: string }[]> {
   try {
     return (await getInstructionFiles()).map(file => ({ path: file.path, text: file.rawContent ?? file.content }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

@@ -5,6 +5,7 @@ import { rgbToXterm256 } from '../../ink/cell-grid.js'
 import { truecolorActive } from '../../ink/colorize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { groundRgb } from './spriteToAnsi.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ImageProtocol = 'iterm' | 'kitty' | 'sixel' | 'cells' | 'link'
 
@@ -138,7 +139,7 @@ const loadSharp = (): Promise<Sharp> => {
 
 export function _setSharpUnavailableForTesting(message = 'sharp native binding unavailable'): void {
   sharpLoad = Promise.reject(new Error(message))
-  sharpLoad.catch(() => {})
+  sharpLoad.catch(passedOver)
 }
 
 export function _resetSharpForTesting(): void {

@@ -6,6 +6,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const TENSORFOLD_KEY_LABEL = 'mercury'
 const TENSORFOLD_KEY_SCOPE = 'inference'
@@ -91,7 +92,8 @@ export function writeTensorFoldKeyFile(opts: { path?: string; key?: string; labe
   publishAtomicSync(path, `${line}\n`, { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { path, key, line }
 }

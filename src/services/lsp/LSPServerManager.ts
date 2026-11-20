@@ -9,6 +9,7 @@ import type { LSPStopResult } from './LSPClient.js'
 import { noteOutOfBandWrite } from './LSPDiagnosticRegistry.js'
 import { createLSPServerInstance, isLspStartFailure, type LSPServerInstance } from './LSPServerInstance.js'
 import { MERCURY_PYRIGHT_SERVER_NAME, pyrightWorkspaceConfiguration } from './pyrightLane.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type LspRevalidationReport = {
@@ -98,7 +99,8 @@ async function revalidateOpenDocumentsOf(
     let path: string
     try {
       path = fileURLToPath(uri)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     report.checked++
@@ -275,7 +277,8 @@ export function createLSPServerManager(): LSPServerManager {
     try {
       const stat = statSync(path)
       return { mtimeMs: stat.mtimeMs, size: stat.size }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }

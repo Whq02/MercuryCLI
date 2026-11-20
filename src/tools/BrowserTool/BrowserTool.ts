@@ -49,6 +49,7 @@ import { firstRequestWords, popupWords } from './browser/settle.js'
 import { checkBrowserPermissions, sentByEmulation } from './browser/permissions.js'
 import { validateBrowserInput } from './browser/validate.js'
 import { runOp } from './browser/ops.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { browserToolEnabled, EXTRACT_CAP, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './browser/schema.js'
 export type { Input, Output } from './browser/schema.js'
 export { browserGoneMidOpWords, driverFailureWords, errorChainText, isDriverTimeout, openSchemeRefusal } from './browser/failures.js'
@@ -299,7 +300,8 @@ ${cap === null ? '' : `Cap: ${cap} child browsers per session plus a reserved le
             },
           ],
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const text =

@@ -10,6 +10,7 @@ import { acceptUserRequest, noteTurnEnd } from './runCoordinator.js'
 import { ownerFromToolUseContext } from './resolveOwner.js'
 import { markTreeSuspectAfterTurn } from '../../utils/verification/verificationState.js'
 import { isOperatorTurn } from '../../utils/messages/operatorTurns.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function turnOwningSource(querySource: QuerySource | undefined): boolean {
   if (querySource === undefined) return false
@@ -67,7 +68,8 @@ export function noteQueryTurnStart(params: {
       rootMessageId: root.id,
     })
     beginModelTurnExecution(owner, objectiveFromRequest(root.text))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -86,6 +88,7 @@ export async function noteQueryTurnEnd(params: {
     })
     settleModelTurnExecution(owner, { aborted, reason: params.reason })
     markTreeSuspectAfterTurn()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

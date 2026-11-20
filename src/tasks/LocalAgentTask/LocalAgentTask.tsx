@@ -53,6 +53,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { mirrorSwarmNotice } from '../../services/crewBoard/seam.js'
 import { taskRow } from '../../rows/project.js'
 import { NOTIFICATION_RESULT_CAP_CHARS } from '../../services/agentResults/summaryRoom.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const DEFAULT_AGENT_TYPE = 'mercury-crew'
@@ -197,7 +198,8 @@ export function createActivityDescriptionResolver(
     if (!tool) return null
     try {
       return tool.getActivityDescription?.(input) ?? null
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }
@@ -393,7 +395,8 @@ export function usageWindowPauseOf(messages: readonly Message[], model: string |
     if (last.error !== 'rate_limit') return {}
     try {
       return observedFamilyWindow(family, undefined, { model: model ?? null })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return {}
     }
   })()

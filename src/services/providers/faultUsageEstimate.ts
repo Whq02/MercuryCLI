@@ -3,6 +3,7 @@ import type { AssistantMessage } from '../../types/message.js'
 import { EMPTY_USAGE } from '../api/emptyUsage.js'
 import { roughTokenCountEstimation } from '../tokenEstimation.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function streamedCharsOf(minted: ReadonlyArray<Pick<AssistantMessage, 'message'>>): number {
   let chars = 0
@@ -25,7 +26,8 @@ function streamedCharsOf(minted: ReadonlyArray<Pick<AssistantMessage, 'message'>
 function requestCharsOf(request: unknown): number {
   try {
     return JSON.stringify(request)?.length ?? 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }

@@ -18,6 +18,7 @@ import { ADAPTER_ENGINE_WORDS, llamaCppWords, servedByAdapter } from '../../serv
 import { readTensorFoldSupportLine, type TensorFoldSupportFocus } from '../../services/providers/local/tensorfoldSupport.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { FEED, pullActOf, refusedActOf, servedAddress, type FactsState, type TensorFoldAct } from './scene.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export type RoadIo = {
   serve?: ServeIo
@@ -110,7 +111,8 @@ export function supportFocusOf(row: Pick<TensorFoldInventoryRow, 'repo' | 'draft
 async function supportLineOf(io: RoadIo, focus?: TensorFoldSupportFocus): Promise<string | undefined> {
   try {
     return await (io.supportLine ?? readTensorFoldSupportLine)(focus)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -207,7 +209,7 @@ export async function serveTensorFoldRow(row: TensorFoldInventoryRow, window: nu
         },
       )
     } catch (error) {
-      await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(() => undefined)
+      await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(passedOverAs(undefined))
       if (error instanceof TensorFoldStartError) {
         if (error.refusal !== null) {
           const refusal = error.refusal
@@ -256,7 +258,7 @@ export async function stopTensorFoldRow(row: Pick<TensorFoldInventoryRow, 'repo'
   if (mine === undefined) return 'nothing to stop · Mercury did not start it'
   setAct(row.repo, undefined)
   await stopTensorFold(mine.name, io.serve)
-  await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(() => undefined)
+  await refreshLocalDiscovery({ force: true, ...(io.prove?.env !== undefined ? { env: io.prove.env } : {}) }).catch(passedOverAs(undefined))
   mintImmediateReceipt(FEED.stopped(mine.name, mine.servedBy))
   return `stopped ${mine.name}`
 }

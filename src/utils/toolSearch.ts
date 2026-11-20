@@ -14,6 +14,7 @@ import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { toolDeferralEnabled } from './model/capabilities.js'
 import { deferralWireFormFor, type DeferralWireForm } from '../services/providers/deferralWire.js'
 import { zodToJsonSchema } from './zodToJsonSchema.js'
+import { passedOver } from './passedOver.js'
 
 
 type ToolSearchMode = 'tst' | 'tst-auto' | 'standard'
@@ -130,7 +131,8 @@ const memoizedDeferredToolTokens = memoize(
       const total = await counted.count(deferrableTools, getToolPermissionContext, agentInfo, model)
       if (total === 0) return null
       return Math.max(0, total - counted.overhead)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   },
@@ -150,7 +152,8 @@ function characterHeuristic(deferrableTools: Tool[]): number {
       if (schema !== undefined) {
         try {
           total += JSON.stringify(zodToJsonSchema(schema)).length
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }

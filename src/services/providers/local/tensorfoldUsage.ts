@@ -4,6 +4,7 @@ import type { CompatRuntimeReading, CompatUsage } from '../openaicompat/compatCh
 import { localRecordFor, localWireId } from './localCatalogue.js'
 import { getCachedLocalDiscovery, type LocalDiscoverySnapshot } from './localDiscovery.js'
 import { tensorFoldHostAddress, tensorFoldHosts } from './tensorfoldHosts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface TensorFoldTurnReading {
   at: number
@@ -112,7 +113,8 @@ function readServed(): readonly TensorFoldServed[] {
   try {
     const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
     return servedTensorFold()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -120,7 +122,8 @@ function readServed(): readonly TensorFoldServed[] {
 function readHosts(): readonly TensorFoldHost[] {
   try {
     return tensorFoldHosts()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

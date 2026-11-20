@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { daemonDir, daemonStatePath } from './controlSocket.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function daemonLockPath(): string {
   return join(daemonDir(), 'daemon.lock')
@@ -11,7 +12,8 @@ function readLockHolderPidSync(path: string = daemonLockPath()): number | null {
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as { pid?: unknown }
     return typeof parsed?.pid === 'number' && Number.isInteger(parsed.pid) && parsed.pid > 0 ? parsed.pid : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

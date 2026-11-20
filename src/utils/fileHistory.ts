@@ -19,6 +19,7 @@ import { isENOENT } from './errors.js'
 import { stripBOM } from './jsonRead.js'
 import { logError } from './log.js'
 import { recordFileHistorySnapshot } from './sessionStorage.js'
+import { passedOver } from './passedOver.js'
 
 
 export type FileHistoryBackup = {
@@ -167,7 +168,8 @@ async function checkOriginFileChanged(
   try {
     const [source, backup] = await Promise.all([readCounted(originalFile), readCounted(backupPath(backupFileName))])
     return !source.equals(backup)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -443,7 +445,8 @@ export async function fileHistoryRestore(
       }
       try {
         plannedMode = (await stat(blob)).mode & 0o7777
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (current === null && planned === null) continue
@@ -463,7 +466,8 @@ export async function fileHistoryRestore(
     if (current !== null) {
       try {
         mode = (await stat(filePath)).mode & 0o7777
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const originalBytes = current ?? Buffer.alloc(0)
@@ -536,7 +540,8 @@ export async function fileHistoryRestore(
         let timestamp = Date.now()
         try {
           timestamp = Math.floor((await stat(target.canonicalPath)).mtimeMs)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         opts.drift?.set?.(target.canonicalPath, { content: decodeSpelling(target.plannedBytes).replaceAll('\r\n', '\n'), timestamp, offset: undefined, limit: undefined })
       }

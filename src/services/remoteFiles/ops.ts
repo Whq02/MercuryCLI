@@ -6,6 +6,7 @@ import { FileTooLargeError, type ReadFileRangeResult } from '../../utils/readFil
 import { remoteOpening, remoteRun, RemoteConnectionError } from './connection.js'
 import { remoteQuote } from './prelude.js'
 import { authorityText, formatRemotePath, noteRemoteGeneration, type RemoteAuthority, type RemoteTarget } from './target.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export type RemoteKind = 'file' | 'folder' | 'a named pipe' | 'a socket' | 'a device' | 'other' | 'dangling'
 
@@ -82,7 +83,8 @@ function remoteFacts(authority: RemoteAuthority, signal: AbortSignal | undefined
     try {
       writeFileSync(probe, '')
       placed = true
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     try {
       const reply = await remoteRun(authority, { script: `m_facts ${remoteQuote(placed ? probe : '')}`, signal })
@@ -93,7 +95,8 @@ function remoteFacts(authority: RemoteAuthority, signal: AbortSignal | undefined
       if (placed) {
         try {
           unlinkSync(probe)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }
@@ -498,7 +501,7 @@ export async function remoteCommit(
       if (!(error instanceof RemoteConnectionError) || error.failure !== 'lost') throw error
       const now = await remoteRun(target.authority, { script: `rm -f ${remoteQuote(staged)}; m_sum ${remoteQuote(real)} 2>/dev/null || printf absent`, signal }).then(
         reply => reply.stdout.toString('utf8').trim(),
-        () => null,
+        passedOverAs(null),
       )
       if (now === sum) return settled(target, real, sum, signal)
       if (now === was && attempt === 0) continue

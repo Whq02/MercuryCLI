@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { getMemoryBaseDir } from '../../mneme/paths.js'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const PAIR_SEP = '\u001f'
@@ -55,7 +56,8 @@ function saveTable(table: Record<string, number>): void {
     const pruned = Object.fromEntries(entries)
     durableAtomicPublishSync(tablePath(), JSON.stringify(pruned))
     tableCache = pruned
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -70,7 +72,8 @@ export function cooccurBoostFor(candidate: string): number {
       total += table[pairKey(candidate, partner)] ?? 0
     }
     return total > 0 ? Math.min(MAX_BOOST, Math.log2(1 + total)) : 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -96,7 +99,8 @@ export function recordToolDiscovery(loaded: string[]): void {
       if (touched) saveTable(table)
     }
     for (const n of fresh) sessionDiscovered.add(n)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

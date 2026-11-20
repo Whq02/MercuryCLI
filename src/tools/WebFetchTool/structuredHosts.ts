@@ -6,6 +6,7 @@ import { FetchRefusedError } from './fetchErrors.js'
 import { FetchPacing } from './fetchPacing.js'
 import { permittedFetchRedirect } from './fetchTransport.js'
 import { metadataSafeAddresses } from './privateHost.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type StructuredResult = {
   bytes: number
@@ -94,7 +95,8 @@ function decodeSafePath(pathname: string): string | null {
     const decoded = decodeURIComponent(pathname)
     if (decoded.includes('\0') || decoded.includes('\\') || /(?:^|\/)\.\.(?:\/|$)/.test(decoded)) return null
     return decoded
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -103,7 +105,8 @@ function classifyStructuredFetchUrl(rawUrl: string): StructuredTarget | null {
   let parsed: URL
   try {
     parsed = new URL(rawUrl)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (parsed.port !== '') return null

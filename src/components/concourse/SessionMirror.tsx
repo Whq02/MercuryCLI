@@ -30,6 +30,7 @@ import { rememberSessionWarmth } from '../../services/concourse/sessionWarmth.js
 import { readSessionReceipts, type SessionReceiptEntry } from '../../services/switchboard/sessionReceipts.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { sessionMirrorView } from './sessionMirror/sessionMirrorView.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const RECEIPT_ENTRIES_SHOWN = 4
@@ -59,7 +60,8 @@ function useSessionReceiptsNewestFirst(
   return useMemo(() => {
     try {
       return readSessionReceipts(getProjectDir(workspaceId), sessionId).slice().reverse()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
   }, [sessionId, workspaceId, state, foldLength])

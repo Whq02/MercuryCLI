@@ -26,6 +26,7 @@ import { renderModelName } from '../../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../../utils/model/modelTransition.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { ToolJSXState } from './useChatDialogs.js';
+import { passedOver } from '../../utils/passedOver.js';
 
 const getFocusedLiveResponseChars = (): number => {
   const connector = getFocusedSessionConnector();
@@ -194,7 +195,7 @@ export function useChatTurnEnd({
           setAppState(prev => (prev.spinnerTip === undefined ? prev : { ...prev, spinnerTip: undefined }));
         }
       })
-      .catch(() => {});
+      .catch(passedOver);
   }, [setAppState, themeName, getReadFileState]);
   const wasLoadingRef = useRef(false);
   const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null });

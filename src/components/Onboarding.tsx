@@ -29,6 +29,7 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { connectableLoginFamilyWords, type TensorFoldOffer } from './loginFamilyRows.js'
 import { useTensorFoldOffer } from './tensorfold/tensorfoldFacts.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 type StepId = 'theme' | 'provider' | 'api-key' | 'guardrails' | 'terminal'
@@ -306,7 +307,7 @@ function TerminalKeys({
         run: r => {
           if (r?.id === 'install') {
             void setupTerminal(theme === 'auto' ? DEFAULT_THEME_SETTING : theme)
-              .catch(() => {})
+              .catch(passedOver)
               .finally(onDone)
           } else {
             onDone()

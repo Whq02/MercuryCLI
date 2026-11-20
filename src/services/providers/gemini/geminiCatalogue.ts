@@ -20,6 +20,7 @@ import {
 } from './geminiAccounts.js'
 import { fetchGeminiPlanRoster, GeminiPlanHttpError, geminiPlanTierWords, type GeminiPlanRoster } from './geminiPlanAccess.js'
 import { GEMINI_TIER_ROW, geminiRequestPin } from './geminiPins.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 
@@ -112,7 +113,8 @@ const GOOGLE_KEY_REFUSAL = /API_KEY_INVALID|API key not valid|API key expired|AP
 function googleErrorWords(body: string): string | undefined {
   try {
     return serviceWordsOf(JSON.parse(body)).message
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -145,7 +147,8 @@ export class GeminiCatalogueHttpError extends Error {
 async function catalogueErrorBody(response: Response): Promise<string> {
   try {
     return (await response.text()).replace(/\s+/g, ' ').trim().slice(0, CATALOGUE_ERROR_BODY_LIMIT)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }
@@ -541,7 +544,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
-    void refreshGeminiCatalogue(sourceKind, { env }).catch(() => {})
+    void refreshGeminiCatalogue(sourceKind, { env }).catch(passedOver)
     return {
       state: 'disabled',
       why: 'catalogue-pending',
@@ -549,7 +552,7 @@ export function getGeminiAvailability(env: NodeJS.ProcessEnv = process.env): Gem
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    void refreshGeminiCatalogue(sourceKind, { env }).catch(() => {})
+    void refreshGeminiCatalogue(sourceKind, { env }).catch(passedOver)
     if (/refused the credential/.test(snapshot.lastError)) {
       return {
         state: 'disabled',

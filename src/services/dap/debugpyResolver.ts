@@ -8,6 +8,7 @@ import envPaths from 'env-paths'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { pythonBinaryFor, pythonPackPlatform } from '../privateChannel/vendoredPython.js'
 import { lockPathParts } from '../privateChannel/vendoredRuntime.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -71,13 +72,15 @@ function pycachePrefix(): string | null {
           let usedAt = 0
           try {
             usedAt = statSync(full).mtimeMs
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
           return { full, usedAt }
         })
         .sort((a, b) => b.usedAt - a.usedAt)
       for (const stale of others.slice(PYCACHE_KEYS_KEPT - 1)) rmSync(stale.full, { recursive: true, force: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     pycachePrefixMemo = root
   } catch {
@@ -129,7 +132,8 @@ function vendoredVersion(root: string): string | undefined {
       readFileSync(path.join(root, '.vendor-manifest.json'), 'utf8'),
     ) as { version?: string }
     return typeof m.version === 'string' ? m.version : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

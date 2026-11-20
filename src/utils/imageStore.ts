@@ -9,6 +9,7 @@ import type { ContentBlockParam } from '../types/wire.js'
 import type { PastedContent } from './config/schema.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
+import { passedOver } from './passedOver.js'
 
 
 const MAX_TRACKED_PATHS = 200
@@ -120,7 +121,8 @@ export function storedImageRefBlock(content: PastedContent): StoredImageRefBlock
         imageId: content.id,
       },
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -213,7 +215,8 @@ export async function cleanupOldImageCaches(cutoff: Date): Promise<void> {
   let entries: string[]
   try {
     entries = await readdir(base)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const entry of entries) {
@@ -223,13 +226,15 @@ export async function cleanupOldImageCaches(cutoff: Date): Promise<void> {
       if ((await newestMtime(target)) >= cutoff.getTime()) continue
       await rm(target, { recursive: true, force: true })
       logForDebugging(`imageStore: removed old image cache ${target}`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   try {
     const remaining = await readdir(base)
     if (remaining.length === 0) await rmdir(base)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -240,10 +245,12 @@ async function newestMtime(dir: string): Promise<number> {
     for (const name of await readdir(dir)) {
       try {
         newest = Math.max(newest, (await stat(join(dir, name))).mtimeMs)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return newest
 }

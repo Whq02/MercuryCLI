@@ -9,6 +9,7 @@ import { SetupScreenHost } from '../../interactiveHelpers.js'
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js'
 import { AppStateProvider } from '../../state/AppState.js'
 import { ACP_LOGIN_FLAG } from './acpSignIn.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const ACP_LOGIN_INTRO = 'Sign in to use Mercury from your editor; this window closes when you are done.'
 export const ACP_LOGIN_FOOTER = '↑↓ move · ↵ choose · esc closes'
@@ -68,7 +69,8 @@ export async function runAcpLoginScreen(): Promise<void> {
   if (!process.stdout.isTTY || !process.stdin.isTTY) {
     try {
       writeSync(2, `mercury acp ${ACP_LOGIN_FLAG} needs a terminal.\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(2)
   }
@@ -80,7 +82,8 @@ export async function runAcpLoginScreen(): Promise<void> {
   root.unmount()
   try {
     writeSync(outcome.ok ? 1 : 2, `${acpLoginReceipt(outcome)}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   process.exit(outcome.ok ? 0 : 1)
 }

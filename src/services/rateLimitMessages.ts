@@ -3,6 +3,7 @@ import { formatResetTime } from '../utils/format.js'
 import { getMarketingNameForModel } from '../utils/model/model.js'
 import type { AnthropicLimits, RateLimitType } from './anthropicLimits.js'
 import { usageWarningTier } from './providers/usageTiers.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 const SEPARATOR = ' · '
@@ -95,7 +96,8 @@ function onModelClause(model: string): string {
   let marketing: string | null = null
   try {
     marketing = getMarketingNameForModel(model)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return ` on ${marketing !== null && marketing.length > 0 ? marketing : model}`
 }
@@ -226,7 +228,8 @@ export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
         })
       )().trim()
       return appendix === '' ? null : appendix
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   })()
@@ -241,7 +244,8 @@ export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
         })
       )()
       return getUpsellMessage({ shouldShowUpsell: eligible })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   })()
@@ -250,7 +254,8 @@ export function composeAnthropicWallRemedies(reads?: WallRemedyReads): string {
     try {
       const words = reads?.carryWords?.()
       return words === undefined || words === '' ? null : words
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   })()
@@ -276,7 +281,8 @@ export function crossFamilyLaneRemedy(
     return pick.route === 'local'
       ? `The ${pick.name} lane is usable now — /model moves there (your own server; no API billing, not this window).`
       : `The ${pick.name} lane is usable now — /model moves there (bills under your ${pick.name} account, not this window).`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

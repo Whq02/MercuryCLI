@@ -49,7 +49,8 @@ function logoutPreservingOnboarding(): void {
     const { resetLimitsForCredentialSwitch } =
       require('../../services/anthropicLimits.js') as typeof import('../../services/anthropicLimits.js')
     resetLimitsForCredentialSwitch()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -159,7 +160,8 @@ export async function authLogin(opts: {
         writeSync(1, 'Signed in with the environment refresh token\n')
         const shadow = loginShadowWarning()
         if (shadow) writeSync(1, `${shadow}\n`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       process.exit(0)
     } catch (error) {
@@ -197,7 +199,8 @@ export async function authLogin(opts: {
       writeSync(1, 'Signed in\n')
       const shadow = loginShadowWarning()
       if (shadow) writeSync(1, `${shadow}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(0)
   } catch (error) {
@@ -213,6 +216,7 @@ export async function authLogin(opts: {
 }
 
 import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export async function authStatus(opts: { json?: boolean }): Promise<void> {
   const readable = opts.json !== true && process.stdout.isTTY === true
@@ -260,20 +264,23 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
       printed++
       try {
         writeSync(1, property.label ? `${property.label}: ${rendered}\n` : `${rendered}\n`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (printed === 0 && envApiKeyPresent) {
       try {
         writeSync(1, 'API key from ANTHROPIC_API_KEY\n')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const others = routed.rows.filter(row => row.id !== 'anthropic' && row.present)
     for (const row of others) {
       try {
         writeSync(1, `${row.id}: ${row.refused ? signInRefusalWords(row.refused, row.id) : row.identity ?? row.source}\n`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (!loggedIn) {
@@ -284,7 +291,8 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
             ? `No Anthropic credential — ${others.map(row => row.id).join(', ')} signed in; run: ${binaryName()} auth login to add Anthropic\n`
             : `Not signed in — run: ${binaryName()} auth login\n`,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   } else {
@@ -309,7 +317,8 @@ export async function authStatus(opts: { json?: boolean }): Promise<void> {
     payload.providers = routed.rows
     try {
       writeSync(1, `${jsonStringify(payload, undefined, 2)}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   process.exit(routed.present ? 0 : 1)
@@ -340,7 +349,8 @@ function routedProviderRows(anthropicPresent: boolean): {
     const presences = ((): ReturnType<typeof providerFamilyPresences> => {
       try {
         return providerFamilyPresences(snapshot.providers)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return []
       }
     })()

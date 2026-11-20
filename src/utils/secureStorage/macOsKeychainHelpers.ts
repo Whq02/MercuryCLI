@@ -4,6 +4,7 @@ import { userInfo } from 'node:os'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir, getAuthScope, rawConfigHomePinSpelling } from '../envUtils.js'
 import type { SecureStorageData } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export function keychainReachable(): boolean {
   if (process.platform !== 'darwin') return false
@@ -69,6 +70,7 @@ export function primeKeychainCacheFromPrefetch(stdout: string | null): void {
   try {
     const parsed = JSON.parse(stdout) as SecureStorageData
     keychainCacheState.cached = { data: parsed, cachedAt: Date.now() }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

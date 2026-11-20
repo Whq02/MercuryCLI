@@ -5,6 +5,7 @@ import type { FileReadingLimits } from '../limits.js'
 import { RESULT_ROOM_WRAPPER_TOKENS } from '../../../services/run/resultRoom.js'
 import { MAX_LINES_TO_READ } from '../prompt.js'
 import type { OverCapNote } from './schema.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export { MAX_DISPLAY_LINE_CHARS, cutMark, numberedReadContent, numberedWindow, overCapNextWords, overCapWords, windowSpan } from './windowText.js'
 
@@ -62,7 +63,8 @@ export async function tokensOverCap(content: string, ext: string, maxTokens: num
   try {
     const accurate = exact ? await countTokensWithAPI(content) : null
     if (accurate !== null) effective = accurate
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return effective > maxTokens ? effective : undefined
 }

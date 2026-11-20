@@ -1,5 +1,6 @@
 import type { OpenaiLimitWindow } from './openai/openaiLimitState.js'
 import { familyDisplayName } from './accountSlots.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type SwitchableFamily = 'anthropic' | 'openai'
 export type SlotKind = 'subscription' | 'api-key'
@@ -42,7 +43,8 @@ function liveReads(): Required<SlotSwitchReads> {
       try {
         const tokens = getClaudeAIOAuthTokens()
         return tokens !== null && Boolean(tokens.accessToken) && shouldUseClaudeAIAuth(tokens.scopes)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     },
@@ -50,7 +52,8 @@ function liveReads(): Required<SlotSwitchReads> {
       const { getAnthropicApiKeyWithSource } = require('../../utils/auth.js') as typeof import('../../utils/auth.js')
       try {
         return getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source === '/logins managed key'
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     },
@@ -67,7 +70,8 @@ function liveReads(): Required<SlotSwitchReads> {
         if (key.source === 'ANTHROPIC_API_KEY') return 'ANTHROPIC_API_KEY'
         if (key.source === 'credentials.keyCommand') return 'credentials.keyCommand (settings)'
         return undefined
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
     },

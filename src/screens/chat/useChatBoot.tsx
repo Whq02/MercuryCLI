@@ -41,6 +41,7 @@ import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import type { PaintsRows } from './sessionShapes.js';
+import { passedOver } from '../../utils/passedOver.js';
 
 const loadHopIntoSession = () => import('../../services/switchboard/hopIntoSession.js');
 const loadEnsureDaemon = () => import('../../services/switchboard/ensureDaemon.js');
@@ -138,12 +139,12 @@ export function useChatBootStart({
         .then(async m => {
           if (await m.ensureOwnedDaemon()) await m.warmSessionRunner(getCwd());
         })
-        .catch(() => {});
+        .catch(passedOver);
     }, 0);
     setTimeout(() => {
       void loadContextWindowWarmup()
         .then(m => m.warmContextWindowSources())
-        .catch(() => {});
+        .catch(passedOver);
     }, 0);
   }, []);
 
@@ -169,7 +170,7 @@ export function useChatBootStart({
         paint();
         unsubscribe = hs.subscribeDaemonHandshake(paint);
       })
-      .catch(() => {});
+      .catch(passedOver);
     return () => {
       alive = false;
       unsubscribe();
@@ -249,7 +250,8 @@ export function useChatBootNotices({
           priority: 'high',
           timeoutMs: 3_600_000,
         });
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     };
     paintDegradation();
@@ -269,7 +271,7 @@ export function useChatBootNotices({
           timeoutMs: 60_000,
         });
       })
-      .catch(() => {});
+      .catch(passedOver);
   }, []);
 
   useMount(() => {
@@ -302,7 +304,8 @@ export function useChatBootNotices({
           clearedAt: clearedSessionAt,
           notAfterMs: Date.now() - process.uptime() * 1000,
         });
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const backInside = resolved !== null && resolved.sessionId === conversationIdHere();
       if (resolved !== null && !backInside) {
@@ -328,7 +331,8 @@ export function useChatBootNotices({
         crashNoticeLatchedRef.current = true;
         markCrashReportsNoticed();
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   });
 
@@ -337,7 +341,8 @@ export function useChatBootNotices({
       crashNoticeLatchedRef.current = true;
       try {
         markCrashReportsNoticed();
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }, [focusedInputDialog]);
@@ -362,19 +367,20 @@ export function useChatBootNotices({
           timeoutMs: 60_000,
         });
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   });
 
   useLoad(() => {
-    void apiKeyVerification.reverify({ probe: false }).catch(() => {});
+    void apiKeyVerification.reverify({ probe: false }).catch(passedOver);
   }, []);
 
   useTimer(() => {
     const timer = setTimeout(() => {
       void loadProjectSnapshot()
         .then(m => m.getProjectSnapshotAsync(getOriginalCwd(), { maxStaleMs: 120_000 }))
-        .catch(() => {});
+        .catch(passedOver);
     }, BOOT_WARMUP_MS);
     return () => clearTimeout(timer);
   }, []);
@@ -413,6 +419,6 @@ export function useChatBootTips({
     if (!fullscreen) return;
     void maybeGetTmuxMouseHint().then(hint => {
       if (hint) addNotification({ key: 'tmux-mouse-hint', text: hint, priority: 'low', timeoutMs: RECEIPT_TIMEOUT_MS });
-    }).catch(() => {});
+    }).catch(passedOver);
   }, []);
 }

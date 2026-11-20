@@ -1,6 +1,7 @@
 
 import { createHash } from 'crypto'
 import type { BehaviourContract } from '../../prompt/behaviourContract.js'
+import { passedOver } from '../passedOver.js'
 
 type ProvenanceSectionRecord = {
   group: string
@@ -71,7 +72,8 @@ export function recordPromptComposition(input: {
           }
         : null,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

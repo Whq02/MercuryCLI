@@ -42,6 +42,7 @@ import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
 import type { ProcessSweepEntry } from './processSweep.js'
 import { sleep } from '../utils/sleep.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type ControlOutcome = {
   outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'
@@ -312,7 +313,7 @@ function peerUidRejection(_sock: net.Socket): string | null {
 
 function removeStaleSocket(sockPath: string): Promise<void> {
   if (process.platform === 'win32') return Promise.resolve()
-  return unlink(sockPath).catch(() => {})
+  return unlink(sockPath).catch(passedOver)
 }
 
 function planeTakeRefusal(): string | null {
@@ -351,7 +352,7 @@ export async function startControlServer(
   const sweepDeadPidSockets = async (): Promise<void> => {
     if (sockPath === planePath) return
     const dir = dirname(planePath)
-    const names = await readdir(dir).catch(() => [] as string[])
+    const names = await readdir(dir).catch((error) => { passedOver(error); return [] as string[] })
     for (const name of names) {
       const pid = predecessorSockPidOf(name, planePath)
       if (pid === null || pid === process.pid || isProcessAlive(pid)) continue

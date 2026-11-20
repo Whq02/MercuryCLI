@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { readSignalLog, signalCounts, type SignalCounts, type SignalFeatures, type SignalTurn } from './mnemeSignal.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SIGNAL_FEATURE_NAMES = ['bias', 'bm25', 'recency', 'pinned', 'fact', 'ruling', 'pending', 'handoff', 'session', 'openRate', 'citeRate'] as const
 export const SIGNAL_FIT_STEPS = 240
@@ -77,10 +78,10 @@ export function readOrFitSignalWeights(dir: string = mnemeLibraryDir(), turns: r
   try {
     const cached = JSON.parse(readFileSync(signalWeightsPath(dir), 'utf8')) as SignalWeights
     if (cached.version === 1 && cached.digest === digest && JSON.stringify(cached.features) === JSON.stringify(SIGNAL_FEATURE_NAMES) && Array.isArray(cached.weights) && cached.weights.length === SIGNAL_FEATURE_NAMES.length && cached.weights.every(Number.isFinite) && Number.isInteger(cached.samples) && cached.samples >= 0) return cached
-  } catch {}
+  } catch (error) { passedOver(error) }
   const fit = fitSignalWeights(turns)
   if (turns.length > 0) {
-    try { publishLibraryFile(signalWeightsPath(dir), JSON.stringify(fit)) } catch {}
+    try { publishLibraryFile(signalWeightsPath(dir), JSON.stringify(fit)) } catch (error) { passedOver(error) }
   }
   return fit
 }

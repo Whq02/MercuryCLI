@@ -17,6 +17,7 @@ import { listBoxes } from '../../services/host/boxes.js'
 import { localServerProbingOff } from '../../services/localServer/localServerTruth.js'
 import type { TensorFoldAnnouncedHost } from './tensorfoldRows.js'
 import type { TensorFoldOffer } from '../loginFamilyRows.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])$/i
 
@@ -39,7 +40,8 @@ async function quietlyAsync<T>(read: () => Promise<T>, fallback: T): Promise<T> 
 function urlOf(baseUrl: string): URL | undefined {
   try {
     return new URL(baseUrl)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -193,7 +195,7 @@ export const tensorFoldFactsStamp = (): number => stamp
 export function useTensorFoldOffer(): TensorFoldOffer | null | undefined {
   useSyncExternalStore(subscribeTensorFoldFacts, tensorFoldFactsStamp, tensorFoldFactsStamp)
   useLoad(() => {
-    void refreshTensorFoldOffer().catch(() => undefined)
+    void refreshTensorFoldOffer().catch(passedOverAs(undefined))
   }, [])
   return offerSnapshot
 }
@@ -245,7 +247,7 @@ export function refreshTensorFoldAnnouncements(): Promise<void> {
       }
       emit()
     })
-    .catch(() => undefined)
+    .catch(passedOverAs(undefined))
     .finally(() => {
       browsing = undefined
     })
@@ -286,6 +288,6 @@ export async function pairTensorFoldHost(host: TensorFoldAnnouncedHost, code: st
   }
   announcedSnapshot.delete(host.name)
   emit()
-  void refreshLocalDiscovery({ force: true }).catch(() => undefined)
+  void refreshLocalDiscovery({ force: true }).catch(passedOverAs(undefined))
   return `paired with ${reply.name} · ↵ on its row switches to ${reply.model}`
 }

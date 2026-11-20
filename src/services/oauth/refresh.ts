@@ -18,6 +18,7 @@ import type {
   RateLimitTier,
   SubscriptionType,
 } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const EXCHANGE_TIMEOUT_MS = 15_000
 
@@ -232,11 +233,12 @@ export function storeOAuthAccountInfo(info: AccountInfo): void {
       const { resetLimitsForCredentialSwitch } =
         require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       resetLimitsForCredentialSwitch()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   saveGlobalConfig(current => ({ ...current, oauthAccount: info }))
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.restartOwnedDaemonForFreshSignin())
-    .catch(() => {})
+    .catch(passedOver)
 }

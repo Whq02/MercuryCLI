@@ -5,6 +5,7 @@ import { markSessionSeen, OLDER_CHATS_ROW_PREFIX } from '../../../services/conco
 import { getFocusedSessionConnector, hasFocusedSession, withLanding } from '../../../services/engine-connector/focusedConnector.js';
 import { armEntryWarmth, settleEntryWarmth } from '../../../services/concourse/sessionWarmth.js';
 import type { ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
+import { passedOver } from '../../../utils/passedOver.js';
 
 export function useConcourseEntry({
   noteControl,
@@ -70,7 +71,7 @@ export function useConcourseEntry({
         noteControl(noteKey, { state: 'refused', reason: 'the older chats unfold on the board — ↵ on the line opens them' })
         return
       }
-      void markSessionSeen(sessionId).catch(() => {})
+      void markSessionSeen(sessionId).catch(passedOver)
       const row = snapshotRef.current?.groups.flatMap(g => g.rows).find(r => r.sessionId === sessionId)
       const rowParked = row?.state === 'parked' ? { transcriptPath: row.transcriptPath, title: row.title } : undefined
       const parked = opts?.parkedFact ?? rowParked

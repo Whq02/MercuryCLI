@@ -1,6 +1,7 @@
 import { randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import { createServer, type Server } from 'node:http'
 import { announcerMachineName, startAnnouncer, type AnnouncerHandle, type AnnouncerIo, type Announcement } from './announcer.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const PAIRING_CODE_LENGTH = 6
 const PAIRING_CODE_TTL_MS = 10 * 60_000
@@ -153,7 +154,7 @@ export async function pairWithHost(target: { host: string; pairPort: number; cod
       body: JSON.stringify({ code: target.code }),
       signal: controller.signal,
     })
-    const body = (await response.json().catch(() => ({}))) as Record<string, unknown>
+    const body = (await response.json().catch((error) => { passedOver(error); return ({}) })) as Record<string, unknown>
     if (!response.ok) return { ok: false, reason: typeof body.error === 'string' ? body.error : `the serving Mac answered ${response.status}` }
     const enginePort = Number(body.enginePort)
     if (!Number.isInteger(enginePort) || enginePort <= 0 || typeof body.model !== 'string') return { ok: false, reason: 'the serving Mac answered without its server' }

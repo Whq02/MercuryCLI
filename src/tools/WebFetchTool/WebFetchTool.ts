@@ -18,6 +18,7 @@ import { FetchRefusedError } from './fetchErrors.js'
 import { metadataRefusal } from './privateHost.js'
 import { withFetchSession } from './fetchTransport.js'
 import { ownerFromToolUseContext } from '../../services/run/resolveOwner.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const inputSchema = z.strictObject({
@@ -166,7 +167,8 @@ export const WebFetchTool = buildTool({
   async description(input: Partial<Input>): Promise<string> {
     try {
       return `Mercury wants to fetch content from ${new URL(input.url ?? '').hostname}`
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 'Mercury wants to fetch content from this URL'
     }
   },
@@ -205,7 +207,8 @@ export const WebFetchTool = buildTool({
           decisionReason: { type: 'other' as const, reason: 'Preapproved documentation host' },
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const ruleContent = ruleContentFor(input)
     const message = createPermissionRequestMessage(WEB_FETCH_TOOL_NAME)

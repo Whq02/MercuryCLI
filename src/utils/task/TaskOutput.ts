@@ -7,6 +7,7 @@ import { logForDebugging } from '../debug.js'
 import { getMaxOutputLength, OUTPUT_HEAD_SHARE } from '../shell/outputLimits.js'
 import { safeJoinLines } from '../stringUtils.js'
 import { DiskTaskOutput, acquireTaskOutputWriter, getTaskOutputPath } from './diskOutput.js'
+import { passedOver } from '../passedOver.js'
 
 
 type ProgressCallback = (
@@ -300,7 +301,8 @@ export class TaskOutput {
   async deleteOutputFile(): Promise<void> {
     try {
       await fs.promises.unlink(this.path)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -322,7 +324,8 @@ async function sampleFileProgressOf(this: TaskOutput): Promise<void> {
   let sample: { content: string; bytesRead: number; bytesTotal: number }
   try {
     sample = await tailFile(this.path, POLL_SAMPLE_BYTES)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   const onProgress = this.onProgress

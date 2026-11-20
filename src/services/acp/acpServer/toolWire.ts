@@ -2,6 +2,7 @@ import type { TaskStatus } from '../../../utils/tasks.js'
 import { readFileSync } from 'node:fs'
 import { getContextWindowForModel } from '../../../utils/model/capabilities.js'
 import type { TurnEndDetail } from '../childSession.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type AcpToolKind =
   | 'read'
@@ -102,7 +103,8 @@ export function toolDiffsOf(
 function readFileOrNull(path: string): string | null {
   try {
     return readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -22,6 +22,7 @@ import { downloadWords } from './downloads.js'
 import { errorPageSettled, markAct, settleAfterAct } from './settle.js'
 import { actOriginGate } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export async function openOp({ input, owner, tab, context, sessionAtEntry, crashedAtEntry, signalFor, acting }: OpRun): Promise<OpDone> {
   let result: string
@@ -124,7 +125,7 @@ export async function openOp({ input, owner, tab, context, sessionAtEntry, crash
   const textLen = await s.page
     .$eval('body', deepTextOf)
     .then(text => text.trim().length)
-    .catch(() => null)
+    .catch(passedOverAs(null))
   const errs = s.consoleRing.slice(ringMark).filter(e => e.kind === 'pageerror').length
   const census =
     textLen === null
@@ -173,7 +174,7 @@ export async function waitForOp(s: LiveSession, { input, signalFor }: OpRun, dea
           polling: 'raf',
           signal: signalFor(s),
         })
-        .catch(() => {})
+        .catch(passedOver)
       result = `waitFor navigation: already landed at ${pageWhere(s)} (${Date.now() - t0}ms — the navigation completed during the previous act)`
     } else {
       await s.page.waitForNavigation({

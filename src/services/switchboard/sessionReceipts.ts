@@ -11,6 +11,7 @@ import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
 import type { SystemSeatReceiptMessage } from '../../types/message.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptBytes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface SessionReceiptEntry {
   readonly at: string
@@ -72,7 +73,8 @@ export function readSessionReceipts(home: string, sessionId: string): SessionRec
     if (line.trim().length === 0) continue
     try {
       out.push(JSON.parse(line) as SessionReceiptEntry)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out

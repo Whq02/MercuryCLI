@@ -25,6 +25,7 @@ import {
 } from './UI.js'
 
 import { ART_OPS, artAsk, artFields, artInputError, isArtOp, isArtRead, runArt, type ArtResult } from './art.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const OPS = ['status', 'info', 'export', 'create', 'run-script', ...ART_OPS] as const
 
@@ -182,7 +183,8 @@ function outputsCensus(outputPath: string): string {
   try {
     const st = statSync(outputPath)
     return `${outputPath} (${st.size} bytes)`
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const dir = path.dirname(outputPath)
   const base = path.basename(outputPath)
@@ -300,7 +302,8 @@ async function runOp(input: Input, permission?: ToolPermissionContext, abortSign
     let pretty = json
     try {
       pretty = JSON.stringify(JSON.parse(json), null, 2)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return `${pretty}\n— ${input.file} · ${await provenance(resolution)}`
   }

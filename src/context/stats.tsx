@@ -3,6 +3,7 @@ import React, { createContext } from 'react'
 import { useSubscription } from '../hooks/effects.js'
 import { sessionSawUsage } from '../cost-tracker.js'
 import { saveCurrentProjectConfig } from '../utils/config.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const RESERVOIR_CAP = 1024
 
@@ -118,7 +119,8 @@ export function StatsProvider({
             savedAtMs: Date.now(),
           },
         }))
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     process.on('exit', flush)

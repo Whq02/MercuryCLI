@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { mistralApiBase, resolveMistralApiKey } from './mistralAccounts.js'
 import { MISTRAL_DISPLAY_PINS, isMistralChatModelId, mistralDisplayName, mistralDisplayPin } from './mistralPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export interface MistralLiveModel {
   id: string
@@ -150,7 +151,7 @@ export function kickMistralCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl
   if (!catalogueTrafficVerdict('mistral', env).allowed) return false
   const snapshot = getCachedMistralCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
-  void refreshMistralCatalogue(opts).catch(() => null)
+  void refreshMistralCatalogue(opts).catch(passedOverAs(null))
   return true
 }
 

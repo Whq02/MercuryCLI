@@ -6,6 +6,7 @@ import { kimiSupportsDynamicToolLoading } from './moonshot/kimiPins.js'
 import { parseGptModelId } from './openai/gptPins.js'
 import { deepseekCurrentModelId } from './deepseek/deepseekPins.js'
 import { localServerKind } from '../../constants/localPromptProfile.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type DeferralWireForm =
   | 'block'
@@ -72,7 +73,8 @@ export function gatewayHost(env: Record<string, string | undefined> = process.en
   try {
     const host = new URL(baseUrl).host
     return host === 'api.anthropic.com' ? null : host
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -121,7 +123,8 @@ function compatEndpointOf(model: string, env?: Record<string, string | undefined
   try {
     const { compatModelEndpoint } = require('./openaicompat/compatAccounts.js') as typeof import('./openaicompat/compatAccounts.js')
     return compatModelEndpoint(model, env as NodeJS.ProcessEnv | undefined)?.endpoint
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

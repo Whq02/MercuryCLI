@@ -4,6 +4,7 @@ import { findGitRoot, gitExe } from '../../utils/git.js'
 import { gitArgsAsync, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { shellCommandText } from '../../utils/permissions/decision/commandAnalysis.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const ANSWER_WITHIN_MS = 5_000
 const MOST_ANSWER_BYTES = 16 * 1024 * 1024
@@ -155,7 +156,8 @@ async function namesAnswered(question: GitPatchQuestion, probe: string[], cwd: s
   let args: string[]
   try {
     args = await gitArgsAsync(probe, folder)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unanswered'
   }
   const answer = await new Promise<string | 'unanswered' | 'failed'>(done => {

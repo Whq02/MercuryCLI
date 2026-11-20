@@ -16,6 +16,7 @@ import { formatFileSize } from '../../format.js'
 import { LITE_READ_BUF_SIZE } from '../../sessionStoragePortable.js'
 import { jsonParse } from '../../slowOperations.js'
 import type { QueuePart } from './queue.js'
+import { passedOver } from '../../passedOver.js'
 
 const MAX_TOMBSTONE_REWRITE_BYTES = 50 * 1024 * 1024
 
@@ -97,14 +98,16 @@ export class RemovePart {
             if (!line.trim()) return true
             try {
               return storedLineUuid(jsonParse(line)) !== targetUuid
-            } catch {
+            } catch (error) {
+              passedOver(error)
               return true
             }
           })
           writeFileSync(this.project.sessionFile, lines.join('\n'), {
             encoding: 'utf8',
           })
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }),
     )

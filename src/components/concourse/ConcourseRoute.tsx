@@ -27,6 +27,7 @@ import { newSession, previewLaunch } from './route/launchControls.js';
 import { answerObligation, answerPermission, claimObligation, openObligation, withdrawObligation } from './route/obligationControls.js';
 import { interruptSession, pauseAfterTurn, redirectSession, resumeSession, setSessionEffort, setSessionModel } from './route/rowControls.js';
 import { archiveSession, removeSession, renameSession, stopSession } from './route/sessionControls.js';
+import { passedOver } from '../../utils/passedOver.js';
 
 export { makeCoalescedRebuild } from './route/useConcourseSnapshot.js';
 
@@ -177,8 +178,7 @@ function LiveConcourse(): React.ReactNode {
               typeof patch.projectDir === 'string' && patch.projectDir.length > 0 ? patch.projectDir : null,
             ),
           )
-          .catch(() => {
-          })
+          .catch(passedOver)
       }
     },
     newSession: (opts?: { contractText?: string }) => newSession(launch, opts),

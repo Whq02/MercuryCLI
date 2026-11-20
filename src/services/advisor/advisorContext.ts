@@ -4,6 +4,7 @@ import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootst
 import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { ADVISOR_INCOMPLETE_EVIDENCE_RULE, advisorTranscriptTail, clipAdvisorText } from './advisorProjection.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type AdvisorRowKind = 'digest' | 'note' | 'question' | 'reply' | 'summary'
 
@@ -80,7 +81,8 @@ export function parseAdvisorContextLines(agentId: string, text: string): Advisor
     let parsed: unknown
     try {
       parsed = JSON.parse(line)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (!isRow(parsed)) continue

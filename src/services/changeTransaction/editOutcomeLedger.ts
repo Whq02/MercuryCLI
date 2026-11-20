@@ -3,6 +3,7 @@ import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type EditSurface = 'edit' | 'changeset' | 'anchor-patch'
 
@@ -30,7 +31,8 @@ export function recordEditOutcome(
     const key = `${model}${SEP}${surface}${SEP}${outcome}`
     const state = ledgers.get(owner)
     state.counts.set(key, (state.counts.get(key) ?? 0) + 1)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

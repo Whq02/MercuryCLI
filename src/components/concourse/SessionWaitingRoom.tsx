@@ -21,6 +21,7 @@ import {
   readConcourseHeldDispatch,
   readConcourseQueuedStack,
 } from '../../services/concourse/concourseSnapshot.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const EMPTY_DRAFT: LineDraft = { text: '', caret: 0 }
 
@@ -75,13 +76,15 @@ export function SessionWaitingRoom({
         onAdmitted(rec.sessionId)
         return
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     try {
       const held = await readConcourseHeldDispatch()
       setBrief(held !== null && held.clientMessageId === dispatchId ? (held.prompt ?? null) : null)
       setStack(await readConcourseQueuedStack(dispatchId))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }, [dispatchId, onAdmitted])
   useTimer(() => {

@@ -2,6 +2,7 @@ import { readdirSync, type Dirent } from 'node:fs'
 import { extname, join } from 'node:path'
 import type { LSPServerInstance } from './LSPServerInstance.js'
 import type { LSPServerManager } from './LSPServerManager.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const LSP_FIRST_CALL_START_WAIT_MS = 10_000
 const MAIN_LANGUAGE_WALK_DEPTH = 3
@@ -23,7 +24,8 @@ export function workspaceSymbolServer(manager: LSPServerManager, query: string, 
     let names: Dirent[]
     try {
       names = readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const entry of names) {
@@ -56,7 +58,7 @@ export async function startedWithin(server: LSPServerInstance, ms: number): Prom
   if (server.state === 'running') return true
   if (server.state === 'stopping') await server.stop()
   const start = server.start()
-  start.catch(() => {})
+  start.catch(passedOver)
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     return await Promise.race([

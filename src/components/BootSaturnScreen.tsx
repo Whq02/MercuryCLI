@@ -39,6 +39,7 @@ import { LOCAL_PULL_RECOMMENDATION } from '../services/providers/local/localAcco
 import { LOCAL_SETUP_OFFER } from '../commands/localsetup/words.js';
 import { clearFormRowOf, commitPromptOf, editFormRowOf, runNowOf, scheduleEditRpcOf, submitFormOf, type SaturnFormRowId } from './bootSaturn/actions.js';
 import { saturnMenuOf, saturnRowsView } from './bootSaturn/menu.js';
+import { passedOver } from '../utils/passedOver.js';
 
 
 const DETAIL_W = 38;
@@ -457,7 +458,8 @@ function liveReceiptsOf(row: SaturnScreenRowV1): SessionReceiptEntry[] {
           (e.details as { scheduleId?: unknown } | undefined)?.scheduleId === row.facts.id,
       )
       .slice(-4);
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return [];
   }
 }
@@ -471,7 +473,8 @@ function liveModelOptions(): string[] {
           .filter(v => v.length > 0 && !v.startsWith(KEY_CONNECT_PREFIX)),
       ),
     ];
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return [];
   }
 }
@@ -479,7 +482,8 @@ function liveModelOptions(): string[] {
 function livePresets(): string[] {
   try {
     return listKitPresets();
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return [];
   }
 }
@@ -487,7 +491,8 @@ function livePresets(): string[] {
 function liveProjectDirs(): string[] {
   try {
     return workedInProjects().map(p => p.dir);
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return [];
   }
 }

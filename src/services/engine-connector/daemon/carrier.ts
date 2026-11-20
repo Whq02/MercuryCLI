@@ -1,6 +1,7 @@
 import { armInactivityDeadline } from '../../../utils/deadline.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { SessionFactsV1 } from '../seatProjections.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const BUSY_STALL_MS = 45_000
 const CARRIER_GONE_TICKS = 3
@@ -83,7 +84,7 @@ export class CarrierPart {
         this.carrierGoneTicks += 1
         if (this.carrierGoneTicks >= CARRIER_GONE_TICKS) this.settleCarrierGone()
       })
-      .catch(() => {})
+      .catch(passedOver)
       .finally(() => {
         this.carrierProbeInFlight = false
       })

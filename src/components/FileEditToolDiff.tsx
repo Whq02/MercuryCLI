@@ -19,6 +19,7 @@ import { isRemotePath } from '../services/remoteFiles/target.js'
 import { getPatchForEdits } from '../tools/FileEditTool/utils.js'
 import { boundHunks, diffPaintWidth } from './permissions/consentBodyBudget.js'
 import { StructuredDiffList } from './StructuredDiffList.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const SCAN_CONTEXT_LINES = 3
 const FRAME_COLUMNS = 4
@@ -105,7 +106,7 @@ async function loadDiff(
         fileContent: context.content,
       }
     } finally {
-      await handle.close().catch(() => {})
+      await handle.close().catch(passedOver)
     }
   } catch (error) {
     logError(error)

@@ -1,5 +1,6 @@
 import { emitTaskProgress } from '../utils/task/sdkProgress.js'
 import { worktreeHoldOf } from '../utils/worktreeReadiness.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type PauseGateState = {
   paused: boolean
@@ -70,7 +71,8 @@ export function createPauseGate(): PauseGate {
     for (const listener of listeners) {
       try {
         listener(snapshot)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
     }

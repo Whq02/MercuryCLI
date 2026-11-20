@@ -10,6 +10,7 @@ import type {
   InterviewEvent,
   InterviewSessionState,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DECISION_RECORD_SCHEMA = 1
 
@@ -114,7 +115,8 @@ export function latestDecisionRecordSync(): InterviewDecisionRecord | null {
     const parsed = JSON.parse(readFileSync(recordPath(), 'utf8')) as InterviewDecisionRecord
     if (parsed?.schema !== DECISION_RECORD_SCHEMA || !Array.isArray(parsed.decisions)) return null
     return parsed
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

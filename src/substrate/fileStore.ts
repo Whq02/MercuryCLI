@@ -24,6 +24,7 @@ import {
   type StoreReadResult,
   type StoreRevision,
 } from './storeRevision.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type {
   StoreChange,
@@ -283,7 +284,8 @@ export function defineStore<T, A extends unknown[] = []>(
     if (!rt?.lastEmittedRaw) return {}
     try {
       return { lastGood: decodeRaw(rt.lastEmittedRaw) }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return {}
     }
   }
@@ -421,7 +423,7 @@ export function defineStore<T, A extends unknown[] = []>(
 
   const stopWatching = (path: string, rt: Runtime): void => {
     if (rt.watcher) {
-      void rt.watcher.close().catch(() => {})
+      void rt.watcher.close().catch(passedOver)
       rt.watcher = null
     }
     if (rt.pollTimer) {
@@ -567,7 +569,7 @@ function startWatcherOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: s
       watcher.on('change', () => scheduleEmit(path, rt))
       watcher.on('unlink', () => {
         scheduleEmit(path, rt)
-        void watcher.close().catch(() => {})
+        void watcher.close().catch(passedOver)
         if (rt.watcher === watcher) rt.watcher = null
         if (rt.pollFloorStop) {
           rt.pollFloorStop()
@@ -577,7 +579,7 @@ function startWatcherOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: s
       })
       watcher.on('error', (e: unknown) => {
         logForDebugging(`[${cfg.name}] watcher error, falling back to polling: ${e}`)
-        void watcher.close().catch(() => {})
+        void watcher.close().catch(passedOver)
         if (rt.watcher === watcher) rt.watcher = null
         startPollFallback(path, rt)
       })
@@ -611,7 +613,8 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
     stopFloor()
     try {
       ancestor?.close()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     ancestor = null
     startWatcher(path, rt)
@@ -629,12 +632,14 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
     w.on('error', () => {
       try {
         w.close()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (ancestor === w) ancestor = null
     })
     ancestor = w
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
   const stopFloor = subscribeUiClock(floorMs, () => void probe())
@@ -644,7 +649,8 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
     stopFloor()
     try {
       ancestor?.close()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     ancestor = null
   }

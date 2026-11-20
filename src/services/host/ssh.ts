@@ -12,6 +12,7 @@ import { recipeFits, type HostRecipe } from './recipes.js'
 import { downloadFailure, hostDownloadScript } from './download.js'
 import { tensorFoldEngineScript, tensorFoldReadyCommand } from './tensorfoldRelease.js'
 import { hostEngineOomWords, type HostEngineDeathFacts } from '../../commands/llmhost/words.js'
+import { passedOver } from '../../utils/passedOver.js'
 export interface SshTarget { host: string; user?: string; key?: string; port?: number }
 export interface HostRunner {
   run(command: string, args: string[], signal: AbortSignal, timeoutMs?: number, env?: Record<string, string>): Promise<string>
@@ -64,7 +65,7 @@ export function scpArguments(target: SshTarget): string[] {
   return sshArguments({ ...target, user: undefined }).slice(0, -1).map(arg => arg === '-p' ? '-P' : arg)
 }
 export function sshAliases(): string[] {
-  try { return [...readFileSync(join(homedir(), '.ssh/config'), 'utf8').matchAll(/^\s*Host\s+([^#\n]+)/gmi)].flatMap(match => match[1]!.trim().split(/\s+/)).filter(name => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) } catch { return [] }
+  try { return [...readFileSync(join(homedir(), '.ssh/config'), 'utf8').matchAll(/^\s*Host\s+([^#\n]+)/gmi)].flatMap(match => match[1]!.trim().split(/\s+/)).filter(name => /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(name)) } catch (error) { passedOver(error); return [] }
 }
 export function localKeyPath(value: string): string | undefined {
   if (!value.trim()) return undefined
@@ -263,7 +264,7 @@ export async function openHostTunnel(id: string, target: SshTarget, runner: Host
     for (let n = 0; n < 100; n++) {
       signal.throwIfAborted()
       const failed = tunnel.failed(); if (failed) throw new Error(failed)
-      try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch {}
+      try { const response = await fetch('http://127.0.0.1:' + port + service.path, { signal: AbortSignal.any([signal, AbortSignal.timeout(1000)]), redirect: 'error', headers: service.headers }); if (response.ok) { tunnels.get(id)?.stop(); tunnels.set(id, tunnel); return port } } catch (error) { passedOver(error) }
       await sleep(100, signal, { throwOnAbort: true })
     }
     throw new Error('The SSH tunnel did not answer on local port ' + port)
@@ -470,7 +471,7 @@ print(json.dumps(out))
   const argv = Array.isArray(reading.argv) ? reading.argv.filter((arg): arg is string => typeof arg === 'string') : []
   const at = argv.indexOf('--chat-template-kwargs')
   let effort: string | undefined
-  try { const stated: unknown = at >= 0 ? (JSON.parse(argv[at + 1] ?? '') as { reasoning_effort?: unknown }).reasoning_effort : undefined; if (typeof stated === 'string') effort = stated } catch {}
+  try { const stated: unknown = at >= 0 ? (JSON.parse(argv[at + 1] ?? '') as { reasoning_effort?: unknown }).reasoning_effort : undefined; if (typeof stated === 'string') effort = stated } catch (error) { passedOver(error) }
   const whole = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value > 0
   return { alive: reading.alive === true, ...(whole(reading.slots) && whole(reading.n_ctx) ? { conversations: reading.slots, contextPerConversation: reading.n_ctx } : {}), ...(effort ? { effort } : {}) }
 }

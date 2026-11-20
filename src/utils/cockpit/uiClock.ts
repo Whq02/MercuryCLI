@@ -1,5 +1,6 @@
 
 import { getIsScrollDraining } from '../../bootstrap/state.js'
+import { passedOver } from '../passedOver.js'
 
 type Bucket = {
   timer: ReturnType<typeof setInterval>
@@ -47,7 +48,8 @@ function fanOut(ms: number, bucket: Bucket): number {
   for (const s of bucket.subs) {
     try {
       s()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return performance.now() - t0

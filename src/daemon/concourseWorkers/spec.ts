@@ -10,6 +10,7 @@ import type { SessionKitV1 } from '../sessionKit.js'
 import { SESSION_KIND_ENV, type SessionKind, parseSessionKind } from '../../utils/sessionKind.js'
 import { effectiveSeatCeiling } from './admission.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function concourseWorkerStripEnv(): string[] {
   return [
@@ -35,7 +36,8 @@ export function seatInitialPermissionMode(override?: PermissionMode): SeatPermis
       if (saved.notification !== undefined) logForDebugging(`[daemon] ${saved.notification}`)
       return saved.mode === 'apollo' ? 'apollo' : (asHeadless(saved.mode) ?? 'default')
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return 'default'
 }

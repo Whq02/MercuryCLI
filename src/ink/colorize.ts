@@ -4,6 +4,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import instances from './instances.js'
 import type { Color, TextStyles } from './styles.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type ColorType = 'foreground' | 'background'
 
@@ -56,7 +57,8 @@ export const CHALK_BOOSTED_FOR_FINGERPRINT = boostChalkLevelForFingerprint()
 function readTruecolorFlag(): string | undefined {
   try {
     return flagEnv('MERCURY_TRUECOLOR')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { flagEnv, flagSpellings } from './flagRegistry.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type LaunchMilestone =
   | 'runtime-entry'
@@ -48,7 +49,8 @@ function readAll(): LaunchMilestoneRowV1[] {
     const raw = JSON.parse(readFileSync(launchMilestonesPath(), 'utf8')) as MilestoneFileV1
     if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
     return raw.rows
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -87,7 +89,8 @@ export function recordLaunchMilestone(milestone: LaunchMilestone, opts?: { boot?
       },
     ].slice(-MAX_ROWS)
     writeRows(rows)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const held = heldUntil.get(milestone)
   if (held !== undefined) {
@@ -103,7 +106,8 @@ function writeRows(rows: LaunchMilestoneRowV1[]): void {
     const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(16).slice(2, 10)}`
     writeFileSync(tmp, `${JSON.stringify({ version: 1, rows } satisfies MilestoneFileV1, null, 1)}\n`)
     renameSync(tmp, path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

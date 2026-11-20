@@ -57,6 +57,7 @@ import {
   type DesktopAddonValue,
   type DesktopAddonClickablePoint,
 } from './pack.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type DesktopDriverLoad =
   | { state: 'ok'; driver: DesktopDriver }
@@ -230,7 +231,8 @@ function captureChildAnswer(stdout: Buffer): { raw: DesktopAddonCapture } | { er
   let head: unknown
   try {
     head = JSON.parse(stdout.subarray(0, newline).toString('utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (head === null || typeof head !== 'object') return null
@@ -266,7 +268,8 @@ function sessionsOnThisBinary(): { read: boolean; named: string } {
       let names: string[]
       try {
         names = readdirSync(join(projects, project))
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       for (const name of names) {
@@ -274,10 +277,10 @@ function sessionsOnThisBinary(): { read: boolean; named: string } {
         try {
           const lock = JSON.parse(readFileSync(join(projects, project, name), 'utf8')) as { pid?: unknown }
           if (typeof lock.pid === 'number' && peers.includes(lock.pid)) sessions.set(lock.pid, name.slice(0, 8))
-        } catch {}
+        } catch (error) { passedOver(error) }
       }
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   const named = peers.filter(pid => sessions.has(pid)).map(pid => `session ${sessions.get(pid)}… (pid ${pid})`)
   return { read, named: named.slice(0, 3).join('; ') + (named.length > 3 ? ` and ${named.length - 3} more` : '') }
 }
@@ -294,7 +297,8 @@ function queryAnswer(stdout: string): DesktopQueryAnswer | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (parsed === null || typeof parsed !== 'object') return null
@@ -961,7 +965,8 @@ export function resetNativeDesktopDriverForTest(): void {
 function computerUseSwitchOn(): boolean {
   try {
     return flagEnabled('MERCURY_COMPUTER_USE')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

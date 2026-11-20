@@ -8,6 +8,7 @@ import type { UsageFeed } from './providers/usageFreshness.js'
 import type { AnthropicObservedUsageV1 } from './engine-connector/types.js'
 import { processRateLimitHeaders, shouldProcessRateLimits } from './rateLimitMocking.js'
 import { providerAskedWaitMs, providerWaitIsWindow } from './api/recoveryBudget.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export type RateLimitType =
@@ -115,7 +116,8 @@ export function noteUsageRecordChanged(): void {
   for (const listener of usageRecordListeners) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -143,7 +145,8 @@ function currentAnthropicOwner(now: () => number = Date.now): string {
     const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
     const entry = activeWalletEntry('anthropic')
     owner = entry === undefined ? 'none' : entry.identity?.accountId ? `${entry.id}:${entry.identity.accountId}` : entry.id
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   ownerCache = { owner, atMs: at, epoch: usageCredentialEpoch }
   return owner
@@ -166,7 +169,8 @@ function currentAnthropicAccountName(): string {
     const { activeWalletEntry } = require('./wallet/wallet.js') as typeof import('./wallet/wallet.js')
     const entry = activeWalletEntry('anthropic')
     return entry?.identity?.email ?? entry?.label ?? 'the signed-in account'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'the signed-in account'
   }
 }

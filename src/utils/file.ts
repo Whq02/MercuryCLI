@@ -28,6 +28,7 @@ import { fileReadCache } from './fileReadCache.js'
 import { logError } from './log.js'
 import { expandPath } from './path.js'
 import { needsPowerShellBom } from './fileEncoding.js'
+import { passedOver } from './passedOver.js'
 
 export { detectFileEncoding, needsPowerShellBom } from './fileEncoding.js'
 
@@ -45,7 +46,8 @@ export async function pathExists(path: string): Promise<boolean> {
   try {
     await getFsImplementation().stat(path)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -463,7 +465,8 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
     let resolvedParent: string
     try {
       resolvedParent = await realpath(dirname(requestedPath))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
     const rebuilt = join(resolvedParent, basename(requestedPath))
@@ -476,7 +479,8 @@ export async function suggestPathUnderCwd(requestedPath: string): Promise<string
     const relativeToParent = relative(cwdParent, rebuilt)
     const rerooted = join(cwd, relativeToParent)
     return (await pathExists(rerooted)) ? rerooted : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -497,7 +501,8 @@ export function stripLineNumberPrefix(line: string): string {
 export function isFileWithinReadSizeLimit(filePath: string, maxSizeBytes: number = MAX_OUTPUT_SIZE): boolean {
   try {
     return statSync(filePath).size <= maxSizeBytes
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

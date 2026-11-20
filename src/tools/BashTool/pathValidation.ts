@@ -30,6 +30,7 @@ import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
 import { stripSafeWrappers } from './safeWrappers.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type PathCommand =
@@ -459,7 +460,8 @@ function gitPrintedPaths(args: string[]): { paths: string[]; whole: boolean; rec
     try {
       statSync(resolvePath(getShellCwd(), expandTilde(word)))
       return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -805,7 +807,8 @@ const ENV_WALK_SKIPPED: ReadonlySet<string> = new Set(['.git', 'node_modules'])
 function namedBy(glob: string, name: string): boolean {
   try {
     return new RegExp(`^${glob.replace(/[.+^${}()|\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.')}$`).test(name)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

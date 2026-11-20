@@ -31,6 +31,7 @@ import { compatDispatchModelId, type CompatCallModelParams, type CompatLaneId, t
 import { apiErrorMessage, compatFaultToTypedError, compatTerminalFaultText, overflowOf } from './compatChatCallModel/faults.js'
 import { openCompatTurn, prepareCompatTurn } from './compatChatCallModel/prepare.js'
 import { streamOneCompatAttempt } from './compatChatCallModel/attempt.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export { compatDispatchModelId, imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatLaneProfile } from './compatChatCallModel/lane.js'
 export { compatFaultToTypedError, compatTerminalFaultText } from './compatChatCallModel/faults.js'
@@ -128,7 +129,8 @@ export async function* compatChatCallModel(
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
         logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return
     }
@@ -145,7 +147,7 @@ export async function* compatChatCallModel(
       profile.recoverCredential &&
       attempt < COMPAT_MAX_ATTEMPTS
     ) {
-      const fresh = await profile.recoverCredential().catch(() => undefined)
+      const fresh = await profile.recoverCredential().catch(passedOverAs(undefined))
       if (signal.aborted) return
       if (fresh?.apiKey !== undefined && fresh.apiKey !== credential.apiKey) {
         recovery = 'retried'
@@ -167,7 +169,7 @@ export async function* compatChatCallModel(
         try {
           const { logAPIDuration } = await import('../../api/logging.js')
           logAPIDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
-        } catch {}
+        } catch (error) { passedOver(error) }
         yield withEffort(apiErrorMessage(`${API_ERROR_MESSAGE_PREFIX}: ${streamReconnectSpentLine(profile.providerLabel, outcome.fault.silentMs)}`, typed, 'stream-reconnect-spent'))
         return
       }

@@ -10,6 +10,7 @@ import { daemonDir } from './controlSocket.js'
 import { ensureDirInDaemonHome } from './daemonHome.js'
 import { gitArgs, gitArgsAsync } from '../utils/git/spawnArgs.js'
 import { discardSetAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones } from '../utils/worktreeClone.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const WORKTREE_RUNTIME_HOMES: readonly string[] = PROJECT_CONFIG_DIR_NAMES
 
@@ -25,7 +26,8 @@ export function workspaceKindOf(workspaceId: string): 'git' | 'plain-folder' {
   try {
     statSync(join(workspaceId, '.git'))
     return 'git'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'plain-folder'
   }
 }
@@ -89,7 +91,8 @@ async function gitAsync(
     const timer = setTimeout(() => {
       try {
         child.kill('SIGKILL')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       finish({ ok: false, stdout: out, stderr: 'git timed out after 30s' })
     }, 30_000)

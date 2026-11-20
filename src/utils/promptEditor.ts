@@ -12,6 +12,7 @@ import { classifyGuiEditor, editorDisplayName, editorRefusalLine, resolveExterna
 import { parseLegacyCommandString } from './resolvedInvocation.js'
 import { generateTempFilePath } from './tempfile.js'
 import { reclaimTerminalAfterChild } from './terminalHandback.js'
+import { passedOver } from './passedOver.js'
 
 
 export type EditorResult = {
@@ -207,7 +208,8 @@ export async function editPromptInEditor(
   } finally {
     try {
       unlinkSync(tempFilePath)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

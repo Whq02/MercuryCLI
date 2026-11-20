@@ -1,4 +1,5 @@
 import { APIError } from './sdkErrors.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type ConnectionErrorDetails = {
@@ -86,7 +87,8 @@ export function decodeApiErrorBlobMessage(blob: string): string | undefined {
   const parse = (raw: string): unknown => {
     try {
       return JSON.parse(raw)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }

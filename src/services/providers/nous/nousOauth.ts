@@ -11,6 +11,7 @@ import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { presentedNousClient } from './nousClientContract.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const NOUS_DEVICE_CODE_GRANT = 'urn:ietf:params:oauth:grant-type:device_code'
 export const NOUS_REFRESH_TOKEN_HEADER = 'x-nous-refresh-token'
@@ -141,7 +142,8 @@ function jwt(token: string): Record<string, unknown> {
     if (!part) return {}
     const value: unknown = JSON.parse(Buffer.from(part, 'base64url').toString('utf8'))
     return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -160,7 +162,8 @@ function trustedInferenceBase(value: unknown, io?: NousOauthIo): string | undefi
     const sameBox = loopback !== undefined && ['127.0.0.1', 'localhost', '[::1]'].includes(loopback.hostname) && url.origin === loopback.origin
     if (!sameBox && !(url.protocol === 'https:' && (url.hostname === 'nousresearch.com' || url.hostname.endsWith('.nousresearch.com')))) return undefined
     return value.replace(/\/+$/, '')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -368,7 +371,7 @@ export function refreshNousTokens(io?: NousOauthIo, force = false): Promise<Nous
       refreshTrouble = `the Nous Portal could not refresh the sign-in (HTTP ${result.status}${words ? `: ${words}` : ''}) — the stored sign-in is kept`
       throw new Error(`${refreshTrouble}; retry shortly`)
     } finally {
-      await release().catch(() => undefined)
+      await release().catch(passedOverAs(undefined))
     }
   })().finally(() => refreshes.delete(path))
   refreshes.set(path, work)

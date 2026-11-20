@@ -26,6 +26,7 @@ import type {
 } from './types.js'
 import type { BoxReadingV1 } from '../../utils/boxLock.js'
 import type { OpenaiLiveModel } from '../providers/openai/openaiClient.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export interface QueuedFactV1 {
@@ -234,7 +235,8 @@ function readJson<T>(path: string, accept: (raw: unknown) => raw is T): T | null
   try {
     const raw = JSON.parse(readFileSync(path, 'utf8')) as unknown
     return accept(raw) ? raw : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -322,7 +324,8 @@ export function resetSeatProjections(dir?: string): void {
   for (const d of [sessionFactsDir(dir), sessionAsksDir(dir), sessionTailDir(dir), sessionProgressDir(dir)]) {
     try {
       for (const f of readdirSync(d)) rmSync(join(d, f), { force: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -5,6 +5,7 @@ import { getClaudeAIOAuthTokens, hasProfileScope, isClaudeAISubscriber } from '.
 import { getAuthHeaders } from '../../utils/http.js'
 import { getAnthropicClientUserAgent } from '../../utils/userAgent.js'
 import { isOAuthTokenExpired } from '../oauth/client.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type RateLimit = {
@@ -48,11 +49,13 @@ export async function fetchUtilization(): Promise<Utilization | null> {
         const { foldUtilizationFromEndpoint } =
           require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
         foldUtilizationFromEndpoint(mocked, undefined)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return mocked
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   const tokens = getClaudeAIOAuthTokens()
@@ -87,7 +90,8 @@ export async function fetchUtilization(): Promise<Utilization | null> {
       const { foldUtilizationFromEndpoint } =
         require('../anthropicLimits.js') as typeof import('../anthropicLimits.js')
       foldUtilizationFromEndpoint(data, issuedEpoch)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return data

@@ -13,6 +13,7 @@ import { logError } from './log.js'
 import { isPeerGoneWriteError, registerProcessInputErrorHandler, registerProcessOutputErrorHandlers } from './process.js'
 import { profileReport } from './startupProfiler.js'
 import { sleep } from './sleep.js'
+import { passedOver } from './passedOver.js'
 
 
 export type GracefulShutdownOptions = {
@@ -83,7 +84,8 @@ function runTerminalRestoration(): void {
     writeSync(1, FALLBACK_CLOSE_SYNC_UPDATE)
     writeSync(1, FALLBACK_EXIT_ALT_SCREEN)
     writeSync(1, FALLBACK_SHOW_CURSOR)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -107,7 +109,7 @@ function forceExit(exitCode: number): void {
       const restoration =
         restorationModule ?? (process.stdout.isTTY ? resolveRestorationSync() : undefined)
       restoration?.drainStdinForExit()
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   try {
     process.exit(exitCode)
@@ -152,7 +154,7 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
     logForDiagnosticsNoPII('error', 'boot_cwd_missing', { origin })
     try {
       writeSync(2, `${MISSING_CWD_LINE}\n`)
-    } catch {}
+    } catch (error) { passedOver(error) }
     void crashShutdown(1)
     return
   }
@@ -196,7 +198,8 @@ export function failLoud(error: unknown, origin: LoudFailureOrigin): void {
   ]
   try {
     writeSync(2, `${lines.join('\n')}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   void crashShutdown(1)
 }
@@ -361,7 +364,8 @@ export const setupGracefulShutdown = (): void => {
       try {
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (tripped) {
@@ -373,12 +377,14 @@ export const setupGracefulShutdown = (): void => {
         process.stderr.write(
           `Crash loop detected: ${breaker.count} uncaught exceptions within ${BREAKER_WINDOW_MS}ms; exiting.\n`,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       try {
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(err, undefined, 'uncaught-exception')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (isShuttingDown()) forceExit(1)
       else void crashShutdown(1)
@@ -401,7 +407,8 @@ export const setupGracefulShutdown = (): void => {
       try {
         const crashMod = require('./crashReport.js') as typeof import('./crashReport.js')
         crashMod.persistCrashReport(reason, undefined, 'unhandled-rejection')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (reason instanceof Error) {
@@ -424,7 +431,7 @@ export const setupGracefulShutdown = (): void => {
         .then(mod => {
           restorationModule = mod
         })
-        .catch(() => {})
+        .catch(passedOver)
     }, RESTORATION_PREFETCH_DELAY_MS)
     prefetch.unref()
   }
@@ -498,18 +505,21 @@ export async function gracefulShutdown(
       if (outcome.state.kind === 'failed') process.stderr.write(`${outcome.state.line}\n`)
     }
     await endBackgroundHooks()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   try {
     profileReport()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   if (options?.finalMessage !== undefined && !terminalIsGone()) {
     try {
       process.stderr.write(`${options.finalMessage}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -595,7 +605,7 @@ export async function quiesceCleanupBeforeExit(
   let grace: ReturnType<typeof setTimeout> | undefined
   try {
     await Promise.race([
-      cleanupRun.catch(() => {}),
+      cleanupRun.catch(passedOver),
       new Promise<void>(resolveGrace => {
         grace = setTimeout(resolveGrace, graceMs)
       }),
@@ -656,7 +666,8 @@ export function gracefulShutdownSync(
       runTerminalRestoration()
       runResumeHint()
       forceExit(exitCode)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 }

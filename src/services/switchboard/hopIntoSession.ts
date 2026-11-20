@@ -8,6 +8,7 @@ import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { validateUuid } from '../../utils/sessionStoragePortable.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export function liveTitleDeriverFor(
   workers: {
@@ -28,7 +29,8 @@ export function liveTitleDeriverFor(
         titlesBySession = new Map()
         for (const rec of Object.values(workers.readSessionWorkers())) titlesBySession.set(rec.sessionId, rec.title)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const stored = (titlesBySession.get(record.sessionId) ?? '').trim()
     const briefOf = (): string | null => {
@@ -79,10 +81,10 @@ async function hopIntoBoardSessionLanding(sessionId: string, opts?: { firstPaint
   }, workers.sessionOwnedByLiveWorker(sessionId) !== null)
   void hop.catch(() => settleLandingWords())
   await Promise.race([hop, sleep(opts?.firstPaintMs ?? 250)])
-  void withLanding(hop.then(() => undefined)).catch(() => {})
+  void withLanding(hop.then(() => undefined)).catch(passedOver)
   void import('./ensureDaemon.js')
     .then(m => m.ensureOwnedDaemon())
-    .catch(() => {})
+    .catch(passedOver)
   return { ok: true, title }
 }
 
@@ -120,7 +122,8 @@ async function workspaceOfTranscript(transcriptPath: string | undefined): Promis
       }
       const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
       if (m) return JSON.parse(`"${m[1]}"`) as string
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const { getCwd } = await import('../../utils/cwd.js')
@@ -240,8 +243,8 @@ async function focusResumedSessionLanding(
   const admitted = refusal.then(r => r === null)
   const pointed = seat.focusDaemonSession(connector.record)
   await Promise.race([pointed, sleep(opts?.firstPaintMs ?? 250)])
-  void withLanding(pointed.then(() => undefined)).catch(() => {})
-  void Promise.all([refusal, pointed.catch(() => undefined)]).then(([refused]) => {
+  void withLanding(pointed.then(() => undefined)).catch(passedOver)
+  void Promise.all([refusal, pointed.catch(passedOverAs(undefined))]).then(([refused]) => {
     if (refused === null && note !== undefined) void paintAdmissionNote(sessionId, note)
   })
   void paintResumeRecap(sessionId, launchWon)
@@ -276,7 +279,8 @@ export async function closeFocusedChat(opts: { fate: 'park' | 'end' }): Promise<
           fate = parked.outcome === 'draining' ? 'draining' : parked.outcome === 'applied' && (parked.detail ?? '').startsWith('released') ? 'released' : parked.outcome === 'applied' || parked.outcome === 'noop' ? 'parked' : 'none'
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   slot.releaseFocusedSessionConnector()
@@ -314,7 +318,8 @@ async function parkSessionById(sessionId: string): Promise<void> {
   try {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     await daemonControlRpc({ op: 'sessionControl', action: 'park', sessionId, by: `operator:${process.pid}` }, { timeoutMs: 15_000 })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -358,7 +363,8 @@ async function paintReactivationScheduleWarn(sessionId: string): Promise<void> {
     connector.addDisplayRow(
       createSystemMessage(`${count} schedule${count === 1 ? '' : 's'} retained — ${sentence}`, 'warning'),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -442,7 +448,8 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
       card = createAwaySummaryMessage(now.line, { ...rest, endedOnError: now.endedOnError, ...(now.toolFailures > 0 ? { toolFailures: now.toolFailures } : {}) })
       connector.addDisplayRow(card)
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -487,6 +494,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: { model?: string;
       }
     }
     for (const part of parts) mintImmediateReceipt(part)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

@@ -11,6 +11,7 @@ import { supportsTabStatus } from '../termio/osc.js'
 import { reenterAltScreen } from './alt-screen.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function attachStopListeners(this: Pick<Ink, 'stopListenersAttached' | 'stopForSignal'>): void {
   if (this.stopListenersAttached || !stopSignalsSupported()) return
@@ -50,7 +51,8 @@ export function stopForSignal(this: StopForSignalReads, signal: NodeJS.Signals):
   }
   try {
     process.kill(process.pid, signal)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (!this.isUnmounted) attachStopListeners.call(this)
 }
@@ -68,7 +70,8 @@ export function resumeAfterContinue(this: ResumeAfterContinueReads): void {
     this.rawModeOffForStop = false
     try {
       this.options.stdin.setRawMode(true)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   attachStopListeners.call(this)

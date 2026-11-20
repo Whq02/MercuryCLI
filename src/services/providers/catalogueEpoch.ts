@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 let epoch = 0
 const listeners = new Set<() => void>()
@@ -11,7 +12,8 @@ export function bumpCatalogueEpoch(): void {
   for (const listener of [...listeners]) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

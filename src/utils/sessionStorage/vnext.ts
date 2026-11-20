@@ -5,6 +5,7 @@ import { nextOrdinal, asOrdinal, type Ordinal } from '../../fabric/ordinal.js'
 import type { MercuryRecord } from '../../fabric/record.js'
 import type { SessionId } from '../../types/ids.js'
 import { jsonStringify } from '../slowOperations.js'
+import { passedOver } from '../passedOver.js'
 
 const TAIL_BYTES = 256 * 1024
 
@@ -30,7 +31,8 @@ function recoverTailOrdinalFloor(fd: number, size: number): number {
         if (typeof ord === 'string' && ord.length > 0 && Number.isFinite(Number(ord))) {
           return Math.floor(Number(ord))
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (len >= size) return 1

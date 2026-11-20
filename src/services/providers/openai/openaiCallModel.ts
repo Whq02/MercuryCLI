@@ -36,6 +36,7 @@ import { streamOneOpenaiAttempt } from './openaiCallModel/attempt.js'
 import { reissueAtServedEffort, reissueTextForm, trimResumedTranscript } from './openaiCallModel/faultReissue.js'
 import { refuseUsageLimit } from './openaiCallModel/faultRefusal.js'
 import { busyPrefix, effortOnWire, withEffort, type AttemptFault } from './openaiCallModel/turnState.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export { openaiLiveProofState } from './openaiCallModel/turnSettled.js'
 export { effortVocabularyRefusalOf, openaiFaultToTypedError, openaiRetryDelayMs } from './openaiCallModel/faults.js'
@@ -125,7 +126,7 @@ async function* openaiTurn(
         const fresh = await resolveOpenaiRequestAuth({
           sourceKind: 'chatgpt-subscription',
           forceRefresh: true,
-        }).catch(() => undefined)
+        }).catch(passedOverAs(undefined))
         if (signal.aborted) return
         if (fresh && fresh.headers.authorization !== turn.auth.headers.authorization) {
           turn.recovery = 'retried'
@@ -135,7 +136,7 @@ async function* openaiTurn(
         turn.recovery = 'no-new-credential'
       } else if (configuredProviderKeyCommand('openai')) {
         const freshKey = recoverProviderKeyCommand('openai', turn.auth.headers.authorization?.replace(/^Bearer /i, ''))
-        const fresh = freshKey ? await resolveOpenaiRequestAuth({ sourceKind: 'api-key' }).catch(() => undefined) : undefined
+        const fresh = freshKey ? await resolveOpenaiRequestAuth({ sourceKind: 'api-key' }).catch(passedOverAs(undefined)) : undefined
         if (signal.aborted) return
         if (fresh && fresh.headers.authorization !== turn.auth.headers.authorization) {
           turn.recovery = 'retried'

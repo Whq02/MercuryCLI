@@ -8,6 +8,7 @@ import { getIsInteractive, getLastInteractionTime } from '../bootstrap/state.js'
 import { runLifecyclePass } from '../substrate/stateLifecycle.js'
 import { cleanupOldMessageFilesInBackground } from './cleanup.js'
 import { logForDebugging } from './debug.js'
+import { passedOver } from './passedOver.js'
 
 const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 
@@ -37,7 +38,8 @@ async function isLastCleanupSentinelFresh(): Promise<boolean> {
   try {
     const stat = await fs.stat(sentinelPath())
     return seams.now() - stat.mtimeMs < CLEANUP_SENTINEL_FRESH_WINDOW_MS
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -74,7 +76,7 @@ export async function runCleanupCycleStep(opts?: {
 }
 
 async function stampSentinel(): Promise<void> {
-  await fs.writeFile(sentinelPath(), new Date(seams.now()).toISOString()).catch(() => {})
+  await fs.writeFile(sentinelPath(), new Date(seams.now()).toISOString()).catch(passedOver)
 }
 
 function resetCycle(): void {
@@ -100,7 +102,8 @@ export async function runLifecycleVerbOpportunity(
       resetCycle()
       logForDebugging(`[housekeeping] cleanup cycle on the ${verb} verb finished with failures — sentinel withheld`)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

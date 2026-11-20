@@ -31,6 +31,7 @@ import { nextLiveCockpitOwner, readSessionWorkers } from './concourseWorkers.js'
 import { initGitRepository } from './concourseWorktrees.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { countEntriesBounded, entryCountWords, gitInitRefusal, type GitInitRefusal } from '../utils/projectBoundary.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function gitInitAsksPath(): string {
   return join(daemonDir(), 'git-init-asks.json')
@@ -45,7 +46,8 @@ function readGitInitAsks(): Record<string, string> {
       if (typeof v === 'string' && k.startsWith('git-init:')) out[k] = v
     }
     return out
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -78,7 +80,8 @@ export function operatorClientPresence(dir?: string, now: number = Date.now()): 
   let record: { ownerPid?: unknown } | null
   try {
     record = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { ownerPid?: unknown } | null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unknown'
   }
   if (record === null || typeof record !== 'object') return 'unknown'

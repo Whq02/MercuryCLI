@@ -9,6 +9,7 @@ import { getGlobalMercuryFile } from '../../../env.js'
 import { getMacOsKeychainStorageServiceName } from '../../../secureStorage/macOsKeychainHelpers.js'
 import { healthFixEnabled } from '../../../healthFix.js'
 import type { CheckSpec } from '../../../healthReport.js'
+import { passedOver, passedOverAs } from '../../../passedOver.js'
 
 export function configHomeCheck(): CheckSpec {
   return {
@@ -84,7 +85,8 @@ export function transcriptStoreCheck(): CheckSpec {
       let projectCount = 0
       try {
         projectCount = readdirSync(dir).length
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const { getTranscriptPath } = await import('../../../sessionStorage/paths.js')
       const transcript = getTranscriptPath()
@@ -106,7 +108,8 @@ export function transcriptStoreCheck(): CheckSpec {
         try {
           closeSync(openSync(transcript, need === 'readable' ? 'r' : 'a'))
           return false
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return true
         }
       })
@@ -204,7 +207,7 @@ export function isolationCheck(): CheckSpec {
                         const src = harnessArtifactPath(home, artifact.rel)
                         const moved = await rename(src, join(archiveDest, artifact.rel.replace(/\//g, '_'))).then(
                           () => true,
-                          () => false,
+                          passedOverAs(false),
                         )
                         if (moved) movedCount++
                       }

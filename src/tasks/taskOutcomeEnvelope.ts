@@ -5,6 +5,7 @@ import { durableAtomicPublish } from '../substrate/durablePublish.js'
 import { errorMessage, isENOENT } from '../utils/errors.js'
 import { logError } from '../utils/log.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
+import { passedOverAs } from '../utils/passedOver.js'
 
 const TASK_OUTCOME_ENVELOPE_VERSION = 1
 
@@ -117,7 +118,7 @@ export async function recordTaskOutcome(
     chainKey,
     op.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     ),
   )
   return op

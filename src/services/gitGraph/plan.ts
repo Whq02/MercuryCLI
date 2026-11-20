@@ -13,6 +13,7 @@ import { beginTransaction, transitionTransaction } from '../primitives/transacti
 import type { GitPlan, GitPlanGroup, GitPlanState } from './contracts.js'
 import { git, gitStatus, hunkId, isGitRepo } from './observe.js'
 import { gitArgs, gitFilterSkipMessages } from '../../utils/git/spawnArgs.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const PLAN_RING = 16
 
@@ -156,7 +157,8 @@ function simulateHunkSequence(
   } finally {
     try {
       rmSync(tmpIndex, { force: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -342,7 +344,8 @@ export function preparePlan(
 function headSha(root: string): string | null {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).trim() || null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

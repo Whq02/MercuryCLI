@@ -27,6 +27,7 @@ import {
 } from './changeSetContracts.js'
 import { canonicalPathKey, sha256Hex } from './changeSetPlan.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TEXT_CHANGE_SET_KIND = 'text-change-set'
 
@@ -139,7 +140,7 @@ async function acquirePathLocks(paths: string[]): Promise<() => void> {
         () => gate,
       ),
     )
-    await prev.catch(() => {})
+    await prev.catch(passedOver)
     releases.push(release)
   }
   return () => {
@@ -150,13 +151,14 @@ async function acquirePathLocks(paths: string[]): Promise<() => void> {
 async function unlinkQuiet(path: string): Promise<void> {
   try {
     await unlink(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
 async function atomicRestoreBytes(path: string, bytes: Buffer, mode: number): Promise<void> {
   await durableAtomicPublish(path, bytes, { mode })
-  await chmod(path, mode).catch(() => {})
+  await chmod(path, mode).catch(passedOver)
 }
 
 function fsyncEnabled(): boolean {
@@ -186,7 +188,8 @@ function classifyDiskState(
 async function readOrNull(path: string): Promise<Buffer | null> {
   try {
     return await readFile(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -293,7 +296,7 @@ export async function runTextChangeSetCommit(req: CommitRequest): Promise<Commit
       const fh = await open(tmp, 'wx', t.mode)
       try {
         await fh.writeFile(t.plannedBytes)
-        await fh.chmod(t.mode).catch(() => {})
+        await fh.chmod(t.mode).catch(passedOver)
         if (fsyncEnabled()) await fh.sync()
       } finally {
         await fh.close()
@@ -612,8 +615,8 @@ export async function recoverChangeSetJournal(
       summary.unrecoverable.push(op.operationId)
     }
   }
-  await compactJournalDir(journalDir).catch(() => {})
-  await compactChangeSetBundles(bundleRoot, journalDir).catch(() => {})
+  await compactJournalDir(journalDir).catch(passedOver)
+  await compactChangeSetBundles(bundleRoot, journalDir).catch(passedOver)
   return summary
 }
 
@@ -624,7 +627,8 @@ export async function compactChangeSetBundles(
   let names: string[]
   try {
     names = await readdir(bundleRoot)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   const ops = await listJournalOperations(journalDir)
@@ -639,7 +643,8 @@ export async function compactChangeSetBundles(
     if (liveDigests.has(name)) continue
     try {
       terminal.push({ name, mtimeMs: (await stat(join(bundleRoot, name))).mtimeMs })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   terminal.sort((a, b) => b.mtimeMs - a.mtimeMs)
@@ -648,7 +653,8 @@ export async function compactChangeSetBundles(
     try {
       await rm(join(bundleRoot, b.name), { recursive: true, force: true })
       removed++
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return removed

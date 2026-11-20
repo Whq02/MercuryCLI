@@ -13,6 +13,7 @@ import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const MOONSHOT_API_BASE_URL = 'https://api.moonshot.ai/v1'
@@ -135,7 +136,8 @@ function publishAuthFile(mutate: (file: MoonshotAuthFile) => MoonshotAuthFile): 
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -183,7 +185,8 @@ function accessTokenClaims(accessToken: string): Record<string, unknown> | undef
   try {
     const parsed = JSON.parse(Buffer.from(parts[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')) as unknown
     return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -277,7 +280,8 @@ export function recordMoonshotServedModel(
     })
     bumpCatalogueEpoch()
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -378,7 +382,8 @@ async function postForm(
   try {
     const parsed = (await response.json()) as unknown
     if (typeof parsed === 'object' && parsed !== null) body = parsed as Record<string, unknown>
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { status: response.status, body }
 }
@@ -481,7 +486,8 @@ export function refreshMoonshotTokens(io?: MoonshotOauthIo): Promise<MoonshotSto
           },
           io,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
       const tokens = tokensFromBody(result.body, io)

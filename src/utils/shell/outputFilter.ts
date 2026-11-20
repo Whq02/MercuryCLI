@@ -1,5 +1,6 @@
 import { getInitialSettings } from '../settings/settings.js'
 import { plural } from '../stringUtils.js'
+import { passedOver } from '../passedOver.js'
 
 export const SHELL_OUTPUT_FILTER_SETTING = 'shell.filterOutput'
 const REPEAT_RUN_FLOOR = 3
@@ -11,7 +12,8 @@ type FilteredShellOutput = { text: string; leftOut: OutputFilterLeftOut; changed
 export function isShellOutputFilterOn(): boolean {
   try {
     return getInitialSettings().shell?.filterOutput === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

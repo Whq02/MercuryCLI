@@ -8,6 +8,7 @@ import { logError } from '../../../utils/log.js'
 import { createSeatReceiptMessage } from '../../../utils/messages/systemMessages.js'
 import { recordTranscript, peekProject } from '../../../utils/sessionStorage/writer.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const BUILD_BEHIND_FLOOR_MS = 60_000
 
@@ -65,7 +66,7 @@ function run(ports: RunnerPorts): BootMade<'checkBuildBehind' | 'buildBehindFloo
     messages.push(row)
     void recordTranscript([row], undefined, messages)
       .then(() => peekProject()?.flush())
-      .catch(() => {})
+      .catch(passedOver)
   }
   const buildBehindFloor = isConcourseWorker ? setInterval(() => void checkBuildBehind(true), BUILD_BEHIND_FLOOR_MS) : null
   buildBehindFloor?.unref?.()

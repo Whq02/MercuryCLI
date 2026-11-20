@@ -15,6 +15,7 @@ import { subscribeThroughFocused, getFocusedSessionConnector, hasFocusedSession 
 import { subscribeExecutionEvents } from '../services/primitives/executionPlane.js'
 import { readSessionWorkersSnapshot, workerPidAlive } from '../daemon/concourseWorkers.js'
 import { runnerRecordAlive } from '../services/engine-connector/workCounts.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const subscribeFocusedRecords = subscribeThroughFocused((connector, listener) => connector.subscribeRecords(listener))
 
@@ -89,7 +90,7 @@ async function refreshOnce(): Promise<void> {
       .then(g => {
         next.git = g
       })
-      .catch(() => {}),
+      .catch(passedOver),
     Promise.resolve()
       .then(() => {
         next.tasks = hasFocusedSession() ? getFocusedSessionConnector().workRoster().mission : []
@@ -102,12 +103,12 @@ async function refreshOnce(): Promise<void> {
         next.fleetFull = s
         next.fleet = { state: s.state, crew: null, conflicts: 0, drifting: 0 }
       })
-      .catch(() => {}),
+      .catch(passedOver),
     traceSnapshot()
       .then(s => {
         next.trace = s
       })
-      .catch(() => {}),
+      .catch(passedOver),
   ])
   const kept: Partial<VitalsSnapshots> = {}
   for (const key of Object.keys(next) as Array<keyof VitalsSnapshots>) {

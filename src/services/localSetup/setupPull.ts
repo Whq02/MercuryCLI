@@ -2,6 +2,7 @@ import { gbWords } from '../localServer/localServerMemory.js'
 import { parseOllamaTags } from '../localServer/localServerTruth.js'
 import { readJson, rec, resolveSetupIo, str } from './setupIo.js'
 import { type PullProgress, type PullResult, type SetupIo } from './setupTypes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export async function modelListed(root: string, tag: string, seam: SetupIo = {}): Promise<boolean> {
   const io = resolveSetupIo(seam)
@@ -92,7 +93,8 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
         let parsed: unknown
         try {
           parsed = JSON.parse(line)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         const row = rec(parsed)
@@ -100,7 +102,7 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
         rows++
         if (str(row.error)) {
           const why = str(row.error)!
-          void reader.cancel().catch(() => {})
+          void reader.cancel().catch(passedOver)
           return { skipped: false, success: false, lastStatus, rows, ...(totalBytes !== undefined ? { totalBytes } : {}), error: why, words: words(`pull failed: ${why}`) }
         }
         const status = str(row.status) ?? ''
@@ -118,7 +120,7 @@ export async function pullModel(root: string, tag: string, onProgress: (p: PullP
         }
         onProgress({ ...progress, line: pullProgressLine(progress) })
         if (status === 'success') {
-          void reader.cancel().catch(() => {})
+          void reader.cancel().catch(passedOver)
           return { skipped: false, success: true, lastStatus: status, rows, ...(totalBytes !== undefined ? { totalBytes } : {}), words: words(`success${totalBytes !== undefined ? ` · ${gbWords(totalBytes)}` : ''} · ${rows} rows`) }
         }
       }

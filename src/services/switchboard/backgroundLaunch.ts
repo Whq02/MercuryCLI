@@ -1,4 +1,5 @@
 import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const BACKGROUND_LAUNCH_KEY = 'backgroundSessionsLaunchCrewmates'
 
@@ -10,7 +11,8 @@ export function backgroundSessionsLaunchCrewmates(): boolean {
   if (!isConfigReadingAllowed()) return false
   try {
     return getGlobalConfig()[BACKGROUND_LAUNCH_KEY] === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

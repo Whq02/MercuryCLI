@@ -1,6 +1,7 @@
 import type { ZodTypeAny } from 'zod/v4'
 import { inlineLocalSchemaRefs } from '../../../utils/inlineSchemaRefs.js'
 import { zodToJsonSchema } from '../../../utils/zodToJsonSchema.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const REPAIR_DEPTH = 8
 
@@ -11,7 +12,8 @@ function rec(v: unknown): Record<string, unknown> | undefined {
 function parseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -147,7 +149,8 @@ export function repairArgumentsBySchema(args: Record<string, unknown>, schema: u
 export function declaredInputSchema(tool: { inputSchema: ZodTypeAny; inputJSONSchema?: unknown }): Record<string, unknown> | undefined {
   try {
     return inlineLocalSchemaRefs(rec(tool.inputJSONSchema) ?? zodToJsonSchema(tool.inputSchema))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

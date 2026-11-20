@@ -6,6 +6,7 @@ import { lockSync } from '../lockfile.js'
 import { clearOf, foldClearOverSealed, removedOf } from './sealedFileStorage.js'
 import { SEALED_FIELD, type KeyCustody, type SealedOpen } from './sealedRecord.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 type Stored = Record<string, unknown>
 
@@ -30,7 +31,8 @@ function lockAt(site: { dir: string; options: { realpath: false; stale: number }
   const stamp = (): number | null => {
     try {
       return statSync(folder).mtimeMs
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }
@@ -110,7 +112,8 @@ async function sealAtStart(start: SealedStoreStart, home: string, stored: Stored
       } finally {
         try {
           lock.release()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     } finally {
@@ -135,7 +138,7 @@ export function startSealedStore(start: SealedStoreStart): { warmed: Promise<voi
   return {
     warmed: read.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     ),
     settled,
   }

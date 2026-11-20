@@ -2,6 +2,7 @@
 import { closeSync, lstatSync, openSync, readSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { passedOver } from '../passedOver.js'
 
 const MAX_DEPTH = 5
 const MAX_ENTRIES = 4000
@@ -69,7 +70,8 @@ function walk(dir: string, depth: number, state: ScanState, inTestTree: boolean)
   let entries: string[]
   try {
     entries = readdirSync(dir).sort()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const name of entries) {
@@ -79,7 +81,8 @@ function walk(dir: string, depth: number, state: ScanState, inTestTree: boolean)
     let st
     try {
       st = lstatSync(p)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (st.isSymbolicLink()) continue
@@ -123,7 +126,8 @@ function readmeHeadline(root: string): string | null {
         if (!line) continue
         return line.replace(/^#+\s*/, '').slice(0, 100)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return null
@@ -151,7 +155,8 @@ function packageFacts(root: string): PkgFacts | null {
     if (pkg.scripts && typeof pkg.scripts === 'object') facts.scripts = Object.keys(pkg.scripts).slice(0, 12)
     facts.workspaces = Array.isArray(pkg.workspaces) || (typeof pkg.workspaces === 'object' && pkg.workspaces !== null)
     return facts
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -176,14 +181,16 @@ const HOME_SHAPE_MARKERS = ['Desktop', 'Documents', 'Downloads', 'Library', 'App
 function isHomeShapedRoot(root: string): boolean {
   try {
     if (resolve(root) === resolve(homedir())) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const entries = new Set(readdirSync(root))
     let markers = 0
     for (const m of HOME_SHAPE_MARKERS) if (entries.has(m)) markers++
     return markers >= 2
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -202,7 +209,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
     let topEntries: string[]
     try {
       topEntries = readdirSync(root).sort()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     const topDirs: string[] = []
@@ -211,7 +219,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
       if (SKIP_DIRS.has(name)) continue
       try {
         if (statSync(join(root, name)).isDirectory()) topDirs.push(name)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
 
@@ -229,7 +238,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
       try {
         statSync(join(root, f))
         return true
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
@@ -238,7 +248,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
       try {
         statSync(join(root, f))
         return true
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
@@ -246,7 +257,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
     let ci = 0
     try {
       ci = readdirSync(join(root, '.github', 'workflows')).filter(f => /\.ya?ml$/.test(f)).length
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     return {
@@ -263,7 +275,8 @@ export function scanRepoSurface(root: string): RepoSurfaceFacts | null {
       visited: state.visited,
       truncated: state.truncated,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

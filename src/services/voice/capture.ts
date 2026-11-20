@@ -5,6 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { type CaptureStreamErrors, loadVoiceAddon, resolveVoicePackDir, voiceCheckoutRoot } from './voicePack.js'
 import { encodeWav, pcmDurationMs, pcmIsSilent, pcmSamples, readWav, VOICE_SAMPLE_RATE } from './wav.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const CAPTURE_BOUND_MS = 5 * 60_000
 
@@ -47,7 +48,8 @@ export function findOnPath(name: string, env: NodeJS.ProcessEnv = process.env): 
       const candidate = join(dir, name + suffix)
       try {
         if (statSync(candidate).isFile()) return candidate
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -191,7 +193,8 @@ function startVendored(): RawCapture {
       done = true
       try {
         load.addon.cancelCapture(handle)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     },
     streamErrors: readErrors,
@@ -278,7 +281,8 @@ function startPathRecorder(kind: 'sox' | 'arecord' | 'ffmpeg', env: NodeJS.Proce
     try {
       child.stdin?.write('q\n')
       child.stdin?.end()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (process.platform !== 'win32') child.kill('SIGINT')
     const grace = sleep(3_000)
@@ -351,7 +355,8 @@ export async function startCapture(opts: StartCaptureOptions = {}): Promise<Capt
           try {
             mkdirSync(dump, { recursive: true })
             writeFileSync(join(dump, `capture-${startedAt}.wav`), wav)
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
         }
         return {

@@ -10,6 +10,7 @@ import { resolveLocalApiKeyFor } from './localApiKey.js'
 import { ggufServerRoots } from '../../localSetup/ggufServers.js'
 import { tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
 import { helperPort, tensorFoldHostRecords, tensorFoldPorts } from './tensorfoldHosts.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export type { LocalServerKind }
 
@@ -105,14 +106,14 @@ export function rememberedTensorFoldTargets(): { kind: 'tensorfold'; root: strin
   }
   try {
     for (const port of tensorFoldPorts()) add(`http://127.0.0.1:${port}`)
-  } catch {}
+  } catch (error) { passedOver(error) }
   try {
     const helper = helperPort()
     if (helper !== undefined) add(`http://127.0.0.1:${helper}`)
-  } catch {}
+  } catch (error) { passedOver(error) }
   try {
     for (const host of tensorFoldHostRecords()) add(host.baseUrl)
-  } catch {}
+  } catch (error) { passedOver(error) }
   return targets
 }
 
@@ -177,7 +178,8 @@ async function probeJson(
     } as RequestInit)
     if (!response.ok) return undefined
     return (await response.json()) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -399,7 +401,8 @@ export async function fetchTensorFold(url: string, io: LocalDiscoveryIo, key?: s
       body = undefined
     }
     return { status: response.status, server: response.headers.get('server') ?? undefined, body }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -606,7 +609,7 @@ export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<L
   const targets = localProbeTargets(env)
   let targetCount = targets.length
   const results = await Promise.all(targets.map(async target => {
-    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()) return probeTarget(target, io).catch(() => undefined)
+    if (target.kind !== 'llamacpp' || target.root !== 'http://127.0.0.1:8080' || flagEnv('MERCURY_LOCAL_PROBE_TARGETS', env)?.trim()) return probeTarget(target, io).catch(passedOverAs(undefined))
     let answered = false
     const fetchImpl = io.fetchImpl ?? getApiFetch()
     const first = await probeLlamaCpp(target.root, { ...io, fetchImpl: (async (...args: Parameters<typeof fetch>) => {
@@ -617,7 +620,7 @@ export async function discoverLocalServers(io: LocalDiscoveryIo = {}): Promise<L
     if (first || answered || io.signal?.aborted) return first
     targetCount++
     return probeLlamaCpp('http://127.0.0.1:9931', io)
-  }).map(probe => probe.catch(() => undefined)))
+  }).map(probe => probe.catch(passedOverAs(undefined))))
   const servers = results.filter((s): s is LocalServerRecord => s !== undefined)
   return { servers, probedAtMs: io.now?.() ?? Date.now(), targetCount }
 }
@@ -731,7 +734,8 @@ export async function readServed(record: LocalModelRecord, io: LocalDiscoveryIo 
       case 'openai-compatible':
         return undefined
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

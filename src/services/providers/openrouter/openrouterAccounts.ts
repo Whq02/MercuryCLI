@@ -18,6 +18,7 @@ import {
 import { readStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const OPENROUTER_AUTH_PAGE = 'https://openrouter.ai/auth'
@@ -63,7 +64,8 @@ function readAuthFile(): OpenrouterAuthFile | null {
     const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
     if (typeof parsed !== 'object' || parsed === null) return null
     return parsed as OpenrouterAuthFile
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -77,7 +79,8 @@ function writeAuthFile(mutate: (file: OpenrouterAuthFile) => OpenrouterAuthFile)
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   noteCredentialChange()
 }

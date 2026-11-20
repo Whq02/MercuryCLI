@@ -22,6 +22,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { estateGroundBg } from '../utils/mercuryTokens.js'
 import { childPath, filterRows, flattenTree, parentPath, sortEntries, type GitMark, type TreeEntry, type TreeRow } from '../utils/files/fileTree.js'
 import { readFileTreeGit, type FileTreeGit } from '../utils/files/fileTreeGit.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const FILES_MENU_WIDTH = 70
 export const FILES_MENU_CHROME_ROWS = 9
@@ -39,7 +40,8 @@ function readFolder(root: string, dir: string): TreeEntry[] {
       entries.push({ name: dirent.name, path: childPath(dir, dirent.name), dir: dirent.isDirectory() })
     }
     return sortEntries(entries)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

@@ -3,6 +3,7 @@ import { basename, dirname } from 'node:path'
 import { getKeybindingsPath, getProjectKeybindingsPath } from '../../keybindings/loadUserBindings.js'
 import { chordToString, parseChord } from '../../keybindings/parser.js'
 import type { Chord } from '../../keybindings/types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DEFAULT_CHARS: ReadonlyArray<readonly [string, string]> = [
   ['extensions:toggle', ' '],
@@ -44,7 +45,8 @@ export function resolveExtensionsBindings(): ExtensionsBindings {
           stored.push({ pattern, chord: parseChord(pattern), action: typeof action === 'string' ? action : null })
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 

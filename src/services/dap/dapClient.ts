@@ -86,6 +86,7 @@ export {
   settleDapAdapterProbes,
 } from './client/adapters.js'
 import { DapSessionPublicLayer } from './client/publicLayer.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export class DapSession extends DapSessionPublicLayer {
   readonly adapterKey: string
@@ -209,7 +210,8 @@ export class DapSession extends DapSessionPublicLayer {
     for (const wake of [...this.#stateWaiters]) {
       try {
         wake()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (this.parentSession) this.parentSession.#wakeStateWaiters()
@@ -372,7 +374,7 @@ registerExecutionDomain('debug-adapter', {
   requestStop: record => {
     const alias = record.spec.metadata?.alias
     if (typeof alias !== 'string') return
-    void removeDapSession(record.spec.owner, alias).catch(() => {})
+    void removeDapSession(record.spec.owner, alias).catch(passedOver)
   },
 })
 
@@ -543,7 +545,8 @@ process.on('exit', () => {
   for (const [, session] of sessions) {
     try {
       session.killSync()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   sessions.clear()

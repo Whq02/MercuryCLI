@@ -23,6 +23,7 @@ import { orderPickerRows } from '../../../utils/model/modelPickerGroups.js'
 import { readModelUseLedger, recordModelUse } from '../../../utils/model/modelUseLedger.js'
 import { has1mContext } from '../../../utils/context.js'
 import { familyOfModelGroup, groupOfFamily, anthropicDoorLabel } from './headings.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CATALOGUE_DOORS: Record<string, () => ModelOption[]> = {
   [OPENROUTER_MODEL_GROUP]: () => getOpenrouterFullModelOptions(),
@@ -43,7 +44,8 @@ export function resolveCurrentRowId(models: ModelChoice[], served: string): stri
   const resolvedOf = (id: string): string | null => {
     try {
       return parseUserSpecifiedModel(id)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }

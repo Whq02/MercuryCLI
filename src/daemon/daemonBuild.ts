@@ -1,6 +1,7 @@
 import { existsSync, openSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { nixInstallRoot } from '../services/privateChannel/installProvenance.js'
+import { passedOver } from '../utils/passedOver.js'
 
 let selfScriptMemo: { argv: string; real: string; invoked: string } | null = null
 
@@ -40,7 +41,8 @@ export function vendoredNodeBeside(buildDir: string, platform: NodeJS.Platform =
   const candidate = platform === 'win32' ? join(buildDir, 'vendor', 'node', 'node.exe') : join(buildDir, 'vendor', 'node', 'bin', 'node')
   try {
     return existsSync(candidate) ? nixInstallRoot(join(buildDir, 'mercury.mjs'), platform === 'win32') === null ? realpathSync(candidate) : candidate : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -60,7 +62,8 @@ export function holdBuild(buildDir: string = selfBuildDir()): 'held' | 'no-manif
   try {
     buildHoldFd = openSync(path, 'r')
     return 'held'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'no-manifest'
   }
 }

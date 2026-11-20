@@ -8,6 +8,7 @@ import { recordLaneTurnSettled } from '../../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../../../../utils/accounts/signInRefusal.js'
 import { priorConversation4xx } from './resumeTrim.js'
 import type { OpenaiTurn } from './turnState.js'
+import { passedOver } from '../../../../utils/passedOver.js'
 
 let openaiLiveProof: { at: number; model: string } | null = null
 export function openaiLiveProofState(): { at: number; model: string } | null {
@@ -33,7 +34,8 @@ export async function settleOpenaiTurn(
   try {
     const { logAPISuccessAndDuration } = await import('../../../api/logging.js')
     logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   openaiLiveProof = { at: Date.now(), model: modelId }
   recordLaneTurnSettled('openai')

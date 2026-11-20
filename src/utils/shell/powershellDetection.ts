@@ -2,6 +2,7 @@ import { existsSync, statSync } from 'node:fs'
 import { realpathSync } from 'node:fs'
 import { getPlatform } from '../platform.js'
 import { which } from '../which.js'
+import { passedOver } from '../passedOver.js'
 
 type PowerShellEdition = 'core' | 'desktop'
 
@@ -27,7 +28,8 @@ async function findPowerShell(): Promise<string | null> {
         if (!existsSync(candidate)) continue
         try {
           if (!statSync(candidate).isFile()) continue
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         if (!isUnderSnap(candidate)) return candidate

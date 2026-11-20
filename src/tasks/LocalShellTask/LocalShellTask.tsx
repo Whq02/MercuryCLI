@@ -43,6 +43,7 @@ import type { AgentId } from '../../types/ids.js'
 import type { BashTaskKind, LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
 import { killTask } from './killShellTasks.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const BACKGROUND_BASH_SUMMARY_PREFIX = 'Background command '
@@ -141,7 +142,8 @@ function armStallWatchdog(args: {
         let size = lastSize
         try {
           size = (await fs.promises.stat(outputPath)).size
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return
         }
         if (size > lastSize) {
@@ -153,7 +155,8 @@ function armStallWatchdog(args: {
         let tail: { content: string }
         try {
           tail = await tailFile(outputPath, WATCHDOG_TAIL_BYTES)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return
         }
         if (!looksLikePrompt(tail.content)) {

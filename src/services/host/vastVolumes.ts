@@ -13,6 +13,7 @@ import { ensureHostKey, type HostRunner } from './ssh.js'
 import { queueHostSetup, requireHostJobOwner } from './jobs.js'
 import type { HostRecord } from './store.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
@@ -88,7 +89,7 @@ export async function deleteVastKeptVolume(api: VastClient, id: string, readOnly
   const record = readKeptVolume(id)
   if (!record || record.kind !== 'vast' || record.state === 'creating') throw new Error('This volume was created outside Mercury or its identity is not yet confirmed; it is read-only.')
   try { await api.deleteVolume(Number(id), readOnly) } catch (error) {
-    const using = (await api.volumes().catch((): VastVolume[] => [])).find(row => String(row.id) === id)?.instances ?? []
+    const using = (await api.volumes().catch((error): VastVolume[] => { passedOver(error); return [] })).find(row => String(row.id) === id)?.instances ?? []
     throw new Error('Vast.ai did not confirm the deletion of volume ' + id + (using.length ? ' while instance ' + using.join(', ') + ' still uses it; terminate that instance first' : '') + '. It may still bill ' + keptDiskPrice(record) + '; refresh Machines I’m paying for or check Storage in the Vast.ai console before trying again. ' + (error instanceof Error ? error.message : String(error)))
   }
   writeKeptVolume({ ...record, state: 'gone', verifiedSums: undefined, error: undefined, partialBytes: undefined })

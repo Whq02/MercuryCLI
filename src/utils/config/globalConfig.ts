@@ -22,6 +22,7 @@ import {
   type GlobalConfig,
 } from './schema.js'
 import { sleep } from '../sleep.js'
+import { passedOver } from '../passedOver.js'
 
 const TEST_GLOBAL_CONFIG_FOR_TESTING: GlobalConfig = {
   ...DEFAULT_GLOBAL_CONFIG,
@@ -325,7 +326,7 @@ function configRefreshListener(file: string): (current: { mtimeMs: number }) => 
     if (current.mtimeMs <= globalConfigCache.mtime) return
     void getFsImplementation().readFile(file, { encoding: 'utf-8' })
       .then(content => acceptConfigRefresh(content, current.mtimeMs))
-      .catch(() => {})
+      .catch(passedOver)
   }
 }
 
@@ -351,7 +352,8 @@ export function readGlobalConfigAgain(): void {
   try {
     stamp = getFsImplementation().statSync(file).mtimeMs
     content = String(getFsImplementation().readFileSync(file, { encoding: 'utf-8' }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   const parsed = safeParseJSON(stripBOM(content))
@@ -380,7 +382,8 @@ export function getGlobalConfig(): GlobalConfig {
     let stats: { mtimeMs: number; size: number } | null = null
     try {
       stats = getFsImplementation().statSync(getGlobalMercuryFile())
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const config = getConfig(getGlobalMercuryFile(), createDefaultGlobalConfig)
     globalConfigCache = {
@@ -452,7 +455,8 @@ export async function runExclusiveOnFileSync<T>(file: string, section: () => Pro
   } finally {
     try {
       release?.()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -483,7 +487,7 @@ function backupOutgoingConfig(file: string, fs: ReturnType<typeof getFsImplement
       copies = stampedCopies(fs, directory, prefix)
     }
     copies.slice(5).forEach(name => {
-      try { fs.unlinkSync(join(directory, name)) } catch {}
+      try { fs.unlinkSync(join(directory, name)) } catch (error) { passedOver(error) }
     })
   } catch (failure) {
     if (getErrnoCode(failure) !== 'ENOENT') logForDebugging(`Failed to backup config: ${failure}`, { level: 'error' })
@@ -636,7 +640,8 @@ export function findMostRecentBackup(file: string): string | null {
   const listing = (dir: string): string[] | null => {
     try {
       return fs.readdirStringSync(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }
@@ -654,7 +659,8 @@ export function findMostRecentBackup(file: string): string | null {
     const bare = `${file}.backup`
     try {
       fs.statSync(bare)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     return bare
@@ -680,14 +686,14 @@ function quarantineConfigRead(file: string, disk: ReturnType<typeof getFsImpleme
   const names = disk.readdirStringSync(directory).filter(name => name.startsWith(`${stem}.corrupted.`))
   const bytes = disk.readFileSync(file, { encoding: 'utf-8' })
   const matched = names.some(name => {
-    try { return disk.readFileSync(join(directory, name), { encoding: 'utf-8' }) === bytes } catch { return false }
+    try { return disk.readFileSync(join(directory, name), { encoding: 'utf-8' }) === bytes } catch (error) { passedOver(error); return false }
   })
   if (matched) return { directory, matched }
   const copy = join(directory, `${stem}.corrupted.${Date.now()}`)
   try {
     disk.copyFileSync(file, copy)
     logForDebugging(`Corrupted config backed up to: ${copy}`, { level: 'error' })
-  } catch {}
+  } catch (error) { passedOver(error) }
   return { directory, copy, matched }
 }
 

@@ -8,6 +8,7 @@ import type { TensorFoldEngine } from './contracts.js'
 import { TENSORFOLD_RUNTIME_FOLDER, engineServedByAdapter, tensorFoldCommand, tensorFoldCommandWords, type TensorFoldEngineFound } from './engine.js'
 import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type TensorFoldInstallPlan =
   | { kind: 'brew'; brew: string; commands: string[]; words: string; found: string }
@@ -30,7 +31,8 @@ function executable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

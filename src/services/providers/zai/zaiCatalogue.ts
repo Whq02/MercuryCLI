@@ -9,6 +9,7 @@ import { resolveZaiDispatch, type ZaiDispatch } from './zaiAccounts.js'
 import { zaiApiBase, type ZaiApiPlan } from './zaiClient.js'
 import { rememberZaiKeyPlan, type ZaiKeyPlanWord } from './zaiKeyPlan.js'
 import { GLM_STATIC_FLOOR_IDS, glmDisplayName, glmDisplayPin } from './glmPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ZAI_CATALOGUE_TTL_MS = 5 * 60_000
@@ -233,7 +234,7 @@ export function kickZaiCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: t
   const env = opts?.env ?? process.env
   if (!catalogueTrafficVerdict('zai', env).allowed) return false
   if (!nothingUsable(getCachedZaiCatalogue(env))) return false
-  void refreshZaiCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(() => null)
+  void refreshZaiCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(passedOverAs(null))
   return true
 }
 

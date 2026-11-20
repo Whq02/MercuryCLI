@@ -41,6 +41,7 @@ import {
   type RunFacts,
   type WorkbenchSourceInputs,
 } from './selectors.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const REFRESH_DEBOUNCE_MS = 300
 const HEARTBEAT_MS = 20_000
@@ -134,7 +135,8 @@ async function agentMetaFor(agentId: string): Promise<AgentMetaFact | null> {
     }
     agentMetaCache.set(agentId, fact)
     return fact
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -194,7 +196,8 @@ export async function gatherWorkbenchInputs(opts?: {
         try {
           const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
           if (run) laneRuns.set(t.id, run)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }),
   )
@@ -218,7 +221,8 @@ export async function gatherWorkbenchInputs(opts?: {
     try {
       const load = await loadRunSidecar(owner)
       if (load.state === 'loaded') mainRunSnap = load.snapshot
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -384,7 +388,8 @@ function stopEngine(): void {
   for (const unsub of engineUnsubs.splice(0)) {
     try {
       unsub()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

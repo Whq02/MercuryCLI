@@ -2,6 +2,7 @@
 import { writeSync } from 'node:fs'
 import * as net from 'node:net'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const CONNECT_ATTEMPTS = 5
 const CONNECT_RETRY_DELAY_MS = 250
@@ -88,7 +89,8 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
   if ('error' in target) {
     try {
       writeSync(2, `mercury-tcp-bridge: ${target.error}\nusage: --mercury-tcp-bridge <host:port> [--hint <text>]\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(2)
   }
@@ -96,7 +98,8 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
   if ('error' in socket) {
     try {
       writeSync(2, `mercury-tcp-bridge: ${socket.error}${hint ? ` — ${hint}` : ''}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(2)
   }
@@ -114,7 +117,8 @@ export async function runTcpBridgeEntry(argv: string[]): Promise<never> {
   socket.on('error', err => {
     try {
       writeSync(2, `mercury-tcp-bridge: socket error: ${err.message}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(1)
   })

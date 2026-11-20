@@ -23,6 +23,7 @@ import { buildDiffHunks } from './diffBudget.js'
 import { applyHunks, countLines, planHunks, type EditHunkInput, type HunkSpan } from './hunks.js'
 import { checkAnchor, mintFileAnchor, normalizeForAnchor } from './snapshotAnchor.js'
 import { relocateStaleHunksFromRing } from './stalePatchRecovery.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type LineRange = { start: number; end: number }
 
@@ -349,13 +350,15 @@ function destinationRefusal(resolved: Resolved[]): ChangeSetRefusal | null {
     let canonicalDest = rawDest
     try {
       canonicalDest = join(realpathSync(destDir), basename(rawDest))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     let destExists = false
     try {
       lstatSync(canonicalDest)
       destExists = true
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (destExists) {
       return refusal(

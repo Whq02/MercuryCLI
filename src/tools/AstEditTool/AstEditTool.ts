@@ -64,6 +64,7 @@ import {
   renderToolUseMessage,
   renderToolUseRejectedMessage,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const ruleSchema = z.strictObject({
@@ -391,7 +392,7 @@ async function astEditCall(input: Input, context: ToolUseContext, parentMessage:
     const paths = plan.files.map(f => f.abs)
     discoverSkillDirsForPaths(paths, getCwd())
       .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
-      .catch(() => {})
+      .catch(passedOver)
     activateConditionalSkillsForPaths(paths, getCwd())
   }
 

@@ -4,6 +4,7 @@ import {
   MISSING_CWD_LINE,
   nodeRefusalMessage,
 } from '../utils/runtime/nodePolicy.js'
+import { passedOver } from '../utils/passedOver.js'
 
 process.env.COREPACK_ENABLE_AUTO_PIN = '0'
 
@@ -109,14 +110,15 @@ async function main(): Promise<void> {
         }
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   if (!process.versions?.bun && process.env.NODE_DISABLE_COMPILE_CACHE === undefined) {
     const cacheHome = await resolveCompileCacheHome()
     if (cacheHome) void import('../utils/runtime/compileCachePrune.js')
       .then(({ pruneCompileCache }) => pruneCompileCache(cacheHome))
-      .catch(() => {})
+      .catch(passedOver)
   }
 
   if (
@@ -217,7 +219,8 @@ async function main(): Promise<void> {
       const help = stray[0] === '-h' || stray[0] === '--help'
       try {
         writeSync(help ? 1 : 2, help ? 'Usage: mercury acp [--login]\n\nServe an editor over the Agent Client Protocol on stdio.\n  --login   Sign in from this terminal, then exit.\n' : `error: unknown option '${stray[0] ?? extra[0]}'\n`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       process.exit(help ? 0 : 2)
     }
@@ -284,7 +287,7 @@ main().catch(async (error: unknown) => {
       const [{ refusedOutcome }, { writeSync }] = await Promise.all([import('../cli/headless/refusalEnvelope.js'), import('node:fs')])
       writeSync(1, `${JSON.stringify(refusedOutcome([error instanceof Error ? error.message : String(error)], 'internal', 'failed'))}\n`)
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   try {
     const { failLoud } = await import('../utils/gracefulShutdown.js')
     failLoud(error, 'boot')

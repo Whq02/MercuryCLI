@@ -2,6 +2,7 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 import { controlCharacterPathRefusal, expandPath } from '../../utils/path.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 interface UploadMember {
   path: string
@@ -123,7 +124,7 @@ async function copyVerified(member: UploadMember, to: string, signal: AbortSigna
     await pipeline(handle.createReadStream({ autoClose: false }), fs.createWriteStream(to, { flags: 'wx' }), { signal })
     await fs.promises.utimes(to, stat.atime, stat.mtime)
   } finally {
-    await handle.close().catch(() => undefined)
+    await handle.close().catch(passedOverAs(undefined))
   }
 }
 
@@ -159,5 +160,5 @@ export async function stageUploads(sources: readonly UploadSource[], root: strin
 }
 
 export async function dropStagedUpload(dir: string): Promise<void> {
-  await fs.promises.rm(dir, { recursive: true, force: true }).catch(() => undefined)
+  await fs.promises.rm(dir, { recursive: true, force: true }).catch(passedOverAs(undefined))
 }

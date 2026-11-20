@@ -3,6 +3,7 @@ import { TREE_UNANSWERED_REASON } from '../../services/desktop/driver.js'
 import { getImageProcessor } from '../FileReadTool/imageProcessor.js'
 import { sleep } from '../../utils/sleep.js'
 import { boundsOfPixels, pixelOfPoint, type ScreenMap } from './screenMap.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface ElementTarget {
   role?: string
@@ -245,7 +246,7 @@ export function shownAddress(value: string | null | undefined): URL | null {
     if (url.protocol === 'file:') return url
     if (!['https:', 'http:'].includes(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost' && !url.hostname.startsWith('['))) return null
     return url
-  } catch { return null }
+  } catch (error) { passedOver(error); return null }
 }
 
 export function addressWords(url: URL): string {

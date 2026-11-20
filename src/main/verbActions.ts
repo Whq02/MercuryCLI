@@ -1,6 +1,7 @@
 import { writeSync } from 'node:fs'
 import { setFlagEnv } from '../substrate/flagRegistry.js'
 import { writeErr } from './cli.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export async function healthAction(options: {
   json: boolean
@@ -106,7 +107,8 @@ export async function showAction(
     })
     try {
       writeSync(2, `[${rendered.protocol}] ${imagePath}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(0)
   } catch (error) {

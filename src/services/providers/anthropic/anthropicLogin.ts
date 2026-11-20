@@ -5,6 +5,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { ANTHROPIC_WORKSPACE_PROMPT, needsAnthropicWorkspace } from './anthropicWorkspace.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 type AnthropicKeyLoginOutcome = {
   ok: boolean
@@ -33,7 +34,7 @@ export async function storeAnthropicApiKeyLogin(
       ...(options?.signal ? { signal: options.signal } : {}),
     })
     if (!response.ok) {
-      const body = await response.json().catch(() => null) as { error?: { message?: unknown }; message?: unknown } | null
+      const body = await response.json().catch(passedOverAs(null)) as { error?: { message?: unknown }; message?: unknown } | null
       const said = body?.error?.message ?? body?.message
       const message = typeof said === 'string' ? said : `Anthropic refused this key (HTTP ${response.status}).`
       return needsAnthropicWorkspace(message) ? refused(ANTHROPIC_WORKSPACE_PROMPT, true) : refused(message)

@@ -13,6 +13,7 @@ import { clearIdleLease, armIdleLease, type CloseOutcome, tempProfileDirOf, temp
 import { resolveHostLanguages, resolveNavigatorPlatform, resolveHostTimeZone, pageKits, prepareDocuments } from './stealth.js'
 import { newWiring, listenProtocol, listenDownloads, targetIdOf, tabSession, listenPage } from './wiring.js'
 import { watchFrames, watchBirths } from './births.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey): string | null {
   if (typeof urlOrOrigin !== 'string' || urlOrOrigin.trim() === '' || /[\s;"'\\]/.test(urlOrOrigin)) return null
@@ -21,7 +22,8 @@ export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey
   let u: URL
   try {
     u = new URL(origin)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (u.origin !== origin || !u.hostname || u.hostname.includes('..')) return null
@@ -39,7 +41,7 @@ export function browserProfileDirForOrigin(urlOrOrigin: string, owner?: OwnerKey
       let lane = 'lane'
       try {
         lane = parseOwnerKey(owner).lane.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 32) || 'lane'
-      } catch {}
+      } catch (error) { passedOver(error) }
       candidate = path.resolve(root, `${slug}--${lane}`)
       if (!candidate.startsWith(root + path.sep)) return null
     }
@@ -53,15 +55,15 @@ function profileHeld(owner: OwnerKey, profileDir: string): boolean {
 
 async function armLate(page: Page, baseline: PagePresented, deny: boolean, births: boolean): Promise<PageKit> {
   const kit: PageKit = { cdp: null, identity: baseline.identity, languages: baseline.languages, timeZone: baseline.timeZone, presented: null, born: null, fetchHeld: false }
-  const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+  const cdp = typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(passedOverAs(null)) : null
   kit.cdp = cdp
   await prepareDocuments(page, births ? cdp : null, baseline.languages)
   if (cdp !== null) {
-    await cdp.send('Network.enable').catch(() => undefined)
-    if (deny) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
-    await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
-    await cdp.send('Emulation.setTimezoneOverride', { timezoneId: baseline.timeZone }).catch(() => undefined)
-    if (baseline.identity !== null) await cdp.send('Emulation.setUserAgentOverride', baseline.identity).catch(() => undefined)
+    await cdp.send('Network.enable').catch(passedOverAs(undefined))
+    if (deny) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(passedOverAs(undefined))
+    await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(passedOverAs(undefined))
+    await cdp.send('Emulation.setTimezoneOverride', { timezoneId: baseline.timeZone }).catch(passedOverAs(undefined))
+    if (baseline.identity !== null) await cdp.send('Emulation.setUserAgentOverride', baseline.identity).catch(passedOverAs(undefined))
     if (births) await watchFrames(kit, cdp)
   }
   return kit
@@ -118,7 +120,7 @@ export async function ensureBrowserSession(
     if (inFlight === null) break
     if (inFlight.tab === tab) return awaitLaunch(inFlight.flight, opts.signal)
     await awaitLaunch(
-      inFlight.flight.then(() => undefined, () => undefined),
+      inFlight.flight.then(() => undefined, passedOverAs(undefined)),
       opts.signal,
     )
   }
@@ -192,12 +194,12 @@ function readyProfileDir(owner: OwnerKey, profileDir: string, opts: EnsureBrowse
     for (const lockName of ['SingletonLock', 'SingletonSocket', 'SingletonCookie']) {
       try {
         fs.rmSync(path.join(profileDir, lockName), { force: true })
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     for (const earlier of ['Sessions', 'Sessions_Encrypted', 'Current Session', 'Current Tabs', 'Last Session', 'Last Tabs', ...(opts.downloads === undefined ? [] : ['History', 'History-journal', 'History-wal', 'History-shm'])]) {
       try {
         fs.rmSync(path.join(profileDir, 'Default', earlier), { recursive: true, force: true })
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
   }
 }
@@ -322,7 +324,7 @@ async function placeTab(
       const relayFailures = new Map<string, { code: string; at: number }>()
       const relayFailureFor = (url: string): { code: string; at: number } | null => {
         let origin = ''
-        try { origin = new URL(url).origin } catch { return null }
+        try { origin = new URL(url).origin } catch (error) { passedOver(error); return null }
         const hit = relayFailures.get(url) ?? relayFailures.get(origin)
         if (hit === undefined || Date.now() - hit.at > 15_000) return null
         return hit
@@ -382,22 +384,22 @@ async function placeTab(
       const kit: PageKit = { cdp: null, identity: null, languages: hostLang.languages, timeZone: hostTimeZone, presented: null, born: null, fetchHeld: false }
       wiring = newWiring()
       const cdp =
-        typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(() => null) : null
+        typeof page.createCDPSession === 'function' ? await page.createCDPSession().catch(passedOverAs(null)) : null
       kit.cdp = cdp
       await prepareDocuments(page, opts.births === true ? cdp : null, hostLang.languages)
       pageKits.set(page, kit)
       if (cdp !== null) {
-        await cdp.send('Network.enable').catch(() => undefined)
+        await cdp.send('Network.enable').catch(passedOverAs(undefined))
         listenProtocol(wiring, cdp)
-        if (opts.downloads === undefined || opts.births !== true) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
-        await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(() => undefined)
-        await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(() => undefined)
-        const rawUa = typeof browser.userAgent === 'function' ? await browser.userAgent().catch(() => '') : ''
+        if (opts.downloads === undefined || opts.births !== true) await cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(passedOverAs(undefined))
+        await cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(passedOverAs(undefined))
+        await cdp.send('Emulation.setTimezoneOverride', { timezoneId: hostTimeZone }).catch(passedOverAs(undefined))
+        const rawUa = typeof browser.userAgent === 'function' ? await browser.userAgent().catch(passedOverAs('')) : ''
         const cleanUa = rawUa.replace(/HeadlessChrome\//g, 'Chrome/')
         if (cleanUa) {
-          const versionStr = typeof browser.version === 'function' ? await browser.version().catch(() => '') : ''
+          const versionStr = typeof browser.version === 'function' ? await browser.version().catch(passedOverAs('')) : ''
           kit.identity = identityOf(resolution, versionStr, cleanUa, hostLang)
-          await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(() => undefined)
+          await cdp.send('Emulation.setUserAgentOverride', kit.identity).catch(passedOverAs(undefined))
         }
       }
       hold = {
@@ -433,7 +435,7 @@ async function placeTab(
       const own = pageKits.get(page)?.cdp ?? null
       if (opts.births === true && own !== null) await watchFrames(pageKits.get(page)!, own)
       if (hold.downloads === null && own !== null) {
-        if (opts.downloads !== undefined && opts.births === true) await own.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(() => undefined)
+        if (opts.downloads !== undefined && opts.births === true) await own.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(passedOverAs(undefined))
         listenDownloads(wiring, own)
       }
     }
@@ -484,7 +486,7 @@ export async function closeBrowserSessionDetailed(
   const state = ownerStates.peek(owner)
   if (!state) return { outcome: 'none', closed: [], open: [] }
   clearIdleLease(state)
-  if (state.launchFlight !== null) await state.launchFlight.flight.catch(() => undefined)
+  if (state.launchFlight !== null) await state.launchFlight.flight.catch(passedOverAs(undefined))
   if (tab === undefined) state.emulated.clear()
   else state.emulated.delete(tab)
   if (tab !== undefined && state.tabs.size > 0) {

@@ -14,6 +14,7 @@ import {
   sanitizePath,
   type LiteSessionFile,
 } from './sessionStoragePortable.js'
+import { passedOver } from './passedOver.js'
 
 
 type SessionInfo = {
@@ -124,7 +125,8 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
     let entries: string[]
     try {
       entries = await readdir(projectsRoot)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
     const all: Candidate[][] = await Promise.all(
@@ -132,7 +134,8 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
         const dir = join(projectsRoot, name)
         try {
           if (!(await stat(dir)).isDirectory()) return []
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return []
         }
         return listCandidates(dir, doStat)
@@ -188,7 +191,8 @@ async function gatherCandidates(options: ListSessionsOptions, doStat: boolean): 
     const dir = join(projectsRoot, entry)
     try {
       if (!(await stat(dir)).isDirectory()) continue
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const { path, form } of worktreeForms) {

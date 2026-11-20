@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { flagEnabled, flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from './passedOver.js'
 
 export const SPAWNED_BY_ENV = 'MERCURY_SPAWNED_BY'
 
@@ -60,7 +61,8 @@ export function recordSpawn(entry: SpawnLedgerEntry): void {
       ...entry,
     }
     appendTrail(spawnLedgerPath(), row)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -85,7 +87,8 @@ export function recordSpawnExit(entry: SpawnExitEntry): void {
       ...entry,
     }
     appendTrail(spawnLedgerPath(), row)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -110,6 +113,7 @@ export function recordBashAudit(command: string, exitCode: number | null, interr
       interrupted,
     }
     appendTrail(bashAuditPath(), row)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

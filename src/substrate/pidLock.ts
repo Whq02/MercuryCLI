@@ -14,6 +14,7 @@ import { getProcessStartTokenAsync, getProcessStartTokenCachedOrRefresh } from '
 import { safeParseJSON } from '../utils/json.js'
 import { sleep } from '../utils/sleep.js'
 import { jsonStringify } from '../utils/slowOperations.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type LivenessPolarity = 'assume-alive' | 'assume-dead'
 
@@ -69,7 +70,8 @@ function parseHolder(raw: string): PidLockHolder | null {
 async function readHolder(path: string): Promise<PidLockHolder | null> {
   try {
     return parseHolder(await readFile(path, 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -137,7 +139,7 @@ async function claimLockAtomically(
     logForDebugging(`[pidLock] claim link failed at ${path}: ${e}`)
     return 'refused'
   } finally {
-    await unlink(temp).catch(() => {})
+    await unlink(temp).catch(passedOver)
   }
 }
 
@@ -183,7 +185,7 @@ export async function acquirePidLock(
           await writeFile(temp, payload, { mode: 0o600 })
           await renameWithWin32Retry(temp, path)
         } catch (restampErr) {
-          await unlink(temp).catch(() => {})
+          await unlink(temp).catch(passedOver)
           logForDebugging(`[pidLock] adopt re-stamp failed: ${restampErr}`)
           return { held: false, by: holder }
         }
@@ -202,7 +204,7 @@ export async function acquirePidLock(
       await writeFile(temp, payload, { mode: 0o600 })
       await renameWithWin32Retry(temp, path)
     } catch (e) {
-      await unlink(temp).catch(() => {})
+      await unlink(temp).catch(passedOver)
       logForDebugging(`[pidLock] stale-record reclaim failed at ${path}: ${e}`)
       return { held: false }
     }
@@ -227,7 +229,7 @@ export async function restampPidLock(path: string, owner: string, extra: Record<
     logForDebugging(`[pidLock] record update failed at ${path}: ${error}`)
     return false
   } finally {
-    await unlink(temp).catch(() => {})
+    await unlink(temp).catch(passedOver)
   }
 }
 
@@ -427,7 +429,8 @@ export async function probePidLock(
     const taken = `${path}.reap-${process.pid}-${randomUUID().slice(0, 8)}`
     try {
       await renameWithWin32Retry(path, taken)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     const takenRead = await readRawClassified(taken)
@@ -442,7 +445,7 @@ export async function probePidLock(
         }
       })
     }
-    await unlink(taken).catch(() => {})
+    await unlink(taken).catch(passedOver)
   }
   return null
 }

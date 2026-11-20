@@ -3,6 +3,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import type * as TS from 'typescript'
 import type { TsModule } from './lsp.js'
+import { passedOver } from '../../../../utils/passedOver.js'
 
 export interface OpenDoc {
   text: string
@@ -37,7 +38,8 @@ function listImplicitProjectFiles(root: string): string[] {
     let names: fs.Dirent[]
     try {
       names = fs.readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     names.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
@@ -121,7 +123,8 @@ export class SidecarState {
     if (open) return open.text
     try {
       return fs.readFileSync(norm, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }
@@ -135,7 +138,8 @@ export class SidecarState {
     let v = 'missing'
     try {
       v = `m${fs.statSync(file).mtimeMs}`
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     this.mtimeCache.set(file, { v, at: now })
     return v

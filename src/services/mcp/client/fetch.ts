@@ -1,6 +1,7 @@
 import { checkAndRefreshOAuthTokenIfNeeded, getClaudeAIOAuthTokens, handleOAuth401Error } from '../../../utils/auth.js'
 import { getMCPUserAgent } from '../../../utils/http.js'
 import { toolTimeoutMs } from './limits.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const REQUEST_TIMEOUT_MS = 60_000
 
@@ -16,7 +17,8 @@ function jsonRpcMethodOf(body: unknown): string | null {
     const parsed = JSON.parse(body) as { method?: unknown } | Array<{ method?: unknown }>
     const first = Array.isArray(parsed) ? parsed[0] : parsed
     return typeof first?.method === 'string' ? first.method : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

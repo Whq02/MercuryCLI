@@ -8,6 +8,7 @@ import { recordRefusedDurableFile } from './storeRecovery.js'
 import { getErrnoCode } from '../utils/errors.js'
 import * as lockfile from '../utils/lockfile.js'
 import { durableAtomicPublish, faultPoint } from './durablePublish.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type DurableOperationState =
   | 'prepared'
@@ -144,7 +145,8 @@ function decodeOp(raw: string): DurableOperation | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (isDurableOperation(parsed)) {
@@ -169,7 +171,8 @@ async function scanJournalDir(dir: string): Promise<{ records: JournalFile[]; re
     let raw: string
     try {
       raw = await readFile(join(dir, name), 'utf-8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const op = decodeOp(raw)
@@ -253,7 +256,7 @@ export async function runJournaledOperation<R>(
       () => gate,
     ),
   )
-  await prev.catch(() => {})
+  await prev.catch(passedOver)
   try {
     return await runJournaledOperationInner(spec)
   } finally {
@@ -345,7 +348,7 @@ async function runJournaledOperationInner<R>(
     op = { ...op, state: 'committed', ...(result !== undefined ? { result } : {}) }
     faultPoint('journal-before-commit', opPath(journalDir, op.operationId))
     await publishOp(journalDir, op)
-    void compactJournalDir(journalDir).catch(() => {})
+    void compactJournalDir(journalDir).catch(passedOver)
     return { outcome: 'committed', operationId: op.operationId, result, replayed: false }
   } catch (e) {
     try {
@@ -473,7 +476,8 @@ export async function compactJournalDir(
     try {
       await unlink(join(dir, record.name))
       removed++
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return removed

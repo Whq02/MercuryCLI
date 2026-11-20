@@ -60,6 +60,7 @@ import { getSystemContext, getUserContext } from '../../context.js'
 import { getToolManualAttachments } from './toolManuals.js'
 import { samplesRoadAttachment } from './samplesRoad.js'
 import { createAttachmentMessage } from './attachmentMessage.js'
+import { passedOver } from '../passedOver.js'
 export { createAttachmentMessage } from './attachmentMessage.js'
 
 export async function getAttachments(
@@ -288,7 +289,7 @@ export function makeMaybe(deadlineAt: number): MaybeFn {
               if (reusable) {
                 producerInFlight.set(label, p)
                 void Promise.resolve(p)
-                  .catch(() => {})
+                  .catch(passedOver)
                   .finally(() => {
                     if (producerInFlight.get(label) === p) {
                       producerInFlight.delete(label)

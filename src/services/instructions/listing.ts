@@ -14,6 +14,7 @@ import type { InstructionBundleEntry, InstructionConvention, InstructionSourceEn
 import { processRulesDir } from './discovery.js'
 import { getInstructionCompositionState, getInstructionFiles, onInstructionCacheInvalidated } from './engine.js'
 import { mercuryNativeConvention } from './nativeSource.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type InstructionListingRow = { path: string; tool: string; state: string; globs?: string[]; named?: string }
 
@@ -79,7 +80,8 @@ function chainOutward(start: string): string[] {
 const isFile = (path: string): boolean => {
   try {
     return getFsImplementation().statSync(path).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

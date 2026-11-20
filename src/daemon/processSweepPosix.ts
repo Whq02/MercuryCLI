@@ -3,6 +3,7 @@ import { readlinkSync, statSync } from 'node:fs'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import type { ProcessSweepObservation, ProcessSweepRead, ProcessSweepTable } from './processSweep.js'
 import { isMercuryExecutableName, parseProcessStartToken, processNamesMercury } from './processSweep.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export { parseProcessStartToken } from './processSweep.js'
 
@@ -51,7 +52,8 @@ export function linuxExecutableLink(pid: number): string | null {
   try {
     const target = readlinkSync(`/proc/${pid}/exe`)
     return target === '' ? null : target
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

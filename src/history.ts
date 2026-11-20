@@ -17,6 +17,7 @@ import {
   storePastedText,
 } from './utils/pasteStore.js'
 import { sleep } from './utils/sleep.js'
+import { passedOver } from './utils/passedOver.js'
 
 
 export type HistoryRecord = {
@@ -80,7 +81,7 @@ let flushChain: Promise<void> = Promise.resolve()
 
 function flushOnce(): Promise<void> {
   const run = flushChain.then(flushPending, flushPending)
-  flushChain = run.catch(() => {})
+  flushChain = run.catch(passedOver)
   return run
 }
 
@@ -120,7 +121,8 @@ async function flushPending(): Promise<void> {
     if (release) {
       try {
         await release()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -149,7 +151,7 @@ async function flushWithRetries(): Promise<void> {
 }
 
 export async function flushHistoryNow(): Promise<void> {
-  await flushOnce().catch(() => {})
+  await flushOnce().catch(passedOver)
 }
 
 export function getHistoryFlushHealth(): {
@@ -177,7 +179,7 @@ function toStoredPastes(
       continue
     }
     const contentHash = paste.contentHash ?? hashPastedText(paste.content)
-    void storePastedText(contentHash, paste.content).catch(() => {})
+    void storePastedText(contentHash, paste.content).catch(passedOver)
     stored[Number(key)] = { id: paste.id, type: 'text', contentHash }
   }
   return stored
@@ -219,10 +221,10 @@ export function addToHistory(command: HistoryEntry | string): void {
     cleanupRegistered = true
     registerCleanup(async () => {
       if (inFlightFlush) {
-        await inFlightFlush.catch(() => {})
+        await inFlightFlush.catch(passedOver)
       }
       if (pendingEntries.length > 0) {
-        await flushOnce().catch(() => {})
+        await flushOnce().catch(passedOver)
       }
     })
   }

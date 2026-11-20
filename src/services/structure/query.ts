@@ -18,6 +18,7 @@ import {
   resolveStructureTypescript,
   type TsModule,
 } from './tsFacility.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_FILES_SCANNED = 3000
 const MAX_FILES_PARSED = 500
@@ -68,7 +69,8 @@ export function discoverSourceFiles(
     let entries: string[]
     try {
       entries = readdirSync(dir).sort()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const entry of entries) {
@@ -78,7 +80,8 @@ export function discoverSourceFiles(
       let stat
       try {
         stat = statSync(full)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (stat.isDirectory()) {
@@ -119,7 +122,8 @@ function nodeName(ts: TsModule, node: TS.Node): string | null {
       return (named.name as TS.Identifier).text
     }
     return (named.name as TS.Node).getText()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -408,7 +412,8 @@ export function runStructureQuery(
     let text: string
     try {
       text = readFileSync(full, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (text.length > 2_000_000) continue

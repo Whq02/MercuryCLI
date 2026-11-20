@@ -44,6 +44,7 @@ import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getEngineModel } from './model/model.js'
 import { estimateSkillFrontmatterTokens } from '../skills/loadSkillsDir.js'
 import { isToolSearchEnabled, tellHowToolDefinitionsAreCounted } from './toolSearch.js'
+import { passedOver } from './passedOver.js'
 
 
 export const TOOL_TOKEN_COUNT_OVERHEAD = 500
@@ -272,7 +273,8 @@ async function countMcpToolTokens(
         return roughTokenCountEstimation(
           JSON.stringify({ name: tool.name, description, input_schema: schema }),
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return 0
       }
     }),
@@ -499,7 +501,8 @@ function buildGrid(
 function roughBlockTokens(block: unknown): number {
   try {
     return roughTokenCountEstimation(JSON.stringify(block))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }

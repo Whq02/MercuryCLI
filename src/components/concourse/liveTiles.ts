@@ -20,6 +20,7 @@ import { LOADING_PHASE_WORD, READING_PHASE_WORD, RETRY_PHASE_WORD } from '../Spi
 import { workerTranscriptPath } from '../../services/concourse/workerTranscript.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type LiveTileNow =
@@ -195,12 +196,14 @@ export class LiveTileStore {
       watcher.on('error', () => {
         try {
           watcher.close()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         if (this.watcher === watcher) this.watcher = null
       })
       this.watcher = watcher
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -215,7 +218,8 @@ export class LiveTileStore {
     }
     try {
       this.watcher?.close()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     this.watcher = null
   }
@@ -269,7 +273,8 @@ export class LiveTileStore {
         try {
           const st = statSync(this.deps.transcriptPath({ sessionId: e.sessionId, workspaceId: e.workspaceId }))
           transcriptStamp = `${st.mtimeMs}:${st.size}`
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         if (tailStamp === e.tailStamp && transcriptStamp === e.transcriptStamp) {
           cost += this.deps.nowMs() - t0
@@ -334,7 +339,8 @@ export class LiveTileStore {
       for (const l of [...e.listeners]) {
         try {
           l()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }

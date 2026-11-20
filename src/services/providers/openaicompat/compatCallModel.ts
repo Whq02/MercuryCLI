@@ -37,6 +37,7 @@ import { tensorFoldOutputCeiling } from '../local/localCallModel.js'
 import { noteTensorFoldTurn } from '../local/tensorfoldUsage.js'
 import { toolDeclarationRowInResult } from '../zai/zaiCodec.js'
 import { getContextWindowForModel } from '../../../utils/model/capabilities.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const compatSlotLaneProfile: CompatLaneProfile = {
   lane: 'openai-compat',
@@ -174,7 +175,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
     try {
       const record = readHostRecord(endpoint.hostPodId)
       return record?.engineDeath && record.jobState !== 'ready' ? hostEngineDeadChatWords({ id: record.id, vendor: record.vendor, price: record.price, engineDeath: record.engineDeath }) : undefined
-    } catch { return undefined }
+    } catch (error) { passedOver(error); return undefined }
   }
   const deadBefore = deadEngineWords()
   if (deadBefore !== undefined) {
@@ -196,7 +197,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
             event.error = new NetworkOutageError({ ...event.error.outage, cause: hostLinkChatCause({ ...record, vendor: record.vendor ?? 'runpod' }, event.error.outage.cause) }, event.error.cause)
             event.errorDetail = apiErrorDetailOf(event.error)
           }
-        } catch {}
+        } catch (error) { passedOver(error) }
       }
     }
     if (event.type === 'assistant' && !event.isApiErrorMessage && event.message.stop_reason) noteCompatPrefixCache(endpoint, wireId, lastUsage)
@@ -204,7 +205,7 @@ export async function* compatCallModel(params: CallModelParams): CallModelStream
       try {
         const { noteBoxTurn } = await import('../../host/boxService.js')
         noteBoxTurn(endpoint.name, endpoint.baseUrl, wireId, event.message.usage.output_tokens, performance.now() - startedAt)
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     yield event
   }

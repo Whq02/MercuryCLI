@@ -5,6 +5,7 @@ import { join, sep } from 'node:path'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
+import { passedOver } from './passedOver.js'
 
 const KEEP = 20
 
@@ -50,7 +51,8 @@ function locateConversation(): CrashConversation | null {
   try {
     const located = conversationLocator()
     return located !== null && located.sessionId !== '' ? located : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -69,7 +71,7 @@ function crashIdentity(): {
     try {
       const { getSessionId } = require('../bootstrap/state.js') as typeof import('../bootstrap/state.js')
       sessionId = String(getSessionId())
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   let cwd: string | null = null
   try {
@@ -78,7 +80,8 @@ function crashIdentity(): {
   } catch {
     try {
       cwd = process.cwd()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   let surface: string | null = null
@@ -86,7 +89,8 @@ function crashIdentity(): {
     const { currentSurfaceRoute, surfaceRouteId } =
       require('../context/surfaceRoute.js') as typeof import('../context/surfaceRoute.js')
     surface = surfaceRouteId(currentSurfaceRoute())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return {
     version: MERCURY_VERSION ?? null,
@@ -206,7 +210,8 @@ export function listCrashReports(limit = KEEP): CrashReportSummary[] {
         }
       }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -230,7 +235,8 @@ function transcriptIfPresent(dir: string, sessionId: string): string | null {
   try {
     const candidate = join(dir, `${sessionId}.jsonl`)
     return statSync(candidate).isFile() ? candidate : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -242,7 +248,7 @@ function projectDirsOf(report: Pick<CrashReportSummary, 'cwd'>, opts: CrashTrans
     try {
       const dir = opts.projectDirOf(cwd)
       if (!dirs.includes(dir)) dirs.push(dir)
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return dirs
 }
@@ -268,7 +274,7 @@ function transcriptsIn(dir: string, opts: CrashTranscriptOptions): TranscriptCan
       const bornMs = st.birthtimeMs > 0 ? Math.min(st.birthtimeMs, st.mtimeMs) : st.mtimeMs
       if (bornMs > notAfter) continue
       out.push({ sessionId: id, transcriptPath: join(dir, name), mtimeMs: st.mtimeMs, bornMs })
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return out
 }
@@ -279,7 +285,8 @@ function registrySession(pid: number, opts: CrashTranscriptOptions): { sessionId
     const record = JSON.parse(readFileSync(file, 'utf8')) as { pid?: number; sessionId?: string; cwd?: string }
     if (record.pid !== pid || typeof record.sessionId !== 'string' || record.sessionId === '') return null
     return { sessionId: record.sessionId, cwd: typeof record.cwd === 'string' && record.cwd !== '' ? record.cwd : null }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -294,7 +301,7 @@ export function resolveCrashTranscript(
       if (statSync(report.transcriptPath).isFile()) {
         return { sessionId: report.sessionId, transcriptPath: report.transcriptPath, road: 'recorded' }
       }
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   const dirs = projectDirsOf(report, opts)
   let cleared: CrashTranscriptResolution | null = null
@@ -362,16 +369,19 @@ export function unnoticedCrashReports(): CrashReportSummary[] {
     let noticedAt = 0
     try {
       noticedAt = statSync(join(dir, NOTICE_MARKER)).mtimeMs
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return listCrashReports().filter(report => {
       try {
         return statSync(report.file).mtimeMs > noticedAt
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -381,6 +391,7 @@ export function markCrashReportsNoticed(): void {
     const dir = crashReportDir()
     mkdirSync(dir, { recursive: true })
     writeFileSync(join(dir, NOTICE_MARKER), new Date().toISOString())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

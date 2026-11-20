@@ -28,6 +28,7 @@ import { StatsHandleOwner } from './runtime/stats-handle.js'
 import { TurnAccountingOwner } from './runtime/turn-accounting.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
 import { resetJevLedger } from '../services/jev/jevLedgerState.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type InvokedSkillInfo = RuntimeInvokedSkillInfo
 
@@ -348,7 +349,8 @@ export function setEngineModelOverride(
   for (const listener of engineModelOverrideListeners) {
     try {
       listener(model)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

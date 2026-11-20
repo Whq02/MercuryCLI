@@ -1,5 +1,6 @@
 import { realpathSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { passedOver } from './passedOver.js'
 
 export function resolveRelativePatternPrefix(
   searchDir: string,
@@ -15,7 +16,8 @@ export function resolveRelativePatternPrefix(
     if (real !== resolve(prefixDir)) {
       return { searchDir: real, pattern: pattern.slice(lastSep + 1) }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { searchDir, pattern }
 }

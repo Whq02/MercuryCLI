@@ -32,6 +32,7 @@ import {
   type ProcessSweepTable,
 } from './processSweep.js'
 import { collectPosixProcessTable } from './processSweepPosix.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export const COCKPIT_HEARTBEAT_MS = 20_000
 export const COCKPIT_HEARTBEAT_ALLOWANCE_MS = 90_000
@@ -104,7 +105,8 @@ export async function registerCockpit(options: { terminal: string | null; home?:
   try {
     await mkdir(processRecordsDir(home), { recursive: true })
     await writeAtomic(path, JSON.stringify(record, null, 2))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   return {
@@ -114,14 +116,16 @@ export async function registerCockpit(options: { terminal: string | null; home?:
       const at = new Date(now())
       try {
         await utimes(path, at, at)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return
       }
     },
     clear: async () => {
       try {
         await rm(path, { force: true })
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return
       }
     },
@@ -154,7 +158,8 @@ export async function readCockpitRegistrations(home: string = getMercuryHome()):
         heartbeatAt: Math.max(raw.heartbeatAt, Number.isFinite(touched) ? touched : raw.heartbeatAt),
         bundle: typeof raw.bundle === 'string' && raw.bundle !== '' ? raw.bundle : null,
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -165,11 +170,12 @@ async function clearRegistrationById(home: string, id: string): Promise<void> {
   let names: string[]
   try {
     names = await readdir(processRecordsDir(home))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const name of names) {
-    if (name.endsWith(`-${id}.json`)) await rm(join(processRecordsDir(home), name), { force: true }).catch(() => undefined)
+    if (name.endsWith(`-${id}.json`)) await rm(join(processRecordsDir(home), name), { force: true }).catch(passedOverAs(undefined))
   }
 }
 
@@ -280,7 +286,8 @@ async function gather(deps: ProcessSweepDeps): Promise<{ table: ProcessSweepTabl
 function resolvePath(path: string): string | null {
   try {
     return realpathSync.native(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -309,7 +316,7 @@ async function pruneDeadRegistrations(home: string, table: ProcessSweepTable, re
     if (registration.configHome !== home) continue
     const row = table.observations.find(candidate => candidate.process.pid === registration.pid)
     const dead = row === undefined || row.state.startsWith('Z') || tokenBinding(registration.startToken, row.startToken) === 'stranger'
-    if (dead) await rm(registrationPath(home, registration.pid, registration.id), { force: true }).catch(() => undefined)
+    if (dead) await rm(registrationPath(home, registration.pid, registration.id), { force: true }).catch(passedOverAs(undefined))
   }
 }
 
@@ -317,7 +324,8 @@ async function recordCensus(home: string, census: ProcessSweepCensus): Promise<v
   try {
     await mkdir(processRecordsDir(home), { recursive: true })
     await writeAtomic(processSweepCensusPath(home), JSON.stringify(census, null, 2))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -338,7 +346,8 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
     try {
       process.kill(pid, name)
       return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -384,7 +393,7 @@ export async function endStaleProcesses(reviewed: readonly ProcessSweepEntry[], 
         (entry.kind === 'runner' && (plane.answer?.runners ?? plane.runners ?? []).some(runner => runner.pid === entry.process.pid))
       )) {
         let reply: DaemonReply | null = null
-        try { reply = await rpc({ op: 'processSweep', proto: 0, action: 'end', expected: first.fresh }) } catch {}
+        try { reply = await rpc({ op: 'processSweep', proto: 0, action: 'end', expected: first.fresh }) } catch (error) { passedOver(error) }
         if (reply === null || !reply.ok || reply.op !== 'processSweep' || reply.action !== 'end' || !reply.ended) {
           record(entry, 'refused', 'daemon', 'the daemon did not confirm the end request; nothing was sent')
           continue

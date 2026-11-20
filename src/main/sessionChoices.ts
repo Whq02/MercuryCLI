@@ -9,6 +9,7 @@ import { modeBypassesPermissions, type PermissionMode } from '../utils/permissio
 import { getInitialSettings } from '../utils/settings/settings.js'
 import { isSessionRunArgv as isRunArgv } from '../cli/sessionArgs.js'
 import { failCli, typedString, type RootOptions } from './cli.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export async function resolvePermissions(opts: RootOptions) {
   const bypassFromRegistry = isEnvTruthy(flagEnv('MERCURY_SKIP_PERMISSIONS')) && !isRunArgv()
@@ -100,7 +101,7 @@ export function mainThreadAgentOf(opts: RootOptions, activeAgents: AgentDefiniti
       setMainThreadAgentType(requestedAgent)
       void import('../utils/sessionStorage.js')
         .then(storage => storage.saveAgentSetting(requestedAgent))
-        .catch(() => {})
+        .catch(passedOver)
     }
   }
   return mainThreadAgentDefinition

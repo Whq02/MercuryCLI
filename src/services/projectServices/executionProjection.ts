@@ -12,6 +12,7 @@ import { isTerminalExecutionState, type ExecutionState } from '../primitives/exe
 import { projectOwner } from '../primitives/owner.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import type { ServiceRecord } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function serviceExecutionId(name: string): string {
   return `service:${name}`
@@ -75,7 +76,8 @@ export function projectServiceExecution(cwd: string, record: ServiceRecord): voi
         })
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -100,8 +102,7 @@ export function installServiceExecutionDomain(hooks: {
       const cwd = planeRecord.spec.cwd
       const name = planeRecord.spec.metadata?.name
       if (!cwd || typeof name !== 'string') return
-      void hooks.stop(cwd, name).catch(() => {
-      })
+      void hooks.stop(cwd, name).catch(passedOver)
     },
   })
 }

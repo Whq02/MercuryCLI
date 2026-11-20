@@ -82,6 +82,7 @@ import { TranscriptPart } from './daemon/transcript.js'
 import { VerbsPart } from './daemon/verbs.js'
 import { DialsPart } from './daemon/dials.js'
 import { HEARTBEAT_MS, ProjectionFeed } from './projectionFeed.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -505,7 +506,7 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
     this.asksFeed.start()
     this.tailFeed.start()
     this.progressFeed.start()
-    void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(() => {})
+    void this.rpc({ op: 'sessionControl', action: 'session-facts', sessionId: this.record.sessionId, by: 'operator' }).catch(passedOver)
     seatVerb('focus', this.record.sessionId)
     return this.tick()
   }
@@ -632,14 +633,15 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
 
   protected chainRpc(req: Record<string, unknown>): Promise<Record<string, unknown>> {
     const link = this.verbChain.then(() => this.rpc(req))
-    this.verbChain = link.catch(() => {})
+    this.verbChain = link.catch(passedOver)
     return link
   }
 
   protected async openQuestion(): Promise<string | null> {
     try {
       return await questionOpenFor(this.record.sessionId)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }

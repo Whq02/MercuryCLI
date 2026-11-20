@@ -27,6 +27,7 @@ import { updateReinstallCommand } from 'src/services/privateChannel/updateRemedy
 import { formatBootResidueWarning, readBootAttemptResidue } from 'src/substrate/bootBeacon.js'
 import { jsonStringify } from 'src/utils/slowOperations.js'
 import { cliError, cliJsonError, cliOk } from './exit.js'
+import { passedOver } from '../utils/passedOver.js'
 
 interface UpdateCliOptions {
   check?: boolean
@@ -350,7 +351,8 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   try {
     const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
     await runLifecycleVerbOpportunity('update')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (options.json) {
     const ok =

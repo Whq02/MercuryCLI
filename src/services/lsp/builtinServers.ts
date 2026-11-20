@@ -19,6 +19,7 @@ import { mercuryLspEnabled, mercuryLspServersEnv } from './mercuryLsp.js'
 import { resolveMercuryRespawnEntry } from './respawnEntry.js'
 import { resolveWorkspaceTypescript } from './tsSidecar/sidecar.js'
 import type { ScopedLspServerConfig } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MERCURY_TS_SERVER_NAME = 'mercury-ts'
 
@@ -59,7 +60,8 @@ export function probeBuiltinTsServer(): {
         readFileSync(path.resolve(path.dirname(workspacePath), '..', 'package.json'), 'utf8'),
       ) as { version?: string }
       if (typeof pkg.version === 'string') typescriptVersion = pkg.version
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   } else {
     const packaged = resolvePackagedTypescript()

@@ -13,6 +13,7 @@ import { escapeRegExp } from '../../utils/stringUtils.js'
 import { isToolSearchEnabledOptimistic } from '../../utils/toolSearch.js'
 import { cooccurBoostFor, recordToolDiscovery, toolSearchCooccurEnabled } from './cooccurPrior.js'
 import { getPrompt, isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from './prompt.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const inputSchema = z.object({
@@ -94,7 +95,8 @@ function intentBoost(tool: Tool, queryTokens: string[]): number {
       if (score > best) best = score
     }
     return best
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -103,7 +105,8 @@ function probeEnabled(tool: Tool): boolean {
   try {
     if (typeof tool.isEnabled !== 'function') return true
     return tool.isEnabled() !== false
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }

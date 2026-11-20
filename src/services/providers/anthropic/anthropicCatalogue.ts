@@ -8,6 +8,7 @@ import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const ANTHROPIC_CATALOGUE_TTL_MS = 5 * 60_000
@@ -138,7 +139,8 @@ function subscriptionDoor(): AnthropicDoorCredential | undefined {
   let tokens: ReturnType<typeof getClaudeAIOAuthTokens>
   try {
     tokens = getClaudeAIOAuthTokens()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   const accessToken = tokens?.accessToken
@@ -156,7 +158,8 @@ function apiKeyDoor(): AnthropicDoorCredential | undefined {
   let key: string | null
   try {
     key = getAnthropicApiKey()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   if (!key) return undefined
@@ -313,7 +316,7 @@ export function kickAnthropicCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchIm
   const pending = anthropicDoors(env).filter(credential => nothingUsable(catalogueCache.get(doorIdentity(credential, env)) ?? null))
   if (pending.length === 0) return false
   for (const credential of pending) {
-    void refreshAnthropicCatalogue({ env, door: credential.door, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(() => [])
+    void refreshAnthropicCatalogue({ env, door: credential.door, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch((error) => { passedOver(error); return [] })
   }
   return true
 }

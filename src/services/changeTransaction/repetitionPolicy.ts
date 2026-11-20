@@ -6,6 +6,7 @@ import { subscribeToolTerminal } from '../run/effectObserver.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const NO_CHANGE_REPETITION_CEILING = 3
 
@@ -134,7 +135,8 @@ export function noteSuccessfulMutation(
   for (const path of changedPaths) {
     try {
       state.entries.delete(canonicalNoChangePath(path))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

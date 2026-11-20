@@ -38,6 +38,7 @@ import { checkVendoredRuntime, payloadVendoredRuntime, readRuntimeRecord } from 
 import { checkVendoredPython, payloadVendoredPython, readPythonRecord } from './vendoredPython.js'
 import { payloadDigestOf } from './payloadDigest.js'
 import { nixInstallRoot } from './nixInstallRoot.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface LayoutRoots {
   versionsDir: string
@@ -65,7 +66,7 @@ export function readWindowsScriptPolicies(): WindowsScriptPolicy[] {
       if (typeof value.effective !== 'string' || !Array.isArray(value.scopes)) continue
       const scopes = value.scopes.filter((row): row is { scope: string; policy: string } => typeof row === 'object' && row !== null && typeof row.scope === 'string' && typeof row.policy === 'string')
       readings.push({ shell, effective: value.effective, scopes })
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return readings
 }
@@ -111,7 +112,8 @@ export function pathEntryEquals(entry: string, target: string, isWindows: boolea
     let v = strip((isWindows ? s.replace(/"/g, '') : s).trim())
     try {
       v = realpathSync.native(v)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return isWindows ? v.toLowerCase() : v
   }
@@ -275,7 +277,7 @@ function writePointerFile(path: string, value: string, isWindows: boolean): void
   } finally {
     try {
       rmSync(tmp, { force: true })
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
 }
 
@@ -356,7 +358,8 @@ export function sweepUpdaterResidue(roots: LayoutRoots): SweepReport {
           renameSync(full, versionDir)
           report.restored.push(entry)
           continue
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
       }
@@ -380,7 +383,8 @@ export type PayloadCheck =
 const dirMembers = (dir: string): string[] => {
   try {
     return readdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -438,7 +442,8 @@ export function installPayload(roots: LayoutRoots, payloadDir: string, version: 
       if (payloadDigestOf(versionDir) === payloadDigestOf(payloadDir)) {
         return { state: 'already-installed', versionDir, changed: false }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -514,7 +519,8 @@ export function listInstalledVersions(roots: LayoutRoots): string[] {
   let entries: string[]
   try {
     entries = readdirSync(roots.versionsDir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return entries
@@ -522,7 +528,8 @@ export function listInstalledVersions(roots: LayoutRoots): string[] {
     .filter(e => {
       try {
         return statSync(join(roots.versionsDir, e)).isDirectory()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
@@ -898,7 +905,8 @@ export function shimStatus(roots: LayoutRoots): 'absent' | 'managed' | 'foreign'
   try {
     const existing = readFileSync(roots.shimPath, 'utf8')
     return existing.includes(SHIM_MARKER_FAMILY) ? 'managed' : 'foreign'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'absent'
   }
 }
@@ -978,7 +986,8 @@ function layoutMembers(versionsDir: string): { members: string[]; marked: boolea
       let isDir = false
       try {
         isDir = statSync(dir).isDirectory()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (!isDir) continue
       if (existsSync(join(dir, 'manifest.json'))) marked = true
@@ -1022,7 +1031,8 @@ export function startDetachedAndAwaitWord(file: string, args: string[], env: Nod
     child.unref()
     for (let waited = 0; waited < tenths && !existsSync(word); waited++) sleepSync(100)
     return existsSync(word)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -1044,7 +1054,8 @@ export function uninstallLayout(roots: LayoutRoots, deps: UninstallDeps = {}): U
     try {
       if (readFileSync(path, 'utf8').includes(SHIM_MARKER_FAMILY)) ownSet.push(path)
       else preservedForeign.push(path)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const layout = existsSync(roots.versionsDir) ? layoutMembers(roots.versionsDir) : null
@@ -1085,7 +1096,8 @@ export function uninstallLayout(roots: LayoutRoots, deps: UninstallDeps = {}): U
         removedVersionsDir = true
         preservedVersionsDir = false
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const removedShim = removedSetMembers.includes(roots.shimPath)

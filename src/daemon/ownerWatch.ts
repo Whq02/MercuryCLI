@@ -5,6 +5,7 @@ import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { existsSync, fstatSync, readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { delimiter, join } from 'node:path'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export const OWNER_PID_ENV = 'MERCURY_DAEMON_OWNER_PID'
 
@@ -20,7 +21,8 @@ function win32PsExe(): string {
     .find(p => {
       try {
         return existsSync(p)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
@@ -85,7 +87,8 @@ function linuxBootTime(): number | null {
     if (!Number.isFinite(seconds)) return null
     linuxBootSeconds = seconds
     return seconds
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -141,7 +144,8 @@ function startTokenOf(pid: number, form: StartForm): string | null {
     if (r.status !== 0) return invalidateDeadStartToken(pid, '')
     const s = (r.stdout || '').trim()
     return invalidateDeadStartToken(pid, s)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -240,7 +244,7 @@ function runStartProbe(file: string, args: string[], deadline: number): Promise<
     }
     const timer = setTimeout(() => {
       finish({ kind: 'timeout' })
-      try { child?.kill('SIGKILL') } catch {}
+      try { child?.kill('SIGKILL') } catch (error) { passedOver(error) }
     }, remaining)
     try {
       child = execFile(file, args, {
@@ -275,7 +279,8 @@ function parseStartBatch(pids: readonly number[], reply: StartProbeResult, windo
       tokens.set(row.pid, row.token.trim())
     }
     return tokens
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -345,7 +350,7 @@ async function startTokensOf(holders: readonly { pid: number; procStart?: string
     if (missing[form].length === 0) continue
     const batch = probeStartTokens(missing[form], form)
     for (const pid of missing[form]) {
-      const probe = batch.then(tokens => tokens.get(pid) ?? null, () => null).then(token => {
+      const probe = batch.then(tokens => tokens.get(pid) ?? null, passedOverAs(null)).then(token => {
         if (startTokenInflight.get(startKey(form, pid)) === probe) {
           startTokenInflight.delete(startKey(form, pid))
           if (token) startTokenCache.set(startKey(form, pid), { token, at: Date.now() })

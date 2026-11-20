@@ -1,3 +1,5 @@
+import { passedOver } from '../../../utils/passedOver.js'
+
 type Listener = (port: number) => void
 
 const listeners = new Set<Listener>()
@@ -13,7 +15,8 @@ export function announceTensorFoldStopping(port: number): void {
   for (const listener of [...listeners]) {
     try {
       listener(port)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       void 0
     }
   }

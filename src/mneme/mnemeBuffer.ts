@@ -5,6 +5,7 @@ import { logForDebugging } from '../utils/debug.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { estimateTokens } from './mnemeTopicDocs.js'
 import { validatedApplicability, type MemoryApplicability } from './memoryApplicability.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface MnemeObservation {
   ts: string
@@ -105,7 +106,8 @@ export function readBuffer(dir: string = mnemeLibraryDir()): MnemeObservation[] 
         logForDebugging('mneme readBuffer: skipped malformed row')
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return out
@@ -120,7 +122,8 @@ export function readConsumingRows(dir: string = mnemeLibraryDir()): MnemeObserva
   let names: string[] = []
   try {
     names = readdirSync(dir).filter(n => /^consuming-.*\.jsonl$/.test(n)).sort()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   for (const name of names) {
@@ -134,7 +137,8 @@ export function readConsumingRows(dir: string = mnemeLibraryDir()): MnemeObserva
           logForDebugging('mneme readConsumingRows: skipped malformed row')
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out

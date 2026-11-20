@@ -4,6 +4,7 @@ import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { win32 as pathWin32 } from 'node:path'
 import { sleep } from './sleep.js'
+import { passedOver } from './passedOver.js'
 
 
 export type ProcessTreeKillReceipt = {
@@ -139,7 +140,8 @@ function filterOutZombies(pids: number[]): Promise<number[]> {
 function signalPid(pid: number, signal: NodeJS.Signals): void {
   try {
     process.kill(pid, signal)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -174,7 +176,8 @@ async function endPosixTree(pid: number, signal: NodeJS.Signals): Promise<Proces
 
   try {
     process.kill(-pid, signal)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const target of targets) signalPid(target, signal)
 
@@ -533,7 +536,8 @@ export async function endProcessTree(
     if (typeof target !== 'number') {
       try {
         target.kill(signal)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     } else {
       signalPid(pid, signal)

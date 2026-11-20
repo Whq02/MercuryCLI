@@ -7,6 +7,7 @@ import type { LSPServerManager } from '../../../services/lsp/LSPServerManager.js
 import { type LspRangeLike } from '../../../services/lsp/workspaceEditApply.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { LspWireDiagnostic } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type DiagnosticsBaseline = {
   generationKey: string
@@ -80,7 +81,8 @@ export function remedyForUnclaimedExtension(extension: string, cwd?: string): st
     if (entries.length > 0) {
       return `Install ${entries.map(e => `${e.label} (${e.remedy})`).join(' or ')}.`
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return `No built-in or catalogued server covers '${extension}' — add one via MERCURY_LSP_SERVERS or an extension that contributes a language server.`
 }

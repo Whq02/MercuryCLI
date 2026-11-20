@@ -6,6 +6,7 @@ import {
   settleExecution,
 } from './executionPlane.js'
 import { isTerminalExecutionState } from './execution.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type CanonicalModelEvent =
@@ -147,7 +148,8 @@ export function beginModelTurnExecution(owner: OwnerKey, label: string): void {
       lifecycle: 'owner',
       initialState: 'running',
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -166,6 +168,7 @@ export function settleModelTurnExecution(
     settleExecution(owner, TURN_EXECUTION_ID, state, {
       outcome: { reason: outcome.reason },
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

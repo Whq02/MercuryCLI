@@ -15,6 +15,7 @@ import {
   type EnginePriority,
   type EngineRunRecord,
 } from './service.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const ENGINE_OPS: ReadonlySet<string> = new Set(['engine_run', 'engine_check', 'engine_jobs', 'engine_cancel', 'engine_result', 'engine_capture', 'engine_frames', 'engine_profile', 'engine_scene_tree', 'engine_node_get', 'engine_node_call', 'engine_signal_wait', 'lease_take', 'lease_release', 'lease_list'])
 const ENGINE_DEFAULT_TAIL_CHARS = 2000
@@ -88,7 +89,8 @@ function withTails(record: EngineRunRecord, chars: number): EngineRunRecord & { 
       if ('skipped' in row || row.ok) continue
       try {
         logTails[row.name] = engineLogTail(readFileSync(row.log, 'utf8'), chars)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
     }

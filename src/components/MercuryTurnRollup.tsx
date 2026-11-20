@@ -16,6 +16,7 @@ import type { Message } from '../types/message.js'
 import type { Tools } from '../Tool.js'
 import type { ModelName } from '../utils/model/model.js'
 import type { StreamingThinking } from '../utils/messages.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 type Props = {
@@ -98,7 +99,8 @@ export function rollupSpineOf(messages: readonly Message[]): Spine {
 function sessionLines(): { added: number; removed: number } | null {
   try {
     return { added: getTotalLinesAdded(), removed: getTotalLinesRemoved() }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

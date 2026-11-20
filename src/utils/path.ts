@@ -6,6 +6,7 @@ import { getFsImplementation } from './fsOperations.js'
 import { getPlatform } from './platform.js'
 import { uncPathRisk } from './permissions/uncPath.js'
 import { posixPathToWindowsPath } from './windowsPaths.js'
+import { passedOver } from './passedOver.js'
 
 export { sanitizePath } from './sessionStoragePortable.js'
 
@@ -84,7 +85,8 @@ export function getDirectoryForPath(path: string): string {
   if (uncPathRisk(path).risky || expanded.startsWith('\\\\') || expanded.startsWith('//')) return dirname(expanded)
   try {
     if (getFsImplementation().statSync(expanded).isDirectory()) return expanded
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return dirname(expanded)
 }

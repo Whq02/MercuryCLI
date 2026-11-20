@@ -5,6 +5,7 @@ import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getProjectDir } from '../../utils/sessionStorage/paths.js'
 import { sanitizePathComponent } from '../../utils/tasks.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type MissionCardState = 'armed' | 'paused' | 'met' | 'cleared' | 'continued'
 
@@ -54,7 +55,8 @@ export function readMissionCard(sessionId: string, cwd?: string): MissionCard | 
     if (!existsSync(path)) return null
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as MissionCard
     return parsed && parsed.schema === 1 && typeof parsed.goal === 'string' ? parsed : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

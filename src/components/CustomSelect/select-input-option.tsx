@@ -14,6 +14,7 @@ import Byline from '../design-system/Byline.js'
 import TextInput from '../TextInput.js'
 import { SelectOption } from './select-option.js'
 import type { InputOption } from './option-map.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const INPUT_WRAP_COLUMNS = 80
 
@@ -111,8 +112,7 @@ export function SelectInputOption<T>({
             onImagePaste?.(image.base64, image.mediaType, undefined, image.dimensions)
           }
         })
-        .catch(() => {
-        })
+        .catch(passedOver)
     },
     { context: 'Chat', isActive: isFocused && Boolean(onImagePaste) },
   )

@@ -9,6 +9,7 @@ import { PDF_MAX_EXTRACT_SIZE } from '../constants/apiLimits.js'
 import { normaliseForMatch } from './text/normaliseForMatch.js'
 import { readRegularFile } from './regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
+import { passedOver } from './passedOver.js'
 
 interface PdfTextPage {
   pageNumber: number
@@ -78,7 +79,7 @@ export async function extractPdfText(filePath: string, options: { maxBytes?: num
   try {
     const cached = JSON.parse(await readFile(path, 'utf8')) as PdfTextDocument
     if (cached.pages.length === cached.pageCount && cached.pages.every(p => typeof p.text === 'string' && typeof p.hasTextLayer === 'boolean')) return cached
-  } catch {}
+  } catch (error) { passedOver(error) }
   let job = pending.get(path)
   if (!job) {
     job = (async () => {

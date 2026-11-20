@@ -24,6 +24,7 @@ import { subprocessEnv } from './subprocessEnv.js'
 import { gitArgsAsync } from './git/spawnArgs.js'
 import { findGitRoot, makeCachedFinder, type CachedFinder } from './git/gitRoot.js'
 import { gitExe } from './git/gitExe.js'
+import { passedOver } from './passedOver.js'
 
 export { findGitRoot } from './git/gitRoot.js'
 export { gitExe } from './git/gitExe.js'
@@ -418,7 +419,8 @@ async function publishIfMoved(): Promise<void> {
   const beforeVersion = snapshotVersion
   try {
     await getGitState()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   if (lastSnapshot === before && snapshotVersion === beforeVersion) return
@@ -508,7 +510,8 @@ export async function getGitState(options?: { untrackedFiles?: 'all' | 'normal';
     lastSnapshot = Object.freeze(next)
     snapshotVersion++
     return lastSnapshot
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -585,7 +588,8 @@ function resolveLexicallyHardened(path: string): string | undefined {
     let stats
     try {
       stats = lstatSync(candidate)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
     if (!stats.isSymbolicLink()) {
@@ -596,7 +600,8 @@ function resolveLexicallyHardened(path: string): string | undefined {
     let target: string
     try {
       target = readlinkSync(candidate)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
     if (process.platform !== 'win32' && looksLikeWindowsPath(target)) return undefined
@@ -618,7 +623,8 @@ function canonicalizeForGate(path: string): string {
   let real = lexical
   try {
     real = realpathSync(lexical)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return real.normalize('NFC').toLowerCase()
 }
@@ -634,7 +640,8 @@ function hasValidHead(gitDir: string): boolean {
     if (!stats.isFile() || stats.size > GITDIR_FILE_MAX_BYTES) return false
     const head = readFileSync(headPath, 'utf8').slice(0, 255)
     return /^ref:[ \t]*refs\//.test(head) || /^([0-9a-f]{40}|[0-9a-f]{64})\s*$/.test(head)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -644,7 +651,8 @@ function isAccessibleDirectory(path: string): boolean {
     if (!statSync(path).isDirectory()) return false
     accessSync(path, fsConstants.R_OK | fsConstants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -661,7 +669,8 @@ function hasBareIndicators(directory: string): boolean {
   try {
     const head = lstatSync(join(directory, 'HEAD'))
     if (head.isFile() || head.isSymbolicLink()) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return existsSync(join(directory, 'objects')) || existsSync(join(directory, 'refs'))
 }
@@ -679,7 +688,8 @@ function classifyRedirectTarget(target: string, canonicalCwd: string): GitEntryC
   let realTarget: string
   try {
     realTarget = realpathSync(lexical)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'plantable'
   }
   const canonicalTarget = realTarget.normalize('NFC').toLowerCase()
@@ -698,7 +708,8 @@ function linkedWorktreeAdminClass(adminDir: string, canonicalCwd: string): GitEn
     const stats = lstatSync(pointer)
     if (!stats.isFile() || stats.size > GITDIR_FILE_MAX_BYTES) return 'none'
     common = readFileSync(pointer, 'utf8').replace(/[\r\n]+$/, '')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
   if (common === '') return 'none'
@@ -710,14 +721,16 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
   let stats
   try {
     stats = lstatSync(entryPath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
   if (stats.isSymbolicLink()) {
     let link: string
     try {
       link = readlinkSync(entryPath)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 'plantable'
     }
     return classifyRedirectTarget(isAbsolute(link) ? link : resolve(directory, link), canonicalCwd)
@@ -727,7 +740,8 @@ function classifyGitEntry(directory: string, canonicalCwd: string): GitEntryClas
     let contents: string
     try {
       contents = readFileSync(entryPath, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 'none'
     }
     if (contents.includes('\0')) return 'plantable'

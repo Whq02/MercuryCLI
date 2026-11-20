@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 export const BURST_WINDOW_MS = 24
 
@@ -7,7 +8,8 @@ export function notifyRoomStatusFeed(kind?: string): void {
   for (const l of [...listeners]) {
     try {
       l(kind ?? null)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -34,6 +34,7 @@ import { getInMemoryErrors, withoutStackFrames } from '../../utils/log.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { sessionLaneWall } from '../../tools/MonitorTool/laneWall.js'
 import { startIdleNudge, MAIN_THREAD_AGENT, agentRecipientState, nudgeWords } from '../../services/notices/idleNudge.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function landAdvisorQuiet(quiet: AdvisorQuiet, ports: RunnerPorts): void {
   const { messages } = ports
@@ -123,7 +124,7 @@ export function printDriverPorts(ports: RunnerPorts): TurnDriverPorts {
     },
     closeOutput: async () => {
       const { endBackgroundHooks } = await import('../../utils/hooks/background.js')
-      await endBackgroundHooks().catch(() => {})
+      await endBackgroundHooks().catch(passedOver)
       skillChangeDetector.dispose()
       disarmAgentFreshness()
       stopDrainedNotificationFrames()

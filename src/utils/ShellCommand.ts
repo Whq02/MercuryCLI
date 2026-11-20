@@ -7,6 +7,7 @@ import { formatDuration } from './format.js'
 import { endProcessTree, type ProcessTreeKillReceipt } from './processGroup.js'
 import { MAX_TASK_OUTPUT_BYTES, MAX_TASK_OUTPUT_BYTES_DISPLAY } from './task/diskOutput.js'
 import { TaskOutput } from './task/TaskOutput.js'
+import { passedOver } from './passedOver.js'
 
 
 export const HARD_CAP_MULTIPLIER = 10
@@ -175,7 +176,8 @@ export function wrapSpawn(
         let size: number
         try {
           size = (await stat(taskOutput.path)).size
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return
         }
         if (sizeWatchdogTimer === undefined || status !== 'backgrounded') return

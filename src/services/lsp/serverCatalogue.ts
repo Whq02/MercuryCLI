@@ -5,6 +5,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { spawnableSpellings, whichSync } from '../../utils/which.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface CatalogueEntry {
   id: string
@@ -71,7 +72,8 @@ interface CatalogueProbe {
 function listCwdEntries(cwd: string): string[] {
   try {
     return readdirSync(cwd)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

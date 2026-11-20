@@ -8,6 +8,7 @@ import { armToolRosterRestore, conversationRosterKey, toolRosterLatchFor, type R
 import { getConversationToolSchemas } from '../../../utils/toolSchemaCache.js'
 import { clearSystemPromptSections } from '../../../constants/systemPromptSections.js'
 import { carriesRecordedWhole, restoreWholeRecordedComposition, staticCompositionChanged } from '../../../prompt/recordedComposition.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface BoundPrefixRecordOptions {
   rosterOnly?: boolean
@@ -172,7 +173,7 @@ export function restoreBoundPrefixFromMessages(messages: readonly Message[], opt
             if (definition !== null && definition.name === mark.name && typeof definition.input_schema === 'object' && definition.input_schema !== null) {
               return { name: mark.name, deferred: mark.deferred === true, definition: mark.definition }
             }
-          } catch {}
+          } catch (error) { passedOver(error) }
         }
         return { name: mark.name, deferred: mark.deferred === true }
       })

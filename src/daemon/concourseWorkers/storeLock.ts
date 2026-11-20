@@ -5,6 +5,7 @@ import { STORE_LOCK_OPTIONS } from '../../substrate/fileStore.js'
 import { lockSync } from '../../utils/lockfile.js'
 import { publishTransientInDaemonHome, daemonHomeStands } from '../daemonHome.js'
 import { isProcessAlive } from '../ownerWatch.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const SESSION_RECORDS_LOCK_WAIT_MS = STORE_LOCK_OPTIONS.stale + 5_000
 
@@ -19,7 +20,8 @@ function lockIdentityOf(lockDir: string): string | null {
   try {
     const st = statSync(lockDir)
     return `${st.ino}:${st.mtimeMs}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -30,7 +32,8 @@ function abandonedLockReading(lockDir: string, ownerPath: string): string | null
   let owner: string
   try {
     owner = readFileSync(ownerPath, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const pid = Number(owner.trim())
@@ -53,7 +56,7 @@ function reclaimAbandonedLock(lockDir: string, ownerPath: string): boolean {
   if (!existsSync(lockDir)) {
     try {
       unlinkSync(ownerPath)
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return true
 }
@@ -93,7 +96,7 @@ function acquireSessionRecordsLock(
       })
       try {
         publishTransientInDaemonHome(where, ownerPath, `${process.pid}\n`, dir)
-      } catch {}
+      } catch (error) { passedOver(error) }
       identity = lockIdentityOf(lockDir)
       acquired = true
       return {
@@ -102,7 +105,7 @@ function acquireSessionRecordsLock(
           if (stillHeld()) {
             try {
               unlinkSync(ownerPath)
-            } catch {}
+            } catch (error) { passedOver(error) }
           }
           release()
         },

@@ -5,6 +5,7 @@ import { Readable } from 'node:stream'
 import type { ReadableStream as NodeReadableStream } from 'node:stream/web'
 import { ggufOnDisk, ggufPaths, hubEndpoint, type GgufSource } from '../hfCache.js'
 import { ADAPTER_VERSION } from './identity.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type GgufPullIo = {
   fetchImpl?: typeof fetch
@@ -24,7 +25,8 @@ export class GgufPullError extends Error {
 function sizeOf(path: string): number {
   try {
     return statSync(path).size
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -44,13 +46,15 @@ function placeSnapshot(blob: string, snapshotFile: string): void {
   try {
     linkSync(blob, snapshotFile)
     return
-  } catch {
+  } catch (error) {
+    passedOver(error)
     void 0
   }
   try {
     symlinkSync(relative(dirname(snapshotFile), blob), snapshotFile)
     return
-  } catch {
+  } catch (error) {
+    passedOver(error)
     void 0
   }
   copyFileSync(blob, snapshotFile)

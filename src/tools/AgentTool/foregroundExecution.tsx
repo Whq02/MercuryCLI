@@ -82,6 +82,7 @@ import {
 import type { BackgroundHandoverReason } from '../../tasks/LocalAgentTask/launchReceipts.js'
 import type { AgentDefinition } from './loadAgentsDir.js'
 import { runAgent, type RunAgentParams } from './runAgent.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const BACKGROUND_HINT_DELAY_MS = 2_000
 
@@ -379,7 +380,7 @@ export async function runForegroundAgentExecution(
     }
   } catch (error) {
     heldError = error
-    if (!backgrounded) await agentIterator.return(undefined).catch(() => undefined)
+    if (!backgrounded) await agentIterator.return(undefined).catch(passedOverAs(undefined))
     if (error instanceof AbortError) throw error
     logForDebugging(`Sync agent error: ${errorMessage(error)}`, {
       level: 'error',
@@ -495,7 +496,8 @@ async function attachForegroundEnvelope(needs: { syncAgentId: AgentId; metadata:
       },
     })
     attachAgentEnvelope(data, envelope)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -597,7 +599,8 @@ async function continueDetachedOf(
           },
         }),
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     const notifies = overloadEpisode === null || overloadDeathNotifies(overloadEpisode)
@@ -620,7 +623,7 @@ async function continueDetachedOf(
       ...(envelopeBlock ? { envelopeBlock } : {}),
     })
   } catch (error) {
-    await agentIterator.return(undefined).catch(() => undefined)
+    await agentIterator.return(undefined).catch(passedOverAs(undefined))
     if (error instanceof AbortError) {
       const stopReason = agentStopReasonOf(foregroundTask?.abortController.signal.reason)
       killAsyncAgent(backgroundedTaskId, rootSetAppState, stopReason)

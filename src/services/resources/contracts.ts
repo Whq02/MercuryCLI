@@ -2,6 +2,7 @@
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MERCURY_REF_SCHEME = 'mercury://'
 
@@ -94,7 +95,8 @@ export function parseMercuryRef(raw: string): ParsedRef | null {
       let value = pair.slice(eq + 1)
       try {
         value = decodeURIComponent(value)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       switch (key) {
         case 'lines': {

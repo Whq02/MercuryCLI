@@ -31,6 +31,7 @@ import {
   subscribeLocalServerTruth,
   type LocalServerTruth,
 } from '../../services/localServer/localServerTruth.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 export const LOCAL_SERVER_APPLY_MENU = 'local-server-apply'
 export const LOCAL_SERVER_SEARCH = 'local server ollama loaded models parallel slots keep alive context length launch agent plist restart'
@@ -115,13 +116,13 @@ export function useLocalServerConfig(version: number): LocalServerConfigState {
   const stamp = useSyncExternalStore(subscribeLocalServerTruth, localServerTruthStamp, localServerTruthStamp)
   const probingOff = localServerProbingOff()
   useLoad(() => {
-    void refreshLocalServerTruth().catch(() => undefined)
+    void refreshLocalServerTruth().catch(passedOverAs(undefined))
   }, [])
   const truth = cachedLocalServerTruth()
   const settings = readLocalServerSettings()
   const settingsKey = JSON.stringify(settings)
   const plan = useMemo(() => (truth && truth.server ? planLocalServerApply(truth, settings) : null), [stamp, settingsKey, version])
-  return { truth, stamp, settings, plan, probingOff, refresh: () => void refreshLocalServerTruth({ force: true }).catch(() => undefined) }
+  return { truth, stamp, settings, plan, probingOff, refresh: () => void refreshLocalServerTruth({ force: true }).catch(passedOverAs(undefined)) }
 }
 
 export function localServerConfigItems(args: {

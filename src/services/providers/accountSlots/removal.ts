@@ -16,6 +16,7 @@ import { disconnectMetaMuseCode } from '../meta/metaAccounts.js'
 import { clearStoredXaiSubscription } from '../xai/xaiOauth.js'
 import { clearStoredNousSignin } from '../nous/nousOauth.js'
 import { disconnectHuggingfaceOauth } from '../huggingface/huggingfaceAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface AnthropicSlotSignOutIo {
   revoke?: (refreshToken: string) => Promise<void>
@@ -85,7 +86,8 @@ function afterCredentialLeft(slot: AccountSlot): void {
   try {
     const { clearCapHandoffForFamily } = require('../../capFailover.js') as typeof import('../../capFailover.js')
     clearCapHandoffForFamily(slot.family)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -119,7 +121,8 @@ function forgetFamilyObservations(family: string, kind: AccountSlotKind): void {
       default:
         return
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

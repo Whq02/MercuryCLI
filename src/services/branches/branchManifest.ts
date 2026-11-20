@@ -8,6 +8,7 @@ import {
 import { materializeEntriesAt } from '../../utils/sessionStorage/materialize.js'
 import { encodeTranscriptLine } from '../../utils/sessionStorage/vnext.js'
 import type { Entry } from '../../types/logs.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface BranchManifest {
   v: 1
@@ -42,7 +43,8 @@ function isRecordTranscript(rawText: string): boolean {
       typeof o.recordId === 'string' &&
       typeof o.payload === 'object'
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -143,7 +145,8 @@ export function readBranchManifest(branchTranscriptPath: string): BranchManifest
       readFileSync(branchManifestPathFor(branchTranscriptPath), 'utf8'),
     ) as BranchManifest
     return raw && raw.v === 1 ? raw : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

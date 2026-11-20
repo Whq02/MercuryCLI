@@ -7,6 +7,7 @@ import {
   getInstructionFiles,
   onInstructionCacheInvalidated,
 } from './engine.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const PROJECT_INSTRUCTION_TRIM_LINE_THRESHOLD = 400
 
@@ -61,7 +62,8 @@ function scheduleMeasure(): void {
         if (armed === snapshot.armed && lines === snapshot.effectiveLines && guide === snapshot.guide) return
         snapshot = { armed, effectiveLines: lines, guide }
         for (const cb of subscribers) cb()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })()
   })

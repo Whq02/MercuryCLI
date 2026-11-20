@@ -16,6 +16,7 @@ import {
 } from './editorPresence.js'
 import type { GodotProcess } from './godotProcessCensus.js'
 import { getVulcanClient, type VulcanResult } from './vulcanClient.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const LEGACY_TOKEN_FILE = path.join('.godot', 'mercury-vulcan-token')
 
@@ -68,7 +69,8 @@ export function readEnabledPlugins(projectRoot: string): string[] {
   let text: string
   try {
     text = readFileSync(projectGodotPath(projectRoot), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return enabledPluginsFromText(text)
@@ -139,7 +141,8 @@ export async function mutateProjectGodot(
     if (current !== original) {
       try {
         unlinkSync(tmp)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       continue
     }
@@ -167,7 +170,8 @@ export function readRuntimeAutoloadEntry(projectRoot: string): string | undefine
   let text: string
   try {
     text = readFileSync(projectGodotPath(projectRoot), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   return runtimeAutoloadFromText(text)

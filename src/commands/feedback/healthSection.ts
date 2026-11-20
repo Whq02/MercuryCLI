@@ -9,6 +9,7 @@ import {
   type LastCertSummary,
 } from '../../utils/healthCertCore.js'
 import { lastCertPath, runHealthReport } from '../../utils/healthReport.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const HEALTH_DEADLINE_MS = 20_000
 export const FRESH_CERT_MS = 10 * 60_000
@@ -53,7 +54,8 @@ function readFreshLastCert(nowMs: number, freshMs = FRESH_CERT_MS): LastCertSumm
     if (summary === null) return null
     const age = nowMs - Date.parse(summary.ranAt)
     return age >= 0 && age <= freshMs ? summary : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

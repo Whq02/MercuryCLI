@@ -13,6 +13,7 @@ import {
   keychainReachable,
 } from './macOsKeychainHelpers.js'
 import type { SecureStorage, SecureStorageData } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 
 type SecurityResult = { exitCode: number; stdout: string; stderr: string }
@@ -68,7 +69,8 @@ function readServiceAsync(serviceName: string): Promise<string | null> {
 function parseData(raw: string): SecureStorageData | null {
   try {
     return JSON.parse(raw) as SecureStorageData
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -104,7 +106,8 @@ export const macOsKeychainStorage: SecureStorage = {
         if (parsed === null) continue
         state.cached = { data: parsed, cachedAt: Date.now() }
         return parsed
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const rawService = getRawSpellingKeychainStorageServiceName(CREDENTIALS_SERVICE_SUFFIX)
@@ -117,7 +120,8 @@ export const macOsKeychainStorage: SecureStorage = {
           state.cached = { data: parsed, cachedAt: Date.now() }
           return parsed
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (previous !== null) {

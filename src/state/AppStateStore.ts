@@ -24,6 +24,7 @@ import type { PromptVariant } from '../services/PromptSuggestion/promptSuggestio
 import type { TurnAnswerContext } from '../query/turnAnswerContext.js'
 import type { Store } from './store.js'
 import type { CrewLedger } from './crewLedger.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 type ImmutablePrimitive =
@@ -223,7 +224,8 @@ function rememberedExpandedView(): AppState['expandedView'] {
   try {
     const remembered = getGlobalConfig().expandedView
     return remembered === 'tasks' ? remembered : 'none'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
 }

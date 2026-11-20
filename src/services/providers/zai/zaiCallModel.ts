@@ -106,6 +106,7 @@ import {
   compatFaultToTypedError,
   compatTerminalFaultText,
 } from '../openaicompat/compatChatCallModel.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function apiErrorMessage(
   content: string,
@@ -336,7 +337,8 @@ export async function* zaiCallModel(params: CallModelParams): CallModelStream {
       try {
         const { logAPISuccessAndDuration } = await import('../../api/logging.js')
         logAPISuccessAndDuration({ start: attemptStartedAtMs, startIncludingRetries: turnStartedAtMs })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return
     }

@@ -2,6 +2,7 @@
 import { logForDebugging } from '../../utils/debug.js'
 import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../../utils/model/computedDefault.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type WorkerModelRefusal =
   | `no-credential:${string}`
@@ -65,7 +66,8 @@ export function neutralSeatDefault(): SeatFamilyChoiceV1 | null {
     const decision = computedDefault()
     if (decision.source === 'keyless' || decision.provider === null) return null
     return { family: decision.provider, setting: decision.setting, row: decision.row }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -81,7 +83,8 @@ export function seatFamilyChoices(): SeatFamilyChoiceV1[] {
       out.push({ family: considered.family, setting: verdict.setting, row: verdict.row })
     }
     return out
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -98,7 +101,8 @@ function noCredentialAction(family: string, compatEndpoint?: string): string {
   try {
     const { providerDisplayName } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     name = providerDisplayName(other.family)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return `${door} — or ${name} is signed in: leave the model out for its newest row (${other.row}), or name '${other.family}' to pick that family`
 }
@@ -153,7 +157,7 @@ function compatReaderFor(credentials?: CredentialReads): CompatCredentialReader 
   let reader = UNREADABLE_COMPAT
   try {
     reader = (require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')).compatCredentialReader()
-  } catch {}
+  } catch (error) { passedOver(error) }
   if (credentials !== undefined) compatReaders.set(credentials, reader)
   return reader
 }
@@ -167,7 +171,8 @@ function unrecognisedRefusalAction(): string {
     if (examples.length > 0) {
       return `${plain} — spellings like ${examples.map(e => `'${e}'`).join(', ')} resolve, display names and ids both`
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return plain
 }
@@ -197,7 +202,7 @@ function composeArms(
       const { boxEndpointNotice } = require('../host/boxService.js') as typeof import('../host/boxService.js')
       const endpoint = compatModelEndpoint(modelId)?.endpoint
       notice = endpoint && boxEndpointNotice(endpoint.name, endpoint.baseUrl)
-    } catch {}
+    } catch (error) { passedOver(error) }
     if (notice) {
       const refused: WorkerArmAvailabilityV1 = { availability: 'refused', refusal: 'unreachable:box', detail: notice, action: '/llmhost → One of my computers' }
       return { session: refused, crew: refused }
@@ -252,14 +257,16 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   try {
     const { getEngineModel } = await import('../../utils/model/model.js')
     operatorDefaultId = await canonicalWorkerModelId(getEngineModel())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let neutralDefaultId: string | undefined
   const neutral = neutralSeatDefault()
   if (neutral !== null) {
     try {
       neutralDefaultId = await canonicalWorkerModelId(neutral.setting)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   for (const o of options) {
@@ -348,7 +355,7 @@ async function readLocalDiscoveryIfUnlisted(idOrKey: string): Promise<boolean> {
   const { getCachedLocalDiscovery, refreshLocalDiscovery } = await import('../providers/local/localDiscovery.js')
   const listed = idOrKey === 'local' ? (getCachedLocalDiscovery()?.servers.some(server => server.models.length > 0) ?? false) : localRecordFor(idOrKey) !== undefined
   if (listed) return false
-  const snapshot = await refreshLocalDiscovery({ force: true }).catch(() => null)
+  const snapshot = await refreshLocalDiscovery({ force: true }).catch(passedOverAs(null))
   const { localProbeTargets } = await import('../providers/local/localDiscovery.js')
   logForDebugging(`[local admission] ${idOrKey} unlisted → re-probed ${localProbeTargets().map(target => `${target.kind}=${target.root}`).join(', ') || 'no targets'} → ${snapshot === null ? 'the probe threw' : snapshot.servers.map(server => `${server.kind} ${server.root} (${server.models.length})`).join(', ') || 'no server answered'}`)
   return true
@@ -492,7 +499,8 @@ async function unnamedLaunchNoAccount(
     const credentials = await readCredentialPresences()
     const anyCredentialed = [...credentials.values()].some(present => present === true)
     return noAccountRefusal(refusal, computedDefault().provider ?? undefined, anyCredentialed)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -502,7 +510,8 @@ async function unnamedLaunchDrift(refusal: WorkerModelRefusal): Promise<{ detail
     const { computedDefault } = await import('../../utils/model/computedDefault.js')
     const credentials = await readCredentialPresences()
     return defaultProviderDriftNote(refusal, computedDefault().provider ?? undefined, family => credentials.get(family) === true)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

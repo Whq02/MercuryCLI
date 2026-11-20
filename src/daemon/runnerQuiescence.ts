@@ -1,3 +1,5 @@
+import { passedOver } from '../utils/passedOver.js'
+
 export type QuiescenceRequest = {
   subtype: 'quiesce'
   action: 'prepare' | 'commit' | 'cancel'
@@ -130,7 +132,7 @@ export class RetirementFence {
     try {
       const answer = await this.effects.request({ subtype: 'quiesce', action: 'cancel', token })
       confirmed = answer.ok && answer.token === token && answer.phase === 'cancelled'
-    } catch {}
+    } catch (error) { passedOver(error) }
     if (confirmed || !commitSent) {
       this.effects.clearIntent(token)
       this.effects.expectExit(false)

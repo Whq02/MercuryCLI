@@ -8,6 +8,7 @@ import { createSecretRedactor } from '../../utils/redactSecrets.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { TASK_STOP_TOOL_NAME } from '../TaskStopTool/prompt.js'
 import { MONITOR_TOOL_NAME } from './constants.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const WATCH_STARTED_LINE = 'Monitor started (task '
 
@@ -168,7 +169,8 @@ export function settledWatchIds(messages: readonly Message[]): Set<string> {
       try {
         const taskId = JSON.parse(match[1]!) as unknown
         if (typeof taskId === 'string' && taskId !== '') settled.add(taskId)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     for (const match of text.matchAll(DEAD_SHELL)) {

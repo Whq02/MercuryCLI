@@ -1,3 +1,5 @@
+import { passedOver } from '../../utils/passedOver.js'
+
 const SCHEME = /^ssh:\/\//i
 const HOME_FORM = /^\/~([A-Za-z0-9._-]*)(?:\/|$)/
 const CONTROL = /[\u0000-\u001f\u007f]/
@@ -244,7 +246,8 @@ export function remoteRuleAuthority(pattern: string): RemoteAuthority | null {
   if (parts === null || parts.authority === '' || /[*?]/.test(parts.authority)) return null
   try {
     return parseAuthority(parts.authority, pattern)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -300,7 +303,8 @@ export function remoteRuleCandidates(path: string, behavior: 'allow' | 'deny' | 
   let target: RemoteTarget | null
   try {
     target = parseRemotePath(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   if (target === null) return []
@@ -326,7 +330,8 @@ export function remoteShellPath(path: string): { host: string; path: string } | 
     if (target === null) return null
     const home = target.home === '' ? '$HOME' : `~${target.home}`
     return { host: authorityText(target.authority), path: target.home === null ? target.path : target.path === '' ? home : `${home}/${target.path}` }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -336,7 +341,8 @@ export function remoteHostLabel(path: string): string | null {
   try {
     const target = parseRemotePath(path)
     return target === null ? null : authorityText(target.authority)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -18,6 +18,7 @@ import {
   type ResourceContext,
   type ResourceResult,
 } from '../contracts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function candidateOwners(ctx: ResourceContext): OwnerKey[] {
   const owners: OwnerKey[] = [ctx.owner]
@@ -26,7 +27,8 @@ function candidateOwners(ctx: ResourceContext): OwnerKey[] {
   try {
     const main = processMainOwner()
     if (!owners.includes(main)) owners.push(main)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return owners
 }
@@ -86,7 +88,8 @@ async function debugAdapterChildren(record: ExecutionRecord): Promise<ResourceCh
               ? 'running'
               : 'gone',
       }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

@@ -1,3 +1,5 @@
+import { passedOver } from '../../utils/passedOver.js'
+
 const MODELS_ENDPOINT_NOT_JSON = 'the models endpoint answered a body that is not JSON'
 
 export async function catalogueBodyJson(response: Response): Promise<unknown> {
@@ -11,7 +13,8 @@ export async function catalogueBodyJson(response: Response): Promise<unknown> {
 export async function quietBodyJson(response: Response): Promise<unknown> {
   try {
     return await response.json()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

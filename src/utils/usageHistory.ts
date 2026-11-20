@@ -10,6 +10,7 @@ import { MERCURY_VERSION } from '../constants/product.js'
 import { servedModelOfAssistantRow } from './model/retainedModel.js'
 import { scanTranscriptEntriesForward } from './sessionStorage/transcriptReader.js'
 import { isTranscriptFileName } from './sessionStoragePortable.js'
+import { passedOver } from './passedOver.js'
 
 const HOUR_MS = 3_600_000
 export const USAGE_HISTORY_MAX_ROWS = 32_768
@@ -107,7 +108,7 @@ async function publish(update: (current: HistoryStore) => HistoryStore): Promise
     if (Buffer.byteLength(text) > MAX_CACHE_BYTES) return false
     publishAtomicSync(storePath(), text, { mode: 0o600 })
     return true
-  } catch { return false }
+  } catch (error) { passedOver(error); return false }
   finally { if (lock) noteLockRelease('usage-history', await lock.release()) }
 }
 

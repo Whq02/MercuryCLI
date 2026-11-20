@@ -21,6 +21,7 @@ import { forwardFrame, predecessorSockPath, predecessorSockPidOf } from './hando
 import { isProcessAlive } from './ownerWatch.js'
 import { readdirSync } from 'node:fs'
 import { dirname } from 'node:path'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export interface MercuryDaemonStatus {
   daemon: { pid: number; version: string; uptimeSec: number; dir: string; buildTree?: string | null; script?: string } | null
@@ -44,7 +45,7 @@ export interface MercuryDaemonStatus {
 }
 
 export async function getMercuryDaemonStatus(): Promise<MercuryDaemonStatus> {
-  const record = await readDaemonState().catch(() => null)
+  const record = await readDaemonState().catch(passedOverAs(null))
   const ping = await daemonControlRpc({ op: 'ping' }, { timeoutMs: 1000 })
 
   const snapshot: MercuryDaemonStatus = {
@@ -126,7 +127,8 @@ export function helperPidSocketsOnDisk(): number[] {
   let names: string[]
   try {
     names = readdirSync(dirname(plane))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const pids: number[] = []
@@ -138,7 +140,7 @@ export function helperPidSocketsOnDisk(): number[] {
 }
 
 export async function helperPidsOfHome(): Promise<number[]> {
-  const daemon = await readDaemonState().catch(() => null)
+  const daemon = await readDaemonState().catch(passedOverAs(null))
   const known: HelperRow[] = daemon !== null && isProcessAlive(daemon.pid) ? [{ pid: daemon.pid, live: null }] : []
   const plane = await daemonControlRpc({ op: 'hello', proto: MERCURY_DAEMON_PROTO, clientVersion: currentVersion(), clientBuildTree: null }, { timeoutMs: 1000, protoRetry: false })
   const planeFacts = plane.ok && plane.op === 'hello' ? plane : null
@@ -172,7 +174,8 @@ async function helperCensus(known: HelperRow[], predecessors: number[]): Promise
 function sockPathOrPlaceholder(): string {
   try {
     return controlConnectPath()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return '<unavailable>'
   }
 }

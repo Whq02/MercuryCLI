@@ -84,6 +84,7 @@ import {
   renderToolUseRejectedMessage,
   userFacingName,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const CHANGESET_TOOL_NAME = 'ChangeSet'
 
@@ -637,14 +638,14 @@ async function runApply(
     if (t.fileOp === 'delete') {
       context.readFileState.delete(t.canonicalPath)
       dropSeenLines(owner, t.canonicalPath)
-      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(passedOver)
       continue
     }
     const landedPath = t.fileOp === 'move' && t.newPath !== undefined ? t.newPath : t.canonicalPath
     if (t.fileOp === 'move') {
       context.nestedMemoryAttachmentTriggers?.add(landedPath)
       context.readFileState.delete(t.canonicalPath)
-      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(() => {})
+      if (lspManager) await lspManager.closeFile(t.canonicalPath).catch(passedOver)
     }
     context.readFileState.set(landedPath, {
       content: t.plannedContent,
@@ -686,7 +687,7 @@ async function runApply(
     const paths = changedTargets.flatMap(t => (t.fileOp === 'move' && t.newPath !== undefined ? [t.canonicalPath, t.newPath] : [t.canonicalPath]))
     discoverSkillDirsForPaths(paths, getCwd())
       .then(dirs => (dirs.length > 0 ? addSkillDirectories(dirs) : undefined))
-      .catch(() => {})
+      .catch(passedOver)
     activateConditionalSkillsForPaths(paths, getCwd())
   }
 
@@ -1336,7 +1337,8 @@ export const ChangeSetTool = buildTool({
           surface,
           outcome,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const output: Output = {

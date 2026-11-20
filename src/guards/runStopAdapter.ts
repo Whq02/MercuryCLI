@@ -27,11 +27,13 @@ import {
   verificationSummary,
   workspaceVerifiable,
 } from '../utils/verification/verificationState.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function safeIsInteractive(): boolean {
   try {
     return getIsInteractive()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -39,7 +41,8 @@ function safeIsInteractive(): boolean {
 function missionArmedForSession(): boolean {
   try {
     return getActiveMission() !== undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -217,7 +220,8 @@ const deliveredRuns = new Set<string>()
 export function headlessMintAllowed(flag: string | undefined): boolean {
   try {
     if (getIsInteractive()) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return isEnvTruthy(flag)
 }
@@ -241,7 +245,8 @@ export function mintDeliveryArtifact(owner: OwnerKey, runId: string, hasChanges:
       let sessionId = 'unknown-session'
       try {
         sessionId = String(getSessionId())
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       let treeDigest: string | undefined
       try {

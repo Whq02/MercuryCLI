@@ -1,5 +1,6 @@
 import { deleteFlagEnv, flagEnv } from '../substrate/flagRegistry.js'
 import { noteModesImported, noteModeReleased } from './root/terminalModeLedger.js'
+import { passedOver } from '../utils/passedOver.js'
 
 let heldPending = flagEnv('MERCURY_ALT_HELD') === '1'
 
@@ -34,7 +35,8 @@ export function releaseLauncherAltHoldNow(): void {
   try {
     if (process.stdout.isTTY) process.stdout.write(RESTORE)
     else if (process.stderr.isTTY) process.stderr.write(RESTORE)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const mode of TRANSFERRED_MODES) noteModeReleased('launcher-splash', mode)
 }

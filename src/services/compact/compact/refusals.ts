@@ -3,6 +3,7 @@ import type { AssistantMessage } from '../../../types/message.js'
 import { getAssistantMessageText } from '../../../utils/messages.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../../api/errors.js'
 import { overflowSignalOf } from '../../api/overflowSignal.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function isOverflowAnswer(row: AssistantMessage): boolean {
   return overflowSignalOf(row) !== null || (getAssistantMessageText(row) ?? '').startsWith(PROMPT_TOO_LONG_ERROR_MESSAGE)
@@ -38,7 +39,8 @@ function providerSentencesOf(row: AssistantMessage): Array<{ words: string; stat
       const parsed = JSON.parse(words.slice(body)) as { error?: { message?: unknown }; message?: unknown }
       const message = parsed.error?.message ?? parsed.message
       if (typeof message === 'string' && message.trim() !== '') words = message
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   out.push(status !== undefined ? { words, status } : { words })

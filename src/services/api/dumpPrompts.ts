@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 interface WireDumpResponse {
@@ -242,10 +243,12 @@ function pruneOldFaultCaptures(sessionDir: string): void {
     for (let i = 0; i < excess; i++) {
       try {
         unlinkSync(join(sessionDir, entries[i]!))
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -323,7 +326,8 @@ export function captureRejectedOpenaiRequest(args: {
     writeFileSync(filePath, `${serialized}\n`, { mode: 0o600 })
     pruneOldFaultCaptures(sessionDir)
     return filePath
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -362,7 +366,8 @@ export function createWireResponseReader(contentType: string): {
     let event: WireEvent
     try {
       event = JSON.parse(data) as WireEvent
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     if (event.type === 'message_start' && event.message && typeof event.message === 'object') {
@@ -413,7 +418,8 @@ export function createWireResponseReader(contentType: string): {
           if (parsed.usage) summary.usage = parsed.object === 'response' ? flattenResponsesUsage(parsed.usage) : parsed.usage
           if (typeof parsed.model === 'string') summary.model = parsed.model
           if ('stop_reason' in parsed) summary.stop_reason = parsed.stop_reason ?? null
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       if (text.length > 0) summary.text = text.slice(0, REPLY_TEXT_KEEP)
@@ -440,7 +446,8 @@ function appendWireRow(dir: string, row: WireDumpRow | WireCatalogueRow | WireFo
   try {
     mkdirSync(dir, { recursive: true })
     appendFileSync(wireDumpPath(dir), `${JSON.stringify(row)}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -463,7 +470,8 @@ function tapBody(
     ended = true
     try {
       onEnd(fault)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return new ReadableStream<Uint8Array>({
@@ -483,7 +491,8 @@ function tapBody(
       }
       try {
         onChunk(decoder.decode(next.value, { stream: true }))
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       controller.enqueue(next.value)
     },
@@ -503,7 +512,8 @@ export function wrapFetchWithWireDump(baseFetch: typeof globalThis.fetch, source
     let path = url
     try {
       path = new URL(url).pathname
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const rawBody = typeof init?.body === 'string' ? init.body : null
     const requestRoad =

@@ -6,6 +6,7 @@ import { configuredProviderKeyCommand, recoverProviderKeyCommand } from '../prov
 import { orcarouterApiBase, resolveOrcarouterApiKey } from './orcarouterAccounts.js'
 import { orcarouterListedModel, orcarouterQualifiedId, orcarouterWireId, refreshOrcarouterCatalogue } from './orcarouterCatalogue.js'
 import { refreshOrcarouterUsage } from './orcarouterUsageState.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function buildOrcarouterExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const output = args.maxOutputTokensOverride ?? orcarouterListedModel(orcarouterQualifiedId(args.wireModel))?.outputMax
@@ -60,8 +61,8 @@ const orcarouterLaneProfile: CompatLaneProfile = {
       ? ' Raise this key’s quota in the OrcaRouter console.'
       : undefined,
   onResponseHeaders: () => {
-    void refreshOrcarouterCatalogue().catch(() => {})
-    void refreshOrcarouterUsage().catch(() => {})
+    void refreshOrcarouterCatalogue().catch(passedOver)
+    void refreshOrcarouterUsage().catch(passedOver)
   },
 }
 

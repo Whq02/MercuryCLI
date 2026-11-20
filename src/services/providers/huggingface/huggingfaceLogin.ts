@@ -13,6 +13,7 @@ import {
   type HuggingfaceOauthIo,
 } from './huggingfaceAccounts.js'
 import { refreshHuggingfaceCatalogue } from './huggingfaceCatalogue.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export type HuggingfaceDeviceLoginEvent =
   | { phase: 'starting' }
@@ -62,7 +63,7 @@ export async function runHuggingfaceDeviceLogin(
   const { io, onEvent } = args
   const pause = args.sleep ?? sleep
   const cancelled = args.cancelled ?? (() => false)
-  const refresh = args.refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(() => null))
+  const refresh = args.refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(passedOverAs(null)))
   const now = (): number => io?.now?.() ?? Date.now()
   onEvent?.({ phase: 'starting' })
   let start: HuggingfaceDeviceAuthStart
@@ -189,7 +190,7 @@ export async function storeHuggingfaceTokenLogin(
   io?: HuggingfaceOauthIo,
   refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null>,
 ): Promise<HuggingfaceTokenLoginOutcome> {
-  const refresh = refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(() => null))
+  const refresh = refreshCatalogue ?? (() => refreshHuggingfaceCatalogue({ force: true }).catch(passedOverAs(null)))
   const probe = await fetchHuggingfaceIdentity(token, io)
   if (probe.state === 'refused') {
     return {

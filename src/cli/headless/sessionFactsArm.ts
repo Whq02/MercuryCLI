@@ -43,6 +43,7 @@ import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import { transcriptStoreHealth } from '../../utils/sessionStorage/writer.js'
 import { sessionFactsToWire } from '../../services/engine-connector/seatWire.js'
 import type { RunnerPorts } from './runnerPorts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function missionLedgerOf(metadata: Record<string, unknown> | undefined): string | undefined {
   const ledger = metadata?.ledger
@@ -156,7 +157,7 @@ export async function answerSessionFacts(ports: RunnerPorts): Promise<ResultOf<'
     ...(swarmSessionEnabled() ? { swarm: swarmView() } : {}),
     editOutcomes: editOutcomeRows(processMainOwner()),
     notices: noticeRows(),
-    mission: (await listSessionMission().catch((): Awaited<ReturnType<typeof listSessionMission>> => [])).map(task => ({
+    mission: (await listSessionMission().catch((error): Awaited<ReturnType<typeof listSessionMission>> => { passedOver(error); return [] })).map(task => ({
       id: task.id,
       subject: task.subject.slice(0, 120),
       ...(task.activeForm !== undefined ? { activeForm: task.activeForm.slice(0, 120) } : {}),

@@ -29,6 +29,7 @@ import { readStoredOpenaiApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { recordSignIn, noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { forgetOpenaiLimitSource } from './openaiLimitState.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const OPENAI_AUTH_ISSUER = 'https://auth.openai.com'
@@ -83,7 +84,8 @@ function readAuthFile(): OpenaiAuthFile | null {
     const parsed = JSON.parse(readFileSync(authFilePath(), 'utf8')) as unknown
     if (typeof parsed !== 'object' || parsed === null) return null
     return parsed as OpenaiAuthFile
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -98,7 +100,8 @@ function writeAuthFile(mutate: (file: OpenaiAuthFile) => OpenaiAuthFile): void {
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   noteCredentialChange()
 }
@@ -117,7 +120,8 @@ function decodeJwtPayload(jwt: string): Record<string, unknown> | undefined {
     return typeof parsed === 'object' && parsed !== null
       ? (parsed as Record<string, unknown>)
       : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -308,7 +312,8 @@ function blankDeadRefreshTokenOnDisk(usedRefreshToken: string): void {
       if (!stored || stored.refreshToken !== usedRefreshToken) return file
       return { ...file, tokens: { ...stored, refreshToken: '' } }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -347,7 +352,8 @@ function acquireRefreshLock(nowMs: number): boolean {
           unlinkSync(path)
           continue
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return false
     }
@@ -359,7 +365,8 @@ export function refreshLockStampedBy(path: string, pid: number): boolean {
   try {
     const holder = Number(readFileSync(path, 'utf8').trim().split(/\s+/)[0])
     return !Number.isFinite(holder) || holder === pid
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -369,7 +376,8 @@ function releaseRefreshLock(): void {
   if (!refreshLockStampedBy(path, process.pid)) return
   try {
     unlinkSync(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -400,7 +408,8 @@ async function postTokenEndpoint(
     try {
       const errorBody = (await response.json()) as Record<string, unknown>
       if (typeof errorBody.error === 'string') oauthError = errorBody.error
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const error = new Error(
       `openai token endpoint returned HTTP ${response.status}${oauthError ? ` (${oauthError})` : ''}`,
@@ -738,7 +747,8 @@ async function readOpenaiDevicePollError(poll: Response): Promise<{ code?: strin
         ...(typeof error.message === 'string' && error.message ? { message: error.message } : {}),
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return {}
 }

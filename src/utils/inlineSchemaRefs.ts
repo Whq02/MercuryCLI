@@ -1,4 +1,5 @@
 import { isRecord } from './isRecord.js'
+import { passedOver } from './passedOver.js'
 
 type SchemaNode = Record<string, unknown>
 
@@ -20,7 +21,8 @@ function pointerSegments(pointer: string): string[] | undefined {
   let decoded: string
   try {
     decoded = decodeURIComponent(pointer)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   const segments: string[] = []

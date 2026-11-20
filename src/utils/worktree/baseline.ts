@@ -1,6 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { logForDebugging } from '../debug.js'
+import { passedOver } from '../passedOver.js'
 
 const BASELINE_FILENAME = 'WORKTREE_BASE'
 
@@ -9,7 +10,8 @@ export async function resolveWorktreeAdminDir(worktreePath: string): Promise<str
     const content = (await readFile(join(worktreePath, '.git'), 'utf8')).trim()
     if (!content.startsWith('gitdir:')) return null
     return resolve(worktreePath, content.slice('gitdir:'.length).trim())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -33,7 +35,8 @@ export async function readWorktreeBaseline(worktreePath: string): Promise<string
   let content: string
   try {
     content = await readFile(join(adminDir, BASELINE_FILENAME), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const trimmed = content.trim()

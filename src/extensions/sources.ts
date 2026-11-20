@@ -10,6 +10,7 @@ import { readSourceRoot, type Catalogue } from './catalogue.js'
 import { isReservedLabel, NAME_PATTERN } from './manifest.js'
 import { getSourceCacheDir, getSourcesDir } from './paths.js'
 import { installedOrEmpty, logAct, readSources, sourcesOrEmpty, updateSources, type SourceRecord } from './records.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SOURCE_FETCH_TIMEOUT_MS = 120_000
 export const STALE_AFTER_MS = 7 * 24 * 60 * 60 * 1000
@@ -221,7 +222,8 @@ function descendOnce(dir: string): string {
     const inner = join(dir, entries[0]!)
     try {
       if (statSync(inner).isDirectory()) return inner
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return dir

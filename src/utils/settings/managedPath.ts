@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import memoize from 'lodash-es/memoize.js'
 
 import { getPlatform, type Platform } from '../platform.js'
+import { passedOver } from '../passedOver.js'
 
 
 export function managedRootCandidates(platform: Platform): string[] {
@@ -23,7 +24,8 @@ export function resolveManagedRoot(candidates: string[], exists: (path: string) 
   for (const candidate of candidates) {
     try {
       if (exists(candidate)) return candidate
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return candidates[0] as string

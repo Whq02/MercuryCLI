@@ -20,6 +20,7 @@ import { resultLineAnchors, resultPreRenderedBody, notifyFileReadListeners } fro
 import { MaxFileReadTokenExceededError, overCapNextWords, MAX_DISPLAY_LINE_CHARS, numberedReadContent, firstWindowUnderCap, tokensOverCap, numberedWindow, windowSpan, cutMark, overCapWords } from './window.js'
 import { UTF16_BE_REFUSAL, readsElsewhere, readRangeElsewhere, noteRemoteRead, realLineTotal, shownWindow, readTailLinesReverse } from './source.js'
 import type { ParsedLineRange } from './target.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export async function readMultiRangeTextLane(
   resolvedPath: string,
@@ -41,7 +42,8 @@ export async function readMultiRangeTextLane(
       } finally {
         closeSync(fd)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (bom[0] === 0xfe && bom[1] === 0xff) throw new Error(UTF16_BE_REFUSAL)
   }

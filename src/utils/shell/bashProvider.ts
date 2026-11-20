@@ -21,6 +21,7 @@ import { getGlobPreambleCommand } from './globPreamble.js'
 import { carriedByFile, msysArgvCarries, msysSourceLine, protectBackslashRunsFromMsysArgv } from './msysArgv.js'
 import type { BuildExecCommandOptions, FrameHandOver, ShellProvider } from './shellProvider.js'
 import { PIPELINE_STATUS_ARRAY, loginFilesNotCarried, type ShellRecord } from './shellRecord.js'
+import { passedOverAs } from '../passedOver.js'
 
 function cwdFileName(id: number | string): string {
   return `mercury-cwd-${id}`
@@ -55,7 +56,7 @@ export async function createBashShellProvider(
   const shellPath = record.path
   let snapshotPath: string | undefined
   if (!options?.skipSnapshot) {
-    snapshotPath = await createAndSaveSnapshot(record).catch(() => undefined)
+    snapshotPath = await createAndSaveSnapshot(record).catch(passedOverAs(undefined))
   }
   let usedSnapshotThisExecution = false
 

@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { isEnvTruthy } from '../envUtils.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../passedOver.js'
 
 let latched: boolean | null = null
 
@@ -23,7 +24,8 @@ function writeProbeTee(path: string): void {
   teeWritten = true
   try {
     writeFileSync(path, JSON.stringify(dump))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 function armProbeTee(): void {

@@ -6,6 +6,7 @@ import {
   verifyEvidenceEnabled,
 } from '../../utils/verification/verificationState.js'
 import type { OwnerKey } from './ownerKey.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface ToolTerminalEvent {
   owner: OwnerKey
@@ -52,7 +53,8 @@ export function observeToolStart(event: ToolStartEvent): void {
   for (const cb of startSubscribers) {
     try {
       cb(event)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -86,12 +88,14 @@ export function observeToolTerminal(event: ToolTerminalEvent): void {
         event.shellOutcome,
       )
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const cb of subscribers) {
     try {
       cb(event)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

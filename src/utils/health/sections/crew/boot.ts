@@ -2,6 +2,7 @@ import { readBootAttemptResidue } from '../../../../substrate/bootBeacon.js'
 import { statSync } from 'node:fs'
 import { formatAge } from '../../../healthCertCore.js'
 import type { CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function bootBeaconCheck(): CheckSpec {
   return {
@@ -105,7 +106,8 @@ export function invocationTraceCheck(): CheckSpec {
         try {
           const mtime = statSync(getInvocationTracePath()).mtimeMs
           ageNote = `last write ${Math.max(0, Math.round((Date.now() - mtime) / 1000))}s ago (prior session)`
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       return {

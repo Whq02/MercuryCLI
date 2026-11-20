@@ -16,6 +16,7 @@ import {
   buildPythonProjectProfile,
   selectPythonInterpreter,
 } from './pythonProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function pythonTestsEnabled(): boolean {
   return flagEnabled('MERCURY_TESTS')
@@ -450,7 +451,8 @@ export function latestRun(from: string = getCwd()): TestRunRecord | null {
 export function latestRunAtRoot(root: string): TestRunRecord | null {
   try {
     return JSON.parse(readFileSync(path.join(runsDir(root), 'latest.json'), 'utf8')) as TestRunRecord
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -460,7 +462,8 @@ export function getRun(id: string, from: string = getCwd()): TestRunRecord | nul
   if (!/^[a-z0-9-]+$/.test(id)) return null
   try {
     return JSON.parse(readFileSync(path.join(runsDir(root), `${id}.json`), 'utf8')) as TestRunRecord
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -474,14 +477,16 @@ export function listRuns(from: string = getCwd()): Array<{ id: string; startedAt
         try {
           const r = JSON.parse(readFileSync(path.join(runsDir(root), f), 'utf8')) as TestRunRecord
           return { id: r.id, startedAt: r.startedAt, counts: r.counts }
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       })
       .filter((r): r is { id: string; startedAt: number; counts: TestRunRecord['counts'] } => r !== null)
       .sort((a, b) => b.startedAt - a.startedAt)
       .slice(0, 50)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -505,12 +510,14 @@ function readNdjson(reportPath: string): NdjsonEvent[] {
       .map(l => {
         try {
           return JSON.parse(l) as NdjsonEvent
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       })
       .filter((e): e is NdjsonEvent => e !== null)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

@@ -24,6 +24,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { wrapFetchWithWireDump } from './dumpPrompts.js'
 import { recordTransportFailure } from './transportEvidence.js'
 import { observeStreamActivity, streamActivityNoteOf } from '../providers/streamIdleBudget.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const CLIENT_REQUEST_ID_HEADER = 'x-client-request-id'
@@ -83,12 +84,14 @@ function buildFetchWrapper(
       let path = url
       try {
         path = new URL(url).pathname
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       logForDebugging(
         `API request ${path}${correlationId ? ` (${CLIENT_REQUEST_ID_HEADER}: ${correlationId})` : ''}${source ? ` [source: ${source}]` : ''}`,
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     try {
       const answered = await baseFetch(input, { ...init, headers })
@@ -98,7 +101,8 @@ function buildFetchWrapper(
       try {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
         recordTransportFailure(err, url)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       throw err
     }

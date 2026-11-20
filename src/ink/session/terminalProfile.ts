@@ -10,6 +10,7 @@ import {
   syncOutputCapabilityNow,
   syncOutputSupportedNow,
 } from './capabilities.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TERMINAL_PROFILE_VERSION = 1
 
@@ -83,7 +84,8 @@ export function resolveTerminalProfile(probe: ProfileProbe = {}): TerminalProfil
   const release = platform !== 'win32' ? '' : probe.osRelease ?? (() => {
     try {
       return (require('node:os') as typeof import('node:os')).release()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return ''
     }
   })()

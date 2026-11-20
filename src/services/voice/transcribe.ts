@@ -4,6 +4,7 @@ import { isVoiceWavShape, pcmDurationMs, readWav } from './wav.js'
 import { voiceCheckoutRoot } from './voicePack.js'
 import { cpuFloorRefusal, cpuFloorRoadWords, loadWhisperAddon, probeCpuFloor, resolveWhisperPackDir, whisperPackAbsentNote, type WhisperAddon, type WhisperSegment } from './whisperPack.js'
 import { checkWhisperModel, downloadWhisperModel, resolveWhisperModelPin, whisperModelsDir, type WhisperModelLanguage, type WhisperModelRow } from './whisperModels.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function localTranscribeDeadlineMs(audioMs: number): number {
   return 120_000 + Math.max(0, Math.round(audioMs))
@@ -161,7 +162,7 @@ export function warmLocalTranscriber(): void {
     const model = checkWhisperModel()
     if (model.state !== 'present') return
     modelHandle(load.addon, model.path)
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 const SHORTEST_TAKE_THE_ENGINE_READS_SAMPLES = 201
@@ -207,7 +208,7 @@ export async function transcribeWav(wav: Buffer, opts: TranscribeOptions): Promi
       return load.addon.transcribe(handle, pcm, { language: model.language === 'en' ? 'en' : 'auto' })
     })
     .finally(() => { decodesHeld -= 1 })
-  decodeTail = decode.catch(() => {})
+  decodeTail = decode.catch(passedOver)
   try {
     const answer = await Promise.race([decode, bound, cancelled])
     return { text: stripNonSpeechMarkers(answer.text), kind: 'local', family: null, model: model.name, ms: answer.ms,
@@ -227,10 +228,10 @@ export function unloadLocalModels(): void {
     const load = loadWhisperAddon()
     if (load.state === 'ok') {
       for (const handle of loadedModels.values()) {
-        try { load.addon.unloadModel(handle) } catch {}
+        try { load.addon.unloadModel(handle) } catch (error) { passedOver(error) }
       }
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   loadedModels.clear()
 }
 

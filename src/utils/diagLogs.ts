@@ -1,6 +1,7 @@
 import { dirname } from 'node:path'
 
 import { getFsImplementation } from './fsOperations.js'
+import { passedOver } from './passedOver.js'
 
 export function logForDiagnosticsNoPII(
   level: 'debug' | 'info' | 'warn' | 'error',
@@ -23,7 +24,8 @@ export function logForDiagnosticsNoPII(
     try {
       fs.mkdirSync(dirname(logFile))
       fs.appendFileSync(logFile, line)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -7,6 +7,7 @@ import type { ApiRequestParams } from '../types/wire.js'
 import { stripDisplayTags, stripDisplayTagsAllowEmpty } from './displayTags.js'
 import { toError } from './errors.js'
 import { isEssentialTrafficOnly } from './privacyLevel.js'
+import { passedOver } from './passedOver.js'
 
 
 type ErrorLogSink = {
@@ -66,7 +67,8 @@ export function logError(error: unknown): void {
     inMemoryErrors.push({ error: coerced.stack ?? coerced.message, timestamp: new Date().toISOString() })
     while (inMemoryErrors.length > IN_MEMORY_ERROR_CAP) inMemoryErrors.shift()
     queueOrDispatch({ kind: 'error', error: coerced })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -81,14 +83,16 @@ export function withoutStackFrames(text: string): string {
 export function logMCPError(serverName: string, error: unknown): void {
   try {
     queueOrDispatch({ kind: 'mcpError', serverName, error })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
 export function logMCPDebug(serverName: string, message: string): void {
   try {
     queueOrDispatch({ kind: 'mcpDebug', serverName, message })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

@@ -3,6 +3,7 @@ import { RPC_INTERNAL_ERROR } from '../../../sidecarFraming.js'
 import { type LspRange, type LspDiagnostic, type LspCodeAction, offsetAt, toUri, fromUri } from '../lsp.js'
 import { fileTextChangesToWorkspaceEdit, FORMAT_OPTIONS } from '../convert.js'
 import type { DocContext, RequireState } from '../needs.js'
+import { passedOver } from '../../../../../utils/passedOver.js'
 
 export function codeActionRequest(params: unknown, docContext: DocContext): unknown {
   const { st, project, file, text } = docContext(params)
@@ -102,7 +103,8 @@ export function codeActionRequest(params: unknown, docContext: DocContext): unkn
     let changes: readonly TS.FileTextChanges[]
     try {
       changes = source.compute()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const edit = fileTextChangesToWorkspaceEdit(st, changes)

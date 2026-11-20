@@ -1,6 +1,7 @@
 
 import { registerCleanup } from '../../utils/cleanupRegistry.js'
 import type { OwnerKey } from './ownerKey.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type StoreLike = {
   name: string
@@ -56,7 +57,8 @@ async function disposeOwnerIn(owner: OwnerKey, chosen: (store: StoreLike) => boo
     for (const [, dispose] of byId) {
       try {
         await dispose()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -66,10 +68,11 @@ async function disposeOwnerIn(owner: OwnerKey, chosen: (store: StoreLike) => boo
     try {
       if (store.disposeAsync) draining.push(store.disposeAsync(owner))
       else store.dispose(owner)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
-  await Promise.all(draining.map(p => p.catch(() => undefined)))
+  await Promise.all(draining.map(p => p.catch(passedOverAs(undefined))))
 }
 
 export async function disposeAllOwnersForShutdown(): Promise<void> {
@@ -77,13 +80,15 @@ export async function disposeAllOwnersForShutdown(): Promise<void> {
   for (const store of stores) {
     try {
       store.clearAllForShutdown()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   for (const store of stores) {
     try {
       await store.drainPending?.()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

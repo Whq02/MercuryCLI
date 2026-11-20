@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 type RefreshingStream = { _refreshSize?: unknown }
 
@@ -6,7 +7,8 @@ export function refreshConsoleSize(stdout: unknown): boolean {
   if (typeof refresh !== 'function') return false
   try {
     ;(refresh as () => void).call(stdout)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return true
 }

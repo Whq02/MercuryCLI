@@ -4,6 +4,7 @@ import { chmod, mkdir, mkdtemp, open, rename, rm, writeFile } from 'node:fs/prom
 import { dirname, join } from 'node:path'
 import { downloadPinned, extractArchive, treeRecord } from '../../extensions/bundled/shared/install.mjs'
 import { getMercuryHome } from '../../utils/envUtils.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface Asset { archive: string; url: string; bytes: number; sha256: string; entry: string }
 interface Pin { title: string; version: string; repository: string; license: string; licenseFiles: string[]; licenseText?: string; platforms: Record<string, Asset> }
@@ -37,7 +38,8 @@ export function installedOptionalAdapter(key: string): string | null {
       if (!lstatSync(join(plan.destination, file)).isFile()) return null
     }
     return join(plan.destination, plan.entry)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

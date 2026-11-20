@@ -9,6 +9,7 @@ import {
 } from './manifest.js'
 import type { ToolCapability } from './contract.js'
 import { declaredCapability } from './contract.js'
+import { passedOver } from '../passedOver.js'
 
 export const CENSUS_VERSION = 1
 
@@ -123,7 +124,8 @@ function extractOperations(tool: Tool): string[] | null {
       node = (node._def?.innerType ?? node.unwrap?.()) as typeof node
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -132,7 +134,8 @@ function probe(fn: ((input: Record<string, never>) => boolean) | undefined): boo
   if (typeof fn !== 'function') return null
   try {
     return fn({} as Record<string, never>) === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -205,7 +208,8 @@ function supplementalTools(): Tool[] {
     try {
       const tool = load()
       if (tool && typeof tool.name === 'string') out.push(tool)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out

@@ -30,6 +30,7 @@ import {
 } from '../vulcan/addonInstaller.js'
 import { presenceNudge, probeVulcanEditorPresence } from '../vulcan/editorPresence.js'
 import { getVulcanClient, type VulcanClient, type VulcanResult } from '../vulcan/vulcanClient.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const GODOT_LANES_ARM_SURFACE =
   'arm via the boot menu (miscellaneous > "Godot language lanes") or MERCURY_GODOT=1'
@@ -154,7 +155,8 @@ export function parseGodotProjectFile(root: string): ParsedProjectGodot {
     }
     parseCache = { file, mtimeMs: st.mtimeMs, parsed }
     return parsed
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -384,7 +386,8 @@ function walkScenes(root: string): { scenes: string[]; total: number } {
     let entries: Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))

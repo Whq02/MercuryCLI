@@ -34,6 +34,7 @@ export { MaxFileReadTokenExceededError } from './read/window.js'
 export { registerFileReadListener, resultResolvedNames } from './read/results.js'
 export { unresolvedConflictBlocks } from './read/serialize.js'
 import { mapToolResultToToolResultBlockParam } from './read/resultBlock.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 
@@ -100,7 +101,8 @@ export const FileReadTool = buildTool({
           require('../../services/projectIntel/steering.js') as typeof import('../../services/projectIntel/steering.js')
         const steering = readSteeringLine()
         if (steering) text += steering
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     return text

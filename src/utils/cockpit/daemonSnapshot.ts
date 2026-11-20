@@ -4,6 +4,7 @@ import { MERCURY_DAEMON_PROTO } from '../../daemon/protocol.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { thisMercuryCommand } from '../../services/privateChannel/installPath.js'
 import { type Snapshot } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 function versionNoteFor(rec: { proto?: unknown }): string {
   if (typeof rec.proto !== 'number') return ' · pre-handshake build — /daemon restart when ready'
@@ -16,7 +17,8 @@ function pidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

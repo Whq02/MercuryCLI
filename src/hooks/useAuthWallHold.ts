@@ -5,6 +5,7 @@ import type { Message } from '../types/message.js'
 import { signInLedgerEpoch } from '../utils/accounts/signInLedger.js'
 import { invalidateOnDiskChange } from '../utils/auth.js'
 import { promptBehindAuthWall, type AuthWallHold } from '../utils/messages/authWallHold.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type HeldPrompt = AuthWallHold & { epoch: number; model: string }
 
@@ -65,7 +66,8 @@ export function useAuthWallHold(
         if (hold === null) return
         try {
           invalidateOnDiskChange()
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return
         }
         const current = modelRef.current()

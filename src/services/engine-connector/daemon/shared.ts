@@ -4,6 +4,7 @@ import { logForDebugging } from '../../../utils/debug.js'
 import type { PastedContent } from '../../../utils/config/schema.js'
 import { fluxMark } from '../../../utils/flux/fluxProbe.js'
 import type { SendReceiptV1 } from '../types.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type Listeners = Set<() => void>
 
@@ -27,7 +28,8 @@ export function connectorTrace(entry: Record<string, unknown>): void {
   if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ t: Date.now(), ...entry })}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

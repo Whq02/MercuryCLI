@@ -54,6 +54,7 @@ import { runAgent } from './runAgent.js'
 import { continuationDirectoryNote } from './continuationNote.js'
 import { EFFORT_LEVELS, isEffortLevel, resolveStampedEffortTruth, type EffortLevel } from '../../utils/effort.js'
 import { liveAgentOwner } from './liveAgentOwner.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export { liveAgentOwner }
 
@@ -169,7 +170,7 @@ export async function resumeAgentBackground(args: {
       if (info.isDirectory()) {
         worktreePath = meta.worktreePath
         const now = new Date()
-        await utimes(meta.worktreePath, now, now).catch(() => {})
+        await utimes(meta.worktreePath, now, now).catch(passedOver)
       } else {
         logForDebugging(
           `resumeAgent: recorded worktree ${meta.worktreePath} is not a directory — resuming in the parent cwd`,
@@ -274,7 +275,7 @@ export async function resumeAgentBackground(args: {
     settleSwarmAgent(agentId)
     throw error
   }
-  const latest = await readAgentMetadata(agentId as AgentId).catch(() => null)
+  const latest = await readAgentMetadata(agentId as AgentId).catch(passedOverAs(null))
   const recordNote = await writeAgentMetadata(agentId as AgentId, recordAfterResume(meta, latest, {
     fresh: {
       agentType: definition.agentType,

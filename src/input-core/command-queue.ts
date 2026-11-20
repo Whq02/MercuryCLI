@@ -12,6 +12,7 @@ import { extractTextContent } from '../utils/messages/text.js'
 import { recordQueueOperation } from '../utils/sessionStorage.js'
 import { createSignal } from '../utils/signal.js'
 import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } from '../services/notices/unreadLedger.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
@@ -50,7 +51,8 @@ function emitConsumption(kind: QueueConsumptionEvent['kind'], commands: readonly
   for (const l of consumptionListeners) {
     try {
       l(event)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

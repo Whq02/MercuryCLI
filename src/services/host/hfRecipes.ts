@@ -5,6 +5,7 @@ import { resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAc
 import { HOST_RECIPES, type HostRecipe } from './recipes.js'
 import { hostRecipeSchema, hostWeightManifestSchema, hostWeightPathSchema, rememberSessionHostRecipe } from './recipesFile.js'
 import { checkGgufAgainstEngine, type GgufEngineCheck } from './ggufHeader.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const HF_SEARCH_PLACEHOLDER = 'model name — e.g. deepseek, qwen, glm'
 export const HF_SEARCH_LIMIT = 20
@@ -72,7 +73,7 @@ export function huggingFaceHubBase(): string | undefined {
   return flagEnv('MERCURY_HOST_HF_API_BASE')?.trim() || undefined
 }
 export function huggingFaceToken(): string | undefined {
-  try { return resolveHuggingfaceApiKey()?.key } catch { return undefined }
+  try { return resolveHuggingfaceApiKey()?.key } catch (error) { passedOver(error); return undefined }
 }
 const darkInProof = (options: HfHubOptions): boolean => !options.base && isProofShapeRun()
 const timeoutSignal = (options: HfHubOptions): AbortSignal => {

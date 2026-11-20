@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { getMercuryHome } from '../envUtils.js'
 import { generateSettingsJSONSchema } from './schemaOutput.js'
+import { passedOver } from '../passedOver.js'
 
 
 export function settingsSchemaLocalPath(): string {
@@ -24,7 +25,8 @@ export function ensureLocalSettingsSchema(): string | null {
       durableAtomicPublishSync(path, generated)
     }
     return path
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

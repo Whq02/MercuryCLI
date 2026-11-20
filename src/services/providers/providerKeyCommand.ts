@@ -8,6 +8,7 @@ import { getEnabledSettingSources, type SettingSource } from '../../utils/settin
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const OUTSIDE_CHECKOUT_SOURCES: ReadonlySet<SettingSource> = new Set([
   'userSettings',
@@ -58,7 +59,8 @@ function commandFromSettings(settings: Record<string, any> | null | undefined, f
 function checkoutTrusted(): boolean {
   try {
     return checkHasTrustDialogAccepted()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

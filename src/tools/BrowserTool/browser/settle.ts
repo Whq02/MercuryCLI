@@ -12,6 +12,7 @@ import { emulationActive, emulationSummary, inheritEmulation } from '../../../se
 import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { type LiveSession, bounded, pageWhere } from './page.js'
 import { downloadWords } from './downloads.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 interface ActMarks {
   at: number
@@ -29,7 +30,7 @@ export function markAct(s: LiveSession): ActMarks {
 export async function settleAfterAct(s: LiveSession, deadline: number, marks: ActMarks): Promise<void> {
   if (s.popups.count === marks.popups && !popupInFlight(s)) {
     await Promise.race([
-      s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(() => undefined),
+      s.page.evaluate(() => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)))).catch(passedOverAs(undefined)),
       bounded(1000),
       new Promise<void>(wake => s.popups.waiters.push(wake)),
     ])
@@ -70,7 +71,7 @@ export async function popupWords(owner: OwnerKey, s: LiveSession, since: number)
       continue
     }
     const origin = originOf(kept.page.url())
-    const carried = await inheritEmulation(s.page, kept.page, kept.openedBy?.posted !== true).catch(() => null)
+    const carried = await inheritEmulation(s.page, kept.page, kept.openedBy?.posted !== true).catch(passedOverAs(null))
     if (carried !== null) noteEmulatedPage(owner, emulationActive(kept.page) ? kept.page : null, kept.tab)
     notes.push(
       `the page opened a new tab — kept as tab ${kept.tab} at ${pageWhere(kept)}${origin.startsWith('http') && !originApproved(owner, origin) ? ' (its origin is not approved: acts there will ask)' : ''}; pass tab:"${kept.tab}" to use it${

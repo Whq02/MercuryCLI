@@ -24,6 +24,7 @@ import type { Rectangle } from './layout/geometry.js'
 import { consumeAbsoluteRemovedFlag } from './node-cache.js'
 import { applyRecessPass } from './recessLayer.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type RenderOptions = {
   frontFrame: Frame
@@ -66,7 +67,8 @@ function teeComposedFrame(screen: Screen, signals: ComposeSignals): void {
       rows,
     }
     appendFileSync(COMPOSED_TEE, `${JSON.stringify(record)}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

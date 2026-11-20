@@ -12,6 +12,7 @@ import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import { createSignal } from '../signal.js'
 import { ignoringSpecialFiles, resolveWatchRoot } from '../watchRoot.js'
+import { passedOver } from '../passedOver.js'
 
 
 type TimingOverrides = {
@@ -103,7 +104,8 @@ function nearestWatchableAncestor(path: string): string | null {
         if (parent === home || dirname(parent) === parent) return null
         return parent
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     cur = parent
@@ -119,7 +121,8 @@ async function armWatcher(gen: number): Promise<string[]> {
         targets.add(path)
         return
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     const ancestor = nearestWatchableAncestor(path)
@@ -194,7 +197,8 @@ async function armWatcher(gen: number): Promise<string[]> {
         if (stats.isSocket?.() || stats.isFIFO?.() || stats.isCharacterDevice?.() || stats.isBlockDevice?.()) {
           return true
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
       return false

@@ -1,5 +1,6 @@
 import type { PermissionRuleValue } from '../../types/permissions.js'
 import { permissionRuleValueFromString } from '../permissions/permissionRuleParser.js'
+import { passedOver } from '../passedOver.js'
 
 type MatcherShape = 'everything' | 'names' | 'rules' | 'regex'
 
@@ -59,7 +60,8 @@ export function matcherCompiles(matcher: string | undefined): boolean {
   try {
     new RegExp(matcher as string)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

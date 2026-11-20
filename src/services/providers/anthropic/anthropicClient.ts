@@ -4,6 +4,7 @@ import { sleep } from '../../../utils/sleep.js'
 import { APIConnectionError, APIConnectionTimeoutError, APIError, APIUserAbortError } from '../../api/sdkErrors.js'
 import { AnthropicStream } from './anthropicStream.js'
 import type { AnthropicMessageParams } from './anthropicWire.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type AnthropicClientOptions = {
   apiKey?: string | null
@@ -131,7 +132,7 @@ export class AnthropicClient {
       let response: Response | undefined
       const abort = () => {
         controller.abort()
-        void response?.body?.cancel().catch(() => {})
+        void response?.body?.cancel().catch(passedOver)
       }
       options.signal?.addEventListener('abort', abort, { once: true })
       const release = () => {

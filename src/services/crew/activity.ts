@@ -1,6 +1,7 @@
 
 import type { SeatEvent } from './seatBridge.js'
 import type { CrewAgentId } from './identity.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const ACTIVITY_CLASSES = [
   'message',
@@ -93,7 +94,8 @@ export function classifyActivity(input: ActivityInput): AgentActivityV1 {
     let matched = false
     try {
       matched = c.matches(input)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (!matched) continue
@@ -105,7 +107,8 @@ export function classifyActivity(input: ActivityInput): AgentActivityV1 {
         sessionId: input.sessionId,
         ...(input.conversationId !== undefined ? { conversationId: input.conversationId } : {}),
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -316,7 +319,8 @@ export function ingestActivity(input: ActivityInput): AgentActivityV1[] {
     for (const l of [...feedListeners]) {
       try {
         l()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }

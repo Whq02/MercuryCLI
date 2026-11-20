@@ -7,6 +7,7 @@ import { memoize } from 'lodash-es'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from '../cli/sessionArgs.js'
+import { passedOver } from './passedOver.js'
 
 
 export function defaultMercuryHome(): string {
@@ -77,7 +78,8 @@ export function ensurePrivateConfigHome(): void {
         chmodFailure = failure as NodeJS.ErrnoException
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (chmodFailure === null) return
   const shown = displayConfigHome()

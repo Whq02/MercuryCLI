@@ -2,6 +2,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { removePrefixRecord } from '../../services/providers/anthropic/prefixRecordStore.js'
 import { receiptsPathBesideTranscript } from '../../services/switchboard/sessionReceipts.js'
 import { snapshotPathFor } from './resumeSnapshot.js'
+import { passedOver } from '../passedOver.js'
 
 type PruneCandidate = {
   sessionId: string
@@ -114,14 +115,16 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
       try {
         await fs.unlink(candidate.receiptsPath)
         receipt.receiptsDeleted++
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       try {
         const snapBytes = (await fs.stat(candidate.snapshotPath)).size
         await fs.unlink(candidate.snapshotPath)
         receipt.snapshotsDeleted++
         receipt.bytesFreed += snapBytes
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     } catch {
       receipt.failed++

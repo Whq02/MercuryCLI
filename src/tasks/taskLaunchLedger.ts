@@ -8,6 +8,7 @@ import { logError } from '../utils/log.js'
 import { endProcessTree } from '../utils/processGroup.js'
 import { getTranscriptPathForSession } from '../utils/sessionStorage/paths.js'
 import { loadTaskOutcomes } from './taskOutcomeEnvelope.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 const TASK_LAUNCH_LEDGER_VERSION = 1
 const MAX_LAUNCHES = 200
@@ -64,7 +65,7 @@ function chained(sessionId: string, run: () => Promise<void>): Promise<void> {
     sessionId,
     op.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     ),
   )
   return op
@@ -98,7 +99,8 @@ export function settleTaskLaunch(sessionId: string, taskId: string): Promise<voi
         sessionId,
         launches.filter(row => row.taskId !== taskId),
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 }
@@ -151,7 +153,8 @@ export async function reconcileTaskLaunchesOnResume(sessionId: string, liveTaskI
   await chained(sessionId, async () => {
     try {
       if (kept.length !== launches.length) await publish(sessionId, kept)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
   return { orphans, endedPids, settledTaskIds: settled }

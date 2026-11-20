@@ -2,6 +2,7 @@
 import { existsSync, readdirSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { passedOver } from './passedOver.js'
 
 export const MERCURY_IDE_EXTENSION_ID = 'mercury.mercury-vscode'
 
@@ -39,7 +40,8 @@ export function installedEditorExtensions(home: string = homedir()): InstalledEd
     let names: string[]
     try {
       names = readdirSync(extensionsDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const matches = names.filter(n => n.toLowerCase().startsWith(prefix)).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))

@@ -6,6 +6,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { isProcessRunning } from '../../../utils/genericProcessUtils.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const PREFIX_LEDGER_FILE = 'prefix-ledger.json'
 export const PREFIX_RECORD_RETENTION_DAYS_DEFAULT = 30
@@ -57,12 +58,14 @@ function removePrefixRecordIn(folder: string): PrefixRecordRemoval {
       if (staged === null || isProcessRunning(Number(staged[1]))) continue
       try {
         unlinkSync(join(folder, name))
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     rmdirSync(folder)
     removal.folder = true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return removal
 }
@@ -79,7 +82,8 @@ function recordTranscriptStamp(path: string): string | null {
     const length = readSync(fd, buffer, 0, RECORD_HEAD_BYTES, 0)
     const match = /"transcript":"((?:[^"\\]|\\.)*)"/.exec(buffer.subarray(0, length).toString('utf8'))
     return match === null ? null : (JSON.parse(`"${match[1]}"`) as string)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   } finally {
     if (fd !== null) closeSync(fd)
@@ -112,7 +116,8 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
   const live = new Set<string>()
   try {
     live.add(sessionSegment(String(getSessionId())))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const id of options.liveSessionIds ?? []) live.add(sessionSegment(id))
   let unreadRegistry: string | null = null
@@ -138,7 +143,8 @@ export async function sweepPrefixRecords(options: PrefixRecordSweepOptions = {})
     let age: number
     try {
       age = now - (await stat(path)).mtimeMs
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     receipt.seen++

@@ -21,6 +21,7 @@ import {
 } from './moonshotAccounts.js'
 import { signInLedgerEpoch } from '../../../utils/accounts/signInLedger.js'
 import { bindKimiDynamicToolSupport, KIMI_DISPLAY_PINS, kimiDisplayPin, kimiMechanicalName, kimiPlanPin, kimiShortName } from './kimiPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const MOONSHOT_CATALOGUE_TTL_MS = 5 * 60_000
@@ -210,7 +211,7 @@ export function kickMoonshotCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImp
   if (!catalogueTrafficVerdict('moonshot', env).allowed) return false
   const snapshot = getCachedMoonshotCatalogue(env)
   if (snapshot && snapshot.fetchedAtMs > 0) return false
-  void refreshMoonshotCatalogue(opts).catch(() => null)
+  void refreshMoonshotCatalogue(opts).catch(passedOverAs(null))
   return true
 }
 

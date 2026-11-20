@@ -33,6 +33,7 @@ import {
   type CrewAgentId,
 } from './identity.js'
 import type { CrewConversationId } from './conversations.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const PRESENCE_STATES = ['online', 'away', 'offline', 'unknown'] as const
 export type CrewPresence = (typeof PRESENCE_STATES)[number]
@@ -313,7 +314,8 @@ function teardownEngine(): void {
   for (const u of unsubs) {
     try {
       u()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   unsubs = []

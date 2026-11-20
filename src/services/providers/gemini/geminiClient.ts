@@ -21,12 +21,14 @@ import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { fitWireImages } from '../../../utils/messages/imageRequestFit.js'
 import { GEMINI_IMAGE_LIMITS } from '../../../constants/apiLimits.js'
+import { passedOver } from '../../../utils/passedOver.js'
 function dumpGeminiWire(url: string, model: string, body: string): void {
   const path = flagEnv('MERCURY_GEMINI_WIRE_DUMP')?.trim()
   if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ at: new Date().toISOString(), url, model, body: JSON.parse(body) as unknown })}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -82,7 +84,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
   const idleMs = options.idleTimeoutMs ?? streamIdleTimeoutMs()
   const controller = new AbortController()
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined
-  const abort = () => { controller.abort(); void reader?.cancel().catch(() => {}) }
+  const abort = () => { controller.abort(); void reader?.cancel().catch(passedOver) }
   options.signal?.addEventListener('abort', abort, { once: true })
   if (options.signal?.aborted) controller.abort()
   let watchdog: StreamIdleWatchdog | undefined
@@ -230,7 +232,7 @@ export async function* streamGeminiContent(options: GeminiStreamOptions): AsyncG
         throw error
       }
       if (!last && failsOver(response.status)) {
-        await response.body?.cancel().catch(() => {})
+        await response.body?.cancel().catch(passedOver)
         continue
       }
       if (response.ok && plan) plan.onServedBy?.(plan.bases[attempt]!)

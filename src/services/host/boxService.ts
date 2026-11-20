@@ -5,6 +5,7 @@ import { hostDirectory } from './store.js'
 import { boxNameSchema, type HostBox } from './boxes.js'
 import { boxJoin, psQuote, runBoxScript, shQuote, writeBoxFile } from './boxExecution.js'
 import type { HostRunner } from './ssh.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface BoxServiceRecord {
   name: string; recipe: string; model: string; engine: 'ollama' | 'llamacpp'; destination: string; bank: boolean
@@ -77,7 +78,7 @@ export async function boxServiceRunning(box: HostBox, runner: HostRunner, signal
 export function boxEndpointNotice(name: string, baseUrl: string, unreachable = false): string | undefined {
   if (!name.startsWith('box-') || !boxNameSchema.safeParse(name.slice(4)).success) return
   let record: BoxServiceRecord | undefined
-  try { record = readBoxService(name.slice(4)) } catch { return }
+  try { record = readBoxService(name.slice(4)) } catch (error) { passedOver(error); return }
   if (!record || record.baseUrl !== baseUrl) return
   if (record.state === 'stopped' || record.state === 'uninstalled') return 'box ' + record.name + ' · engine stopped — /llmhost starts it'
   if (record.state === 'starting') return 'box ' + record.name + ' · engine starting — /llmhost shows progress'

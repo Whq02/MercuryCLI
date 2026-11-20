@@ -19,6 +19,7 @@ import { getManagedSettingsDropInDir } from './managedPath.js'
 import { refreshMdmSettings, getHkcuSettings, getMdmSettings, setMdmSettingsCache } from './mdm/settings.js'
 import { getSettingsFilePathForSource } from './settings.js'
 import { resetSettingsCache } from './settingsCache.js'
+import { passedOver } from '../passedOver.js'
 
 
 type TimingOverrides = {
@@ -165,7 +166,8 @@ async function initialize(): Promise<void> {
           directories.add(projectRoot)
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const dropIn = getManagedSettingsDropInDir()

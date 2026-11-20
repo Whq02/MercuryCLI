@@ -15,6 +15,7 @@ import type { Color } from './styles.js'
 import { isXtermJs } from './session/capabilities.js'
 import { widestLine } from './widest-line.js'
 import wrapText, { truncateParts } from './wrap-text.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export type ScrollHint = { delta: number; top: number; bottom: number }
@@ -432,7 +433,7 @@ function movedForensics(node: FrameNode, cached: CachedLayout, x: number, y: num
   if (node.nodeName === 'ink-text') {
     try {
       words = ` "${squashTextNodes(node).replace(/\n/g, '\\n').slice(0, 28)}"`
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   const owners = node.debugOwnerChain ? ` [${node.debugOwnerChain.slice(0, 5).join('<')}]` : ''
   return `moved:${node.nodeName}@${Math.floor(x)},${Math.floor(y)} ${cached.x},${cached.y},${cached.width}x${cached.height}→${x},${y},${width}x${height}${flexFacts}${words}${owners}`

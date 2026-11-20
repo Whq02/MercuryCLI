@@ -8,6 +8,7 @@ import { suggestWorkSplit } from '../../projectIntel/split.js'
 import { getProjectSnapshot } from '../../projectIntel/snapshot.js'
 import { renderRepoSurfaceMap } from '../../../utils/cockpit/repoSurfaceMap.js'
 import type { ResourceAdapter, ResourceChild } from '../contracts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CHILDREN: ResourceChild[] = [
   {
@@ -234,7 +235,8 @@ export const projectAdapter: ResourceAdapter = {
         const { getActiveMission } =
           require('../../../guards/mission.js') as typeof import('../../../guards/mission.js')
         goal = identity.sessionId ? (getActiveMission(identity.sessionId)?.condition ?? null) : null
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const capsule = assembleContextCapsule({ workspace: ctx.cwd, task, goal, pins, drops })
       if (!capsule) {

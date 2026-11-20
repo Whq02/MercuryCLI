@@ -15,6 +15,7 @@ import {
   revisionDigest,
 } from './contracts.js'
 import { noteSelfWrite } from './watch.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type AgentStoreErrorCode =
   | 'validation'
@@ -244,7 +245,8 @@ function listTrashSidecars(): { path: string; entry: AgentTrashEntry }[] {
   let names: string[]
   try {
     names = readdirSync(trashDir())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: { path: string; entry: AgentTrashEntry }[] = []
@@ -256,7 +258,8 @@ function listTrashSidecars(): { path: string; entry: AgentTrashEntry }[] {
       if (entry && typeof entry.originalPath === 'string' && entry.id) {
         out.push({ path, entry })
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   out.sort((a, b) => (a.entry.deletedAt < b.entry.deletedAt ? 1 : -1))
@@ -331,7 +334,8 @@ export async function deleteAgentToTrash(
     try {
       unlinkSync(stale.path)
       unlinkSync(stale.path.replace(/\.json$/, '.md'))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return entry
@@ -383,7 +387,8 @@ export async function restoreAgentFromTrash(
   try {
     unlinkSync(sidecar.path)
     unlinkSync(bytesPath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   await appendReceipt({
     kind: 'restore',
@@ -432,7 +437,8 @@ export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
   let names: string[]
   try {
     names = readdirSync(draftsDir())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: { path: string; draft: AgentDraft }[] = []
@@ -444,7 +450,8 @@ export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
       if (draft?.version === 1 && typeof draft.raw === 'string') {
         out.push({ path, draft })
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out
@@ -453,6 +460,7 @@ export function listAgentDrafts(): { path: string; draft: AgentDraft }[] {
 export function discardAgentDraft(path: string): void {
   try {
     unlinkSync(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

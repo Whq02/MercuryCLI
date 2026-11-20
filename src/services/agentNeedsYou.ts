@@ -17,6 +17,7 @@ import {
   tempoForState,
 } from './agentStateHeuristic.js'
 import { routedCallModelSettled } from './providers/callModelRouter.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export { type AgentStateVerdict, agentNeedsYouEnabled } from './agentStateHeuristic.js'
@@ -41,7 +42,8 @@ function extractVerdictJson(raw: string): {
     if (open === -1 || close === -1 || close < open) return null
     const parsed = JSON.parse(raw.slice(open, close + 1))
     return typeof parsed === 'object' && parsed ? parsed : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

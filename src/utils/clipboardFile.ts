@@ -1,5 +1,6 @@
 import { writeFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from './passedOver.js'
 
 export const CLIPBOARD_FILE_ROUTE = 'file' as const
 
@@ -14,7 +15,8 @@ export function writeClipboardFile(text: string): 'written' | 'failed' | null {
   try {
     writeFileSync(file, text, 'utf8')
     return 'written'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'failed'
   }
 }

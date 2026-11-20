@@ -1,5 +1,6 @@
 import { isAbsolute } from 'node:path'
 import { statSync } from 'node:fs'
+import { passedOver } from '../utils/passedOver.js'
 
 type DaemonVerb =
   | { kind: 'run'; args: string[] }
@@ -31,7 +32,8 @@ export const DAEMON_USAGE = [
 const defaultIsDir = (p: string): boolean => {
   try {
     return statSync(p).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

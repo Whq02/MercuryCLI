@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { passedOver } from '../passedOver.js'
 
 export const BRUSH_PACK_PATH = 'vendor/brush'
 export const BRUSH_PACK_NAME = 'brush'
@@ -60,7 +61,8 @@ export function brushLockKindFor(lockPath: string, packPlatform: string): BrushL
   try {
     const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as { platforms?: Record<string, { kind?: string }> }
     return lock.platforms?.[packPlatform]?.kind === 'build' ? 'build' : 'fetch'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'fetch'
   }
 }
@@ -93,7 +95,8 @@ export function readBrushPackManifest(dir: string): BrushPackManifest | null {
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(dir, BRUSH_PACK_MANIFEST_FILE), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof raw !== 'object' || raw === null) return null

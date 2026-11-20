@@ -30,6 +30,7 @@ import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { openrouterProviderObject } from './openrouterRoutingPolicy.js'
 import { openrouterChatCache } from './openrouterCache.js'
 import { streamCompatChat } from '../openaicompat/compatChatClient.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function openrouterWireModelId(modelId: string): string {
   const slug = qualifiedWireId(modelId)
@@ -95,9 +96,9 @@ export const openrouterLaneProfile: CompatLaneProfile = {
       clearOpenrouterUsageLimit()
       clearOpenrouterKeyRefusal(resolveOpenrouterApiKey())
     }
-    void refreshOpenrouterKeyUsage({ force: status === 429 }).catch(() => {})
+    void refreshOpenrouterKeyUsage({ force: status === 429 }).catch(passedOver)
     const account = resolveOpenrouterAccount()
-    if (account) void refreshOpenrouterCatalogue(account.keySource).catch(() => {})
+    if (account) void refreshOpenrouterCatalogue(account.keySource).catch(passedOver)
   },
   onCredentialRefused: fault => {
     const key = resolveOpenrouterApiKey()

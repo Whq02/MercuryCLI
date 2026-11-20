@@ -2,6 +2,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { daemonControlRpc } from '../../daemon/controlSocket.js'
 import type { DaemonRequest, WireRosterEntry } from '../../daemon/protocol.js'
 import { daemonSnapshot } from './daemonSnapshot.js'
+import { passedOver } from '../passedOver.js'
 
 type DaemonCrewLiveness = {
   engaged: boolean
@@ -12,7 +13,8 @@ const CREW_TTL_MS = 30_000
 function getSessionIdSafe(): string | null {
   try {
     return getSessionId()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

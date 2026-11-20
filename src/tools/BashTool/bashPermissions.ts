@@ -60,6 +60,7 @@ import { gitArgs, gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { isCurrentDirectoryBareGitRepo } from '../../utils/git.js'
 import { posix as posixPath } from 'node:path'
 import { stripComments, stripLeadingSafeEnvVars, stripSafeWrappers } from './safeWrappers.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export { matchWildcardPattern, permissionRuleExtractPrefix, stripSafeWrappers }
 
@@ -581,7 +582,8 @@ async function decideWithDenyRuleReach(
     readOnly: async (command, cwd) => {
       try {
         return (await checkReadOnlyConstraints({ command, cwd }, false)).behavior === 'allow'
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     },

@@ -1,6 +1,7 @@
 
 import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type PresenceState = 'present' | 'missing' | 'unknown'
 
@@ -170,7 +171,8 @@ export function launchHostSetupAction(action: HostSetupAction): boolean {
     )
     evictHostPresence(presenceTargetsForAction(action.id))
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

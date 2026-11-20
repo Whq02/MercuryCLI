@@ -5,6 +5,7 @@ import type { Props as ChatProps } from './screens/Chat.js';
 import type { ScopedMcpServerConfig } from './services/mcp/types.js';
 import type { AppState } from './state/AppStateStore.js';
 import type { FpsMetrics } from './utils/fpsTracker.js';
+import { passedOver } from './utils/passedOver.js';
 type AppWrapperProps = {
   getFpsMetrics: () => FpsMetrics | undefined;
   stats?: StatsStore;
@@ -36,7 +37,8 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
       }),
     ]);
     if (budgetTimer !== undefined) clearTimeout(budgetTimer);
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const { foldResumedRunForBoot } = await import('./services/run/runCoordinator.js');
@@ -50,7 +52,8 @@ export async function launchChat(root: Root, appProps: AppWrapperProps, chatProp
       }),
     ]);
     if (foldBudgetTimer !== undefined) clearTimeout(foldBudgetTimer);
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   profileCheckpoint('launch_chat_after_recovery');
   const surfaceRoute = await import('./context/surfaceRoute.js');

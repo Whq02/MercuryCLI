@@ -11,6 +11,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { credentialJsonToWriteOver, probeCredentialJson, readStoredHuggingfaceApiKey } from '../providerSecrets.js'
 import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const HF_HUB_BASE_URL = 'https://huggingface.co'
@@ -103,7 +104,8 @@ function writeAuthFile(mutate: (file: HuggingfaceAuthFile) => HuggingfaceAuthFil
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   noteCredentialChange()
 }
@@ -193,7 +195,8 @@ async function postForm(
   try {
     const parsed = (await response.json()) as unknown
     if (typeof parsed === 'object' && parsed !== null) body = parsed as Record<string, unknown>
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { status: response.status, body }
 }
@@ -234,7 +237,8 @@ export async function registerHuggingfaceOauthClient(io?: HuggingfaceOauthIo): P
   try {
     const parsed = (await response.json()) as unknown
     if (typeof parsed === 'object' && parsed !== null) body = parsed as Record<string, unknown>
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const clientId = typeof body.client_id === 'string' ? body.client_id.trim() : ''
   if ((response.status !== 201 && response.status !== 200) || !clientId) {
@@ -372,7 +376,8 @@ export function refreshHuggingfaceTokens(io?: HuggingfaceOauthIo): Promise<Huggi
           { grant_type: 'refresh_token', refresh_token: stored.refreshToken, client_id: clientId },
           io,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
       const tokens = tokensFromBody(result.body, io)

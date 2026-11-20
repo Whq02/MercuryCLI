@@ -2,6 +2,7 @@ import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getUserAgent } from '../../../utils/http.js'
 import type { CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import { SGLANG_LEGACY_MODEL_INFO_PATH, SGLANG_MODEL_INFO_PATH, compatServerBase } from './compatProbe.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const readings = new Map<string, { at: number; speed: number | undefined }>()
 const positive = (value: number): number | undefined => Number.isFinite(value) && value > 0 ? value : undefined
@@ -66,7 +67,7 @@ export async function readCompatPrefillSpeed(
         chunks.push(chunk.value)
       }
       return Buffer.concat(chunks).toString('utf8')
-    } finally { void reader.cancel().catch(() => {}) }
+    } finally { void reader.cancel().catch(passedOver) }
   }
   let speed: number | undefined
   try {

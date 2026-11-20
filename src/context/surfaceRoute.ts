@@ -4,12 +4,14 @@ import { currentInputEventSeq, markInputConsumedThroughCurrentSeq } from '../ink
 import { isFullscreenEnvEnabled } from '../utils/fullscreen.js'
 import { keyHintLabel } from '../components/mercury-ui/keyHintLabel.js'
 import { concourseEnabled } from '../services/concourse/concourseEnabled.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function stampRouteReady(): void {
   try {
     const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
     recordLaunchMilestone('route-ready')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -121,7 +123,8 @@ function bump(): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -426,7 +429,8 @@ export async function resolveInitialSurface(
       return { requested, effective: requested, policy, reason: 'face-door-intent' }
     }
     bootMenuArmed = !handover.bootJourneyIsExplicit() && isFullscreenEnvEnabled() && routeSurfaceRegistered('boot-settings')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const bootMenuLanding = (): InitialSurfaceResolution => {
     const requested: SurfaceRoute = { kind: 'boot-settings' }
@@ -465,7 +469,8 @@ export async function resolveInitialSurface(
     const obligations = await import('../services/crew/obligations.js')
     const open = await obligations.openObligations({ scope: 'switchboard' })
     if (open.length > 0) return settle(concourse, 'auto-needs-you', live)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (bootMenuArmed) return bootMenuLanding()
   return settle(ROOT_CHAT_ROUTE, 'auto-idle', live)

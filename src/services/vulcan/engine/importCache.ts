@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { constants, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { engineCacheDir } from './paths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_CACHE_KEEP = 3
 const CLASS_CACHE_FILE = 'global_script_class_cache.cfg'
@@ -24,7 +25,8 @@ function engineCacheEntries(projectRoot: string): Array<{ key: string; dir: stri
   let names: string[]
   try {
     names = readdirSync(root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: Array<{ key: string; dir: string; mtimeMs: number }> = []
@@ -34,7 +36,8 @@ function engineCacheEntries(projectRoot: string): Array<{ key: string; dir: stri
     try {
       const st = statSync(dir)
       if (st.isDirectory()) out.push({ key, dir, mtimeMs: st.mtimeMs })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -89,7 +92,8 @@ function pruneEngineCache(projectRoot: string, keep: number = ENGINE_CACHE_KEEP)
 export function classCacheDigest(treeRoot: string): string | null {
   try {
     return createHash('sha256').update(readFileSync(path.join(treeRoot, '.godot', CLASS_CACHE_FILE))).digest('hex')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -13,6 +13,7 @@ import { loadTranscriptFile } from '../../utils/sessionStorage/loading.js'
 import { getAgentTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import type { CrewmateInView } from './useCrewmateView.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const CREWMATE_TRANSCRIPT_TICK_MS = 2500
 export const CREWMATE_TRANSCRIPT_READING = 'reading the crewmate\'s transcript…'
@@ -34,7 +35,8 @@ export function crewmateTranscriptAgentId(crewmate: CrewmateTranscriptSource): s
 function ownTranscriptDir(agentId: string): string | null {
   try {
     return dirname(getAgentTranscriptPath(asAgentId(agentId)))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

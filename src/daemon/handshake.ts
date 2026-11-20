@@ -13,6 +13,7 @@ import {
 import { isProcessAlive, OWNER_PID_ENV } from './ownerWatch.js'
 import { MERCURY_DAEMON_PROTO, MIN_PROTO, type DaemonReply } from './protocol.js'
 import { sleep } from '../utils/sleep.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export interface ClientVersionFacts {
   proto: number
@@ -391,7 +392,8 @@ async function installedBuild(): Promise<InstalledBuildFacts | null> {
   try {
     const { deployedRuntime } = await import('./handover.js')
     return installedBuildFacts(deployedRuntime())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -436,7 +438,7 @@ async function classifyHello(reply: DaemonReply): Promise<HelloOutcome> {
 }
 
 async function preHandshakeFacts(): Promise<{ live: number; liveSessions: number; pid: number | null; startedAt: number | null }> {
-  const rec = await readDaemonState().catch(() => null)
+  const rec = await readDaemonState().catch(passedOverAs(null))
   const liveRecords = new Set<string>()
   try {
     const sup = await import('./concourseWorkers.js')
@@ -444,7 +446,8 @@ async function preHandshakeFacts(): Promise<{ live: number; liveSessions: number
       if (r.endedAt !== undefined || r.attachedAt !== undefined) continue
       if (r.pid !== undefined && isProcessAlive(r.pid)) liveRecords.add(r.runnerId)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let liveSessions = liveRecords.size
   let live = liveSessions
@@ -532,7 +535,7 @@ export async function handoverDaemonVersion(
   const runtime = (opts.runtime ?? deployedRuntime)()
   const decision = decideHandover({ daemonBuildTree: d.buildTree, deployedBuildTree: runtime?.buildTree ?? null, healState: heal.state, live: heal.live })
   if (!decision.handover || runtime === null) return null
-  const record = await readDaemonState().catch(() => null)
+  const record = await readDaemonState().catch(passedOverAs(null))
   if (record !== null && record.pid !== d.pid && isProcessAlive(record.pid)) {
     handoverInFlight = d.pid
     return `a successor (pid ${record.pid}) is taking the plane from daemon v${d.version} (pid ${d.pid}), which keeps its ${liveNoun({ live: heal.live, liveSessions: Math.min(v.liveSessions, heal.live) })} ${untilFinished(heal.live)}`
@@ -587,7 +590,7 @@ export async function restartDaemon(opts: {
     if (first.live > 0) {
       return { state: 'refused', line: `daemon v${d.version} has ${liveNoun(first)} — finish or stop them, then /daemon restart` }
     }
-    const rec = await readDaemonState().catch(() => null)
+    const rec = await readDaemonState().catch(passedOverAs(null))
     const dir = rec?.dir ?? opts.dir ?? process.cwd()
     const bye = await daemonControlRpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: 3000 })
     if (!bye.ok) return { state: 'refused', line: `daemon v${d.version} did not stop — ${bye.error}` }

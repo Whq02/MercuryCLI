@@ -14,6 +14,7 @@ import {
 import { mkdir, open, readdir, rename, stat, unlink } from 'node:fs/promises'
 import { randomUUID } from 'node:crypto'
 import { basename, dirname, join } from 'node:path'
+import { passedOver } from '../utils/passedOver.js'
 
 export type PublishFailurePhase =
   | 'create-temp'
@@ -115,7 +116,8 @@ function isReadOnlyDestination(to: string): boolean {
   try {
     const stats = statSync(to)
     return stats.isFile() && (stats.mode & 0o200) === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -262,7 +264,8 @@ export async function cleanupOrphanDurableTemps(
       if (now - st.mtimeMs < minAge) continue
       await unlink(full)
       removed.push(name)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return removed
@@ -271,7 +274,7 @@ export async function cleanupOrphanDurableTemps(
 function sweepOnFirstUse(dir: string): void {
   if (sweptDirs.has(dir)) return
   sweptDirs.add(dir)
-  void cleanupOrphanDurableTemps(dir).catch(() => {})
+  void cleanupOrphanDurableTemps(dir).catch(passedOver)
 }
 
 export async function durableAtomicPublish(
@@ -312,7 +315,7 @@ export async function durableAtomicPublish(
       }
     }
   } catch (e) {
-    if (fh) await fh.close().catch(() => {})
+    if (fh) await fh.close().catch(passedOver)
     const tempCleanup: TempCleanupOutcome = await unlink(tmp).then(
       () => 'removed' as const,
       ue => (errnoOf(ue) === 'ENOENT' ? ('absent' as const) : ('remove-failed' as const)),
@@ -395,7 +398,8 @@ export function durableAtomicPublishSync(
     if (fd !== null) {
       try {
         closeSync(fd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     let tempCleanup: TempCleanupOutcome

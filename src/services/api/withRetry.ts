@@ -35,6 +35,7 @@ import { jitterRetryDelay } from './retryJitter.js'
 import { APIError, APIUserAbortError } from './sdkErrors.js'
 import { deepestErrorDetail, isStaleSocketCode, transportCutOf, transportCutWords } from './transportEvidence.js'
 import { messageEffortRefusedBy } from '../providers/anthropic/messageEffort.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 
 const BASE_DELAY_MS = 500
@@ -284,7 +285,7 @@ export async function* withRetry<T>(
             continue
           }
           if (failedAccessToken && getAuthTokenSource().source === 'claude.ai') {
-            const refreshed = await handleOAuth401Error(failedAccessToken).catch(() => false)
+            const refreshed = await handleOAuth401Error(failedAccessToken).catch(passedOverAs(false))
             const accessToken = getClaudeAIOAuthTokens()?.accessToken
             if (refreshed && accessToken && accessToken !== failedAccessToken) {
               client = await getClient()
@@ -332,7 +333,7 @@ export async function* withRetry<T>(
       if (options.healClientContract === true && isClientContractRefusalError(error)) {
         if (!contractHealTried && attempt <= maxRetries) {
           contractHealTried = true
-          contractHeal = await healClientContractRefusal(error, options.signal).catch(() => undefined)
+          contractHeal = await healClientContractRefusal(error, options.signal).catch(passedOverAs(undefined))
           logForDebugging(`client contract: the too-old refusal met ${contractHeal?.kind ?? 'no heal'}`)
           if (options.signal?.aborted) throw new APIUserAbortError()
           if (contractHeal?.kind === 'retry') continue

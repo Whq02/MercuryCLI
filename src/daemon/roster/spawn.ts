@@ -20,6 +20,7 @@ import {
 import { calculateContextPercentages, getContextWindowForModel } from '../../utils/context.js'
 import { currentVersion } from '../controlSocket.js'
 import type { LongLivedSeat, RosterEntry, RosterOptions, WorkerHandle } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface SpawnNeeds {
   keepChildStderr(short: string, child: ChildProcess, ll: LongLivedSeat): void
@@ -117,7 +118,7 @@ export class SpawnPart {
       const livePid = child.pid
       void import('../concourseWorkers.js')
         .then(sup => sup.markConcourseWorkerRespawn(short, livePid))
-        .catch(() => {})
+        .catch(passedOver)
     }
     h.entry.state = 'running'
     h.entry.outcome = undefined
@@ -193,7 +194,7 @@ export class SpawnPart {
       if (short.startsWith('concourse-w')) {
         void import('../concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
-          .catch(() => {})
+          .catch(passedOver)
       }
     }
     try {
@@ -246,7 +247,7 @@ export class SpawnPart {
       if (short.startsWith('concourse-w')) {
         void import('../concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
-          .catch(() => {})
+          .catch(passedOver)
           .then(() => {
             if (!ll.turnActive) this.needs.noteWorkerIdle(short)
           })

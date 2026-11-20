@@ -9,6 +9,7 @@ import { getPlatform } from './platform.js'
 import { getMercuryHome } from './envUtils.js'
 import { isFsInaccessible } from './errors.js'
 import { isProcessRunning } from './genericProcessUtils.js'
+import { passedOver } from './passedOver.js'
 
 type SessionKind = 'interactive' | 'bg' | 'daemon'
 
@@ -35,7 +36,7 @@ const note = (what: string, err: unknown): void => logForDebugging(`concurrentSe
 const unlinkQuietly = async (path: string): Promise<void> => {
   try {
     await unlink(path)
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 const writeOwnRecord = (record: SessionRecord): Promise<void> =>

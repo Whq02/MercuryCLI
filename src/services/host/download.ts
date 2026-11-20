@@ -1,5 +1,6 @@
 import type { HostRecipe } from './recipes.js'
 import { gigabytes } from './volumes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface DownloadWatchOptions { deadlineSeconds?: number; stallSeconds?: number; stallBytes?: number; stallPollSeconds?: number; netDevPath?: string }
 const keptStall = { seconds: 600, bytes: 1e9, pollSeconds: 30 }
@@ -96,7 +97,7 @@ sys.exit(code)
 function stopReport(text: string, marker: string): { reason?: string; bytes?: number; seconds?: number } | undefined {
   const line = text.split('\n').findLast(row => row.includes(marker))
   if (!line) return
-  try { return JSON.parse(line.slice(line.indexOf(marker) + marker.length)) as { reason?: string; bytes?: number; seconds?: number } } catch { return }
+  try { return JSON.parse(line.slice(line.indexOf(marker) + marker.length)) as { reason?: string; bytes?: number; seconds?: number } } catch (error) { passedOver(error); return }
 }
 export function downloadFailure(error: unknown, recipe: HostRecipe): { words: string; bytes?: number } {
   const text = String(error)

@@ -41,6 +41,7 @@ import { getCachedQwenCatalogue, qwenCatalogueIdentity, refreshQwenCatalogue, ty
 import { getCachedLocalDiscovery, localProbeTargets, refreshLocalDiscovery, type LocalDiscoverySnapshot } from '../../../services/providers/local/localDiscovery.js'
 import { getCachedOpenaiCatalogue, refreshOpenaiCatalogue, type OpenaiCatalogueSnapshot } from '../../../services/providers/openai/openaiCatalogue.js'
 import { openaiSourceIdentity, resolveOpenaiAccount } from '../../../services/providers/openai/openaiAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type CatalogueRoad<S> = {
   family: string
@@ -368,7 +369,7 @@ export function useCatalogueRefreshOnOpen<S>(road: CatalogueRoad<S>, setNotice: 
       ) {
         setNotice(`${road.family} — the live list changed; rows updated`)
       }
-    }, () => {})
+    }, passedOver)
     return () => { open = false }
   }, [road, identity, setNotice])
 }

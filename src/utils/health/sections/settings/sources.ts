@@ -6,6 +6,7 @@ import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'
 import { getEnabledSettingSources } from '../../../settings/constants.js'
 import { getSettingsForSource } from '../../../settings/settings.js'
 import { SHELL_READS, flagAsSet, type CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function managedPolicyCheck(): CheckSpec {
   return {
@@ -34,14 +35,16 @@ export function settingsCheck(): CheckSpec {
       let sourcesLine = 'sources unreadable'
       try {
         sourcesLine = `sources: ${getEnabledSettingSources().join(' + ')}`
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       let lockLine = ''
       try {
         const lock = getSettingsForSource('policySettings')?.extensions?.exclusive
         if (lock === true) lockLine = ' · managed extension-only lock: ALL surfaces'
         else if (Array.isArray(lock) && lock.length > 0) lockLine = ` · managed extension-only lock: ${lock.join(', ')}`
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (errors.length === 0) {
         return {

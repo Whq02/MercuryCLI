@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../../utils/envUtils.js'
 import { logMCPDebug } from '../../../utils/log.js'
 import type { MCPServerConnection, ScopedMcpServerConfig } from '../types.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const NEEDS_AUTH_TTL_MS = 15 * 60 * 1000
 
@@ -17,7 +18,7 @@ function readNeedsAuthCache(): Promise<Record<string, { timestamp: number }>> {
   if (needsAuthReadMemo === null) {
     needsAuthReadMemo = readFile(needsAuthCachePath(), 'utf8')
       .then(text => JSON.parse(text) as Record<string, { timestamp: number }>)
-      .catch(() => ({}))
+      .catch((error) => { passedOver(error); return ({}) })
   }
   return needsAuthReadMemo
 }
@@ -36,13 +37,13 @@ function writeNeedsAuth(serverName: string): Promise<void> {
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, JSON.stringify(cache, null, 2))
     needsAuthReadMemo = null
-  }).catch(() => undefined)
+  }).catch(passedOverAs(undefined))
   return needsAuthWriteChain
 }
 
 export function clearMcpAuthCache(): void {
   needsAuthReadMemo = null
-  void rm(needsAuthCachePath(), { force: true }).catch(() => {})
+  void rm(needsAuthCachePath(), { force: true }).catch(passedOver)
 }
 
 export function forgetMcpNeedsAuth(serverName: string): Promise<void> {
@@ -55,7 +56,7 @@ export function forgetMcpNeedsAuth(serverName: string): Promise<void> {
       await mkdir(dirname(path), { recursive: true })
       await writeFile(path, JSON.stringify(cache, null, 2))
     })
-    .catch(() => undefined)
+    .catch(passedOverAs(undefined))
     .finally(() => {
       needsAuthReadMemo = null
     })

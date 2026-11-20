@@ -2,6 +2,7 @@ import { format as formatArgs } from 'node:util'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import type Ink from '../ink.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const CONSOLE_DEBUG_METHODS = [
   'log',
@@ -90,7 +91,8 @@ function interceptStderr(this: Pick<Ink, 'options' | 'ledger' | 'isUnmounted' | 
         this.ledger.contaminate('stderr-leak')
         this.scheduleRender()
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     } finally {
       reentered = false
       callback?.(null)

@@ -4,12 +4,13 @@ import type { ModelSetting } from '../../utils/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
 import { compatModelEndpoint } from '../../services/providers/openaicompat/compatAccounts.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ModelChoiceOutcome = 'saved' | 'session' | 'overridden' | 'refused' | 'cleared' | 'unchanged'
 
 function isRentedHostModel(setting: ModelSetting): boolean {
   if (setting === null || !setting.toLowerCase().startsWith('compat/')) return false
-  try { return Boolean(compatModelEndpoint(setting)?.endpoint.hostPodId) } catch { return false }
+  try { return Boolean(compatModelEndpoint(setting)?.endpoint.hostPodId) } catch (error) { passedOver(error); return false }
 }
 
 type PersistedModelChoice = { outcome: ModelChoiceOutcome; sentence: string; restore: () => void }

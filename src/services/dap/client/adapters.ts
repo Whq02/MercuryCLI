@@ -28,6 +28,7 @@ import {
   probeLldbDapAsync,
 } from './probes.js'
 import type { DapAdapterSpec } from './shared.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export function reachableDapAdapterKeys(): string[] {
   const reachable: string[] = []
@@ -56,10 +57,12 @@ export function reachableDapAdapterKeys(): string[] {
         for (const key of Object.keys(JSON.parse(raw) as Record<string, unknown>)) {
           if (!reachable.includes(key)) reachable.push(key)
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return reachable.sort()
 }
@@ -79,7 +82,7 @@ export function dapAdapterProbePending(): boolean {
 export function settleDapAdapterProbes(): Promise<void> {
   return Promise.all([probeLldbDapAsync(), probeGdbDapAsync()]).then(
     () => undefined,
-    () => undefined,
+    passedOverAs(undefined),
   )
 }
 
@@ -131,7 +134,8 @@ function readAdapterFile(filePath: string): Record<string, DapAdapterSpec> {
   let raw: string
   try {
     raw = readFileSync(filePath, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
   let parsed: unknown
@@ -175,7 +179,8 @@ export function resolveAdapter(key: string): DapAdapterSpec | null {
       const table = JSON.parse(raw) as Record<string, unknown>
       const row = decodeAdapterRow(table?.[key])
       if (row) return row
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const fromFile = fileAdapterTable()[key]
@@ -240,7 +245,8 @@ export function knownAdapterKeys(): string[] {
       for (const k of Object.keys(JSON.parse(raw) as Record<string, unknown>)) {
         keys.add(k)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return [...keys].sort()
@@ -250,7 +256,7 @@ function dapProjectFile(program: string, marker: string): string | null {
   let directory = path.dirname(path.resolve(program))
   try {
     if (statSync(program).isDirectory()) directory = path.resolve(program)
-  } catch {}
+  } catch (error) { passedOver(error) }
   for (;;) {
     const candidate = path.join(directory, marker)
     if (existsSync(candidate)) return candidate
@@ -266,7 +272,8 @@ function isFlutterProgram(program: string): boolean {
   try {
     const document = parseYaml(readFileSync(pubspec, 'utf8'))
     return document?.dependencies?.flutter !== undefined || document?.dev_dependencies?.flutter !== undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -280,7 +287,8 @@ export function adapterKeyForExtension(ext: string, program?: string): string | 
         const row = decodeAdapterRow(value)
         if (row?.fileTypes?.includes(ext)) return key
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   for (const [key, row] of Object.entries(fileAdapterTable())) {
@@ -293,7 +301,8 @@ export function adapterKeyForExtension(ext: string, program?: string): string | 
   for (const [key, make] of Object.entries(builtinAdapters())) {
     try {
       if (make().fileTypes?.includes(ext)) return key
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return null

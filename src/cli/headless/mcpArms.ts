@@ -22,6 +22,7 @@ import { clearCommandMemoizationCaches, getCommands } from '../../commands.js'
 import { getCwd } from '../../utils/cwd.js'
 import { pruneSkillSessionHooks, liveSkillRootsOf } from '../../utils/hooks/sessionHooks.js'
 import { getSessionId } from '../../bootstrap/state.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export async function mcpAction(params: ParamsOf<'mcp/action'>, signal: AbortSignal, ports: RunnerPorts): Promise<ResultOf<'mcp/action'>> {
   const { enqueueRow, liveScope, mcpSignIns, permittedMcpConfig, reconnectLiveMcp, serializeMcpChange } = ports
@@ -80,7 +81,7 @@ export async function mcpTools(params: ParamsOf<'mcp/tools'>, ports: RunnerPorts
             tools: [],
           },
         )
-        .catch(() => '')
+        .catch(passedOverAs(''))
       return {
         name: tool.mcpInfo?.toolName ?? tool.name,
         registeredAs: tool.name,
@@ -120,7 +121,7 @@ export function setSessionKit(params: ParamsOf<'session/set_kit'>, ports: Runner
       if (!config) continue
       const existing = getAppState().mcp.clients.find(row => row.name === name)
       if (existing?.type === 'connected') {
-        await clearServerCache(name, config).catch(() => {})
+        await clearServerCache(name, config).catch(passedOver)
       }
       elicitationRegistered.delete(name)
       setAppState(previous => dropMcpServerFromAppState(previous, name, config))

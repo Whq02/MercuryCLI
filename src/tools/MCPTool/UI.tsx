@@ -11,6 +11,7 @@ import type { MCPProgress } from '../../types/tools.js'
 import { formatNumber } from '../../utils/format.js'
 import { createHyperlink } from '../../utils/hyperlink.js'
 import { getContentSizeEstimate, type MCPToolResult } from '../../utils/mcpValidation.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const LARGE_RESPONSE_TOKEN_THRESHOLD = 10_000
@@ -93,7 +94,8 @@ function trySlackSendCompact(
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null
@@ -121,7 +123,7 @@ function tryCraftStatusCompact(output: MCPToolResult): string | null {
   const raw = candidateText(output)
   if (raw === undefined) return null
   let value: unknown
-  try { value = JSON.parse(raw) } catch { return null }
+  try { value = JSON.parse(raw) } catch (error) { passedOver(error); return null }
   if (value === null || typeof value !== 'object' || Array.isArray(value)) return null
   const status = value as Record<string, unknown>
   if (!['FilmCraft', 'PhotoCraft', 'LightCraft'].includes(String(status.app)) ||

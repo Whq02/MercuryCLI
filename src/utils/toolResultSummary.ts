@@ -1,6 +1,7 @@
 
 import { displayWidth } from '../components/mercury-ui/glyphs.js'
 import { resultResolvedNames } from '../tools/FileReadTool/FileReadTool.js'
+import { passedOver } from './passedOver.js'
 
 export const MAX_INLINE_SUMMARY = 64
 
@@ -90,7 +91,8 @@ export function summarizeToolResult(toolName: string, toolUseResult: unknown): s
       default:
         return null
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

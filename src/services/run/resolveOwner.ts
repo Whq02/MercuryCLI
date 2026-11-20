@@ -6,6 +6,7 @@ import {
   makeOwnerKey,
   type OwnerKey,
 } from './ownerKey.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function safeWorkspace(): string {
   try {
@@ -18,7 +19,8 @@ function safeWorkspace(): string {
 function safeSessionId(): string {
   try {
     return String(getSessionId())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'boot'
   }
 }

@@ -9,6 +9,7 @@ import { isFirstPartyAnthropicBaseUrl } from '../../utils/model/providers.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../utils/privacyLevel.js'
 import { sleep } from '../../utils/sleep.js'
 import { getMercuryUserAgent } from '../../utils/userAgent.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const CLIENT_CONTRACT_RECORD_FILE = 'client-contract.json'
 export const NPM_REGISTRY_DEFAULT_BASE = 'https://registry.npmjs.org'
@@ -181,7 +182,8 @@ const clientContractStore = defineStore<ClientContractRecord, [home: string]>({
 async function storedRecord(home: string): Promise<ClientContractRecord> {
   try {
     return await clientContractStore(home).read()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -191,7 +193,8 @@ function learnedOnDisk(home: string): LearnedClientContract | null {
   try {
     if (statSync(path).size > RECORD_MAX_BYTES) return null
     return decodeRecord(JSON.parse(readFileSync(path, 'utf8')))?.learned ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -303,7 +306,7 @@ async function readAnswerText(response: Response): Promise<string | null> {
     if (next.done) break
     size += next.value.byteLength
     if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(() => undefined)
+      await reader.cancel().catch(passedOverAs(undefined))
       return null
     }
     chunks.push(next.value)
@@ -333,7 +336,7 @@ export async function readClientContractFromRegistry(signal?: AbortSignal): Prom
       ...getProxyFetchOptions(),
     } as RequestInit)
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined)
+      await response.body?.cancel().catch(passedOverAs(undefined))
       return { ok: false, failure: { kind: 'status', words: `HTTP ${response.status}` } }
     }
     const text = await readAnswerText(response)
@@ -369,7 +372,8 @@ function hasAnthropicCredential(): boolean {
   try {
     const { hasFirstPartyCredential } = require('../../utils/auth.js') as typeof import('../../utils/auth.js')
     return hasFirstPartyCredential()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

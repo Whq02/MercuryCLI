@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
 import { join } from 'path'
 import { classCacheReport, type StaleClass } from './classCache.js'
 import { editorOnlySliceWords, staticCapsuleSource, type GodotEditorPresence } from './editorPresence.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface GodotStaticCapsule {
   source: string
@@ -73,7 +74,8 @@ function walkCensus(
   let entries: string[]
   try {
     entries = readdirSync(dir).sort()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const name of entries) {
@@ -83,7 +85,8 @@ function walkCensus(
     let st
     try {
       st = statSync(full)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (st.isDirectory()) {
@@ -105,7 +108,8 @@ function exportPresets(projectRoot: string): Array<{ name: string; platform: str
   let sections: Map<string, string[]>
   try {
     sections = iniSections(readFileSync(file, 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: Array<{ name: string; platform: string }> = []

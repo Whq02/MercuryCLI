@@ -2,6 +2,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredQwenApiKey, readStoredQwenKeyBase } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const QWEN_ENV_KEY = 'DASHSCOPE_API_KEY'
 export const QWEN_BASE_OVERRIDE_ENV = 'DASHSCOPE_BASE_URL'
@@ -123,7 +124,8 @@ export function qwenBaseOverride(env: NodeJS.ProcessEnv = process.env): string |
   try {
     const url = new URL(raw)
     if (!(url.protocol === 'https:' || url.protocol === 'http:') || url.username || url.password || url.search || url.hash) return undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   return raw.replace(/\/+$/, '')

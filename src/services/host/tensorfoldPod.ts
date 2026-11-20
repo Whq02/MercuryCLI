@@ -15,6 +15,7 @@ import type { HostPod, HostVendor } from './vendors/vendor.js'
 import { HostVendorHttpError } from './vendors/http.js'
 import { RunpodHttpError } from './runpod.js'
 import { tensorFoldPodHostName, unregisterTensorFoldPod } from './tensorfoldPodKey.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { forgetTensorFoldPodKey, tensorFoldPodHostName, tensorFoldPodKey, unregisterTensorFoldPod } from './tensorfoldPodKey.js'
 
 export const isTensorFoldRecipe = (recipe: Pick<HostRecipe, 'engine'> | undefined): boolean => recipe?.engine === 'tensorfold'
@@ -204,7 +205,7 @@ export async function settleStoppingTensorFoldPods(options: { client?: (record: 
       if (pod.status !== 'EXITED') continue
       patchHostRecord(record.id, { status: 'EXITED', step: 'stopped · compute billing ended · the disk bills until Terminate' })
       settled += 1
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return settled
 }

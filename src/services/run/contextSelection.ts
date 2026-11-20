@@ -6,6 +6,7 @@ import { PERSISTED_OUTPUT_CLOSING_TAG, PERSISTED_OUTPUT_TAG } from '../../utils/
 import type { OwnerKey } from './ownerKey.js'
 import { registerOwnerScopedStore } from './ownerLifecycle.js'
 import { OwnerScopedStore } from './ownerScopedStore.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const CONTEXT_SELECTION_VERSION = 1 as const
 
@@ -99,7 +100,8 @@ const charsOf = (m: Message): number => {
   if (typeof content === 'string') return content.length
   try {
     return JSON.stringify(content ?? null)?.length ?? 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }

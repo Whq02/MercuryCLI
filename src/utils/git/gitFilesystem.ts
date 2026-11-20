@@ -7,6 +7,7 @@ import { registerCleanup } from '../cleanupRegistry.js'
 import { getCwd } from '../cwd.js'
 import { parseGitConfigValue } from './gitConfigParser.js'
 import { findGitRoot } from './gitRoot.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 
 
@@ -77,7 +78,8 @@ export async function readGitHead(
     }
     if (!isValidGitSha(content)) return null
     return { type: 'detached', sha: content }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -86,7 +88,8 @@ export async function getCommonDir(gitDir: string): Promise<string | null> {
   try {
     const content = (await readFile(join(gitDir, 'commondir'), 'utf8')).trim()
     return resolve(gitDir, content)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -118,7 +121,8 @@ async function resolveRefInDir(dir: string, ref: string): Promise<string | null>
       }
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -141,7 +145,8 @@ async function readRawSymref(gitDir: string, refPath: string, branchPrefix: stri
     if (!target.startsWith(branchPrefix)) return null
     const name = target.slice(branchPrefix.length)
     return isSafeRefName(name) ? name : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -188,7 +193,8 @@ function signalChange(signal: GitChangeSignal): void {
   for (const listener of changeListeners) {
     try {
       listener(signal)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -409,13 +415,14 @@ export async function readWorktreeHeadSha(worktreePath: string): Promise<string 
     if (head === null) return null
     if (head.type === 'detached') return head.sha
     return resolveRef(gitDir, `refs/heads/${head.name}`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
 
 const linkedWorktreeCount = (adminDir: string): Promise<number> =>
-  readdir(join(adminDir, 'worktrees')).then(entries => entries.length, () => 0)
+  readdir(join(adminDir, 'worktrees')).then(entries => entries.length, passedOverAs(0))
 
 export async function getWorktreeCountFromFs(): Promise<number> {
   const gitDir = await resolveGitDir()

@@ -1,5 +1,6 @@
 import { logForDebugging } from '../utils/debug.js'
 import { sleep } from '../utils/sleep.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 let inputLive = false
@@ -15,7 +16,8 @@ export function signalInputLive(): void {
   try {
     const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
     recordLaunchMilestone('input-live')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

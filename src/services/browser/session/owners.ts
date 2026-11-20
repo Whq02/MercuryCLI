@@ -11,6 +11,7 @@ import { registerOwnerScopedStore } from '../../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../run/ownerScopedStore.js'
 import { endTransfers, newTransferBook, sweepIncoming, type Transfer } from '../browserTransfers.js'
 import { MAIN_TAB, ENDED_TABS_KEPT, type Wiring, type Hold, type Session, type CheckedTarget, type CheckedAct, type OwnerBrowserState, BROWSER_CLOSE_BOUND_MS, BROWSER_FINISH_BOUND_MS, BROWSER_IDLE_MS, EXITED, IDLE_ENDED, SELF_CLOSED } from './shapes.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export function clearIdleLease(state: OwnerBrowserState): void {
   if (state.idleTimer !== null) clearTimeout(state.idleTimer)
@@ -81,7 +82,8 @@ export function removeTempProfile(browser: DriverBrowser): boolean {
   }
   try {
     fs.rmSync(dir, { recursive: true, force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   if (fs.existsSync(dir)) return false
@@ -102,7 +104,7 @@ function endTempTree(browser: DriverBrowser): void {
     const { file, args } = win32TaskkillCommand(pid!)
     try {
       spawnSync(file, args, { windowsHide: true, stdio: 'ignore', timeout: TEMP_PROFILE_EXIT_BOUND_MS, env: subprocessEnv() })
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   killChild(browser)
 }
@@ -121,7 +123,8 @@ function killChild(browser: DriverBrowser): void {
   if (!child) return
   try {
     child.kill('SIGKILL')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -181,7 +184,7 @@ export async function closePage(page: Page): Promise<void> {
     bound = setTimeout(resolve, BROWSER_CLOSE_BOUND_MS)
   })
   try {
-    await Promise.race([page.close().catch(() => undefined), lapse])
+    await Promise.race([page.close().catch(passedOverAs(undefined)), lapse])
   } finally {
     if (bound !== undefined) clearTimeout(bound)
   }
@@ -221,7 +224,7 @@ export const ownerStates = new OwnerScopedStore<OwnerBrowserState>({
     state.approvedOrigins.clear()
     state.approvedSecretPairings.clear()
     state.checkedActOrigin = null
-    if (state.launchFlight !== null) await state.launchFlight.flight.catch(() => undefined)
+    if (state.launchFlight !== null) await state.launchFlight.flight.catch(passedOverAs(undefined))
     const holds = [...state.holds]
     for (const session of state.tabs.values()) session.left = true
     state.tabs.clear()
@@ -275,7 +278,8 @@ export function liveBrowserSessionCensus(): Array<{ owner: OwnerKey; lane: strin
     let lane = 'unknown'
     try {
       lane = parseOwnerKey(owner).lane
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const shown = state.tabs.get(MAIN_TAB) ?? [...state.tabs.values()][0]
     rows.push({ owner, lane, url: live && shown !== undefined ? shown.page.url() : null })
@@ -287,7 +291,8 @@ export function originOf(url: string): string {
   try {
     const u = new URL(url)
     return u.protocol === 'http:' || u.protocol === 'https:' ? u.origin : u.protocol
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unparseable:'
   }
 }

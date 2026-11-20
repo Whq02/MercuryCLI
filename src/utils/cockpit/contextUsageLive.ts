@@ -6,6 +6,7 @@ import { OwnerScopedStore } from '../../services/run/ownerScopedStore.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import type { ContextResolution } from '../model/capabilities.js'
 import { ctxForecastEnabled, recordCtxSample } from './ctxForecast.js'
+import { passedOver } from '../passedOver.js'
 
 type ContextFillSource = 'usage' | 'estimate'
 type ContextWindowSource = ContextResolution['source']
@@ -78,7 +79,8 @@ export function publishContextUsage(
     for (const listener of listeners) {
       try {
         listener()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }

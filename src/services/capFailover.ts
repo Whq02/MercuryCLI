@@ -2,6 +2,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { stringWidth } from '../ink/stringWidth.js'
 import type { UsageWindowView } from './providers/providerUsage.js'
 import { FIRST_WARNING_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './providers/usageTiers.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type CapPosture = 'off' | 'offer' | 'auto'
 
@@ -375,7 +376,8 @@ function bindingWindowOfSeat(
       { provider: 'anthropic', shape: 'subscription-windows', windows: windows().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now), pools: pools().filter(w => w.resetsAtMs === undefined || w.resetsAtMs > now) },
       model,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -423,7 +425,7 @@ export function observedFamilyWindow(
       const wall = r.openaiWall(source)
       const bands = (() => {
         try { return source === 'chatgpt-subscription' ? r.openaiBands().filter(b => Number.isFinite(b.usedPct)) : [] }
-        catch { return [] }
+        catch (error) { passedOver(error); return [] }
       })()
       if (wall !== null) {
         const matches = bands.filter(b => b.resetsAtMs === wall.resetsAtMs)
@@ -678,7 +680,8 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
   const ledger = ((): Record<string, { at: number }> => {
     try {
       return readSignInLedger()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return {}
     }
   })()

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { StdioClientTransport, type Implementation, type JSONRPCMessage, type ServerCapabilities, type Tool } from './sdk.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type McpBootstrapManifest = {
   serverInfo: Implementation
@@ -37,7 +38,7 @@ export class LazyStdioClientTransport extends StdioClientTransport {
           } else receive?.(message)
         }
       })
-      void initialized.catch(() => {})
+      void initialized.catch(passedOver)
       try {
         await super.start()
         if (this.closed) throw new Error('MCP transport is closed')

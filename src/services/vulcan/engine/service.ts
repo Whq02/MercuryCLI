@@ -43,6 +43,7 @@ import { startEngineHeartbeat } from './liveness.js'
 import { engineLeaseRefusal, projectLeaseHolder, type LeaseHolder } from './leases.js'
 import { engineLogDrift, proofTreeFingerprint, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
 import { logError } from '../../../utils/log.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const unsavedRecordsNamed = new Set<string>()
 
@@ -220,7 +221,8 @@ function readEngineRecord(projectRoot: string, jobId: string): EngineRunRecord |
   const file = engineRunResultFile(engineRunPath(projectRoot, jobId))
   try {
     return JSON.parse(readFileSync(file, 'utf8')) as EngineRunRecord
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -231,7 +233,8 @@ export function listEngineRunIds(projectRoot: string): string[] {
       .filter(name => existsSync(path.join(engineRunsDir(projectRoot), name, ENGINE_RESULT_FILE)))
       .sort()
       .reverse()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -359,7 +362,7 @@ export class EngineJobService {
       this.executableCache = { resolved: fromManifest, note: 'named by the manifest' }
       return this.executableCache
     }
-    const census = await this.census().catch(() => [] as GodotProcess[])
+    const census = await this.census().catch((error) => { passedOver(error); return [] as GodotProcess[] })
     const receipt = await resolveGodotExecutable({ census, projectRoot: this.projectRoot })
     if (!receipt.resolved) return { error: receipt.note }
     const resolved = engineConsoleSibling(receipt.resolved, process.platform, p => existsSync(p))

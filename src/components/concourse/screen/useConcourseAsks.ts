@@ -7,6 +7,7 @@ import { errorMessage } from '../../../utils/errors.js'
 import { logError } from '../../../utils/log.js'
 import { basename } from 'node:path'
 import type { Draft, Panes, ScreenProps } from './state.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pick<ScreenProps, 'callbacks'> & Pick<Panes, 'setGroundPickerOpen'> & Pick<Draft, 'setNote'>) {
   const [contractAsk, setContractAsk] = useState(false)
@@ -36,7 +37,7 @@ export function useConcourseAsks({ callbacks, setGroundPickerOpen, setNote }: Pi
           setCapacityAsk(true)
         }
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       alive = false
     }

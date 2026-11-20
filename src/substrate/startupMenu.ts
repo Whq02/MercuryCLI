@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { flagEnabled, flagSpellings, stampFlagOnEnv } from './flagRegistry.js'
 import { addBootNote } from './bootNotes.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface MenuRow {
   env: string
@@ -474,7 +475,8 @@ export function applyBootMenuEnv(
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const result: BootEnvApplyResult = { applied: [], envWins: [], refused: [], retired: [] }
@@ -697,7 +699,8 @@ export function readBootDefaultsProfile(path: string = bootEnvPath()): BootDefau
   let raw: string
   try {
     raw = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   try {
@@ -716,7 +719,8 @@ export function readBootDefaultsProfile(path: string = bootEnvPath()): BootDefau
       digest: typeof parsed.digest === 'string' && parsed.digest.length > 0 ? parsed.digest : profileDigestOf(env),
       receipt: typeof parsed.receipt === 'string' ? parsed.receipt : '',
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -11,6 +11,7 @@ import {
   type PermissionExplanation,
   type RiskLevel,
 } from '../../utils/permissions/permissionExplainer.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const RISK_LABEL: Record<RiskLevel, string> = {
   LOW: 'Low risk',
@@ -53,7 +54,7 @@ export function usePermissionExplainerUI({
           toolDescription,
           messages,
           signal: new AbortController().signal,
-        }).catch(() => null)
+        }).catch(passedOverAs(null))
         setPromise(requestRef.current)
       }
       setVisible(current => !current)

@@ -10,6 +10,7 @@ import type { EffortValue } from '../utils/effort.js'
 import { getBundledSkillsRoot } from '../utils/permissions/filesystem.js'
 import { logForDebugging } from '../utils/debug.js'
 import { baseDirLine } from './baseDirLine.js'
+import { passedOverAs } from '../utils/passedOver.js'
 
 type BundledSkillDefinition = {
   name: string
@@ -67,15 +68,15 @@ function foldersUnder(baseDir: string, targets: readonly SkillFileTarget[]): str
   return [...folders].sort((a, b) => a.length - b.length)
 }
 
-const standsAsFolder = (path: string): Promise<boolean> => lstat(path).then(info => info.isDirectory(), () => false)
-const standsAsFile = (path: string): Promise<boolean> => lstat(path).then(info => info.isFile(), () => false)
+const standsAsFolder = (path: string): Promise<boolean> => lstat(path).then(info => info.isDirectory(), passedOverAs(false))
+const standsAsFile = (path: string): Promise<boolean> => lstat(path).then(info => info.isFile(), passedOverAs(false))
 
 let processFolderReal: string | undefined
 
 async function processFolderStands(): Promise<boolean> {
   if (processFolderReal === undefined) return false
   const root = getBundledSkillsRoot()
-  return (await standsAsFolder(root)) && (await realpath(root).catch(() => undefined)) === processFolderReal
+  return (await standsAsFolder(root)) && (await realpath(root).catch(passedOverAs(undefined))) === processFolderReal
 }
 
 async function ownProcessFolder(): Promise<string> {
@@ -90,7 +91,7 @@ async function ownProcessFolder(): Promise<string> {
   }
   const missing: string[] = []
   let standing = processFolderReal
-  while (!(await lstat(standing).then(() => true, () => false))) {
+  while (!(await lstat(standing).then(() => true, passedOverAs(false)))) {
     missing.unshift(standing)
     const parent = dirname(standing)
     if (parent === standing) break

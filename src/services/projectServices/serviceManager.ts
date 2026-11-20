@@ -36,6 +36,7 @@ import {
   projectServiceExecution,
 } from './executionProjection.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const RESTART_BACKOFF_BASE_MS = 500
 const RESTART_BACKOFF_MAX_MS = 15_000
@@ -75,7 +76,8 @@ export function readRecord(cwd: string, name: string): ServiceRecord | null {
     const raw = JSON.parse(readFileSync(recordPath(cwd, name), 'utf8')) as ServiceRecord
     if (raw.schema !== 1 || !raw.spec?.name) return null
     return raw
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -90,7 +92,8 @@ export function listRecords(cwd: string): ServiceRecord[] {
       .map(n => readRecord(cwd, n))
       .filter((r): r is ServiceRecord => r !== null)
       .sort((a, b) => a.spec.name.localeCompare(b.spec.name))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -123,7 +126,7 @@ export function liveServiceChildren(): Array<{ key: string; pid: number | undefi
 registerCleanup(async () => {
   const children = [...liveChildren].filter(([key]) => !projectChildren.has(key))
   for (const [key] of children) liveChildren.delete(key)
-  await Promise.all(children.map(([, child]) => endProcessTree(child, 'SIGTERM').catch(() => undefined)))
+  await Promise.all(children.map(([, child]) => endProcessTree(child, 'SIGTERM').catch(passedOverAs(undefined))))
 })
 
 process.once('exit', () => {
@@ -131,7 +134,8 @@ process.once('exit', () => {
     if (projectChildren.has(key)) continue
     try {
       child.kill('SIGTERM')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 })
@@ -141,7 +145,8 @@ function processAlive(pid: number | null, startToken: string | null): boolean {
   if (!pid) return false
   try {
     process.kill(pid, 0)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   if (startToken) {
@@ -168,8 +173,7 @@ function captureStartTokenAsync(cwd: string, name: string, pid: number, attempt 
       if (token === '') return
       writeRecord(cwd, { ...current, startToken: token, updatedAt: Date.now() })
     })
-    .catch(() => {
-    })
+    .catch(passedOver)
 }
 
 function ownedLiveChild(cwd: string, name: string, pid: number): boolean {
@@ -401,7 +405,7 @@ export interface StartOptions {
 async function stopServicesOf(owner: OwnerKey): Promise<void> {
   const mine = [...startedBy].filter(([, row]) => row.owner === owner)
   for (const [key] of mine) startedBy.delete(key)
-  await Promise.all(mine.map(([, row]) => stopService(row.cwd, row.name).then(() => undefined, () => undefined)))
+  await Promise.all(mine.map(([, row]) => stopService(row.cwd, row.name).then(() => undefined, passedOverAs(undefined))))
 }
 
 registerOwnerScopedStore({
@@ -631,7 +635,8 @@ export async function stopService(
   } else {
     try {
       signalPid(record.pid, 'SIGTERM')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const deadline = Date.now() + 5_000
@@ -719,7 +724,8 @@ export function logEnd(cwd: string, name: string): number {
   if (!record) return 0
   try {
     return statSync(record.logFile).size
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -778,7 +784,7 @@ export async function readLogs(
       })
       .on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
       .on('error', reject)
-  }).catch(() => '')
+  }).catch(passedOverAs(''))
   let lines = text.split('\n')
   const consumedBytes = Buffer.byteLength(text, 'utf8')
   const atEof = start + consumedBytes >= size

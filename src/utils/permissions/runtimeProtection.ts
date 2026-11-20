@@ -13,6 +13,7 @@ import { getProcessStartTokenAsync, isProcessAlive } from '../../daemon/ownerWat
 import { protectedPathForms } from './protectedPaths.js'
 import { matchWildcardPattern } from './shellRuleMatching.js'
 import { directoryTheShellStandsIn } from '../cwd.js'
+import { passedOver } from '../passedOver.js'
 
 const inside = (path: string, root: string): boolean => path === root || path.startsWith(root + '/')
 
@@ -39,7 +40,8 @@ function spelledOnDisk(path: string): string {
     let names: string[] = []
     try {
       names = readdirSync(`${drive}/${found.join('/')}`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const name = names.includes(part) ? part : names.find(entry => entry.normalize('NFC').toLowerCase() === part)
     if (name === undefined) return `${drive}/${[...found, ...parts.slice(index)].join('/')}`

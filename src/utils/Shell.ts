@@ -30,6 +30,7 @@ import { TaskOutput } from './task/TaskOutput.js'
 import { WINDOWS_STARTS_A_PROGRAM_IN, nativeCwdFromShellRecord, posixPathToWindowsPath } from './windowsPaths.js'
 import { planWindowsBatchInvocation, runWindowsBatchCommand } from './shell/windowsBatchInvocation.js'
 import { windowsShellRoadActive, withRoadPrograms } from './shell/windowsShellRoad.js'
+import { passedOver } from './passedOver.js'
 
 type ShellConfig = {
   provider: ShellProvider
@@ -260,7 +261,8 @@ function directoryResolves(path: string): boolean {
   try {
     getFsImplementation().realpathSync(path)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -428,7 +430,8 @@ export async function exec(
     })
     try {
       child.stdin?.end()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     shellCommand = wrapSpawn(
@@ -460,7 +463,8 @@ export async function exec(
     if (outputFd !== undefined) {
       try {
         closeSync(outputFd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     taskOutput.clear()
@@ -522,8 +526,8 @@ export async function exec(
       try {
         const text = readFileSync(file, 'utf8').trim()
         if (/^\d+(?:\s+\d+)+$/.test(text)) result.pipelineStatus = text.split(/\s+/).map(Number)
-      } catch {}
-      void getFsImplementation().unlink(file).catch(() => {})
+      } catch (error) { passedOver(error) }
+      void getFsImplementation().unlink(file).catch(passedOver)
     }
     if (built.jobsPath !== undefined) {
       const file = posixPathToWindowsPath(built.jobsPath)
@@ -539,8 +543,7 @@ export async function exec(
     dropFrame()
     void getFsImplementation()
       .unlink(cwdFilePath)
-      .catch(() => {
-      })
+      .catch(passedOver)
   })
 
   return shellCommand

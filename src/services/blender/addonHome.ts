@@ -4,13 +4,15 @@ import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { blenderBridgeAddonDirOverride } from '../../utils/blender/bridgeGates.js'
 import { locateBlender, probeBlenderVersion } from '../ide/blenderProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const BLENDER_ADDON_MODULE = 'mercury_blender_bridge'
 
 function isDir(p: string): boolean {
   try {
     return statSync(p).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

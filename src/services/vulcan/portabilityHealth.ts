@@ -11,6 +11,7 @@ import {
   type CensusPlatform,
   type GodotProcess,
 } from './godotProcessCensus.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface AbsolutePathFinding {
   skillFile: string
@@ -133,14 +134,16 @@ const realRootWalkFs: RootWalkFs = {
   list(dir) {
     try {
       return readdirSync(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
   },
   isDir(p) {
     try {
       return statSync(p).isDirectory()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   },
@@ -148,7 +151,8 @@ const realRootWalkFs: RootWalkFs = {
     try {
       accessSync(p, constants.X_OK)
       return statSync(p).isFile()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   },
@@ -314,7 +318,8 @@ function projectSkillFiles(projectRoot: string): string[] {
     let entries: string[]
     try {
       entries = readdirSync(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const e of entries) {
@@ -335,13 +340,15 @@ export async function godotPortabilityReport(projectRoot: string, opts: { census
   let live: string[] = []
   try {
     live = liveInputActions(readFileSync(join(projectRoot, 'project.godot'), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const skillFile of projectSkillFiles(projectRoot)) {
     let text: string
     try {
       text = readFileSync(skillFile, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     text.split('\n').forEach((line, i) => {

@@ -1,6 +1,7 @@
 import { homedir, hostname, networkInterfaces, userInfo } from 'node:os'
 import { join } from 'node:path'
 import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from './target.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const LOOPBACK_NAMES: ReadonlySet<string> = new Set(['localhost', 'localhost.localdomain', 'ip6-localhost', 'ip6-loopback'])
 
@@ -79,7 +80,8 @@ function ownAddressKeys(): Set<string> {
         if (key !== null) keys.add(key)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return keys
 }
@@ -92,7 +94,8 @@ function ownNames(): Set<string> {
       const short = full.split('.')[0]!
       for (const name of [full, short, `${short}.local`]) names.add(name)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return names
 }
@@ -129,7 +132,8 @@ export function remoteLocalForms(path: string, sameMachine = false): string[] | 
   let target: RemoteTarget | null
   try {
     target = parseRemotePath(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (target === null) return null

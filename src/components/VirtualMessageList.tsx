@@ -35,6 +35,7 @@ import {
 import { JUMP_HEADROOM_ROWS, newEngineState, type JumpHandle, type SearchEngineState } from './virtualMessageList/engine.js'
 import { cursorNavHandleOf, jumpHandleOf } from './virtualMessageList/handles.js'
 import { advanceOf, settleOnMessageOf } from './virtualMessageList/search.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type { JumpHandle } from './virtualMessageList/engine.js'
 
@@ -349,7 +350,8 @@ export function VirtualMessageList({
         ? { top: box.getScrollTop(), pending: box.getPendingDelta(), sticky: box.isSticky(), viewport: box.getViewportHeight(), height: box.getScrollHeight() }
         : null
       appendFileSync(tracePath, `${JSON.stringify({ t: Date.now(), ev: 'list-render', range: [rangeStart, rangeEnd], messages: messages.length, keys: itemKeys.length, stale, dupKeys, tail, scroll })}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const items: React.ReactNode[] = []

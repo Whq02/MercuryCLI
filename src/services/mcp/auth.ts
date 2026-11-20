@@ -34,6 +34,7 @@ import { getMcpServerHeaders } from './headersHelper.js'
 import { buildRedirectUri, findAvailablePort } from './oauthPort.js'
 import type { McpServerConfig } from './types.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 
 
@@ -223,7 +224,8 @@ function originOf(url: string | undefined): string | null {
   if (!url) return null
   try {
     return new URL(url).origin
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -456,7 +458,7 @@ export class MercuryMcpAuthProvider implements OAuthClientProvider {
     }
     this.onAuthorizationUrl?.(url)
     if (!this.skipBrowserOpen) {
-      const opened = await openBrowser(url).catch(() => false)
+      const opened = await openBrowser(url).catch(passedOverAs(false))
       if (!opened) logForDebugging(`mcp auth [${this.serverName}]: browser open failed; URL is shown in UI`)
     }
   }
@@ -874,7 +876,8 @@ export async function performMCPOAuthFlow(
       let parsed: URL
       try {
         parsed = new URL(pasted)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return
       }
       const error = parsed.searchParams.get('error')
@@ -1150,7 +1153,8 @@ export function summarizeMcpAuthCurrency(): { tokens: number; expired: number; e
       expired: real.filter(entry => entry.expiresAt > 0 && entry.expiresAt < now).length,
       expiringSoon: real.filter(entry => entry.expiresAt >= now && entry.expiresAt - now < EXPIRING_SOON_MS).length,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

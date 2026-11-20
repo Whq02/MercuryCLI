@@ -5,6 +5,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { registerCleanup } from './cleanupRegistry.js'
 import { getMercuryHome } from './envUtils.js'
 import { getMercuryTempDir, getScratchpadDir, scratchpadDirFor } from './permissions/filesystem.js'
+import { passedOver } from './passedOver.js'
 
 export { scratchpadDirFor }
 
@@ -46,7 +47,8 @@ export function isSessionScratchpad(dir: string): boolean {
     const real = realpathSync.native(dir)
     const expected = join(realpathSync.native(getMercuryTempDir()), segments[0], segments[1], SCRATCHPAD_SEGMENT)
     return process.platform === 'win32' ? real.toLowerCase() === expected.toLowerCase() : real === expected
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -59,7 +61,8 @@ function writeOwnerRecord(scratchpadDir: string): void {
   try {
     mkdirSync(scratchpadOwnersDir(), { recursive: true })
     writeFileSync(scratchpadOwnerRecord(scratchpadDir), JSON.stringify(owner))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -77,7 +80,7 @@ function recordOwner(): void {
       ownProcStart = procStart
       if (ownerRecordedFor !== null && existsSync(ownerRecordedFor)) writeOwnerRecord(ownerRecordedFor)
     })
-    .catch(() => {})
+    .catch(passedOver)
 }
 
 export function ensureScratchpadDir(agentId?: string): string {
@@ -101,7 +104,8 @@ type ScratchpadSweep = { swept: true; dir: string } | { swept: false; dir: strin
 function removeEmptyDirectory(dir: string): void {
   try {
     rmdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -118,7 +122,8 @@ export function forgetSweptScratchpad(dir: string): void {
   if (ownerRecordedFor === dir) ownerRecordedFor = null
   try {
     rmSync(scratchpadOwnerRecord(dir), { force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   removeEmptyDirectory(scratchpadOwnersDir())
@@ -149,7 +154,8 @@ export function sweepOwnScratchpad(): ScratchpadSweep {
 function directoriesIn(dir: string): string[] {
   try {
     return readdirSync(dir, { withFileTypes: true }).filter(entry => entry.isDirectory()).map(entry => join(dir, entry.name))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

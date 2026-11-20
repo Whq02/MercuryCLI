@@ -12,6 +12,7 @@ import {
   DEFAULT_CRITTER_KEY,
 } from '../../utils/cockpit/critterData.js'
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type Critter = {
   key: string
@@ -135,7 +136,8 @@ export function setSessionCritter(key: string): void {
   activeKey = k
   try {
     setFlagEnv('MERCURY_CRITTER', k)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   bumpAccentEpoch()
   for (const l of listeners) l()
@@ -155,7 +157,8 @@ export function persistSessionCritter(key: string): void {
   if (!CRITTERS[k]) return
   try {
     saveGlobalConfig(current => ({ ...current, defaultCritter: k }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

@@ -14,6 +14,7 @@ import { binaryName } from './config.js'
 import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
 import { getCurrentSessionTitle, sessionIdExists } from './sessionStorage.js'
 import { restoreOriginalBackground } from './cockpit/warmBackground.js'
+import { passedOver } from './passedOver.js'
 
 
 
@@ -79,7 +80,8 @@ export function cleanupTerminalModes(): void {
       else writeSync(1, CLEAR_TERMINAL_TITLE)
       noteModeSettledEverywhere('terminal-title')
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -112,7 +114,8 @@ export function printResumeHint(): void {
   try {
     writeSync(1, `\nResume this session with:\n${chalk.dim(`${binaryName()} --resume ${argument}`)}\n`)
     resumeHintPrinted = true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -120,6 +123,7 @@ export function printResumeHint(): void {
 export function drainStdinForExit(): void {
   try {
     instances.get(process.stdout)?.drainStdin()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

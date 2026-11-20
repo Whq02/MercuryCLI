@@ -11,6 +11,7 @@ import { projectConfigDirs } from '../../utils/projectConfig.js'
 import { createSignal } from '../../utils/signal.js'
 import { clearAgentDefinitionsCache } from '../../tools/AgentTool/loadAgentsDir.js'
 import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const USE_POLLING = typeof Bun !== 'undefined'
 
@@ -122,7 +123,8 @@ function probeMissingRoots(): void {
     let entries: string[] = []
     try {
       entries = readdirSync(root)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     for (const name of entries) {
       if (name.toLowerCase().endsWith('.md')) {
@@ -154,7 +156,8 @@ function armMissingRootLadder(floorMs: number): void {
       if (wanted.has(dir)) continue
       try {
         w.close()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       ancestors.delete(dir)
     }
@@ -168,12 +171,14 @@ function armMissingRootLadder(floorMs: number): void {
         w.on('error', () => {
           try {
             w.close()
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
           if (ancestors.get(dir) === w) ancestors.delete(dir)
         })
         ancestors.set(dir, w)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -188,7 +193,8 @@ function armMissingRootLadder(floorMs: number): void {
     for (const w of ancestors.values()) {
       try {
         w.close()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     ancestors.clear()
@@ -259,7 +265,7 @@ export async function stopAgentWatch(): Promise<void> {
     const closing = watcher.close()
     watcher = null
     watchedCwd = null
-    await closing.catch(() => {})
+    await closing.catch(passedOver)
   }
 }
 

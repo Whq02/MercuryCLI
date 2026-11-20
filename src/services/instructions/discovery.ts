@@ -21,6 +21,7 @@ import type {
   InstructionSourceEntry,
 } from './contracts.js'
 import { parseInstructionFileContent, readRuleSource, TEXT_FILE_EXTENSIONS } from './sourceText.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const shareRooted = (path: string): boolean => getPlatform() === 'windows' && /^[\\/]{2}/.test(path)
 
@@ -300,7 +301,8 @@ export async function processInstructionFile(
       let isDirectory = false
       try {
         isDirectory = getFsImplementation().statSync(resolvedIncludePath).isDirectory()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (isDirectory) {
         diagnostics.push({
@@ -356,7 +358,8 @@ async function rulesImportedAt(
     let folder: boolean
     try {
       folder = getFsImplementation().statSync(path).isDirectory()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     if (folder && !at.source) return null
@@ -473,7 +476,8 @@ async function standsAsRuleFile(fsImpl: FsOperations, source: string): Promise<b
   let file = false
   try {
     file = (await fsImpl.stat(source)).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   cache.set(source, { file })
   return file

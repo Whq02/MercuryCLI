@@ -15,6 +15,7 @@ import {
   type ExecutionSpec,
   type ExecutionState,
 } from './execution.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const SETTLED_RING_CAP = 128
 
@@ -61,7 +62,8 @@ function emit(owner: OwnerKey, event: ExecutionEvent): void {
   for (const cb of subscribers) {
     try {
       cb({ owner, seq, event })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -246,7 +248,8 @@ export function requestStopExecution(owner: OwnerKey, id: string): ExecutionReco
   if (next) {
     try {
       domainHooks().get(record.spec.kind)?.requestStop?.(next)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return next

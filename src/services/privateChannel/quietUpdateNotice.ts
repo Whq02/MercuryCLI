@@ -10,6 +10,7 @@ import { comparePrivateVersions, parsePrivateVersion } from './channelCore.js'
 import { reconcileManagedShims, resolveLayoutRoots } from './installLayout.js'
 import { checkForUpdate, type CheckOutcome } from './updateService.js'
 import { nixInstallRoot } from './installProvenance.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const UPDATE_NOTICE_CACHE_FILE = 'update-notice.json'
 export const UPDATE_NOTICE_DAILY_MS = 24 * 60 * 60 * 1000
@@ -110,7 +111,8 @@ export function readUpdateNoticeCache(path: string = updateNoticeCachePath()): U
       ...(available ? { available } : {}),
       ...(faceAnnounced ? { faceAnnounced } : {}),
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

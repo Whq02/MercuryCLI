@@ -1,4 +1,5 @@
 import { INPUT_ROW_TYPES, PARTIAL_ROW_TYPES, ROW_TYPES, ROWS_SCHEMA, type OutcomeRow, type Row, type RowType, type StepRow, type TurnRow } from './vocabulary.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type LooseRow = { type: string; seq?: number; session_id?: string; turn?: number; parent_call_id?: string; [key: string]: unknown }
 
@@ -17,7 +18,8 @@ export function parseRow(line: string): LooseRow | null {
   let value: unknown
   try {
     value = JSON.parse(trimmed)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   return rowOf(value)

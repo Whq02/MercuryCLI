@@ -3,6 +3,7 @@ import { ClickEvent } from '../events/click-event.js'
 import type { EventHandlerProps } from '../events/event-handlers.js'
 import { committedRects, type RectIndex } from './rect-index.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function* parentChain(node: DOMElement | null): Generator<DOMElement> {
   for (let current: DOMElement | undefined = node ?? undefined; current; current = current.parentNode) yield current
@@ -42,7 +43,7 @@ function recordClickHit(target: DOMElement | null, col: number, row: number, cel
       dbg,
       `click ${col},${row} blank=${cellIsBlank} target=${target ? 'hit' : 'MISS'} chain=${chain.join(' > ') || '(none)'}\n`,
     )
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 export function dispatchClick(

@@ -9,6 +9,7 @@ import type { Message } from 'src/types/message.js'
 import type { ToolUseContext } from '../../Tool.js'
 import { cacheKeys } from '../fileStateCache.js'
 import { getOriginalCwd } from '../../bootstrap/state.js'
+import { passedOver } from '../passedOver.js'
 
 interface PriorCapsule {
   digest: string
@@ -207,7 +208,8 @@ export async function getContextCapsuleAttachment(
         delta,
       },
     ]
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

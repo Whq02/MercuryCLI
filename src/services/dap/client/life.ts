@@ -7,6 +7,7 @@ import { endProcessTree, endProcessTreeSurvivors, strikeProcessGroupNow } from '
 import type { DapAdapterSpec, DapListenerTarget } from './shared.js'
 import type { TerminalPart } from './terminal.js'
 import type { WirePart } from './wire.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface LifeNeeds {
   lifetime(): AbortController
@@ -47,7 +48,7 @@ export class LifePart {
         this.session.terminated = true
         this.session.exitDetail = 'dial session has no server port'
         const ready: Promise<void> = Promise.reject(new Error(this.session.exitDetail))
-        ready.catch(() => {})
+        ready.catch(passedOver)
         return { child: null, listener: null, ready }
       }
       return { child: null, listener: null, ready: this.needs.wire().connectTcp(tcpPort) }
@@ -123,7 +124,8 @@ export class LifePart {
     if (this.session.listener === null || this.session.capabilities !== null) {
       try {
         await this.session.request('disconnect', this.session.disconnectArguments(), 2_000, signal)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const child = this.needs.child()
@@ -146,12 +148,14 @@ export class LifePart {
     for (const child of [...this.session.children]) {
       try {
         child.killSync()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     try {
       this.needs.wire().socket()?.destroy()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const adapter = this.needs.child()
     if (adapter && adapter.exitCode === null) adapter.kill('SIGKILL')

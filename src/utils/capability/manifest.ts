@@ -6,6 +6,7 @@ import {
 } from '../../services/mcp/toolPolicy.js'
 import type { Tool } from '../../Tool.js'
 import { declaredCapability } from './contract.js'
+import { passedOver } from '../passedOver.js'
 
 export type CapabilityRisk = McpRisk
 
@@ -83,7 +84,8 @@ function probe(
   if (typeof fn !== 'function') return undefined
   try {
     return fn({} as Record<string, never>) === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -214,7 +216,8 @@ function probeToolEnabled(tool: Tool): boolean {
   if (typeof fn !== 'function') return true
   try {
     return fn.call(tool) !== false
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -235,7 +238,8 @@ export function compileToolCapabilityCard(tool: Tool): string {
       const intents = cap.intents.slice(0, 3).join('; ')
       return `[${cap.class} · ${unit} · ${cap.latency} · ${availability}] for: ${intents}`
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return compileCapabilityCard(deriveCapabilityDescriptor(tool))
 }

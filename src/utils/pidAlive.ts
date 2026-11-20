@@ -1,9 +1,11 @@
 import { getProcessStartTokenCachedOrRefresh } from '../daemon/ownerWatch.js'
+import { passedOver } from './passedOver.js'
 
 export function pidAlive(pid: number, startToken?: string): boolean {
   try {
     process.kill(pid, 0)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   if (!startToken) return true

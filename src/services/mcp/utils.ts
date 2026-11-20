@@ -16,6 +16,7 @@ import type {
   Transport,
 } from './types.js'
 import { getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type NamedTool = { name: string; mcpInfo?: { serverName?: string } }
@@ -422,7 +423,8 @@ export function getLoggingSafeMcpBaseUrl(
     parsed.password = ''
     const text = parsed.toString()
     return text.endsWith('/') ? text.slice(0, -1) : text
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

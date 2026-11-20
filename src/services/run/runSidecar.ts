@@ -8,6 +8,7 @@ import { getTranscriptPathForSession } from '../../utils/sessionStorage/paths.js
 import { ownerKeyFileStem, parseOwnerKey, type OwnerKey } from './ownerKey.js'
 import { RUN_SCHEMA_VERSION, type RunSnapshot } from './runKernel.js'
 import { isRecord } from '../../utils/isRecord.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export type RunSidecarLoad =
   | { state: 'none' }
@@ -46,7 +47,7 @@ export async function saveRunSidecar(
     owner,
     op.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     ),
   )
   return op
@@ -64,7 +65,8 @@ async function publishRunSidecar(
       if (typeof prior === 'number' && Number.isFinite(prior)) {
         writeSeqByOwner.set(owner, prior)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const seq = (writeSeqByOwner.get(owner) ?? 0) + 1
@@ -205,6 +207,7 @@ export async function loadRunSidecar(owner: OwnerKey): Promise<RunSidecarLoad> {
 export async function deleteRunSidecar(owner: OwnerKey): Promise<void> {
   try {
     await unlink(runSidecarPath(owner))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

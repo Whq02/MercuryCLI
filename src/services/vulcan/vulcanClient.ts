@@ -3,6 +3,7 @@ import * as net from 'node:net'
 import { findGodotProjectRoot } from '../lsp/godotLane.js'
 import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
 import { parseVulcanInstance, readVulcanInstanceToken, sameVulcanInstance, selectVulcanInstance, type VulcanInstance } from './instances.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const INSTANCE_HINT = 'is that Godot instance still running with the addon loaded? op:"vulcan_status" lists the instances Mercury can see; name the one you mean with args.instance'
 
@@ -394,7 +395,7 @@ export function getVulcanClient(projectRoot?: string, selector?: unknown): Vulca
   if (!root) return null
   const selected = selectVulcanInstance(root, selector)
   if (!selected.ok) return null
-  try { return clientFor(selected.instance) } catch { return null }
+  try { return clientFor(selected.instance) } catch (error) { passedOver(error); return null }
 }
 
 export async function requestVulcanInstance(root: string, op: string, args: Record<string, unknown> = {}, timeoutMs: number = DEFAULT_REQUEST_TIMEOUT_MS): Promise<VulcanResult> {

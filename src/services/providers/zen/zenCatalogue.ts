@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { resolveZenApiKey, zenApiBase } from './zenAccounts.js'
 import { zenDisplayName, zenDisplayPin, zenServedShapeOf, type ZenServedShape, type ZenWireShape } from './zenPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 interface ZenLiveModel {
   id: string
@@ -134,7 +135,7 @@ export function kickZenCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: t
   if (!catalogueTrafficVerdict('zen', env).allowed) return false
   const snapshot = getCachedZenCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
-  void refreshZenCatalogue(opts).catch(() => null)
+  void refreshZenCatalogue(opts).catch(passedOverAs(null))
   return true
 }
 

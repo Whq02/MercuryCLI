@@ -4,6 +4,7 @@ import { logForDebugging } from '../../../utils/debug.js';
 import { getCwd } from '../../../utils/cwd.js';
 import { readConcourseSeedOverrides, writeConcourseSeedOverride } from '../../../services/concourse/concourseSnapshot.js';
 import type { ConcourseSnapshotV1, ControlNoteState } from '../contracts.js';
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js';
 
 export function useConcourseAdmissionPump({
   fixture,
@@ -29,7 +30,8 @@ export function useConcourseAdmissionPump({
           await writeConcourseSeedOverride({ projectDir: null })
           refresh()
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })()
   }, [fixture, refresh])
@@ -65,7 +67,8 @@ export function useConcourseAdmissionPump({
             })
             refresh()
           }
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         const deliveries = await store.readConcourseHeldDeliveries()
         const deliveryIds = Object.keys(deliveries)
@@ -126,11 +129,12 @@ export function useConcourseAdmissionPump({
               if (stale) {
                 await o
                   .resolveObligation(ny.obligationId, { kind: 'superseded', by: 'board-sweep', scope: 'switchboard' })
-                  .catch(() => undefined)
+                  .catch(passedOverAs(undefined))
               }
             }
           }
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         const held = await store.readConcourseHeldDispatch()
         if (held === null || held.prompt === undefined) return

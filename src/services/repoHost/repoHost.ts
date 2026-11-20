@@ -9,6 +9,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import { gitDiff, gitStatus, isGitRepo } from '../gitGraph/observe.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function repoHostEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_REPO_HOST'))
@@ -207,7 +208,8 @@ function reviewsDir(root: string): string {
 export function latestReview(root: string = getCwd()): ReviewRecord | null {
   try {
     return JSON.parse(readFileSync(path.join(reviewsDir(root), 'latest.json'), 'utf8')) as ReviewRecord
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -327,7 +329,8 @@ export async function composeReviewContext(
       require('../lsp/LSPDiagnosticRegistry.js') as typeof import('../lsp/LSPDiagnosticRegistry.js')
     const pending = getPendingLSPDiagnosticCount()
     diagnosticsNote = `${pending} pending LSP diagnostic(s)`
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   return {

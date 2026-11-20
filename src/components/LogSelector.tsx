@@ -30,6 +30,7 @@ import {
 import { logError } from '../utils/log.js'
 import type { UUID } from 'crypto'
 import { logSelectorView } from './logSelector/views.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type LogSelectorProps = {
   logs: SessionListing[]
@@ -119,7 +120,7 @@ export function LogSelector({
       .then(value => {
         if (!cancelled && value) setBranch(value)
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       cancelled = true
     }
@@ -136,7 +137,7 @@ export function LogSelector({
         multipleWorktreesRef.current = multiple
         setMultipleWorktrees(multiple)
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       cancelled = true
     }

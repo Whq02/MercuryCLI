@@ -12,6 +12,7 @@ import {
 } from '../ide/pythonProject.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MERCURY_PYRIGHT_SERVER_NAME = 'mercury-pyright'
 
@@ -51,7 +52,8 @@ function resolveWorkspacePyright(root: string): { entry: string; version?: strin
       try {
         const pkg = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as { version?: string }
         if (typeof pkg.version === 'string') version = pkg.version
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return { entry, ...(version ? { version } : {}) }
     }
@@ -87,7 +89,8 @@ export function probeBuiltinPyright(): PyrightProbe {
     try {
       const vman = JSON.parse(readFileSync(path.join(pinned, '.vendor-manifest.json'), 'utf8')) as { version?: string }
       version = typeof vman.version === 'string' ? vman.version : undefined
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     result = {
       available: true,
@@ -114,7 +117,8 @@ export function probeBuiltinPyright(): PyrightProbe {
         readFileSync(path.join(vendorRoot, '.vendor-manifest.json'), 'utf8'),
       ) as { version?: string }
       version = typeof vman.version === 'string' ? vman.version : undefined
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     result = {
       available: true,

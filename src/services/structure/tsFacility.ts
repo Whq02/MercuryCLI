@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type * as TS from 'typescript'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.join(__filename, '../')
@@ -62,7 +63,8 @@ export function resolvePackagedTypescript(): { modulePath: string; version?: str
       const meta = existsSync(vendorJson) ? vendorJson : pkgJson
       const parsed = JSON.parse(readFileSync(meta, 'utf8')) as { version?: string }
       if (typeof parsed.version === 'string') version = parsed.version
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return { modulePath: candidate, ...(version ? { version } : {}) }
   }
@@ -110,7 +112,8 @@ function tryLoad(modulePath: string): TsModule | null {
     if (!hasCompilerApi(mod)) return null
     loaded.set(modulePath, mod)
     return mod
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

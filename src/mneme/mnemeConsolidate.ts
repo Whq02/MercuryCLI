@@ -29,6 +29,7 @@ import { publishFrontPage } from './mnemeFrontPage.js'
 import { movePin, pinFact, readPins, readUsage, type PinRecord } from './mnemeUsage.js'
 import { mergeSimilar } from './mnemeSimilarity.js'
 import type { MemoryApplicability } from './memoryApplicability.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export { libraryMetaPath, listArchiveDocs, listTopicDocs, readLibraryMeta, writeDoc, writeLibraryMeta } from './mnemeLibrary.js'
 
@@ -171,7 +172,8 @@ export function acquireConsolidateLock(dir: string): boolean {
     mkdirSync(lock)
     try {
       writeFileSync(join(lock, 'pid'), String(process.pid), 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return true
   }
@@ -184,13 +186,15 @@ export function acquireConsolidateLock(dir: string): boolean {
       try {
         const pid = Number(readFileSync(join(lock, 'pid'), 'utf8').trim())
         holderDead = Number.isInteger(pid) && pid > 0 && !pidAlive(pid)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if ((holderDead && ageMs > LOCK_DEAD_GRACE_MS) || ageMs > LOCK_STALE_MS) {
         rmSync(lock, { recursive: true, force: true })
         return take()
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return false
   }
@@ -201,7 +205,8 @@ export function releaseConsolidateLock(dir: string): void {
   if (!consolidateLockOwnedBy(lock, process.pid)) return
   try {
     rmSync(lock, { recursive: true, force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -260,7 +265,8 @@ export function claimBufferFile(dir: string, stem: string): string | null {
   try {
     renameWithWin32RetrySync(current, claim)
     return claim
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -282,7 +288,8 @@ function consumeBuffer(dir: string): Consumed {
         .sort()
         .map(n => join(dir, n)),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const current = currentBufferPath(dir)
   if (existsSync(current)) {
@@ -290,7 +297,8 @@ function consumeBuffer(dir: string): Consumed {
     try {
       renameWithWin32RetrySync(current, consuming)
       files.push(consuming)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const landedByHash = new Map<string, ManifestRow>()
@@ -492,7 +500,8 @@ export function maybeConsolidate(
   let staleConsuming = false
   try {
     staleConsuming = readdirSync(dir).some(n => /^consuming-.*\.jsonl$/.test(n))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const now = opts.now ?? new Date()
   if (peek.length === 0 && !staleConsuming) {
@@ -669,7 +678,8 @@ export function maybeConsolidate(
       try {
         const { ensureEmbedIndex } = require('./mnemeIndex.js') as typeof import('./mnemeIndex.js')
         void ensureEmbedIndex(dir)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     } catch (e) {
       logForDebugging(`memory tidy-up after the batch failed: ${String(e)}`)

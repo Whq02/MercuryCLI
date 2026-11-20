@@ -4,6 +4,7 @@ import { encodePattern, findPatternMatches, type CaptureSpan, type CompiledPatte
 import { compileFor, type PatternRefusal } from '../../services/structure/polyglotQuery.js'
 import { AST_BOUNDS, PATTERN_GRAMMAR_LINES, PATTERN_EXAMPLES, LANGUAGE_PATTERN_EXAMPLES } from './languages.js'
 import type { AstScope, AstRefusal } from './scope.js'
+import { passedOver } from '../passedOver.js'
 
 export interface AstCapture {
   key: string
@@ -74,7 +75,8 @@ export type CompileCache = Map<string, { pattern: CompiledPattern; hold: { delet
 export function farOverSizeBound(abs: string): boolean {
   try {
     return statSync(abs).size > AST_BOUNDS.maxFileBytes * 3
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -121,7 +123,8 @@ export async function searchAstPattern(
       }
       try {
         text = readFileSync(file.abs, 'utf8')
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (text.length > AST_BOUNDS.maxFileBytes) {
@@ -152,7 +155,8 @@ export async function searchAstPattern(
       }
       try {
         text = readFileSync(file.abs, 'utf8')
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (text.length > AST_BOUNDS.maxFileBytes) {

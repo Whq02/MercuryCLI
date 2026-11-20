@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { projectLocalPath } from '../../projectLocal/paths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_MANIFEST_FILE = 'engine-suites.json'
 const ENGINE_MANIFEST_RELATIVE = `${MERCURY_PROJECT_DIR}/${ENGINE_MANIFEST_FILE}`
@@ -75,7 +76,8 @@ export function parseEngineMarker(raw: unknown): EngineMarker | null {
     if (m) {
       try {
         new RegExp(m[1], m[2])
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
       return { kind: 'pattern', source: m[1], flags: m[2] }
@@ -89,7 +91,8 @@ export function parseEngineMarker(raw: unknown): EngineMarker | null {
       const flags = typeof o.flags === 'string' ? o.flags : ''
       try {
         new RegExp(o.pattern, flags)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
       return { kind: 'pattern', source: o.pattern, flags }

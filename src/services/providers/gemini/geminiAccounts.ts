@@ -29,6 +29,7 @@ import {
 } from './antigravityClientContract.js'
 import { antigravityCodeAssistBases, discoverGeminiPlan, geminiPlanTierWords, type GeminiPlanTierFacts } from './geminiPlanAccess.js'
 import { usagePollTtlMs } from '../usageFreshness.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta'
@@ -133,7 +134,8 @@ function writeAuthFile(mutate: (file: GeminiAuthFile) => GeminiAuthFile): void {
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   noteCredentialChange()
 }
@@ -368,7 +370,8 @@ async function postGoogleToken(
     try {
       const body = (await response.json()) as Record<string, unknown>
       if (typeof body.error === 'string' && body.error !== '') oauthError = body.error
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     throw new Error(
       `google token endpoint returned HTTP ${response.status}${oauthError ? ` (${oauthError})` : ''}`,
@@ -900,7 +903,8 @@ async function readGoogleAccountEmail(accessToken: string, fetchImpl: typeof fet
     if (!response.ok) return undefined
     const body = (await response.json()) as Record<string, unknown>
     return typeof body.email === 'string' && body.email.includes('@') && body.email.length < 256 ? body.email : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -913,7 +917,7 @@ export function beginGeminiPlanBrowserConnect(opts?: GeminiConnectOptions & { sl
   const state = generateState()
   const authorizeUrl = buildGeminiPlanAuthorizeUrl(env, challenge, state)
   const fetchImpl = opts?.fetchImpl ?? getApiFetch()
-  void peekAntigravityClient({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(() => undefined)
+  void peekAntigravityClient({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(passedOverAs(undefined))
 
   const exchange = async (code: string): Promise<GeminiAccountRef> => {
     const body = new URLSearchParams({

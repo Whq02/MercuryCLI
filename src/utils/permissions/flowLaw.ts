@@ -20,6 +20,7 @@ import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
 import { UNREAD_PART, layersOf, printedBy, readShellCommands, type ReadCommand } from '../wards/wardsShellRead.js'
+import { passedOver } from '../passedOver.js'
 
 type FlowItem = 1 | 2 | 3 | 4
 export type FlowAsk = { item: FlowItem; subject: string; why: string }
@@ -194,11 +195,13 @@ function groundOf(candidate: string): boolean {
   if (temps.some(temp => pathInWorkingPath(candidate, temp) && !sameFolder(candidate, temp))) return true
   try {
     if (pathInWorkingPath(candidate, getScratchpadDir())) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     return ownGroundCategory(candidate) !== null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -256,7 +259,8 @@ function grantedByRule(path: string, rules: ToolPermissionContext | undefined): 
   if (rules === undefined) return false
   try {
     return matchingRuleForInput(path, allowRulesThatPreAuthorise(rules), 'edit', 'allow') !== null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -518,7 +522,8 @@ function preAuthorised(text: string, rules: ToolPermissionContext | undefined): 
   if (rules === undefined || text.trim() === '') return false
   try {
     return readBashRuleVerdict({ command: text }, allowRulesThatPreAuthorise(rules)).behavior === 'allow'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -794,7 +799,8 @@ export async function flowShellAsk(command: string, cwd: string, shell: 'bash' |
   if (shell !== 'powershell' && scan.asks.length === 0) {
     try {
       await scanReading(command, cwd, { ...scan, cwd, asks: scan.asks })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return scan.asks[0] ?? null
@@ -838,7 +844,8 @@ export async function flowAskFor<Input extends Record<string, unknown> = Record<
     if (tool.isReadOnly?.(input) === true) return null
     const path = tool.getPath(input)
     return typeof path === 'string' && path !== '' ? flowPathAsk(path, rules) : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

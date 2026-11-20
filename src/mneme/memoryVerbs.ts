@@ -21,6 +21,7 @@ import { liftRulingLinks, recallUsage } from './mnemeLinks.js'
 import { pinIntentSpan, type PinIntent } from './memoryPinIntent.js'
 import { recordGrade, STRUCTURE_GRADE } from './memoryEvidence.js'
 import { applicabilityOf } from './memoryApplicability.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -199,7 +200,7 @@ export function retainItems(
     sessionRetained.set(duplicateKey, id)
     outcomes.push({ index, status: 'stored', id })
     noteRetained(id, pin === true)
-    void appendFactToEmbedIndex(dir, { key: id, text: row.text }).catch(() => false)
+    void appendFactToEmbedIndex(dir, { key: id, text: row.text }).catch(passedOverAs(false))
   })
   return outcomes
 }
@@ -260,7 +261,8 @@ function historyStartLine(slug: string, dir: string, cache: Map<string, number>)
       const index = lines.findIndex(line => /^##\s+history\s*$/i.test(line))
       if (index >= 0) start = index + 1
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   cache.set(slug, start)
   return start

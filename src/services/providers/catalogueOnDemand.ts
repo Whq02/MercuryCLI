@@ -1,4 +1,5 @@
 import { catalogueTrafficVerdict } from './catalogueGate.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const KEYED_CATALOGUE_FAMILIES = ['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'xai', 'meta', 'zai', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'openai-compat'] as const
 export type KeyedCatalogueFamily = (typeof KEYED_CATALOGUE_FAMILIES)[number]
@@ -12,7 +13,7 @@ export function isKeyedCatalogueFamily(family: string): family is KeyedCatalogue
 async function bounded(refresh: Promise<unknown>, boundMs: number): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined
   await Promise.race([
-    refresh.catch(() => null),
+    refresh.catch(passedOverAs(null)),
     new Promise<void>(resolve => {
       timer = setTimeout(resolve, boundMs)
       timer.unref?.()
@@ -182,7 +183,8 @@ export async function readCatalogueIfPending(family: string, opts?: { boundMs?: 
       default:
         return false
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -4,6 +4,7 @@ import { processStandsInTree } from '../utils/processGroup.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { getProcessStartInstantAsync } from './ownerWatch.js'
 import { parseProcessStartToken } from './processSweep.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type ProcessTreeRow = { pid: number; ppid: number; pgid: number; birth?: string; bornSecond?: number }
 
@@ -53,14 +54,16 @@ export function readLinuxProcessTree(
       let stat: string
       try {
         stat = read(`/proc/${name}/stat`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       const row = parseLinuxProcessStat(stat)
       if (row !== null) rows.push(row)
     }
     return { rows, notedSecond }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

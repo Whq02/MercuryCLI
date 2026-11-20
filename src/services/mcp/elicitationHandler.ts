@@ -4,6 +4,7 @@ import type { AppState } from '../../state/AppState.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logMCPDebug, logMCPError } from '../../utils/log.js'
 import { urlElicitationVerdict } from './toolPolicy.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type ElicitationWaitingState = {
@@ -204,6 +205,7 @@ export function registerElicitationHandler(
         } as AppState
       })
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

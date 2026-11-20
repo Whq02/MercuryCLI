@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getCwd } from '../../utils/cwd.js'
 import { crewStoreRoot } from './identity.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const OBLIGATION_STATUSES = ['open', 'answered', 'resolved', 'withdrawn', 'superseded'] as const
 export type ObligationStatus = (typeof OBLIGATION_STATUSES)[number]
@@ -404,7 +405,8 @@ export async function foldLegacyObligationsIntoSwitchboardScope(dir?: string): P
       moved += 1
     }
     return moved
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }

@@ -15,6 +15,7 @@ import { type NonNullableUsage } from '../../api/logging.js'
 import { assistantMessageToMessageParam, userMessageToMessageParam } from './messageParams.js'
 import { getCacheControl } from './requestParams.js'
 import { normalizeAnthropicToolIds } from './toolIds.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type CachedMCEditsBlock = { type: 'cache_edits'; edits: { type: 'delete'; cache_reference: string }[] }
 export type CachedMCPinnedEdits = { userMessageIndex: number; block: CachedMCEditsBlock }
@@ -168,5 +169,5 @@ export function cleanupStream(stream: AnthropicStream | undefined): void {
   try {
     const controller = stream?.controller
     if (controller && !controller.signal.aborted) controller.abort()
-  } catch {}
+  } catch (error) { passedOver(error) }
 }

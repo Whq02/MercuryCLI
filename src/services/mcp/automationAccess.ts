@@ -4,6 +4,7 @@ import { z } from 'zod/v4'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { readSessionWorkers, sessionOwnedByLiveWorker } from '../../daemon/concourseWorkers.js'
 import type { PermissionMode } from '../../../sdk/src/door.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const name = z.string().trim().min(1).max(200).regex(/^[^\x00-\x1f\x7f]+$/)
 const secret = z.string().regex(/^[A-Za-z0-9._~+\/-]{32,}={0,2}$/)
@@ -71,7 +72,7 @@ export class AutomationOwnership {
     try {
       const value = JSON.parse(readFileSync(this.path(id), 'utf8')) as { cwd?: unknown; client?: unknown; mode?: PermissionMode }
       if (value.cwd === this.cwd && typeof value.client === 'string' && value.mode) return { client: value.client, mode: value.mode }
-    } catch {}
+    } catch (error) { passedOver(error) }
     return undefined
   }
   record(id: string, client: string, mode: PermissionMode): void {

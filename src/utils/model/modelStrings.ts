@@ -6,6 +6,7 @@ import {
   type ModelConfig,
   type ModelKey,
 } from './configs.js'
+import { passedOver } from '../passedOver.js'
 
 export type ModelStrings = Record<ModelKey, string>
 
@@ -21,7 +22,8 @@ function readOverrides(): Record<string, string> {
       }
     }
     return filtered
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }

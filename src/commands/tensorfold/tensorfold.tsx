@@ -45,6 +45,7 @@ import { localServerProbingOff } from '../../services/localServer/localServerTru
 import { TENSORFOLD_WORDS as W } from './words.js'
 import { consumeFirstRunServeAsk } from '../../substrate/splashHandover.js'
 import { bytesWords } from '../../services/host/bank.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const TENSORFOLD_REFRESH_MS = 1_000
 
@@ -53,7 +54,8 @@ export type TensorFoldPanelIo = { facts?: FactsIo; road?: RoadIo; current?: () =
 function currentModelId(): string | undefined {
   try {
     return focusedSessionModelFacts()?.effective ?? getEngineModel()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -220,7 +222,7 @@ export async function onTensorFoldAct(act: TensorFoldPickerAct, facts: TensorFol
           await rememberTensorFoldHost({ name: address.replace(/:\d+$/, ''), baseUrl: `http://${address}`, origin: 'typed' })
           setTensorFoldNotice(`${address} remembered · it appears under ${W.hostGroup} when it answers`)
         }
-        if (!localServerProbingOff()) await refreshLocalDiscovery({ force: true }).catch(() => undefined)
+        if (!localServerProbingOff()) await refreshLocalDiscovery({ force: true }).catch(passedOverAs(undefined))
         await doors.read?.()
       } catch (error) {
         setTensorFoldNotice(error instanceof Error ? error.message : String(error))

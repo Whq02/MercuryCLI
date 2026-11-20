@@ -1,3 +1,5 @@
+import { passedOverAs } from './passedOver.js'
+
 const holds = new Map<string, Promise<void>>()
 const HOOKS_BEHIND_THE_GATE: ReadonlySet<string> = new Set(['tool.before', 'tool.after', 'permission.ask', 'permission.decided', 'session.start', 'session.end', 'session.state', 'file.changed'])
 
@@ -8,7 +10,7 @@ export function hookMayMeetCopy(event: string): boolean {
 export function holdToolsUntil(agentId: string, ready: Promise<unknown>): void {
   const settled = ready.then(
     () => undefined,
-    () => undefined,
+    passedOverAs(undefined),
   )
   holds.set(agentId, settled)
   void settled.then(() => {

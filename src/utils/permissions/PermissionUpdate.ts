@@ -12,6 +12,7 @@ import type { EditableSettingSource } from '../settings/constants.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
 import { holdModeTransition, type ModeTransitionRoad, recordModeTransition } from './modeTransitions.js'
 import { noteAllowRulesGranted } from './lateAllowRules.js'
+import { passedOver } from '../passedOver.js'
 
 function ruleMapKey(behavior: PermissionBehavior): 'alwaysAllowRules' | 'alwaysDenyRules' | 'alwaysAskRules' {
   if (behavior === 'allow') return 'alwaysAllowRules'
@@ -175,7 +176,8 @@ export function persistPermissionUpdate(update: PermissionUpdate): PersistVerdic
           rawPermissionArray(base, behaviorKey).filter(entry => {
             try {
               return !toRemove.has(permissionRuleValueToString(permissionRuleValueFromString(entry)))
-            } catch {
+            } catch (error) {
+              passedOver(error)
               return true
             }
           }),

@@ -3,6 +3,7 @@ import { classifyModelRoute } from '../services/providers/idSpaces.js'
 import { MERCURY_CONSTITUTION } from '../prompt/mercuryContract.js'
 import { forcedShortForm } from '../tools/FileEditTool/editForm.js'
 import { MERCURY_PROJECT_DIR } from '../utils/projectConfig.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const tensorFoldPodVerdicts = new Map<string, boolean>()
 
@@ -19,7 +20,8 @@ function onTensorFoldPod(model: string): boolean {
     const verdict = box !== undefined && isTensorFoldPodBox(box)
     tensorFoldPodVerdicts.set(model, verdict)
     return verdict
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -39,7 +41,8 @@ export function localServerKind(model: string): string | undefined {
     const { localRecordFor } = require('../services/providers/local/localCatalogue.js') as typeof import('../services/providers/local/localCatalogue.js')
     const record = localRecordFor(model)
     return record?.servedBy === 'mercury-llamacpp' ? 'llamacpp' : record?.server
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

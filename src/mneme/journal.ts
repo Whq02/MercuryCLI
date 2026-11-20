@@ -8,6 +8,7 @@ import { ledgerClock } from './ledger.js'
 import { isMnemeEnabled, mnemeProjectKey, projectRecordsDir } from './paths.js'
 import { registerSessionCloseAsk, registerSessionCloser, type SessionCloseAsk, type SessionCloseContext } from './sessionClose.js'
 import { JOURNAL_ENTRY_SHAPE, JOURNAL_TOOL_NAME } from '../tools/JournalTool/prompt.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const JOURNAL_ENTRY_CAP = 4000
 const JOURNAL_FILE = 'journal.md'
@@ -71,7 +72,8 @@ export function readJournal(projectKey: string = mnemeProjectKey()): JournalEntr
   let raw: string
   try {
     raw = readFileSync(journalPath(projectKey), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return parseJournal(raw)

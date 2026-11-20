@@ -4,6 +4,7 @@ import { accountIdentityShown, familyAccountWord } from '../wallet/identityWords
 import { catalogueEpoch } from './catalogueEpoch.js'
 import { deriveFamilySlotGroups, type AccountSlot, type AccountSlotReads, type FamilySlotGroup } from './accountSlots.js'
 import { presenceIdentityWords, providerFamilyPresences, type ProviderFamilyPresence } from './providerUsage.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const NO_ACCOUNT_WORDS = 'no account'
 const SIGNED_IN_AS_WORDS = 'Signed in as'
@@ -65,7 +66,8 @@ let memo: { key: string; at: number; groups: FamilySlotGroup[] } | null = null
 function presenceDigest(): string {
   try {
     return JSON.stringify(providerFamilyPresences())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
 }

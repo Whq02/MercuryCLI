@@ -8,6 +8,7 @@ import {
 } from '../../daemon/sessionKit.js'
 import { appendSessionReceipt } from '../switchboard/sessionReceipts.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type SessionKitPinReceipt =
   | { outcome: 'none' }
@@ -44,7 +45,8 @@ function refuse(reason: string): SessionKitPinReceipt {
   const line = `kit refused — ${reason}; this session loads no extensions`
   try {
     process.stderr.write(`${line}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   logForDebugging(`[kit] ${line}`)
   return { outcome: 'refused', reason, kit: emptySessionKit() }

@@ -2,6 +2,7 @@ import { getSessionId } from '../../bootstrap/state.js'
 import { liveSessions } from '../../mneme/ledger.js'
 import { mnemeProjectKey } from '../../mneme/paths.js'
 import { FILE_UNEXPECTEDLY_MODIFIED_ERROR } from './constants.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const UNREAD_EXISTING_FILE_NOTE = "it exists and was not read in this session, so it may be another session's work"
 
@@ -10,7 +11,8 @@ export function otherLiveSessionsClause(): string {
   try {
     const own = String(getSessionId())
     others = liveSessions(mnemeProjectKey()).filter(session => session.sessionId !== own)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
   if (others.length === 0) return ''

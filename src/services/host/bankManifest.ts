@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { parseBankSums } from './boxBank.js'
 import type { HostRecipe, HostWeightManifest } from './recipes.js'
 import { hostWeightManifestSchema } from './recipesFile.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface BankManifest { manifest?: HostWeightManifest; reason?: string }
 interface FolderFile { path: string; size: number; mtimeNs: string }
@@ -22,11 +23,11 @@ function folderFiles(root: string): FolderFile[] {
   const rows: FolderFile[] = []
   const walk = (dir: string, prefix: string): void => {
     let names: string[]
-    try { names = readdirSync(dir).sort() } catch { return }
+    try { names = readdirSync(dir).sort() } catch (error) { passedOver(error); return }
     for (const name of names) {
       if (name === '.DS_Store' || !prefix && (name === '.cache' || bookkeeping.has(name))) continue
       let stat
-      try { stat = lstatSync(join(dir, name), { bigint: true }) } catch { continue }
+      try { stat = lstatSync(join(dir, name), { bigint: true }) } catch (error) { passedOver(error); continue }
       if (stat.isDirectory()) walk(join(dir, name), prefix + name + '/')
       else if (stat.isFile()) rows.push({ path: prefix + name, size: Number(stat.size), mtimeNs: String(stat.mtimeNs) })
     }
@@ -38,12 +39,12 @@ function receiptRevisions(root: string, paths: string[]): string[] {
   const seen = new Set<string>()
   for (const path of paths) {
     let first: string | undefined
-    try { first = readFileSync(join(root, '.cache/huggingface/download', path + '.metadata'), 'utf8').split('\n')[0]?.trim() } catch { continue }
+    try { first = readFileSync(join(root, '.cache/huggingface/download', path + '.metadata'), 'utf8').split('\n')[0]?.trim() } catch (error) { passedOver(error); continue }
     if (first && /^[a-f0-9]{40}$/.test(first)) seen.add(first)
   }
   if (!seen.size) {
     let trees: string[] = []
-    try { trees = readdirSync(join(root, '.cache/huggingface/trees')).filter(name => /^[a-f0-9]{40}\.json$/.test(name)) } catch {}
+    try { trees = readdirSync(join(root, '.cache/huggingface/trees')).filter(name => /^[a-f0-9]{40}\.json$/.test(name)) } catch (error) { passedOver(error) }
     for (const name of trees) seen.add(name.slice(0, 40))
   }
   return [...seen].sort()
@@ -97,12 +98,12 @@ function build(recipe: HostRecipe, path: string, sumsText: string, files: Folder
 }
 export function bankManifest(recipe: HostRecipe, path: string): BankManifest {
   let directory = false
-  try { directory = lstatSync(path).isDirectory() } catch {}
+  try { directory = lstatSync(path).isDirectory() } catch (error) { passedOver(error) }
   if (!directory) return { reason: 'not banked · b banks the weights' }
   let sumsText: string
   try { sumsText = readFileSync(join(path, 'SHA256SUMS'), 'utf8') } catch { return { reason: 'no SHA256SUMS in ' + path + ' · b banks the weights and seals one' } }
   let sizesText = ''
-  try { sizesText = readFileSync(join(path, 'SIZES.json'), 'utf8') } catch {}
+  try { sizesText = readFileSync(join(path, 'SIZES.json'), 'utf8') } catch (error) { passedOver(error) }
   const files = folderFiles(path)
   const receipts = receiptRevisions(path, files.map(file => file.path))
   const key = path + '\n' + recipe.model + '\n' + (recipe.include ?? '')

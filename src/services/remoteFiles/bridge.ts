@@ -54,6 +54,7 @@ import {
   type RemoteAuthority,
   type RemoteTarget,
 } from './target.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 type ToolType = 'read' | 'edit'
 
@@ -91,7 +92,7 @@ async function resolveNames(rules: ToolPermissionContext, authority: RemoteAutho
     const strict = remoteRuleAuthority(pattern)
     if (strict !== null) named.set(authorityText(strict), strict)
   }
-  await Promise.all([...named.values()].map(one => resolveRemoteAuthority(one, signal).catch(() => undefined)))
+  await Promise.all([...named.values()].map(one => resolveRemoteAuthority(one, signal).catch(passedOverAs(undefined))))
 }
 
 function judge(toolName: string, path: string, input: Record<string, unknown> | undefined, rules: ToolPermissionContext, toolType: ToolType): PermissionDecision {

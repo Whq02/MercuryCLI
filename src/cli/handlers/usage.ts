@@ -21,6 +21,7 @@ import {
 import { usageFreshness, usageSourceWords, type UsageFreshnessFacts } from '../../services/providers/usageFreshness.js'
 import { getEngineModel } from '../../utils/model/model.js'
 import type { ProviderFamilyId } from '../../services/providers/providerAdapter.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const USAGE_READING_SCHEMA = 1
 
@@ -126,7 +127,7 @@ async function sampleShownFamilies(families: readonly ProviderFamilyPresence[]):
 }
 
 export async function composeUsageReading(now: number = Date.now()): Promise<Record<string, unknown>> {
-  await refreshProviderUsage('local', { reason: 'open' }).catch(() => undefined)
+  await refreshProviderUsage('local', { reason: 'open' }).catch(passedOverAs(undefined))
   const families = providerFamilyPresences()
   const sampled = await sampleShownFamilies(families)
   const active = activeSourceUsage()

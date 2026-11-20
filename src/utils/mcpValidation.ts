@@ -3,6 +3,7 @@ import { countMessagesTokensWithAPI, roughTokenCountEstimation } from '../servic
 import type { ContentBlockParam, ImageBlockParam, MessageParam, TextBlockParam } from '../types/wire.js'
 import { compressImageBlock } from './imageResizer.js'
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 
 const MCP_TOKEN_COUNT_THRESHOLD_FACTOR = 0.5
@@ -88,7 +89,8 @@ export async function truncateMcpContent(content: MCPToolResult): Promise<MCPToo
           const compressed = await compressImageBlock(block as ImageBlockParam, Math.floor(remaining * 0.75))
           kept.push(compressed)
           used += compressed.source.type === 'base64' ? compressed.source.data.length : flatCharge
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       continue

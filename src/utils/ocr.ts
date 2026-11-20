@@ -5,6 +5,7 @@ import { loadDesktopAddon } from '../services/desktop/pack.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
 import { extractPDFPages, removePDFPages } from './pdf.js'
+import { passedOver } from './passedOver.js'
 
 type OcrResult = { ok: true; engine: string; languages: string[]; text: string } | { ok: false; message: string }
 type NativeOcr = { recognise: (bytes: Buffer, page?: number) => Promise<string>; languages: string[] }
@@ -24,7 +25,7 @@ export async function resolveOcrEngine(options: { platform?: string; native?: ()
       try {
         const loaded = loadDesktopAddon()
         if (loaded.state === 'ok' && loaded.addon.recogniseText && loaded.addon.ocrLanguages) native = { recognise: loaded.addon.recogniseText.bind(loaded.addon), languages: loaded.addon.ocrLanguages() }
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     if (native && native.languages.length) return { kind: 'native', name: platform === 'darwin' ? 'macOS Vision' : 'Windows OCR', ...native }
   }
@@ -42,7 +43,7 @@ async function cachedOcr(bytes: Buffer, engine: OcrEngine, page: number | undefi
   if (engine.kind === 'unavailable') return { ok: false, message: engine.message }
   const digest = createHash('sha256').update(bytes).update(`${engine.name}:v2:${engine.languages.join('+')}:${page ?? 'image'}`).digest('hex')
   const path = join(getToolResultsDir(), `ocr-${digest}.txt`)
-  try { return { ok: true, engine: engine.name, languages: engine.languages, text: await readFile(path, 'utf8') } } catch {}
+  try { return { ok: true, engine: engine.name, languages: engine.languages, text: await readFile(path, 'utf8') } } catch (error) { passedOver(error) }
   try {
     const text = await run()
     await ensureToolResultsDir()

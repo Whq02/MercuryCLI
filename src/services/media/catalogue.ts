@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { mediaBundleRoot, mediaRoot, readMediaSettings, type MediaSettings } from './settings.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const positive = z.number().int().positive()
 const FileSchema = z.object({ path: z.string().min(1), bytes: positive, repo: z.string().optional(), source: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional() }).passthrough()
@@ -59,7 +60,7 @@ export function mediaCheckpointFile(model: Pick<MediaModel, 'id' | 'checkpoint' 
 export function mediaCheckpointInstalled(root: string, catalogue: Pick<MediaCatalogue, 'recipes'>, model: Pick<MediaModel, 'id' | 'recipe' | 'checkpoint' | 'control'>): boolean {
   if (!(model.control && model.checkpoint) && !catalogue.recipes.find(recipe => recipe.id === (model.recipe ?? model.id))?.checkpoint) return false
   const file = mediaCheckpointFile(model)
-  try { const stat = statSync(modelFilePath(root, file.path)); return stat.isFile() && (file.bytes === undefined ? stat.size > 0 : stat.size === file.bytes) } catch { return false }
+  try { const stat = statSync(modelFilePath(root, file.path)); return stat.isFile() && (file.bytes === undefined ? stat.size > 0 : stat.size === file.bytes) } catch (error) { passedOver(error); return false }
 }
 
 export function parseMediaCatalogue(bundled: unknown, custom?: unknown): MediaCatalogue {
@@ -97,9 +98,9 @@ export function mediaModelFiles(catalogue: MediaCatalogue, model: MediaModel): M
 }
 
 export function mediaPartialBytes(root: string, file: MediaFile): number {
-  try { const stat = statSync(`${modelFilePath(root, file.path)}.part`); return stat.isFile() ? Math.min(file.bytes, stat.size) : 0 } catch { return 0 }
+  try { const stat = statSync(`${modelFilePath(root, file.path)}.part`); return stat.isFile() ? Math.min(file.bytes, stat.size) : 0 } catch (error) { passedOver(error); return 0 }
 }
 
 export function mediaFileInstalled(root: string, file: MediaFile): boolean {
-  try { const stat = statSync(modelFilePath(root, file.path)); return stat.isFile() && stat.size === file.bytes } catch { return false }
+  try { const stat = statSync(modelFilePath(root, file.path)); return stat.isFile() && stat.size === file.bytes } catch (error) { passedOver(error); return false }
 }

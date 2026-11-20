@@ -11,6 +11,7 @@ import { LifePart } from './roster/life.js'
 import { SpawnPart } from './roster/spawn.js'
 import { RetargetPart } from './roster/retarget.js'
 import { DispatchPart } from './roster/dispatch.js'
+import { passedOver } from '../utils/passedOver.js'
 export { RUNNER_ASK_BOUND_MS, decideRunnerEnd } from './roster/end.js'
 
 const DELIVERED_ID_CAP = 500
@@ -143,7 +144,7 @@ export class TaskRoster {
     if (worker) {
       void import('./concourseWorkers.js')
         .then(sup => sup.markConcourseWorkerDelivery(short))
-        .catch(() => {})
+        .catch(passedOver)
     }
     if (!(await door.deliver(row))) {
       if (ll.turnEdges === edgesBefore) {
@@ -152,7 +153,7 @@ export class TaskRoster {
         if (worker) {
           void import('./concourseWorkers.js')
             .then(sup => sup.markConcourseWorkerTurnSettled(short))
-            .catch(() => {})
+            .catch(passedOver)
         }
       }
       return false

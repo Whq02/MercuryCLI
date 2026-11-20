@@ -26,6 +26,7 @@ import { sendPassedOverToDebugLog } from '../utils/passedOverSink.js'
 import { isSessionMarkedNonInteractive } from '../utils/cockpit/runtimePosture.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { armScratchpadSweep } from '../utils/scratchpad.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function runArgumentsLeaveBashOut(args: readonly string[]): boolean {
   const toolset = readSessionOptionValues(args, '--toolset')
@@ -65,14 +66,15 @@ export const init: () => Promise<void> = memoize(async (): Promise<void> => {
       logForDebugging(`init: oauth account populate failed: ${String(error)}`),
     )
 
-    void restoreGatewayAuth().catch(() => {})
+    void restoreGatewayAuth().catch(passedOver)
 
-    void getGithubRepo().catch(() => {})
+    void getGithubRepo().catch(passedOver)
 
     setImmediate(() => {
       try {
         ensureLocalSettingsSchema()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })
 

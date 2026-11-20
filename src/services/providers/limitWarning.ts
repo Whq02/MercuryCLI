@@ -6,6 +6,7 @@ import { activeSourceUsage, bindingWindowOf, usageCarryWords, type ActiveUsageRe
 import { getEngineModel } from '../../utils/model/model.js'
 
 import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { FIRST_WARNING_PCT, SECOND_WARNING_PCT, APPROACHING_LIMIT_PCT, usageWarningTier, usageWindowState, type UsageWarningTier } from './usageTiers.js'
 
 export interface ProviderLimitWarningView {
@@ -77,7 +78,8 @@ export function providerLimitWarningFacts(opts?: {
       ...(opts?.model !== undefined ? { model: opts.model } : {}),
       ...(reads !== undefined ? { reads } : {}),
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const now = Date.now()

@@ -6,6 +6,7 @@ import { sealDownloadedBank, verifyBoxBank } from './boxBank.js'
 import { boxServiceFiles, boxServiceRunning, controlBoxService, installBoxService, readBoxService, writeBoxService, type BoxServiceRecord } from './boxService.js'
 import { hostRunner, type HostRunner } from './ssh.js'
 import { LLAMACPP_ENGINE_SHA } from './recipes.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 interface BoxStartOptions { runner?: HostRunner; signal?: AbortSignal; timeoutMs?: number; pauseMs?: number; port?: number; bank: boolean; destination: string; confirmed: boolean; onStep?: (words: string) => void }
 export function boxEngineScript(box: HostBox, recipe: BoxRecipe, executable: string, destination: string, port: number, loadModel = true): string {
@@ -116,7 +117,7 @@ export async function startBoxEngine(box: HostBox, recipe: BoxRecipe, options: B
       await sleep(options.pauseMs ?? 1000, signal, { throwOnAbort: true })
     }
   } catch (error) {
-    const stopped = installed && !signal.aborted && await controlBoxService(box, 'stop', runner, signal).then(() => true, () => false)
+    const stopped = installed && !signal.aborted && await controlBoxService(box, 'stop', runner, signal).then(() => true, passedOverAs(false))
     record.state = 'failed'; record.error = String(error); writeBoxService(record)
     throw new Error(String(error) + (!installed ? '' : stopped ? ' · the service was stopped; mercury host logs ' + box.name + ' shows the engine output' : ' · the service may still be running; mercury host status ' + box.name + ' / stop ' + box.name))
   }
@@ -132,7 +133,7 @@ export async function boxEngineStatus(box: HostBox, runner: HostRunner = hostRun
     if (!list.data?.some(row => row.id === record.model)) return { record, words: 'box ' + box.name + ' · service running · selected model not loaded yet' }
   } catch (error) { return { record, words: 'box ' + box.name + ' · service running · model endpoint not answering · mercury host logs ' + box.name } }
   if (record.engine === 'llamacpp') {
-    const slots = await boxHttp(box, record.port, '/slots', runner, signal).catch(() => undefined) as { is_processing?: boolean; timings?: { predicted_per_second?: number } }[] | undefined
+    const slots = await boxHttp(box, record.port, '/slots', runner, signal).catch(passedOverAs(undefined)) as { is_processing?: boolean; timings?: { predicted_per_second?: number } }[] | undefined
     const rates = Array.isArray(slots) ? slots.map(slot => slot.timings?.predicted_per_second).filter((rate): rate is number => typeof rate === 'number' && Number.isFinite(rate) && rate > 0) : []
     if (rates.length && record.rateKind !== 'whole-turn') { record.tokensPerSecond = rates.at(-1); record.rateKind = 'generation'; writeBoxService(record) }
     const busy = Array.isArray(slots) ? slots.filter(slot => slot.is_processing).length : undefined

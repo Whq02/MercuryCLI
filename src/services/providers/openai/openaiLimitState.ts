@@ -1,3 +1,5 @@
+import { passedOver } from '../../../utils/passedOver.js'
+
 export type OpenaiLimitWindow =
   | { state: 'limited'; resetsAtMs: number; observedAtMs: number }
   | { state: 'clear' }
@@ -16,7 +18,8 @@ function noteObservedChanged(): void {
   for (const listener of observedListeners) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -173,7 +176,8 @@ export function recordOpenaiRateHeaders(
     }, observedAtMs, 'headers')
     if (credits !== undefined) next.credits = credits
     adoptOpenaiObservedUsage(next)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -223,7 +227,8 @@ export function adoptOpenaiObservedUsage(
       observedUsage = next
       noteObservedChanged()
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

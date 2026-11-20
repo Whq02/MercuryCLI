@@ -11,6 +11,7 @@ import { NOUS_MODEL_PREFIX, nousDeclaresTools, nousEffortVocabularyFor, nousWire
 import { NOUS_KEY_LEG_OFFER } from './nousLogin.js'
 import { NOUS_SIGNIN_EXPIRED_LINE, nousRefreshTrouble, refreshNousTokens } from './nousOauth.js'
 import { refreshNousAccount } from './nousUsageState.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const NOUS_SIGNIN_AUTH_REMEDY = `${NOUS_SIGNIN_EXPIRED_LINE}; the Portal refused the sign-in token.`
 
@@ -26,7 +27,8 @@ export const nousLaneProfile: CompatLaneProfile = {
     try {
       const credential = await resolveNousCredential()
       return credential ? { apiKey: credential.key, requestUrl: nousChatCompletionsUrl(undefined, credential.source) } : undefined
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   },
@@ -53,8 +55,8 @@ export const nousLaneProfile: CompatLaneProfile = {
       ? `the Nous Portal catalogue states that '${wireModel}' does not take tools — /model picks a row whose supported parameters list tools.`
       : undefined,
   onResponseHeaders: () => {
-    void refreshNousAccount().catch(() => {})
-    void refreshNousCatalogue().catch(() => {})
+    void refreshNousAccount().catch(passedOver)
+    void refreshNousCatalogue().catch(passedOver)
   },
 }
 
@@ -69,7 +71,8 @@ const nousSigninLaneProfile: CompatLaneProfile = {
     try {
       const tokens = await refreshNousTokens(undefined, true)
       return tokens?.refreshToken ? { apiKey: tokens.accessToken, requestUrl: nousChatCompletionsUrl(undefined, 'signin') } : undefined
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   },

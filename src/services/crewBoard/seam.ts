@@ -18,6 +18,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { enqueuePendingNotification } from '../../utils/messageQueueManager.js'
 import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import type { BoardSettlement } from './wakeState.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const requireOptional = createRequire(import.meta.url)
 let implementation: BoardModule | undefined
@@ -346,7 +347,7 @@ export function swarmPeerMessage(context: ToolUseContext, recipient: string, tex
       const board = swarmStore()
       const principal = swarmPrincipal(sender) ?? { author: { sessionId: String(getSessionId()), agentId: sender, executionId: context.toolUseId ?? sender }, name: sender }
       board?.post(principal, { clientOpId: `${resume ? 'resume' : 'message'}:${context.toolUseId ?? randomUUID()}`, kind: 'message', text: directWords(text), taskId: recipient, refs: [{ uri: `mercury://agent/${recipient}`, digest: createHash('sha256').update(text).digest('hex') }] }, 'mirror')
-    } catch {}
+    } catch (error) { passedOver(error) }
     return { handled: false }
   }
   if (!swarmRoad(sender) && !swarmRoad(recipient)) return { handled: false }
@@ -382,7 +383,7 @@ function readPackets(messages: readonly Message[]): { packetId: string; eventIds
         const text = typeof block.content === 'string' ? block.content : (block.content ?? []).flatMap(part => part.type === 'text' ? [part.text] : []).join('')
         const data: unknown = JSON.parse(text)
         if (data && typeof data === 'object' && 'packetId' in data && typeof data.packetId === 'string' && 'events' in data && Array.isArray(data.events)) packets.push({ packetId: data.packetId, eventIds: data.events.flatMap(event => event && typeof event === 'object' && typeof event.eventId === 'string' ? [event.eventId] : []) })
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
   }
   return packets

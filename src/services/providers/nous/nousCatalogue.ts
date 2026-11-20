@@ -12,6 +12,7 @@ import { canonicalWireModelId, declaredRouteOf, healListedCatalogueRowId, qualif
 import { OPENROUTER_REASONING_EFFORTS } from '../openaicompat/compatWire.js'
 import { nousApiBase, nousAccountIdentity, resolveNousAccount, resolveNousCredentialSnapshot, type NousCredentialSource } from './nousAccounts.js'
 import { NOUS_SIGNIN_EXPIRED_LINE } from './nousOauth.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const NOUS_CATALOGUE_TTL_MS = 5 * 60_000
@@ -226,11 +227,11 @@ export function getNousAvailability(env: NodeJS.ProcessEnv = process.env): NousA
   const verdict = catalogueTrafficVerdict('nous', env)
   if (!verdict.allowed && (!snapshot || snapshot.models.length === 0)) return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   if (!snapshot) {
-    void refreshNousCatalogue({ env }).catch(() => {})
+    void refreshNousCatalogue({ env }).catch(passedOver)
     return { state: 'disabled', why: 'catalogue-pending', reason: 'live catalogue not fetched yet — retry shortly' }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    void refreshNousCatalogue({ env }).catch(() => {})
+    void refreshNousCatalogue({ env }).catch(passedOver)
     if (/refused the credential/.test(snapshot.lastError)) {
       return { state: 'disabled', why: 'auth-invalid', reason: 'the Nous Portal key was refused — /logins nous stores another' }
     }

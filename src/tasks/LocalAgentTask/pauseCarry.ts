@@ -13,6 +13,7 @@ import { getAgentMetadataPath, getTranscriptPath, readAgentMetadata } from '../.
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { decodeAgentPause, type AgentPauseV1 } from './agentPause.js'
 import { AGENT_WINDOW_RESUME_NOTE, isLocalAgentTask, type LocalAgentTaskState } from './LocalAgentTask.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type AgentPauseRecordFacts = {
   description: string
@@ -32,7 +33,7 @@ const writesInFlight = new Map<string, Promise<void>>()
 
 export async function writeAgentPauseRecord(agentId: string, record: AgentPauseRecordV1): Promise<void> {
   const previous = writesInFlight.get(agentId) ?? Promise.resolve()
-  const write: Promise<void> = previous.catch(() => undefined).then(() => publishAtomic(agentPauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
+  const write: Promise<void> = previous.catch(passedOverAs(undefined)).then(() => publishAtomic(agentPauseRecordPath(agentId), JSON.stringify(record))).then(() => undefined)
   writesInFlight.set(agentId, write)
   try {
     await write
@@ -42,7 +43,7 @@ export async function writeAgentPauseRecord(agentId: string, record: AgentPauseR
 }
 
 export async function clearAgentPauseRecord(agentId: string): Promise<void> {
-  await writesInFlight.get(agentId)?.catch(() => undefined)
+  await writesInFlight.get(agentId)?.catch(passedOverAs(undefined))
   try {
     await unlink(agentPauseRecordPath(agentId))
   } catch (failure) {
@@ -76,7 +77,8 @@ export async function readAgentPauseRecord(agentId: string): Promise<AgentPauseR
   }
   try {
     return decodeAgentPauseRecord(JSON.parse(bytes))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -95,7 +97,7 @@ async function listAgentPauseRecords(): Promise<Array<{ agentId: AgentId; record
     const match = /^agent-(.+)\.pause\.json$/.exec(name)
     if (!match) continue
     const agentId = asAgentId(match[1]!)
-    const record = await readAgentPauseRecord(agentId).catch(() => null)
+    const record = await readAgentPauseRecord(agentId).catch(passedOverAs(null))
     if (record !== null) rows.push({ agentId, record })
   }
   return rows.sort((a, b) => a.record.armedAt - b.record.armedAt)
@@ -119,10 +121,10 @@ export async function carryPausedCrewmatesOnResume(ports: PauseCarryPorts): Prom
   for (const { agentId, record } of records) {
     const standing = ports.getAppState().tasks?.[agentId]
     if (isLocalAgentTask(standing) && standing.status === 'running') {
-      await clearAgentPauseRecord(agentId).catch(() => undefined)
+      await clearAgentPauseRecord(agentId).catch(passedOverAs(undefined))
       continue
     }
-    const metadata = await readAgentMetadata(agentId).catch(() => null)
+    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
     const registration = new AbortController()
     ports.setAppState(prev => {
       const previous = prev.tasks[agentId]

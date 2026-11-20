@@ -5,6 +5,7 @@ import { isEnvDefinedFalsy } from '../../utils/envUtils.js'
 import type { EditHunkInput } from './hunks.js'
 import { mintFileAnchor, parseAnchor } from './snapshotAnchor.js'
 import { recallAnchoredSnapshot } from './snapshotRing.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function staleEditRecoveryEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_EDIT_STALE_RECOVERY'))
@@ -140,7 +141,8 @@ export function relocateStaleHunksFromRing(
       freshAnchor: mintFileAnchor(currentBody),
       note: outcome.warnings.join('; '),
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

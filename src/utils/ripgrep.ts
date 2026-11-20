@@ -15,6 +15,7 @@ import { findExecutable } from './findExecutable.js'
 import { isInBundledMode } from './bundledMode.js'
 import { logError } from './log.js'
 import { getPlatform } from './platform.js'
+import { passedOver } from './passedOver.js'
 
 
 export type RipgrepMode = 'system' | 'builtin' | 'embedded'
@@ -278,7 +279,8 @@ export function endLiveRipgrepChildren(): number {
         else child.kill('SIGKILL')
         ended++
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   liveChildren.clear()

@@ -10,6 +10,7 @@ import {
   subscribeNoticeLedger,
   type NoticeRecord,
 } from './unreadLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const NOTICE_DEADLINE_DEFAULT_MS = 180_000
@@ -154,7 +155,8 @@ export function startIdleNudge(ports: IdleNudgePorts): IdleNudge {
         }
         try {
           ports.discard?.(notices)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         continue
       }

@@ -2,6 +2,7 @@
 import { clearAuthScope, getAuthScope, setAuthScope } from '../envUtils.js'
 import { getSecureStorage } from '../secureStorage/index.js'
 import { clearKeychainCache } from '../secureStorage/macOsKeychainHelpers.js'
+import { passedOver } from '../passedOver.js'
 
 interface AccountOAuthCreds {
   accessToken: string
@@ -37,7 +38,8 @@ export function readAccountOAuthCreds(configDir: string): AccountOAuthCreds | un
         expiresAt: typeof oa?.expiresAt === 'number' ? oa.expiresAt : null,
       }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

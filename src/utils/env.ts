@@ -5,6 +5,7 @@ import { memoize } from 'lodash-es'
 
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { whichSync } from './which.js'
+import { passedOver } from './passedOver.js'
 
 
 export function globalConfigFileIn(home: string): string {
@@ -123,7 +124,8 @@ export const detectDeploymentEnvironment = memoize((): string => {
   try {
     const uuid = readFileSync(HYPERVISOR_UUID_FILE, 'utf8').trim().toLowerCase()
     if (uuid.startsWith('ec2')) return 'aws-ec2'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (envVars.K_SERVICE) return 'gcp-cloud-run'
   if (envVars.GOOGLE_CLOUD_PROJECT) return 'gcp'
@@ -139,7 +141,8 @@ export const detectDeploymentEnvironment = memoize((): string => {
   if (envVars.KUBERNETES_SERVICE_HOST) return 'kubernetes'
   try {
     if (existsSync(DOCKER_MARKER)) return 'docker'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   switch (normalizedPlatform()) {
     case 'darwin':
@@ -156,7 +159,8 @@ export const detectDeploymentEnvironment = memoize((): string => {
 const isWslEnvironment = memoize((): boolean => {
   try {
     return existsSync(WSL_INTEROP_MARKER)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 })
@@ -189,7 +193,8 @@ export const env = {
     try {
       const npmPath = whichSync('npm')
       return npmPath !== null && npmPath.startsWith('/mnt/c/')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   }),

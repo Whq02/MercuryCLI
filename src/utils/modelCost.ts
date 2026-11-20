@@ -22,6 +22,7 @@ import { fireworksDisplayPin } from '../services/providers/fireworks/fireworksPi
 import { qwenRegionalPrice, qwenResolvedPricing } from '../services/providers/qwen/qwenPricing.js'
 import { getCanonicalName, getDefaultEngineModelSetting, type ModelShortName } from './model/model.js'
 import { ALL_MODEL_CONFIGS, familyHeadOf } from './model/configs.js'
+import { passedOver } from './passedOver.js'
 
 
 export type ModelCosts = {
@@ -202,7 +203,8 @@ function openrouterCataloguePricing(model: string): ResolvedModelPricing | undef
     const { openrouterListedModel } =
       require('../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../services/providers/openrouter/openrouterCatalogue.js')
     listed = openrouterListedModel(model)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   const input = perMtokFromPerToken(listed?.pricing?.prompt)
@@ -229,7 +231,8 @@ function nousCataloguePricing(model: string, promptTokens: number | undefined): 
     const { nousListedModel } =
       require('../services/providers/nous/nousCatalogue.js') as typeof import('../services/providers/nous/nousCatalogue.js')
     listed = nousListedModel(model)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   const base = listed?.pricing

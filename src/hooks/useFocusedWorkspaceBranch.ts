@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { useLoad } from './effects.js'
 import { useFocusedWorkspaceCwd } from './useFocusedWorkspaceCwd.js'
 import { gitArgs } from '../utils/git/spawnArgs.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type WorkspaceBranchV1 = { cwd: string; folder: string; branch: string | null }
 
@@ -17,7 +18,8 @@ function readBranchSync(cwd: string): string | null {
     const head = readFileSync(join(cwd, '.git', 'HEAD'), 'utf8').trim()
     const m = /^ref:\s*refs\/heads\/(.+)$/.exec(head)
     return m && m[1] ? m[1] : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -52,6 +52,7 @@ import {
 import { FILE_WRITE_TOOL_NAME } from '../prompt.js'
 import type { AssistantMessage } from '../../../types/message.js'
 import type { Input, Output } from './schema.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 function sha16(content: string): string {
   return runtimeKernel().hash.sha256Hex(content).slice(0, 16)
@@ -111,7 +112,7 @@ export async function writeFileCall(input: Input, context: ToolUseContext, canUs
       const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
       for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
       if (fresh.length > 0) {
-        void Promise.resolve(addSkillDirectories(fresh)).catch(() => undefined)
+        void Promise.resolve(addSkillDirectories(fresh)).catch(passedOverAs(undefined))
       }
       activateConditionalSkillsForPaths([expandedPath], getCwd())
     } catch (err) {

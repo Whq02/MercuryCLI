@@ -6,6 +6,7 @@ import {
   type InvocationTrace,
 } from '../observability/invocationTrace.js'
 import { withState, type Snapshot } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export type CompactionAgg = {
   total: number
@@ -39,7 +40,8 @@ export function parseTraceLines(text: string): {
       if (rec.kind === 'compaction' && typeof rec.event === 'string') {
         compaction.push(rec as CompactionTrace)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return { records, compaction }
@@ -177,7 +179,8 @@ export async function traceSnapshot(): Promise<Snapshot<{ data: TraceData }>> {
   const enabled = (() => {
     try {
       return isInvocationTraceEnabled()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })()

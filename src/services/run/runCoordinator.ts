@@ -21,6 +21,7 @@ import {
   type RunSnapshot,
 } from './runKernel.js'
 import { loadRunSidecar, saveRunSidecar, type RunSidecarLoad } from './runSidecar.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const FLUSH_COALESCE_MS = 250
 
@@ -71,7 +72,8 @@ function notify(owner: OwnerKey): void {
   for (const cb of subscribers) {
     try {
       cb(owner)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -84,7 +86,8 @@ function shouldPersist(owner: OwnerKey, snapshot: RunSnapshot): boolean {
   if (!snapshot.substantive) return false
   try {
     return parseOwnerKey(owner).lane === 'main'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -231,7 +234,8 @@ export async function syncDeliverablesFromTasks(owner: OwnerKey): Promise<void> 
   let tasks: Awaited<ReturnType<typeof listTasks>>
   try {
     tasks = await listTasks(getTaskListId())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const task of tasks) {
@@ -251,7 +255,8 @@ export async function syncDeliverablesFromTasks(owner: OwnerKey): Promise<void> 
     try {
       const { readTaskEpoch } = await import('../../utils/tasks.js')
       if ((await readTaskEpoch(getTaskListId())) === 0) return
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
   }
@@ -287,7 +292,8 @@ export function syncVerification(owner: OwnerKey, cwd: string): void {
         detail: s.detail,
       })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

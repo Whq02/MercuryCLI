@@ -8,6 +8,7 @@ import { createGunzip, inflateRawSync } from 'node:zlib'
 import { hasBinaryExtension } from '../../constants/files.js'
 import { formatFileSize } from '../../utils/format.js'
 import { openRegularFileSync, readRegularFileSync } from '../../utils/regularFile.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz'])
 const SQLITE_EXTENSIONS = new Set(['sqlite', 'sqlite3', 'db'])
@@ -1280,7 +1281,7 @@ export async function renderSqliteTarget(
         const res = queryBoundedSqliteRows(db, obj.name, SQLITE_SAMPLE_ROWS)
         cols = res.cols
         sample = res.rows
-      } catch {}
+      } catch (error) { passedOver(error) }
       lines.push('')
       lines.push(isView ? `## ${obj.name} (view)` : `## ${obj.name} (${obj.type}, ${countDesc})`)
       if (obj.sql) lines.push(obj.sql.trim())

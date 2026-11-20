@@ -4,6 +4,7 @@ import { accessSync, constants, mkdirSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, delimiter, join } from 'node:path'
 import { ADAPTER_VERSION, LLAMACPP_RELEASE, LLAMACPP_RUNTIME_BIN, LLAMACPP_WINDOWS_CPU_ASSET } from './identity.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type LlamaIo = {
   platform?: NodeJS.Platform
@@ -21,7 +22,8 @@ function executable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

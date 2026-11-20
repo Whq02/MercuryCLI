@@ -76,6 +76,7 @@ import { armReconcile } from './run/sweep.js'
 import { makeDaemonRoster } from './run/roster.js'
 import { armSaturn } from './run/saturn.js'
 import { controlServerDeps } from './run/control.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function resolveDir(args: string[]): string {
   const arg = args.find(a => !a.startsWith('-'))
@@ -86,7 +87,8 @@ function persistDaemonCrash(err: unknown, label: string): void {
   try {
     const crashMod = require('../utils/crashReport.js') as typeof import('../utils/crashReport.js')
     crashMod.persistCrashReport(err, undefined, label === 'uncaughtException' ? 'uncaught-exception' : 'unhandled-rejection')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -309,7 +311,7 @@ async function daemonRun(args: string[]): Promise<void> {
       const warmAdmitDoors = {
         claimWarm: (args: Parameters<typeof claimWarmRunner>[0]) => claimWarmRunner(args, warmDeps),
         ensureWarm: (workspaceDir: string, kit?: Parameters<typeof ensureWarmRunner>[0]['kit'], bypassConsent?: boolean) => {
-          void ensureWarmRunner({ workspaceDir, ...(kit !== undefined ? { kit } : {}), ...(bypassConsent === true ? { bypassConsent: true } : {}) }, warmDeps).catch(() => {})
+          void ensureWarmRunner({ workspaceDir, ...(kit !== undefined ? { kit } : {}), ...(bypassConsent === true ? { bypassConsent: true } : {}) }, warmDeps).catch(passedOver)
         },
       }
       const concourseDispatchHandler = makeConcourseDispatchHandler({

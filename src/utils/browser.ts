@@ -1,4 +1,5 @@
 import { execFileNoThrow } from './execFileNoThrow.js'
+import { passedOver } from './passedOver.js'
 
 
 export async function openPath(path: string): Promise<boolean> {
@@ -7,7 +8,8 @@ export async function openPath(path: string): Promise<boolean> {
       process.platform === 'win32' ? 'explorer' : process.platform === 'darwin' ? 'open' : 'xdg-open'
     const result = await execFileNoThrow(opener, [path])
     return result.code === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -39,7 +41,8 @@ export async function openBrowser(url: string): Promise<boolean> {
     const handler = process.env.BROWSER || (process.platform === 'darwin' ? 'open' : 'xdg-open')
     const result = await execFileNoThrow(handler, [url])
     return result.code === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

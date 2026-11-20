@@ -6,6 +6,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../../utils/cwd.js'
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { whichSync } from '../../utils/which.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SPRITE_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
@@ -18,7 +19,8 @@ export function mercuryAsepriteEnabled(): boolean {
 function isFile(p: string): boolean {
   try {
     return statSync(p).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -39,7 +41,8 @@ export function discoverSpriteFiles(from: string = getCwd(), denied?: (file: str
     let entries: Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))

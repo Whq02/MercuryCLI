@@ -20,6 +20,7 @@ import {
   type CompiledPattern,
 } from './pattern.js'
 import { normalizeFileGlobs, posixRelative } from './scanPaths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_FILES_SCANNED = 3000
 
@@ -127,7 +128,8 @@ export function discoverPolyglotFiles(
     try {
       const resolved = realpathSync(root)
       rootLinked = process.platform === 'win32' ? resolved.toLowerCase() !== root.toLowerCase() : resolved !== root
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -136,7 +138,8 @@ export function discoverPolyglotFiles(
     let entries: string[]
     try {
       entries = readdirSync(dir).sort()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const entry of entries) {
@@ -152,7 +155,8 @@ export function discoverPolyglotFiles(
           linked ||= entryStat.isSymbolicLink()
           stat = entryStat.isSymbolicLink() ? statSync(full) : entryStat
         } else stat = statSync(full)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (stat.isDirectory()) {

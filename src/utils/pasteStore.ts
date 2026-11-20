@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from './envUtils.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 const STORE_DIR_NAME = 'paste-cache'
 const STORE_EXTENSION = '.txt'
@@ -46,7 +47,8 @@ export async function cleanupOldPastes(cutoffDate: Date, retained: ReadonlySet<s
   let entries: string[]
   try {
     entries = await readdir(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const entry of entries) {
@@ -59,7 +61,8 @@ export async function cleanupOldPastes(cutoffDate: Date, retained: ReadonlySet<s
         await unlink(path)
         logForDebugging(`pasteStore: cleaned up old paste ${entry}`)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -30,6 +30,7 @@ import { commitBackgroundLaunchOf, commitMotionOf, commitJevOf, commitSeatsOf, c
 import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
 import { armBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
+import { passedOver } from '../utils/passedOver.js';
 export { JEV_BOOT_DETAIL_WIDTH, jevBootDetailLines, backgroundLaunchBootDetailLines } from './bootSettings/detailLines.js';
 
 
@@ -210,8 +211,7 @@ export function BootSettingsScreen({
                       },
                 );
               })
-              .catch(() => {
-              });
+              .catch(passedOver);
           }
         }
       })

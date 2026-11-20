@@ -16,6 +16,7 @@ import { fetchTensorFold, type LocalModelRecord } from './localDiscovery.js'
 import { onTensorFoldStopping } from './tensorfoldStopping.js'
 import { tensorFoldTurnReadings } from './tensorfoldUsage.js'
 import { sleep } from '../../../utils/sleep.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const NEXT_TURN_SETTLE_MS = 750
 export const NEXT_TURN_STAGE_SECONDS = 5
@@ -162,7 +163,8 @@ function foldPending(messages: readonly Message[], model: string): boolean {
     const { calculateTokenWarningState } = require('../../compact/autoCompact.js') as typeof import('../../compact/autoCompact.js')
     const level = calculateTokenWarningState(tokenCountWithEstimation(messages, model), model).level
     return level === 'compact' || level === 'blocked'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

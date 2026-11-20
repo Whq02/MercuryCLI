@@ -26,6 +26,7 @@ import {
   powershellToolUseOptions,
   type PowerShellToolUseOption,
 } from './powershellToolUseOptions.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type PowerShellCardInput = { command: string }
 
@@ -82,8 +83,7 @@ export function PowerShellPermissionRequest({
         const first = prefixes[0]
         if (first) setEditablePrefix(`${first} *`)
       })
-      .catch(() => {
-      })
+      .catch(passedOver)
     return () => {
       cancelled = true
     }

@@ -13,6 +13,7 @@ import {
   deepseekDisplayPin,
   type DeepseekDisplayPin,
 } from './deepseekPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const DEEPSEEK_CATALOGUE_TTL_MS = 5 * 60_000
@@ -195,7 +196,7 @@ export function kickDeepseekCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImp
   const env = opts?.env ?? process.env
   if (!catalogueTrafficVerdict('deepseek', env).allowed) return false
   if (!nothingUsable(getCachedDeepseekCatalogue(env))) return false
-  void refreshDeepseekCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(() => null)
+  void refreshDeepseekCatalogue({ env, ...(opts?.fetchImpl ? { fetchImpl: opts.fetchImpl } : {}) }).catch(passedOverAs(null))
   return true
 }
 

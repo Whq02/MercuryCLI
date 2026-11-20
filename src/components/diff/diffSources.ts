@@ -14,6 +14,7 @@ import type { ReviewArtifactVersion } from '../../utils/artifacts/reviewContract
 import { gitWorktrees } from '../../services/gitGraph/observe.js'
 import { laneDisplayName } from '../../services/workbench/selectors.js'
 import { getCwd } from '../../utils/cwd.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type WorkspaceDiffSource =
   | { type: 'current' }
@@ -208,7 +209,8 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
   try {
     const branch = await branchDiffSpec()
     if (branch) out.push({ type: 'branch', base: branch.base, spec: branch.spec })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   try {
@@ -225,7 +227,8 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
         })
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   try {
@@ -241,7 +244,8 @@ export async function enumerateExtraSources(sessionId: string | null): Promise<W
         label: head.title.slice(0, 14),
       })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   return out

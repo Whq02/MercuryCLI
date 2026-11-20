@@ -3,6 +3,7 @@ import { readSignInRefusal, signInRefusalWords } from '../accounts/signInRefusal
 import type { ModelOption } from './modelOptions.js'
 import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
 import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
+import { passedOver } from '../passedOver.js'
 
 export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
 
@@ -271,7 +272,8 @@ function livePickerRows(): ModelOption[] | null {
   try {
     const { getModelOptions } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     return getModelOptions()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   } finally {
     walkingPicker = false
@@ -371,7 +373,8 @@ export function recentSignIns(): CredentialFact[] {
 export function mostRecentSignInFamily(): string | undefined {
   try {
     return recentSignIns()[0]?.family
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

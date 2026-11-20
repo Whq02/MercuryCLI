@@ -8,6 +8,7 @@ import { getPlatform } from '../platform.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { sleep } from '../sleep.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 
 export const TASK_OUTPUT_RETRY_DELAY_MS = 50
@@ -38,7 +39,7 @@ const pendingOperations = new Set<Promise<unknown>>()
 
 function track<T>(promise: Promise<T>): Promise<T> {
   const guarded: Promise<unknown> = promise
-    .catch(() => {})
+    .catch(passedOver)
     .finally(() => {
       pendingOperations.delete(guarded)
     })
@@ -92,7 +93,8 @@ async function replaceEmptyOutputWithLink(outputPath: string, transcriptPath: st
     } catch {
       await fs.promises.writeFile(outputPath, '', { flag: 'wx' })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -115,7 +117,7 @@ export async function settleTaskOutputOperations(): Promise<void> {
 
 async function awaitTranscriptFor(outputPath: string, transcriptPath: string): Promise<void> {
   outputsAwaitingTranscript.set(transcriptKey(transcriptPath), outputPath)
-  const landed = await fs.promises.access(transcriptPath).then(() => true, () => false)
+  const landed = await fs.promises.access(transcriptPath).then(() => true, passedOverAs(false))
   if (landed) await linkWhenAwaited(transcriptPath)
 }
 

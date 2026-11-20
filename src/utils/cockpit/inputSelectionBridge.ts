@@ -1,3 +1,4 @@
+import { passedOver } from '../passedOver.js'
 
 type InputSelectionRange = { start: number; end: number }
 
@@ -19,7 +20,8 @@ export function registerInputSelectionOwner(next: InputSelectionOwner): () => vo
 export function peekInputSelectionRange(): InputSelectionRange | null {
   try {
     return owner?.range() ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -27,7 +29,8 @@ export function peekInputSelectionRange(): InputSelectionRange | null {
 export function peekOwnInputSelection(): (InputSelectionRange & { text: string }) | null {
   try {
     return owner?.own() ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -35,7 +38,8 @@ export function peekOwnInputSelection(): (InputSelectionRange & { text: string }
 export function clearOwnInputSelection(): void {
   try {
     owner?.clear()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -50,7 +54,8 @@ export function noteOwnInputSelectionChanged(): void {
   for (const listener of [...changeListeners]) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -71,7 +76,8 @@ export function noteOwnInputSelectionSettled(): void {
   for (const listener of [...settleListeners]) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

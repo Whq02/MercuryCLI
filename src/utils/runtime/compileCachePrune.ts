@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { lstat, mkdir, opendir, readdir, rename, rm, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { compileCacheDirUsable } from './compileCachePath.js'
+import { passedOverAs } from '../passedOver.js'
 
 export const COMPILE_CACHE_MAX_BYTES = 512 * 1024 * 1024
 export const COMPILE_CACHE_MAX_FILES = 8192
@@ -16,11 +17,11 @@ export async function pruneCompileCache(home: string, env: NodeJS.ProcessEnv = p
   const samePath = (a: string, b: string): boolean => process.platform === 'win32'
     ? resolve(a).toLowerCase() === resolve(b).toLowerCase() : resolve(a) === resolve(b)
   if (env.NODE_DISABLE_COMPILE_CACHE !== undefined || (env.NODE_COMPILE_CACHE && !samePath(env.NODE_COMPILE_CACHE, root)) || !compileCacheDirUsable(root)) return { state: 'skipped', removed: [] }
-  const rootStat = await lstat(root).catch(() => null)
+  const rootStat = await lstat(root).catch(passedOverAs(null))
   if (!rootStat?.isDirectory()) return { state: 'skipped', removed: [] }
   const stamp = join(root, '.last-prune')
   const fresh = async (): Promise<boolean> => {
-    const info = await lstat(stamp).catch(() => null)
+    const info = await lstat(stamp).catch(passedOverAs(null))
     const age = info ? Date.now() - info.mtimeMs : Infinity
     return info?.isFile() === true && age >= 0 && age < COMPILE_CACHE_PRUNE_INTERVAL_MS
   }
@@ -54,7 +55,7 @@ export async function pruneCompileCache(home: string, env: NodeJS.ProcessEnv = p
       const bucket = { name: entry.name, bytes: 0, files: 0, mtime: 0 }
       for await (const file of await opendir(path)) {
         if (!file.isFile()) continue
-        const info = await lstat(join(path, file.name)).catch(() => null)
+        const info = await lstat(join(path, file.name)).catch(passedOverAs(null))
         if (!info?.isFile()) continue
         bucket.bytes += info.size
         bucket.files++

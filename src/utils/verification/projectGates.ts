@@ -2,6 +2,7 @@
 import { readFileSync, statSync } from 'node:fs'
 import { projectConfigCandidates } from '../projectConfig.js'
 import type { VerificationScope } from './verificationState.js'
+import { passedOver } from '../passedOver.js'
 
 interface DeclaredGate {
   id: string
@@ -32,7 +33,8 @@ function fingerprintOf(path: string): string | null {
   try {
     const s = statSync(path)
     return `${s.mtimeMs}:${s.size}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

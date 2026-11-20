@@ -1,5 +1,6 @@
 
 import { getGlobalConfig, saveGlobalConfigDeferred } from './config/globalConfig.js'
+import { passedOver } from './passedOver.js'
 
 type HeadlessActivityKind = 'print' | 'sdk' | `verb:${string}`
 
@@ -28,7 +29,8 @@ export function noteHeadlessActivity(kind: HeadlessActivityKind): void {
       }
       return { ...current, headlessActivity: next }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

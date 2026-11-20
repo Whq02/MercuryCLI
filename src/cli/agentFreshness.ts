@@ -1,5 +1,6 @@
 import type { AgentDefinition } from '../tools/AgentTool/loadAgentsDir.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const RUNNER_AGENT_WATCH_ARM_DELAY_MS = 1500
 
@@ -48,6 +49,6 @@ export function armRunnerAgentFreshness(args: {
     unsubscribe = null
     void import('../services/agents/watch.js')
       .then(watch => watch.stopAgentWatch())
-      .catch(() => {})
+      .catch(passedOver)
   }
 }

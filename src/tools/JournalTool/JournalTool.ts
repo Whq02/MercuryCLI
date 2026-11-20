@@ -5,6 +5,7 @@ import { JOURNAL_ENTRY_CAP, journalEnabled, stageJournalEntry, type JournalStage
 import { lazySchema } from '../../utils/lazySchema.js'
 import { JOURNAL_DESCRIPTION, JOURNAL_PROMPT, JOURNAL_TOOL_NAME } from './prompt.js'
 import { renderJournalResult, renderJournalToolUse } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const journalSchema = lazySchema(() =>
   z.strictObject({
@@ -21,7 +22,8 @@ type JournalOutput = JournalStageOutcome
 function safeSession(): string {
   try {
     return String(getSessionId())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'boot'
   }
 }

@@ -5,6 +5,7 @@ import { ownerFromToolUseContext } from '../../../services/run/resolveOwner.js'
 import { getCheckedFileModificationTime } from '../../../utils/file.js'
 import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
 import type { OpEnv } from './types.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type ReadCache = {
   get: (path: string) => { content: string; timestamp: number; offset: number | undefined; limit: number | undefined; isPartialView?: boolean } | undefined
@@ -18,7 +19,8 @@ function readEntryFor(cache: ReadCache | undefined, abs: string): ReturnType<Rea
   let real: string
   try {
     real = realpathSync(abs)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   if (real !== abs) {
@@ -31,7 +33,8 @@ function readEntryFor(cache: ReadCache | undefined, abs: string): ReturnType<Rea
     if (++scanned > 512) break
     try {
       if (realpathSync(key) === real) return entry
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -69,7 +72,8 @@ export function readKnowledgeHolds(
       )
       if (seen.ok) return true
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   return false

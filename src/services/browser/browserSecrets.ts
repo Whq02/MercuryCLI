@@ -7,6 +7,7 @@ import { getMercuryHome, withAuthScope } from '../../utils/envUtils.js'
 import { getMacOsKeychainStorageServiceName, getUsername, keychainReachable } from '../../utils/secureStorage/macOsKeychainHelpers.js'
 import { readKeychainServiceSync } from '../../utils/secureStorage/macOsKeychainStorage.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const BROWSER_SECRET_ENV_PREFIX = 'MERCURY_BROWSER_SECRET_'
 export const BROWSER_SECRET_REF_GRAMMAR = /^[A-Z][A-Z0-9_]{0,63}$/
@@ -50,7 +51,7 @@ function resolvedEntry(entry: unknown, source: 'file' | 'keychain', origin: stri
           const value = totpCode(saved.totp)
           if (value !== null) return { state: 'ok', value, source, origin: saved.origin }
         }
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     return { state: 'refused', note }
   }
@@ -86,7 +87,8 @@ function migrateBrowserSecret(ref: string, entry: unknown, service: string, file
       fs.rmSync(temporary, { force: true })
     }
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -117,7 +119,7 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
       }
     }
     raw = fs.readFileSync(file, 'utf8')
-  } catch {}
+  } catch (error) { passedOver(error) }
   if (raw !== undefined) {
     let parsed: unknown
     try {
@@ -138,7 +140,7 @@ export function resolveBrowserSecret(ref: string, opts?: { fileDir?: string; ori
     try {
       const stored = readKeychainServiceSync(service)
       if (stored !== null) return resolvedEntry(JSON.parse(stored), 'keychain', opts?.origin, note)
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return { state: 'missing', note }
 }

@@ -7,6 +7,7 @@ import type {
   SeatHandshakeResult,
 } from '../seatBridge.js'
 import { awaitLine, realNdjsonChild, type NdjsonChildLike, type SpawnImpl } from './ndjsonChild.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const HANDSHAKE_TIMEOUT_MS = 20_000
 
@@ -49,7 +50,8 @@ export function codexSeatTransport(opts: CodexSeatOptions = {}): ExternalSeatTra
       let parsed: Record<string, unknown>
       try {
         parsed = JSON.parse(line) as Record<string, unknown>
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return
       }
       if (typeof parsed.method === 'string' && parsed.id === undefined) {

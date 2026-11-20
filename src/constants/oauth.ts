@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type OauthConfig = {
   BASE_API_URL: string
@@ -89,7 +90,8 @@ export function isLoopbackOauthOrigin(url: string): boolean {
     if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false
     const host = parsed.hostname.replace(/^\[|\]$/g, '')
     return host === '127.0.0.1' || host === '::1' || host === 'localhost'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

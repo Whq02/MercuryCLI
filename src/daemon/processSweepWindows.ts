@@ -7,6 +7,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import type { ProcessSweepEntry, ProcessSweepObservation, ProcessSweepTable } from './processSweep.js'
 import { processSweepWindowsHost } from './processSweepWindowsHost.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 const rawRowSchema = z.object({
   pid: z.number().int().positive().max(0xffffffff),
@@ -121,7 +122,7 @@ function openHost() {
 async function resolvedObservation(raw: WindowsRawRow): Promise<ProcessSweepObservation> {
   let exe = raw.exe
   if (exe !== null) {
-    try { exe = await realpath(exe) } catch {}
+    try { exe = await realpath(exe) } catch (error) { passedOver(error) }
   }
   return windowsObservation({ ...raw, exe })
 }
@@ -155,7 +156,7 @@ export async function signalWindowsProcess(expected: Identity, force: boolean): 
     const fresh = await resolvedObservation(rawRowSchema.parse(first.row))
     const refusal = windowsSignalRefusal(expected, fresh, currentUser)
     if (refusal !== null) {
-      await host.ask({ go: false }).catch(() => undefined)
+      await host.ask({ go: false }).catch(passedOverAs(undefined))
       return { sent: false, reason: refusal }
     }
     let receipt: Record<string, unknown>

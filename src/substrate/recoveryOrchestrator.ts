@@ -7,6 +7,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { cleanupOrphanDurableTemps } from './durablePublish.js'
 import type { JournalRecoverySummary } from './operationJournal.js'
 import { readStoreRecoveryEvents } from './storeRecovery.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const SWEEP_DIR_CAP = 128
 const TASK_LIST_CAP = 64
@@ -45,7 +46,8 @@ function setState(next: BootRecoveryState): void {
   for (const l of listeners) {
     try {
       l()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -110,14 +112,16 @@ async function collectSweepDirs(
       '../services/changeTransaction/changeSetContracts.js'
     )
     push(changeSetJournalDir())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const tasksRoot = join(home, 'tasks')
   try {
     for (const name of await readdir(tasksRoot)) {
       if (!name.startsWith('.')) push(join(tasksRoot, name))
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const { daemonDir } = await import('../daemon/controlSocket.js')
@@ -130,7 +134,8 @@ async function collectSweepDirs(
       for (const name of await readdir(handoffRoot)) {
         if (!name.startsWith('.')) push(join(handoffRoot, name))
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   } catch (e) {
     errors.push(`daemon-home sweep skipped: ${e instanceof Error ? e.message : String(e)}`)
@@ -171,7 +176,8 @@ async function sweepTaskEpochs(
   const epochChecks = await mapWithConcurrency(lists, 8, async list => {
     try {
       return (await readTaskEpoch(list)) > 0
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -257,7 +263,8 @@ export async function runBootRecovery(opts: {
         const t = Date.parse(e.ts)
         return Number.isFinite(t) && t >= cutoff
       }).length
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     report.durationMs = Date.now() - startedMs
@@ -279,14 +286,16 @@ export async function countOrphanDurableTemps(): Promise<{ dirs: number; stale: 
     let names: string[]
     try {
       names = await readdir(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const name of names) {
       if (!isDurableTempName(name)) continue
       try {
         if ((await stat(join(dir, name))).mtimeMs < cutoff) stale++
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }

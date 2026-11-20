@@ -31,6 +31,7 @@ import type { EffortValue } from '../../../utils/effort.js'
 import { AMBER, CRIMSON, SECOND, TEAL } from '../../mercuryPalette.js'
 import { truncateToWidth } from '../../mercury-ui/glyphs.js'
 import type { generateAgent } from '../generateAgent.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 export type StudioDraftBase = {
@@ -286,7 +287,8 @@ export function buildReviewFacts(
     ? (() => {
         try {
           return readFile(base.identity.filePath)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return ''
         }
       })()

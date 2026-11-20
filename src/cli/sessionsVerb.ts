@@ -8,6 +8,7 @@ import { getProjectDir, getProjectsDir } from '../utils/sessionStorage/paths.js'
 import { buildSessionDeleteOffer, operatorPruneTranscripts } from '../utils/sessionStorage/transcriptPruneDoor.js'
 import { validateUuid } from '../utils/sessionStoragePortable.js'
 import { sliceHeadAtGrapheme } from '../utils/intl.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type SessionsCliIo = {
   out: (line: string) => void
@@ -37,7 +38,8 @@ async function savedSessionNamed(sessionId: string, projectStore: string): Promi
       const store = join(getProjectsDir(), entry.name)
       if (entry.isDirectory() && store !== projectStore) stores.push(store)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   for (const store of stores) {
@@ -45,7 +47,8 @@ async function savedSessionNamed(sessionId: string, projectStore: string): Promi
     try {
       const facts = await stat(fullPath)
       if (facts.isFile()) return { sessionId, fullPath, fileSize: facts.size, modified: facts.mtime, store }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

@@ -8,6 +8,7 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { clampWait } from '../../utils/waitCeiling.js'
 import { DESCRIPTION, SLEEP_TOOL_NAME, SLEEP_TOOL_PROMPT } from './prompt.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_SLEEP_SECONDS = 3600
 const MIN_SLEEP_SECONDS = 1
@@ -56,7 +57,8 @@ export function countTrackedRunningAgents(
       if (typeof t.type === 'string' && TRACKED_AGENT_TASK_TYPES.has(t.type)) running++
       else if ((selfTaskId !== undefined || isRunInputClosed()) && typeof t.type === 'string' && SUBAGENT_TRACKED_TASK_TYPES.has(t.type) && t.agentId === selfTaskId) running++
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   return running

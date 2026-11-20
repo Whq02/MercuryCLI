@@ -22,6 +22,7 @@ import {
 } from './projectConfig.js'
 import { logForDebugging } from './debug.js'
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 type MarkdownFile = {
   filePath: string
@@ -285,7 +286,8 @@ async function dedupeByIdentity(files: MarkdownFile[]): Promise<MarkdownFile[]> 
         const info = await lstat(file.filePath, { bigint: true })
         if (info.dev === 0n && info.ino === 0n) return null
         return `${info.dev}:${info.ino}`
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     }),

@@ -1,5 +1,6 @@
 
 import { useSyncExternalStore } from 'react'
+import { passedOver } from '../../utils/passedOver.js'
 
 let selected = -1
 const listeners = new Set<() => void>()
@@ -14,7 +15,8 @@ export function setSelectedSuggestionStore(n: number): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -48,6 +48,7 @@ import {
   processRulesDir,
 } from './discovery.js'
 import { resolveRequestedInstructionProfile } from './profile.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MIN_MEMORY_CHARACTER_COUNT = 40000
 
@@ -490,7 +491,8 @@ export function clearInstructionFileCaches(): void {
   for (const listener of cacheInvalidationListeners) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -811,10 +813,12 @@ export async function seedFileKnowledgeFromInjectedInstructions(
           offset: undefined,
           limit: undefined,
         })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

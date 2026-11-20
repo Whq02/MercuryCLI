@@ -19,6 +19,7 @@ import { utilityCallFor } from '../model/utilityModel.js'
 import { asSystemPrompt } from '../systemPromptType.js'
 import { hookAnswerJsonSchema, hookBrief, type ModelHookEnd, type ModelHookRun } from './questionRunner.js'
 import { toolPermissionForHooks } from './toolPermission.js'
+import { passedOver } from '../passedOver.js'
 
 const CREWMATE_HOOK_TURN_CAP = 50
 
@@ -27,7 +28,8 @@ function readToolsOf(context: ToolUseContext): ToolUseContext['options']['tools'
     if (toolMatchesName(tool, SYNTHETIC_OUTPUT_TOOL_NAME) || ALL_AGENT_DISALLOWED_TOOLS.has(tool.name)) return false
     try {
       return tool.isReadOnly({})
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })

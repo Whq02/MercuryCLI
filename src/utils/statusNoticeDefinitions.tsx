@@ -23,6 +23,7 @@ import { AGENT_DESCRIPTIONS_THRESHOLD, getAgentDescriptionsTotalTokens } from '.
 import { readPinnedStatus } from '../mneme/mnemeFrontPage.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { formatTextSize } from '../mneme/mnemeUsage.js'
+import { passedOver } from './passedOver.js'
 
 
 type StatusNoticeType = 'warning' | 'info'
@@ -113,7 +114,8 @@ const apiKeyConflictNotice: StatusNoticeDefinition = {
       if (storedKey === null) return false
       const resolved = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
       return resolved.source === 'ANTHROPIC_API_KEY' || resolved.source === 'credentials.keyCommand'
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   },
@@ -141,7 +143,8 @@ const bothAuthMethodsNotice: StatusNoticeDefinition = {
       const tokenSource = getAuthTokenSource().source
       if (apiKeySource === 'none' || tokenSource === 'none') return false
       return !(apiKeySource === 'credentials.keyCommand' && tokenSource === 'credentials.keyCommand')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   },

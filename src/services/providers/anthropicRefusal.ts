@@ -1,6 +1,7 @@
 import { headerValue, retryAfterHeaderMs } from '../api/retryAfter.js'
 import type { AnthropicLimits, RateLimitType } from '../anthropicLimits.js'
 import { credentialWallLine, isRevokedSignInText, observedCredentialWall } from './credentialWall.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type AnthropicRefusalKind = 'window' | 'rate-limit' | 'sign-in' | 'other'
 
@@ -69,7 +70,8 @@ export function anthropicCarryWords(limits?: AnthropicLimits): string | undefine
     const { anthropicExtraUsageCarry, usageCarryWords } =
       require('./providerUsage.js') as typeof import('./providerUsage.js')
     return usageCarryWords(anthropicExtraUsageCarry(limits !== undefined ? { anthropicLimits: () => limits } : undefined))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -4,6 +4,7 @@ import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import type { DesktopApplication } from './driver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const COMPUTER_GRANT_FILE = 'computer-grant.json'
 const COMPUTER_GRANT_HOURS = [1, 24] as const
@@ -41,7 +42,8 @@ export function writeComputerGrant(sessionId: string, record: ComputerGrantRecor
 export function clearComputerGrant(sessionId: string, home: string = getMercuryHome()): void {
   try {
     unlinkSync(computerGrantPath(sessionId, home))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -50,7 +52,8 @@ function recordOf(raw: string): ComputerGrantRecord | null {
   let parsed: unknown
   try {
     parsed = JSON.parse(raw)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (!parsed || typeof parsed !== 'object') return null
@@ -67,7 +70,8 @@ export function readComputerGrant(sessionId: string, now: number = Date.now(), h
   let raw: string
   try {
     raw = readFileSync(computerGrantPath(sessionId, home), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const record = recordOf(raw)

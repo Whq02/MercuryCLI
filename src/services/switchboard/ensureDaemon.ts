@@ -9,6 +9,7 @@ import { daemonHaltStanddownActive } from '../../utils/daemonStanddown.js'
 import { runnerArgvFromBoot } from './runnerArgv.js'
 import { startScreenPresenceBeat } from './screenPresence.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type Handshake = typeof import('../../daemon/handshake.js')
 type Pause = (ms: number) => Promise<void>
@@ -43,7 +44,7 @@ function adoptIfOurs(v: DaemonHandshakeVerdict): void {
   const pid = d.pid
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.adoptOwnedDaemonPid(pid))
-    .catch(() => {})
+    .catch(passedOver)
 }
 
 async function awaitUsable(hs: Handshake, pause: Pause, tries = ladderRounds()): Promise<boolean> {
@@ -135,7 +136,8 @@ export async function warmSessionRunner(workspaceDir: string, retiring?: string)
       { timeoutMs: 5_000 },
     )) as { ok?: boolean; state?: string }
     return reply.ok === true && (reply.state === 'warmed' || reply.state === 'kept')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -163,7 +165,7 @@ async function ensureOwnedDaemonInner(options: { sleep?: Pause }): Promise<boole
   const pause = options.sleep ?? sleep
   void import('../../daemon/ownedDaemon.js')
     .then(m => m.armDaemonSignInPoke())
-    .catch(() => {})
+    .catch(passedOver)
   if (usableMemoActive() && !daemonHaltStanddownActive()) return true
   const hs = await import('../../daemon/handshake.js')
   const first = await hs.handshakeDaemon({ timeoutMs: 500 })
@@ -202,7 +204,8 @@ async function ensureOwnedDaemonInner(options: { sleep?: Pause }): Promise<boole
         })
         if (pid === undefined) return false
         return await awaitUsable(hs, pause)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       } finally {
         healing = null

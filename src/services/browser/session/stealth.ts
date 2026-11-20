@@ -1,5 +1,6 @@
 import type { CDPSession, Page } from 'puppeteer-core'
 import type { PageKit } from './shapes.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export function resolveHostLanguages(localeOverride?: string): {
   primary: string
@@ -14,7 +15,7 @@ export function resolveHostLanguages(localeOverride?: string): {
       const lang = parts[0]!.toLowerCase()
       raw = parts.length >= 2 ? `${lang}-${parts[1]!.toUpperCase()}` : lang === 'en' ? 'en-US' : lang
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   const base = raw.split('-')[0] || 'en'
   const languages = raw.includes('-') && base !== raw ? [raw, base] : [raw, 'en'].filter((v, i, a) => a.indexOf(v) === i)
   const acceptLanguage = languages.join(',')
@@ -36,7 +37,8 @@ export function resolveNavigatorPlatform(
 export function resolveHostTimeZone(): string {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'UTC'
   }
 }
@@ -438,10 +440,10 @@ export function stealthSource(languages: string[]): string {
 export async function prepareDocuments(page: Page, own: CDPSession | null, languages: string[]): Promise<void> {
   if (typeof page.evaluateOnNewDocument !== 'function') return
   if (own === null) {
-    await page.evaluateOnNewDocument(pageStealthInit, languages).catch(() => undefined)
+    await page.evaluateOnNewDocument(pageStealthInit, languages).catch(passedOverAs(undefined))
   } else {
-    await own.send('Page.enable').catch(() => undefined)
-    await own.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).catch(() => undefined)
+    await own.send('Page.enable').catch(passedOverAs(undefined))
+    await own.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(languages) }).catch(passedOverAs(undefined))
   }
-  await page.evaluate(pageStealthInit, languages).catch(() => undefined)
+  await page.evaluate(pageStealthInit, languages).catch(passedOverAs(undefined))
 }

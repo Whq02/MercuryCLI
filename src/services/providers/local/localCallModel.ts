@@ -38,6 +38,7 @@ import type { CompatCallModelParams as LocalCallParams } from '../openaicompat/c
 import { logForDebugging } from '../../../utils/debug.js'
 import { estimateRequestTokens } from '../../tokenEstimation.js'
 import { localTurnTakesTheServer } from './localTurn.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export function localModelAcceptsEffort(record: LocalModelRecord): boolean {
   if (record.server === 'ollama' || record.server === 'lmstudio' || record.server === 'tensorfold') return record.thinkingDeclared === true
@@ -311,7 +312,7 @@ export function localLiveProofState(): { at: number; model: string } | null {
 export async function* localCallModel(params: CallModelParams): CallModelStream {
   let record = localRecordFor(params.options.model)
   if (!record) {
-    await refreshLocalDiscovery({ force: true }).catch(() => undefined)
+    await refreshLocalDiscovery({ force: true }).catch(passedOverAs(undefined))
     record = localModelRecord(localWireId(params.options.model))
   }
   let confirmAfter = false

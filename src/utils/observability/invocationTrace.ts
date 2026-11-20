@@ -15,6 +15,7 @@ import {
   type CapabilityRisk,
 } from '../capability/manifest.js'
 import type { Tool } from '../../Tool.js'
+import { passedOver } from '../passedOver.js'
 
 const TRACE_ENV_VAR = 'MERCURY_TRACE'
 
@@ -143,7 +144,8 @@ export async function maybeTrimTrace(path: string): Promise<void> {
     const nl = slice.indexOf(0x0a)
     if (nl >= 0 && nl + 1 < slice.length) slice = slice.subarray(nl + 1)
     await durableAtomicPublish(path, slice)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   } finally {
     trimInFlight = false
   }
@@ -245,7 +247,8 @@ export function emitInvocationTrace(
   try {
     const trace = buildInvocationTrace(tool, opts)
     enqueueTraceLine(JSON.stringify(trace) + '\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -318,6 +321,7 @@ export function emitCompactionTrace(
   if (!isCompactionTraceEnabled()) return
   try {
     enqueueTraceLine(JSON.stringify(buildCompactionTrace(event, opts)) + '\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

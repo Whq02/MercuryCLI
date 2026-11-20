@@ -14,6 +14,7 @@ import { resolveZenAccount, resolveZenApiKey, zenChatCompletionsUrl, zenRequestH
 import { cachedLiveIds, getCachedZenCatalogue, refreshZenCatalogue } from './zenCatalogue.js'
 import { zenDisplayPin, zenWireId, zenWireShapeOf } from './zenPins.js'
 import { zenResponsesTransport } from './zenResponsesTransport.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function buildZenExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const pin = zenDisplayPin(args.wireModel)
@@ -47,8 +48,8 @@ const zenLaneProfile: CompatLaneProfile = {
   buildExtras: buildZenExtras,
   onResponseHeaders: (_headers, status) => {
     if (status === undefined || status < 200 || status >= 300) return
-    void refreshProviderUsage('zen', { reason: 'operator' }).catch(() => {})
-    void refreshZenCatalogue().catch(() => {})
+    void refreshProviderUsage('zen', { reason: 'operator' }).catch(passedOver)
+    void refreshZenCatalogue().catch(passedOver)
   },
 }
 

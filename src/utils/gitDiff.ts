@@ -4,6 +4,7 @@ import type { StructuredPatchHunk } from './diff.js'
 import { execFileNoThrow, execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { getDefaultBranch, getIsGit, gitExe } from './git.js'
 import { resolveGitDir } from './git/gitFilesystem.js'
+import { passedOver } from './passedOver.js'
 
 
 const GIT_TIMEOUT_MS = 5000
@@ -48,7 +49,8 @@ async function pathExistsAny(path: string): Promise<boolean> {
     const { stat } = await import('node:fs/promises')
     await stat(path)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

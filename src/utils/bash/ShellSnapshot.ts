@@ -23,6 +23,7 @@ import { windowsShellRoadActive, withOwnPrograms, withRoadPrograms, withShippedP
 import { msysSourceLine } from '../shell/msysArgv.js'
 import { windowsPathToPosixPath } from '../windowsPaths.js'
 import { quote } from './shellQuote.js'
+import { passedOver } from '../passedOver.js'
 
 
 type VersionedPathParts = {
@@ -158,7 +159,8 @@ function runBounded(
       }
       try {
         child.kill(login ? 'SIGKILL' : undefined)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const quit = (): void => {

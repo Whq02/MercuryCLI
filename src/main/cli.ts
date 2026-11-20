@@ -7,6 +7,7 @@ import { getInitialSettings } from '../utils/settings/settings.js'
 import chalk from 'chalk'
 import { formatPrintsOutcomeRow, refusedOutcome } from '../cli/headless/refusalEnvelope.js'
 import { inspectSessionArgs as inspectRunArgs } from '../cli/sessionArgs.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export function applyMergedConfigEnv(): void {
   const env = getInitialSettings().environment?.values ?? {}
@@ -29,7 +30,8 @@ export function writeErr(text: string): void {
 export function exitWithVersionLine(): never {
   try {
     writeSync(1, `Mercury ${MERCURY_VERSION}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   process.exit(0)
 }
@@ -71,7 +73,8 @@ export function failCli(message: string, code: 1 | 2 = 2): never {
       const envelope = refusedOutcome([message])
       writeSync(1, `${JSON.stringify(envelope)}\n`)
       process.exit(code)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   writeErr(chalk.red(message))

@@ -10,6 +10,7 @@ import { getFileReadIgnorePatterns, normalizePatternsToPath, readDenialFilter } 
 import { getPlatform } from './platform.js'
 import { getFsImplementation, safeResolvePath } from './fsOperations.js'
 import { ripGrepAnswer } from './ripgrep.js'
+import { passedOver } from './passedOver.js'
 
 
 function lastSeparatorIndex(value: string): number {
@@ -124,7 +125,7 @@ export async function glob(
   ignoreByRoot.set(null, relativeRules.filter(pattern => !pattern.includes('/')))
   ignoreByRoot.set(sessionRoot, [...(ignoreByRoot.get(sessionRoot) ?? []), ...relativeRules.filter(pattern => pattern.includes('/'))])
   let walkRoot = searchDir
-  try { if (!statSync(walkRoot).isDirectory()) walkRoot = dirname(walkRoot) } catch {}
+  try { if (!statSync(walkRoot).isDirectory()) walkRoot = dirname(walkRoot) } catch (error) { passedOver(error) }
   const ignores = normalizePatternsToPath(ignoreByRoot, walkRoot)
   for (const ignore of ignores) {
     args.push('--iglob', `!${ignore}`)

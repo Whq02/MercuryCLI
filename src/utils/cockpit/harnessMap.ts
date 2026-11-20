@@ -9,6 +9,7 @@ import { isSessionMarkedNonInteractive } from './runtimePosture.js'
 import { healthCertEnabled } from '../healthReport.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
+import { passedOver } from '../passedOver.js'
 
 export function harnessMapEnabled(): boolean {
   if (!flagEnabled('MERCURY_HARNESS_MAP')) return false
@@ -21,7 +22,8 @@ let memo: string | null | undefined
 function dapReachableSafe(): boolean {
   try {
     return reachableDapAdapterKeys().length > 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

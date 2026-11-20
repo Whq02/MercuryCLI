@@ -7,6 +7,7 @@ import { hostDirectory } from './store.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { HostOffer } from './runpod.js'
 import type { HostVendor } from './vendors/vendor.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type HostVendorId = HostVendor['vendor']
@@ -45,7 +46,7 @@ export function readHostLinkObservation(vendor: HostVendorId, rental: string): H
 export function hostLinkObservations(): HostLinkObservation[] {
   let names: string[]
   try { names = readdirSync(directory()) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error }
-  return names.filter(name => name.endsWith('.json')).sort().flatMap(name => { try { const row = parse(readFileSync(join(directory(), name), 'utf8')); return row ? [row] : [] } catch { return [] } })
+  return names.filter(name => name.endsWith('.json')).sort().flatMap(name => { try { const row = parse(readFileSync(join(directory(), name), 'utf8')); return row ? [row] : [] } catch (error) { passedOver(error); return [] } })
 }
 
 export function noteHostLink(rental: HostRental, event: HostLinkEvent, at = Date.now()): HostLinkObservation {

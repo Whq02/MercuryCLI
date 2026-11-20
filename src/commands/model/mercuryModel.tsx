@@ -38,6 +38,7 @@ import { familyOfModelGroup, providerHeadingsOf } from './picker/headings.js'
 import { resolveCurrentRowId, subscribeFocusedModelFeed, getFocusedModelKey, modelChoiceOf, expandRowsOf, pickLabelOf, slotSwitchOf, seatGroupOf, orderedModelChoices, servedByTensorFold, tensorFoldPodEndpoints, runModelTensorFoldAct } from './picker/rows.js'
 import { type PickRoad, type PickContext, selectHostRow, connectClaude, connectGpt, connectOpenrouter, connectNous, connectGemini, connectHuggingface, selectKeyLane, selectThroughGate } from './picker/select.js'
 import { applyOnSeat, applyLocally } from './picker/apply.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 export { familyOfModelGroup } from './picker/headings.js'
 export { servedByTensorFold, tensorFoldPodEndpoints, modelChoiceLabel, modelChoiceRow } from './picker/rows.js'
@@ -286,7 +287,7 @@ function MercuryModelWrapper({
           if (words !== undefined && pickerOpen.current) setNotice(words)
           return tensorFold.read()
         })
-        .catch(() => undefined)
+        .catch(passedOverAs(undefined))
       return
     }
     void runModelTensorFoldAct(act, tensorFold, { setAppState }, { close: words => onDone(words, { display: 'system' }), read: async () => void (await tensorFold.read(true)) }).catch(error => {

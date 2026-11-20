@@ -1,5 +1,6 @@
 
 import { chatOnlyBoot } from '../../context/surfaceRoute.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const BOARD_PANE_MIN_COLS = 80
 
@@ -62,7 +63,8 @@ function bump(): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

@@ -1,6 +1,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import type { ProgressMessage } from '../types/message.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const frames = new Map<string, ProgressMessage>()
 const versions = new Map<string, number>()
@@ -13,7 +14,8 @@ function notifyKey(key: string): void {
   for (const cb of subs) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

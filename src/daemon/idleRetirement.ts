@@ -14,6 +14,7 @@ import {
   type ConcourseWorkerRecordV1,
 } from './concourseWorkers.js'
 import { isProcessAlive } from './ownerWatch.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const DEFAULT_CONCOURSE_IDLE_RETIRE_MINUTES = 10
 
@@ -95,7 +96,8 @@ function lineIsConversation(raw: string): boolean {
   let entry: unknown
   try {
     entry = JSON.parse(raw)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   if (!entry || typeof entry !== 'object') return false
@@ -137,7 +139,8 @@ export function transcriptHasConversation(rec: { sessionId: string; workspaceId:
       closeSync(fd)
     }
     return transcriptTextHasConversation(buf.toString('utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }

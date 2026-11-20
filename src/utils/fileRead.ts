@@ -1,6 +1,7 @@
 import type { Stats } from 'fs'
 import { logForDebugging } from './debug.js'
 import { getFsImplementation, safeResolvePath, type FsOperations } from './fsOperations.js'
+import { passedOver } from './passedOver.js'
 
 
 export type LineEndingType = 'CRLF' | 'LF'
@@ -28,7 +29,8 @@ function specialFileKind(stats: Stats): string | null {
 function specialFileKindAt(fsImpl: FsOperations, resolvedPath: string): string | null {
   try {
     return specialFileKind(fsImpl.statSync(resolvedPath))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

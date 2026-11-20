@@ -3,6 +3,7 @@ import { createUserMessage } from '../../utils/messages/factories.js'
 import { turnCutResultText } from '../../utils/messages/turnCut.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import type { RowDraft } from '../project.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface CutNeeds {
   turnMessages: Message[]
@@ -30,7 +31,7 @@ export function openCallsCutter({ turnMessages, messages, openCalls, toolOutcome
         for (const row of trackCalls(rowsOfMessage(result, undefined))) yield row
       }
     }
-    if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
+    if (!persistenceDisabled) await flushSessionStorage().catch(passedOver)
   }
   return cutOpenCalls
 }

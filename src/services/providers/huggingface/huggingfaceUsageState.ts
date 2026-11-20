@@ -12,6 +12,7 @@ import {
   resolveHuggingfaceDispatchCredential,
   type HuggingfaceOauthIo,
 } from './huggingfaceAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const HUGGINGFACE_USAGE_ABSENCE_NOTE =
   'no spend or credit API is documented for Inference Providers — the Hub states the plan and a payment method to the token (whoami-v2), not the credits used or left; huggingface.co/settings/billing is the view (monthly credits apply first, then pay-as-you-go at provider rates, no markup)'
@@ -69,7 +70,8 @@ export function recordHuggingfaceRateHeaders(
     if (status === 429) {
       observedLimit = { resetsAtMs: now() + 30_000, observedAtMs: now() }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

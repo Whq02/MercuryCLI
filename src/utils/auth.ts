@@ -59,6 +59,7 @@ import { getOauthProfileFromOauthToken } from '../services/oauth/getOauthProfile
 import type { OAuthTokens, SubscriptionType, RateLimitTier } from '../services/oauth/types.js'
 import { binaryName } from './config.js'
 import { sleep } from './sleep.js'
+import { passedOver } from './passedOver.js'
 
 
 export function isAnthropicAuthEnabled(): boolean {
@@ -74,7 +75,8 @@ export function isAnthropicAuthEnabled(): boolean {
   try {
     const { source } = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true })
     if (source === 'ANTHROPIC_API_KEY' || source === 'credentials.keyCommand') return false
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return true
 }
@@ -100,7 +102,8 @@ function subscriptionYieldsToManagedKey(): boolean {
   try {
     if (getGlobalConfig().anthropicPreferredSource !== 'api-key') return false
     return getApiKeyFromConfigOrMacOSKeychain() !== null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -165,7 +168,8 @@ function keyCredentialSource(bearer: string): WireCredentialSource | null {
   let key: ApiKeySource = 'none'
   try {
     key = getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).source
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (key === 'ANTHROPIC_API_KEY') return { kind: 'env', name: 'ANTHROPIC_API_KEY' }
   if (key === 'credentials.keyCommand' || bearer === 'credentials.keyCommand') return { kind: 'helper' }
@@ -259,7 +263,8 @@ export function hasFirstPartyCredential(): boolean {
       getAnthropicApiKeyWithSource().source !== 'none' ||
       Boolean(process.env.ANTHROPIC_API_KEY)
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -267,7 +272,8 @@ export function hasFirstPartyCredential(): boolean {
 export function hasAnthropicApiKeyAuth(): boolean {
   try {
     return getAnthropicApiKeyWithSource({ skipRetrievingKeyFromApiKeyHelper: true }).key !== null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -528,7 +534,8 @@ function writeKeychainHexStdin(key: string): boolean {
     const commandLine = `add-generic-password -U -a "${getUsername()}" -s "${getMacOsKeychainStorageServiceName()}" -X ${hex}\n`
     const result = spawnSync('security', ['-i'], { windowsHide: true, input: commandLine, encoding: 'utf-8', timeout: 10_000, env: { ...subprocessEnv() } })
     return result.status === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -641,7 +648,8 @@ export async function getClaudeAIOAuthTokensAsync(): Promise<OAuthTokens | null>
 export function hasStoredOAuthToken(): boolean {
   try {
     return getSecureStorage().read()?.claudeAiOauth?.accessToken !== undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -717,7 +725,8 @@ export function isAnthropicOAuthSignInExpired(): boolean {
     if (getAuthTokenSource().source !== 'claude.ai') return false
     if (isOAuthRefreshKnownDead()) return true
     return isOAuthTokenExpired(tokens.expiresAt) && !tokens.refreshToken
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -842,7 +851,7 @@ async function doRefresh(retryCount: number, force: boolean): Promise<boolean> {
       return false
     }
   } finally {
-    await release().catch(() => {})
+    await release().catch(passedOver)
   }
 }
 

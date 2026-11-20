@@ -11,6 +11,7 @@ import {
   WINDOWS_REGISTRY_KEY_PATH_HKLM,
   WINDOWS_REGISTRY_VALUE_NAME,
 } from './constants.js'
+import { passedOver } from '../../passedOver.js'
 
 
 export type RawReadResult = {
@@ -35,7 +36,8 @@ async function readMacOSPlists(): Promise<Array<{ stdout: string; label: string 
   const candidates = getMacOSPlistPaths().filter(candidate => {
     try {
       return existsSync(candidate.path)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })

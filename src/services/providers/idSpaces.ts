@@ -1,6 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { MODEL_ALIASES } from '../../utils/model/aliases.js'
 import { MISTRAL_HOSTED_DEEPSEEK_IDS } from './mistral/mistralPins.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type CallModelRoute =
   | 'anthropic'
@@ -99,7 +100,8 @@ function liveIdsReaderOf(family: LiveListFamily): LiveIdsReader {
 export function cachedLiveIdsOf(family: LiveListFamily, env: Record<string, string | undefined> = process.env): ReadonlySet<string> | undefined {
   try {
     return liveIdsReaderOf(family).cachedLiveIds?.(env as NodeJS.ProcessEnv)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

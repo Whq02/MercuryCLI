@@ -5,6 +5,7 @@ import { type DownloadHome, isBrowserErrorPage, type Wiring, type Hold, type Bir
 import { sessionWirings } from './owners.js'
 import { pageKits, stealthSource } from './stealth.js'
 import { redactUrl, newWiring, listenProtocol, listenDownloads, downloadBegan, downloadMoved, downloadInNewTab } from './wiring.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 function hintHeaders(identity: PageIdentity): Map<string, string> | null {
   const meta = identity.userAgentMetadata
@@ -65,7 +66,8 @@ function takesHints(url: string): boolean {
     if (parsed.protocol === 'https:') return true
     if (parsed.protocol !== 'http:') return false
     host = parsed.hostname.replace(/\.$/, '')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   return host === 'localhost' || host.endsWith('.localhost') || /^127(?:\.\d+){3}$/.test(host) || host === '[::1]'
@@ -78,7 +80,7 @@ function mendFirstRequest(birth: Birth, identity: PageIdentity, own: Record<stri
   const disarm = (): void => {
     if (!armed) return
     armed = false
-    void cdp.send('Network.setExtraHTTPHeaders', { headers: own ?? {} }).catch(() => undefined)
+    void cdp.send('Network.setExtraHTTPHeaders', { headers: own ?? {} }).catch(passedOverAs(undefined))
   }
   const onRequest = (event: Protocol.Fetch.RequestPausedEvent): void => {
     if (event.request.method !== 'GET') birth.posted = true
@@ -92,18 +94,18 @@ function mendFirstRequest(birth: Birth, identity: PageIdentity, own: Record<stri
       if (wanted !== value) moved = true
       if (wanted !== null) headers.push({ name, value: wanted })
     }
-    void cdp.send('Fetch.continueRequest', { requestId: event.requestId, ...(moved ? { headers } : {}) }).catch(() => undefined)
+    void cdp.send('Fetch.continueRequest', { requestId: event.requestId, ...(moved ? { headers } : {}) }).catch(passedOverAs(undefined))
   }
   const onCommit = (event: Protocol.Page.FrameNavigatedEvent): void => {
     if (event.frame.parentId !== undefined) return
     disarm()
     cdp.off('Fetch.requestPaused', onRequest)
     cdp.off('Page.frameNavigated', onCommit)
-    if (!kit.fetchHeld) void cdp.send('Fetch.disable').catch(() => undefined)
+    if (!kit.fetchHeld) void cdp.send('Fetch.disable').catch(passedOverAs(undefined))
   }
   cdp.on('Fetch.requestPaused', onRequest)
   cdp.on('Page.frameNavigated', onCommit)
-  void cdp.send('Fetch.enable', { patterns: [{ resourceType: 'Document', requestStage: 'Request' }] }).catch(() => undefined)
+  void cdp.send('Fetch.enable', { patterns: [{ resourceType: 'Document', requestStage: 'Request' }] }).catch(passedOverAs(undefined))
 }
 
 function observeBirthNavigation(hold: Hold, wiring: Wiring, cdp: CDPSession, targetId: string): () => void {
@@ -152,8 +154,8 @@ function presentedOf(kit: PageKit): PagePresented {
 function presentToFrame(frame: CDPSession, kit: PageKit, born: boolean): void {
   const { identity, touch } = presentedOf(kit)
   const quiet = (): undefined => undefined
-  if (identity !== null) void frame.send('Emulation.setUserAgentOverride', identity).catch(quiet)
-  if (touch || !born) void frame.send('Emulation.setTouchEmulationEnabled', { enabled: touch }).catch(quiet)
+  if (identity !== null) void frame.send('Emulation.setUserAgentOverride', identity).catch(error => { passedOver(error); return quiet() })
+  if (touch || !born) void frame.send('Emulation.setTouchEmulationEnabled', { enabled: touch }).catch(error => { passedOver(error); return quiet() })
 }
 
 export function presentToFrames(kit: PageKit): void {
@@ -176,11 +178,11 @@ export function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
   parent.on('Target.attachedToTarget', event => {
     const frame = parent.connection()?.session(event.sessionId) ?? null
     if (frame === null) {
-      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(error => { passedOver(error); return quiet() })
       return
     }
     const letGo = (): void => {
-      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(quiet)
+      void parent.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(error => { passedOver(error); return quiet() })
     }
     try {
       if (event.targetInfo.type !== 'iframe') {
@@ -190,11 +192,12 @@ export function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
       frames.set(event.sessionId, { session: frame, parent: parent.id(), target: event.targetInfo.targetId })
       try {
         presentToFrame(frame, kit, true)
-      } catch {}
-      void frame.send('Page.enable').catch(quiet)
-      void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(quiet)
+      } catch (error) { passedOver(error) }
+      void frame.send('Page.enable').catch(error => { passedOver(error); return quiet() })
+      void frame.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presentedOf(kit).languages) }).catch(error => { passedOver(error); return quiet() })
       void watchFrames(kit, frame)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     } finally {
       try {
         void frame.send('Runtime.runIfWaitingForDebugger').catch(letGo)
@@ -212,7 +215,7 @@ export function watchFrames(kit: PageKit, parent: CDPSession): Promise<void> {
   })
   return parent
     .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'iframe', exclude: false }] })
-    .catch(quiet)
+    .catch(error => { passedOver(error); return quiet() })
 }
 
 function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo): void {
@@ -232,26 +235,26 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
   if (opener !== null) opener.opening = null
   const hints = presented.identity === null || opening === null || !takesHints(opening) ? null : hintHeaders(presented.identity)
   const armed = hints === null ? null : Object.fromEntries(FIRST_HINTS.map(name => [name, hints.get(name) ?? '']))
-  if (presented.identity !== null) void cdp.send('Emulation.setUserAgentOverride', presented.identity).catch(quiet)
-  void cdp.send('Emulation.setTimezoneOverride', { timezoneId: presented.timeZone }).catch(quiet)
-  if (presented.locale !== null) void cdp.send('Emulation.setLocaleOverride', { locale: presented.locale }).catch(quiet)
-  void cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(quiet)
-  void cdp.send('Page.enable').catch(quiet)
-  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(quiet)
-  void cdp.send('Network.enable').catch(quiet)
-  if (presented.headers !== null || armed !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: { ...armed, ...presented.headers } }).catch(quiet)
+  if (presented.identity !== null) void cdp.send('Emulation.setUserAgentOverride', presented.identity).catch(error => { passedOver(error); return quiet() })
+  void cdp.send('Emulation.setTimezoneOverride', { timezoneId: presented.timeZone }).catch(error => { passedOver(error); return quiet() })
+  if (presented.locale !== null) void cdp.send('Emulation.setLocaleOverride', { locale: presented.locale }).catch(error => { passedOver(error); return quiet() })
+  void cdp.send('Emulation.setAutomationOverride', { enabled: false }).catch(error => { passedOver(error); return quiet() })
+  void cdp.send('Page.enable').catch(error => { passedOver(error); return quiet() })
+  void cdp.send('Page.addScriptToEvaluateOnNewDocument', { source: stealthSource(presented.languages) }).catch(error => { passedOver(error); return quiet() })
+  void cdp.send('Network.enable').catch(error => { passedOver(error); return quiet() })
+  if (presented.headers !== null || armed !== null) void cdp.send('Network.setExtraHTTPHeaders', { headers: { ...armed, ...presented.headers } }).catch(error => { passedOver(error); return quiet() })
   if (hold.downloads === null) {
-    void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(quiet)
+    void cdp.send('Browser.setDownloadBehavior', { behavior: 'deny', eventsEnabled: true }).catch(error => { passedOver(error); return quiet() })
     listenDownloads(birth.wiring, cdp)
   }
   listenProtocol(birth.wiring, cdp)
   observeFirstRequest(kit, presented, info.targetId)
   if (info.openerId !== undefined && presented.identity !== null) mendFirstRequest(birth, presented.identity, armed === null ? null : (presented.headers ?? {}))
   void watchFrames(kit, cdp)
-  void cdp.send('Runtime.runIfWaitingForDebugger').catch(quiet)
+  void cdp.send('Runtime.runIfWaitingForDebugger').catch(error => { passedOver(error); return quiet() })
   if (info.openerId !== undefined && opener === null) {
     handover()
-    void hold.watch?.send('Target.closeTarget', { targetId: info.targetId }).catch(quiet)
+    void hold.watch?.send('Target.closeTarget', { targetId: info.targetId }).catch(error => { passedOver(error); return quiet() })
     return
   }
   hold.births.set(info.targetId, birth)
@@ -263,13 +266,13 @@ function bornPage(hold: Hold, cdp: CDPSession, info: Protocol.Target.TargetInfo)
 export async function watchBirths(state: OwnerBrowserState, hold: Hold, downloads: DownloadHome | undefined): Promise<void> {
   const browser = hold.browser
   if (typeof browser.target !== 'function') return
-  const watch = await browser.target().createCDPSession().catch(() => null)
+  const watch = await browser.target().createCDPSession().catch(passedOverAs(null))
   if (watch === null) return
   watch.on('Target.attachedToTarget', event => {
     const child = watch.connection()?.session(event.sessionId) ?? null
     if (child === null) return
     if (!event.waitingForDebugger) {
-      void watch.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => undefined)
+      void watch.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(passedOverAs(undefined))
       return
     }
     bornPage(hold, child, event.targetInfo)
@@ -297,7 +300,7 @@ export async function watchBirths(state: OwnerBrowserState, hold: Hold, download
   hold.watch = watch
   const armed = await watch
     .send('Target.setAutoAttach', { autoAttach: true, waitForDebuggerOnStart: true, flatten: true, filter: [{ type: 'page', exclude: false }] })
-    .then(() => true, () => false)
+    .then(() => true, passedOverAs(false))
   if (!armed) {
     hold.watch = null
     return
@@ -307,6 +310,6 @@ export async function watchBirths(state: OwnerBrowserState, hold: Hold, download
   watch.on('Browser.downloadProgress', event => downloadMoved(state, hold, event))
   const followed = await watch
     .send('Browser.setDownloadBehavior', { behavior: 'allowAndName', downloadPath: path.join(downloads.home, 'incoming'), eventsEnabled: true })
-    .then(() => true, () => false)
+    .then(() => true, passedOverAs(false))
   if (followed) hold.downloads = downloads
 }

@@ -2,6 +2,7 @@
 import { readlinkSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type CensusPlatform = 'win32' | 'darwin' | 'linux'
 
@@ -121,7 +122,8 @@ export function parseLinuxCensus(
   readExeLink: (pid: number) => string | undefined = pid => {
     try {
       return readlinkSync(`/proc/${pid}/exe`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   },
@@ -194,7 +196,8 @@ export async function runningGodotProcesses(opts?: {
       case 'win32':
         return parseWin32Census(outputs[0] ?? '')
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

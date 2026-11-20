@@ -9,6 +9,7 @@ import { mediaEnvironment, readMediaSettings, MEDIA_EXTENSION_ID } from '../../s
 
 import { registerBundledAppInstall, clearBundledAppInstalls } from '../installConsent.js'
 import { bundledMetadata } from '../bundled/content.generated.js'
+import { passedOver } from '../../utils/passedOver.js'
 let memo: Record<string, ScopedMcpServerConfig> | null = null
 
 export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> {
@@ -25,7 +26,8 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
         const dataDir = getExtensionDataDir(id)
         try {
           mkdirSync(dataDir, { recursive: true })
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         const declaredEnv: Record<string, string> = {}
         for (const [key, value] of Object.entries(declared.env ?? {})) declaredEnv[key] = resolve(value)
@@ -50,7 +52,7 @@ export function getExtensionMcpServers(): Record<string, ScopedMcpServerConfig> 
         try {
           const server = media.serverPath ?? config.args?.[0]
           config = { ...config, ...(server ? { args: [media.host ? join(dirname(server), 'remote-client.js') : server] } : {}), env: { ...config.env, ...mediaEnvironment(media) } }
-        } catch { continue }
+        } catch (error) { passedOver(error); continue }
       }
       const bootstrap = ext.entry.home === 'bundled' ? bundledMetadata[ext.manifest.name]?.bootstrap : undefined
       out[server.runtimeName] = { ...config, scope: 'dynamic', extensionSource: id, ...(bootstrap ? { bundledBootstrap: bootstrap } : {}) }

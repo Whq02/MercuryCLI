@@ -6,6 +6,7 @@ import { recogniseImage, renderOcr } from '../../../utils/ocr.js'
 import { readRegularFileSync } from '../../../utils/regularFile.js'
 import type { FileReadingLimits } from '../limits.js'
 import type { Output, CropBox, LaneResult } from './schema.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const IMAGE_TOKEN_BUDGET_DEFAULT = 25000
 
@@ -19,7 +20,7 @@ export async function cropImageBuffer(buffer: Buffer, crop: CropBox, filePath: s
   const { getImageProcessor } = await import('../imageProcessor.js')
   const { imageDimensionsFromHeader } = await import('../imageProcessorJs.js')
   const sharp = await getImageProcessor()
-  const metadata = await sharp(buffer).metadata().catch(() => ({}) as { width?: number; height?: number })
+  const metadata = await sharp(buffer).metadata().catch((error) => { passedOver(error); return ({}) as { width?: number; height?: number } })
   const header = imageDimensionsFromHeader(buffer)
   const width = metadata.width ?? header?.width
   const height = metadata.height ?? header?.height

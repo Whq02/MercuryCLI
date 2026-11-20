@@ -6,6 +6,7 @@ import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const NOUS_PORTAL_CLIENT_ID = 'hermes-cli'
 export const NOUS_PORTAL_SIGNIN_SCOPE = 'inference:invoke'
@@ -118,7 +119,8 @@ export function readNousClientRecord(): NousClientRecord {
   try {
     if (statSync(path).size > RECORD_MAX_BYTES) return {}
     return decodeNousClientRecord(JSON.parse(readFileSync(path, 'utf8')))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -176,7 +178,7 @@ async function boundedText(response: Response): Promise<string | null> {
     if (next.done) break
     size += next.value.byteLength
     if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(() => undefined)
+      await reader.cancel().catch(passedOverAs(undefined))
       return null
     }
     chunks.push(next.value)
@@ -201,7 +203,7 @@ async function readSource(url: string, accept: string, io: NousClientIo | undefi
     return { ok: false, words: typeof code === 'string' ? `no network (${code})` : 'no network' }
   }
   if (!response.ok) {
-    await response.body?.cancel().catch(() => undefined)
+    await response.body?.cancel().catch(passedOverAs(undefined))
     return { ok: false, words: `HTTP ${response.status}` }
   }
   const text = await boundedText(response)
@@ -253,14 +255,14 @@ export function peekNousClient(io?: NousClientIo & { force?: boolean }): Promise
     const answer = await readNousClientFromSource(io)
     const fresh = readNousClientRecord()
     if (!answer.ok) {
-      try { writeNousClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch {}
+      try { writeNousClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
     }
     const newest = compareNousReleases(answer.facts.release, fresh.learned?.release ?? NOUS_CLIENT_CONTRACT_RELEASE) > 0
     const next: NousClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { ...answer.facts, learnedAtMs: now(), from: answer.from }
-    try { writeNousClientRecord(next) } catch {}
+    try { writeNousClientRecord(next) } catch (error) { passedOver(error) }
     return { kind: 'read', answer, learned: newest }
   })().finally(() => {
     peekInFlight = null

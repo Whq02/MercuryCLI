@@ -4,6 +4,7 @@ import { getTotalCostUSD } from '../../bootstrap/state.js'
 import { providerLimitWarningFacts } from '../../services/providers/limitWarning.js'
 import { getInitialSettings } from '../settings/settings.js'
 import type { Attachment } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export function getCriticalSystemReminderAttachment(
   toolUseContext: ToolUseContext,
@@ -63,7 +64,8 @@ export function getUsageLimitNoticeAttachment(
   let facts: ReturnType<typeof providerLimitWarningFacts>
   try {
     facts = providerLimitWarningFacts({ model: toolUseContext.options.engineModel, ...(reads !== undefined ? { reads } : {}) })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   if (facts === null) return []

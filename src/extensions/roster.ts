@@ -14,6 +14,7 @@ import { readInstalled, readSources, type InstalledRecord, type SourceRecord } f
 import { compareWithCatalogue, readSourceCatalogue } from './sources.js'
 import { hashTree } from './tree.js'
 import type { RosterEntry, RosterSummary, TrustState } from './types.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 
@@ -223,7 +224,8 @@ export function computeRoster(input: RosterInput = {}): RosterResult {
       names = readdirSync(projectDir).filter(name => {
         try {
           return statSync(join(projectDir, name)).isDirectory()
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return false
         }
       })

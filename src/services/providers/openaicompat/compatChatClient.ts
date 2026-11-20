@@ -40,6 +40,7 @@ import {
 } from '../localLiveness.js'
 import type { DeferralWireForm } from '../deferralWire.js'
 import { isBedrockThrottle } from '../../api/bedrockThrottle.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 
@@ -486,7 +487,8 @@ async function* streamCompatChatRaw(
     s.headersLanded = true
     try {
       options.onResponseHeaders?.(response.headers, response.status)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (s.firstByteTimer !== null) timers.clearTimeout(s.firstByteTimer)
     stopIngestWatch()
@@ -591,7 +593,7 @@ async function* streamCompatChatRaw(
                       retryable: true,
                     },
         }
-        void reader.cancel().catch(() => {})
+        void reader.cancel().catch(passedOver)
         return
       }
       if (!sawEvent) rawHead += bodyDecoder.decode(chunk.done ? undefined : chunk.value, { stream: !chunk.done })
@@ -636,7 +638,7 @@ async function* streamCompatChatRaw(
           }
           continue
         }
-        try { options.onResponseChunk?.(parsed) } catch {}
+        try { options.onResponseChunk?.(parsed) } catch (error) { passedOver(error) }
         for (const event of decodeChunk(parsed, toolAcc, activeSlotByRawIndex, response.headers)) {
           if (event.type === 'text-delta' || event.type === 'reasoning-delta' || event.type === 'reasoning-withheld' || event.type === 'finish' || event.type === 'tool-call-fragment') {
             if (tokenWait) {
@@ -870,7 +872,7 @@ function watchFirstByte(s: CompatStreamState, needs: Pick<CompatStreamNeeds, 'lo
       startPromiseLoop()
     }
     if (law.loadedAtSend !== false) startPromiseLoop()
-    void watchLoading().catch(() => undefined)
+    void watchLoading().catch(passedOverAs(undefined))
   }
   return stopIngestWatch
 }

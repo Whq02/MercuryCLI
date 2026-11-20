@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface RespawnEntryResolution {
   script?: string
@@ -22,7 +23,8 @@ export function resolveMercuryRespawnEntry(
   const self = (() => {
     try {
       return fileURLToPath(import.meta.url)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   })()

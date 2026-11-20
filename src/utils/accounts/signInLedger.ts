@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
+import { passedOver } from '../passedOver.js'
 
 export const SIGN_IN_LEDGER_FILE = '.sign-ins.json'
 const SIGN_IN_LEDGER_VERSION = 1
@@ -53,7 +54,8 @@ function bumpEpoch(): void {
     for (const listener of [...epochListeners]) {
       try {
         listener()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   })
@@ -80,7 +82,8 @@ function readFile(io?: SignInLedgerIo): SignInLedgerFile | null {
     const parsed = JSON.parse(readFileSync(ledgerPath(io), 'utf8')) as unknown
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
     return parsed as SignInLedgerFile
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

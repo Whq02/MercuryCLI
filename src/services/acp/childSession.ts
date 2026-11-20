@@ -9,6 +9,7 @@ import { createPeer, PeerClosed, type Peer } from '../../runner/wire/peer.js'
 import type { RpcError } from '../../runner/wire/errors.js'
 import { flagEnv, flagPair, flagSpellings } from '../../substrate/flagRegistry.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface TurnEndDetail {
   status: string
@@ -310,7 +311,8 @@ export class MercuryChildSession {
     this.peer.close('the session was closed')
     try {
       this.child.stdin?.end()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (this.dead) return Promise.resolve()
     return new Promise<void>(resolve => {

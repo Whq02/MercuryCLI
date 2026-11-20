@@ -46,6 +46,7 @@ import { reconcileManagedShims, resolveLayoutRoots } from '../services/privateCh
 import type { Root } from '../ink.js'
 import { typedString, writeErr, UUID_SHAPE, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 let abandonAnnounced = false
 function announceAbandonedLaunch(): void {
@@ -57,7 +58,8 @@ function announceAbandonedLaunch(): void {
       process.stderr.write(
         `Mercury did not start: a shutdown was initiated during boot (exit ${code}). Boot again with --debug and read the debug log for the initiator.\n`,
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 }
@@ -165,7 +167,8 @@ export async function interactiveLaunch(args: InteractiveLaunchArgs): Promise<vo
     await flushDeferredGlobalConfigSaves()
     try {
       recordInvocation()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 
@@ -245,7 +248,7 @@ function registerBootBackgroundNodes(args: { sessionTitle: string | undefined })
   registerBackgroundNode('session-telemetry', async () => {
     void getEngineModel()
     const { ensureExtensionsLoaded } = await import('../extensions/boot.js')
-    await ensureExtensionsLoaded().catch(() => {})
+    await ensureExtensionsLoaded().catch(passedOver)
   })
   registerBackgroundNode('shim-reconcile', async () => {
     reconcileManagedShims(resolveLayoutRoots())
@@ -328,7 +331,7 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
         searchTerm = resumeValue
       }
     } else if (typeof resumeValue === 'string') {
-      const log = await lastSession(resumeValue as UUID).catch(() => null)
+      const log = await lastSession(resumeValue as UUID).catch(passedOverAs(null))
       if (!log) {
         const { resumeMissMessage } = await import('../utils/sessionStorage/resumeMiss.js')
         await exitWithError(root, await resumeMissMessage(resumeValue))
@@ -341,7 +344,7 @@ async function routeBootJourney({ args, opts, root, appProps, chatProps, inputPr
       if (!(await resumeAtBoot(String(resumeSessionId), resumeLog))) return false
     } else {
       const { getWorktreePaths } = await import('../utils/getWorktreePaths.js')
-      const worktreePathsPromise = getWorktreePaths(process.cwd()).catch(() => [] as string[])
+      const worktreePathsPromise = getWorktreePaths(process.cwd()).catch((error) => { passedOver(error); return [] as string[] })
       await launchResumeChooser(root, appProps, worktreePathsPromise, {
         ...chatProps,
         initialSearchQuery: searchTerm,

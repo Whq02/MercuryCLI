@@ -4,6 +4,7 @@ import { composedGuideFilesAt } from './services/instructions/adapters/index.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { getCwd } from './utils/cwd.js'
 import { getFsImplementation } from './utils/fsOperations.js'
+import { passedOver } from './utils/passedOver.js'
 
 const ONBOARDING_SEEN_COUNT_LIMIT = 4
 
@@ -19,7 +20,8 @@ function isWorkingDirectoryEmpty(): boolean {
   const fs = getFsImplementation()
   try {
     return fs.readdirSync(getCwd()).length === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

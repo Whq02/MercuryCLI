@@ -16,6 +16,7 @@ import {
 import { Select } from './CustomSelect/index.js'
 import Dialog from './design-system/Dialog.js'
 import { Spinner } from './Spinner.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type ExitChoice =
   | 'keep'
@@ -39,11 +40,13 @@ async function recordWorktreeExit(): Promise<void> {
 function restoreDirectories(session: WorktreeSession): void {
   try {
     process.chdir(session.originalCwd)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     setCwd(session.originalCwd)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

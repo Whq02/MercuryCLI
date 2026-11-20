@@ -5,6 +5,7 @@ import { getCwd } from '../../../utils/cwd.js'
 import { expandPath } from '../../../utils/path.js'
 import { parseRichFormatTarget, type ParsedRichTarget } from '../readRichFormats.js'
 import { MAX_RANGES_PER_READ } from './schema.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function remoteRangeSelector(rawPath: string): { path: string; ranges: string[] } | null {
   const colon = rawPath.lastIndexOf(':')
@@ -102,7 +103,8 @@ export function resolveCanonicalNearMissPath(filePath: string): string | null {
       matched = entry
     }
     return matched !== null ? join(dir, matched) : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

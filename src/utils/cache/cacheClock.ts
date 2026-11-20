@@ -28,6 +28,7 @@ import {
   tierLeaseOf,
   tierLeaseWarm,
 } from './cacheClockCore.js'
+import { passedOver } from '../passedOver.js'
 
 const ROLLUP_FLUSH_EVERY = 8
 const ROLLUP_KEEP_FILES = 200
@@ -114,7 +115,8 @@ function readPrior(dir: string): CadencePrior {
         const p = join(dir, f)
         try {
           return { p, mtime: statSync(p).mtimeMs }
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       })
@@ -124,7 +126,8 @@ function readPrior(dir: string): CadencePrior {
     const rollups = files.map(({ p }) => {
       try {
         return JSON.parse(readFileSync(p, 'utf8')) as unknown
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     })
@@ -137,7 +140,8 @@ function readPrior(dir: string): CadencePrior {
 function readOwnLease(dir: string): TierLease | null {
   try {
     return tierLeaseOf(JSON.parse(readFileSync(join(dir, `${getSessionId()}.json`), 'utf8')) as unknown)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -150,7 +154,8 @@ function reapOldRollups(dir: string): void {
         const p = join(dir, f)
         try {
           return { p, mtime: statSync(p).mtimeMs }
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       })
@@ -159,10 +164,12 @@ function reapOldRollups(dir: string): void {
     for (const { p } of files.slice(ROLLUP_KEEP_FILES)) {
       try {
         unlinkSync(p)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

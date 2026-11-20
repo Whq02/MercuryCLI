@@ -21,6 +21,7 @@ import {
 import { firstRequestWords } from './settle.js'
 import { actDeadline, resolveActTarget, resolveReadTarget } from './targets.js'
 import type { OpDone, OpRun } from './ops.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export async function statusOp({ input, owner }: OpRun): Promise<OpDone> {
   let result: string
@@ -102,14 +103,15 @@ export async function screenshotOp(s: LiveSession, { input, signalFor, holdImage
         sizeNote = ` (inlined copy downscaled to the image budget: ${(img.file.originalSize / 1024).toFixed(0)}KB on disk, ~${(inlineBytes / 1024).toFixed(0)}KB inlined)`
         shown = imageDimensionsOfBase64(img.file.base64) ?? shown
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const vp = s.page.viewport()
   const ratio = vp?.deviceScaleFactor || (
     !input.selector && !input.fullPage && saved !== null && vp?.width
       ? saved.width / vp.width
-      : await s.page.evaluate(() => window.devicePixelRatio).catch(() => null)
+      : await s.page.evaluate(() => window.devicePixelRatio).catch(passedOverAs(null))
   )
   let scaleNote = ''
   if (saved !== null && shown !== null && ratio !== null && ratio > 0) {

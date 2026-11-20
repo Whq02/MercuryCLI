@@ -8,6 +8,7 @@ import { readScopeIdentity, scopeIdentityFile } from '../utils/accounts/scopeSca
 import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccounts.js'
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export interface FamilyCredentialPresenceV1 {
@@ -67,14 +68,16 @@ function productionAnthropicDetail(): AnthropicOauthDetailV1 | null {
     const subscriber = ((): boolean => {
       try {
         return isClaudeAISubscriber()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })()
     const tokens = ((): { expiresAt: number | null; refreshToken: string | null } | null => {
       try {
         return getClaudeAIOAuthTokens()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     })()
@@ -82,7 +85,8 @@ function productionAnthropicDetail(): AnthropicOauthDetailV1 | null {
     const identity = ((): string | undefined => {
       try {
         return readScopeIdentity(scopeIdentityFile(scopeDir)).email
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
     })()
@@ -93,7 +97,8 @@ function productionAnthropicDetail(): AnthropicOauthDetailV1 | null {
       knownExpiresAt: tokens?.expiresAt ?? null,
       refreshable: typeof tokens?.refreshToken === 'string' && tokens.refreshToken.length > 0,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -129,7 +134,7 @@ export function deriveScheduleAccountForModel(
       try {
         const endpoint = compatModelEndpoint(modelKey)?.endpoint
         if (endpoint !== undefined) door = `compat/${endpoint.name}`
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     return { ok: false, reason: noCredentialRefusal(door) }
   }
@@ -207,7 +212,8 @@ export function readLiveAccountFacts(
           ((): boolean => {
             try {
               return isAnthropicOAuthSignInExpired()
-            } catch {
+            } catch (error) {
+              passedOver(error)
               return false
             }
           }))()

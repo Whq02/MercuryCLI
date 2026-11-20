@@ -7,6 +7,7 @@ import { isDeferredToolFor } from '../../tools/ToolSearchTool/prompt.js'
 import { toolToAPISchema } from '../api.js'
 import { getConversationToolSchemas } from '../toolSchemaCache.js'
 import type { Attachment } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export const TOOL_SCHEMA_DELTA_HEAD =
   'These tools take different input now than the definition in your tool list shows. Call each with the parameters below; the tool list keeps the earlier definition for the life of this conversation.'
@@ -90,7 +91,8 @@ export async function getToolSchemaDeltaAttachment(toolUseContext: ToolUseContex
     let sentSchema: unknown
     try {
       sentSchema = (JSON.parse(sent) as { input_schema?: unknown }).input_schema
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const live = await toolToAPISchema(tool, { getToolPermissionContext, tools, agents, model })

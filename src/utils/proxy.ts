@@ -9,6 +9,7 @@ import { apiTimeoutMsOverride } from './envValidation.js'
 import { getCACertificates } from './caCerts.js'
 import { isEnvTruthy } from './envUtils.js'
 import { getMTLSAgent, getMTLSConfig, getTLSFetchOptions } from './mtls.js'
+import { passedOver } from './passedOver.js'
 
 
 type EnvLike = Record<string, string | undefined>
@@ -30,7 +31,8 @@ export function shouldBypassProxy(url: string, noProxy: string | undefined = get
     const parsed = new URL(url)
     host = parsed.hostname.toLowerCase()
     port = parsed.port ? Number(parsed.port) : parsed.protocol === 'https:' ? 443 : 80
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   const entries = noProxy

@@ -41,6 +41,7 @@ import {
   type ReviewScopeDecisionKind,
   type ScopeDecisionFold,
 } from './reviewContracts.js'
+import { passedOver } from '../passedOver.js'
 
 const BODY_MAX_BYTES = 512 * 1024
 
@@ -76,7 +77,8 @@ function journalPath(id: string): string {
 export function reviewArtifactJournalExists(id: string): boolean {
   try {
     return isReviewArtifactId(id) && existsSync(journalPath(id))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -111,7 +113,8 @@ function withArtifactLock<T>(id: string, fn: () => T): T {
       mkdirSync(lock)
       try {
         writeFileSync(path.join(lock, 'owner'), token, 'utf8')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       break
     } catch (mkdirFailure) {
@@ -139,7 +142,8 @@ function withArtifactLock<T>(id: string, fn: () => T): T {
     if (artifactLockOwnedBy(lock, token)) {
       try {
         rmSync(lock, { recursive: true, force: true })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -180,7 +184,8 @@ function decodeEvent(line: string): ReviewJournalEvent | null {
     if (raw === null || typeof raw !== 'object' || raw.v !== 1) return null
     if (typeof raw.type !== 'string' || typeof raw.at !== 'number') return null
     return raw as ReviewJournalEvent
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -293,7 +298,8 @@ export function readReviewArtifactState(id: string): ReviewArtifactState | null 
     if (!isReviewArtifactId(id)) return null
     const raw = readFileSync(journalPath(id), 'utf8')
     return foldJournal(id, raw)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -309,7 +315,8 @@ export function readReviewArtifactJournal(id: string): ReviewJournalEvent[] {
       if (ev) out.push(ev)
     }
     return out
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -367,7 +374,8 @@ export type ReviewWriteResult<T> = { ok: true; value: T } | { ok: false; reason:
 function bodyOversize(body: ReviewArtifactBody): boolean {
   try {
     return Buffer.byteLength(JSON.stringify(body), 'utf8') > BODY_MAX_BYTES
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -457,8 +465,7 @@ function mirrorReviewStatusToCrew(
         })
       }
     })
-    .catch(() => {
-    })
+    .catch(passedOver)
   mirrorChains.set(artifactId, next)
   void next.finally(() => {
     if (mirrorChains.get(artifactId) === next) mirrorChains.delete(artifactId)

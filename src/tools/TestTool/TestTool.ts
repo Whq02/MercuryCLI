@@ -44,6 +44,7 @@ import {
   renderToolUseProgressMessage,
   userFacingName,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const OPS = ['discover', 'run', 'rerunFailed', 'debug', 'report'] as const
 
@@ -122,7 +123,8 @@ function fallbackNoteSuffix(explicit: string | undefined, resolved: string, from
   try {
     const note = pytestFallbackNote(from, uncollected)
     return note ? `\n${note}` : ''
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }
@@ -137,7 +139,8 @@ function isUnder(target: string, root: string): boolean {
 function isDirectory(p: string): boolean {
   try {
     return statSync(p).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -729,7 +732,8 @@ export const TestTool = buildTool({
         } else if (!input.profile) {
           resolved = ` (python lane: the shared project interpreter${where})`
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const message = `Test ${input.op}${input.node ? `: ${input.node}` : input.path ? `: ${input.path}` : input.changed ? ': changed files' : ''}${resolved || ' (runs project test code)'}`

@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, realpathSync, unlinkSync } from 'node:fs'
 import { basename, dirname, join, resolve } from 'node:path'
 import { acquirePidLock } from '../../substrate/pidLock.js'
 import { describeTranscriptStoreFailure } from './writer.js'
+import { passedOver } from '../passedOver.js'
 
 const owner = randomUUID()
 const held = new Set<string>()
@@ -28,7 +29,7 @@ export async function claimSessionWriter(transcriptPath: string): Promise<void> 
       try {
         const holder = JSON.parse(readFileSync(lock, 'utf8'))
         if (holder.owner === owner && holder.pid === process.pid) unlinkSync(lock)
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
   })
 }

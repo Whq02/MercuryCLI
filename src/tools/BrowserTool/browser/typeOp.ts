@@ -7,6 +7,7 @@ import { type LiveSession, pageWhere, targetOrigin, targetSurface } from './page
 import { actDeadline, actOriginGate, isDisabledTarget, probeEditableTarget, resolveActTarget } from './targets.js'
 import { humanTypeText } from './human.js'
 import type { OpDone, OpRun } from './ops.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export async function typeOp(s: LiveSession, { input, owner, signalFor, holdSecret }: OpRun): Promise<OpDone> {
   let result: string
@@ -205,7 +206,8 @@ export async function typeOp(s: LiveSession, { input, owner, signalFor, holdSecr
       const el = active as HTMLInputElement | null
       return typeof el?.value === 'string' ? el.value.length : null
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   result = `type: ${input.text!.length} chars into ${probe.desc}${input.enter === true ? ' + Enter' : ''}${
     valueLen !== null ? ` (value now ${valueLen} chars)` : ''

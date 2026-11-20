@@ -4,6 +4,7 @@ import type { ParamsOf } from '../../../sdk/src/wire.js'
 import type { RunOptions } from '../../../sdk/src/client.js'
 import { AutomationOwnership, AutomationPermissionRefusal, modeWithinCeiling, type AutomationClient } from './automationAccess.js'
 import { OUTSIDE_REPORT_RULE } from '../../utils/messages/outsideReport.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type AutomationRun = { prompt: string; session_id?: string; title?: string; model?: string; mode?: PermissionMode }
 export type AutomationOptions = Pick<RunOptions, 'mercury' | 'cwd' | 'env' | 'model' | 'mode' | 'allowSovereign' | 'effort'>
@@ -124,7 +125,7 @@ export class AutomationBridge {
     const opening = await Promise.allSettled(this.opening)
     const sessions = new Set([...this.sessions.values()].map(entry => entry.session))
     for (const row of opening) if (row.status === 'fulfilled') sessions.add(row.value)
-    if (this.reader) try { sessions.add(await this.reader) } catch {}
+    if (this.reader) try { sessions.add(await this.reader) } catch (error) { passedOver(error) }
     await Promise.all([...sessions].map(session => session.close()))
     this.sessions.clear()
   }

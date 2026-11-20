@@ -8,6 +8,7 @@ import { straightenQuotes } from '../../utils/curlyQuotes.js'
 import { declaredInputSchema, repairArgumentsBySchema } from './local/schemaTyping.js'
 import { CORRECT_TOOL_NAME, RETAIN_TOOL_NAME } from '../../tools/MemoryTools/prompt.js'
 import { displayToolName } from '../../utils/toolNameDisplay.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface IncomingToolCall {
   id: string
@@ -32,7 +33,8 @@ function acceptsAbsence(field: unknown): boolean {
   if (typeof parse !== 'function') return false
   try {
     return (parse as (value: unknown) => { success: boolean }).call(field, undefined).success === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -45,7 +47,8 @@ function declaredShapes(schema: unknown, depth = 0): Array<Record<string, unknow
   if (typeof s.unwrap === 'function') {
     try {
       return declaredShapes((s.unwrap as () => unknown).call(schema), depth + 1)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
   }
@@ -257,7 +260,8 @@ export function refusedCallInput(refusal: RefusedToolCall): Record<string, unkno
   try {
     const parsed: unknown = JSON.parse(refusal.argumentsRaw)
     return parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {}
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }

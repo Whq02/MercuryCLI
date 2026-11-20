@@ -4,6 +4,7 @@ import type {
   Message,
   StreamEvent,
 } from '../types/message.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type ToolLike = {
   backfillObservableInput?: (input: Record<string, unknown>) => void
@@ -30,7 +31,8 @@ export function backfillCloneForYield(
         const inputCopy = { ...originalInput }
         try {
           tool.backfillObservableInput(inputCopy)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         const addedFields = Object.keys(inputCopy).some(k => !(k in originalInput))

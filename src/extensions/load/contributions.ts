@@ -13,6 +13,7 @@ import {
   serverRuntimeName,
 } from '../manifest.js'
 import { substituteRootAndData } from '../options.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type ResolvedSkill = { name: string; skillName: string; dir: string; file: string; body: string; frontmatter: FrontmatterData }
@@ -62,7 +63,8 @@ function isOnPath(binary: string): boolean {
         if (!stat.isFile()) continue
         if (process.platform !== 'win32') accessSync(candidate, constants.X_OK)
         return true
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -99,7 +101,8 @@ function readMarkdown(file: string): { body: string; frontmatter: FrontmatterDat
   let raw: string
   try {
     raw = readFileSync(file, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const md = parseFrontmatter(raw, file)
@@ -121,7 +124,8 @@ function listDir(dir: string): Array<{ name: string; isDir: boolean }> | null {
       }
       return { name: entry.name, isDir }
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -131,7 +135,8 @@ function isExecutable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

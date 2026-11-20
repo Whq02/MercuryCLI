@@ -11,6 +11,7 @@ import { logError } from './log.js'
 import { PROJECT_CONFIG_DIR_NAMES } from './projectConfig.js'
 import { getProjectsDir } from './sessionStorage/paths.js'
 import { getProjectDir, validateUuid } from './sessionStoragePortable.js'
+import { passedOver } from './passedOver.js'
 
 export interface BootProjectFact {
   dir: string
@@ -77,7 +78,8 @@ export function projectDisplayName(dir: string): string {
 export function workedInProjects(excludeSessionId?: string): BootProjectFact[] {
   try {
     return scanWorkedInProjects(excludeSessionId)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -110,7 +112,8 @@ export function isAuthFailureHusk(file: string, size: number): boolean {
       if (!line.includes('"error":"authentication_failed"')) return false
     }
     return outputs > 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -135,7 +138,8 @@ function readProjectCard(store: string): ProjectCard | null {
       firstChatAt: raw.firstChatAt,
       firstSessionId: typeof raw.firstSessionId === 'string' ? raw.firstSessionId : '',
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -149,7 +153,8 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
   let names: string[]
   try {
     names = readdirSync(store)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const card = names.includes(PROJECT_CARD_FILE) ? readProjectCard(store) : null
@@ -159,7 +164,8 @@ function readStoreDirFacts(store: string, skip: string | null): StoreDirFacts | 
     try {
       const st = statSync(join(store, f))
       candidates.push({ file: join(store, f), mtime: st.mtimeMs, size: st.size })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   candidates.sort((a, b) => b.mtime - a.mtime)
@@ -188,7 +194,8 @@ function transcriptCwd(file: string): string | null {
     const head = readHead(file)
     const m = /"cwd"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(head)
     if (m) return JSON.parse('"' + m[1] + '"') as string
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return null
 }
@@ -213,11 +220,13 @@ export function projectChatCount(projectDir: string, opts: { excludeSessionId?: 
       if (!isSessionFile(f) || f === skip) continue
       try {
         if (statSync(join(home, f)).size > 0) n++
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     return n
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -237,7 +246,8 @@ export function parkedSessionsOf(
       try {
         const st = statSync(join(home, f))
         if (st.size > 0 && st.mtimeMs >= since) candidates.push({ file: join(home, f), mtime: st.mtimeMs, size: st.size })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     candidates.sort((a, b) => b.mtime - a.mtime)
@@ -248,7 +258,8 @@ export function parkedSessionsOf(
       if (out.length >= cap) break
     }
     return out
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -266,7 +277,8 @@ export function capDirsByRecency(
       let m = 0
       try {
         m = mtimeOf(name)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return { name, m }
     })
@@ -293,7 +305,8 @@ function scanWorkedInProjects(excludeSessionId?: string): BootProjectFact[] {
     if (!homeIsTmp && isTmpPath(sessionCwd)) continue
     try {
       if (!statSync(sessionCwd).isDirectory()) continue
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (seen.some(s => s.dir === sessionCwd)) continue
@@ -340,7 +353,8 @@ function canonicalGroundSpelling(dir: string): { path: string; canonicalized: bo
   const spelling = folded.length > 0 ? folded : '/'
   try {
     return { path: realpathSync(spelling).replace(/\\/g, '/').normalize('NFC'), canonicalized: true }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let head = spelling
   const tail: string[] = []
@@ -351,7 +365,8 @@ function canonicalGroundSpelling(dir: string): { path: string; canonicalized: bo
     head = head.slice(0, cut)
     try {
       return { path: [realpathSync(head).replace(/\\/g, '/'), ...tail].join('/').normalize('NFC'), canonicalized: false }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return { path: spelling.normalize('NFC'), canonicalized: false }
@@ -381,7 +396,8 @@ export function workspaceRecognizedByGround(groundDir: string, workspaceDir: str
   if (typeof groundDir !== 'string' || groundDir.length === 0) return false
   try {
     if (getProjectDir(workspaceDir) === getProjectDir(groundDir)) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   const ws = canonicalGroundSpelling(workspaceDir)
@@ -441,7 +457,8 @@ function emitCatalogChanged(): void {
   for (const listener of [...catalogListeners]) {
     try {
       listener(project)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -449,7 +466,8 @@ function emitCatalogChanged(): void {
 export function catalogFirstChat(dir: string, sessionId: string): void {
   try {
     initializeProjectLocalEstate(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const store = getProjectDir(dir)

@@ -23,6 +23,7 @@ import { noStdinChunks, readStdinChunks, readStdinWithPeek, refuseEmptyRunPrompt
 import { resolveMcpConfigs } from './mcpConfigs.js'
 import { interactiveLaunch } from './interactiveLaunch.js'
 import { runLaunch } from './runLaunch.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export async function defaultAction(inputPromptArg: string | undefined, opts: RootOptions): Promise<void> {
   if ((opts as { version?: boolean }).version) {
@@ -31,7 +32,8 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
   }
   try {
     recordLaunchMilestone('runtime-entry', { boot: getIsInteractive() ? 'interactive' : 'headless' })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const cliName = binaryName()
   const isNonInteractiveSession = !getIsInteractive()
@@ -173,7 +175,7 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
   const { getProjectRoot } = await import('../bootstrap/state.js')
   const cwd = process.cwd()
   if (!worktreeEnabled && !isNonInteractiveSession && checkHasTrustDialogAccepted()) {
-    void getInstructionFiles().catch(() => {})
+    void getInstructionFiles().catch(passedOver)
   }
   profileCheckpoint('action_before_setup')
   const setupPromise = setup(
@@ -193,9 +195,9 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
     await setupPromise
     commandsPromise = getCommands(getProjectRoot())
   } else {
-    setupPromise.catch(() => {})
+    setupPromise.catch(passedOver)
     commandsPromise = getCommands(cwd)
-    commandsPromise.catch(() => {})
+    commandsPromise.catch(passedOver)
     await setupPromise
   }
   profileCheckpoint('action_after_setup')
@@ -204,8 +206,8 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
 
   if (isNonInteractiveSession) {
     applyMergedConfigEnv()
-    void getSystemContext().catch(() => {})
-    void getUserContext().catch(() => {})
+    void getSystemContext().catch(passedOver)
+    void getUserContext().catch(passedOver)
   }
   logForDiagnosticsNoPII('info', 'mercury_started', {
     version: MERCURY_VERSION,

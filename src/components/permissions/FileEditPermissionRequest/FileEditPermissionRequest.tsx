@@ -19,6 +19,7 @@ import type { FileEdit } from '../../../tools/FileEditTool/types.js'
 import { getPatchForEdits } from '../../../tools/FileEditTool/utils.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { RemotePathSubtitle } from '../RemotePathSubtitle.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type EditToolInput = {
   file_path: string
@@ -38,7 +39,8 @@ function parseEditInput(input: unknown): EditToolInput {
 function currentContentOf(path: string): string {
   try {
     return readFileSync(path, 'utf8').replace(/^\uFEFF/, '').replaceAll('\r\n', '\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }
@@ -92,7 +94,8 @@ function lastReadPreviewEditsFor(input: EditToolInput, content: string): FileEdi
       const edits = [{ old_string: input.old_string ?? '', new_string: input.new_string ?? '', replace_all: input.replace_all ?? false }]
       updated = getPatchForEdits({ filePath: input.file_path, fileContents: content, edits }).updatedFile
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return updated === null || updated === content ? null : [{ old_string: content, new_string: updated, replace_all: false }]
 }
@@ -107,7 +110,8 @@ function previewEditsFor(input: EditToolInput, lastRead: string | null): FileEdi
       const content = readFileSync(input.file_path, 'utf8').replaceAll('\r\n', '\n')
       const plan = planHunks(content, input.hunks, input.expected_anchor)
       if (plan.ok) return hunksToEdits(content, plan)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return input.hunks.map(hunk => ({
       old_string: `lines ${hunk.lines}`,

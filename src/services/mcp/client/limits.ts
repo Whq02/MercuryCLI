@@ -2,6 +2,7 @@ import { Client } from '../sdk.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { minutesKnobToMs } from '../../../utils/deadline.js'
 import { formatFileSize } from '../../../utils/format.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const DEFAULT_CONNECT_TIMEOUT_MS = 30_000
 const DEFAULT_TOOL_TIMEOUT_MS = 100_000_000
@@ -53,7 +54,7 @@ export async function withMcpLaunchBudget(
     return await Promise.race([
       work.then(
         () => 'settled' as const,
-        () => 'settled' as const,
+        passedOverAs('settled' as const),
       ),
       bound,
     ])

@@ -2,6 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { EMPTY_STREAM_END_MARKER, EMPTY_STREAM_REASON_WORDS, outageCauseWordsOf } from '../api/recoveryBudget.js'
 import type { SystemAPIErrorMessage } from '../../types/message.js'
 import { currentPatience, PATIENCE_NORMAL } from './patience.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const STREAM_IDLE_DEFAULT_MS = 2 * 60_000
 
@@ -548,7 +549,8 @@ export function observeStreamActivity(response: Response, note: StreamActivityNo
   const observed = new Response(tapped, { status: response.status, statusText: response.statusText, headers: response.headers })
   try {
     Object.defineProperty(observed, 'url', { value: response.url, configurable: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return observed
 }

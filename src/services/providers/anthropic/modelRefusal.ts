@@ -9,6 +9,7 @@ import { clientContractGateText } from '../../api/clientContractGate.js'
 import { clientContractHealOf, clientContractStory, type ClientContractSource } from '../../api/clientContractLearned.js'
 import { classifyAnthropicRefusal } from '../anthropicRefusal.js'
 import { classifyCredentialWall } from '../credentialWall.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type ModelRefusalKind = 'contract-floor' | 'tier' | 'not-served'
 
@@ -61,7 +62,8 @@ export function activeModelRefusalDoor(): string | undefined {
     const { anthropicCredentialPresence } =
       require('../providerUsage.js') as typeof import('../providerUsage.js')
     return anthropicCredentialPresence().credentialLabel
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -208,14 +210,16 @@ function readModelRefusals(home = getAuthConfigHomeDir()): ModelRefusalFile[] {
         if (file?.version === 1 && storedModelRefusal(file.refusal) && `${modelRefusalKey(file.refusal)}.json` === name) {
           files.push({ path: filePath, row: file.refusal })
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
     }
     files.sort((a, b) => b.row.seenAtMs - a.row.seenAtMs || a.path.localeCompare(b.path))
     modelRefusalCache = { path, stamp, files }
     return files
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

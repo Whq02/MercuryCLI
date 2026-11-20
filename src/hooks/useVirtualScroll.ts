@@ -12,13 +12,15 @@ import type { DOMElement } from '../ink.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { useLayoutClaim, useLayoutPublish, useMeasure, useSubscription } from './effects.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function pinTrace(entry: Record<string, unknown>): void {
   const path = flagEnv('MERCURY_CONNECTOR_TRACE')
   if (!path) return
   try {
     appendFileSync(path, `${JSON.stringify({ t: Date.now(), ev: 'pin', ...entry })}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

@@ -10,12 +10,14 @@ import { releaseLauncherAltHoldNow } from '../ink/launcherAltHold.js'
 
 import { logForDebugging } from './debug.js'
 import { memoizeWithLRU } from './memoize.js'
+import { passedOver } from './passedOver.js'
 
 
 function pathExists(candidate: string): boolean {
   try {
     return existsSync(candidate)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -43,7 +45,8 @@ function findExecutableCandidates(name: string): string[] {
         candidates.push(line)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (name === 'git') {
     for (const classic of [
@@ -100,7 +103,8 @@ export const locateGitBash = memoize((): GitBashLocation => {
     releaseLauncherAltHoldNow()
     try {
       writeSync(2, `Error: unable to find MERCURY_GIT_BASH_PATH at ${override} — the path does not exist.\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     process.exit(1)
   }

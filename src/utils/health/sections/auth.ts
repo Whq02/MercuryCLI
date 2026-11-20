@@ -3,6 +3,7 @@ import { buildProviderSnapshot } from '../../../services/providers/modelRegistry
 import { getEngineModel, getUserSpecifiedModelSetting } from '../../model/model.js'
 import { computedDefault, mostRecentSignInFamily } from '../../model/computedDefault.js'
 import { tensorFoldHealthChecks, unresolvedDefaultRow, type CheckSpec } from '../../healthReport.js'
+import { passedOver } from '../../passedOver.js'
 
 const PROVIDER_AUTH_PRESENTATION: Record<string, { label: string; signIn: string }> = {
   anthropic: { label: 'Anthropic', signIn: 'Run /logins (or export ANTHROPIC_API_KEY)' },
@@ -69,7 +70,8 @@ function routedAuthFamily(): string {
       if (signedIn !== undefined) return signedIn
     }
     return declaredRouteOf(getEngineModel()) ?? 'anthropic'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'anthropic'
   }
 }
@@ -180,7 +182,8 @@ function providerUsageChecks(): CheckSpec[] {
   try {
     owner = require('../../../services/providers/providerUsage.js') as typeof import('../../../services/providers/providerUsage.js')
     presences = owner.providerFamilyPresences()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const { providerDisplayName } = require('../../../services/providers/routeLaw.js') as typeof import('../../../services/providers/routeLaw.js')
@@ -203,7 +206,8 @@ function standingWindowWords(family: string): string {
       require('../../../services/providers/anthropicRefusal.js') as typeof import('../../../services/providers/anthropicRefusal.js')
     const standing = standingAnthropicRefusal()
     return standing?.kind === 'window' ? ` · ${standing.words}` : ''
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

@@ -23,6 +23,7 @@ import {
   type SessionModelSetter,
   type SetupIo,
 } from './setupTypes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface ResolvedSetupIo {
   env: NodeJS.ProcessEnv
@@ -55,7 +56,8 @@ export interface ResolvedSetupIo {
 function defaultCurrentModel(): string | undefined {
   try {
     return focusedSessionModelFacts()?.effective ?? getEngineModel()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -76,7 +78,8 @@ function executable(path: string): boolean {
   try {
     accessSync(path, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -97,7 +100,8 @@ function whichOnPath(name: string, env: NodeJS.ProcessEnv, platform: NodeJS.Plat
 function defaultRealpath(path: string): string | undefined {
   try {
     return realpathSync(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -145,7 +149,8 @@ function defaultExec(file: string, args: string[], opts: ExecOptions = {}): Prom
 function defaultParallelSlots(): number | undefined {
   try {
     return readLocalServerSettings().parallelSlots
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -204,7 +209,8 @@ export async function readJson(io: ResolvedSetupIo, url: string, body?: unknown,
     })
     if (!response.ok) return undefined
     return (await response.json()) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   } finally {
     clearTimeout(timer)

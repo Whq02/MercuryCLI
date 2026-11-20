@@ -11,6 +11,7 @@ import { getFsImplementation } from './fsOperations.js'
 import { findGitRoot, gitExe } from './git.js'
 import { isGeneratedFile } from './generatedFiles.js'
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 
 const GIT_PROBE_TIMEOUT_MS = 5000
@@ -92,12 +93,14 @@ function normalizeFilePath(filePath: string): string {
   let resolvedPath = filePath
   try {
     resolvedPath = fs.realpathSync(filePath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let resolvedRoot = root
   try {
     resolvedRoot = fs.realpathSync(root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return (
     tryRelativeUnderRoot(resolvedRoot, resolvedPath) ??
@@ -321,7 +324,8 @@ async function getGitDiffSize(filePath: string): Promise<number> {
     const insertions = Number(/(\d+) insertion/.exec(summary)?.[1] ?? 0)
     const deletions = Number(/(\d+) deletion/.exec(summary)?.[1] ?? 0)
     return (insertions + deletions) * CHARS_PER_LINE_ESTIMATE
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -334,7 +338,8 @@ async function isFileDeleted(filePath: string): Promise<boolean> {
       { cwd: getAttributionRepoRoot(), timeout: GIT_PROBE_TIMEOUT_MS },
     )
     return result.stdout.trim().startsWith('D\t')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 
 import { registerCleanup } from '../utils/cleanupRegistry.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 const CAFFEINATE_TIMEOUT_SECONDS = 300
@@ -36,7 +37,8 @@ function spawnHelper(): void {
       if (helper === child) helper = null
     })
     helper = child
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -44,7 +46,8 @@ function killHelper(): void {
   if (helper === null) return
   try {
     helper.kill('SIGKILL')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   helper = null
 }

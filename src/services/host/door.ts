@@ -18,6 +18,7 @@ import type { HostRecipe } from './recipes.js'
 import type { HostOffer, HostPod, RunpodClient } from './runpod.js'
 import { hostRecords, type HostRecord } from './store.js'
 import { hostLinkObservations, hostMachineTrouble } from './reliability.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type Ask = Parameters<LlmHostRoad>[0]
 type Emit = Parameters<LlmHostRoad>[1]
@@ -94,7 +95,7 @@ function thinkingWords(recipe: HostRecipe): string {
   if (raw) try {
     const value = JSON.parse(raw) as { reasoning_effort?: unknown }
     if (typeof value.reasoning_effort === 'string') return value.reasoning_effort
-  } catch {}
+  } catch (error) { passedOver(error) }
   return 'engine default'
 }
 const requiredMemory = (recipe: HostRecipe): number => positive((recipe as RecipeFacts).weightsGb) ?? recipe.vramGb * recipe.count

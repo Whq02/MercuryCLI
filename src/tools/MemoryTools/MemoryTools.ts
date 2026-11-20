@@ -51,7 +51,8 @@ import {
 function safeSession(): string {
   try {
     return String(getSessionId())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'boot'
   }
 }
@@ -297,6 +298,7 @@ export interface ReflectOutput {
 }
 
 import { synthesisCitations } from '../../mneme/memoryCitations.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const ReflectTool = buildTool({
   name: REFLECT_TOOL_NAME,

@@ -15,6 +15,7 @@ import { noteUsageRecordChanged, resetLimitsForCredentialSwitch, usagePayloadSha
 import { isOAuthTokenExpired } from '../../oauth/client.js'
 import { credentialFingerprint } from '../credentialIdentity.js'
 import { formatUsageAge, formatUsageAgeShort, usagePollTtlMs } from '../usageFreshness.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type AnthropicUsageReadFailure = {
   kind: 'http' | 'timeout' | 'network' | 'token'
@@ -54,7 +55,8 @@ let observedCredential = 'none'
 function currentCredential(): string {
   try {
     return credentialFingerprint(getClaudeAIOAuthTokens()?.accessToken)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
 }
@@ -165,7 +167,8 @@ function signInExpired(): boolean {
   try {
     const tokens = getClaudeAIOAuthTokens()
     return tokens !== null && isOAuthTokenExpired(tokens.expiresAt ?? null)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -181,7 +184,8 @@ async function renewExpiredSignIn(): Promise<SignInRenewal> {
   if (renewed || !signInExpired()) return 'renewed'
   try {
     return isAnthropicOAuthSignInExpired() ? 'refused' : 'unanswered'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unanswered'
   }
 }
@@ -221,7 +225,8 @@ export function readUsageReaderRecord(configHome: string = getMercuryHome()): Us
     if (!existsSync(path)) return undefined
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<UsageReaderRecordFile>
     return parsed.families?.anthropic
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -318,14 +323,16 @@ function forgetAnthropicUsageRead(): void {
 function dropIfAccountMoved(): boolean {
   try {
     dropCredentialMemos()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const current = currentCredential()
   if (current === observedCredential) return false
   observedCredential = current
   try {
     resetLimitsForCredentialSwitch()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return true
 }

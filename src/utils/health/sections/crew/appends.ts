@@ -3,6 +3,7 @@ import { existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../../../envUtils.js'
 import type { CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function historyCheck(): CheckSpec {
   return {
@@ -19,7 +20,8 @@ export function historyCheck(): CheckSpec {
             fix: 'Remove the directory at <config-home>/history.jsonl (prompts recorded elsewhere are unaffected).',
           }
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (h.streak >= 3) {
         return {
@@ -37,13 +39,13 @@ export function historyCheck(): CheckSpec {
             fix: 'Remove the directory at <config-home>/history.jsonl; the next prompt recreates the file.',
           }
         }
-      } catch {  }
+      } catch (error) { passedOver(error) }
       const lockDir = join(getMercuryHome(), 'history.jsonl.lock')
       if (existsSync(lockDir)) {
         let ageMs: number | null = null
         try {
           ageMs = Date.now() - statSync(lockDir).mtimeMs
-        } catch {  }
+        } catch (error) { passedOver(error) }
         if (ageMs !== null && ageMs > 30_000) {
           return {
             status: 'warn',

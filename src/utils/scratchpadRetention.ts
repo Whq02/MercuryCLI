@@ -11,6 +11,7 @@ import {
   scratchpadOwnersDir,
   type ScratchpadOwner,
 } from './scratchpad.js'
+import { passedOver } from './passedOver.js'
 
 export const SCRATCHPAD_WALK_ENTRIES = 20_000
 
@@ -29,7 +30,8 @@ async function recordedOwners(): Promise<{ owners: ScratchpadOwner[]; stale: str
     let record: Partial<ScratchpadOwner> | null
     try {
       record = JSON.parse(await readFile(path, 'utf8')) as Partial<ScratchpadOwner> | null
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (record === null || typeof record !== 'object') continue
@@ -55,7 +57,8 @@ async function workerOwners(): Promise<ScratchpadOwner[]> {
         ...(typeof worker.procStart === 'string' ? { procStart: worker.procStart } : {}),
       }))
       .filter(owner => isSessionScratchpad(owner.dir) && existsSync(owner.dir))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -82,8 +85,8 @@ export async function idleScratchpads(): Promise<string[]> {
 }
 
 export async function forgetStaleOwnerRecords(paths: readonly string[]): Promise<void> {
-  for (const path of paths) await rm(path, { force: true }).catch(() => {})
-  await rmdir(scratchpadOwnersDir()).catch(() => {})
+  for (const path of paths) await rm(path, { force: true }).catch(passedOver)
+  await rmdir(scratchpadOwnersDir()).catch(passedOver)
 }
 
 interface ScratchpadFootprint {
@@ -134,7 +137,8 @@ async function removeIdleScratchpad(dir: string): Promise<boolean> {
   if (!isSessionScratchpad(dir)) return false
   try {
     await rm(dir, { recursive: true, force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   forgetSweptScratchpad(dir)

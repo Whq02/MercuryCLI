@@ -8,6 +8,7 @@ import { djb2Hash } from './hash.js'
 import { sliceHeadAtGrapheme } from './intl.js'
 import { projectDirectoryIdentity, resolveDirectoryIdentity, resolveProjectStore, type StoreSpellingRules } from './projectStoreIdentity.js'
 import { stripGroundNote } from '../daemon/isolationNote.js'
+import { passedOver } from './passedOver.js'
 
 
 export const LITE_READ_BUF_SIZE = 65536
@@ -95,7 +96,8 @@ export function scanTailForEndedOnError(tail: string): boolean | undefined {
     let parsed: unknown
     try {
       parsed = JSON.parse(line)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (parsed === null || typeof parsed !== 'object') continue
@@ -141,7 +143,8 @@ export function extractFirstPromptFromHead(head: string, opts: { promptsOnly?: b
     let parsed: unknown
     try {
       parsed = JSON.parse(line)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (parsed === null || typeof parsed !== 'object') continue
@@ -250,7 +253,8 @@ export async function readSessionLite(filePath: string): Promise<LiteSessionFile
     } finally {
       await handle.close()
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -294,7 +298,8 @@ export async function canonicalizePath(dir: string): Promise<string> {
 async function directoryExists(path: string): Promise<boolean> {
   try {
     return (await stat(path)).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -345,7 +350,8 @@ export async function findProjectDir(projectPath: string): Promise<string | unde
     for (const entry of await readdir(getProjectsDir())) {
       if (entry.startsWith(prefix) && entry.endsWith(suffix)) return join(getProjectsDir(), entry)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   return undefined
@@ -393,7 +399,8 @@ function classifyLine(line: Buffer, requirePrefix: boolean): LineDisposition {
       if (parsed?.payload && parsed.payload.kind === 'boundary' && parsed.payload.boundaryKind === 'compact') {
         return { kind: 'boundary', preserved: Boolean(parsed.payload.fields?.compactMetadata?.preservedSegment) }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return { kind: 'keep' }

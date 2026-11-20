@@ -1,6 +1,7 @@
 import { appendFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from './passedOver.js'
 
 export function submitTrace(
   site: string,
@@ -15,6 +16,7 @@ export function submitTrace(
       path,
       `${JSON.stringify({ at: Date.now(), site, len: text.length, digest, ...detail })}\n`,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

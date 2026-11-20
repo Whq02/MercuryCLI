@@ -31,6 +31,7 @@ import { HostTerminationUnconfirmed, hostJobReadOnly, hostReadFailureWords } fro
 import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWords, hostLinkLossWords } from './reliability.js'
 import { shQuote as quote } from './boxExecution.js'
 import { TENSORFOLD_HOST_WORDS, isTensorFoldRecipe, registerTensorFoldPod, tensorFoldPodAnsweringCommand, tensorFoldPodKey, tensorFoldPodService, writeTensorFoldPodKey } from './tensorfoldPod.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
@@ -48,7 +49,8 @@ async function rentingSessionRow(record: Pick<HostRecord, 'sessionId'>): Promise
   try {
     const { readSessionWorkers } = await import('../../daemon/concourseWorkers.js')
     return Object.values(readSessionWorkers()).find(row => row.sessionId === record.sessionId && row.endedAt === undefined && row.stoppedAt === undefined && row.parkedAt === undefined)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -62,7 +64,8 @@ export async function switchRentingSession(record: Pick<HostRecord, 'sessionId'>
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const reply = await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: record.sessionId, by: 'llmhost', model }, { timeoutMs: 30_000 }) as { ok?: boolean; outcome?: string }
     return reply.ok === true && (reply.outcome === 'applied' || reply.outcome === 'queued')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -109,7 +112,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     logBusy = true
     void runner.run('ssh', [...sshArguments(target), checking ? 'tail -n 1 /workspace/mercury-host/' + recipe.id + '/weights-check.log 2>/dev/null || true' : 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
       .then(text => { if (!checking) offset += Buffer.byteLength(text); log(text) })
-      .catch(() => {})
+      .catch(passedOver)
       .finally(() => { logBusy = false })
   }, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
   if (initial.jobKind === 'bank') {
@@ -252,7 +255,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       sshRead = hostJobReadOnly({ label: api.label, pauseMs: pause, timeoutMs: timeout, deadline: sshDeadline, signal, mark })
     }
     patchHostRecord(id, { target, status: 'RUNNING' })
-    const answering = initial.linkLost && await runner.run('ssh', [...sshArguments(target), tensorfold ? tensorFoldPodAnsweringCommand(recipe) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal).then(() => true).catch(() => false)
+    const answering = initial.linkLost && await runner.run('ssh', [...sshArguments(target), tensorfold ? tensorFoldPodAnsweringCommand(recipe) : 'curl -fsS --max-time 10 http://127.0.0.1:30000/health && curl -fsS --max-time 10 http://127.0.0.1:30000/v1/models'], signal).then(() => true).catch(passedOverAs(false))
     if (answering) {
       loadedWeights = initial.loadedWeights
       mark('engine still answering · reconnecting')
@@ -264,7 +267,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
     const vm = vendor === 'lambda' || api.capabilities.vm === true
     const docker = vm ? (await inspectSsh(target, runner, signal)).docker : false
     const stillLoaded = initial.loadedWeights && source.kind !== 'volume'
-      ? await runner.run('ssh', [...sshArguments(target), 'test -d ' + quote(initial.loadedWeights) + ' && echo MERCURY_WEIGHTS_PRESENT'], signal).then(out => out.includes('MERCURY_WEIGHTS_PRESENT')).catch(() => false)
+      ? await runner.run('ssh', [...sshArguments(target), 'test -d ' + quote(initial.loadedWeights) + ' && echo MERCURY_WEIGHTS_PRESENT'], signal).then(out => out.includes('MERCURY_WEIGHTS_PRESENT')).catch(passedOverAs(false))
       : false
     if (stillLoaded) {
       keptWeights = initial.loadedWeights
@@ -606,7 +609,7 @@ async function hostJobServe(run: HostJobRun, { id, initial, options, signal, run
       const death = await engineDeathAfterReady(target, recipe, runner, signal, text => {
         const lines = clean(text).split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('MERCURY_')).slice(-8)
         engineLog = lines.length ? 'Last engine lines:\n' + lines.join('\n') : 'engine log is empty'
-      }).catch(() => undefined)
+      }).catch(passedOverAs(undefined))
       if (death) throw death
       for (let attempt = 1; ; attempt++) {
         const words = hostLinkAttemptWords(noteHostLink({ ...record, vendor }, { outcome: 'reconnecting', attempt, why }), reconnects)

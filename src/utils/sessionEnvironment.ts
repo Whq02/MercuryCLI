@@ -6,6 +6,7 @@ import { getSessionId } from '../bootstrap/state.js'
 import { logForDebugging } from './debug.js'
 import { getMercuryHome } from './envUtils.js'
 import { isENOENT } from './errors.js'
+import { passedOver } from './passedOver.js'
 
 
 const ENV_FILE_EVENTS = ['session.start', 'file.changed'] as const
@@ -50,13 +51,15 @@ async function readFragments(): Promise<string[]> {
   let dir: string
   try {
     dir = await getSessionEnvDirPath()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   let entries: string[]
   try {
     entries = await readdir(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const matched = entries

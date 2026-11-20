@@ -17,6 +17,7 @@ import type {
   GitUnavailable,
   GitWorktreeInfo,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_BUFFER = 16 * 1024 * 1024
 const MAX_HUNKS = 200
@@ -172,7 +173,8 @@ function parseStatusV2(raw: string): ParsedStatus {
 function configValue(root: string, key: string): string {
   try {
     return git(root, ['config', key]).trim()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

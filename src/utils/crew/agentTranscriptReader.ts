@@ -8,6 +8,7 @@ import { startsWithApiErrorPrefix } from '../../services/api/errorPrefix.js'
 import type { ApiUsage } from '../../types/wire.js'
 import { turnCutOfText, turnCutResultText } from '../messages/turnCut.js'
 import { getTokenCountFromUsage } from '../tokenUsage.js'
+import { passedOver } from '../passedOver.js'
 
 export const PROMPT_CAP_CHARS = 8_000
 export const ACTIVITY_LAST_N = 40
@@ -99,7 +100,8 @@ export function summarizeToolInput(input: unknown): string {
   }
   try {
     return clip(JSON.stringify(obj) ?? '', ACTIVITY_INPUT_SUMMARY_CHARS)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return '<unserializable input>'
   }
 }
@@ -157,7 +159,8 @@ export async function readAgentTranscript(
         await fh.close()
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 
@@ -325,7 +328,8 @@ export function resolveAgentTranscriptFile(
     primary ??= p
     try {
       if (existsSync(p)) return p
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return primary

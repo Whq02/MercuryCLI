@@ -16,6 +16,7 @@ import { requestCommandDispatch } from '../../../utils/cockpit/helmFocus.js'
 import type { AppState } from '../../../state/AppState.js'
 import type { AppStateStore } from '../../../state/AppStateStore.js'
 import { retryNamedCompatRow } from './rows.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export type PickRoad = { flip: boolean; door?: string }
 
@@ -80,7 +81,7 @@ export function connectGpt({ onDone, setNotice }: PickContext): void {
         return
       }
       setNotice(`GPT — refreshing the live catalogue from the ${account.label}…`)
-      const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(() => null)
+      const snapshot = await refreshOpenaiCatalogue(account.kind, { force: true }).catch(passedOverAs(null))
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `GPT catalogue landed: ${snapshot.models.length} model(s) from the ${account.label} — pick one above`
@@ -112,7 +113,7 @@ export function connectOpenrouter({ onDone, setNotice }: PickContext): void {
       const auth = resolveOpenrouterRequestAuth()
       if (auth) {
         setNotice('OpenRouter — refreshing the live catalogue…')
-        const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch(() => null)
+        const snapshot = await refreshOpenrouterCatalogue(auth.account.keySource, { force: true }).catch(passedOverAs(null))
         setNotice(
           snapshot && snapshot.models.length > 0 && !snapshot.lastError
             ? `OpenRouter catalogue landed: ${snapshot.models.length} model(s) — pick one above`
@@ -133,7 +134,7 @@ export function connectNous({ onDone, setNotice }: PickContext): void {
     const availability = getNousAvailability()
     if (availability.state === 'ready' || availability.why === 'catalogue-pending' || availability.why === 'catalogue-error') {
       setNotice('Nous Portal — refreshing the live catalogue…')
-      const snapshot = await refreshNousCatalogue({ force: true }).catch(() => null)
+      const snapshot = await refreshNousCatalogue({ force: true }).catch(passedOverAs(null))
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `Nous Portal catalogue landed: ${snapshot.models.length} model(s) — pick one above`
@@ -166,7 +167,7 @@ export function connectGemini({ onDone, setNotice }: PickContext): void {
       if (account) {
         const sourceKind = account.kind
         setNotice('Gemini — refreshing the live catalogue…')
-        const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(() => null)
+        const snapshot = await refreshGeminiCatalogue(sourceKind, { force: true }).catch(passedOverAs(null))
         setNotice(
           snapshot && snapshot.models.length > 0 && !snapshot.lastError
             ? `Gemini catalogue landed: ${snapshot.models.length} model(s) — pick one above`
@@ -190,7 +191,7 @@ export function connectHuggingface({ onDone, setNotice }: PickContext): void {
     const availability = getHuggingfaceAvailability()
     if (availability.state === 'ready') {
       setNotice('Hugging Face — refreshing the live catalogue…')
-      const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch(() => null)
+      const snapshot = await refreshHuggingfaceCatalogue({ force: true }).catch(passedOverAs(null))
       setNotice(
         snapshot && snapshot.models.length > 0 && !snapshot.lastError
           ? `Hugging Face catalogue landed: ${snapshot.models.length} model(s) — pick one above (any listed id types as huggingface/<org>/<model>)`
@@ -223,7 +224,7 @@ export function selectKeyLane({ onDone, setNotice }: PickContext, id: string, ke
       if (account) {
         const { moonshotCatalogueRows, refreshMoonshotCatalogue } = await import('../../../services/providers/moonshot/moonshotCatalogue.js')
         setNotice(`Moonshot — reading the model list of the ${account.label}…`)
-        await refreshMoonshotCatalogue({ force: true }).catch(() => null)
+        await refreshMoonshotCatalogue({ force: true }).catch(passedOverAs(null))
         const { source } = moonshotCatalogueRows()
         setNotice(
           source.kind === 'live'

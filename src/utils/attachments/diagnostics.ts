@@ -8,6 +8,7 @@ import { logForDebugging } from '../debug.js'
 import { toError } from '../errors.js'
 import { logError } from '../log.js'
 import type { Attachment } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 const RESYNC_REPORT_WAIT_MS = 1_500
 
@@ -15,7 +16,8 @@ async function managerIfAny(): Promise<LSPServerManager | undefined> {
   try {
     const lsp = await import('../../services/lsp/manager.js')
     return lsp.getLspServerManager()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -24,7 +26,8 @@ async function refreshDiagnosticDocuments(manager: LSPServerManager | undefined)
   try {
     const report = await manager?.revalidateOpenDocuments()
     return report?.resynced ?? []
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -99,7 +102,8 @@ export async function settleWriterDiagnosticsAtTurnEnd(context: ToolUseContext):
 function isOpenOn(manager: LSPServerManager, path: string): boolean {
   try {
     return manager.isFileOpen(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

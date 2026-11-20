@@ -100,7 +100,8 @@ function globToRegExp(pattern: string): RegExp | null {
     return new RegExp(
       pattern.startsWith('/') ? `^${escaped.slice(2)}` : `(^|/)${escaped}`,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -120,7 +121,8 @@ function ignoreMatcher(gitRoot: string | null, cwd: string): ((path: string) => 
           const re = globToRegExp(line)
           if (re !== null) patterns.push(re)
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -224,17 +226,20 @@ function configFiles(): string[] {
         }
       }
       walk(dir, 0)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out
 }
 
 import { readdirSync, type Dirent } from 'node:fs'
+import { passedOver } from '../utils/passedOver.js'
 function readdirSyncSafe(dir: string): Dirent[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -285,7 +290,8 @@ export function resolveGitDir(gitRoot: string): string | null {
     if (m === null) return null
     const target = m[1] as string
     return isAbsolute(target) ? target : resolve(gitRoot, target)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -296,7 +302,8 @@ function repositoryIndexMtime(gitRoot: string | null): number | null {
   if (gitDir === null) return null
   try {
     return statSync(join(gitDir, 'index')).mtimeMs
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

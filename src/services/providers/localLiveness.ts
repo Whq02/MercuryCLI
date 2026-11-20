@@ -8,6 +8,7 @@ import { resolveLocalApiKey } from './local/localAccounts.js'
 import { localModelRecord, type LocalModelRecord, type LocalServerKind } from './local/localDiscovery.js'
 import { localServerName } from './local/localCatalogue.js'
 import { REAL_STREAM_TIMERS, type StreamTimers } from './streamIdleBudget.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const LOCAL_FIRST_BYTE_CAP_MS = 2 * 60 * 60_000
 export const LOCAL_REQUEST_CAP_MS = LOCAL_FIRST_BYTE_CAP_MS
@@ -113,7 +114,8 @@ function writeStore(store: LocalPaceStore): void {
     const tmp = `${path}.${process.pid}.tmp`
     writeFileSync(tmp, `${JSON.stringify(store, null, 2)}\n`, 'utf8')
     renameSync(tmp, path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -278,7 +280,8 @@ async function probeAnswer(url: string, io: LocalProbeIo): Promise<{ status: num
       body = undefined
     }
     return { status: response.status, body }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

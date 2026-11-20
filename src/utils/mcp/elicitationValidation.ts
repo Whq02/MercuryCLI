@@ -1,6 +1,7 @@
 import type { PrimitiveSchemaDefinition } from '../../services/mcp/sdk.js'
 
 import { looksLikeISO8601, parseNaturalLanguageDateTime } from './dateTimeParser.js'
+import { passedOver } from '../passedOver.js'
 
 
 type SchemaLike = {
@@ -104,7 +105,8 @@ function isValidUri(value: string): boolean {
   try {
     new URL(value)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

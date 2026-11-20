@@ -17,6 +17,7 @@ import {
 import type { RawReadResult } from './rawRead.js'
 import { fireRawRead, getMdmRawReadPromise } from './rawRead.js'
 import { recordMdmProbeOutcome } from './probeMemo.js'
+import { passedOver } from '../../passedOver.js'
 
 export { mdmBootAwaitsRawRead } from './probeMemo.js'
 
@@ -69,7 +70,8 @@ function managedFileSettingsExist(): boolean {
         candidates.push(join(getManagedSettingsDropInDir(), entry))
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const candidate of candidates) {
     try {
@@ -77,7 +79,8 @@ function managedFileSettingsExist(): boolean {
       if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) && Object.keys(parsed).length > 0) {
         return true
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return false
@@ -139,7 +142,8 @@ function startMdmSettingsLoad(): void {
           keyCount: Object.keys(mdm.settings).length,
           errorCount: mdm.errors.length,
         })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   })()

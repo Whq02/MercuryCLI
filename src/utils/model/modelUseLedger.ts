@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../envUtils.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 const MODEL_USE_LEDGER_FILE = '.model-use.json'
 
@@ -42,7 +43,8 @@ export function modelUseLedgerPath(home: string = getMercuryHome()): string {
 export function readModelUseLedger(home: string = getMercuryHome()): Record<string, ModelUseRecord> {
   try {
     return decodeLedger(JSON.parse(readFileSync(modelUseLedgerPath(home), 'utf8')) as unknown)?.uses ?? {}
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -57,5 +59,5 @@ export function recordModelUse(
   const record: ModelUseRecord = { at: opts.now?.() ?? Date.now(), model, ...(opts.door !== undefined && opts.door !== '' ? { door: opts.door } : {}) }
   return ledgerStore(opts.home ?? getMercuryHome())
     .mutate(current => ({ uses: { ...current.uses, [name]: record } }))
-    .then(() => true, () => false)
+    .then(() => true, passedOverAs(false))
 }

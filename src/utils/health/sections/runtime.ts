@@ -2,13 +2,15 @@ import type { CheckSpec } from '../../healthReport.js'
 import { versionLocksCheck, crashReportsCheck, runtimeCheck, shellCheck, colorCheck, resourcesCheck, boxLockCheck, sessionKindCheck } from './runtime/host.js'
 import { evalKernelsCheck, mcpCheck, extensionsCheck, mediaCheck, vulcanCheck, substrateCheck } from './runtime/services.js'
 import { lspCheck, editorDoorCheck } from './runtime/lsp.js'
+import { passedOver } from '../../passedOver.js'
 
 function editOutcomeHealthChecks(): CheckSpec[] {
   try {
     const { editOutcomeLedgerEnabled } =
       require('../../../services/changeTransaction/editOutcomeLedger.js') as typeof import('../../../services/changeTransaction/editOutcomeLedger.js')
     if (!editOutcomeLedgerEnabled()) return []
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return [

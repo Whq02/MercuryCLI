@@ -8,6 +8,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { ScopedLspServerConfig } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MERCURY_CLANGD_SERVER_NAME = 'mercury-clangd'
 
@@ -44,7 +45,8 @@ function isExecutable(p: string): boolean {
     if (process.platform === 'win32') return existsSync(p)
     accessSync(p, constants.X_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -75,7 +77,8 @@ function xcrunFindClangd(): string | undefined {
       env: { ...languageServerEnv() },
     }).trim()
     return out && isExecutable(out) ? out : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

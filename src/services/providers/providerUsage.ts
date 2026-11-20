@@ -104,6 +104,7 @@ export { XAI_POOL_NOT_READ_WORDS, XAI_POOL_UNSTATED_WORDS, xaiPurchasedCreditsCa
 import { zaiUsageView } from './providerUsage/zai.js'
 export { zaiAccountFacts, zaiQuotaFigures, zaiQuotaWindowViews } from './providerUsage/zai.js'
 import { zenUsageView } from './providerUsage/zen.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { zenGoWindowViews } from './providerUsage/zen.js'
 
 export type UsageProvider = 'anthropic' | 'openai'
@@ -176,7 +177,8 @@ function engineIdentityLive(id: ProviderFamilyId): string | undefined {
       const { mistralObservedIdentityWords } = require('./mistral/mistralUsageState.js') as typeof import('./mistral/mistralUsageState.js')
       return mistralObservedIdentityWords()
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return undefined
 }
@@ -192,7 +194,8 @@ export function anthropicCredentialPresence(
     ((): boolean => {
       try {
         return getAnthropicApiKey() !== null
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })()
@@ -209,7 +212,8 @@ export function anthropicCredentialPresence(
   const expired = ((): boolean => {
     try {
       return isAnthropicOAuthSignInExpired()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })()
@@ -226,7 +230,8 @@ export function anthropicSignInEmail(reads?: ProviderFamilyReads): string | unde
   try {
     const email = reads?.anthropicEmail ? reads.anthropicEmail() : anthropicCredentialAccount(getClaudeAIOAuthTokens())?.email
     return typeof email === 'string' && email.trim() !== '' ? email.trim() : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -544,7 +549,8 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
       default:
         return
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   } finally {
     try {
       const view = usageForProvider(provider)
@@ -552,7 +558,8 @@ export async function refreshProviderUsage(provider: ProviderFamilyId, io?: Usag
       const envIdentity = credentialFingerprint(PROVIDER_CREDENTIAL_ENV_VARS[provider].map(name => process.env[name] ?? '').join('\0'))
       const key = `${view.sourceKind}:${account ?? 'unidentified'}:${readSignInRecord(provider)?.at ?? 'untimed'}:${envIdentity}`
       await recordUsageObservations(provider, key, [...view.windows, ...view.pools])
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -1227,7 +1234,8 @@ function liveAnthropicReaderWords(): { note?: string; compact?: string; record?:
       ...(record !== undefined ? { record } : {}),
       ...(wait ? { wait: true } : {}),
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }

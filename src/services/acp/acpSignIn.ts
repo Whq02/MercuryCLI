@@ -13,6 +13,7 @@ import { runKimiDeviceLogin } from '../providers/moonshot/moonshotLogin.js'
 import { runNousDeviceLogin } from '../providers/nous/nousLogin.js'
 import { runOrcarouterDeviceLogin } from '../providers/orcarouter/orcarouterLogin.js'
 import { runXaiDeviceLogin } from '../providers/xai/xaiLogin.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 export const ACP_LOGIN_FLAG = '--login'
 const ACP_TERMINAL_METHOD_ID = 'terminal'
@@ -74,7 +75,7 @@ function acpAuthMethodIds(facts: AcpClientAuthFacts): string[] {
 
 export async function acpSignInRequired(): Promise<boolean> {
   if (anyProviderCredentialed()) return false
-  const local = await refreshLocalDiscovery().catch(() => null)
+  const local = await refreshLocalDiscovery().catch(passedOverAs(null))
   return !(local !== null && local.servers.some(server => server.models.length > 0))
 }
 
@@ -153,7 +154,7 @@ function urlElicitation(client: AgentContext, requestId: string | number | null,
   return client
     .request(methods.client.elicitation.create, { mode: 'url', url, elicitationId, requestId, message })
     .then(result => (result as { action?: unknown } | null)?.action === 'accept')
-    .catch(() => false)
+    .catch(passedOverAs(false))
 }
 
 export async function acpAuthenticate(

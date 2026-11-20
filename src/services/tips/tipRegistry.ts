@@ -15,6 +15,7 @@ import { getPlatform } from '../../utils/platform.js'
 import { getInitialSettings, getSettingsForSource } from '../../utils/settings/settings.js'
 import type { Tip, TipContext } from './types.js'
 import { getSessionsSinceLastShown } from './tipHistory.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 function boundChatChord(action: string, fallback: string): string | null {
@@ -31,7 +32,8 @@ function currentModel(context?: TipContext): string {
   if (context?.model !== undefined) return context.model
   try {
     return getEngineModel()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }
@@ -50,7 +52,8 @@ function isLlmHostActiveOrConfigured(context?: TipContext): boolean {
   try {
     if (configuredCompatEndpoints().length > 0) return true
     return hostRecords().length > 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -87,7 +90,8 @@ function isHelperModelEnabled(context?: TipContext): boolean {
   if (context?.tensorfold?.helperEnabled !== undefined) return context.tensorfold.helperEnabled
   try {
     return readHelperModelSetting().size !== 'off'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

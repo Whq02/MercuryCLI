@@ -40,6 +40,7 @@ import type { ScopedMcpServerConfig } from '../services/mcp/types.js'
 import type { Store } from '../state/store.js'
 import { applyMergedConfigEnv, typedString, writeErr, type RootOptions } from './cli.js'
 import { startDeferredPrefetches } from './deferredPrefetches.js'
+import { passedOver } from '../utils/passedOver.js'
 
 async function connectMcpBatch(
   configs: Record<string, ScopedMcpServerConfig>,
@@ -163,7 +164,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
     !opts.continue && !opts.resume
       ? runSessionStartHooks('new')
       : Promise.resolve<HookResultMessage[]>([])
-  sessionStartHooksPromise.catch(() => {})
+  sessionStartHooksPromise.catch(passedOver)
 
   profileCheckpoint('before_validateForceLoginOrg')
   const orgValidation = await validateForceLoginOrg()
@@ -212,7 +213,7 @@ export async function runLaunch(args: RunLaunchArgs): Promise<void> {
           updater => store.setState(updater),
         ),
       )
-      .catch(() => {})
+      .catch(passedOver)
   }
 
   if (opts.ephemeral === true) {
@@ -349,7 +350,7 @@ async function connectAnthropicConnectors(store: {
       if (!connectorSignatures.has(signature)) continue
       suppressed.push(client.name)
       if (client.type === 'connected') {
-        await clearServerCache(client.name, client.config).catch(() => {})
+        await clearServerCache(client.name, client.config).catch(passedOver)
       }
     }
     const manualSignatures = new Set(

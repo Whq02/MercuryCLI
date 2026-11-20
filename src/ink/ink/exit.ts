@@ -8,6 +8,7 @@ import { teardownHost } from './stop-continue.js'
 import { drainStdin } from './stdin.js'
 import type Ink from '../ink.js'
 import type { ExitOutcome } from './record.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type UnmountReads = Pick<
   Ink,
@@ -81,7 +82,8 @@ export function detachForShutdown(this: Pick<Ink, 'options' | 'scheduler' | 'isU
   if (stdin.isTTY && stdin.isRaw) {
     try {
       stdin.setRawMode(false)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

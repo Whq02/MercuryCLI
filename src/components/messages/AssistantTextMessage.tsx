@@ -40,6 +40,7 @@ import { CrewmatePlateContext, TranscriptNameplate } from './TranscriptNameplate
 import { ENVELOPE_TAG, type DeclaredEnvelope } from '../../services/agentResults/contracts.js'
 import { parseDeclaration } from '../../services/agentResults/normalize.js'
 import { withoutMissionMetSentinel } from '../../services/mission/sentinel.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const subscribeFocusedRowModel = subscribeThroughFocused((connector, listener) => connector.subscribeModel(listener))
 const getFocusedRowModel = (): string => getFocusedSessionConnector().modelFacts().main
@@ -194,7 +195,8 @@ export function AssistantTextMessage({
         const others = walletEntries().filter(e => e.provider !== 'anthropic')
         if (others.length === 0) return null
         return [...new Set(others.map(e => providerDisplayName(e.provider)))].join(' · ')
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     })()
@@ -203,7 +205,8 @@ export function AssistantTextMessage({
       try {
         const landed = computedDefault().provider
         return landed !== null && landed !== 'anthropic' ? providerDisplayName(landed) : 'their models'
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return 'their models'
       }
     })()

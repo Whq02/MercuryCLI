@@ -64,6 +64,7 @@ import { join } from 'node:path'
 import { getScratchpadDir } from '../../utils/permissions/filesystem.js'
 import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { pinnedGitBash } from '../../utils/windowsPaths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const SLEEP_THRESHOLD_SECONDS = 2
@@ -547,7 +548,7 @@ function scanForGitBash(): boolean {
         const bash = join(gitExe.replace(/cmd[\\/]git\.exe$/i, ''), 'bin', 'bash.exe')
         if (existsSync(bash)) return true
       }
-    } catch {  }
+    } catch (error) { passedOver(error) }
   }
   return false
 }

@@ -9,6 +9,7 @@ import { isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../utils/pr
 import { getApiFetch, getProxyFetchOptions } from '../../utils/proxy.js'
 import { projectReleases, rateLimitResetMinutes, resolveChannelRepo, type ChannelRelease } from './channelCore.js'
 import { downloadReleaseAssets, ghRepoAccess, ghSignIn, listReleases as ghListReleases, type DownloadResult } from './ghRelease.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DEFAULT_API_BASE_URL = 'https://api.github.com'
 const LISTING_SILENCE_MS = 30_000
@@ -99,7 +100,7 @@ const isRateLimitStatus = (response: Response): boolean =>
   response.status === 429 || (response.status === 403 && (response.headers.get('x-ratelimit-remaining') === '0' || response.headers.get('retry-after') !== null))
 
 const discardBody = (response: Response): void => {
-  void response.body?.cancel().catch(() => {})
+  void response.body?.cancel().catch(passedOver)
 }
 
 function notVisible(slug: string, road: Extract<ChannelRoad, { road: 'anonymous' }>): NotVisibleAccess {

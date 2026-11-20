@@ -4,6 +4,7 @@ import type { BoundPrefixSection } from '../types/message.js'
 import { isOwnerKey, parseOwnerKey } from '../services/run/ownerKey.js'
 import { prefixLedgerPath } from '../services/providers/anthropic/prefixRecordStore.js'
 import { MERCURY_CONSTITUTION, MERCURY_HEADLESS_CONSTITUTION } from './mercuryContract.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const STATIC_SET = 'static-composition'
 const RECORDED_WHOLE = 'recorded-composition'
@@ -25,7 +26,8 @@ export function staticCompositionChanged(sections: readonly BoundPrefixSection[]
   try {
     const rows = JSON.parse(contract.value) as Array<{ name?: unknown }>
     return !Array.isArray(rows) || rows.some(row => row.name !== 'response-profile')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -43,7 +45,8 @@ export function restoreWholeRecordedComposition(boundKey: string): boolean {
     if (!Array.isArray(blocks) || blocks.length === 0 || blocks.some(block => typeof block?.text !== 'string')) return false
     setSystemPromptSectionCacheEntry(RECORDED_WHOLE, JSON.stringify(blocks.map(block => block.text)), parts.at(-1) ?? null)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -54,7 +57,8 @@ export function recordedComposition(model?: string): string[] | null {
   try {
     const value = JSON.parse(entry.value) as unknown
     return Array.isArray(value) && value.every(block => typeof block === 'string') ? value : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

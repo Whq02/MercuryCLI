@@ -4,6 +4,7 @@ import type { HelperModelState, TensorFoldEngine, TensorFoldHost, TensorFoldServ
 import { getCachedLocalDiscovery, refreshLocalDiscovery, type LocalDiscoverySnapshot, type LocalServerRecord } from './localDiscovery.js'
 import { detectTensorFoldApp, type TensorFoldAppState } from './tensorfoldApp.js'
 import { tensorFoldHostAddress, tensorFoldHostRecords, tensorFoldHostRoot } from './tensorfoldHosts.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const TENSORFOLD_SERVICE_NAME = 'tensorfold'
 export const TENSORFOLD_WINDOW_FLOOR = 32768
@@ -53,7 +54,8 @@ async function readEngine(): Promise<TensorFoldEngine | null | undefined> {
   try {
     const { findTensorFoldEngine } = await import('../../tensorfold/engine.js')
     return await findTensorFoldEngine()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -62,7 +64,8 @@ function readServed(): readonly TensorFoldServed[] {
   try {
     const { servedTensorFold } = require('../../tensorfold/serve.js') as typeof import('../../tensorfold/serve.js')
     return servedTensorFold()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -84,7 +87,8 @@ async function readExited(): Promise<TensorFoldExit | undefined> {
     const logs = await readLogs(getCwd(), TENSORFOLD_SERVICE_NAME, { tail: true, limitLines: 50 })
     const lastLine = 'lines' in logs ? [...logs.lines].reverse().find(line => line.trim() !== '') : undefined
     return { name: TENSORFOLD_SERVICE_NAME, ...(lastLine !== undefined ? { lastLine: lastLine.trim() } : {}) }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -118,7 +122,7 @@ export async function readTensorFoldState(reads: TensorFoldStateReads = {}): Pro
   stateReads += 1
   const [engine, snapshot, app, exited] = await Promise.all([
     (reads.engine ?? readEngine)(),
-    (reads.snapshot ?? (async () => getCachedLocalDiscovery() ?? (await refreshLocalDiscovery().catch(() => null))))(),
+    (reads.snapshot ?? (async () => getCachedLocalDiscovery() ?? (await refreshLocalDiscovery().catch(passedOverAs(null)))))(),
     (reads.app ?? (() => detectTensorFoldApp()))(),
     (reads.exited ?? readExited)(),
   ])

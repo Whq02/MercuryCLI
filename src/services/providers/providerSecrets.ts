@@ -5,6 +5,7 @@ import { recordSignIn, noteCredentialChange } from '../../utils/accounts/signInL
 import { getAuthConfigHomeDir } from '../../utils/envUtils.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../../utils/errors.js'
 import { refuseProofWriteIntoAccountStore } from '../../utils/proofHomeGuard.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const PROVIDER_SECRETS_VERSION = 1
 const FILE_NAME = '.provider-secrets.json'
@@ -56,7 +57,8 @@ function readFile(): ProviderSecretsFile | null {
     const parsed = JSON.parse(raw) as unknown
     if (typeof parsed !== 'object' || parsed === null) return null
     return parsed as ProviderSecretsFile
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -150,7 +152,8 @@ function publishSecrets(mutate: (next: ProviderSecretsFile) => void): void {
   }
   try {
     chmodSync(path, 0o600)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }  noteCredentialChange()
 }
 
@@ -520,7 +523,7 @@ export function publishAuthScopedJson(
   durableAtomicPublishSync(path, JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
   try {
     chmodSync(path, 0o600)
-  } catch {}
+  } catch (error) { passedOver(error) }
   noteCredentialChange()
 }
 

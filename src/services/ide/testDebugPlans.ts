@@ -10,6 +10,7 @@ import { latestRunAtRoot } from './pythonTests.js'
 import { loadTs, parseSource, resolveStructureTypescript } from '../structure/tsFacility.js'
 import { jsTestNamePattern } from './runnerReporters.js'
 import { discoverRunnerProfiles, findRunnerRoot, resolveRunnerBinary } from './projectRunners.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type DebugPlanRefusal = { state: 'unavailable'; reason: string; remedy: string; debuggerMissing?: string }
 
@@ -44,7 +45,8 @@ function rustSourceFiles(dir: string, depth: number, out: string[]): void {
   let entries: import('node:fs').Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const entry of entries) {
@@ -64,7 +66,8 @@ export function locateRustTest(root: string, testPath: string): Array<{ file: st
     let lines: string[]
     try {
       lines = readFileSync(file, 'utf8').split('\n')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (let i = 0; i < lines.length; i++) {
@@ -105,7 +108,8 @@ export async function buildCargoTestDebugPlan(nodeId: string, opts?: { from?: st
       if (row.reason === 'compiler-artifact' && row.profile?.test === true && typeof row.executable === 'string' && row.executable.length > 0) {
         binaries.push({ executable: row.executable, target: row.target?.name ?? path.basename(row.executable) })
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -164,7 +168,8 @@ function goTestFiles(dir: string, depth: number, out: string[]): void {
   let entries: import('node:fs').Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const entry of entries) {
@@ -183,7 +188,8 @@ export function locateGoTest(root: string, dir: string | null, topLevel: string)
     let text: string
     try {
       text = readFileSync(file, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const index = text.split('\n').findIndex(line => decl.test(line))
@@ -268,7 +274,7 @@ function sourceJsTest(file: string, name: string): { nameParts: string[]; line: 
   if (resolution.state !== 'ok') return null
   const ts = loadTs(resolution.modulePath)
   let text: string
-  try { text = readFileSync(file, 'utf8') } catch { return null }
+  try { text = readFileSync(file, 'utf8') } catch (error) { passedOver(error); return null }
   const { sourceFile, parseErrors } = parseSource(ts, file, text)
   if (parseErrors.length) return null
   const tests: Array<{ nameParts: string[]; line: number; column?: number }> = []

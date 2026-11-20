@@ -7,6 +7,7 @@ import type { FpsMetrics } from './utils/fpsTracker.js'
 import type { ValidationError } from './utils/settings/validation.js'
 import { gracefulShutdownSync } from './utils/gracefulShutdown.js'
 import { SetupScreenHost } from './interactiveHelpers.js'
+import { passedOver } from './utils/passedOver.js'
 
 export async function launchInvalidSettingsDialog(
   root: Root,
@@ -83,7 +84,7 @@ export async function launchResumeChooser(
       import('./screens/ResumeConversation.js'),
       import('./components/App.js'),
       import('./keybindings/KeybindingProviderSetup.js'),
-      worktreePathsPromise.catch(() => [] as string[]),
+      worktreePathsPromise.catch((error) => { passedOver(error); return [] as string[] }),
     ])
   root.render(
     <App {...appProps}>

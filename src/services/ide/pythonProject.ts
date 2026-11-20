@@ -11,6 +11,7 @@ import {
   type PythonAdapterResolution,
   type PythonDebuggerProvenance,
 } from '../dap/debugpyResolver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type PythonEnvKind = 'explicit' | 'active-venv' | 'conda' | 'project-venv' | 'system'
 
@@ -92,7 +93,8 @@ export function findPythonTestFiles(root: string, skipDirs: ReadonlySet<string> 
     let entries: import('node:fs').Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const e of entries) {
@@ -122,7 +124,8 @@ function carriesUnittest(file: string): boolean {
     } finally {
       closeSync(fd)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -275,7 +278,8 @@ export function projectPythonDebuggerProvenance(from: string = getCwd()): Python
 function fileContains(p: string, needle: string): boolean {
   try {
     return readFileSync(p, 'utf8').includes(needle)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

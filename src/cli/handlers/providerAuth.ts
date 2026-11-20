@@ -31,6 +31,7 @@ import { readSignInRefusal, signInRefusalWords } from '../../utils/accounts/sign
 import { saveApiKey } from '../../utils/auth.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { authLogin, authLogout, authStatus } from './auth.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TERMINAL_AUTH_FAMILIES = [
   'anthropic',
@@ -96,11 +97,11 @@ export interface ProviderAuthIo {
 }
 
 function defaultWriteOut(text: string): void {
-  try { writeSync(1, text) } catch {}
+  try { writeSync(1, text) } catch (error) { passedOver(error) }
 }
 
 function defaultWriteErr(text: string): void {
-  try { writeSync(2, text) } catch {}
+  try { writeSync(2, text) } catch (error) { passedOver(error) }
 }
 
 export async function providerAuthLogin(

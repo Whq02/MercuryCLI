@@ -16,6 +16,7 @@ import { webFetchRuleMatches } from '../../tools/WebFetchTool/WebFetchTool.js'
 import { MERCURY_CREW_AGENT_TYPE } from '../../tools/AgentTool/constants.js'
 import { hooksDisabled, managedHooksOnly, settingsHooksFor, type HookSource, type LayeredHook } from './hooksConfigSnapshot.js'
 import { sessionHooksFor, type HookScope } from './sessionHooks.js'
+import { passedOver } from '../passedOver.js'
 
 function nameMatches(name: string, value: string): boolean {
   return name === value || lspFamilyMatches(name, value) || namesWholeServerOf(name, value)
@@ -47,7 +48,8 @@ async function argumentMatches(toolName: string, content: string, input: unknown
       if (typeof fields.url !== 'string') return false
       try {
         return webFetchRuleMatches(content, `domain:${new URL(fields.url).hostname}`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     default:

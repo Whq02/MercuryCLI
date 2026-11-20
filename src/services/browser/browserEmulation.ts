@@ -1,6 +1,7 @@
 import type { Device, Frame, Page, Viewport } from 'puppeteer-core'
 import { resolveBrowserSecret } from './browserSecrets.js'
 import { driverVersion, originOf, pageKitOf, presentToFrames, type PageIdentity, type PageKit } from './browserSession.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const NETWORK_PRESETS = { slow3g: 'Slow 3G', fast3g: 'Fast 3G', slow4g: 'Slow 4G', fast4g: 'Fast 4G' } as const
 type NetworkPreset = keyof typeof NETWORK_PRESETS
@@ -410,7 +411,7 @@ async function releaseLocation(page: Page, state: PageEmulation): Promise<void> 
     holders?.delete(page)
     if (holders !== undefined && holders.size === 0) {
       byOrigin!.delete(origin)
-      await setGrant(page, origin, 'prompt').catch(() => undefined)
+      await setGrant(page, origin, 'prompt').catch(passedOverAs(undefined))
     }
   }
   state.grants.clear()
@@ -472,7 +473,7 @@ async function answerChallenges(page: Page, kit: PageKit, state: PageEmulation, 
         intercepted.set(event.requestId, event.networkId)
         if (intercepted.size > 256) intercepted.delete(intercepted.keys().next().value!)
       }
-      void own.send('Fetch.continueRequest', { requestId: event.requestId }).catch(() => undefined)
+      void own.send('Fetch.continueRequest', { requestId: event.requestId }).catch(passedOverAs(undefined))
     })
     own.on('Fetch.authRequired', event => {
       const answer = authAnswer(state, event.requestId, event.authChallenge)
@@ -483,7 +484,7 @@ async function answerChallenges(page: Page, kit: PageKit, state: PageEmulation, 
       }
       void own
         .send('Fetch.continueWithAuth', { requestId: event.requestId, authChallengeResponse: answer })
-        .catch(() => undefined)
+        .catch(passedOverAs(undefined))
     })
     state.answering = true
   }
@@ -545,10 +546,10 @@ async function applyAspect(aspect: Aspect, page: Page, kit: PageKit, environment
       await grantLocation(page, state)
       if (state.regrant === null) {
         state.regrant = (frame: Frame): void => {
-          if (frame.parentFrame() === null) void grantLocation(page, state).catch(() => undefined)
+          if (frame.parentFrame() === null) void grantLocation(page, state).catch(passedOverAs(undefined))
         }
         page.on('framenavigated', state.regrant)
-        page.once('close', () => void releaseLocation(page, state).catch(() => undefined))
+        page.once('close', () => void releaseLocation(page, state).catch(passedOverAs(undefined)))
       }
       return false
     }
@@ -794,7 +795,7 @@ export async function inheritEmulation(from: Page, to: Page, reloadSafe: boolean
   const reloads = Boolean(wanted.isMobile) !== Boolean(baseline.viewport.isMobile) || Boolean(wanted.hasTouch) !== Boolean(baseline.viewport.hasTouch)
   const whole = reloadSafe || !reloads
   const outcome = await settle(to, kit, state, next, new Set<Aspect>(whole ? [] : ['viewport']))
-  if (born !== null && born.headers !== null) await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} }).catch(() => undefined)
+  if (born !== null && born.headers !== null) await ownSession(kit).send('Network.setExtraHTTPHeaders', { headers: {} }).catch(passedOverAs(undefined))
   if (!whole) outcome.notes.push('its size, mobile and touch did not come: this tab holds the answer to a form post, and applying them reloads the page, which would send the form again — op:"viewport" on this tab applies them when that is safe')
   return outcome
 }

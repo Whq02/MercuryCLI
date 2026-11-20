@@ -12,6 +12,7 @@ import { usageSourceWords } from '../../../services/providers/usageFreshness.js'
 import { formatLaneSpend } from '../../../cost-tracker.js'
 import { ProgressBar } from '../../design-system/ProgressBar.js'
 import { useMercuryTokens } from '../../mercury-ui/useMercuryTokens.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const WARN_PCT = 70
 const ERROR_PCT = 90
@@ -30,7 +31,8 @@ export function humanizeUsageError(body: unknown): string | null {
   if (typeof body === 'string') {
     try {
       parsed = JSON.parse(body)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }

@@ -12,6 +12,7 @@ import { cacheDirOfRepo, hfCacheRoot, hubEndpoint } from './hfCache.js'
 import type { InventoryIo } from './inventory.js'
 import { isGgufRepo, isRepoId, startingPointOf, tensorFoldLabel, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
 import { configFactsOf, type ConfigFacts } from './configFacts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type PullIo = InventoryIo & {
   binary?: string
@@ -26,15 +27,15 @@ const rec = (v: unknown): Record<string, unknown> | undefined => (typeof v === '
 
 export function cacheBytesOf(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'sizeOf'> = {}): number {
   const blobs = join(root, cacheDirOfRepo(repo), 'blobs')
-  const listDir = io.listDir ?? ((path: string): string[] => { try { return readdirSync(path) } catch { return [] } })
-  const sizeOf = io.sizeOf ?? ((path: string): number | undefined => { try { return statSync(path).size } catch { return undefined } })
+  const listDir = io.listDir ?? ((path: string): string[] => { try { return readdirSync(path) } catch (error) { passedOver(error); return [] } })
+  const sizeOf = io.sizeOf ?? ((path: string): number | undefined => { try { return statSync(path).size } catch (error) { passedOver(error); return undefined } })
   let total = 0
   for (const name of listDir(blobs)) total += sizeOf(join(blobs, name)) ?? 0
   return total
 }
 
 function fetchedBytesOf(root: string, repo: string, io: Pick<InventoryIo, 'listDir' | 'sizeOf'>): number {
-  return cacheBytesOf(root, repo, { ...io, sizeOf: io.sizeOf ?? ((path: string): number | undefined => { try { const stats = statSync(path); return Math.min(stats.size, stats.blocks * 512) } catch { return undefined } }) })
+  return cacheBytesOf(root, repo, { ...io, sizeOf: io.sizeOf ?? ((path: string): number | undefined => { try { const stats = statSync(path); return Math.min(stats.size, stats.blocks * 512) } catch (error) { passedOver(error); return undefined } }) })
 }
 
 const ENGINE_PROGRESS = /^\s*(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) GiB, (\d+(?:\.\d+)?) MiB\/s\s*$/
@@ -59,7 +60,8 @@ function engineProgressIn(path: string, from: number): () => EngineProgress | un
         const said = ENGINE_PROGRESS.exec(line)
         if (said !== null) last = { bytes: Math.round(Number(said[1]) * 1024 ** 3), totalBytes: Math.round(Number(said[2]) * 1024 ** 3), bytesPerSecond: Number(said[3]) * 1024 ** 2 }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       void 0
     } finally {
       if (fd !== undefined) closeSync(fd)

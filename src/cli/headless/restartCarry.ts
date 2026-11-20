@@ -29,6 +29,7 @@ import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type RestartCarryPorts = {
   reason: RunnerRestartReason
@@ -55,12 +56,13 @@ function transcriptTailLines(path: string): string[] {
 }
 
 async function agentFolderStands(agentId: string): Promise<boolean> {
-  const meta = await readAgentMetadata(agentId as AgentId).catch(() => null)
+  const meta = await readAgentMetadata(agentId as AgentId).catch(passedOverAs(null))
   const folder = meta?.worktreePath ?? meta?.cwd
   if (folder === undefined) return true
   try {
     return statSync(folder).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

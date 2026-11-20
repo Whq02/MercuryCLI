@@ -15,6 +15,7 @@ import { MONITOR_TOOL_NAME } from './constants.js'
 import { sessionLaneWall } from './laneWall.js'
 import { BURST_WINDOW_MS, DELIVERY_INTERVAL_MS, createWatchMailbox } from './watchMailbox.js'
 import { monitorNoticeBlock, WATCH_STARTED_LINE } from './watchReceipts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export { MONITOR_TOOL_NAME }
 
@@ -206,7 +207,7 @@ export const MonitorTool = buildTool({
             (now - overflowStart) / 1000,
           )}s). Start a new monitor with a tighter filter, such as grep --line-buffered or a wrapper script that emits only the events you need.]`,
         )
-        if (taskId) void stopTask(taskId, { getAppState, setAppState }).catch(() => {})
+        if (taskId) void stopTask(taskId, { getAppState, setAppState }).catch(passedOver)
       }
     }
 
@@ -233,7 +234,7 @@ export const MonitorTool = buildTool({
         if (stopped) return
         stopped = true
         mailbox.push(monitorExpiryNotice(description, handle.taskId, timeoutMs, events))
-        void stopTask(handle.taskId, { getAppState, setAppState }).catch(() => {})
+        void stopTask(handle.taskId, { getAppState, setAppState }).catch(passedOver)
       }, timeoutMs)
       timer.unref?.()
     }

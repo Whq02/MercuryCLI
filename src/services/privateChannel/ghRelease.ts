@@ -4,6 +4,7 @@ import { isProofShapeRun, proofShapeReason } from '../../utils/privacyLevel.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { projectReleases, type ChannelRelease } from './channelCore.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const GH_TIMEOUT_MS = 120_000
 const DOWNLOAD_TIMEOUT_MS = 15 * 60_000
@@ -48,7 +49,7 @@ function armInFlightCleanup(): void {
     for (const child of inFlight) {
       try {
         child.kill('SIGTERM')
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
   })
 }
@@ -70,7 +71,8 @@ function ghArgv(): string[] {
       if (Array.isArray(parsed) && parsed.length > 0 && parsed.every(x => typeof x === 'string')) {
         return parsed as string[]
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return ['gh']

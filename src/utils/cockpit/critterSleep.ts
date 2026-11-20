@@ -10,6 +10,7 @@ import { critterFrameKey, swayPhaseAt, type SwayAnchor } from './critterIdle.js'
 import { daemonCrewLivenessSync } from './daemonRosterSnapshot.js'
 import { subscribeTurnSignals, turnSignals, type TurnSignals } from './turnSignals.js'
 import { subscribeUiClock } from './uiClock.js'
+import { passedOver } from '../passedOver.js'
 
 export const SLEEP_AFTER_MS = 45_000
 
@@ -36,7 +37,8 @@ function agentsActiveNow(): boolean {
     return listExecutions(processMainOwner(), { liveOnly: true }).some(r =>
       AGENT_EXECUTION_KINDS.has(r.spec.kind),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -80,7 +82,8 @@ function emit(): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

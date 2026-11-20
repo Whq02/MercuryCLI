@@ -6,6 +6,7 @@ import type { RowDraft } from '../../rows/project.js'
 import { wallRecheckDelayMs, type WatchWall } from '../../tools/MonitorTool/watchMailbox.js'
 import { joinBatchedContent } from '../../utils/messages/batchedContent.js'
 import { driverQueue, isTaskNotification } from './turnDriver/queue.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { canBatchWith } from './turnDriver/queue.js'
 
 export type PromptValue = string | ContentBlockParam[]
@@ -333,8 +334,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     } catch (error) {
       try {
         await ports.writeDirect(ports.onCycleError(error, ports.turnIdOf()))
-      } catch {
-      }
+      } catch (error) { passedOver(error) }
       ports.shutdown(1)
       return
     } finally {

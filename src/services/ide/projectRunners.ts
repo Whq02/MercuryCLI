@@ -19,6 +19,7 @@ import {
 } from './pythonTests.js'
 import { findPythonTestFiles } from './pythonProject.js'
 import { goRunPattern, jsTestNamePattern, parseGoTestJson, parseJsonReporter, type ReporterRead } from './runnerReporters.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type RunnerKind = 'test' | 'check' | 'build'
 
@@ -70,7 +71,8 @@ export function resolveRunnerBinary(
       const full = path.join(p, name + ext)
       try {
         if (existsSync(full)) return full
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -108,7 +110,8 @@ export function detectPackageManager(root: string): { bin: string } | { missing:
     const pkg = JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')) as { packageManager?: string }
     const pm = pkg.packageManager?.split('@')[0]
     if (pm === 'bun' || pm === 'npm' || pm === 'pnpm' || pm === 'yarn') return { bin: pm }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { missing: 'no lockfile and no packageManager field — declare one; Mercury never guesses a package manager' }
 }
@@ -123,7 +126,8 @@ function hasTestFiles(root: string, patterns: RegExp, dirs: string[]): boolean {
     let entries: import('node:fs').Dirent[]
     try {
       entries = readdirSync(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
     for (const e of entries) {
@@ -152,7 +156,8 @@ function jsProfiles(root: string): RunnerProfile[] {
   }
   try {
     pkg = JSON.parse(readFileSync(pkgPath, 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const profiles: RunnerProfile[] = []
@@ -302,7 +307,8 @@ export function discoverSubPackages(root: string): SubPackage[] {
   let entries: import('node:fs').Dirent[]
   try {
     entries = readdirSync(root, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: SubPackage[] = []
@@ -404,7 +410,8 @@ function readReporter(profile: RunnerProfile, reporterFile: string | null, combi
     let text: string
     try {
       text = readFileSync(reporterFile, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
     return parseJsonReporter(text, profile.root)
@@ -423,7 +430,8 @@ function relIfUnder(root: string, p: string): string {
   try {
     const realRel = path.relative(require('node:fs').realpathSync(root), p)
     if (!realRel.startsWith('..')) return realRel
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return p
 }
@@ -857,7 +865,8 @@ export async function runRunnerProfile(
     const { getPendingLSPDiagnosticCount } =
       require('../lsp/LSPDiagnosticRegistry.js') as typeof import('../lsp/LSPDiagnosticRegistry.js')
     diagnosticsNote = `${getPendingLSPDiagnosticCount()} pending LSP diagnostic(s)`
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   const record: TestRunRecord = {

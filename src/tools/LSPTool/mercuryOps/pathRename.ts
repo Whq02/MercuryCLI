@@ -13,6 +13,7 @@ import { awaitDiagnosticStabilization } from './afterWrite.js'
 import { changeViewOf, planFiles, planTokenOf, editRowsFor } from './preview.js'
 import { applyPrepared } from './apply.js'
 import { pathRenameClaimants, prepareApplyFanOut, advertisesFileOperation } from './pathRenameFanOut.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function pathRenamePreviewOf(
   env: OpEnv,
@@ -132,7 +133,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
 
   const claimants = await pathRenameClaimants(env, oldPath, newPath, isDirectory)
   for (const c of claimants) {
-    if (c.state !== 'running') await c.start().catch(() => {})
+    if (c.state !== 'running') await c.start().catch(passedOver)
   }
   const askable = claimants.filter(c => advertisesFileOperation(c, 'willRename'))
 
@@ -143,7 +144,7 @@ export async function opPathRename(env: OpEnv): Promise<MercuryLspOpOutput> {
   let supportNote: string
   const fanOutNotes: string[] = []
   if (askable.length > 0) {
-    if (!isDirectory) await syncFileFromDisk(env.manager, oldPath).catch(() => {})
+    if (!isDirectory) await syncFileFromDisk(env.manager, oldPath).catch(passedOver)
     const fan = await prepareApplyFanOut(
       env,
       askable.map(server => ({

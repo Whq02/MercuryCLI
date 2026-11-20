@@ -7,6 +7,7 @@ import type { MercuryRecord } from '../../fabric/record.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { shouldMintTitle } from './sessionNaming.js'
 import { logForDebugging } from '../../utils/debug.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const HEAD_BYTES = 48 * 1024
 const RETRY_MS = 15 * 60_000
@@ -41,7 +42,8 @@ export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: strin
       let entry: unknown
       try {
         entry = JSON.parse(line)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       const env = entry as { schemaVersion?: unknown; payload?: unknown }
@@ -49,7 +51,8 @@ export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: strin
       let e: { type?: unknown; message?: { content?: unknown } }
       try {
         e = recordToEntry(entry as MercuryRecord) as { type?: unknown; message?: { content?: unknown } }
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (e.type !== 'user' && e.type !== 'assistant') continue
@@ -145,14 +148,16 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
         watcher.on('error', () => {
           try {
             watcher?.close()
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
           watcher = null
         })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })
-    .catch(() => {})
+    .catch(passedOver)
   const timer = setInterval(beat, opts.tickMs ?? 20_000)
   timer.unref?.()
   beat()
@@ -163,7 +168,8 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
       clearInterval(timer)
       try {
         watcher?.close()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       watcher = null
     },

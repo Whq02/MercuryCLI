@@ -1,6 +1,7 @@
 import { execFileNoThrow } from './execFileNoThrow.js'
 import { getDefaultBranch, getBranch, getIsGit } from './git.js'
 import { jsonParse } from './slowOperations.js'
+import { passedOver } from './passedOver.js'
 
 
 export type PrReviewState = 'approved' | 'pending' | 'changes_requested' | 'draft' | 'merged' | 'closed'
@@ -47,7 +48,8 @@ export async function fetchPrStatus(): Promise<PrStatus | null> {
       url: parsed.url,
       reviewState: deriveReviewState(Boolean(parsed.isDraft), parsed.reviewDecision ?? ''),
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

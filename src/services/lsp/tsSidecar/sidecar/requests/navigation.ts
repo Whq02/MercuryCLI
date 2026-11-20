@@ -2,6 +2,7 @@ import type * as TS from 'typescript'
 import { type LspLocation, spanToRange, toUri, symbolKindOf } from '../lsp.js'
 import { spansToLocations, navTreeToSymbols } from '../convert.js'
 import type { DocContext, RequireState } from '../needs.js'
+import { passedOver } from '../../../../../utils/passedOver.js'
 
 export function definitionRequest(params: unknown, docContext: DocContext): unknown {
   const { st, project, file, offset } = docContext(params)
@@ -73,7 +74,8 @@ export function workspaceSymbolRequest(params: unknown, requireState: RequireSta
     let items: TS.NavigateToItem[] = []
     try {
       items = project.service.getNavigateToItems(query, 128, undefined, false, true)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const item of items) {

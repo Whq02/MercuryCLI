@@ -33,6 +33,7 @@ import { usePermissionRequestLogging } from '../hooks.js'
 import { useShellPermissionFeedback } from '../useShellPermissionFeedback.js'
 import type { PermissionRequestProps } from '../PermissionRequest.js'
 import { bashToolUseOptions, type BashToolUseOption } from './bashToolUseOptions.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type BashCardInput = { command: string; cwd?: string }
 
@@ -141,8 +142,7 @@ function BashCommandPermissionRequest(
         const first = prefixes[0]
         if (first) setEditablePrefix(`${first} *`)
       })
-      .catch(() => {
-      })
+      .catch(passedOver)
     return () => {
       cancelled = true
     }

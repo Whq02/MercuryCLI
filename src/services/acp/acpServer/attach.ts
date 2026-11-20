@@ -11,6 +11,7 @@ import { savedModePath } from './modes.js'
 import { permissionAskWire, permissionAnswerOf, elicitationWire, elicitationAnswerOf } from './asks.js'
 import { toolKindOf, toolLocationsOf, toolDiffsOf, toolOutputContentOf, acpMcpServersToConfig, planEntriesOf, usageWireOf } from './toolWire.js'
 import type { AcpServerState, AcpSessionState } from './state.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const TASK_PLAN_TOOLS = new Set(['TaskCreate', 'TaskUpdate'])
 
@@ -41,8 +42,7 @@ export function attachSession(
           update: { sessionUpdate: 'plan', entries },
         })
       })
-      .catch(() => {
-      })
+      .catch(passedOver)
   }
   const mcp = acpMcpServersToConfig(args.mcpServers)
   if (mcp && mcp.skipped.length > 0) {

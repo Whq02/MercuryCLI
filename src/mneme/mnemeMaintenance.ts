@@ -18,6 +18,7 @@ import {
 } from './mnemeConsolidate.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { publishLibraryFile } from './mnemeLibrary.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type MnemeMaintenanceTrigger = 'boot' | 'turn-end' | 'retain' | 'operator'
 
@@ -60,7 +61,8 @@ function lockView(dir: string): LockView {
     try {
       const pid = Number(readFileSync(join(lock, 'pid'), 'utf8').trim())
       if (Number.isInteger(pid) && pid > 0) holderAlive = pidAliveSafe(pid)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return { present: true, holderAlive, ageMs: Date.now() - st.mtimeMs }
   } catch {
@@ -147,7 +149,8 @@ export function readMaintenanceReceipts(dir: string = mnemeLibraryDir(), n = 10)
       if (!line.trim()) continue
       try {
         out.push(JSON.parse(line) as MnemeMaintenanceReceipt)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   } catch (e) {

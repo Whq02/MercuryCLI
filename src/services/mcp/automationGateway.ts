@@ -14,6 +14,7 @@ import {
   type OAuthMetadata,
   type OAuthTokenVerifier,
 } from './sdk.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type ServerSdk = typeof import('@modelcontextprotocol/server')
 type OAuthErrors = Pick<ServerSdk, 'OAuthError' | 'OAuthErrorCode'>
@@ -96,7 +97,7 @@ export class AutomationGateway implements OAuthTokenVerifier {
 
   private load(): void {
     let stored: unknown
-    try { stored = JSON.parse(readFileSync(this.path, 'utf8')) } catch { return }
+    try { stored = JSON.parse(readFileSync(this.path, 'utf8')) } catch (error) { passedOver(error); return }
     const parsed = z.strictObject({ grants: z.array(grantSchema) }).safeParse(stored)
     if (!parsed.success) return
     const now = seconds()
@@ -155,7 +156,7 @@ export class AutomationGateway implements OAuthTokenVerifier {
   private async form(request: Request): Promise<URLSearchParams | undefined> {
     if (!/^application\/x-www-form-urlencoded\b/i.test(request.headers.get('content-type') ?? '')) return undefined
     if (Number(request.headers.get('content-length') ?? 0) > FORM_LIMIT) return undefined
-    try { return new URLSearchParams(await request.text()) } catch { return undefined }
+    try { return new URLSearchParams(await request.text()) } catch (error) { passedOver(error); return undefined }
   }
 
   private bounce(redirectUri: string, state: string | null, params: Record<string, string>): Response {

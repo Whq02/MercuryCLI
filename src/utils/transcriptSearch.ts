@@ -1,5 +1,6 @@
 import type { RenderableMessage } from '../types/message.js'
 import { isTurnCutText } from './messages.js'
+import { passedOver } from './passedOver.js'
 
 type SearchTextTool = { name: string; extractSearchText?(output: unknown): string }
 type ResolveSearchTool = (toolUseId: string) => SearchTextTool | undefined
@@ -83,7 +84,8 @@ function ownSearchText(tool: SearchTextTool | undefined, result: unknown): strin
   try {
     const text = tool.extractSearchText(result)
     return typeof text === 'string' ? text : ''
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

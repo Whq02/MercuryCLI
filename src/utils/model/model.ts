@@ -21,6 +21,7 @@ import { deepseekRetiredAliasTarget } from '../../services/providers/deepseek/de
 import { resolveBareFamilyWord } from './bareFamilyWords.js'
 import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from './modelNames.js'
 import { tellHowAModelSettingResolves } from './settingResolution.js'
+import { passedOver } from '../passedOver.js'
 
 export { firstPartyNameToCanonical, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, isOpus1mMergeEnabled, normalizeModelStringForAPI } from './modelNames.js'
 export { isDefaultOpusNatively1M, newestPermittedFallback } from './frontierPolicy.js'
@@ -144,7 +145,8 @@ function parseUserSpecifiedModelCore(input: string, catalogueFold: boolean): str
         require('./modelSpellingFold.js') as typeof import('./modelSpellingFold.js')
       const resolved = resolveCatalogueSpelling(bare)
       if (resolved !== null) return reattach(resolved)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 

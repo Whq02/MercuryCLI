@@ -34,6 +34,7 @@ import {
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
 const TOTAL_TIMEOUT_MS = 50 * 60_000
@@ -251,7 +252,7 @@ export async function* streamOpenaiResponses(
                 },
           settledItems: fold.settledItems(),
         }
-        void reader.cancel().catch(() => {})
+        void reader.cancel().catch(passedOver)
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))

@@ -8,6 +8,7 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, PROMPT, READ_MCP_RESOURCE_TOOL_NAME } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage, userFacingName } from './UI.js'
 import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const inputSchema = lazySchema(() =>
@@ -138,7 +139,8 @@ export const ReadMcpResourceTool = buildTool({
   extractSearchText(output: Output): string {
     try {
       return Array.isArray(output?.contents) ? JSON.stringify(output.contents, null, 2) : ''
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return ''
     }
   },

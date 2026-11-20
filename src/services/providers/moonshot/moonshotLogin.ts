@@ -20,6 +20,7 @@ import {
   type KimiManagedUsage,
   type MoonshotUsageIo,
 } from './moonshotUsageState.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type KimiDeviceLoginEvent =
   | { phase: 'starting' }
@@ -75,7 +76,8 @@ export async function runKimiDeviceLogin(args: KimiDeviceLoginArgs): Promise<Kim
   onEvent?.({ phase: 'starting' })
   try {
     writeMoonshotRegion(region)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let start: MoonshotDeviceAuthStart
   try {

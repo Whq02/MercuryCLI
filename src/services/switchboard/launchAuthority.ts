@@ -4,6 +4,7 @@ import { isProcessAlive } from '../../daemon/ownerWatch.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { BACKGROUND_LAUNCH_LABEL, backgroundSessionsLaunchCrewmates } from './backgroundLaunch.js'
 import { spawnSwitch, spawnSwitchOffReceipt, type SpawnSwitchKind, type SpawnSwitchState } from './spawnSwitches.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type LaunchAuthority =
   | { allowed: true; posture: 'attached-or-plain' | 'focused' | 'tagged-background' | 'background-by-setting' }
@@ -31,7 +32,8 @@ export function evaluateLaunchAuthority(
       if (seatPid !== undefined && isProcessAlive(seatPid)) return { allowed: true, posture: 'focused' }
     }
     if (rec?.workflowsAllowed === true) return { allowed: true, posture: 'tagged-background' }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (probe?.settingOn ?? backgroundSessionsLaunchCrewmates()) return { allowed: true, posture: 'background-by-setting' }
   return { allowed: false, reason: backgroundedLaunchRefusal(kind), cause: 'backgrounded' }

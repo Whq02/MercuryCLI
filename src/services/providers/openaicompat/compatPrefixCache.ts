@@ -5,6 +5,7 @@ import { getMercuryHome } from '../../../utils/envUtils.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { compatEndpointDigest } from './compatSlots.js'
 import type { CompatUsage } from './compatChatClient.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const cachePath = (baseUrl: string): string => join(getMercuryHome(), 'cache', 'compat-prefix', compatEndpointDigest(baseUrl) + '.json')
 const tokens = (value: unknown): value is number => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
@@ -22,7 +23,7 @@ export function compatEndpointLastTurnAt(endpoint: { baseUrl: string }): number 
   try {
     const row = JSON.parse(readFileSync(cachePath(endpoint.baseUrl), 'utf8')) as { at?: unknown }
     return typeof row.at === 'number' && Number.isFinite(row.at) ? row.at : undefined
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 export function compatPrefixCacheWords(endpoint: { baseUrl: string }, now = Date.now()): string {
@@ -30,5 +31,5 @@ export function compatPrefixCacheWords(endpoint: { baseUrl: string }, now = Date
     const row = JSON.parse(readFileSync(cachePath(endpoint.baseUrl), 'utf8')) as { cached?: unknown; total?: unknown; at?: unknown }
     if (!tokens(row.cached) || !tokens(row.total) || row.total === 0 || row.cached > row.total || typeof row.at !== 'number' || !Number.isFinite(row.at) || row.at > now || now - row.at > 15 * 60_000) return ''
     return `prefix cached · ${row.cached.toLocaleString('en-US')} of ${row.total.toLocaleString('en-US')} tokens (last turn)`
-  } catch { return '' }
+  } catch (error) { passedOver(error); return '' }
 }

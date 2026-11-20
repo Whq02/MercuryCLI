@@ -1,6 +1,7 @@
 import type { ApiStreamEvent } from '../../../types/wire.js'
 import { APIError } from '../../api/sdkErrors.js'
 import { SseDecoder, type SseDecodeResult } from '../sseDecoder.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const MESSAGE_EVENTS = new Set(['message_start', 'message_delta', 'message_stop', 'content_block_start', 'content_block_delta', 'content_block_stop'])
 
@@ -41,7 +42,7 @@ export class AnthropicStream implements AsyncIterable<ApiStreamEvent> {
       throw new Error('Attempted to iterate over a response with no body')
     }
     const decoder = new SseDecoder()
-    const abort = () => { void reader.cancel().catch(() => {}) }
+    const abort = () => { void reader.cancel().catch(passedOver) }
     this.controller.signal.addEventListener('abort', abort, { once: true })
     try {
       while (!this.controller.signal.aborted) {
@@ -58,7 +59,7 @@ export class AnthropicStream implements AsyncIterable<ApiStreamEvent> {
     } finally {
       this.controller.signal.removeEventListener('abort', abort)
       this.controller.abort()
-      await reader.cancel().catch(() => {})
+      await reader.cancel().catch(passedOver)
       reader.releaseLock()
       this.release()
     }

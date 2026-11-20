@@ -1,6 +1,7 @@
 import { sleep } from '../../../utils/sleep.js'
 import type { z } from 'zod/v4'
 import type { HostPod } from './vendor.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export class HostCreateError extends Error {
   constructor(message: string, readonly outcome: 'refused' | 'ambiguous', readonly instanceId?: string, readonly status?: number, readonly code?: string) { super(message) }
@@ -65,7 +66,7 @@ class RateGate {
       this.nextRequest = Date.now() + 1000
       if (launch) this.nextLaunch = Date.now() + 12000
     })
-    this.tail = turn.catch(() => {})
+    this.tail = turn.catch(passedOver)
     await turn
   }
   throttle(retryAfter: string | null): void {
@@ -110,7 +111,7 @@ export class VendorApi {
   }
   async serial<T>(work: () => Promise<T>): Promise<T> {
     const turn = (queues.get(this.account) ?? Promise.resolve()).then(work)
-    queues.set(this.account, turn.then(() => {}, () => {}))
+    queues.set(this.account, turn.then(() => {}, passedOver))
     return turn
   }
   remember(name: string): void {
@@ -167,7 +168,7 @@ export class VendorApi {
       this.observedPolicy = response.headers.get('ratelimit-policy') ?? this.observedPolicy
       if (response.status === 429) this.gate?.throttle(response.headers.get('retry-after'))
       if (!response.ok) {
-        const text = await response.text().catch(() => '')
+        const text = await response.text().catch(passedOverAs(''))
         let detail = ''
         let code = ''
         try {

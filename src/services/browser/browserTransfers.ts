@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export interface Transfer {
   id: string
@@ -99,7 +100,7 @@ function safeName(name: string): string {
 }
 
 async function moveFile(from: string, to: string): Promise<void> {
-  if (await fs.promises.lstat(to).then(() => true, () => false)) {
+  if (await fs.promises.lstat(to).then(() => true, passedOverAs(false))) {
     throw new Error(`refusing to overwrite existing destination ${to}`)
   }
   try {
@@ -110,12 +111,12 @@ async function moveFile(from: string, to: string): Promise<void> {
     const part = `${to}.part-${process.pid}-${Date.now()}`
     try {
       await fs.promises.copyFile(from, part, fs.constants.COPYFILE_EXCL)
-      if (await fs.promises.lstat(to).then(() => true, () => false)) {
+      if (await fs.promises.lstat(to).then(() => true, passedOverAs(false))) {
         throw new Error(`refusing to overwrite existing destination ${to}`)
       }
       await fs.promises.rename(part, to)
     } catch (copyErr) {
-      await fs.promises.rm(part, { force: true }).catch(() => undefined)
+      await fs.promises.rm(part, { force: true }).catch(passedOverAs(undefined))
       throw copyErr
     }
     await fs.promises.rm(from, { force: true })
@@ -150,7 +151,7 @@ async function publish(held: Held): Promise<void> {
     held.path = target
     held.state = 'complete'
   } catch (err) {
-    await fs.promises.rm(source, { force: true }).catch(() => undefined)
+    await fs.promises.rm(source, { force: true }).catch(passedOverAs(undefined))
     held.failure = `the bytes arrived but the file could not be put in place: ${(err as Error).message}`
     held.state = 'failed'
   }
@@ -200,7 +201,8 @@ export async function sweepIncoming(book: TransferBook, home: string, staging: s
     if (staging !== undefined) fs.rmSync(staging, { recursive: true, force: true })
     fs.rmSync(path.join(home, 'incoming'), { recursive: true, force: true })
     fs.rmdirSync(home)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }

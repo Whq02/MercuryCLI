@@ -12,6 +12,7 @@ import { HuggingfaceClient, HF_ENDPOINTS_STORAGE_NOTICE, HF_ENDPOINTS_KEY_NOTICE
 import { resolveHuggingfaceApiKey } from '../../providers/huggingface/huggingfaceAccounts.js'
 import { hostHuggingfaceCredential, hostHuggingfaceDispatchCredential } from '../jobCredentials.js'
 import { runpodClients } from './runpodOnly.js'
+import { passedOver } from '../../../utils/passedOver.js'
 export { runpodOnly } from './runpodOnly.js'
 
 export type HostVendorId = HostVendor['vendor']
@@ -26,7 +27,7 @@ export const vendorStorage = (vendor: HostVendorId): string => vendor === 'hyper
 export const vendorKeyNotice = (vendor: HostVendorId): string => vendor === 'hyperstack' ? HYPERSTACK_KEY_NOTICE : vendor === 'verda' ? VERDA_KEY_NOTICE : vendor === 'digitalocean' ? DIGITALOCEAN_KEY_NOTICE : vendor === 'huggingface' ? HF_ENDPOINTS_KEY_NOTICE : vendor === 'vast' ? VAST_KEY_NOTICE : vendor === 'lambda' ? LAMBDA_KEY_NOTICE : 'Mercury’s SSH key is added to this pod only, never to your Runpod account.'
 const recordKey = (record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'>, vendor: HostVendorId): string | undefined => {
   if (vendor !== 'huggingface') return vendorKey(vendor)
-  try { return hostHuggingfaceCredential(record)?.key } catch { return undefined }
+  try { return hostHuggingfaceCredential(record)?.key } catch (error) { passedOver(error); return undefined }
 }
 export function vendorClient(record: Pick<HostRecord, 'vendor' | 'apiBaseUrl' | 'id' | 'huggingfaceCredential'> | HostVendorId = 'runpod', options: { key?: string; apiBaseUrl?: string } = {}): HostVendor {
   const vendor = typeof record === 'string' ? record : record.vendor ?? 'runpod'

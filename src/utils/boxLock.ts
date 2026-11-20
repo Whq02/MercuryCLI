@@ -4,6 +4,7 @@ import { basename, join, resolve } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { lastMemorySample, refreshMemorySample, runtimeMemorySample, type MemoryRead } from '../services/switchboard/capacityCheck.js'
 import { commandWords } from '../guards/generatedAssets.js'
+import { passedOver, passedOverAs } from './passedOver.js'
 
 const BOX_LOCK_SCRIPT = 'with-box-lock.sh'
 
@@ -59,7 +60,8 @@ export function boxLockDir(): string | null {
 export function boxLockDirOfScript(scriptPath: string): string | null {
   try {
     return /^BASE=(\/[^\s'"$`\\]+)$/m.exec(readFileSync(scriptPath, 'utf8'))?.[1] ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -93,7 +95,8 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
   let names: string[]
   try {
     names = readdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   for (const name of names) {
@@ -102,7 +105,8 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
     let line = ''
     try {
       line = readFileSync(join(dir, name, 'holder'), 'utf8').trim()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const [pidWord, label = '', since = ''] = line.split(/\s+/)
@@ -121,7 +125,8 @@ export function readBoxLockState(dir: string, now: number = Date.now(), alive: (
         const stamp = /^(\d{16,20})-/.exec(ticket)?.[1]
         const arrivedAtMs = stamp === undefined ? statSync(path).mtimeMs : Number(BigInt(stamp) / 1_000_000n)
         ageS = Math.max(0, Math.round((now - arrivedAtMs) / 1000))
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       waiters.push({ label, waitedS: ageS })
@@ -154,7 +159,7 @@ function boxLoadReading(now: number = Date.now()): BoxLoadReading {
 export function refreshBoxReading(): Promise<void> {
   return refreshMemorySample().then(
     () => undefined,
-    () => undefined,
+    passedOverAs(undefined),
   )
 }
 

@@ -74,6 +74,7 @@ import { MERCURY_SCOUT_AGENT } from './built-in/mercuryScoutAgent.js'
 import { fireCrewmateEndOf } from './runAgent/crewmateEnd.js'
 import { armWatchdogOf, askLivelyOf, callModelOf, cutAtBudgetOf, observeProgressOf, stalledErrorOf, touchThroughOf, unarmedAgentRun } from './runAgent/watch.js'
 import { prepareAgentRun } from './runAgent/prepare.js'
+import { passedOver } from '../../utils/passedOver.js'
 export function filterIncompleteToolCalls(messages: Message[]): Message[] {
   const resolvedToolUseIds = new Set<string>()
   for (const message of messages) {
@@ -690,7 +691,7 @@ export async function* runAgent(
           yield message
         }
       } finally {
-        await stream.return(undefined).catch(() => {})
+        await stream.return(undefined).catch(passedOver)
       }
     }
 

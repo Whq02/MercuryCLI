@@ -8,6 +8,7 @@ import { workerPidAlive } from '../daemon/workerIdentity.js'
 import { logForDebugging } from '../utils/debug.js'
 import { lineagePath, mnemeProjectKeyFor } from './paths.js'
 import type { LedgerEntry, LiveSession } from './types.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const LEDGER_FILES_CAP = 300
 export const HANDOFF_TEXT_CAP = 8000
@@ -265,7 +266,8 @@ export function liveSessions(projectKey: string): LiveSession[] {
     const parsed = JSON.parse(readFileSync(sessionWorkersFile(), 'utf8')) as { version?: unknown; workers?: unknown }
     if (parsed?.version !== 1 || typeof parsed.workers !== 'object' || parsed.workers === null) return []
     workers = parsed.workers as Record<string, WorkerRow>
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: LiveSession[] = []

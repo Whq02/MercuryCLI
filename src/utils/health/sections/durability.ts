@@ -1,4 +1,5 @@
 import type { CheckSpec } from '../../healthReport.js'
+import { passedOver } from '../../passedOver.js'
 
 export function durabilityChecks(): CheckSpec[] {
   const scanJournals = async () => {
@@ -20,7 +21,8 @@ export function durabilityChecks(): CheckSpec[] {
           try {
             process.kill(pid, 0)
             return true
-          } catch {
+          } catch (error) {
+            passedOver(error)
             return false
           }
         }

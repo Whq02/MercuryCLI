@@ -31,6 +31,7 @@ import type { ConversationState } from './state.js'
 import type { ConversationConfig } from '../turn.js'
 import type { turnEnder } from './end.js'
 import { settledTurnRows } from './settle.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DEFAULT_MAX_STRUCTURED_OUTPUT_RETRIES = 5
 
@@ -133,7 +134,7 @@ export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds)
         case 'stream_request_start': {
           if (!persistenceDisabled && !isBareMode()) {
             await recordDelta()
-            await flushSessionStorage().catch(() => {})
+            await flushSessionStorage().catch(passedOver)
           }
           const floor = config.maxBudgetUsd === undefined ? null : inputFloorUsd(this.mutableMessages, currentStreamModel)
           if (config.maxBudgetUsd !== undefined && floor !== null && getTotalCostUSD() + floor > config.maxBudgetUsd) {
@@ -308,7 +309,7 @@ export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds)
         } else {
           await recordDelta()
           if (isBoundary && !persistenceDisabled) await recordTurnStart(turnId).catch((error: unknown) => logError(error))
-          if (!persistenceDisabled) await flushSessionStorage().catch(() => {})
+          if (!persistenceDisabled) await flushSessionStorage().catch(passedOver)
         }
       }
       if (kind === 'assistant') {

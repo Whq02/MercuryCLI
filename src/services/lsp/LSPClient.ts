@@ -15,6 +15,7 @@ import type { InitializeParams, InitializeResult, ServerCapabilities } from 'vsc
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { endProcessTree, endProcessTreeSurvivors } from '../../utils/processGroup.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type LSPStopResult = {
@@ -137,8 +138,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
     deathPromise = new Promise<never>((_, reject) => {
       deathReject = reject
     })
-    deathPromise.catch(() => {
-    })
+    deathPromise.catch(passedOver)
   }
 
   function signalDeath(message: string): void {
@@ -337,8 +337,7 @@ export function createLSPClient(serverName: string, onCrash?: (error: Error) => 
       let deadline: NodeJS.Timeout | null = null
       try {
         const shutdown = conn.sendRequest('shutdown', null)
-        shutdown.catch(() => {
-        })
+        shutdown.catch(passedOver)
         await Promise.race([
           shutdown,
           new Promise<never>((_, reject) => {

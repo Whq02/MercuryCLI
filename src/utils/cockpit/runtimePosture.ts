@@ -5,6 +5,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { canAnswerAsks, getSessionKind } from '../../bootstrap/state.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionResult } from '../permissions/PermissionResult.js'
+import { passedOver } from '../passedOver.js'
 
 export function runtimePostureEnabled(): boolean {
   return flagEnabled('MERCURY_RUNTIME_POSTURE')
@@ -57,7 +58,8 @@ function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | n
   try {
     const bash = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
     return bash.readBashRuleVerdict({ command: PUSH_PROBE }, context)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

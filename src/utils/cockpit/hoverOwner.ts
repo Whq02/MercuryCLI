@@ -1,4 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../passedOver.js'
 
 type HoverState = {
   owner: string | null
@@ -21,7 +22,8 @@ function trace(ev: string, id: string | null): void {
       p,
       JSON.stringify({ ev, id, owner: S.owner, down: S.pointerDown }) + '\n',
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

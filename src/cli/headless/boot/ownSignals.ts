@@ -5,6 +5,7 @@ import { DRAIN_CUT_WORDS } from '../../../utils/messages/turnCut.js'
 import { logForDiagnosticsNoPII } from '../../../utils/diagLogs.js'
 import { saveCurrentSessionCosts } from '../../../cost-tracker.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const SIGNAL_SETTLE_MS = 5_000
 
@@ -29,7 +30,8 @@ function run(ports: RunnerPorts): BootMade<never> {
     try {
       const workers = require('src/daemon/concourseWorkers.js') as typeof import('src/daemon/concourseWorkers.js')
       return workers.cutAtDrainCeiling(String(getSessionId()), process.pid) ? DRAIN_CUT_WORDS : undefined
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }

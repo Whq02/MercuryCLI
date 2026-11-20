@@ -11,6 +11,7 @@ import { hostRecipeSchema } from './recipesFile.js'
 import { hostSetupEstimate } from '../../commands/llmhost/words.js'
 import { createRefusal, RunpodHttpError, type HostPod, type RunpodClient, type HostVolume } from './runpod.js'
 import type { HostReadOnly } from './retry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const volumeRecordSchema = z.object({
   id: z.string().regex(/^[A-Za-z0-9_-]+$/), name: z.string(), model: z.string(), include: z.string(),
@@ -105,7 +106,7 @@ export async function deleteKeptVolume(api: RunpodClient, id: string, readOnly?:
   if (record.kind === 'vast') throw new Error('This is a Vast.ai volume; delete it from its own row in Machines I’m paying for. Nothing was deleted.')
   try { await api.deleteVolume(record.kind, id) } catch (error) {
     if (createRefusal(error) || error instanceof RunpodHttpError && error.status === 409) {
-      const mounting = (await api.pods().catch((): HostPod[] => [])).filter(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))
+      const mounting = (await api.pods().catch((error): HostPod[] => { passedOver(error); return [] })).filter(pod => [...(pod.mounts?.network ?? []), ...(pod.mounts?.global ?? [])].some(row => row.volumeId === id))
       throw new Error('Runpod refused to delete ' + id + (mounting.length ? ' while ' + mounting.map(pod => pod.id + ' (' + pod.status + ')').join(', ') + (mounting.length > 1 ? ' still mount it; terminate those pods first' : ' still mounts it; terminate that pod first') + (record.kind === 'global' ? ' (a stopped pod still counts).' : '.') : '.') + ' Nothing was deleted; the disk still bills ' + keptDiskPrice(record) + '. ' + (error as Error).message)
     }
     if (!(error instanceof RunpodHttpError && error.status === 404)) throw new Error('Runpod gave no clear answer to deleting ' + id + '; it may still exist and bill ' + keptDiskPrice(record) + '. Refresh Machines I’m paying for before trying again. ' + String(error))

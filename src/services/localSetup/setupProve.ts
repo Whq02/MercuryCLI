@@ -8,6 +8,7 @@ import { tokensWords } from '../localServer/localServerMemory.js'
 import { settleModelSelection, type SettledSelection } from '../../utils/model/modelTransition.js'
 import { rec, resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
 import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelDoor, type SessionModelSlice, type SessionSwitchReceipt, type SetupIo } from './setupTypes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type ProveIo = SetupIo & { root?: string; server?: LocalServerKind; pickAfterReply?: boolean; thinkingOff?: boolean }
 
@@ -85,7 +86,8 @@ function observingFetch(fetchImpl: typeof fetch, onHeaders: () => void, onRow: (
         try {
           const row = rec(JSON.parse(trimmed))
           if (row) onRow(row)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
       }

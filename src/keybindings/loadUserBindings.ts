@@ -19,6 +19,7 @@ import { parseBindings } from './parser.js'
 import type { KeybindingBlock, ParsedBinding } from './types.js'
 import { checkDuplicateKeysInJson, validateBindings, type KeybindingWarning } from './validate.js'
 import { isRecord } from '../utils/isRecord.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const FILE_NAME = 'keybindings.json'
 
@@ -38,7 +39,8 @@ export function getKeybindingsPath(): string {
 function folderTrusted(): boolean {
   try {
     return checkHasTrustDialogAccepted()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -164,7 +166,8 @@ function readLayerSync(path: string | null, layer: Layer): ParsedLayer | null {
   if (!path) return null
   try {
     return parseLayer(readFileSync(path, 'utf8'), layer)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -283,7 +286,7 @@ export async function initializeKeybindingWatcher(): Promise<void> {
 export function disposeKeybindingWatcher(): void {
   watcherDisposed = true
   if (watcher) {
-    void watcher.close().catch(() => {})
+    void watcher.close().catch(passedOver)
     watcher = null
   }
   changes.clear()

@@ -63,6 +63,7 @@ import { afterToolHooks, beforeToolHooks, deciderOf, hookPermissionOutcomeOf, pe
 import { hookProgressMessage, hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { hookWaitSeconds, hookWaitWords } from '../../utils/hooks/wait.js'
 import { baseToolsOfTheTable } from '../../tools/toolTable.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type MessageUpdateLazy<M = Message> = {
@@ -180,7 +181,8 @@ function extractKillTarget(toolName: string, input: AnyObject): string | undefin
         }
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return target || undefined
 }
@@ -472,7 +474,8 @@ async function runTransactionBody(args: {
     traceEmitted = true
     try {
       emitInvocationTrace(tool, opts)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -520,7 +523,8 @@ async function runTransactionBody(args: {
             `error-${code}`,
           )
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       logForDebugging(
         `tool input validation failed for ${tool.name}: ${(verdict.message ?? '').slice(0, 200)}`,
@@ -613,7 +617,8 @@ async function runTransactionBody(args: {
   const preHookDuration = Date.now() - preHooksStartedAt
   try {
     getStatsStore()?.observe(PRE_TOOL_HOOK_DURATION_METRIC, preHookDuration)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (preHookDuration > SLOW_PHASE_THRESHOLD_MS) {
     logForDebugging(`pre-tool hooks for ${tool.name} took ${preHookDuration}ms`)
@@ -847,7 +852,8 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
 
     try {
       addToToolDuration(durationMs)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const effect = result.effect
     const structuredOutput = (result as { structured_output?: unknown }).structured_output
@@ -926,7 +932,8 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
     if (room !== null && room.reserved(toolUseID)) room.settle(toolUseID, 0)
     try {
       addToToolDuration(durationMs)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (error instanceof ShellError && error.ran && !error.interrupted) failedShellOutcome = { code: error.code, pipelineStatus: error.pipelineStatus }
     const abandoned = error instanceof ToolCallAbandonedError
@@ -1021,7 +1028,8 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
               outcome,
             )
           }
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         observeToolTerminal({
           owner: ownerFromToolUseContext(toolUseContext),
@@ -1045,7 +1053,8 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
             ? { lifecycle: 'launch' as const }
             : {}),
         })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     } else {
       traceOnce({ ok: false })

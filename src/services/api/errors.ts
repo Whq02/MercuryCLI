@@ -34,6 +34,7 @@ import { ImageSizeError } from '../../utils/imageValidation.js'
 
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 import { providerAskedWaitMs } from './recoveryBudget.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
@@ -183,7 +184,8 @@ function routeOfModel(model: string): string {
     const { declaredRouteOf } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     return declaredRouteOf(model) ?? 'gateway'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'anthropic'
   }
 }
@@ -779,7 +781,8 @@ function overflowFamilyOfModel(model: string): OverflowFamily {
     const { declaredRouteOf } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     return declaredRouteOf(model) ?? 'unknown'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'anthropic'
   }
 }
@@ -848,7 +851,8 @@ export function getErrorMessageIfRefusal(
     if (light !== undefined && model !== light.modelId) {
       content += ` If refusals repeat, try /model ${light.modelId}.`
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let payload = ''
   if (evidence !== undefined && 'raw' in evidence && evidence.raw !== undefined) {

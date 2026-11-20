@@ -1,5 +1,6 @@
 import type { NotebookCell, NotebookContent } from '../../types/notebook.js'
 import { jsonParse, jsonStringify } from '../../utils/slowOperations.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type Span = { start: number; end: number; items?: Span[]; props?: Map<string, { key: Span; value: Span }> }
 
@@ -157,7 +158,8 @@ function spliced(original: string, notebook: NotebookContent, plan: NotebookEdit
     if (plan.mode === 'delete') return spliceDelete(original, root, plan.index)
     if (cell === undefined) return null
     return plan.mode === 'replace' ? spliceReplace(original, root, plan.index, cell) : spliceInsert(original, root, plan.index, cell)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -186,7 +188,8 @@ export function notebookTextAfterEdit(original: string, notebook: NotebookConten
 function parsesTo(text: string, notebook: NotebookContent): boolean {
   try {
     return jsonStringify(jsonParse(text)) === jsonStringify(notebook)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

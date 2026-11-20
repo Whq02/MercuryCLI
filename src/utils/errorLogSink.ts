@@ -8,6 +8,7 @@ import { logForDebugging } from './debug.js'
 import { getErrnoCode } from './errors.js'
 import { getFsImplementation } from './fsOperations.js'
 import { attachErrorLogSink, dateToFilename } from './log.js'
+import { passedOver } from './passedOver.js'
 
 
 const LOG_FILE_NAME = `${dateToFilename(new Date())}.jsonl`
@@ -43,7 +44,8 @@ function closePath(path: string, why: string): void {
 function fileSize(fs: ReturnType<typeof getFsImplementation>, path: string): number {
   try {
     return fs.statSync(path).size
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }

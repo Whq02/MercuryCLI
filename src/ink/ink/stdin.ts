@@ -4,6 +4,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { markConsoleLent, markConsoleReturned } from '../../utils/process.js'
 import { holdConsoleRead } from '../root/console-read.js'
 import type Ink from '../ink.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const STDIN_REARM_DELAY_MS = 50
 
@@ -18,7 +19,8 @@ export function drainStdin(stdin: NodeJS.ReadStream = process.stdin): void {
   try {
     while (stdin.read() !== null) {
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (process.platform === 'win32') return
 
@@ -37,18 +39,21 @@ export function drainStdin(stdin: NodeJS.ReadStream = process.stdin): void {
       const read = readSync(fd, buffer, 0, buffer.length, null)
       if (read <= 0) break
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   } finally {
     if (fd !== null) {
       try {
         closeSync(fd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (rawChanged) {
       try {
         stdin.setRawMode(false)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }

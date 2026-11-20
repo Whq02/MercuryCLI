@@ -1,6 +1,7 @@
 import { z } from 'zod/v4'
 import { visit } from 'jsonc-parser'
 import { lazySchema } from '../lazySchema.js'
+import { passedOver } from '../passedOver.js'
 
 export const COMPAT_ENDPOINT_NAME = /^[a-z0-9-]{1,32}$/
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/
@@ -10,7 +11,8 @@ const baseUrl = () => z.string().refine(value => {
   try {
     const url = new URL(value)
     return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && !url.search && !url.hash
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }, 'baseUrl must be an http(s) URL without credentials, query or fragment')

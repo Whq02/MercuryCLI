@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { PY_RUNNER_SOURCE } from './pyRunnerSource.js'
 import { JS_RUNNER_SOURCE } from './jsRunnerSource.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function evalCacheDir(): string {
   return join(getMercuryHome(), 'eval')
@@ -26,7 +27,8 @@ export function ensureCached(prefix: string, extension: string, source: string):
   } catch {
     try {
       rmSync(tmp, { force: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return path

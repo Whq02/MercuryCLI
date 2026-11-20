@@ -25,6 +25,7 @@ import {
   type GptDisplayPin,
   type GptModelIdentity,
 } from './gptPins.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export {
   GPT_DISPLAY_PINS,
@@ -148,7 +149,7 @@ export async function readOpenaiCatalogueIfPending(opts?: { boundMs?: number; fo
   if (cached && (cached.models.length > 0 || !cached.lastError)) return false
   let timer: ReturnType<typeof setTimeout> | undefined
   await Promise.race([
-    refreshOpenaiCatalogue(account.kind, { force: opts?.force === true }).catch(() => null),
+    refreshOpenaiCatalogue(account.kind, { force: opts?.force === true }).catch(passedOverAs(null)),
     new Promise<void>(resolve => {
       timer = setTimeout(resolve, opts?.boundMs ?? OPENAI_ADMISSION_READ_BOUND_MS)
       timer.unref?.()
@@ -194,7 +195,8 @@ export function adoptOpenaiCatalogueFact(fact: unknown, env: NodeJS.ProcessEnv =
     const models = f.models.filter((m): m is OpenaiLiveModel => typeof m === 'object' && m !== null && typeof (m as { id?: unknown }).id === 'string' && Array.isArray((m as { supportedReasoningEfforts?: unknown }).supportedReasoningEfforts))
     if (models.length === 0) return false
     return primeOpenaiCatalogue({ sourceKind: f.sourceKind, models, fetchedAtMs: f.fetchedAtMs }, env)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -328,7 +330,7 @@ export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvail
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
-    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(() => {})
+    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(passedOver)
     return {
       state: 'disabled',
       why: 'catalogue-pending',
@@ -336,7 +338,7 @@ export function getGptSeatAvailability(opts?: { fetch?: boolean }): GptSeatAvail
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(() => {})
+    if (opts?.fetch === true) void refreshOpenaiCatalogue(account.kind).catch(passedOver)
     if (snapshot.lastError === 'account-source-unavailable') {
       return {
         state: 'disabled',
@@ -532,7 +534,7 @@ export function readOpenaiAccountAgain(env: NodeJS.ProcessEnv = process.env): { 
     if (noteOpenaiSourceIdentity(kind, openaiSourceIdentity(kind, env))) forgotten.push(kind)
   }
   const dropped = forgetDepartedOpenaiCatalogues(env)
-  void readOpenaiCatalogueIfPending().catch(() => false)
+  void readOpenaiCatalogueIfPending().catch(passedOverAs(false))
   return { forgotten, dropped }
 }
 

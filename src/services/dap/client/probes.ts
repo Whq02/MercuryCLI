@@ -3,6 +3,7 @@ import { accessSync, constants, existsSync } from 'node:fs'
 import * as path from 'node:path'
 import { execFileNoThrow } from '../../../utils/execFileNoThrow.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const GDB_DAP_MIN_MAJOR = 14
 
@@ -29,7 +30,8 @@ export function findOnPathLocal(name: string): string | undefined {
           accessSync(candidate, constants.X_OK)
           return candidate
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -122,7 +124,8 @@ export function resolveLldbDap(): LldbDapResolution | null {
         lldbDapMemo = found
         return lldbDapMemo
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   lldbDapMemo = null
@@ -159,7 +162,7 @@ export function lldbDapFromMemo(): LldbDapResolution | null {
     lldbDapMemo = null
     return null
   }
-  void probeLldbDapAsync().catch(() => {})
+  void probeLldbDapAsync().catch(passedOver)
   return null
 }
 
@@ -233,7 +236,7 @@ export function probeGdbDapAsync(): Promise<GdbProbe> {
 export function gdbProbeFromMemo(): GdbProbe {
   if (findOnPathLocal('gdb') === undefined) return { viable: false, reason: 'no gdb on PATH' }
   const last = gdbProbeCache
-  if (last === null || gdbProbeFresh(process.env.PATH ?? '') === null) void probeGdbDapAsync().catch(() => {})
+  if (last === null || gdbProbeFresh(process.env.PATH ?? '') === null) void probeGdbDapAsync().catch(passedOver)
   return last?.result ?? { viable: false, reason: 'gdb --version has not answered yet' }
 }
 

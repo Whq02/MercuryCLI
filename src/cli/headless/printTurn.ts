@@ -35,6 +35,7 @@ import { turnOpened } from '../../rows/read.js'
 import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFindings.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { holdQueuedWordsForTurnEnd } from '../../utils/messageQueueManager.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
 
@@ -80,7 +81,8 @@ export function registerPerTurnHandlers(clients: MCPServerConnection[], ports: R
     try {
       void registerElicitationHandlersForClient(client, client.name)
       elicitationRegistered.add(client.name)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

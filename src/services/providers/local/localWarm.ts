@@ -28,6 +28,7 @@ import { chooseLocalBatch, chooseLocalWindow, ensureLocalWindowTruth, heldLocalK
 import { ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from './ollamaChatTransport.js'
 import { toolDialectSystemText } from './toolDialect.js'
 import { tellWhoHearsALocalTurn } from './localTurn.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const LOCAL_WARM_SETTLE_MS = 750
 export const LOCAL_WARM_LIVE_WAITS = 8
@@ -275,7 +276,7 @@ async function resolveRecord(model: string): Promise<LocalModelRecord | undefine
   if (!isLocalModelId(model)) return undefined
   const cached = localRecordFor(model)
   if (cached !== undefined) return cached
-  await refreshLocalDiscovery().catch(() => undefined)
+  await refreshLocalDiscovery().catch(passedOverAs(undefined))
   return localRecordFor(model)
 }
 
@@ -335,7 +336,7 @@ async function warm(record: LocalModelRecord, model: string): Promise<void> {
     state.recent = { key, at: nowMs() }
     state.lastWarm = { model: record.id, promptTokens, usage, elapsedMs }
     logForDebugging(`[local-warm] warm of ${record.id} settled in ${Math.round(elapsedMs / 1000)}s: prompt_eval_count=${String(usage?.inputTokens)} cached=${String(usage?.cachedInputTokens)}`)
-    await confirmServedWindow(record, { ...(state.io.fetchImpl ? { fetchImpl: state.io.fetchImpl } : {}), signal: controller.signal }).catch(() => undefined)
+    await confirmServedWindow(record, { ...(state.io.fetchImpl ? { fetchImpl: state.io.fetchImpl } : {}), signal: controller.signal }).catch(passedOverAs(undefined))
   } catch (error) {
     if (controller.signal.aborted) return
     state.failed += 1
@@ -409,13 +410,13 @@ export async function tick(): Promise<void> {
     if (!state.live()) return
     const knobs = heldKnobsFor(record)
     if (knobs === undefined) return
-    const ps = rec(await probe(record, '/api/ps').catch(() => undefined))
+    const ps = rec(await probe(record, '/api/ps').catch(passedOverAs(undefined)))
     const models = Array.isArray(ps?.models) ? (ps!.models as unknown[]).map(rec) : []
     const entry = models.find(m => m !== undefined && (m.model === record.id || m.name === record.id))
     const verdict = keepAliveTouchDue(entry, knobs, nowMs(), record.contextWindow?.source === 'served' ? record.contextWindow.tokens : undefined)
     if (!verdict.due) return
     const body = { model: record.id, keep_alive: LOCAL_KEEP_ALIVE_HOLD, options: { ...(knobs.numCtx !== undefined ? { num_ctx: knobs.numCtx } : {}), num_batch: knobs.numBatch } }
-    const answer = await probe(record, '/api/generate', { method: 'POST', body, timeoutMs: state.io.probeTimeoutMs ?? LOCAL_KEEP_ALIVE_TOUCH_TIMEOUT_MS }).catch(() => undefined)
+    const answer = await probe(record, '/api/generate', { method: 'POST', body, timeoutMs: state.io.probeTimeoutMs ?? LOCAL_KEEP_ALIVE_TOUCH_TIMEOUT_MS }).catch(passedOverAs(undefined))
     if (answer === undefined) {
       logForDebugging(`[local-warm] keep-alive touch of ${record.id} got no answer`)
       return
@@ -434,7 +435,8 @@ function startHelperSlot(): void {
   try {
     const { helperModelId } = require('./tensorfoldHelper.js') as typeof import('./tensorfoldHelper.js')
     helperModelId()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

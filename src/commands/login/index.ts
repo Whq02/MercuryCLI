@@ -2,6 +2,7 @@ import type { Command } from '../../commands.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { anyProviderCredentialed } from '../../services/providers/providerUsage.js'
 import { shouldNavCommandBeImmediate } from '../../utils/immediateCommand.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export default () =>
   ({
@@ -13,7 +14,8 @@ export default () =>
         return anyProviderCredentialed()
           ? 'Re-login or add accounts (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · MiniMax · Together AI · Cohere · Groq · Melious AI · OrcaRouter · Cerebras · Fireworks · Qwen · API keys)'
           : 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · MiniMax · Together AI · Cohere · Groq · Melious AI · OrcaRouter · Cerebras · Fireworks · Qwen · API keys)'
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return 'Sign in (Claude subscription · OpenAI ChatGPT · OpenRouter · Gemini · Hugging Face · Kimi · GLM · DeepSeek · xAI · Meta · Mistral · Nous Portal · MiniMax · Together AI · Cohere · Groq · OrcaRouter · Melious AI · Cerebras · Fireworks · Qwen · API keys)'
       }
     },

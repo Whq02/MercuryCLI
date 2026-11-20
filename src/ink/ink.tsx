@@ -46,6 +46,7 @@ import { drainStdin, suspendStdin, resumeStdin, recoverStdin } from './ink/stdin
 import { patchConsole } from './ink/console-patch.js'
 import { unmount, waitUntilExit, detachForShutdown } from './ink/exit.js'
 import type { ExitOutcome } from './ink/record.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export { drainStdin }
 
@@ -215,7 +216,7 @@ export default class Ink {
             .default?.injectIntoDevTools
           inject?.({ bundleType: 0, version: '19', rendererPackageName: 'ink' })
         })
-        .catch(() => {})
+        .catch(passedOver)
     }
   }
 
@@ -237,7 +238,8 @@ export default class Ink {
     try {
       const { recordLaunchMilestone } = require('../substrate/launchMilestones.js') as typeof import('../substrate/launchMilestones.js')
       recordLaunchMilestone('first-frame')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   subscribeFrame(listener: () => void): () => void { return subscribeFrame.call(this, listener) }

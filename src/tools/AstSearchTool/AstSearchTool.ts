@@ -39,6 +39,7 @@ import {
   renderToolUseErrorMessage,
   renderToolUseMessage,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const inputSchema = z.strictObject({
@@ -293,7 +294,8 @@ export const AstSearchTool = buildTool({
           const shownLines = Math.min(m.endLine - m.startLine + 1, 4)
           recordSeenLines(owner, m.abs, generation, m.startLine, shownLines)
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
 

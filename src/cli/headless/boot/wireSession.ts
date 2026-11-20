@@ -4,6 +4,7 @@ import { getCwd } from '../../../utils/cwd.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 async function run(ports: RunnerPorts): Promise<BootMade<'releaseQueueUntilClaimed' | 'armSessionRunnerWiring'>> {
   const { isConcourseWorker, live, peer, setAppState } = ports
@@ -33,7 +34,7 @@ async function run(ports: RunnerPorts): Promise<BootMade<'releaseQueueUntilClaim
   if (isConcourseWorker && !live.awaitingSessionClaim) {
     await armSessionRunnerWiring(String(getSessionId()))
   } else if (live.awaitingSessionClaim) {
-    void sessionWiringModules().catch(() => {})
+    void sessionWiringModules().catch(passedOver)
   }
   return { releaseQueueUntilClaimed, armSessionRunnerWiring }
 }

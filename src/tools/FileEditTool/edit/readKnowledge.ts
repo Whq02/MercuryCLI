@@ -13,6 +13,7 @@ import { noMatchHint } from '../editResult.js'
 import { READ_THROUGH_MARGIN, coalesceLineRanges, linesOutside, planReadThrough, renderCarriedWindows, spellLineRanges, widenLineRanges, type CarriedWindow, type LineRange, type ReadThroughPlan } from '../readThrough.js'
 import type { StructuredPatchHunk } from '../../../utils/diff.js'
 import { isFullReadEntry, hasText, splitLeadingBom } from './fileFacts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function linesOfMatches(content: string, oldString: string, replaceAll: boolean): { start: number; end: number }[] | null {
   const actual = findActualString(content, oldString)
@@ -162,7 +163,8 @@ export function noMatchWords(
     const read = knowledgeBeforeWrite(context, expandedPath, displayPath, currentContent, expectedAnchor, fileGeneration(expandedPath), seenLinesOf(owner, expandedPath))
     const hint = noMatchHint({ content: currentContent, oldString, newString, read, path: expandedPath })
     return hint === '' ? '' : `\n${hint}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

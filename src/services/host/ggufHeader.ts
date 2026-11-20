@@ -1,4 +1,5 @@
 import engineTable from '../../../assets/host/llamacpp-engine.json' with { type: 'json' }
+import { passedOver } from '../../utils/passedOver.js'
 
 type GgufValue = string | number | boolean | Array<number | boolean>
 interface GgufHeader { version: number; tensorCount: number; architecture?: string; kv: Record<string, GgufValue>; tensors: string[]; types?: number[]; headerBytes: number }
@@ -171,8 +172,8 @@ async function readRange(url: string, start: number, end: number, options: GgufR
   const headers: Record<string, string> = { Range: 'bytes=' + start + '-' + end, ...(options.token ? { Authorization: 'Bearer ' + options.token } : {}) }
   const response = await doFetch(url, { method: 'GET', headers, redirect: 'manual', signal })
   const location = response.headers.get('location') ?? undefined
-  if (response.status >= 300 && response.status < 400 && location) { await response.body?.cancel().catch(() => {}); return { status: response.status, bytes: new Uint8Array(), location } }
-  if (response.status !== 200 && response.status !== 206) { await response.body?.cancel().catch(() => {}); return { status: response.status, bytes: new Uint8Array() } }
+  if (response.status >= 300 && response.status < 400 && location) { await response.body?.cancel().catch(passedOver); return { status: response.status, bytes: new Uint8Array(), location } }
+  if (response.status !== 200 && response.status !== 206) { await response.body?.cancel().catch(passedOver); return { status: response.status, bytes: new Uint8Array() } }
   const want = end - start + 1
   const chunks: Uint8Array[] = []
   let have = 0
@@ -184,7 +185,7 @@ async function readRange(url: string, start: number, end: number, options: GgufR
     chunks.push(value)
     have += value.length
   }
-  await reader.cancel().catch(() => {})
+  await reader.cancel().catch(passedOver)
   const bytes = new Uint8Array(Math.min(have, want))
   let at = 0
   for (const chunk of chunks) { const take = Math.min(chunk.length, bytes.length - at); bytes.set(chunk.subarray(0, take), at); at += take; if (at >= bytes.length) break }

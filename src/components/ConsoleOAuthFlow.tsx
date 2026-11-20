@@ -27,6 +27,7 @@ import { refreshLocalDiscovery } from '../services/providers/local/localDiscover
 import { armFaceDoorDeepLink, armTensorFoldDeepLink, disarmTensorFoldDeepLink } from '../substrate/splashHandover.js'
 import { type EngineLeg, legCard } from './consoleOAuth/legCard.js'
 import { type LoginFamilyFocus, idleCard, waitingCard, successCard, errorCard } from './consoleOAuth/flowCards.js'
+import { passedOverAs } from '../utils/passedOver.js'
 
 export { MORE_BELOW_ROW, READINESS_ROWS } from './consoleOAuth/readiness.js'
 export { type LoginFamilyFocus, type SignInCardFit, signInCardFit } from './consoleOAuth/flowCards.js'
@@ -87,7 +88,7 @@ export function ConsoleOAuthFlow({
   useCatalogueEpoch()
   const walkHost = onSkip !== undefined
   useLoad(() => {
-    if (walkHost) void refreshLocalDiscovery().catch(() => undefined)
+    if (walkHost) void refreshLocalDiscovery().catch(passedOverAs(undefined))
   }, [walkHost])
   const localRoad = walkHost ? localDiscoverySummary() : null
   const menuUp = leg === null && accountFamily === null && state.name === 'idle'

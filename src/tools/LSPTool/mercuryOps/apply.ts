@@ -16,6 +16,7 @@ import { displayPathFor, uriToFilePath } from './shared.js'
 import { syncServersAfterWrite, awaitDiagnosticStabilization } from './afterWrite.js'
 import { changeViewOf, planFiles, planTokenOf, editRowsFor, type PlannedFile } from './preview.js'
 import { readKnowledgeHolds, touchedLinesOf } from './readKnowledge.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type AppliedOutcome = {
   output: MercuryLspOpOutput
@@ -296,7 +297,8 @@ export async function applyPrepared(
         ? `${stabilization.errors} error(s), ${stabilization.warnings} warning(s) after ${operation}`
         : `post-apply diagnostics ${stabilization.state}`
     noteRunEvent(owner, { type: 'ide-feedback', at: Date.now(), state: feedbackState, detail })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const stabilizationNote =
     stabilization.state === 'fresh' || stabilization.state === 'unchanged'

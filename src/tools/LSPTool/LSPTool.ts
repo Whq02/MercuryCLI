@@ -24,6 +24,7 @@ import { readLocationSourceLines, boundWorkspaceSymbols, formatDocumentSymbolRes
 import { LSP_DESCRIPTIONS, LSP_SEARCH_HINTS, type LspToolName } from './prompt.js'
 import { LSP_INPUT_JSON_SCHEMAS, lspInputSchema, readArguments, readArgumentError, type LspInput } from './schemas.js'
 import { renderToolResultMessage, renderToolUseErrorMessage, renderToolUseMessage } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_ANALYZABLE_FILE_BYTES = 10_000_000
 const WORKSPACE_SYMBOL_DEFAULT_LIMIT = 50
@@ -91,7 +92,7 @@ async function gitIgnoredPaths(paths: string[]): Promise<Set<string>> {
       if (result.code === 0 && result.stdout.length > 0) {
         for (const line of result.stdout.split('\n')) if (line.trim() !== '') ignored.add(line.trim())
       }
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return ignored
 }
@@ -234,7 +235,7 @@ async function runLspOperation(input: Input, tool: Tool, context: ToolUseContext
   }
   try {
     await manager.revalidateOpenDocuments()
-  } catch {}
+  } catch (error) { passedOver(error) }
   if (operation === 'workspaceSymbol') {
     const query = input.query!
     let startPath = filePath

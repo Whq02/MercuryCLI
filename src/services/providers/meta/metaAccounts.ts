@@ -6,6 +6,7 @@ import { publishAuthScopedJson, readStoredMetaApiKey, signInLedgerPath } from '.
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { bumpCatalogueEpoch } from '../catalogueEpoch.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const MUSE_CODE_OAUTH_CLIENT_ID = '1031625952748946'
 export const META_API_VERSION = '1.0.0'
@@ -82,7 +83,8 @@ function readAuthFile(): MetaAuthFile | null {
     const parsed = JSON.parse(readFileSync(metaAuthPathForDisplay(), 'utf8')) as unknown
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null
     return parsed as MetaAuthFile
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -312,7 +314,7 @@ async function postMetaOidcForm(
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       body = parsed as Record<string, unknown>
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   return { status: response.status, body }
 }
 
@@ -434,7 +436,7 @@ export async function requestMuseCodeKey(
     if (typeof json === 'object' && json !== null && !Array.isArray(json)) {
       parsed = json as Record<string, unknown>
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   if (!response.ok) {
     const errorObj = typeof parsed?.error === 'object' && parsed.error !== null ? (parsed.error as Record<string, unknown>) : undefined
     const msg =

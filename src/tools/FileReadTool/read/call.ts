@@ -46,6 +46,7 @@ import { readRichFormatLane } from './richFormatLane.js'
 import { readTextLane } from './textLane.js'
 import { readRangeElsewhere } from './source.js'
 import { readRemoteListing, readUrlTarget, readDirectoryTarget } from './callParts.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export async function readFileCall(input: Input, context: ToolUseContext, canUseTool: CanUseToolFn | undefined, parentMessage: AssistantMessage | undefined, readToolItself: () => Tool) {
   const ownRead = parentMessage !== undefined
@@ -156,7 +157,7 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
     if (isDirectoryTarget(fullFilePath)) return readDirectoryTarget(input, fullFilePath, context, settle)
   }
 
-  const notAFile = remote !== null ? null : await stat(fullFilePath).then(notAFileKind, () => null)
+  const notAFile = remote !== null ? null : await stat(fullFilePath).then(notAFileKind, passedOverAs(null))
   if (notAFile !== null) {
     logForDebugging(`read: ${fullFilePath} is ${notAFile}, not a file or a folder; it is not opened`)
     throw new Error(notAFileRefusal(effectiveRawPath, notAFile))
@@ -187,7 +188,8 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
           data: { type: 'file_unchanged', file: { filePath: fullFilePath, ...(anchor !== undefined ? { anchor } : {}) } } satisfies Output,
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -197,7 +199,7 @@ export async function readFileCall(input: Input, context: ToolUseContext, canUse
       const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
       for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
       if (fresh.length > 0) {
-        void Promise.resolve(addSkillDirectories(fresh, { filePaths: [fullFilePath], cwd: getCwd() })).catch(() => undefined)
+        void Promise.resolve(addSkillDirectories(fresh, { filePaths: [fullFilePath], cwd: getCwd() })).catch(passedOverAs(undefined))
       }
       activateConditionalSkillsForPaths([fullFilePath], getCwd())
     } catch (err) {

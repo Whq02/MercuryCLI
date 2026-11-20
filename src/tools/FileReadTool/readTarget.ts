@@ -7,6 +7,7 @@ import { mercurySecretPath } from '../../utils/permissions/protectedPaths.js'
 import { resolveResource } from '../../services/resources/registry.js'
 import type { ResourceContext } from '../../services/resources/contracts.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function readTargetsEnabled(): boolean {
   return !isEnvDefinedFalsy(flagEnv('MERCURY_READ_TARGETS'))
@@ -29,7 +30,8 @@ export function classifyReadTarget(raw: string): ReadTarget {
 export function isDirectoryTarget(fullPath: string): boolean {
   try {
     return statSync(fullPath).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

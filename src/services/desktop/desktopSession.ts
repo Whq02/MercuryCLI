@@ -10,6 +10,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export { COMPUTER_TOOL_NAME }
 
@@ -179,7 +180,8 @@ function unlinkQuietly(file: string): boolean {
   try {
     fs.unlinkSync(file)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -192,7 +194,8 @@ export function pruneDesktopShots(dir: string, keep: number = DESKTOP_SHOTS_KEEP
   let names: string[]
   try {
     names = fs.readdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   const byStem = new Map<string, string[]>()

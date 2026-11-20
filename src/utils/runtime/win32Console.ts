@@ -3,6 +3,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { flagReadsOff } from '../../substrate/flagOff.js'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { join } from 'node:path'
+import { passedOver } from '../passedOver.js'
 
 export const UTF8_CODEPAGE = 65001
 
@@ -51,7 +52,8 @@ const defaultSyscalls: Win32ConsoleSyscalls = {
       const r = spawnSync(exe, arg === undefined ? [] : [arg], options)
       if (r.error || r.status !== 0) return null
       return r.stdout ?? ''
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   },

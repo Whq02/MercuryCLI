@@ -7,6 +7,7 @@ import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
 import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
@@ -47,7 +48,8 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
       try {
         const meta = JSON.parse(await readFile(file, 'utf8')) as { model?: unknown; effort?: unknown; effortOverride?: unknown } | null
         identity = { model: word(meta?.model), effort: word(meta?.effort), effortOverride: word(meta?.effortOverride) }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       } finally {
         reading = false
       }

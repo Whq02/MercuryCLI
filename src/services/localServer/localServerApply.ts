@@ -4,6 +4,7 @@ import { FIT_REMEDY, LOCAL_SERVER_KNOBS, chosenKnobs, fitVerdict, memoryFactsOf,
 import { fetchWithProviderDeadline } from '../providers/fetchDeadline.js'
 import { resolveLocalServerIo, type LaunchFormKind, type LocalServerIo, type LocalServerTruth } from './localServerTruth.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface LocalServerChange {
   name: string
@@ -281,7 +282,8 @@ function defaultWriteText(path: string, text: string): void {
 function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -290,7 +292,8 @@ async function defaultProbe(url: string): Promise<boolean> {
   try {
     const response = await fetchWithProviderDeadline(resolveLocalServerIo({}).fetchImpl, 'local', 900, url, { method: 'GET' })
     return response.ok
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

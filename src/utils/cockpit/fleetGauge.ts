@@ -2,6 +2,7 @@ import { listConcourseWorkers } from '../../daemon/concourseWorkers.js'
 import { listExecutions } from '../../services/primitives/executionPlane.js'
 import { processMainOwner } from '../../services/run/resolveOwner.js'
 import { withState, type Snapshot } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export type FleetRosterSource = 'concourse' | 'execution'
 
@@ -29,7 +30,8 @@ function concourseRows(nowMs: number): FleetRosterEntry[] {
       state: r.pausedAt !== undefined ? 'paused' : nowMs - r.lastLiveAt > CONCOURSE_STALE_MS ? 'stale' : 'running',
       model: r.modelKey,
     }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -42,7 +44,8 @@ function executionRows(): FleetRosterEntry[] {
       source: 'execution' as const,
       state: r.state,
     }))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

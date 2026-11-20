@@ -24,6 +24,7 @@ import {
   type SearchOutcome,
   type SearchRequest,
 } from './searchContract.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DDG_HTML_URL = 'https://html.duckduckgo.com/html/'
 const DDG_LITE_URL = 'https://lite.duckduckgo.com/lite/'
@@ -52,7 +53,8 @@ export function resolveDuckDuckGoHref(href: string | undefined): string | undefi
   let parsed: URL
   try {
     parsed = new URL(absolute)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   if (/(^|\.)duckduckgo\.com$/i.test(parsed.hostname)) {

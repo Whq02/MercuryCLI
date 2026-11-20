@@ -9,6 +9,7 @@ import { frameKey, profileNumber, profileRows, summarizeProfile, type ProfileRea
 import { readViewPage, readViewWindow } from './readViewPage.js'
 import { withReadViewSource } from './readViewSource.js'
 import { classifyReadTarget } from './readTarget.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 async function sourceProfile(request: ReadQueryRequest, source: string, additional = false) {
   if (classifyReadTarget(source).kind !== 'file') return { profile: null, identity: source }
@@ -44,7 +45,7 @@ async function comparisonRows(before: ProfileReading, after: ProfileReading, sig
 
 export async function readProfiles(request: ReadQueryRequest, automatic = false): Promise<ReadQueryResult | null> {
   if (classifyReadTarget(request.target.source).kind !== 'file') return { content: '', numLines: 0, readSource: true }
-  if (automatic && !isRemotePath(request.target.source) && !(await stat(expandPath(request.target.source)).then(found => found.isFile(), () => false))) return null
+  if (automatic && !isRemotePath(request.target.source) && !(await stat(expandPath(request.target.source)).then(found => found.isFile(), passedOverAs(false)))) return null
   const loaded = await sourceProfile(request, request.target.source)
   const profile = loaded.profile
   if (profile === null) {

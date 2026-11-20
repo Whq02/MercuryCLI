@@ -1,5 +1,6 @@
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { passedOver } from '../../utils/passedOver.js'
 
 const ENGINE_LIBRARIES = new Set(['xul', 'xul.dll', 'libxul.so', 'webview2loader.dll', 'microsoft.web.webview2.core.dll'])
 const VERSION_FOLDER = /^\d+(?:\.\d+)+$/
@@ -37,7 +38,8 @@ export function bundleWebEngine(bundlePath: string): boolean | undefined {
     const engine = engineIn(bundlePath)
     read.set(bundlePath, engine)
     return engine
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

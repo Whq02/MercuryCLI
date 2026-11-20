@@ -15,6 +15,7 @@ import { IDLE_LIVE, type SessionLiveV1 } from '../seatLive.js'
 import type { SessionFactsV1 } from '../seatProjections.js'
 import { HEARTBEAT_MS } from '../projectionFeed.js'
 import { connectorTrace, emitAll, type Listeners } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 
@@ -123,7 +124,8 @@ export class TranscriptPart {
   }
   try {
     this.transcriptWatcher?.close()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   this.transcriptWatcher = null
   this.releaseTranscript?.()
@@ -142,13 +144,15 @@ export class TranscriptPart {
       watcher.on('error', () => {
         try {
           watcher.close()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
         this.armTranscriptTimer()
       })
       this.transcriptWatcher = watcher
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -289,7 +293,8 @@ export class TranscriptPart {
       if (sizeNow <= 0 || sizeNow === this.lastSize) return false
       const fp = `${st.dev}:${st.ino}:${st.size}:${st.mtimeNs}:${st.ctimeNs}`
       return fp !== this.transcriptUnreadableFp
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   }

@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { basename, dirname, resolve } from 'node:path'
 import { isENOENT } from './errors.js'
 import { findGitRoot } from './git/gitRoot.js'
+import { passedOver } from './passedOver.js'
 
 export const PROJECT_ENTRY_CEILING = 20_000
 
@@ -102,7 +103,8 @@ export function projectMarkerOf(dir: string): string | null {
   let names: string[]
   try {
     names = readdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   for (const marker of PROJECT_MARKER_NAMES) {

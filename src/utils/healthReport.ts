@@ -38,6 +38,7 @@ import { gitSnapshot } from './cockpit/gitSnapshot.js'
 import { healthFixEnabled } from './healthFix.js'
 import { sleep } from './sleep.js'
 import { logError } from './log.js'
+import { passedOver } from './passedOver.js'
 
 const treeScratchDirs = new Set<string>()
 const treeScratchGits = new Set<ChildProcess>()
@@ -50,7 +51,8 @@ function removeTreeScratch(dir: string): boolean {
     rmSync(dir, { recursive: true, force: true })
     treeScratchDirs.delete(dir)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -122,7 +124,8 @@ export async function computeWorkingTreeSha(cwdDir: string, opts?: { signal?: Ab
     if ((await run(['add', '-A', ...projectScopePathspec(cwdDir)])) === null) return null
     const tree = await run(['write-tree', '--missing-ok'])
     return tree && tree.length > 0 ? tree : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   } finally {
     if (!removeTreeScratch(idxDir) && process.platform === 'win32') {
@@ -171,7 +174,8 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
       let ws: string
       try {
         ws = realpathSync(rec.workspaceId)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (ws !== repo && !ws.startsWith(repo + sep)) continue
@@ -179,7 +183,8 @@ async function mercuryHoldersOf(repo: string): Promise<{ runners: string[]; inde
       const warm = (rec as { warm?: boolean }).warm === true
       runners.push(`${rec.runnerId}${warm ? ' (warm)' : ''} pid ${rec.pid}`)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   let indexLockAgeS: number | null = null
   try {
@@ -250,7 +255,8 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
   const repositories = candidates.filter(dir => {
     try {
       return statSync(join(dir, '.git')).isDirectory()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -265,7 +271,8 @@ export async function homeRepositoryCheck(): Promise<CheckResult> {
         const st = statSync(join(dir, '.git'))
         const at = st.birthtimeMs > 0 ? st.birthtime : st.ctime
         created = `.git created ${at.toISOString().slice(0, 10)}`
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const subjects = await gitLogSubjects(dir, 20)
       const madeByMercury = subjects !== null && subjects.length === 1 && subjects[0] === FORK_BASE_COMMIT_SUBJECT
@@ -432,7 +439,8 @@ export function unresolvedDefaultRow(): string | null {
     if (getUserSpecifiedModelSetting() !== null) return null
     const decision = computedDefault()
     return decision.source === 'keyless' && decision.considered.length > 0 ? decision.row : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -443,7 +451,8 @@ export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
   try {
     labels = await import('../services/providers/local/tensorfoldHealth.js')
     rows = await labels.readTensorFoldHealth()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const specs: CheckSpec[] = []
@@ -556,7 +565,7 @@ export function modelRefusalsCheck(): CheckSpec {
 
 export async function skillsRefusedEvidence(cwd: string): Promise<{ status: 'ok' | 'warn'; evidence: string; fix?: string }> {
   const skills = require('../skills/loadSkillsDir.js') as typeof import('../skills/loadSkillsDir.js')
-  await skills.getSkillDirCommands(cwd).catch(() => [])
+  await skills.getSkillDirCommands(cwd).catch((error) => { passedOver(error); return [] })
   const refusals = skills.getSkillLoadRefusals()
   if (refusals.length === 0) return { status: 'ok', evidence: 'every skill file on disk loaded' }
   const rows = refusals.map(refusal => `${relativeToCwd(cwd, refusal.path)} (${refusal.source}): ${refusal.error}`)
@@ -668,7 +677,8 @@ export async function runHealthReport(opts?: RunHealthReportOptions, list?: read
         done,
         total: work.length,
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 
@@ -726,7 +736,7 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
     try {
       const { runLifecycleVerbOpportunity } = await import('./backgroundHousekeeping.js')
       await runLifecycleVerbOpportunity('health')
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return cert
 }

@@ -12,6 +12,7 @@ import { opFixDiagnostic } from './mercuryOps/fixDiagnostic.js'
 import { opFormatFamily } from './mercuryOps/format.js'
 import { opMoveSymbol } from './mercuryOps/moveSymbol.js'
 import { opCapabilities, opRawRequest } from './mercuryOps/rawRequest.js'
+import { passedOver } from '../../utils/passedOver.js'
 export type { MercuryLspOpInput, MercuryLspOpOutput } from './mercuryOps/types.js'
 export { clearDiagnosticsBaselines } from './mercuryOps/pull.js'
 export { syncServersAfterWrite, awaitDiagnosticStabilization } from './mercuryOps/afterWrite.js'
@@ -21,7 +22,8 @@ export { actionIdentity } from './mercuryOps/codeActions.js'
 export async function runMercuryLspOp(env: OpEnv): Promise<MercuryLspOpOutput> {
   try {
     await env.manager.revalidateOpenDocuments()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   switch (env.input.operation) {
     case 'capabilities':

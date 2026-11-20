@@ -30,6 +30,7 @@ import {
   type DaemonReply,
   type DaemonRequest,
 } from './protocol.js'
+import { passedOver } from '../utils/passedOver.js'
 
 declare const MACRO: { VERSION: string }
 
@@ -64,7 +65,8 @@ export function controlConnectPath(hostPlatform: string = platform()): string {
       ? state.controlSock.startsWith('\\\\.\\pipe\\hermes-daemon-') && /^[0-9a-f]{12}$/.test(state.controlSock.slice('\\\\.\\pipe\\hermes-daemon-'.length))
       : state.controlSock.startsWith('/'))
     if (local && Number.isInteger(state.pid) && state.pid > 0 && isProcessAlive(state.pid)) return state.controlSock
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return controlSockPath(hostPlatform)
 }
@@ -109,7 +111,8 @@ export async function readDaemonState(): Promise<DaemonState | null> {
       return parsed as DaemonState
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -131,7 +134,8 @@ export function markDaemonStoppingSync(now = Date.now()): boolean {
   let current: DaemonState
   try {
     current = JSON.parse(readFileSync(path, 'utf8')) as DaemonState
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   if (current?.pid !== process.pid) return false
@@ -147,7 +151,8 @@ export function ownsControlPlaneSync(): boolean {
   try {
     const raw = JSON.parse(readFileSync(daemonStatePath(), 'utf8')) as { pid?: number }
     return raw?.pid === process.pid
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -163,18 +168,18 @@ export async function reassertControlKey(key: string): Promise<void> {
 
 export async function clearDaemonState(): Promise<void> {
   if (!ownsControlPlaneSync()) return
-  await unlink(daemonStatePath()).catch(() => {})
+  await unlink(daemonStatePath()).catch(passedOver)
 }
 
 export async function clearDeadDaemonRecords(): Promise<void> {
-  await unlink(daemonStatePath()).catch(() => {})
-  await unlink(join(daemonDir(), 'daemon.lock')).catch(() => {})
-  await unlink(controlKeyPath()).catch(() => {})
+  await unlink(daemonStatePath()).catch(passedOver)
+  await unlink(join(daemonDir(), 'daemon.lock')).catch(passedOver)
+  await unlink(controlKeyPath()).catch(passedOver)
 }
 
 export async function clearControlKey(): Promise<void> {
   if (!ownsControlPlaneSync()) return
-  await unlink(controlKeyPath()).catch(() => {})
+  await unlink(controlKeyPath()).catch(passedOver)
 }
 
 export function daemonExitTeardownSync(reason: string, exitCode?: number): void {
@@ -202,7 +207,8 @@ export function daemonExitTeardownSync(reason: string, exitCode?: number): void 
       process.stderr.write(
         `[daemon] exit (code ${exitCode ?? process.exitCode ?? '?'}) WITHOUT a shutdown road — no signal, no shutdown RPC, no crash handler spoke; records ${keptFiles.length > 0 ? `KEPT (${keptFiles.join(', ')})` : 'swept'}. Re-run under node --trace-exit to name the exit site.\n`,
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -233,7 +239,8 @@ export async function mintControlKey(): Promise<string> {
 export async function readControlKey(): Promise<string | null> {
   try {
     return (await readFile(controlKeyPath(), 'utf8')).trim() || null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -465,7 +472,8 @@ function rpcOnce(outbound: DaemonRpcRequest & { proto?: number; auth?: string },
       if (timer !== undefined) clearTimeout(timer)
       try {
         sock.destroy()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       resolve(transportFailure ? { ...reply, frameWritten } : reply)
     }
@@ -581,7 +589,8 @@ export function currentVersion(): string {
     return typeof MACRO !== 'undefined' && typeof MACRO.VERSION === 'string'
       ? MACRO.VERSION
       : 'unknown'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'unknown'
   }
 }

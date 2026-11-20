@@ -12,6 +12,7 @@ import { FetchPacing } from './fetchPacing.js'
 import { PAYWALL_MESSAGE } from './pageAccess.js'
 import { isPrivateReaderHost, PRIVATE_ADDRESS_RULE, metadataSafeAddresses } from './privateHost.js'
 import { robotsAllows } from './robots.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type RedirectResult = { type: 'redirect'; originalUrl: string; redirectUrl: string; statusCode: number }
 export type RawResponse = { url: string; status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
@@ -48,7 +49,7 @@ export function permittedFetchRedirect(from: string, to: string): boolean {
   try {
     const a = new URL(from), b = new URL(to)
     return a.protocol === b.protocol && a.port === b.port && !b.username && !b.password && a.hostname.replace(/^www\./, '') === b.hostname.replace(/^www\./, '')
-  } catch { return false }
+  } catch (error) { passedOver(error); return false }
 }
 
 async function checkRobots(url: string, signal: AbortSignal): Promise<void> {

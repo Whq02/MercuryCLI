@@ -6,6 +6,7 @@ import { UNITY_BRIDGE_DEFAULT_PORT } from './bridgeProtocol.js'
 import { UNITY_BRIDGE_DIGEST, UNITY_BRIDGE_FILES } from './bridgeFiles.generated.js'
 import { getUnityBridgeClient, probeUnityBridgeReachable, unityBridgeHint } from './bridgeClient.js'
 import { ensureUnityBridgeToken, readUnityBridgeToken, unityBridgeTokenPath } from './bridgeToken.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const PACKAGE_DIR = path.join('Packages', 'com.mercury.unity-bridge')
 const SETTINGS_REL = path.join('ProjectSettings', 'MercuryUnityBridge.json')
@@ -44,7 +45,8 @@ export function readProjectBridgePort(projectRoot: string): number | undefined {
     return typeof raw.port === 'number' && Number.isInteger(raw.port) && raw.port >= 1 && raw.port <= 65535
       ? raw.port
       : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

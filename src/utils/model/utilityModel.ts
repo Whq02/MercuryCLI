@@ -5,6 +5,7 @@ import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
 import type { ThinkingConfig } from '../thinking.js'
 import { effortVocabularyFor } from './capabilities.js'
 import { getEngineModel } from './model.js'
+import { passedOver } from '../passedOver.js'
 
 export interface UtilityCall {
   model: string
@@ -32,7 +33,8 @@ function servingLocalHelper(): string | undefined {
   try {
     const { helperModelId } = require('../../services/providers/local/tensorfoldHelper.js') as typeof import('../../services/providers/local/tensorfoldHelper.js')
     return helperModelId()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

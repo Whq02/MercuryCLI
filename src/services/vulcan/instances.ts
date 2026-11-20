@@ -3,6 +3,7 @@ import { constants, closeSync, fstatSync, lstatSync, openSync, readFileSync, rea
 import * as net from 'node:net'
 import * as path from 'node:path'
 import { engineTreesDir } from './engine/paths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const VULCAN_INSTANCE_ENV = 'MERCURY_VULCAN_INSTANCE'
 const VULCAN_INSTANCE_ROLES = ['operator-editor', 'agent-editor', 'headless-worker', 'native-worker'] as const
@@ -99,7 +100,7 @@ function discoverRoot(root: string): VulcanInstance[] {
       if (!row || row.id !== id || row.projectRoot !== canonical(root) || !vulcanProcessAlive(row.pid)) continue
       readVulcanInstanceToken(row)
       out.push(row)
-    } catch { continue }
+    } catch (error) { passedOver(error); continue }
   }
   return out
 }
@@ -112,7 +113,7 @@ export function listVulcanInstances(projectRoot: string): VulcanInstance[] {
     for (const entry of readdirSync(trees, { withFileTypes: true }).slice(0, 4096)) {
       if (entry.isDirectory() && !entry.isSymbolicLink()) out.push(...discoverRoot(path.join(trees, entry.name)))
     }
-  } catch { void 0 }
+  } catch (error) { passedOver(error); void 0 }
   return out.sort((a, b) => a.id.localeCompare(b.id))
 }
 

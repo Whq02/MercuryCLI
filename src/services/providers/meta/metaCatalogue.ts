@@ -7,6 +7,7 @@ import { catalogueTrafficVerdict } from '../catalogueGate.js'
 import { catalogueBodyJson, modelsEndpointUnreachable } from '../catalogueBody.js'
 import { metaApiBase, resolveMetaApiKey } from './metaAccounts.js'
 import { isMetaChatModelId, isMetaContributorModel, metaDisplayName, metaDisplayPin } from './metaPins.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export interface MetaLiveModel {
   id: string
@@ -125,7 +126,7 @@ export function kickMetaCatalogue(opts?: { env?: NodeJS.ProcessEnv; fetchImpl?: 
   if (!catalogueTrafficVerdict('meta', env).allowed) return false
   const snapshot = getCachedMetaCatalogue(env)
   if (snapshot && !snapshot.lastError) return false
-  void refreshMetaCatalogue(opts).catch(() => null)
+  void refreshMetaCatalogue(opts).catch(passedOverAs(null))
   return true
 }
 

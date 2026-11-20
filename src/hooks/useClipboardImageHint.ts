@@ -4,6 +4,7 @@ import { useClaim, useTimer } from './effects.js'
 import { useNotifications } from '../context/notifications.js'
 import { useShortcutDisplay } from '../keybindings/useShortcutDisplay.js'
 import { hasImageInClipboard } from '../utils/imagePaste.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const FOCUS_DEBOUNCE_MS = 1000
 const HINT_COOLDOWN_MS = 30_000
@@ -50,7 +51,7 @@ export function useClipboardImageHint(
             timeoutMs: HINT_TIMEOUT_MS,
           })
         })
-        .catch(() => {})
+        .catch(passedOver)
     }, FOCUS_DEBOUNCE_MS)
   }, [isFocused, enabled])
 }

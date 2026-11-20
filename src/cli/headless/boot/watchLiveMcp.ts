@@ -11,6 +11,7 @@ import { randomUUID } from 'node:crypto'
 import { dropMcpServerFromAppState } from '../../../services/mcp/kitDial.js'
 import { isMcpCatalogueMember } from '../../../services/mcp/membership.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' | 'applyReconnectedClient' | 'mcpSignIns' | 'permittedMcpConfig' | 'reconnectLiveMcp' | 'liveMcp'> {
   const { asks, elicitationRegistered, getAppState, isConcourseWorker, live, registerCleanup, registerPerTurnHandlers, serializeMcpChange, setAppState } = ports
@@ -91,7 +92,7 @@ function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' |
         const configuredScope = ['user', 'local', 'project', 'enterprise'].includes(row.config.scope) || row.name in previous
         if (!configuredScope || row.name in next) continue
         mcpSignIns.get(row.name)?.controller.abort()
-        await clearServerCache(row.name, row.config).catch(() => {})
+        await clearServerCache(row.name, row.config).catch(passedOver)
         elicitationRegistered.delete(row.name)
         setAppState(state => {
           const pruned = dropMcpServerFromAppState(state, row.name, row.config)

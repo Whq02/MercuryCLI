@@ -5,6 +5,7 @@ import type { ProviderFamilyId } from '../../../services/providers/providerAdapt
 import type { ProviderFamilyPresence } from '../../../services/providers/providerUsage.js'
 import { focusedSessionModelFacts } from '../../../services/engine-connector/focusedConnector.js'
 import { LOCAL_SETUP_OFFER } from '../../../commands/localsetup/words.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const ENGINE_USAGE_PRESENTATION: Record<
   string,
@@ -130,7 +131,8 @@ export function liveSessionFamily(): string | undefined {
   if (setting !== null) return declaredRouteOf(parseUserSpecifiedModel(setting)) ?? undefined
   try {
     return mostRecentSignInFamily()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -138,7 +140,8 @@ export function liveSessionFamily(): string | undefined {
 export function liveSignInRecency(): string[] {
   try {
     return recentSignIns().map(credential => credential.family)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

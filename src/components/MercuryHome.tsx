@@ -37,6 +37,7 @@ import { getProjectRoot, getSessionId } from '../bootstrap/state.js'
 import { composeMemoryAtStart, memoryAtStartRowWords, memoryAtStartStatus } from '../mneme/entryKnapsack.js'
 import { mnemeEnabled } from '../mneme/mnemeGates.js'
 import { mnemeProjectKey } from '../mneme/paths.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export function PinnedCritterBerth(): React.ReactNode {
@@ -141,7 +142,8 @@ function MercuryHomeBody(): React.ReactNode {
   const isProjectCwd = useMemo((): boolean => {
     try {
       return findGitRoot(cwd) !== null
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   }, [cwd])
@@ -157,7 +159,7 @@ function MercuryHomeBody(): React.ReactNode {
           !files.some(f => f.type === 'Project' || f.type === 'Local'),
         )
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       alive = false
     }

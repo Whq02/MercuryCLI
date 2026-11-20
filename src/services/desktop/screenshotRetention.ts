@@ -8,6 +8,7 @@ import { detectImageFormatFromBuffer } from '../../utils/imageResizer.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from '../../utils/messages/wireEdits.js'
 import { noteScreenshot, screenshotPathForToolUse } from './desktopSession.js'
 import { COMPUTER_TOOL_NAME } from './toolName.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SCREENSHOT_KEEP_RECENT = 3
 export const SCREENSHOT_WIRE_HIGH_WATER = 12
@@ -106,7 +107,8 @@ function imageBlockFromFile(file: string): ResultBlock | null {
       if (!existsSync(candidate)) continue
       const bytes = readFileSync(candidate)
       return { type: 'image', source: { type: 'base64', media_type: detectImageFormatFromBuffer(bytes), data: bytes.toString('base64') } }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

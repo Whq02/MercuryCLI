@@ -8,6 +8,7 @@ import {
   type ApexGptRole,
 } from './openaiCatalogue.js'
 import type { OpenaiAccountSourceKind } from './openaiAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const ROLE_CAPABILITIES: Record<ApexGptRole, readonly string[]> = {
@@ -78,7 +79,8 @@ function readFile(): QualificationFile {
     if (typeof parsed === 'object' && parsed !== null && Array.isArray((parsed as QualificationFile).receipts)) {
       return parsed as QualificationFile
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { version: FILE_VERSION, receipts: [] }
 }
@@ -115,7 +117,8 @@ export function recordLiveQualification(i: {
     while (kept.length > MAX_RECEIPTS) kept.shift()
     writeFileSync(filePath(), JSON.stringify({ ...file, version: FILE_VERSION, receipts: kept }, null, 2) + '\n', 'utf8')
     return receipt
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -193,7 +196,8 @@ function writeWireMemories(entries: StoredWireEffortVocabulary[]): boolean {
     writeFileSync(filePath(), JSON.stringify({ ...file, version: FILE_VERSION, wireEfforts: entries }, null, 2) + '\n', 'utf8')
     wireMemoryCache = null
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

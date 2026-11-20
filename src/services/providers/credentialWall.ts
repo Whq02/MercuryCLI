@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 type CredentialWallCause = 'sign-in' | 'key-limit'
 
@@ -80,7 +81,8 @@ export function observedCredentialWall(route: string): CredentialWallCause | und
       const billing = laneBillingState('openrouter')
       if (billing.state === 'credit-exhausted' && KEY_LIMIT.test(billing.detail)) return 'key-limit'
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return undefined
 }
@@ -93,7 +95,8 @@ export function credentialWallLineForModel(modelId: string | undefined): string 
     if (route === null) return undefined
     const cause = observedCredentialWall(route)
     return cause === undefined ? undefined : credentialWallLine(route, cause)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../envUtils.js'
 import { redactSecrets } from '../secrets/secretScanner.js'
 import { durableAtomicPublish } from '../../substrate/durablePublish.js'
+import { passedOver } from '../passedOver.js'
 
 const MB = 1024 * 1024
 function envInt(name: string, fallback: number): number {
@@ -81,7 +82,8 @@ export function redactMetadata(meta: unknown): Record<string, unknown> {
     if (!isPlainObject(meta)) return {}
     const red = redactValue(meta, false)
     return isPlainObject(red) ? red : {}
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -186,13 +188,14 @@ export async function storeArtifact(
     try {
       await durableAtomicPublish(metaPath, JSON.stringify(meta, null, 2), { mode: 0o600 })
     } catch {
-      await rm(blobPath, { force: true }).catch(() => {})
+      await rm(blobPath, { force: true }).catch(passedOver)
       return { id: null, path: null }
     }
 
     try {
       await pruneArtifacts(scope, DEFAULT_KEEP)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
 
     return { id, path: blobPath }
@@ -207,7 +210,8 @@ export async function listArtifacts(scope: string): Promise<ArtifactMeta[]> {
     let names: string[]
     try {
       names = await readdir(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
     const metas: ArtifactMeta[] = []
@@ -217,12 +221,14 @@ export async function listArtifacts(scope: string): Promise<ArtifactMeta[]> {
         const raw = await readFile(join(dir, f), 'utf8')
         const parsed = JSON.parse(raw) as unknown
         if (isValidMeta(parsed)) metas.push(parsed)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     metas.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0))
     return metas
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -256,7 +262,8 @@ export async function getArtifact(
     if (!isValidMeta(meta)) return null
     const content = await readFile(blobPath, 'utf8')
     return { meta, content }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -269,7 +276,8 @@ async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
     let names: string[]
     try {
       names = await readdir(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
 
@@ -282,7 +290,8 @@ async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
       let mtime = 0
       try {
         mtime = (await stat(join(dir, f))).mtimeMs
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       const cur = ids.get(id) ?? { hasBlob: false, hasMeta: false, mtime: 0 }
@@ -293,8 +302,8 @@ async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
     }
 
     const remove = async (id: string) => {
-      await rm(join(dir, id), { force: true }).catch(() => {})
-      await rm(join(dir, `${id}${META_SUFFIX}`), { force: true }).catch(() => {})
+      await rm(join(dir, id), { force: true }).catch(passedOver)
+      await rm(join(dir, `${id}${META_SUFFIX}`), { force: true }).catch(passedOver)
     }
 
     const now = Date.now()
@@ -307,6 +316,7 @@ async function pruneArtifacts(scope: string, keepN: number): Promise<void> {
     if (complete.length <= keep) return
     complete.sort((a, b) => b.mtime - a.mtime)
     for (const { id } of complete.slice(keep)) await remove(id)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

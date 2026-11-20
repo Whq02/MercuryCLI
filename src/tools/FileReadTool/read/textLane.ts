@@ -20,6 +20,7 @@ import type { Input, OverCapNote, Output, LaneResult } from './schema.js'
 import { resultLineAnchors, resultOutlineBodies, notifyFileReadListeners } from './results.js'
 import { MaxFileReadTokenExceededError, overCapNextWords, MAX_DISPLAY_LINE_CHARS, numberedReadContent, firstWindowUnderCap, tokensOverCap } from './window.js'
 import { UTF16_BE_REFUSAL, readsElsewhere, readRangeElsewhere, noteRemoteRead, realLineTotal, shownWindow, countedSizeRefusal, readTailLinesReverse } from './source.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export async function readTextLane(
   resolvedPath: string,
@@ -43,7 +44,8 @@ export async function readTextLane(
       } finally {
         closeSync(fd)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     if (bom[0] === 0xfe && bom[1] === 0xff) throw new Error(UTF16_BE_REFUSAL)
   }

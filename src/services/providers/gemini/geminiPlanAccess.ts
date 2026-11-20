@@ -4,6 +4,7 @@ import { errorMessageWithCause } from '../../../utils/errors.js'
 import { sleep } from '../../../utils/sleep.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { antigravityUserAgent } from './antigravityClientContract.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const ANTIGRAVITY_CODE_ASSIST_BASES = ['https://daily-cloudcode-pa.googleapis.com', 'https://daily-cloudcode-pa.sandbox.googleapis.com'] as const
 const ANTIGRAVITY_CODE_ASSIST_VERSION = 'v1internal'
@@ -205,7 +206,7 @@ async function boundedText(response: Response): Promise<string> {
     if (next.done) break
     size += next.value.byteLength
     if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(() => undefined)
+      await reader.cancel().catch(passedOverAs(undefined))
       throw new Error(`Google's Code Assist answer ran past ${ANSWER_MAX_BYTES / 1024} KiB`)
     }
     chunks.push(next.value)
@@ -233,7 +234,7 @@ async function codeAssistCall(io: GeminiPlanIo, base: string, method: string, bo
     throw new Error(`Google's Code Assist endpoint did not answer ${method} (${new URL(url).host}): ${errorMessageWithCause(error)}`)
   }
   if (!response.ok) {
-    const text = (await boundedText(response).catch(() => '')).replace(/\s+/g, ' ').trim().slice(0, ERROR_BODY_LIMIT)
+    const text = (await boundedText(response).catch(passedOverAs(''))).replace(/\s+/g, ' ').trim().slice(0, ERROR_BODY_LIMIT)
     throw new GeminiPlanHttpError(method, response.status, text)
   }
   const text = await boundedText(response)

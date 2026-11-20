@@ -2,6 +2,7 @@ import { stat, type FileHandle } from 'node:fs/promises'
 
 import { formatFileSize } from './format.js'
 import { openRegularFile } from './regularFile.js'
+import { passedOverAs } from './passedOver.js'
 
 
 export type ReadFileRangeResult = {
@@ -128,7 +129,7 @@ export async function readFileInRange(
     streamed = true
     return await streamingPath(handle, stats.mtimeMs, offset, maxLines, maxBytes, signal, truncateMode, stats.size)
   } finally {
-    if (!streamed) await handle.close().catch(() => undefined)
+    if (!streamed) await handle.close().catch(passedOverAs(undefined))
   }
 }
 

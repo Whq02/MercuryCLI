@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import * as path from 'node:path'
 import { getCwd } from '../../utils/cwd.js'
 import { compileDbRemedy, probeCompileDb } from '../lsp/clangdLane.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type CompileDbSource = 'root' | 'build-dir' | 'compile-flags' | 'clangd-config'
 
@@ -193,7 +194,8 @@ function findCppBuildDirs(root: string, presets: CppCmakePreset[]): CppBuildDirI
     for (const entry of readdirSync(root, { withFileTypes: true })) {
       if (entry.isDirectory() && BUILD_DIR_NAME.test(entry.name)) push(path.join(root, entry.name))
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const p of presets) {
     if (p.binaryDir && !p.binaryDir.includes('${') && existsSync(p.binaryDir)) push(p.binaryDir)

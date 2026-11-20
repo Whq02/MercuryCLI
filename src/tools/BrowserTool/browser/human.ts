@@ -1,5 +1,6 @@
 import type { ElementHandle } from 'puppeteer-core'
 import { type LiveSession, bounded } from './page.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 const HUMAN_MOVE_BUDGET_MS = 80
 const HUMAN_CLICK_DWELL_MIN_MS = 18
@@ -64,7 +65,7 @@ export async function pickTargetPoint(
   handle: ElementHandle<Element>,
 ): Promise<{ x: number; y: number }> {
   const base = await handle.clickablePoint()
-  const box = await handle.boundingBox().catch(() => null)
+  const box = await handle.boundingBox().catch(passedOverAs(null))
   if (!box || box.width < 10 || box.height < 10) return base
   const jx = base.x + (Math.random() - 0.5) * Math.min(8, box.width * 0.2)
   const jy = base.y + (Math.random() - 0.5) * Math.min(6, box.height * 0.2)
@@ -84,7 +85,7 @@ export async function pickTargetPoint(
       jx,
       jy,
     )
-    .catch(() => false)
+    .catch(passedOverAs(false))
   return safe ? { x: jx, y: jy } : base
 }
 

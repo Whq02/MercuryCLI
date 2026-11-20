@@ -9,6 +9,7 @@ import {
   resolveBuildId,
 } from '@puppeteer/browsers'
 import { browserCacheDir, dirSizeBytes, listManagedBrowsers, type ManagedBrowser } from './browserResolver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function requirePlatform(): NonNullable<ReturnType<typeof detectBrowserPlatform>> {
   const p = detectBrowserPlatform()
@@ -56,7 +57,8 @@ async function probeDownloadBytes(buildId: string): Promise<number | null> {
     const head = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(6000) })
     const length = Number(head.headers.get('content-length'))
     return head.ok && Number.isFinite(length) && length > 0 ? length : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -99,7 +101,8 @@ export function readPersistedInstallPlan(): { buildId: string; plannedAt: number
     const raw = JSON.parse(fs.readFileSync(installPlanPath(), 'utf8')) as { buildId?: unknown; plannedAt?: unknown }
     if (typeof raw.buildId !== 'string' || typeof raw.plannedAt !== 'number') return null
     return { buildId: raw.buildId, plannedAt: raw.plannedAt, expired: Date.now() - raw.plannedAt > INSTALL_PLAN_TTL_MS }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -107,7 +110,8 @@ export function readPersistedInstallPlan(): { buildId: string; plannedAt: number
 export function clearPersistedInstallPlan(): void {
   try {
     fs.unlinkSync(installPlanPath())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

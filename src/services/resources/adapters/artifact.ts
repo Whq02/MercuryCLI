@@ -18,6 +18,7 @@ import {
   type ResourceResult,
   type ResourceAdapter,
 } from '../contracts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 function staleNote(version: ReviewArtifactVersion, fallbackCwd: string): string {
@@ -27,7 +28,8 @@ function staleNote(version: ReviewArtifactVersion, fallbackCwd: string): string 
     const root = version.workspace.roots[0] ?? fallbackCwd
     const current = computeWorkingTreeDigest(root)
     if (current && current !== bound) return ' · STALE (tree moved since this version)'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return ''
 }

@@ -4,6 +4,7 @@ import { env } from '../../utils/env.js'
 import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { BEL, ESC, SEP } from './ansi.js'
 import type { Action, Color, TabStatusAction } from './display-types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const OSC_PREFIX = `${ESC}]`
 const ST = `${ESC}\\`
@@ -192,7 +193,8 @@ async function copyNative(text: string): Promise<NativeRoute | null> {
       default:
         return null
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -224,7 +226,8 @@ function publishClipboardReceipt(receipt: ClipboardReceipt): ClipboardReceipt {
   for (const listener of [...receiptListeners]) {
     try {
       listener(receipt)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return receipt

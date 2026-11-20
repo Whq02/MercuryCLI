@@ -30,6 +30,7 @@ import { appendFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { scrollKeyHandlersOf } from './scrollKeybinding/handlers.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export type WheelAccelState = {
@@ -366,7 +367,8 @@ export function ScrollKeybindingHandler({
             tracePath,
             `${JSON.stringify({ t: Date.now(), ev: 'scroll-request', delta, top: handle.getScrollTop(), pending: handle.getPendingDelta(), max, viewport: handle.getViewportHeight(), sticky: handle.isSticky() })}\n`,
           )
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       if (max <= 0) return false

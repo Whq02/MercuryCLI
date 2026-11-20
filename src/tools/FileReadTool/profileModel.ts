@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface ProfileFrame {
   function: string
@@ -38,7 +39,7 @@ interface ProfileHotspot {
 export const profileNumber = (value: number): string => Number(value.toFixed(6)).toString()
 export const frameKey = (frame: ProfileFrame): string => JSON.stringify([frame.function, frame.file, frame.line, frame.column, frame.module])
 const sourceFile = (file: string): string | null => {
-  if (/^file:\/\//i.test(file)) { try { return fileURLToPath(file) } catch { return null } }
+  if (/^file:\/\//i.test(file)) { try { return fileURLToPath(file) } catch (error) { passedOver(error); return null } }
   return file === '' || /^[a-zA-Z][a-zA-Z0-9+.-]+:/.test(file) ? null : file
 }
 const synthetic = (node: ProfileNode): boolean => node.frame.function === '(root)' || node.frame.function === '(program)'

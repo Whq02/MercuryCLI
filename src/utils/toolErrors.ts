@@ -3,6 +3,7 @@ import type { z } from 'zod/v4'
 import { describeInvalidArgTypeError, isAbortError, ShellError } from './errors.js'
 import { INTERRUPT_MESSAGE } from './messages/rejectionText.js'
 import { OUTPUT_HEAD_SHARE } from './shell/outputLimits.js'
+import { passedOver } from './passedOver.js'
 
 
 const MAX_ERROR_LENGTH = 10_000
@@ -100,7 +101,8 @@ function extractSchemaKeys(schema: unknown, depth: number = 0): string[] | null 
   if (typeof unwrap === 'function') {
     try {
       return extractSchemaKeys((unwrap as () => unknown).call(schema), depth + 1)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }

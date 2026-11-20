@@ -13,6 +13,7 @@ import {
   type EvidenceOrigin,
   type EvidenceRecord,
 } from './evidence.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const RING_CAP = 256
 const EVICTED_MEMORY = 256
@@ -133,7 +134,8 @@ export function installEvidenceProducers(): void {
         ],
         details: { outcome: receipt.effect.outcome, tool: receipt.toolName },
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 
@@ -157,7 +159,8 @@ export function installEvidenceProducers(): void {
           generation: record.generation,
         },
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 
@@ -177,7 +180,8 @@ export function installEvidenceProducers(): void {
         },
         dedupeKey: `check:${row.scope}:${row.coverage}`,
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 }

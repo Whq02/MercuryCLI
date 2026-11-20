@@ -19,6 +19,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { isReadOnlyDiagnostic } from '../diagnosticReadOnly.js'
 import { loadDeclaredGates, matchDeclaredGate } from './projectGates.js'
 import { scanCeiling } from './scanCeiling.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 export type VerificationScope =
   | 'full-gate'
@@ -103,7 +104,8 @@ function notify(): void {
   for (const cb of subscribers) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -224,7 +226,8 @@ function repoTokenOf(gitDir: string): string {
 function repositoryStillThere(rec: TreeScanRecord): boolean {
   try {
     return repoTokenOf(rec.gitDir) === rec.repoToken
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -259,7 +262,7 @@ export async function invalidateTreeScans(cwd: string): Promise<void> {
         }),
     ),
   )
-  if (inFlight) await inFlight.catch(() => null)
+  if (inFlight) await inFlight.catch(passedOverAs(null))
   activeChildren.delete(cwd)
   forgetRepository(cwd)
 }
@@ -299,7 +302,8 @@ async function gitTextAsync(cwd: string, env: NodeJS.ProcessEnv, args: string[],
       goneChildren.add(child)
       try {
         child.kill()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }, REPOSITORY_WATCH_MS)
     timer.unref?.()
@@ -405,7 +409,8 @@ function countFilesAsync(cwd: string, env: NodeJS.ProcessEnv, ceiling: number): 
     const stop = (): void => {
       try {
         child.kill()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const timer = setTimeout(() => {
@@ -465,7 +470,8 @@ function prepareStore(rec: TreeScanRecord): void {
   const lock = `${rec.indexFile}.lock`
   try {
     if (Date.now() - statSync(lock).mtimeMs > STALE_INDEX_LOCK_MS) rmSync(lock, { force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -727,7 +733,8 @@ function loadPersisted(cwd: string, state: OwnerVerificationState): void {
     if (parsed.schema === EVIDENCE_SCHEMA && Array.isArray(parsed.records)) {
       state.sessionRecords = parsed.records.slice(-MAX_RECORDS).map(r => ({ ...r, seq: 0, inherited: true as const }))
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -822,7 +829,8 @@ export function observeCompletedToolCall(
       if (ok && /(^|[\s;&|(])git\s/.test(command)) markGitTreeSuspect('git')
       recordShellCommandOutcome(command, shellOutcome?.code ?? (ok ? 0 : 1), cwd, owner, shellOutcome?.pipelineStatus)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -847,7 +855,8 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
     const has = (rel: string): boolean => {
       try {
         return existsSync(path.join(cwd, rel))
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     }
@@ -861,7 +870,8 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
         }
         const s = pkg.scripts ?? {}
         verdict = ['test', 'typecheck', 'verify', 'check', 'lint'].some(k => typeof s[k] === 'string')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (!verdict) {
@@ -872,7 +882,8 @@ export function workspaceVerifiable(cwd: string, owner?: OwnerKey): boolean {
         verdict = readdirSync(path.join(cwd, 'scripts'), { withFileTypes: true }).some(
           d => d.isDirectory() && existsSync(path.join(cwd, 'scripts', d.name, 'run-all.sh')),
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   } catch {
@@ -1011,7 +1022,8 @@ export function projectVerifyPattern(): RegExp | null {
   if (!raw) return null
   try {
     return new RegExp(raw, 'i')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -1273,7 +1285,8 @@ export function recordEvidence(
   for (const cb of evidenceSubscribers) {
     try {
       cb(resolvedOwner, record, cwd)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   notify()
@@ -1301,7 +1314,8 @@ export function recordShellCommandOutcome(
     else if (hasMaskedVerification(command, cwd, pipelineStatus)) {
       ownerStates.get(effectiveOwner(owner)).unscoredVerification = command.replace(/\s+/g, ' ').slice(0, 240)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

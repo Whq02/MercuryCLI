@@ -5,6 +5,7 @@ import * as path from 'node:path'
 import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { gitArgs } from '../../../utils/git/spawnArgs.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const GODOT_STATE_DIR = '.godot'
 
@@ -250,7 +251,8 @@ export function scriptHeadSignature(text: string): string {
 function readTextOrEmpty(file: string): string {
   try {
     return readFileSync(file, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

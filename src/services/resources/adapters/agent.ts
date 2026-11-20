@@ -40,6 +40,7 @@ export function readTailWindow(path: string, cap: number = AGENT_TAIL_READ_CAP_B
 }
 
 import { agentStatusWord } from './agentStatusWord.js'
+import { passedOver } from '../../../utils/passedOver.js'
 export { agentStatusWord } from './agentStatusWord.js'
 
 interface TaskRow {
@@ -58,7 +59,8 @@ function tasksFrom(ctx: ResourceContext): TaskRow[] | null {
     const state = ctx.getAppState() as { tasks?: Record<string, TaskRow> }
     if (!state || typeof state !== 'object' || !state.tasks) return null
     return Object.values(state.tasks)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -67,17 +69,20 @@ function contentPathFor(id: string, task: TaskRow | undefined): string | null {
   const candidates: string[] = []
   try {
     candidates.push(getAgentTranscriptPath(id as AgentId))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (task?.outputFile) candidates.push(task.outputFile)
   try {
     candidates.push(getTaskOutputPath(id))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const p of candidates) {
     try {
       if (existsSync(p)) return p
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return null

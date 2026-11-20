@@ -9,6 +9,7 @@ import { prepareLocalTranscriber, transcribeWav } from './transcribe.js'
 import { mbWords, resolveWhisperModelPin } from './whisperModels.js'
 import { encodeWav, VOICE_SAMPLE_RATE } from './wav.js'
 import type { WhisperSegment } from './whisperPack.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MEDIA_EXTENSIONS = new Set(['wav', 'mp3', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'webm', 'mp4', 'mov', 'mkv'])
 const PCM_BYTES_PER_SECOND = VOICE_SAMPLE_RATE * 2
@@ -98,7 +99,7 @@ async function* decodedPcm(path: string, format: string, signal: AbortSignal): A
       else reject(new Error(`Cannot decode the audio in this ${format.toUpperCase()} file with ffmpeg; check that it contains a playable audio track.`))
     })
   })
-  void ended.catch(() => {})
+  void ended.catch(passedOver)
   try {
     yield* child.stdout
     await ended
@@ -169,7 +170,7 @@ export async function extractMediaTranscript(path: string, format: string, signa
     signal.throwIfAborted()
   }
   let stored: unknown
-  try { stored = JSON.parse(await readFile(cached, 'utf8')) } catch {}
+  try { stored = JSON.parse(await readFile(cached, 'utf8')) } catch (error) { passedOver(error) }
   if (isTranscript(stored)) {
     await unchanged()
     return renderTranscript(stored)

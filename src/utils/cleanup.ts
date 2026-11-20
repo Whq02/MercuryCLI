@@ -15,6 +15,7 @@ import { getSettingsWithAllErrors } from './settings/allErrors.js'
 import { getInitialSettings, rawSettingsContainsKey } from './settings/settings.js'
 import { TOOL_RESULTS_SUBDIR } from './toolResultStorage.js'
 import { cleanupStaleAgentWorktrees } from './worktree.js'
+import { passedOver } from './passedOver.js'
 
 
 const DEFAULT_CLEANUP_PERIOD_DAYS = 30
@@ -97,7 +98,8 @@ async function cleanupOldMessageFiles(): Promise<CleanupResult> {
     }
     try {
       await fs.rmdir(mcpLogDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return result
@@ -182,7 +184,8 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
         if (toolResultEntries === null) {
           try {
             await fs.rmdir(sessionDir)
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
           continue
         }
@@ -204,7 +207,8 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
             let blobEntries: Awaited<ReturnType<typeof fs.readdir>>
             try {
               blobEntries = await fs.readdir(toolResultPath)
-            } catch {
+            } catch (error) {
+              passedOver(error)
               continue
             }
             for (const blobEntry of blobEntries) {
@@ -222,7 +226,8 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
             }
             try {
               await fs.rmdir(toolResultPath)
-            } catch {
+            } catch (error) {
+              passedOver(error)
             }
           } else if (toolResultEntry.isFile()) {
             if (referenced?.has(toolResultEntry.name)) continue
@@ -240,11 +245,13 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
 
         try {
           await fs.rmdir(toolResultsDir)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         try {
           await fs.rmdir(sessionDir)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       } else if (entry.isFile()) {
         if (!entry.name.endsWith('.cast')) continue
@@ -262,7 +269,8 @@ export async function cleanupOldSessionFiles(): Promise<CleanupResult> {
 
     try {
       await fs.rmdir(projectDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return result
@@ -285,7 +293,8 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
     let entries: Awaited<ReturnType<typeof fs.readdir>>
     try {
       entries = await fs.readdir(projectDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const entry of entries) {
@@ -294,7 +303,8 @@ export async function recordingsUnderSweep(): Promise<{ count: number; bytes: nu
         const stats = await fs.stat(join(projectDir, entry.name))
         count++
         bytes += stats.size
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -338,7 +348,8 @@ async function cleanupAgedDirectoryTree(root: string, concurrent: boolean): Prom
   }
   try {
     await fs.rmdir(root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return result
 }

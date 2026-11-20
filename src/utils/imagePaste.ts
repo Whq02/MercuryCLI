@@ -15,6 +15,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { logError } from './log.js'
 import { logForDebugging } from './debug.js'
 import { escapeForPowershellSingleQuotes } from './powershellLiteral.js'
+import { passedOver } from './passedOver.js'
 
 export const PASTE_THRESHOLD = 800
 
@@ -64,7 +65,8 @@ function fixtureClipboardFile(): string | null {
 export async function hasImageInClipboard(): Promise<boolean> {
   try {
     return await checkClipboardImage(clipboardPlatform())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -98,7 +100,8 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
     try {
       await copyFile(fixture, path)
       return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   }
@@ -132,7 +135,8 @@ async function saveClipboardImage(platform: ClipboardPlatform, path: string): Pr
         await writeFile(path, result.stdout)
         return true
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return false
@@ -172,10 +176,10 @@ function deleteArtifact(platform: ClipboardPlatform, path: string): void {
       '-NoProfile',
       '-Command',
       `Remove-Item -ErrorAction SilentlyContinue '${escapeForPowershellSingleQuotes(path)}'`,
-    ]).catch(() => {})
+    ]).catch(passedOver)
     return
   }
-  void execFileNoThrow('rm', ['-f', path]).catch(() => {})
+  void execFileNoThrow('rm', ['-f', path]).catch(passedOver)
 }
 
 

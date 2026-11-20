@@ -10,6 +10,7 @@ import {
 } from '../longLivedRespawn.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
@@ -47,7 +48,7 @@ export class LifePart {
         sup.completeRequestedStop(short)
         await sup.completeFencedRetirement(short)
       })
-      .catch(() => {})
+      .catch(passedOver)
   }
 
   superviseChildLife(
@@ -68,7 +69,7 @@ export class LifePart {
       if (ll.turnActive && short.startsWith('concourse-w')) {
         void import('../concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerTurnSettled(short))
-          .catch(() => {})
+          .catch(passedOver)
       }
       const ledgerExit = (outcome: string, reason?: string): void =>
         recordSpawnExit({
@@ -134,7 +135,7 @@ export class LifePart {
           `crashed mid-run (${exitWords})${keptText ? ` — ${keptText}` : ''}${respawning ? ' · resumed — the interrupted ask needs a re-send' : ''}`
         void import('../concourseWorkers.js')
           .then(sup => sup.markConcourseWorkerCrash(short, { reason, respawning }))
-          .catch(() => {})
+          .catch(passedOver)
       }
       if (decision.action === 'degrade') {
         this.degradedSeats.set(short, decision.reason)
@@ -147,7 +148,8 @@ export class LifePart {
         tellCrashed()
         try {
           this.opts.onDegraded?.(degradedReason, short)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         return
       }

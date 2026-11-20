@@ -8,6 +8,7 @@ import { execFileNoThrow } from './execFileNoThrow.js'
 import { formatFileSize } from './format.js'
 import { getFsImplementation } from './fsOperations.js'
 import { readRegularFile } from './regularFile.js'
+import { passedOverAs } from './passedOver.js'
 
 
 type PDFError = {
@@ -65,7 +66,7 @@ function isPdftoppmAvailable(): Promise<boolean> {
   if (!pdftoppmAvailable) {
     pdftoppmAvailable = execFileNoThrow('pdftoppm', ['-v'], { timeout: PDFTOPPM_PROBE_TIMEOUT_MS, useCwd: false }).then(
       result => result.code === 0 || result.stderr.length > 0,
-      () => false,
+      passedOverAs(false),
     )
   }
   return pdftoppmAvailable
@@ -76,7 +77,7 @@ export function pdfPageOutputDir(): string {
 }
 
 export async function removePDFPages(outputDir: string): Promise<void> {
-  await rm(outputDir, { recursive: true, force: true }).catch(() => undefined)
+  await rm(outputDir, { recursive: true, force: true }).catch(passedOverAs(undefined))
 }
 
 export async function extractPDFPages(

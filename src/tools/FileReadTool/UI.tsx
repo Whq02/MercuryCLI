@@ -21,6 +21,7 @@ import { plural } from '../../utils/stringUtils.js'
 import type { Input, Output } from './FileReadTool.js'
 import { resultResolvedNames } from './read/results.js'
 import { FILE_READ_TOOL_NAME } from './prompt.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,20}$/
@@ -33,7 +34,8 @@ function agentOutputTaskId(filePath: string | undefined): string | null {
     const base = filePath.split(/[\\/]/).pop() ?? ''
     const withoutSuffix = base.endsWith('.output') ? base.slice(0, -'.output'.length) : base
     return TASK_ID_PATTERN.test(withoutSuffix) ? withoutSuffix : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

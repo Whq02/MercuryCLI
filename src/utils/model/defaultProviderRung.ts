@@ -1,4 +1,5 @@
 import { recordSignIn, type SignInLedgerIo } from '../accounts/signInLedger.js'
+import { passedOver } from '../passedOver.js'
 
 const KNOWN_FAMILIES = new Set([
   'anthropic',
@@ -42,7 +43,8 @@ export function configuredDefaultProvider(reads?: DefaultProviderReads): string 
     if (typeof raw !== 'string') return undefined
     const trimmed = raw.trim()
     return KNOWN_FAMILIES.has(trimmed) ? trimmed : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

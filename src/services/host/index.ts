@@ -28,6 +28,7 @@ import { hostMachineOf } from './reliability.js'
 import { WEIGHTS_SOURCE_ROW, chooseWeightsSource, weightsSourceDefault, weightsSourceWords, type WeightsSource, type WeightsSourceContext } from './weightsSource.js'
 import { huggingfaceStoredTokens, resolveHuggingfaceApiKey } from '../providers/huggingface/huggingfaceAccounts.js'
 import { isTensorFoldPodBox } from './tensorfoldPod.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type VendorReadState = { credential: string; tail: Promise<void>; failure?: { summary: string; detail: string; parked: boolean; permission: boolean; operation: string; status: number } }
 const vendorReadSessions = new Map<string, Map<string, VendorReadState>>()
@@ -158,7 +159,7 @@ export function createHostRoad(options: HostOptions = {}): LlmHostRoad {
           let id: string | null
           do {
             pods = await paidPods()
-            volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => []) : []
+            volumes = vendorKey('runpod') ? await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch((error) => { passedOver(error); return [] }) : []
             vastVolumes = vastClient() ? await vastVolumeRows() : []
             const liveWatches = activeWatches()
             id = door.startsWith('pod:') ? door.slice(4) : await question({ step: 'paid-pods', title: words.paid, found: paidSummary(pods), willRun: '', keys: vastVolumes.length ? [{ key: 'd', value: 'delete', label: 'delete' }, { key: 'w', value: 'watch', label: 'watch stock' }] : undefined, rows: [...volumes.map(row => ({ value: 'volume:' + row.id, label: volumeLabel(row) })), ...vastVolumes, ...liveWatches.map(row => ({ value: 'watch:' + row.id, label: row.name + ' · ' + row.id + ' · WATCHING ≤ ' + price(row.maxPrice ?? row.price) + ' · Cancel' })), ...pods.map(row => ({ value: paidValue(row), label: paidWords(row) }))] })
@@ -432,7 +433,7 @@ function hostRoadReads(run: HostRoadRun, { options, signal, sessionId, runner }:
         return result
       } catch (error) { if (!signal.aborted) failedRead(id, error, operation); throw error }
     })
-    state.tail = turn.then(() => {}, () => {})
+    state.tail = turn.then(() => {}, passedOver)
     return turn
   }
   const clients = new Map<HostVendorId, HostVendor>()
@@ -444,14 +445,14 @@ function hostRoadReads(run: HostRoadRun, { options, signal, sessionId, runner }:
   }
   const vastClient = (): VastClient | undefined => { if (!vendorKey('vast')) return; const client = clientFor('vast'); return client instanceof VastClient ? client : undefined }
   const bankOptionsFor = () => ({ runner, sessionId, apiBaseUrl: baseFor('runpod'), vastApiBaseUrl: baseFor('vast'), startJob: options.startJob, api: () => vendorKey('runpod') ? runpodOnly(clientFor('runpod'), 'Fast-load weights disks') : undefined, vast: vastClient, connect: () => connect('runpod'), refreshVolumes: async () => {
-    if (vendorKey('runpod')) await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(() => undefined)
+    if (vendorKey('runpod')) await readVendor('runpod', () => reconcileVolumes(runpodOnly(clientFor('runpod'), 'Fast-load weights disks'), signal), 'volumes').catch(passedOverAs(undefined))
     const vast = vastClient()
-    if (vast) await readVendor('vast', () => reconcileVastVolumes(vast, signal), 'volumes').catch(() => undefined)
+    if (vast) await readVendor('vast', () => reconcileVastVolumes(vast, signal), 'volumes').catch(passedOverAs(undefined))
   } })
   const vastVolumeRows = async (): Promise<{ value: string; label: string }[]> => {
     const client = vastClient()
     if (!client) return []
-    try { await readVendor('vast', () => reconcileVastVolumes(client, signal), 'volumes') } catch { return [] }
+    try { await readVendor('vast', () => reconcileVastVolumes(client, signal), 'volumes') } catch (error) { passedOver(error); return [] }
     const rows: { value: string; label: string }[] = []
     for (const row of vastKeptVolumes().filter(row => row.state !== 'gone')) {
       let stock = ''
@@ -488,7 +489,7 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
         for (const entry of failure.entries.filter(row => !row.parked)) {
           await readVendor<unknown>(failure.id, () => entry.operation === 'volumes'
             ? client instanceof VastClient ? reconcileVastVolumes(client, signal) : reconcileVolumes(runpodOnly(client, 'Weights disks'), signal)
-            : entry.operation === 'stock' ? client.offers(signal) : listHostResources(client, signal, detail => failedRead(failure.id, detail)), entry.operation).catch(() => undefined)
+            : entry.operation === 'stock' ? client.offers(signal) : listHostResources(client, signal, detail => failedRead(failure.id, detail)), entry.operation).catch(passedOverAs(undefined))
         }
         if (['door-models', 'paid-pods'].includes(plan.step) && failure.entries.every(row => !stateFor(failure.id, row.operation).failure)) return 'refresh'
         continue
@@ -507,7 +508,7 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
       const savedKey = vendorKey(id)
       if (!savedKey) { emit({ title: 'Hugging Face', words: 'No Hugging Face sign-in is saved. Connect with /logins huggingface, then return to /llmhost.' }); return false }
       const client = vendorClient(id, { apiBaseUrl: baseFor(id) })
-      try { await readVendor(id, () => client.pods(signal)) } catch { return false }
+      try { await readVendor(id, () => client.pods(signal)) } catch (error) { passedOver(error); return false }
       clients.set(id, client)
       if (id === run.vendor) { run.key = savedKey; run.api = client }
       return true
@@ -699,7 +700,7 @@ function hostRoadWatches(run: HostRoadRun, { options, emit, signal, sessionId, r
     const connected = watchVendors.filter(id => vendorKey(id))
     if (!connected.length) return { ok: false, words: 'No connected provider to watch. Connect one from the model screen first; nothing was rented.' }
     const watchVolume = connected.length === 1 && connected[0] === 'vast' ? vastKeptVolumes().find(row => row.state === 'kept' && row.model === watchRecipe.model && row.include === (watchRecipe.include ?? '')) : undefined
-    if (watchVolume) await readVendor('vast', () => clientFor('vast').offers(signal), 'stock').catch(() => undefined)
+    if (watchVolume) await readVendor('vast', () => clientFor('vast').offers(signal), 'stock').catch(passedOverAs(undefined))
     const shapes = connected.flatMap(id => clientFor(id).shapes().filter(row => modelTitle(row.recipe) === chosenModel && (!watchVolume || row.machineId === watchVolume.machineId)).map(row => ({ vendor: id, row }))).sort((a, b) => a.row.price - b.row.price)
     const watchScope = watchVolume ? 'Watch only Vast.ai machine ' + watchVolume.machineId + ', where your volume keeps the weights; other machines are not rented. The volume bills ' + vastVolumeBilling(watchVolume) + '. ' : ''
     const knownShape = shapes[0]

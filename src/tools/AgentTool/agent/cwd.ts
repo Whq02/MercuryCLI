@@ -8,6 +8,7 @@ import type { ToolPermissionContext } from '../../../Tool.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { getPlatform } from '../../../utils/platform.js'
 import { posixPathToWindowsPath } from '../../../utils/windowsPaths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function agentDirectoryOf(spelling: string): string {
   if (!isAbsolute(spelling) || hasControlCharacter(spelling)) {
@@ -17,7 +18,8 @@ function agentDirectoryOf(spelling: string): string {
   const entry = (() => {
     try {
       return statSync(onDisk)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   })()
@@ -36,7 +38,8 @@ export function agentCwdQuestion(spelling: string, permissionContext: ToolPermis
   let dir: string
   try {
     dir = agentDirectoryOf(spelling)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (pathInAllowedWorkingPath(dir, permissionContext) || modeBypassesPermissions(permissionContext.mode)) return null

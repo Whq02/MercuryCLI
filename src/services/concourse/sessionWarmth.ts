@@ -1,4 +1,5 @@
 import type { Message } from '../../types/message.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const WARMTH_TAIL_ROWS = 32
 const WARMTH_SESSIONS = 8
@@ -19,7 +20,8 @@ function bump(): void {
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

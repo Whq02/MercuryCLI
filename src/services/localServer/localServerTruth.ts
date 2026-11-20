@@ -8,6 +8,7 @@ import { getApiFetch } from '../../utils/proxy.js'
 import { getUserAgent } from '../../utils/http.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { kvGeometryOf, type KvGeometry } from './localServerMemory.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type { LocalServerKind }
 
@@ -144,7 +145,8 @@ function defaultRun(file: string, args: string[]): Promise<string | undefined> {
 function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -157,7 +159,8 @@ function defaultReadTail(path: string, bytes: number): string | undefined {
     const buffer = Buffer.alloc(length)
     readSync(fd, buffer, 0, length, Math.max(0, size - length))
     return buffer.toString('utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   } finally {
     if (fd !== undefined) closeSync(fd)
@@ -166,7 +169,8 @@ function defaultReadTail(path: string, bytes: number): string | undefined {
 function defaultListDir(path: string): string[] {
   try {
     return readdirSync(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -174,7 +178,8 @@ function defaultWritable(path: string): boolean {
   try {
     accessSync(existsSync(path) ? path : dirname(path), constants.W_OK)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -182,7 +187,8 @@ function defaultUid(): number | undefined {
   try {
     const uid = userInfo().uid
     return uid >= 0 ? uid : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -218,7 +224,8 @@ async function readJson(io: Io, url: string, body?: unknown): Promise<unknown | 
     } as RequestInit)
     if (!response.ok) return undefined
     return (await response.json()) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -685,7 +692,8 @@ export function parseRocmSmiMemory(text: string): number | undefined {
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   let total = 0

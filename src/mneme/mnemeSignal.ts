@@ -6,6 +6,7 @@ import { defineStore } from '../substrate/fileStore.js'
 import { logForDebugging } from '../utils/debug.js'
 import { pointerCitations } from './memoryCitations.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SIGNAL_TURN_LIMIT = 512
 
@@ -81,7 +82,8 @@ const signalStore = defineStore<SignalFile, [string]>({
 export function readSignalLog(dir: string = mnemeLibraryDir()): SignalTurn[] {
   try {
     return decodeSignalLog(JSON.parse(readFileSync(signalLogPath(dir), 'utf8')))?.turns ?? []
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

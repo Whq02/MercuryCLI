@@ -4,6 +4,7 @@ import { concourseRecordState, listConcourseWorkers } from '../../daemon/concour
 import { getProjectDir } from '../../utils/sessionStoragePortable.js'
 import { inProject, projectDisplayName, type ProjectIdentity } from '../../utils/bootCardFacts.js'
 import type { ConcourseElsewhereV1, ConcourseRowV1 } from '../../components/concourse/contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const ELSEWHERE_CAP = 3
 
@@ -23,7 +24,8 @@ export function projectActivity(
     let key: string
     try {
       key = getProjectDir(row.workspaceDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     let entry = byKey.get(key)
@@ -64,12 +66,14 @@ export async function runningByProjectKey(recordsDir?: string): Promise<Map<stri
       let key: string
       try {
         key = getProjectDir(rec.workspaceId)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       out.set(key, (out.get(key) ?? 0) + 1)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return out
 }

@@ -1,6 +1,7 @@
 import type { Command } from '../../commands.js'
 import type { LocalCommandCall } from '../../types/command.js'
 import { crewDirectoryEnabled } from '../../services/crew/identity.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const call: LocalCommandCall = async (args: string) => {
   const [verb, ...rest] = args.trim().split(/\s+/).filter(Boolean)
@@ -141,7 +142,7 @@ const call: LocalCommandCall = async (args: string) => {
     '../../services/crew/descriptor.js'
   )
   const picker = new Map(targetPickerRows(snap).map(r => [r.agentId as string, r]))
-  const descriptors = await listSessionDescriptors().catch(() => [])
+  const descriptors = await listSessionDescriptors().catch((error) => { passedOver(error); return [] })
   const rows = snap.members.map(m => {
     const lifecycle = m.lifecycle ? ` · ${m.lifecycle.state}` : ''
     const focus = m.focus ? ` · ${m.focus.label}` : ''

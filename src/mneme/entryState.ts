@@ -6,6 +6,7 @@ import { readGitHead, resolveGitDir } from '../utils/git/gitFilesystem.js'
 import { readLedger } from './ledger.js'
 import { lookupTerms } from './mnemeLookup.js'
 import type { LedgerEntry } from './types.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const STATE_SESSIONS_BACK = 3
 const STATE_FILES_CAP = 60
@@ -105,7 +106,8 @@ async function readBranch(root: string): Promise<string | null> {
     if (gitDir === null) return null
     const head = await readGitHead(gitDir)
     return head !== null && head.type === 'branch' ? head.name : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -132,7 +134,8 @@ async function readModifiedFiles(root: string): Promise<string[]> {
     })
     if (result.code !== 0) return []
     return parseStatusPaths(result.stdout)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

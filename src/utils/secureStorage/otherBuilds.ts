@@ -5,6 +5,7 @@ import { bundleArgOf, bundleDirOf, sameBundlePath, tokenBinding, type ProcessSwe
 import type { ProcessSweepDeps } from '../../daemon/processSweepRun.js'
 import { runningBuildTree } from '../artifactIdentity.js'
 import { getMercuryHome } from '../envUtils.js'
+import { passedOver } from '../passedOver.js'
 
 const NO_OWN_BUNDLE = 'this process does not run from a mercury.mjs it can name, so it cannot tell its own build from another'
 
@@ -24,7 +25,8 @@ export interface OtherBuildsDeps extends ProcessSweepDeps {
 function realPathOf(path: string): string | null {
   try {
     return realpathSync.native(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -123,7 +125,8 @@ function recordsOf(home: string, ownDaemonDir: string): OwnRecord[] | null {
     try {
       const raw = JSON.parse(readFileSync(join(dir, 'daemon.json'), 'utf8')) as Record<string, unknown>
       if (typeof raw.pid === 'number') records.push({ pid: raw.pid, startToken: textOf(raw.startInstant) ?? textOf(raw.startToken), buildTree: textOf(raw.buildTree) })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return records

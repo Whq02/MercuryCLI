@@ -6,6 +6,7 @@ import { untrustedWorkspaceHeadless } from '../config.js'
 import type { MCPServerConnection } from '../../services/mcp/types.js'
 import { getCurrentProjectConfig, getGlobalConfig } from '../config.js'
 import { withState, type Snapshot, type SnapshotState } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export type McpServerState =
   | 'ready'
@@ -59,7 +60,8 @@ export function publishMcpConnections(connections: MCPServerConnection[]): void 
   for (const cb of listeners) {
     try {
       cb()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -166,7 +168,8 @@ export function mcpGauge(): Snapshot<{ data: McpData }> {
     maxRisk = getMaxExposedRisk()
     mcpPolicyActive = isMcpPolicyActive()
     mcpPolicyHint = describeMcpPolicy()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const runtime = mcpConnectionsSnapshot()
   const runtimeStampedAt = runtime?.stampedAt ?? null
@@ -182,7 +185,8 @@ export function mcpGauge(): Snapshot<{ data: McpData }> {
       if (!untrustedWorkspaceHeadless()) {
         projectNames = Object.keys(getProjectMcpConfigsFromCwd().servers)
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     names = Array.from(
       new Set([...Object.keys(g?.mcpServers ?? {}), ...Object.keys(p?.mcpServers ?? {}), ...projectNames]),

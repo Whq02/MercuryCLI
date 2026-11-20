@@ -23,6 +23,7 @@ import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
 import { isProcessAlive } from './ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
 import type { RunnerDoor } from './runnerConnection.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const DEFAULT_WARM_RUNNER_IDLE_RETIRE_MINUTES = 5
 
@@ -183,7 +184,8 @@ export async function ensureWarmRunner(
   if (args.retiring !== undefined) {
     try {
       retireWarmRunner(canonicalWorkspaceId(args.retiring), 'workspace-switch', deps)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const consent = args.bypassConsent === true

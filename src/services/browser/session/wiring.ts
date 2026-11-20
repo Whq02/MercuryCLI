@@ -8,6 +8,7 @@ import { sleep } from '../../../utils/sleep.js'
 import { type ConsoleEntry, CONSOLE_RING_CAP, CONSOLE_ENTRY_CAP, POPUP_NOTES_KEPT, type DownloadNotice, isBrowserErrorPage, type Wiring, type Hold, type Session, type OwnerBrowserState } from './shapes.js'
 import { closeChild, closeHoldNetwork, sweepDownloads, sessionHolds, sessionWirings, holdOf, tabClosed } from './owners.js'
 import { pageKits } from './stealth.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const redactUrl = (url: string): string => {
   const q = url.indexOf('?')
@@ -111,7 +112,7 @@ export function downloadBegan(state: OwnerBrowserState, hold: Hold, event: Proto
   const inAct = tab !== null ? tab.acting > 0 : birth !== null && birth.keep
   if (actor === null || wiring === undefined || hold.downloads === null || !(inAct || tab?.touched === true)) {
     hold.unwanted.add(event.guid)
-    void hold.watch?.send('Browser.cancelDownload', { guid: event.guid }).catch(() => undefined)
+    void hold.watch?.send('Browser.cancelDownload', { guid: event.guid }).catch(passedOverAs(undefined))
     const words = `the page asked to download ${event.suggestedFilename} (${redactUrl(event.url)}) — ${DOWNLOAD_NOT_SAVED}`
     wiring?.capture('download', words)
     wiring?.downloads.late.push(words)
@@ -244,7 +245,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
       capture(message.type(), `${message.text()}${where}`)
       return
     }
-    void Promise.all(args.map(a => a.jsonValue().catch(() => undefined)))
+    void Promise.all(args.map(a => a.jsonValue().catch(passedOverAs(undefined))))
       .then(vals => {
         const rendered = vals
           .map(v => (v === undefined ? '<unserializable>' : typeof v === 'string' ? v : JSON.stringify(v)))
@@ -302,7 +303,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
             : `the page opened a new tab: ${popups.last} — kept as tab ${name}`,
         )
       }
-      if (name === null) await popup.close().catch(() => {})
+      if (name === null) await popup.close().catch(passedOver)
       if (born !== undefined && id !== null) {
         hold.births.delete(id)
         born.handover()
@@ -339,8 +340,7 @@ export function listenPage(state: OwnerBrowserState, session: Session, wiring: W
     const verb = kind === 'beforeunload' ? 'accepted' : 'dismissed'
     const saw = kind === 'confirm' ? ' (the page received false)' : kind === 'prompt' ? ' (the page received null)' : ''
     capture('dialog', `${kind}("${dialog.message()}") auto-${verb}${saw} — the page was blocked on it`)
-    void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(() => {
-    })
+    void (kind === 'beforeunload' ? dialog.accept() : dialog.dismiss()).catch(passedOver)
   })
   page.on('close', () => tabClosed(state, session))
   page.on('error', () => {

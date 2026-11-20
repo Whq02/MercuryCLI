@@ -10,6 +10,7 @@ import type { ExecutionRecord } from '../primitives/execution.js'
 import { registerOwnerDisposer, unregisterOwnerDisposer } from '../run/ownerLifecycle.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { fetchRun, repoHostEnabled, type RunView } from './repoHost.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const POLL_MS = 5_000
 const MAX_WATCH_MS = 30 * 60 * 1000
@@ -49,7 +50,8 @@ function finishWatch(watch: LiveWatch, state: 'succeeded' | 'failed' | 'stopped'
   unregisterOwnerDisposer(watch.owner, `run-watch:${watch.id}`)
   try {
     settleExecution(watch.owner, watch.id, state, { outcome: { reason } })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

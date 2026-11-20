@@ -32,6 +32,7 @@ import {
   type CompatTool,
 } from '../openaicompat/compatChatClient.js'
 import { openrouterResponsesCache } from './openrouterCache.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const OPENROUTER_TOOL_SEARCH_TYPE = 'openrouter:tool_search'
 
@@ -320,6 +321,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
     try {
       options.onResponseHeaders?.(response.headers, response.status)
     } catch (error) {
+      passedOver(error)
       void error
     }
     if (!response.ok) {
@@ -364,7 +366,7 @@ export async function* streamOpenrouterResponses(options: CompatStreamOptions, b
                 ? { kind: 'timeout', code: 'idle-timeout', silentMs: error.silentMs, message: streamIdleFaultWords(idleMs), retryable: true }
                 : { kind: 'transport-error', code: 'read-failed', message: error instanceof Error ? error.message : String(error), retryable: true },
         }
-        void reader.cancel().catch(() => {})
+        void reader.cancel().catch(passedOver)
         return
       }
       const results = chunk.done ? decoder.flush() : decoder.push(Buffer.from(chunk.value!))

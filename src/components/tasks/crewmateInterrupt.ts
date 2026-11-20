@@ -3,6 +3,7 @@ import type { SetAppState } from '../../Task.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { stopOrDismissAgent } from '../../state/crewmateViewHelpers.js'
 import { AGENT_INTERRUPT_BY_OPERATOR, isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type CrewmateInterruptRoad = 'local' | 'hosted' | 'idle'
 
@@ -28,6 +29,6 @@ export function interruptCrewmate(
   void stopAgent(taskId, AGENT_INTERRUPT_BY_OPERATOR).then(receipt => {
     const answer = receipt as { outcome?: string; detail?: string } | undefined
     if (answer?.outcome === 'refused') options.onRefused?.(answer.detail ?? 'no reason given')
-  }, () => {})
+  }, passedOver)
   return 'hosted'
 }

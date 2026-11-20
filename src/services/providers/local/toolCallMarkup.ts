@@ -1,4 +1,5 @@
 import { schemaPropertyType, typeTextBySchema } from './schemaTyping.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type ToolCallMarkupShape = 'qwen-xml' | 'json-in-xml' | 'glm-xml' | 'gemma' | 'mistral' | 'json'
 
@@ -32,7 +33,8 @@ function coerceValue(text: string, tool: MarkupToolFacts | undefined, key: strin
 function parseJson(text: string): unknown | undefined {
   try {
     return JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

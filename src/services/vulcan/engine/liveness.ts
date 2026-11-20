@@ -3,6 +3,7 @@ import * as path from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { vulcanInstancesUnder, vulcanProcessAlive, type VulcanInstance } from '../instances.js'
 import { engineCheckTreeDir, engineChecksDir, engineRunPath, engineRunResultFile, engineTreesDir } from './paths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_ORPHAN_GRACE_FLAG = 'MERCURY_GODOT_ORPHAN_GRACE_MS'
 const ENGINE_ORPHAN_GRACE_DEFAULT_MS = 30 * 60_000
@@ -62,7 +63,8 @@ export function engineEstateEntry(projectRoot: string, candidate: string, platfo
 function mtimeOf(file: string): number | null {
   try {
     return statSync(file).mtimeMs
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -84,7 +86,8 @@ export function engineTreeLiveness(projectRoot: string, candidate: string, now: 
     try {
       const runDir = engineRunPath(projectRoot, entry.id)
       stamps.push(runDir, engineRunResultFile(runDir))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       void 0
     }
   }
@@ -102,7 +105,8 @@ function touchEngineEstate(target: string): void {
   try {
     const now = new Date()
     utimesSync(target, now, now)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     void 0
   }
 }

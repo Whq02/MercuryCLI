@@ -1,5 +1,6 @@
 import type { UUID } from 'node:crypto'
 import type { PersistedWorktreeSession } from '../../types/logs.js'
+import { passedOver } from '../passedOver.js'
 
 export type SessionMetaFields = {
   customTitle?: string
@@ -127,7 +128,7 @@ export class SessionMeta {
         const { metaKind, fields } = record.payload
         const key = metaKind === 'custom-title' ? 'customTitle' : metaKind === 'tag' ? 'tag' : undefined
         if (key && typeof fields?.[key] === 'string') fresh.set(key, fields[key])
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     if (!skipTitleRefresh && fresh.has('customTitle')) this.fields.customTitle = fresh.get('customTitle') || undefined
     if (fresh.has('tag')) this.fields.tag = fresh.get('tag') || undefined

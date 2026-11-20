@@ -38,6 +38,7 @@ import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.j
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'
 import { renderAccountRow, rowKey, type BoardRow } from './accountRows.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function usabilityFor(familyId: string): ProviderUsability | undefined {
   const map = resolveProviderUsability()
@@ -78,7 +79,7 @@ export function AccountView({
       .then(() => {
         if (alive) setVersion(v => v + 1)
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       alive = false
     }

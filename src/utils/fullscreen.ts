@@ -7,6 +7,7 @@ import { isMercurySubstrateProfileOn } from './config.js'
 import { logForDebugging } from './debug.js'
 import { isEnvDefinedFalsy, isEnvTruthy } from './envUtils.js'
 import { execFileNoThrow } from './execFileNoThrow.js'
+import { passedOver } from './passedOver.js'
 
 
 
@@ -35,7 +36,8 @@ function isTmuxControlMode(): boolean {
     })
     if (probe.error || probe.status !== 0) return controlModeCache
     controlModeCache = (probe.stdout ?? '').trim() === '1'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return controlModeCache
 }

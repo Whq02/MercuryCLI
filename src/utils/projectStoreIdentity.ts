@@ -1,6 +1,7 @@
 import { closeSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { directoryIdentity, directoryIdentityKey } from './directoryIdentity.js'
+import { passedOver } from './passedOver.js'
 
 type StoreDirectoryIdentity = ReturnType<typeof directoryIdentity>
 
@@ -34,7 +35,8 @@ export function projectDirectoryIdentity(dir: string, fold: (dir: string) => str
 function isDirectory(path: string): boolean {
   try {
     return statSync(path).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -43,14 +45,16 @@ function readHead(file: string, bytes: number): string | null {
   let fd: number
   try {
     fd = openSync(file, 'r')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   try {
     const buffer = Buffer.allocUnsafe(bytes)
     const read = readSync(fd, buffer, 0, bytes, 0)
     return buffer.subarray(0, read).toString('utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   } finally {
     closeSync(fd)
@@ -61,13 +65,15 @@ function cardDir(store: string): string | null {
   let text: string
   try {
     text = readFileSync(join(store, CARD_FILE), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   try {
     const card = JSON.parse(text) as { dir?: unknown }
     return typeof card.dir === 'string' && card.dir.length > 0 ? card.dir : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -76,7 +82,8 @@ function newestTranscriptCwd(store: string): string | null {
   let names: string[]
   try {
     names = readdirSync(store)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   let newest: { file: string; mtime: number } | null = null
@@ -86,7 +93,8 @@ function newestTranscriptCwd(store: string): string | null {
     try {
       const facts = statSync(file)
       if (facts.size > 0 && (newest === null || facts.mtimeMs > newest.mtime)) newest = { file, mtime: facts.mtimeMs }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   if (newest === null) return null
@@ -95,7 +103,8 @@ function newestTranscriptCwd(store: string): string | null {
   if (match === null) return null
   try {
     return JSON.parse(`"${match[1]}"`) as string
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -127,7 +136,8 @@ function keyedBySpelling(name: string, spelling: string, rules: StoreSpellingRul
   try {
     const resolved = rules.fold(realpathSync(folded).normalize('NFC'))
     return resolved !== folded && rules.slugMatches(name, resolved)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -147,7 +157,8 @@ function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, 
   let names: string[]
   try {
     names = readdirSync(projects)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   let chosen: { name: string; mtime: number } | null = null
@@ -157,7 +168,8 @@ function olderSpellingStore(projects: string, identity: StoreDirectoryIdentity, 
     let facts: ReturnType<typeof statSync>
     try {
       facts = statSync(store)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (!facts.isDirectory() || !storeOwnsIdentity(store, name, identity, rules)) continue

@@ -1,4 +1,5 @@
 import { getSessionId } from '../../bootstrap/state.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const refusedFields = new Set<string>()
 const FIELD_REFUSAL_WORDS = /unsupported|unknown|unrecognized|not allowed|not permitted|extra inputs|unexpected|invalid|not supported/i
@@ -16,7 +17,7 @@ async function fieldRefused(response: Response, field: string): Promise<boolean>
       const next = await reader.read()
       if (next.done) break
       size += next.value.byteLength
-      if (size > 65_536) { void reader.cancel().catch(() => {}); return false }
+      if (size > 65_536) { void reader.cancel().catch(passedOver); return false }
       chunks.push(next.value)
     }
     const text = Buffer.concat(chunks).toString('utf8')
@@ -24,7 +25,7 @@ async function fieldRefused(response: Response, field: string): Promise<boolean>
       const body = JSON.parse(text) as { error?: { param?: string; message?: string }; message?: string }
       return body?.error?.param === field || ((body?.error?.message ?? body?.message ?? '').includes(field) && FIELD_REFUSAL_WORDS.test(text))
     } catch { return text.includes(field) && FIELD_REFUSAL_WORDS.test(text) }
-  } catch { return false }
+  } catch (error) { passedOver(error); return false }
   finally { reader.releaseLock() }
 }
 
@@ -36,6 +37,6 @@ export async function sendWithCacheField(input: { body: Record<string, unknown>;
   const response = await send(input.body)
   if (!(await fieldRefused(response, input.field))) return response
   refusedFields.add(key)
-  void response.body?.cancel().catch(() => {})
+  void response.body?.cancel().catch(passedOver)
   return send(without())
 }

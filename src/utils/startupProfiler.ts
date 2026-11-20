@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { formatMs, formatTimelineLine, getPerformance, type MemorySnapshot } from './profilerBase.js'
+import { passedOver } from './passedOver.js'
 
 
 const detailed = flagEnv('MERCURY_PROFILE_STARTUP') === '1'
@@ -65,7 +66,8 @@ export function profileReport(): void {
     const path = getStartupPerfLogPath()
     mkdirSync(join(getMercuryHome(), 'startup-perf'), { recursive: true })
     writeFileSync(path, report, { flush: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   logForDebugging('Startup profiling report:')
   logForDebugging(report)

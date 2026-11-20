@@ -4,6 +4,7 @@ import type { OwnerKey } from '../run/ownerKey.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
 import { subscribeChangeReceipts } from '../changeTransaction/receipts.js'
 import type { StructurePreview, StructureQueryResult, PreviewState } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const QUERY_RING = 16
 const PREVIEW_RING = 16
@@ -110,7 +111,8 @@ export function installStructureReceiptBackref(): void {
         receiptRef: `mercury://receipt/${receipt.id}`,
         transactionRef: `mercury://transaction/txn-${receipt.id}`,
       })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
 }

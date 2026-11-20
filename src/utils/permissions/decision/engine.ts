@@ -23,6 +23,7 @@ import {
   getDenyRuleForTool,
   toolAlwaysAllowedRule,
 } from './rules.js'
+import { passedOverAs } from '../../passedOver.js'
 
 interface DecisionPorts {
   isToolKilled(tool: Tool, agentType: string | undefined): boolean
@@ -61,7 +62,7 @@ function composedInstructionImportsRead(): Promise<void> | undefined {
   const reading: Promise<void> = loaded
     .then(
       entries => noteComposedInstructionImports(entries.filter(entry => entry.parent !== undefined).map(entry => entry.path)),
-      () => undefined,
+      passedOverAs(undefined),
     )
     .finally(() => {
       if (composing === reading) composing = undefined

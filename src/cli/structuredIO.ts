@@ -11,11 +11,13 @@ import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { stripBOM } from '../utils/jsonRead.js'
 import { Stream } from '../utils/stream.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function fatalProtocolError(reason: string): never {
   try {
     writeSync(2, `${reason}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   process.exit(1)
 }
@@ -178,7 +180,8 @@ export class StructuredIO {
     process.exitCode = 1
     try {
       process.stderr.write(`${isSessionPersistenceDisabled() ? BROKEN_STDOUT_EPHEMERAL_LINE : BROKEN_STDOUT_LINE}\n`)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 

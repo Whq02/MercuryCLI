@@ -18,6 +18,7 @@ import { clampH, clampW, crossGapOf, hasMeasureFuncInSubtree, isReverse, mainAxi
 import { axisReusable, markSubtreeDirty, type SizingEntry, storeSizing, zeroSubtree } from './cellLayout/sizing.js'
 import { resolveFlexibleLengths } from './cellLayout/flex.js'
 import { type FinalRect, roundPass } from './cellLayout/rounding.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 let _visited = 0
 let _measured = 0
@@ -978,7 +979,8 @@ function traceContamination(node: CellLayoutNode, w: number, h: number): void {
             child: c.final,
           }) + '\n',
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       break
     }

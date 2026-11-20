@@ -7,6 +7,7 @@ import { selectVulcanInstance } from './instances.js'
 import { resolveGodotExecutable } from './portabilityHealth.js'
 import { getVulcanClient } from './vulcanClient.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface GlobalClassEntry {
   class: string
@@ -75,7 +76,8 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
     let entries: string[]
     try {
       entries = readdirSync(dir).sort()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const name of entries) {
@@ -85,7 +87,8 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
       let st
       try {
         st = statSync(full)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (st.isDirectory()) {
@@ -94,7 +97,8 @@ function declaredClasses(projectRoot: string): { list: DeclaredClass[]; total: n
         let head: string
         try {
           head = readHead(full)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         const cls = classNameOf(head)

@@ -61,6 +61,7 @@ import { recordFrameTrace } from './ink/root/frame-trace.js'
 import { isWarmBackgroundEnabled } from './utils/cockpit/warmBackground.js'
 import type { InternalPermissionMode } from './types/permissions.js'
 import { modeBypassesPermissions } from './utils/permissions/PermissionMode.js'
+import { passedOver } from './utils/passedOver.js'
 
 
 function completeOnboarding(): void {
@@ -349,7 +350,8 @@ export function getRenderContext(exitOnCtrlC: boolean): {
             cpu: process.cpuUsage(),
           })}\n`,
         )
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (!syncOutputSupportedNow()) {

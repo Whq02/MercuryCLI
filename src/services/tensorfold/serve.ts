@@ -27,6 +27,7 @@ import { runForOutput, tensorFoldLadder, tensorFoldProjectedBytes, type TensorFo
 import { pullCommandLines, pullTensorFold as pullWithEngine, type PullIo } from './pull.js'
 import { readTensorFoldRefusal, type TensorFoldRefusal } from './refusal.js'
 import { PROMPT_CACHE_OPT_IN_FAMILIES, startingPointOf, tensorFoldShortName, type TensorFoldCheckpoint } from './starting.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const TENSORFOLD_SERVICES: Readonly<Record<TensorFoldServeRole, string>> = { session: 'tensorfold', helper: 'tensorfold-helper' }
 const TENSORFOLD_RECORD_FILES: Readonly<Record<TensorFoldServeRole, string>> = { session: 'served.json', helper: 'helper.json' }
@@ -90,13 +91,14 @@ export function tensorFoldPairingCode(): string | null {
 
 async function announceOnNetwork(offer: TensorFoldAnnounceOffer): Promise<TensorFoldAnnouncement> {
   const pairing = await startPairingServer(offer, { listenHost: TENSORFOLD_SHARE_HOST })
-  return { stop: () => void pairing.stop().catch(() => undefined), code: pairing.code }
+  return { stop: () => void pairing.stop().catch(passedOverAs(undefined)), code: pairing.code }
 }
 
 function endAnnouncement(): void {
   try {
     announcement?.stop()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     void 0
   }
   announcement = null
@@ -128,7 +130,8 @@ export function readServedRecord(io: RoleIo = {}): TensorFoldServedRecord | null
   try {
     const raw = JSON.parse(readFileSync(recordFile(io), 'utf8')) as TensorFoldServedRecord
     return typeof raw.repo === 'string' && typeof raw.port === 'number' && typeof raw.project === 'string' ? raw : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -275,7 +278,8 @@ function logTail(record: ServiceRecord | null, bytes = 65_536): string {
     const size = statSync(record.logFile).size
     const start = Math.max(record.logStartByte ?? 0, size - bytes)
     return readFileSync(record.logFile, 'utf8').slice(start)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

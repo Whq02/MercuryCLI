@@ -6,6 +6,7 @@ import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { jsonParse, jsonStringify } from '../slowOperations.js'
 import { emptyFoldState, type TranscriptFoldState } from './fold.js'
 import { createTranscriptRows, transcriptRowOrder } from './rowGraph.js'
+import { passedOver } from '../passedOver.js'
 
 export const SNAPSHOT_SCHEMA = 6
 const DIGEST_TAIL_BYTES = 4096
@@ -113,7 +114,8 @@ export function writeResumeSnapshot(
       order: transcriptRowOrder(fold.messages),
     })
     durableAtomicPublishSync(snapshotPathFor(transcriptPath), payload)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -164,7 +166,8 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
       byteCursor: cursor,
       fileSize: size,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

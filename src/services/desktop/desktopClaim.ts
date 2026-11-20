@@ -27,6 +27,7 @@ import {
   type DesktopDrivingAppInput,
   type DesktopSnapshot,
 } from './desktopSession.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const DESKTOP_CLAIM_FILE = 'desktop.lock'
 export const DESKTOP_CLAIM_IDLE_RELEASE_MS = 30_000
@@ -39,7 +40,8 @@ export function desktopClaimPath(): string {
 function sessionWord(): string {
   try {
     return String(getSessionId())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'boot'
   }
 }
@@ -95,7 +97,7 @@ function recordOf(app: DesktopDrivingApp | null, since: number): DesktopClaimRec
 
 function serializeClaim<T>(operation: () => Promise<T>): Promise<T> {
   const result = mutation.then(operation, operation)
-  mutation = result.then(() => undefined, () => undefined)
+  mutation = result.then(() => undefined, passedOverAs(undefined))
   return result
 }
 
@@ -114,7 +116,7 @@ async function releaseOwnedClaim(): Promise<void> {
 }
 
 async function acquire(app: DesktopDrivingApp | null): Promise<DesktopClaimVerdict> {
-  await mkdir(daemonDir(), { recursive: true }).catch(() => undefined)
+  await mkdir(daemonDir(), { recursive: true }).catch(passedOverAs(undefined))
   const since = Date.now()
   const result = await acquirePidLock(desktopClaimPath(), desktopClaimOwner(), {
     liveness: 'assume-dead',
@@ -216,7 +218,7 @@ function recordFromText(text: string): DesktopClaimRecord | null {
 export async function readDesktopClaimFile(): Promise<DesktopSnapshot> {
   const holder = await probePidLock(desktopClaimPath(), { liveness: 'assume-dead', cachedLiveness: true })
   if (holder === null || holder.owner !== `${conversationIdHere()}:${holder.pid}`) return IDLE_DESKTOP_SNAPSHOT
-  const raw = await readFile(desktopClaimPath(), 'utf8').catch(() => null)
+  const raw = await readFile(desktopClaimPath(), 'utf8').catch(passedOverAs(null))
   if (raw === null) return IDLE_DESKTOP_SNAPSHOT
   const identity = safeParseJSON(raw, false) as { owner?: unknown; pid?: unknown } | null
   if (identity?.owner !== holder.owner || identity?.pid !== holder.pid) return IDLE_DESKTOP_SNAPSHOT

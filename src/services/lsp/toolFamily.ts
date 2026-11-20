@@ -1,5 +1,6 @@
 import { LSP_TOOL_NAMES } from '../../tools/LSPTool/prompt.js'
 import { matcherShape } from '../../utils/hooks/matcherGrammar.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function lspFamilyMatches(selector: string, name: string): boolean {
   return selector === 'LSP' && (LSP_TOOL_NAMES as readonly string[]).includes(name)
@@ -30,7 +31,7 @@ export function lspHookNote(event: string, matcher: string, source: string): str
       if (regex.test('LSP') && !LSP_TOOL_NAMES.some(name => regex.test(name))) {
         return `The ${event} hook match \`${matcher}\` in ${source} matches \`LSP\` but none of ${successors} — add their names to keep it.`
       }
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return undefined
 }

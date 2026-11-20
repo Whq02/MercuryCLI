@@ -1,4 +1,5 @@
 import type { AnthropicDoor } from './anthropic/anthropicCatalogue.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function modelNotOfferedByCatalogue(modelId: string, accountLabel: string, offered: readonly string[], servedAs: readonly string[] = []): string {
   const hint = offered.length > 0 ? ` The catalogue offers: ${offered.join(', ')}.` : ''
@@ -43,7 +44,8 @@ export async function anthropicCatalogueRefusal(
     const cached = catalogue.getCachedAnthropicDoorCatalogue(door, env)
     const { normalizeModelStringForAPI } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
     return anthropicCatalogueVerdict(normalizeModelStringForAPI(model), model, cached)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

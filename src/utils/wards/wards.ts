@@ -1,3 +1,4 @@
+import { passedOver } from '../passedOver.js'
 
 type WardScope = 'edit' | 'bash'
 
@@ -737,8 +738,8 @@ function cachedGeneratedPaths(rule: WardRule): Array<{ re: RegExp; row: Generate
     for (const row of rule.generatedPaths ?? []) {
       try {
         rows.push({ re: new RegExp(row.pattern), row })
-      } catch {
-        continue
+      } catch (error) {
+        passedOver(error); continue
       }
     }
     compiledGeneratedPaths.set(rule, rows)
@@ -796,8 +797,7 @@ function compile(rule: WardRule): RegExp[] {
   for (const src of rule.patterns) {
     try {
       out.push(new RegExp(src, rule.flags ?? 'u'))
-    } catch {
-    }
+    } catch (error) { passedOver(error) }
   }
   compiledPatterns.set(rule, out)
   return out
@@ -1187,8 +1187,8 @@ function lineResolvesInsideProject(
     let resolved: ResolvedPath
     try {
       resolved = resolvePath(expanded)
-    } catch {
-      continue
+    } catch (error) {
+      passedOver(error); continue
     }
     const root = resolved.root?.replace(/\\/g, '/')
     if (root === undefined || root === '') continue
@@ -1217,8 +1217,8 @@ function lineResolvesInsideFolder(
     let resolved: ResolvedPath
     try {
       resolved = resolvePath(expanded)
-    } catch {
-      continue
+    } catch (error) {
+      passedOver(error); continue
     }
     resolvedAny = true
     if (!slashed(resolved.path).startsWith(base)) return false

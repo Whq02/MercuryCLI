@@ -5,6 +5,7 @@ import type { useSetAppStateMaybe } from '../../state/AppState.js';
 import { clearAgentDefinitionsCache, getAgentDefinitionsWithOverrides, type AgentDefinitionsResult } from '../../tools/AgentTool/loadAgentsDir.js';
 import { startAgentWatch, subscribeAgentsChanged } from '../../services/agents/watch.js';
 import { buildStudioRows, type StudioRow } from '../agents/studio/studioData.js';
+import { passedOver } from '../../utils/passedOver.js';
 
 export function useAgentDefinitions({ given, workspaceDir, setAppStateMaybe }: { given: AgentDefinitionsResult | undefined; workspaceDir: string; setAppStateMaybe: ReturnType<typeof useSetAppStateMaybe> }) {
   const [defs, setDefs] = useState<AgentDefinitionsResult | null>(given ?? null);
@@ -22,7 +23,7 @@ export function useAgentDefinitions({ given, workspaceDir, setAppStateMaybe }: {
   useLoad(() => {
     reload();
     if (given !== undefined) return;
-    void startAgentWatch(workspaceDir).catch(() => {});
+    void startAgentWatch(workspaceDir).catch(passedOver);
     const unsubscribe = subscribeAgentsChanged(reload);
     return unsubscribe;
   }, [given, reload, workspaceDir]);
@@ -30,7 +31,7 @@ export function useAgentDefinitions({ given, workspaceDir, setAppStateMaybe }: {
   const refreshEverywhere = useCallback((): void => {
     reload();
     if (setAppStateMaybe !== null) {
-      void reloadAgentDefinitionsIntoAppState(workspaceDir, setAppStateMaybe, { invalidate: true }).catch(() => {});
+      void reloadAgentDefinitionsIntoAppState(workspaceDir, setAppStateMaybe, { invalidate: true }).catch(passedOver);
     }
   }, [reload, setAppStateMaybe, workspaceDir]);
 

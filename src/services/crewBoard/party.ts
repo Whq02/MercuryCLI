@@ -2,6 +2,7 @@ import type { UUID } from 'crypto'
 import type { BoardEvent, BoardSeat } from './contracts.js'
 import type { CrewChatChannel, CrewChatKind, CrewChatLifecycle, CrewChatRole, SystemCrewChatMessage } from '../../types/message.js'
 import { chatSeatSlot } from './chat.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type BoardChatFilter = { kind: 'all' } | { kind: 'main' } | { kind: 'team'; team: string }
 export type BoardChat = { on: boolean; filter: BoardChatFilter }
@@ -91,7 +92,7 @@ export function partyFeed(host: PartyHost): PartyFeed {
       if (row.seq === introduction) { host.store()?.markScreenIntroduced(); introduction = 0 }
       pending.delete(row.seq)
       advance()
-    }, () => {})
+    }, passedOver)
   }
   const flush = (): void => { for (const row of held.splice(0)) commit(row) }
   const admit = (event: ScreenEvent, seats: readonly BoardSeat[]): void => {

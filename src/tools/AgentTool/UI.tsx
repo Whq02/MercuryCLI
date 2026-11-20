@@ -39,6 +39,7 @@ import {
   type CrewAgentFacts,
 } from '../../services/engine-connector/crewFacts.js'
 import type { AgentToolOutput } from './AgentTool.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function ExpandHint({ parens }: { parens?: boolean }): React.ReactNode {
   return (
@@ -205,7 +206,8 @@ export function renderToolUseTag(
   try {
     if (model === getEngineModel()) return null
     return <Text dimColor>{renderModelName(model)}</Text>
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -548,7 +550,8 @@ function parseGroupInput(entry: GroupedToolUse): AgentUiInput {
   if (typeof raw === 'string') {
     try {
       return JSON.parse(raw) as AgentUiInput
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return {}
     }
   }

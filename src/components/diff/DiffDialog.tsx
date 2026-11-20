@@ -34,6 +34,7 @@ import {
   reviewMarksForFile,
 } from './reviewLayer.js'
 import { commitCommentOf, copyActionOf, diffDialogViewOf, openActionOf, sendActionOf, sourceStripOf } from './diffDialog/views.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function hunkPatchText(path: string, hunk: StructuredPatchHunk): string {
   return (
@@ -93,7 +94,8 @@ function traceAction(
       path,
       JSON.stringify({ action, viewMode, selectedIndex, hunkIndex }) + '\n',
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -119,7 +121,7 @@ export function DiffDialog({
       .then(extra => {
         if (live) setExtraSources(extra)
       })
-      .catch(() => {})
+      .catch(passedOver)
     return () => {
       live = false
     }

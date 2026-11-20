@@ -7,6 +7,7 @@ import { deterministicRewriter, maybeConsolidate, type MnemeRewriter } from './m
 import { publishLibraryFile } from './mnemeLibrary.js'
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import { getMnemeHome } from './paths.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const HANDOVER_FILE = 'handover.json'
 const CHUNK_CHARS = 1900
@@ -42,7 +43,8 @@ function readNote(path: string): { head: NoteHead; body: string } | null {
   let raw: string
   try {
     raw = stripBOM(readFileSync(path, 'utf8')).replaceAll('\r\n', '\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const head: NoteHead = { card: false }
@@ -103,7 +105,8 @@ export function listOldNotes(memoryDir: string): string[] {
   let names: string[] = []
   try {
     names = readdirSync(memoryDir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return names
@@ -111,7 +114,8 @@ export function listOldNotes(memoryDir: string): string[] {
     .filter(n => {
       try {
         return statSync(join(memoryDir, n)).isFile()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     })
@@ -126,7 +130,8 @@ export function readHandoverReceipt(dir: string = mnemeLibraryDir()): HandoverRe
   try {
     const parsed = JSON.parse(readFileSync(handoverReceiptPath(dir), 'utf8')) as HandoverReceipt
     return typeof parsed?.ranAt === 'string' && typeof parsed?.notes === 'number' ? parsed : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

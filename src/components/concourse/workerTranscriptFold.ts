@@ -21,6 +21,7 @@ import {
   isNullRenderingAttachment,
   isNullRenderingSystemRow,
 } from '../messages/nullRenderingAttachments.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const RECORD_CAP = 500
@@ -32,7 +33,8 @@ export function foldWorkerRecord(rec: unknown, fallbackUuid: string): MessageTyp
   if (typeof env.schemaVersion === 'number' && env.payload && typeof env.payload === 'object') {
     try {
       entry = recordToEntry(rec as MercuryRecord)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   } else {
@@ -157,13 +159,15 @@ export function useWorkerTranscriptFold(
             watcher.on('error', () => {
               try {
                 watcher?.close()
-              } catch {
+              } catch (error) {
+                passedOver(error)
               }
               watcher = null
             })
             watcher.unref?.()
             return true
-          } catch {
+          } catch (error) {
+            passedOver(error)
             return false
           }
         }
@@ -218,7 +222,8 @@ export function useCoordinatorAttribution(
         const stamp = `${sessionId}:${st.mtimeMs}:${st.size}`
         if (stamp === ledgerStampRef.current) return
         ledgerStampRef.current = stamp
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const next = new Set<string>()
       for (const r of Object.values(d.readConcourseDispatches())) {

@@ -14,6 +14,7 @@ import { getAuthConfigHomeDir } from '../envUtils.js'
 import { getErrnoCode } from '../errors.js'
 import { safeParseJSON } from '../json.js'
 import type { PreparedWrite, SecureStorage, SecureStorageData } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 
 const CREDENTIALS_FILENAME = '.credentials.json'
@@ -66,7 +67,8 @@ function quarantineUnparseable(path: string): void {
     copyFileSync(path, copy)
     try {
       chmodSync(copy, 0o600)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     logForDebugging(`credential store: unparseable bytes at ${path} quarantined to ${copy} before the rewrite`, {
       level: 'error',
@@ -123,13 +125,15 @@ export const plainTextStorage: SecureStorage = {
       if (process.platform === 'win32' && probe.state !== 'absent') {
         try {
           chmodSync(path, 0o600)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       durableAtomicPublishSync(path, JSON.stringify(data), { mode: 0o600 })
       try {
         chmodSync(path, 0o600)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return { success: true, warning: 'Credentials are stored in plaintext on disk' }
     } catch (error) {
@@ -157,7 +161,8 @@ export const plainTextStorage: SecureStorage = {
     const discard = (): void => {
       try {
         unlinkSync(temporary)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     const refused = (error: unknown): { code?: string } => {
@@ -169,7 +174,8 @@ export const plainTextStorage: SecureStorage = {
       if (process.platform === 'win32') {
         try {
           chmodSync(path, 0o600)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       descriptor = openSync(temporary, 'wx', 0o600)
@@ -183,7 +189,8 @@ export const plainTextStorage: SecureStorage = {
       if (descriptor !== null) {
         try {
           closeSync(descriptor)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       discard()

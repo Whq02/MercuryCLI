@@ -52,6 +52,7 @@ interface TreeSitterModule {
 
 
 import { GRAMMAR_REGISTRY, type GrammarRegistryEntry } from './grammarRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type PolyglotLanguage = GrammarRegistryEntry
 
@@ -147,7 +148,8 @@ function bustLoaderCache(dir: string): void {
     const req = createRequire(target)
     const resolved = req.resolve(target)
     if (req.cache && resolved in req.cache) delete req.cache[resolved]
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -207,7 +209,8 @@ export function loadGrammarEngine(): Promise<LoadedEngine | EngineUnavailable> {
       resetParser() {
         try {
           parser.delete()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         parser = new mod.Parser()
       },
@@ -387,7 +390,8 @@ async function warmSharedRuntime(engine: LoadedEngine): Promise<void> {
     engine.parser.setLanguage(language)
     engine.parser.parse(SHARED_RUNTIME_WARMUP)?.delete()
     logForDebugging(`grammar engine: shared runtime warmed with ${free.name} before the first held parse`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

@@ -19,6 +19,7 @@ import {
   jevWireFailureKindForStatus,
 } from './jevContract.js'
 import { isRecord } from '../../utils/isRecord.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 declare const MACRO: { VERSION: string }
 
@@ -139,7 +140,8 @@ export function decodeJevResponse(body: unknown, questions: Record<string, JevQu
 function parseJson(text: string): unknown {
   try {
     return JSON.parse(text) as unknown
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -12,6 +12,7 @@ import { runningBuildTree } from '../../../utils/artifactIdentity.js'
 import { processMainOwner } from '../../run/resolveOwner.js'
 import { isDeadThinkingPlaceholder } from './deadThinkingPlaceholder.js'
 import { PREFIX_LEDGER_FILE, prefixLedgerPath } from './prefixRecordStore.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface WirePrefixParts {
   system: unknown
@@ -325,7 +326,8 @@ export function recordedBuildFor(owner: string): { recorded: boolean; build: str
 function ownsSessionRecord(owner: string): boolean {
   try {
     return owner === String(processMainOwner())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -401,7 +403,8 @@ function transcriptStamp(): string | null {
   try {
     const path = getTranscriptPath()
     return existsSync(path) ? path : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

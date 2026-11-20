@@ -1,4 +1,5 @@
 import { getSettingsForSource, updateSettingsForSource } from '../utils/settings/settings.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type BlockMatch = { by: 'operator' | 'policy'; entry: string } | null
 
@@ -17,7 +18,8 @@ export function hostOf(text: string): string | null {
   try {
     const url = new URL(text)
     return url.hostname ? url.hostname.toLowerCase() : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

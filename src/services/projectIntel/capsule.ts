@@ -7,6 +7,7 @@ import { loadTs, resolveStructureTypescript } from '../structure/tsFacility.js'
 import { getProjectSnapshot } from './snapshot.js'
 import { projectIntelEnabled, type SnapshotGeneration, type SnapshotRead } from './contracts.js'
 import { lookupTokens } from '../../mneme/mnemeLookup.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type CapsuleRole =
   | 'primary edit'
@@ -79,7 +80,8 @@ function existsFile(workspace: string, rel: string): boolean {
     const root = realpathSync(workspace)
     const target = realpathSync(resolve(workspace, rel))
     return target.startsWith(root + '/') && statSync(target).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -93,7 +95,7 @@ export function collectCodeFiles(workspace: string): { files: string[]; capped: 
   const walk = (rel: string, depth: number): void => {
     if (depth > 5 || capped) return
     let entries
-    try { entries = readdirSync(join(workspace, rel), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)) } catch { return }
+    try { entries = readdirSync(join(workspace, rel), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name)) } catch (error) { passedOver(error); return }
     for (const entry of entries) {
       if (capped) return
       if (entry.name.startsWith('.') && entry.name !== '.github') continue
@@ -131,7 +133,7 @@ function resolveSpecifier(workspace: string, spec: string, from = ''): string | 
         }
         if (options?.baseUrl) bases.push(relative(workspace, resolve(base, spec)))
         break
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
   }
   for (const base of bases) {
@@ -186,7 +188,7 @@ export function pathTokens(task: string, workspace: string): string[] {
               if (name && ts.isIdentifier(name) && symbols.has(name.text)) definitions.set(name.text, [...(definitions.get(name.text) ?? []), file])
             }
           }
-        } catch {}
+        } catch (error) { passedOver(error) }
       }
       for (const matches of definitions.values()) if (!scan.capped && matches.length === 1) seen.add(matches[0]!)
     }
@@ -198,7 +200,8 @@ export function importNeighbours(workspace: string, rel: string): string[] {
   let head = ''
   try {
     head = readFileSync(join(workspace, rel), 'utf8').split('\n').slice(0, IMPORT_SCAN_LINES).join('\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out = new Set<string>()

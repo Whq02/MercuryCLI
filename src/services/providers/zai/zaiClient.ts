@@ -18,6 +18,7 @@ import {
   type RequestWaitV1,
   type StreamIdleWatchdog,
 } from '../streamIdleBudget.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const ZAI_CHAT_COMPLETIONS_URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 const ZAI_API_BASE_URL = 'https://api.z.ai/api/paas/v4'
@@ -361,7 +362,7 @@ export async function* streamZaiChat(options: ZaiStreamOptions): AsyncGenerator<
                   retryable: true,
                 },
         }
-        void reader.cancel().catch(() => {})
+        void reader.cancel().catch(passedOver)
         return
       }
       const results = chunk.done

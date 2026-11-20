@@ -12,6 +12,7 @@ import { logForDebugging } from './debug.js'
 import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { conversationEditKey, settleWireEdits, type WireEdit } from './messages/wireEdits.js'
+import { passedOver } from './passedOver.js'
 
 
 export class ImageResizeError extends Error {
@@ -72,7 +73,8 @@ async function engineModel(): Promise<string | undefined> {
   try {
     const { getEngineModel } = await import('./model/model.js')
     return getEngineModel()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -159,7 +161,8 @@ export function detectImageFormatFromBuffer(buffer: Buffer): DetectedFormat {
 export function detectImageFormatFromBase64(base64: string): DetectedFormat {
   try {
     return detectImageFormatFromBuffer(Buffer.from(base64, 'base64'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'image/png'
   }
 }
@@ -220,7 +223,8 @@ async function readDimensions(sharp: SharpFunction, buffer: Buffer): Promise<{ w
   try {
     const metadata = await sharp(buffer).metadata()
     if (metadata.width && metadata.height) return { width: metadata.width, height: metadata.height }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const header = imageDimensionsFromHeader(buffer)
   return header === null ? null : { width: header.width, height: header.height }
@@ -362,7 +366,8 @@ export async function clampToolResultImageBlocks(
       parts[index] = resized.block
       const note = resized.dimensions === undefined ? null : createImageMetadataText(resized.dimensions, undefined, { index: ordinal, count })
       if (note !== null) notes.push(note)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   for (const text of notes) parts.push({ type: 'text', text })

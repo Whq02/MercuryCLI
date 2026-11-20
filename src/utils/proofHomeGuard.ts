@@ -2,6 +2,7 @@ import { lstatSync, readlinkSync, realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from './passedOver.js'
 
 export function proofProcessName(): string | undefined {
   const marked = flagEnv('MERCURY_PROOF')?.trim()
@@ -31,7 +32,7 @@ function canonicalPath(path: string): string {
   } catch {
     try {
       if (lstatSync(resolved).isSymbolicLink()) return canonicalPath(resolve(dirname(resolved), readlinkSync(resolved)))
-    } catch {}
+    } catch (error) { passedOver(error) }
     const parent = dirname(resolved)
     return parent === resolved ? resolved : join(canonicalPath(parent), basename(resolved))
   }

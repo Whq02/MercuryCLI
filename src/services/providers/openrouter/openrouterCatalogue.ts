@@ -21,6 +21,7 @@ import {
   resolveOpenrouterRequestAuth,
   type OpenrouterKeySource,
 } from './openrouterAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -329,7 +330,7 @@ export function getOpenrouterAvailability(
     return { state: 'disabled', why: 'traffic-off', reason: verdict.reason }
   }
   if (!snapshot) {
-    void refreshOpenrouterCatalogue(keySource).catch(() => {})
+    void refreshOpenrouterCatalogue(keySource).catch(passedOver)
     return {
       state: 'disabled',
       why: 'catalogue-pending',
@@ -337,7 +338,7 @@ export function getOpenrouterAvailability(
     }
   }
   if (snapshot.models.length === 0 && snapshot.lastError) {
-    void refreshOpenrouterCatalogue(keySource).catch(() => {})
+    void refreshOpenrouterCatalogue(keySource).catch(passedOver)
     if (/refused the credential/.test(snapshot.lastError)) {
       return {
         state: 'disabled',

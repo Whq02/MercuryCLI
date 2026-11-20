@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from 'node:child_process'
 import { hostname } from 'node:os'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const MERCURY_TENSORFOLD_SERVICE_TYPE = '_mercury-tf._tcp'
 
@@ -65,7 +66,8 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   let child: ChildProcess
   try {
     child = spawnImpl(command.file, command.args, { env: subprocessEnv(), stdio: ['ignore', 'ignore', 'ignore'], windowsHide: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
   child.on('error', () => {})
@@ -84,11 +86,13 @@ export function startAnnouncer(announcement: Announcement, io: AnnouncerIo = {})
   const stopOnExit = (): void => {
     try {
       child.kill('SIGTERM')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     try {
       leash?.kill('SIGTERM')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   process.once('exit', stopOnExit)
@@ -150,7 +154,8 @@ function runFor(file: string, args: string[], ms: number, spawnImpl: typeof spaw
     const timer = setTimeout(() => {
       try {
         child.kill('SIGTERM')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }, ms)
     child.on('exit', () => {

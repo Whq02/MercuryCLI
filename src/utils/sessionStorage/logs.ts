@@ -54,6 +54,7 @@ import { readSessionLabelFacts, sessionFiles, sessionPromptFromWindow, type Inde
 import { transcriptRows } from './rowGraph.js'
 import type { SessionMetaFields } from './sessionMeta.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
+import { passedOver } from '../passedOver.js'
 
 export async function loadTranscriptFromFile(
   filePath: string,
@@ -526,7 +527,8 @@ async function listingTruth(projectsDir: string, projectDirs: string[]): Promise
       }
     })
     return `${root.mtimeMs}|${stamps.join('|')}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -672,7 +674,8 @@ export async function getAgentTranscript(agentId: AgentId): Promise<{
       messages: chain.map(({ isSidechain, parentUuid, ...msg }) => msg),
       contentReplacements: agentContentReplacements.get(agentId) ?? [],
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -694,7 +697,8 @@ async function subagentMessages(agentId: string): Promise<Message[] | null> {
   try {
     const transcript = await getAgentTranscript(asAgentId(agentId))
     return transcript && transcript.messages.length > 0 ? transcript.messages : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -717,7 +721,8 @@ export async function loadAllSubagentTranscriptsFromDisk(): Promise<{
   let entries: Dirent[]
   try {
     entries = await readdir(subagentsDir, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
   const agentIds = entries.flatMap(entry => {
@@ -748,7 +753,8 @@ export async function findUnresolvedToolUse(
     const rows = [...messages.values()]
     if (rows.some(answersIt)) return null
     return (rows.findLast(callsIt) as AssistantMessage | undefined) ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

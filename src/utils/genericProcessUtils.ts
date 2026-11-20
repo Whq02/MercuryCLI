@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 
 import { execFileNoThrow } from './execFileNoThrow.js'
+import { passedOver } from './passedOver.js'
 
 
 export function isProcessRunning(pid: number): boolean {
@@ -22,7 +23,8 @@ export function procStartToken(pid: number): string | undefined {
     const tail = stat.slice(closeParen + 2).split(' ')
     const token = tail[19]
     return token && token.length > 0 ? token : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -47,6 +47,7 @@ import { roughTokenCountEstimation } from '../services/tokenEstimation.js'
 import { forgetHiddenCharacters, recordHiddenCharacters } from '../utils/text/hiddenCharacterFindings.js'
 import { baseDirLine } from './baseDirLine.js'
 import { checkHasTrustDialogAccepted } from '../utils/config/trust.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export type LoadedFrom =
   | 'skills'
@@ -479,7 +480,8 @@ async function loadAllSkillsUncached(cwd: string): Promise<Command[]> {
     ordered.map(async skill => {
       try {
         return await fsPromises.realpath(skill.filePath)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     }),
@@ -590,7 +592,8 @@ function dynamicSkillsRefused(): boolean {
 async function mtimeOf(filePath: string): Promise<number | null> {
   try {
     return (await fsPromises.stat(filePath)).mtimeMs
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

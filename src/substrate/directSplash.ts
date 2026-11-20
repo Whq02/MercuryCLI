@@ -5,6 +5,7 @@ import { constants as osConstants } from 'node:os'
 import { join } from 'node:path'
 import { runningBundlePayloadDir } from '../services/privateChannel/vendoredRuntime.js'
 import { flagEnv, setFlagEnv, stampFlagOnEnv } from './flagRegistry.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const SPLASH_EXIT = {
   HANDOFF_HELD: 0,
@@ -144,7 +145,8 @@ export function runDirectSplash(opts: { home: string | null }): DirectSplashRun 
   const verdict = applySplashExit(exitCode, process.env, bytes => {
     try {
       process.stdout.write(bytes)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   })
   return { verdict, asset, exitCode }

@@ -15,6 +15,7 @@ import {
   fingerprintCacheablePrefix,
   type PrefixFingerprint,
 } from './prefixFingerprint.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const CACHE_TTL_1HOUR_MS = 60 * 60 * 1000
@@ -498,7 +499,8 @@ function writeDiff(previous: string, current: string): string | undefined {
     const patch = createTwoFilesPatch('prompt-state', 'prompt-state', previous, current, 'before', 'after')
     writeFileSync(path, patch)
     return path
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

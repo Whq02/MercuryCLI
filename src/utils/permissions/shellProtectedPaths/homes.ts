@@ -5,6 +5,7 @@ import { logForDebugging } from '../../debug.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../../envUtils.js'
 import { type ReadWorld, type ShellRead, UNREAD_PART, readShellCommands, wordKnown } from '../../wards/wardsShellRead.js'
 import { mercurySecretPath, protectedPathForms, spelling } from './paths.js'
+import { passedOver } from '../../passedOver.js'
 
 export const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
 export const CONVENTIONAL_USER_HOME = '(?:\\/(?:users|home)\\/[^/]+|\\/root|[a-z]:\\/users\\/[^/]+)'
@@ -89,7 +90,8 @@ export function wildcardSource(pattern: string): string {
 export function secretsHeld(home: string): string[] {
   try {
     return readdirSync(home).filter(name => mercurySecretPath(`${home}/${name}`, home) !== null).map(name => name.toLowerCase())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

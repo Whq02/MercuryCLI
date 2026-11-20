@@ -8,6 +8,7 @@ import {
   isAnthropicAuthEnabled,
   isClaudeAISubscriber,
 } from '../utils/auth.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export type VerificationStatus = 'loading' | 'valid' | 'invalid' | 'missing' | 'error'
 
@@ -41,7 +42,7 @@ const faulted = (thrown: unknown): Verdict => ({
 
 async function resolvedVerdict(opts?: { probe?: boolean }): Promise<Verdict> {
   const nonInteractive = getIsNonInteractiveSession()
-  await getApiKeyFromApiKeyHelper(nonInteractive).catch(() => null)
+  await getApiKeyFromApiKeyHelper(nonInteractive).catch(passedOverAs(null))
   let resolved: ReturnType<typeof getAnthropicApiKeyWithSource>
   try {
     resolved = getAnthropicApiKeyWithSource()
@@ -63,7 +64,8 @@ export function useApiKeyVerification(): {
     if (bypassed()) return 'valid'
     try {
       return statusOnFile()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 'missing'
     }
   })

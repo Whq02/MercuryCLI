@@ -4,6 +4,7 @@ import { daemonHomeStands, publishInDaemonHome } from '../daemonHome.js'
 import { daemonDir } from '../controlSocket.js'
 import type { WorkspaceIsolation } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface CollisionEvidenceV1 {
   schema: 1
@@ -34,7 +35,8 @@ export function readCollisionEvidence(dir?: string): CollisionEvidenceV1[] {
     const raw = JSON.parse(readFileSync(concourseCollisionsPath(dir), 'utf8')) as CollisionFileV1
     if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
     return raw.rows
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

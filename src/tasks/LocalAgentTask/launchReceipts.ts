@@ -20,6 +20,7 @@ import { PANEL_GRACE_MS } from '../../utils/task/framework.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 import { isRestartCarryText, RESTART_CARRY_ROW_PREFIX } from '../../input-core/command-queue.js'
 import { AGENT_STOP_BY_OPERATOR, agentStopReasonOf, enqueueAgentNotification, type LocalAgentTaskState } from './LocalAgentTask.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const BACKGROUND_LAUNCH_LINE = 'Crewmate launched in the background.'
 
@@ -347,7 +348,8 @@ function queueLogRowOf(line: string): QueueLogRow | null {
   let row: QueueOperationLine
   try {
     row = JSON.parse(line) as QueueOperationLine
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const fields: Record<string, unknown> | undefined =

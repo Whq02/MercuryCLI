@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from '../voice/voicePack.js'
 import type { DesktopFocusedText, DesktopTreeElement } from './driver.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const DESKTOP_PACK_SEGMENTS = ['vendor', 'desktop'] as const
 export const DESKTOP_PACK_PATH = 'vendor/desktop'
@@ -53,7 +54,8 @@ export function readDesktopPackManifest(dir: string): DesktopPackManifest | null
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(dir, DESKTOP_PACK_MANIFEST_FILE), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof raw !== 'object' || raw === null) return null

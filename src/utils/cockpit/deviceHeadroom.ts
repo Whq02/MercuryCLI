@@ -2,6 +2,7 @@ import { execFile } from 'node:child_process'
 import { subprocessEnv } from '../subprocessEnv.js'
 import { readFileSync } from 'node:fs'
 import { freemem } from 'node:os'
+import { passedOver } from '../passedOver.js'
 
 type Headroom = {
   availableB: number
@@ -48,7 +49,8 @@ export async function deviceHeadroom(): Promise<Headroom> {
       const available = parseMemAvailable(readFileSync('/proc/meminfo', 'utf8'))
       if (available !== null) value = { availableB: available, source: 'meminfo' }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   cached = { at: Date.now(), value }
   return value

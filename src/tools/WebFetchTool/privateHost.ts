@@ -2,6 +2,7 @@ import { BlockList, isIP } from 'node:net'
 import { lookup } from 'node:dns/promises'
 import type { LookupAddress } from 'node:dns'
 import { FetchRefusedError } from './fetchErrors.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const PRIVATE_NAME_SUFFIXES = /(?:^|\.)(?:localhost|local|internal|intranet|private|corp|home|lan|test|example|invalid|onion|arpa|localdomain)$/
 
@@ -48,5 +49,5 @@ export function metadataRefusal(url: string): string | null {
   try {
     const host = new URL(url).hostname
     return metadataHost(host) ? 'Cloud metadata destination ' + host + ' is refused in every permission mode.' : null
-  } catch { return null }
+  } catch (error) { passedOver(error); return null }
 }

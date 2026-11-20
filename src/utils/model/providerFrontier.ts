@@ -9,6 +9,7 @@ import { keyLanePins } from './modelOptions.js'
 import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/moonshotCatalogue.js'
 import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { zaiCatalogueSourceWords } from '../../services/providers/zai/zaiCatalogue.js'
+import { passedOver } from '../passedOver.js'
 
 export interface ProviderFrontierFact {
   modelId: string
@@ -117,7 +118,8 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         return row ? { modelId: row.value, displayName: row.label } : undefined
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -187,7 +189,8 @@ export function providerLightFact(route: CallModelRoute): ProviderFrontierFact |
       default:
         return undefined
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

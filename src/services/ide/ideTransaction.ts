@@ -8,6 +8,7 @@ import { projectHomeStore } from '../../utils/projectHomeStores.js'
 import type { OwnerKey } from '../run/ownerKey.js'
 import { workspaceVerifiable } from '../../utils/verification/verificationState.js'
 import { findPythonProjectRoot } from './pythonProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function ideLoopEnabled(): boolean {
   return flagEnabled('MERCURY_IDE_LOOP')
@@ -164,7 +165,8 @@ function readRecordFile(dir: string, file: string, root: string): TxRecord | nul
     const record = decodeRecord(JSON.parse(readFileSync(path.join(dir, file), 'utf8')))
     if (record !== null && record.projectRoot === '') record.projectRoot = root
     return record
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -175,7 +177,8 @@ export function getTransaction(id: string, from?: string): TxRecord | null {
   try {
     const root = resolveRoot(from)
     return readRecordFile(storeDir(root), `${id}.json`, root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -184,7 +187,8 @@ export function latestTransaction(from?: string): TxRecord | null {
   try {
     const root = resolveRoot(from)
     return readRecordFile(storeDir(root), POINTER_FILE, root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -208,7 +212,8 @@ export function listTransactions(from?: string): TxListRow[] {
     }
     rows.sort((a, b) => b.openedAt - a.openedAt)
     return rows.slice(0, LIST_MAX)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -220,7 +225,8 @@ export function openTransactionIdFor(from?: string): string | null {
   let root: string
   try {
     root = resolveRoot(from)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const seeded = openIndex.get(root)

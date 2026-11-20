@@ -9,6 +9,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { shouldHonorNoColor, truecolorFingerprint } from '../../ink/colorize.js'
 import { parseOscColor } from '../../ink/termio/osc.js'
 import { isEnvTruthy } from '../envUtils.js'
+import { passedOver } from '../passedOver.js'
 
 function concreteTheme(): ThemeName {
   try {
@@ -144,7 +145,8 @@ export function exitOasisBg(write?: (s: string) => void): void {
       try {
         if (process.stdout.isTTY) writeSync(1, s)
         else if (process.stderr.isTTY) writeSync(2, s)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })
   if (painted) {

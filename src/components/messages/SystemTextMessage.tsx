@@ -27,6 +27,7 @@ import { ResumeRecapCard } from './ResumeRecapCard.js'
 import { SystemAPIErrorMessage } from './SystemAPIErrorMessage.js'
 import { UserNoticeMessage } from './UserNoticeMessage.js'
 import { useSelectedMessageBg } from '../messageActions.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function TurnDurationRow({
   message,
@@ -44,7 +45,8 @@ function TurnDurationRow({
     try {
       const tasks = Object.values(store.getState().tasks ?? {})
       return tasks.filter(task => isManageableTask(task)).length
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 0
     }
   })

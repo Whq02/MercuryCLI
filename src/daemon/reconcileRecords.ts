@@ -12,6 +12,7 @@ import {
 } from './controlSocket.js'
 import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from './ownerWatch.js'
 import { daemonRecordIdentity } from './verbs.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 interface DaemonRecordsReconcile {
   state: 'live' | 'clean' | 'reconciled'
@@ -51,7 +52,7 @@ export async function reconcileDaemonRecords(opts?: {
   const keyExists = existsSync(keyPath)
 
   if (supExists || lockExists || keyExists) {
-    const pong = await daemonControlRpc({ op: 'ping' }, { timeoutMs: 900 }).catch(() => null)
+    const pong = await daemonControlRpc({ op: 'ping' }, { timeoutMs: 900 }).catch(passedOverAs(null))
     if (pong && pong.ok === true) {
       return { state: 'live', cleaned: [], reason: 'control socket answered ping' }
     }
@@ -66,7 +67,8 @@ export async function reconcileDaemonRecords(opts?: {
     try {
       await unlink(path)
       cleaned.push(name)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   if (supExists) await rm(supPath, 'daemon.json')

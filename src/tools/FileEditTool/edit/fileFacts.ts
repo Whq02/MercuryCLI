@@ -12,6 +12,7 @@ import { readFileInRange } from '../../../utils/readFileInRange.js'
 import type { FileState } from '../../../utils/fileStateCache.js'
 import { MAX_LINES_TO_READ } from '../../FileReadTool/prompt.js'
 import type { FileEditInput, FileEditOutput } from '../types.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const ONE_GIB = 1024 * 1024 * 1024
 
@@ -74,7 +75,8 @@ export async function staleAtValidation(
       signal,
     )
     return window.content !== entry.content
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
 }
@@ -89,7 +91,7 @@ export async function discoverSkillsForPath(context: ToolUseContext, filePath: s
     const fresh = dirs.filter(dir => !context.dynamicSkillDirTriggers?.has(dir))
     for (const dir of fresh) context.dynamicSkillDirTriggers?.add(dir)
     if (fresh.length > 0) {
-      void Promise.resolve(addSkillDirectories(fresh)).catch(() => undefined)
+      void Promise.resolve(addSkillDirectories(fresh)).catch(passedOverAs(undefined))
     }
     activateConditionalSkillsForPaths([filePath], getCwd())
   } catch (err) {
@@ -131,7 +133,8 @@ export function attemptStaleHunkRecovery(
 ): { hunks: EditHunkInput[]; freshAnchor: string; note: string } | null {
   try {
     return relocateStaleHunksFromRing(ownerFromToolUseContext(context), staleAnchor, currentBody, hunks, displayPath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

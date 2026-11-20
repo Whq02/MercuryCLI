@@ -1,6 +1,7 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { isProcessAlive, decideOrphanShutdown } from './ownerWatch.js'
 import { runCleanupFunctions } from '../utils/cleanupRegistry.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export const WORKER_PARENT_PID_ENV = 'MERCURY_WORKER_PARENT_PID'
 
@@ -25,12 +26,13 @@ async function orphanExit(opts: {
   let cap: ReturnType<typeof setTimeout> | undefined
   try {
     await Promise.race([
-      opts.cleanup().catch(() => undefined),
+      opts.cleanup().catch(passedOverAs(undefined)),
       new Promise<void>(resolve => {
         cap = setTimeout(resolve, capMs)
       }),
     ])
-  } catch {
+  } catch (error) {
+    passedOver(error)
   } finally {
     if (cap) clearTimeout(cap)
   }

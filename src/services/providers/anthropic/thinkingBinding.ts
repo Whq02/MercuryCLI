@@ -23,6 +23,7 @@ import { PUBLIC_HOME_SLUG } from '../../privateChannel/channelCore.js'
 import { DEAD_THINKING_PLACEHOLDER } from './deadThinkingPlaceholder.js'
 import { forgetPersistedDropState, persistedDropState, rememberDropState, withoutCacheControl } from './prefixLedger.js'
 import type { RequestContextPlan } from '../../run/requestContextPlan.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type PrefixMismatchBehavior = 'drop_block' | 'error'
 
@@ -787,7 +788,8 @@ export function forgetThinkingDropLedger(): boolean {
   try {
     unlinkSync(thinkingDropLedgerPath())
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -799,7 +801,8 @@ export function readThinkingDropLedger(): ThinkingDropLedger | null {
     const last = (parsed as { last?: unknown }).last
     if (typeof last !== 'object' || last === null) return null
     return parsed as ThinkingDropLedger
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

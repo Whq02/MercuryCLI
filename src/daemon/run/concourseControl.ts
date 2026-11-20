@@ -10,6 +10,7 @@ import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from '../saturn.js'
 import { applyConcourseContractOp } from '../sessionContract.js'
 import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, backgroundSessionShell, sendSessionNow, pauseSessionGate, postSessionBoard, leaveSession } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 type ConcourseControlDoor = NonNullable<ControlServerDeps['concourseControl']>
 
@@ -188,7 +189,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       if (door === undefined) return settle({ outcome: 'refused' as const, detail: 'worker has no live runner door' })
       if (door.closed) return settle({ outcome: 'refused' as const, detail: 'the interrupt did not reach the runner: its door is closed' })
       const sent = door.send('turn/interrupt', { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
-      sent.answer.catch(() => undefined)
+      sent.answer.catch(passedOverAs(undefined))
       dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)
       return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` })
     }
@@ -225,7 +226,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       return leaveSession(sessionId, roster)
     }
     if (action === 'stop') {
-      roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(() => {})
+      roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(passedOver)
       const out = stopConcourseSession(sessionId, by, roster ?? undefined)
       if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')
       return out.outcome === 'refused'
@@ -266,7 +267,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
           '[switchboard notice] The crewmates-allowed tag just landed on this session — crewmates are available from your next turn. Automated notice; no reply needed.',
         )
           .then(row => r.reply(rec.runnerId, row))
-          .catch(() => {})
+          .catch(passedOver)
       }
       return out.outcome === 'applied'
         ? { outcome: 'applied' as const, detail: `${action} ${rec.runnerId}` }

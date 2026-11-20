@@ -3,6 +3,7 @@ import { homedir } from 'node:os'
 import { dirname, isAbsolute, join, parse } from 'node:path'
 import picomatch from 'picomatch'
 import { authorityText, parseRemotePath } from './target.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const INCLUDE_DEPTH = 16
 
@@ -40,7 +41,8 @@ function isHostName(name: string): boolean {
   if (name === '' || name.startsWith('!') || /[*?]/.test(name)) return false
   try {
     return parseRemotePath(`ssh://${authorityText({ host: name })}/`)?.authority.host === name
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -62,7 +64,8 @@ function includedFiles(pattern: string, base: string): string[] {
       let names: string[]
       try {
         names = readdirSync(folder)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       for (const name of names.sort()) if (matches(name)) next.push(join(folder, name))
@@ -83,7 +86,8 @@ export function remoteHostNames(mayRead: (file: string) => boolean): string[] {
     try {
       if (!statSync(file).isFile()) return
       text = readFileSync(file, 'utf8')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const line of text.split(/\r?\n/)) {

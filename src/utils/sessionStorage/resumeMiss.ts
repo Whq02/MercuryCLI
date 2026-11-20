@@ -2,6 +2,7 @@ import { dirname } from 'node:path'
 import { getOriginalCwd } from '../../bootstrap/state.js'
 import { enrichSessionListings, listSessionsAcrossProjectsProgressive } from './logs.js'
 import { getProjectDir } from './paths.js'
+import { passedOver } from '../passedOver.js'
 
 export async function resumeMissMessage(sessionId: string): Promise<string> {
   try {
@@ -13,6 +14,6 @@ export async function resumeMissMessage(sessionId: string): Promise<string> {
       const folder = logs[0]?.projectPath
       if (folder) return `Session ${sessionId} belongs to ${folder}. Resume it from that folder.`
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   return `No conversation found for session id ${sessionId}`
 }

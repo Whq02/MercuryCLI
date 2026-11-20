@@ -14,6 +14,7 @@ import {
 } from './seatBridge.js'
 import { isRecord } from '../../utils/isRecord.js'
 import type { CrewConversationId } from './conversations.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const DELIVERY_STATES = ['delivered', 'not-delivered', 'delivery-unknown'] as const
 export type DeliveryState = (typeof DELIVERY_STATES)[number]
@@ -360,7 +361,8 @@ async function runDispatchTransaction(
         let sessionId = 'unknown-session'
         try {
           sessionId = String(getSessionId())
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         await obligations.upsertObligation({
           ref,
@@ -373,7 +375,8 @@ async function runDispatchTransaction(
           ...(dir !== undefined ? { dir } : {}),
         })
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return receipt

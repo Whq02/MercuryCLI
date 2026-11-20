@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'n
 import * as path from 'node:path'
 import { blenderBridgeTokenOverride } from '../../utils/blender/bridgeGates.js'
 import { BLENDER_ADDON_MODULE } from './addonHome.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function blenderBridgeTokenPath(addonHome: string): string {
   return path.join(addonHome, BLENDER_ADDON_MODULE, 'token')
@@ -30,7 +31,8 @@ export function readBlenderBridgeToken(addonHome: string): string | undefined {
   try {
     const existing = readFileSync(blenderBridgeTokenPath(addonHome), 'utf8').trim()
     return /^[0-9a-f]{64}$/.test(existing) ? existing : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

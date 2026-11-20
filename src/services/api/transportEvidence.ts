@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 interface DeepErrorDetail {
   name: string
@@ -95,12 +96,14 @@ export function recordTransportFailure(err: unknown, url?: string): void {
       try {
         const u = new URL(url)
         target = `${u.host}${u.pathname}`
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     ring.push({ ...deep, ts: Date.now(), ...(target ? { target } : {}) })
     if (ring.length > RING_MAX) ring.splice(0, ring.length - RING_MAX)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

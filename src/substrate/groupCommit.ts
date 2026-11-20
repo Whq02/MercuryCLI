@@ -1,3 +1,5 @@
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
+
 interface Entry<T> {
   apply: (current: T) => Promise<{ next: T; result: unknown }>
   resolve: (value: unknown) => void
@@ -54,7 +56,8 @@ export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): Gr
       if (release) {
         try {
           await release()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }
@@ -77,7 +80,7 @@ export function groupCommitLane<T, C = void>(opts: GroupCommitOptions<T, C>): Gr
         const op = chain.then(drain, drain)
         chain = op.then(
           () => undefined,
-          () => undefined,
+          passedOverAs(undefined),
         )
       }),
   }

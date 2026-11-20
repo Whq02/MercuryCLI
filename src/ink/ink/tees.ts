@@ -3,6 +3,7 @@ import { type Screen, charInCellAt } from '../cell-grid.js'
 import type { DOMElement } from '../dom.js'
 import type { Frame, Patch } from '../frame.js'
 import type Ink from '../ink.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const TREE_DUMP_PATH = process.env.INK_TREE_DUMP
 
@@ -23,7 +24,8 @@ const TREE_DUMP_NODE_BUDGET = 700
 export function safeAppend(path: string, line: string): void {
   try {
     appendFileSync(path, line)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -85,7 +87,8 @@ export function teeCommitGeometry(this: Pick<Ink, 'rootNode'>, layoutMs: number)
       }
     }
     safeAppend(COMMIT_TEE_PATH!, `${JSON.stringify(record)}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -131,7 +134,8 @@ export function teeBeforeDiff(base: Frame, next: Frame): void {
         nextDamage: next.screen.damage ?? null,
       })}\n`,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -156,7 +160,8 @@ export function teeAfterDiff(patches: Patch[]): void {
         kinds: [...kinds],
       })}\n`,
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -205,6 +210,7 @@ export function dumpTree(this: Pick<Ink, 'rootNode' | 'treeDumpBudget'>, reason:
     }
     visit(this.rootNode, 0)
     safeAppend(COMPOSED_TEE_PATH ?? TREE_DUMP_PATH, `${lines.join('\n')}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

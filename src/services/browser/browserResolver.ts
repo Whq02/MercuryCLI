@@ -8,6 +8,7 @@ import { getMercuryHome } from '../../utils/envUtils.js'
 import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
 
@@ -140,7 +141,8 @@ function findChromeExecutable(cacheRoot: string, entryName: string, dir: string)
           platform,
         })
         if (existsSync(derived)) return derived
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -169,7 +171,8 @@ export function dirSizeBytes(dir: string): number {
     let entries
     try {
       entries = readdirSync(cur, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const e of entries) {
@@ -178,7 +181,8 @@ export function dirSizeBytes(dir: string): number {
       else if (e.isFile()) {
         try {
           total += statSync(p).size
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }
@@ -296,7 +300,8 @@ export function browserVersionOf(executablePath: string): string | null {
   try {
     const out = execFileSync(executablePath, ['--version'], { windowsHide: true, encoding: 'utf8', timeout: 5000, env: { ...subprocessEnv() } })
     return out.trim() || null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

@@ -6,6 +6,7 @@ import { getErrnoCode } from './errors.js'
 import { slowLogging } from './slowOperations.js'
 import { uncPathRisk } from './permissions/uncPath.js'
 import { getPlatform } from './platform.js'
+import { passedOver } from './passedOver.js'
 
 
 export interface FsOperations {
@@ -229,7 +230,8 @@ function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: 
         try {
           const link = fsImpl.readlinkSync(current)
           target = isAbsolute(link) ? link : resolve(dirname(current), link)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return undefined
         }
       }
@@ -239,7 +241,8 @@ function resolveDeepestExistingAncestorSync(fsImpl: FsOperations, absolutePath: 
       const real = fsImpl.realpathSync(current)
       if (real === current) return undefined
       return tail.length > 0 ? join(real, ...tail) : real
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }
@@ -291,7 +294,8 @@ export function getPathsForPermissionCheck(inputPath: string, baseDir?: string):
     }
     const { resolvedPath, isSymlink } = safeResolvePath(fsImpl, path)
     if (isSymlink && resolvedPath !== path) results.add(resolvedPath)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return [...results]
 }

@@ -1,4 +1,5 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
+import { passedOver } from './passedOver.js'
 
 
 type PrivacyLevel = 'default' | 'essential-traffic'
@@ -18,7 +19,8 @@ export function isLoopbackUrl(url: string): boolean {
   try {
     const host = new URL(url).hostname.replace(/^\[|\]$/g, '')
     return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host.startsWith('127.')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -3,6 +3,7 @@ import { stripTerminalControls } from '../stringUtils.js'
 import { WORKLOAD_CRON, type Workload } from '../workloadContext.js'
 import { ADVISOR_NOTE_HEAD, ADVISOR_NOTE_TAIL } from './text.js'
 import { outsideReportHeading, type OutsideReportOrigin } from './outsideReport.js'
+import { passedOver } from '../passedOver.js'
 
 export type SaturnOrigin = {
   kind: 'saturn'
@@ -243,7 +244,7 @@ export function noticeOfText(text: string, fromNotificationLane: boolean): Notic
     try {
       const value = JSON.parse(board[1]!)
       if (typeof value.name === 'string' && typeof value.kind === 'string' && typeof value.text === 'string') return [{ kind: 'crew-board', name: stripTerminalControls(value.name), postKind: stripTerminalControls(value.kind), lines: noticeLines(value.text) }]
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   if (text.trimStart().startsWith(`<${TASK_NOTIFICATION_TAG}`)) return null
   const wrapped = wrappedNoticeBlocks(text)

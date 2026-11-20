@@ -1,6 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes, timingSafeEqual } from 'node:crypto'
 
 import type { ProtectorAnswer, SystemProtector } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 export const SEALED_FIELD = 'mercurySealed'
 
@@ -54,7 +55,8 @@ function decrypt(sealed: Parts, key: Buffer): string | null {
     decipher.setAAD(Buffer.from(sealed.head, 'utf8'))
     decipher.setAuthTag(sealed.tag)
     return Buffer.concat([decipher.update(sealed.data), decipher.final()]).toString('utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

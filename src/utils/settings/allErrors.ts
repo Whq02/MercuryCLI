@@ -1,6 +1,7 @@
 import { getMcpConfigsByScope } from '../../services/mcp/config.js'
 import { getSettingsWithErrors } from './settings.js'
 import type { SettingsWithErrors, ValidationError } from './validation.js'
+import { passedOver } from '../passedOver.js'
 
 export function getSettingsWithAllErrors(): SettingsWithErrors {
   const base = getSettingsWithErrors()
@@ -8,7 +9,8 @@ export function getSettingsWithAllErrors(): SettingsWithErrors {
   for (const scope of ['user', 'project', 'local'] as const) {
     try {
       mcpErrors.push(...(getMcpConfigsByScope(scope).errors as ValidationError[]))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return { settings: base.settings, errors: [...base.errors, ...mcpErrors] }

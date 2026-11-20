@@ -12,6 +12,7 @@ import { closeHostTunnel } from './ssh.js'
 import { hostRecords, patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { runpodOnly, vendorClient, vendorLabel } from './vendors/client.js'
 import { keptDiskPrice, readKeptVolume, writeKeptVolume } from './volumes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const HOST_IDLE_LIMIT_MS = 2 * 3600_000
 export const HOST_IDLE_POLL_MS = 5 * 60_000
@@ -25,12 +26,12 @@ export function hostEndpointLastTurnAt(record: HostRecord): number | undefined {
   try {
     const endpoint = configuredCompatEndpoints().find(row => row.hostPodId === record.id || Boolean(record.provider) && row.name === record.provider)
     return endpoint ? compatEndpointLastTurnAt(endpoint) : undefined
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }
 
 function mediaLastRequestAt(id: string): number | undefined {
   if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(id)) return undefined
-  try { const { at } = JSON.parse(readFileSync(join(getMercuryHome(), 'host', 'media', id, 'activity.json'), 'utf8')) as { at?: unknown }; return finite(at) ? at : undefined } catch { return undefined }
+  try { const { at } = JSON.parse(readFileSync(join(getMercuryHome(), 'host', 'media', id, 'activity.json'), 'utf8')) as { at?: unknown }; return finite(at) ? at : undefined } catch (error) { passedOver(error); return undefined }
 }
 
 export function hostIdleSince(record: HostRecord, lastTurnAt: (record: HostRecord) => number | undefined = hostEndpointLastTurnAt): number | undefined {
@@ -64,7 +65,7 @@ async function releaseIdleRental(record: HostRecord, verdict: HostIdleVerdict): 
   const plain = (value: unknown): string => (value instanceof Error ? value.message : String(value)).replace(/\s+/g, ' ').trim()
   hostNotice(record, 'idle', record.name + ' · ' + reason + ' · terminating ' + machine + ' · it bills ' + rate + ' until it is gone')
   const { stopHostSetup } = await import('./jobs.js')
-  await stopHostSetup(record.id).catch(() => {})
+  await stopHostSetup(record.id).catch(passedOver)
   closeHostTunnel(record.id)
   const read = hostJobReadOnly({ label: vendorLabel(vendor), pauseMs: 5000, timeoutMs: 4 * 60_000, signal: new AbortController().signal, mark: step => { patchHostRecord(record.id, { step }) } })
   try {
@@ -99,7 +100,7 @@ export async function sweepHostIdle(options: { now?: number; records?: HostRecor
     let verdict = hostIdleVerdict(current, now, timing)
     if (!verdict) continue
     if (verdict.kind === 'idle') {
-      try { await (await import('../media/host.js')).refreshMediaHostActivity(current.id) } catch { continue }
+      try { await (await import('../media/host.js')).refreshMediaHostActivity(current.id) } catch (error) { passedOver(error); continue }
       verdict = hostIdleVerdict(current, now, timing)
       if (!verdict) continue
     }

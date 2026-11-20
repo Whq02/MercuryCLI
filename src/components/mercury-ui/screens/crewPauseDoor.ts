@@ -1,5 +1,6 @@
 import type { AgentControlReceiptV1, EngineCarrierKind } from '../../../services/engine-connector/types.js'
 import type { PauseGate } from '../../../run-core/pauseGate.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type CrewPauseReach =
   | { kind: 'blank' }
@@ -22,7 +23,8 @@ function pausedOfDetail(detail: string | undefined): boolean | null {
   try {
     const parsed = JSON.parse(detail) as { paused?: unknown }
     return typeof parsed.paused === 'boolean' ? parsed.paused : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

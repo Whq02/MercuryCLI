@@ -12,6 +12,7 @@ import type { HostRecipe } from './recipes.js'
 import { hostDirectory } from './store.js'
 import { sshArguments, type HostRunner, type SshTarget } from './ssh.js'
 import { volumeModel } from './volumes.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const preferenceSchema = z.object({ folder: z.string(), bytesPerSecond: z.number().positive(), measuredAt: z.string(), source: z.enum(['reported', 'transfer']) })
 const preferencesSchema = z.record(z.string(), preferenceSchema)
@@ -115,7 +116,7 @@ export async function uploadBankForRental(recipe: HostRecipe, vendor: string, ta
   const at = Date.now()
   const mark = (): void => progress('uploading your bank to the rented machine · ' + bytesWords(source.bytes) + ' · ' + Math.floor((Date.now() - at) / 60_000) + ' min elapsed · ' + bankUploadEstimate(recipe))
   mark()
-  const timer = setInterval(() => { if (!signal.aborted) try { mark() } catch {} }, 30_000)
+  const timer = setInterval(() => { if (!signal.aborted) try { mark() } catch (error) { passedOver(error) } }, 30_000)
   try {
     await runner.run('rsync', ['-a', '--files-from=' + list, '-e', transport, '--', source.path + '/', (target.user ? target.user + '@' : '') + target.host + ':' + remote + '/'], signal, Math.max(12 * 3600_000, bankUploadBudget(recipe)))
     const elapsed = Math.max(1, Date.now() - at)

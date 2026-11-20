@@ -17,6 +17,7 @@ import { currentHostRecipes, hostRecipeOfRecord } from './recipesFile.js'
 import type { HostOffer } from './runpod.js'
 import { hostDirectory, patchHostRecord, readHostRecord, type HostRecord } from './store.js'
 import { HostTuneUnchanged, hostRunner, inspectSsh, readHostEngine, restartHostScript, sshArguments, waitHostEngine, type HostRunner } from './ssh.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const thinkingRank = ['max', 'xhigh', 'high', 'medium', 'low'] as const
 const preferenceSchema = z.object({ quality: z.string(), conversations: z.number().int().positive().nullable(), contextPerConversation: z.number().int().positive().nullable(), effort: z.enum([...thinkingRank, 'default']), updatedAt: z.string().datetime() })
@@ -47,7 +48,7 @@ export function defaultTune(recipe: HostRecipe): HostTunePreferences {
   const contextPerConversation = (recipe.contextPerSlot ?? recipe.context ?? (recipe.engine === 'llamacpp' && conversations ? Number(flag(recipe, '--ctx-size')) / conversations : Number(flag(recipe, '--context-length')))) || null
   const levels = thinkingLevels(recipe)
   let effort: HostTunePreferences['effort'] = levels[0] ?? 'default'
-  try { const stated = JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}').reasoning_effort; if (levels.includes(stated)) effort = stated } catch {}
+  try { const stated = JSON.parse(flag(recipe, '--chat-template-kwargs') ?? '{}').reasoning_effort; if (levels.includes(stated)) effort = stated } catch (error) { passedOver(error) }
   return { quality: recipe.id, conversations, contextPerConversation, effort, updatedAt: new Date().toISOString() }
 }
 
@@ -239,7 +240,7 @@ export async function reconcileHostTune(id: string, runner: HostRunner, signal: 
   const claim = typeof record.retuning === 'object' ? record.retuning : undefined
   const recipe = hostRecipeOfRecord(record)
   let engine: Awaited<ReturnType<typeof readHostEngine>> | undefined
-  try { if (record.target && recipe) engine = await readHostEngine(record.target, recipe, runner, signal) } catch {}
+  try { if (record.target && recipe) engine = await readHostEngine(record.target, recipe, runner, signal) } catch (error) { passedOver(error) }
   if (signal.aborted) return record
   if (engine?.alive && !engine.conversations) return patchHostRecord(id, { step: 'engine starting after an interrupted reload' })
   if (!engine?.conversations || !engine.contextPerConversation) return patchHostRecord(id, { retuning: undefined, tune: claim?.from ?? record.tune, step: 'engine reload interrupted', error: 'Mercury stopped during an engine reload and the engine is not answering · Tune again, or Resume setup' })

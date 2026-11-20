@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { passedOver } from '../utils/passedOver.js'
 
 interface BootAttemptResidue {
   count: number
@@ -26,7 +27,8 @@ export function readBootAttemptResidue(
     const ts = o.attempts.filter((t): t is number => typeof t === 'number')
     if (ts.length === 0) return null
     return { count: ts.length, lastTs: Math.max(...ts) }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -34,7 +36,8 @@ export function readBootAttemptResidue(
 export function clearBootAttempts(home: string = getMercuryHome()): void {
   try {
     rmSync(bootAttemptsPath(home), { force: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

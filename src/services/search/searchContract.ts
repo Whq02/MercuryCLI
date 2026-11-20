@@ -1,3 +1,5 @@
+import { passedOver } from '../../utils/passedOver.js'
+
 export type SearchTier = 'native' | 'keyed' | 'keyless'
 
 export const SEARCH_BACKEND_IDS = [
@@ -105,7 +107,8 @@ export { webUserAgent as searchUserAgent } from '../../utils/webUserAgent.js'
 function hitHost(url: string): string | undefined {
   try {
     return new URL(url).hostname.toLowerCase().replace(/^www\./, '')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

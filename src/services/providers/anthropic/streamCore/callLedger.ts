@@ -25,6 +25,7 @@ import { CannotRetryError } from '../../../api/withRetry.js'
 import { cleanupStream } from '../cacheAndUsage.js'
 import type { Options } from '../streamCore.js'
 import type { CallState, SignInRefusal } from './state.js'
+import { passedOver } from '../../../../utils/passedOver.js'
 
 export function createCallLedger(
   call: CallState,
@@ -41,7 +42,7 @@ export function createCallLedger(
     call.stream = undefined
     call.streamResponse = undefined
     cleanupStream(held.stream)
-    held.response?.body?.cancel().catch(() => {})
+    held.response?.body?.cancel().catch(passedOver)
   }
 
   const requestedWire = normalizeModelStringForAPI(options.model)

@@ -17,6 +17,7 @@ import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { Select } from '../CustomSelect/select.js'
 import { getRelativeMemoryPath } from './MemoryUpdateNotification.js'
 import { memoryFileListLayout } from './memoryCentreLayout.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 let lastSelectedPath: string | null = null
@@ -187,7 +188,8 @@ export function MemoryFileSelector({
       const dir = getMnemeHome()
       try {
         mkdirSync(dir, { recursive: true })
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       void openPath(dir)
       return

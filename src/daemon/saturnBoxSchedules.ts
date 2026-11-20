@@ -17,6 +17,7 @@ import {
   type SaturnScheduleSubmissionV1,
 } from './saturn.js'
 import { sleepSyncMs as sleepSync } from '../utils/file.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface SaturnBoxFileV1 {
   version: 1
@@ -113,14 +114,16 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
       let stale = false
       try {
         stale = Date.now() - statSync(lock).mtimeMs > BOX_LOCK_STALE_MS
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (stale || Date.now() >= deadline) {
         logForDebugging(`[saturn] box lock broken ${stale ? '(stale holder)' : '(bounded wait exhausted)'} — proceeding`)
         try {
           rmdirSync(lock)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         continue
       }
@@ -132,7 +135,8 @@ function withBoxLock<T>(dir: string | undefined, body: () => T): T {
   } finally {
     try {
       rmdirSync(lock)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

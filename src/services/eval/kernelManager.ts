@@ -36,6 +36,7 @@ import { ensureJsRunner, ensurePyRunner } from './runnerCache.js'
 import { kernelTransportFor, ProcKernel, type CellEnd, type KernelTransport } from './procKernel.js'
 import type { BridgeRequestFrame } from './protocol.js'
 import type { SampleItem } from '../samples/contracts.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const MAX_DISPLAYS_PER_CELL = 24
 
@@ -88,7 +89,8 @@ export async function recoverEvalKernels(): Promise<string[]> {
           const pid = payload.pid
           killProcessGroup({ pid, kill: signal => (process.kill(pid, signal), true) })
           reaped = true
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       notes.push(
@@ -209,7 +211,7 @@ export class EvalKernelManager {
     const next = prev.then(work, work)
     this.chains.set(
       key,
-      next.catch(() => undefined),
+      next.catch(passedOverAs(undefined)),
     )
     return next
   }
@@ -586,7 +588,7 @@ async function runCellOnceOf(
 
   const end: CellEnd = await execPromise
   watchStop = true
-  await watcher.catch(() => undefined)
+  await watcher.catch(passedOverAs(undefined))
   runtime.pause()
   wall.pause()
 

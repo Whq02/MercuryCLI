@@ -40,6 +40,7 @@ import {
 } from '../providers/providerSecrets.js'
 import { signInLedgerEpoch } from '../../utils/accounts/signInLedger.js'
 import { providerDisplayName } from '../providers/routeLaw.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type WalletProvider = 'anthropic' | 'openai' | 'openrouter' | 'gemini' | 'moonshot' | 'huggingface'
 
@@ -118,7 +119,8 @@ export function anthropicScopeEntry(
 function storedAnthropicCredential(): AnthropicCredentialFacts | undefined {
   try {
     return getSecureStorage().read()?.claudeAiOauth ?? undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -169,7 +171,8 @@ function composeWalletEntries(): WalletEntry[] {
         custodian: 'anthropic-auth',
       })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   if (subscriptionConnected()) {

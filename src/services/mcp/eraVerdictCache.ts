@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path'
 
 import { getMercuryHome } from '../../utils/envUtils.js'
 import type { ProtocolEra } from './sdk.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const ERA_VERDICT_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -25,7 +26,7 @@ function readCache(): Promise<CacheFile> {
   if (readMemo === null) {
     readMemo = readFile(eraVerdictCachePath(), 'utf8')
       .then(text => JSON.parse(text) as CacheFile)
-      .catch(() => ({}) as CacheFile)
+      .catch((error) => { passedOver(error); return ({}) as CacheFile })
   }
   return readMemo
 }
@@ -40,7 +41,7 @@ function mutate(update: (cache: CacheFile) => void): Promise<void> {
       await writeFile(path, JSON.stringify(cache, null, 2))
       readMemo = Promise.resolve(cache)
     })
-    .catch(() => {})
+    .catch(passedOver)
   return writeChain
 }
 

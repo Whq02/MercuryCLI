@@ -7,6 +7,7 @@ import { closeEntry, ledgerClock, openEntry, reconcileInterruptedEntries, record
 import { mnemeEnabled } from './mnemeGates.js'
 import { mnemeProjectKey } from './paths.js'
 import { runSessionClosers, type SessionCloseContext } from './sessionClose.js'
+import { passedOver } from '../utils/passedOver.js'
 
 interface OpenSession {
   projectKey: string
@@ -49,7 +50,8 @@ function transcriptCutMidTool(sessionId: string): string | null {
     const whole = tail.length >= TRANSCRIPT_TAIL_BYTES ? lines.slice(1) : lines
     const decode = require('../fabric/transcriptDecode.js') as typeof import('../fabric/transcriptDecode.js')
     entries = decode.decodeTranscriptBuffer<Entry>(whole.join('\n')).entries
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   for (let i = entries.length - 1; i >= 0; i--) {

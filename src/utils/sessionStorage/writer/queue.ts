@@ -5,6 +5,7 @@ import { logError } from '../../log.js'
 import { linkTaskOutputToTranscript } from '../../task/diskOutput.js'
 import { encodeTranscriptLine } from '../vnext.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './storeHealth.js'
+import { passedOver } from '../../passedOver.js'
 
 export class QueuePart {
   private pendingWriteCount: number = 0
@@ -48,7 +49,7 @@ export class QueuePart {
       () => fn(),
       () => fn(),
     )
-    this.insertChainQueue = run.catch(() => {})
+    this.insertChainQueue = run.catch(passedOver)
     return run
   }
 
@@ -57,7 +58,7 @@ export class QueuePart {
       () => fn(),
       () => fn(),
     )
-    this.fileWriteChain = run.catch(() => {})
+    this.fileWriteChain = run.catch(passedOver)
     return run
   }
 
@@ -95,7 +96,7 @@ export class QueuePart {
     const interval = Math.min(this.FLUSH_INTERVAL_MS * 2 ** this.drainFailureStreak, 5_000)
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null
-      this.runDrain().catch(() => {})
+      this.runDrain().catch(passedOver)
     }, interval)
   }
 

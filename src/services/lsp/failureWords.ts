@@ -3,6 +3,7 @@ import { extname, join } from 'node:path'
 
 import type { LSPServerInstance, LspStartFailure } from './LSPServerInstance.js'
 import { lspLedgerNow } from './failureLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const LANGUAGE_LABELS: Record<string, string> = {
   typescript: 'TypeScript',
@@ -70,7 +71,8 @@ function typecheckCommand(cwd: string): string {
       const runner = existsSync(join(cwd, 'bun.lock')) || existsSync(join(cwd, 'bun.lockb')) ? 'bun run' : 'npm run'
       return `${runner} ${name}`
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'npx tsc --noEmit'
   }
   return 'npx tsc --noEmit'

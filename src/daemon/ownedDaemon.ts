@@ -14,6 +14,7 @@ import { isProcessAlive, OWNER_FD_ENV, OWNER_PID_ENV } from './ownerWatch.js'
 import { flagEnv, flagPair, flagSpellings, stampFlagOnEnv } from '../substrate/flagRegistry.js'
 import { stampSpawnReceipt } from '../substrate/envStamps.js'
 import type { Socket } from 'node:net'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 const OWNER_PIPE_STDIO_INDEX = 3
 const ownerPipeEnds = new Set<Socket>()
@@ -86,7 +87,8 @@ export async function shutdownOwnedDaemonGracefully(
   try {
     const reply = (await rpc({ op: 'shutdown', reapWorkers: true }, { timeoutMs: Math.min(waitMs, 2000) })) as { ok?: unknown; op?: unknown } | null | undefined
     if (reply?.ok === true && reply.op === 'shutdown') return 'asked'
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return alive(pid) ? 'unsettled' : 'settled'
 }
@@ -155,7 +157,8 @@ function reapDaemonOnSessionExit(pid: number): void {
     if (verdict === 'already-down' || verdict === 'asked') return
     try {
       process.kill(pid, 'SIGTERM')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   process.once('exit', reap)
@@ -202,7 +205,7 @@ export async function restartOwnedDaemonForFreshSignin(opts?: {
       by: 'fresh sign-in after an env-kept spawn — the successor re-runs the credential scrub',
     },
     { timeoutMs: 3000 },
-  ).catch(() => undefined)
+  ).catch(passedOverAs(undefined))
   return 'asked'
 }
 
@@ -217,7 +220,7 @@ function pokeDaemonSignIns(opts?: {
     })
   return rpc({ op: 'signIns', refresh: true }, { timeoutMs: 3000 }).then(
     () => undefined,
-    () => undefined,
+    passedOverAs(undefined),
   )
 }
 
@@ -295,7 +298,8 @@ export function spawnOwnedDaemon(
         if (statSync(logPath).size > 5 * 1024 * 1024) {
           renameWithWin32RetrySync(logPath, `${logPath}.1`)
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       outFd = openSync(logPath, 'a')
     } catch {
@@ -323,7 +327,8 @@ export function spawnOwnedDaemon(
     if (typeof outFd === 'number') {
       try {
         closeSync(outFd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     child.on('error', e => logForDebugging(`[${label}] spawnOwnedDaemon: child error (ignored): ${e}`))

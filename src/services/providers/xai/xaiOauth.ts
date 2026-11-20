@@ -10,6 +10,7 @@ import { noteCredentialChange } from '../../../utils/accounts/signInLedger.js'
 import { refuseProofWriteIntoAccountStore } from '../../../utils/proofHomeGuard.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { sleep } from '../../../utils/sleep.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const XAI_OAUTH_CLIENT_ID = 'b1a00492-073a-47ea-816f-4c329264a828'
 const XAI_OAUTH_SCOPE = 'openid profile email offline_access grok-cli:access api:access'
@@ -65,7 +66,7 @@ function jwt(token: string): Record<string, unknown> {
   try {
     const value: unknown = JSON.parse(Buffer.from(token.split('.')[1]!, 'base64url').toString('utf8'))
     return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {}
-  } catch { return {} }
+  } catch (error) { passedOver(error); return {} }
 }
 function positive(value: unknown): value is number { return typeof value === 'number' && Number.isFinite(value) && value > 0 }
 function tokensFromBody(body: Record<string, unknown>, io?: XaiOauthIo, old?: XaiTokens): XaiTokens {
@@ -151,13 +152,13 @@ async function withRefreshLock<T>(path: string, run: () => Promise<T>): Promise<
             if ((error as NodeJS.ErrnoException).code === 'ESRCH' && readFileSync(lock, 'utf8') === previous) unlinkSync(lock)
           }
         }
-      } catch {}
+      } catch (error) { passedOver(error) }
       if (performance.now() >= deadline) throw new Error('Another process is refreshing Grok; retry after it finishes.')
       await sleep(100)
     }
   }
   try { return await run() } finally {
-    try { if (readFileSync(lock, 'utf8') === stamp) unlinkSync(lock) } catch {}
+    try { if (readFileSync(lock, 'utf8') === stamp) unlinkSync(lock) } catch (error) { passedOver(error) }
   }
 }
 const refreshes = new Map<string, Promise<XaiTokens | undefined>>()

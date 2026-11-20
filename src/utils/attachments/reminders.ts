@@ -17,6 +17,7 @@ import {
 } from './types.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { CONTRACT_TOOL_NAME } from '../../tools/ContractTool/prompt.js'
+import { passedOver } from '../passedOver.js'
 
 function reminderClock(messages: Message[], kind: 'task_reminder' | 'contract_reminder', tools: readonly string[]) {
   let touched = false
@@ -85,7 +86,8 @@ export async function getContractReminderAttachments(
       r => r.sessionId === sessionId && r.endedAt === undefined,
     )
     contract = rec?.contract
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   if (contract === undefined || contract.status === 'closed') return []

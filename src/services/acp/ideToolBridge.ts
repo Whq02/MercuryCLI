@@ -14,6 +14,7 @@ import { createAbortedCommand, createFailedCommand, type ExecResult, type ShellC
 import { sleep } from '../../utils/sleep.js'
 import type { ProcessTreeKillReceipt } from '../../utils/processGroup.js'
 import { getTaskOutputDir } from '../../utils/task/diskOutput.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface IdeToolCapabilities {
   readTextFile: boolean
@@ -446,7 +447,7 @@ export async function execViaIdeTerminal(
           taskOutput.writeStdout(delta)
         }
       })
-      .catch(() => {})
+      .catch(passedOver)
       .finally(() => {
         polling = false
       })

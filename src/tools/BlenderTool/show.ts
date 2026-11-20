@@ -4,6 +4,7 @@ import { getCwd } from '../../utils/cwd.js'
 import { hasImageSignature, imageReadCaptions, readImageWithTokenBudget } from '../FileReadTool/FileReadTool.js'
 import { imageDimensionsFromHeader } from '../FileReadTool/imageProcessorJs.js'
 import { getDefaultFileReadingLimits } from '../FileReadTool/limits.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const SHOWN_AT_MOST = 4
 
@@ -67,7 +68,8 @@ function stampOf(file: string): FileStamp {
   try {
     const st = statSync(file)
     return st.isFile() ? { mtimeMs: st.mtimeMs, ctimeMs: st.ctimeMs, size: st.size } : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -79,7 +81,8 @@ export function stampShown(entries: readonly ShowEntry[]): FileStamp[] {
 function isPicture(file: string): boolean {
   try {
     return hasImageSignature(file)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

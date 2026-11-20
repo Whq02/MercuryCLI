@@ -28,6 +28,7 @@ import { shellEngineArmWords, shellEngineRequest, type ShellEngineArm } from './
 import { windowsBashAbsent, withGitPrograms, withoutWhatTheEngineRefuses } from './windowsShellRoad.js'
 import { registerCleanup } from '../cleanupRegistry.js'
 import type { ExecResult, ShellCommand } from '../ShellCommand.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
@@ -369,7 +370,7 @@ function envOverrides(): Record<string, string> {
 
 function getSnapshot(binaryPath: string): Promise<string | undefined> {
   if (snapshotPromise === null) {
-    snapshotPromise = createAndSaveSnapshot({ path: binaryPath, origin: 'engine' }).catch(() => undefined)
+    snapshotPromise = createAndSaveSnapshot({ path: binaryPath, origin: 'engine' }).catch(passedOverAs(undefined))
   }
   return snapshotPromise
 }
@@ -545,7 +546,7 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
         const externalStderr = live.stderrBuf.toString('utf8')
         live.stderrBuf = Buffer.alloc(0)
         if (externalStderr.length > 0) taskOutput.writeStdout(externalStderr)
-        await taskOutput.flush().catch(() => {})
+        await taskOutput.flush().catch(passedOver)
         const stdout = await taskOutput.getStdout()
         settle({ stdout, stderr: withInherited(partial.stderr, partial.interrupted), code: partial.code, interrupted: partial.interrupted })
         releaseInFlight = null
@@ -667,12 +668,14 @@ async function killSession(live: LiveSession): Promise<void> {
   if (live.child.pid) {
     try {
       await endProcessTree(live.child, 'SIGKILL')
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   try {
     live.child.stdin?.end()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -702,7 +705,8 @@ function parseCheck(binaryPath: string, command: string): Promise<{ ok: boolean;
     const timer = setTimeout(() => {
       try {
         child.kill('SIGKILL')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       finish(true, '')
     }, PARSE_GUARD_TIMEOUT_MS)

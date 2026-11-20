@@ -6,6 +6,7 @@ import { getUserAgent } from '../../../utils/http.js'
 import { CompatEndpointSchema, type CompatEndpointSettings } from '../../../utils/settings/compatProvider.js'
 import type { CompatLivenessReading } from './compatChatClient.js'
 import { compatModelEndpoint, resolveCompatApiKey } from './compatAccounts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export type CompatDialect = NonNullable<CompatEndpointSettings['dialect']>
 export interface CompatServerReading {
@@ -80,11 +81,11 @@ function llamacppEndpointKey(endpoint: CompatEndpointSettings & { name?: string;
 
 
 export function invalidateLlamacppTotalSlots(endpoint: CompatEndpointSettings & { name?: string; baseUrl: string }): void {
-  try { serverImages.delete(compatServerBase(endpoint.baseUrl)) } catch {}
+  try { serverImages.delete(compatServerBase(endpoint.baseUrl)) } catch (error) { passedOver(error) }
   try {
     const prefix = llamacppEndpointKey(endpoint)
     for (const key of [...llamacppSlotsCache.keys()]) if (key === prefix || key.startsWith(prefix + '?model=')) llamacppSlotsCache.delete(key)
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 export async function resolveLlamacppTotalSlots(
@@ -92,7 +93,7 @@ export async function resolveLlamacppTotalSlots(
   opts: { key?: string; fetchImpl?: typeof fetch; signal?: AbortSignal; model?: string } = {},
 ): Promise<number | undefined> {
   let cacheKey: string
-  try { cacheKey = llamacppEndpointKey(endpoint) + (opts.model === undefined ? '' : '?model=' + encodeURIComponent(opts.model)) } catch { return undefined }
+  try { cacheKey = llamacppEndpointKey(endpoint) + (opts.model === undefined ? '' : '?model=' + encodeURIComponent(opts.model)) } catch (error) { passedOver(error); return undefined }
   const cached = llamacppSlotsCache.get(cacheKey)
   if (cached !== undefined) return cached
   const pending = llamacppSlotsInFlight.get(cacheKey)
@@ -126,7 +127,8 @@ export async function resolveLlamacppTotalSlots(
       const totalSlots = windowTokens(body?.total_slots)
       if (totalSlots !== undefined) llamacppSlotsCache.set(cacheKey, totalSlots)
       return totalSlots
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     } finally {
       clearTimeout(timer)
@@ -267,7 +269,7 @@ async function readJson(response: Response): Promise<unknown> {
       if (bytes > ceiling) throw new Error('models response exceeds 4194304 bytes')
       chunks.push(part.value)
     }
-  } finally { await reader.cancel().catch(() => {}) }
+  } finally { await reader.cancel().catch(passedOver) }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8')) } catch { throw new Error('models endpoint returned invalid JSON') }
 }
 
@@ -292,7 +294,7 @@ export async function inspectCompatServer(endpoint: CompatEndpointSettings & { b
     return readJson(response)
   }
   const optional = async (path: string, body?: unknown): Promise<Record<string, any> | undefined> => {
-    try { return record(await request(`${root}${path}`, body)) } catch { return undefined }
+    try { return record(await request(`${root}${path}`, body)) } catch (error) { passedOver(error); return undefined }
   }
   const sglangModelInfo = async (): Promise<Record<string, any> | undefined> => await optional(SGLANG_MODEL_INFO_PATH) ?? optional(SGLANG_LEGACY_MODEL_INFO_PATH)
   try {

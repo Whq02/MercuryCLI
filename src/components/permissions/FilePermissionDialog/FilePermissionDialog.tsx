@@ -14,6 +14,7 @@ import type { ToolUseConfirm } from '../PermissionRequest.js'
 import type { WorkerBadgeProps } from '../WorkerBadge.js'
 import type { FileOperationType, ToolInput } from './permissionOptions.js'
 import { useFilePermissionDialog } from './useFilePermissionDialog.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 type FilePermissionDialogProps<T extends ToolInput> = {
   toolUseConfirm: ToolUseConfirm
@@ -68,7 +69,8 @@ export function FilePermissionDialog<T extends ToolInput>({
       const expanded = expandPath(path)
       if (!lstatSync(expanded).isSymbolicLink()) return undefined
       return realpathSync(expanded)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return undefined
     }
   }, [path])

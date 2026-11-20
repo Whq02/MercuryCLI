@@ -16,6 +16,7 @@ import {
   type ResourceResult,
 } from '../contracts.js'
 import { fileReferenceCandidates } from '../referencePaths.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const DIR_ENTRY_CAP = 200
 const MAX_TEXT_BYTES = 2_000_000
@@ -42,7 +43,8 @@ export const fileAdapter: ResourceAdapter = {
         info = statSync(candidate)
         abs = candidate
         break
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     if (!info) {

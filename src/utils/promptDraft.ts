@@ -69,7 +69,8 @@ const draftStore = defineStore<DraftFile>({
 function boundDraft(draft: PromptDraft): PromptDraft {
   try {
     if (JSON.stringify(draft).length <= MAX_DRAFT_BYTES) return draft
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const missing: string[] = []
   const kept: Record<number, PastedContent> = {}
@@ -223,13 +224,15 @@ export function readDraftSync(sessionId: string | null | undefined): PromptDraft
     if (!existsSync(p)) return null
     const parsed = JSON.parse(readFileSync(p, 'utf8')) as Record<string, unknown>
     return sanitizeDraft(parsed[sessionId]) ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
 
 
 import type { ComposerDocument } from '../input-core/composer-document.js'
+import { passedOver } from './passedOver.js'
 
 type ScopedDocsFile = Record<string, Record<string, ComposerDocument> | Record<string, number>>
 
@@ -353,7 +356,8 @@ export function readScopedDocsSync(
     const scopes = parsed[sessionId]
     if (!scopes || typeof scopes !== 'object') return null
     return scopes as Record<string, ComposerDocument>
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -391,7 +395,8 @@ export async function migrateOrphanedDraft(conversationId: string, left?: string
       return next
     })
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

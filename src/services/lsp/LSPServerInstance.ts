@@ -20,6 +20,7 @@ import { mercuryLspEnabled } from './mercuryLsp.js'
 import type { LspServerState, ScopedLspServerConfig } from './types.js'
 import type { LspServerRecord } from './LSPServerInstance/record.js'
 import { sendNotificationOf, sendRequestOf } from './LSPServerInstance/requests.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type LSPServerInstance = {
@@ -250,7 +251,7 @@ export function createLSPServerInstance(name: string, config: ScopedLspServerCon
       armIdleTimer()
     } catch (err) {
       if (spawned) {
-        await lsp.stop().catch(() => {})
+        await lsp.stop().catch(passedOver)
       }
       server.initFailures++
       server.lastInitFailureAt = lspLedgerNow()

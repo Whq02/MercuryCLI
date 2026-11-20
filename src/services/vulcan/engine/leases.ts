@@ -8,6 +8,7 @@ import { MERCURY_PROJECT_DIR } from '../../../utils/projectConfig.js'
 import { holderAlive } from '../../../substrate/pidLock.js'
 import { getProcessStartTokensAsync } from '../../../daemon/ownerWatch.js'
 import { selectedTreeChanges, type ProofTreeFacts } from './proofDrift.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export interface LeaseHolder {
   sessionId: string
@@ -106,7 +107,8 @@ function caseInsensitiveProject(root: string): boolean {
     const original = statSync(root)
     const other = statSync(alternate)
     return original.dev === other.dev && original.ino === other.ino
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

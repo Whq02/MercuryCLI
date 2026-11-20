@@ -13,6 +13,7 @@ import { getEngineModel } from '../../../utils/model/model.js'
 import { readSessionAsks, type SessionAskProjectionV1, type SessionFactsV1 } from '../seatProjections.js'
 import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1 } from '../types.js'
 import { emitAll, type Listeners } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface AsksNeeds {
   record(): { readonly sessionId: string; readonly modelKey?: string }
@@ -170,7 +171,7 @@ export class AsksPart {
       .then(text => {
         if (typeof text === 'string' && text.trim() !== '') description = text
       })
-      .catch(() => {})
+      .catch(passedOver)
     return confirm
   }
 

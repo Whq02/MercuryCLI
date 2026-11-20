@@ -11,6 +11,7 @@ import { isOwnerKey, type OwnerKey } from '../../run/ownerKey.js'
 import { getCwd } from '../../../utils/cwd.js'
 import { resolveWorkbenchSnapshot } from '../../workbench/projection.js'
 import { attentionWireFromSnapshot } from './attention.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export function mercuryRequests(app: AgentApp): AgentApp {
   return app
@@ -82,10 +83,10 @@ export function mercuryRequests(app: AgentApp): AgentApp {
       const snap = await resolveCrewSnapshot()
       const operatorId = identityMod.operatorPrincipal().id
       const [conversations, cursors, descriptors, graph] = await Promise.all([
-        conversationsMod.listConversations().catch(() => []),
+        conversationsMod.listConversations().catch((error) => { passedOver(error); return [] }),
         conversationsMod.listReadCursors(operatorId).catch(() => new Map<string, number>()),
-        descriptorMod.listSessionDescriptors().catch(() => []),
-        graphMod.assembleSessionGraph().catch(() => null),
+        descriptorMod.listSessionDescriptors().catch((error) => { passedOver(error); return [] }),
+        graphMod.assembleSessionGraph().catch(passedOverAs(null)),
       ])
       const inbox = deriveInbox(conversations, id => (cursors as Map<string, number>).get(id) ?? 0)
       const labels = new Map((snap?.members ?? []).map(m => [m.agentId as string, m.label]))
@@ -172,7 +173,8 @@ export function mercuryRequests(app: AgentApp): AgentApp {
           else if (load.state === 'unavailable') {
             return { unavailable: load.reason, retryable: load.retryable }
           }
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       const revision = runRevision(owner)

@@ -12,6 +12,7 @@ import {
   type MissionExecutionRef,
   type MissionView,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const TERMINAL_RUN = new Set(['completed', 'cancelled', 'failed'])
 
@@ -102,7 +103,8 @@ export async function gatherMissionView(): Promise<MissionView | null> {
     const snap: RunSnapshot | null = getRunSnapshot(processMainOwner())
     runObjective = snap?.objective ?? null
     runLifecycle = snap?.lifecycle ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   let snapshot: SnapshotRead | null = null

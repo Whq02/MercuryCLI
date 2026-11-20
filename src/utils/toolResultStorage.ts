@@ -13,6 +13,7 @@ import { errorMessage, getErrnoCode, getErrnoPath } from './errors.js'
 import { formatFileSize } from './format.js'
 import { logError } from './log.js'
 import { getProjectDir } from './sessionStorage/paths.js'
+import { passedOver } from './passedOver.js'
 
 
 export const TOOL_RESULTS_SUBDIR = 'tool-results'
@@ -74,7 +75,8 @@ export function getToolResultPath(id: string, isJson: boolean): string {
 export async function ensureToolResultsDir(): Promise<void> {
   try {
     await mkdir(getToolResultsDir(), { recursive: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -163,7 +165,8 @@ export async function persistToolResult(
 export async function readPersistedToolResult(toolUseId: string): Promise<string | null> {
   try {
     return await readFile(getToolResultPath(toolUseId, false), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const blocks = JSON.parse(await readFile(getToolResultPath(toolUseId, true), 'utf8')) as TextBlockLike[]
@@ -171,7 +174,8 @@ export async function readPersistedToolResult(toolUseId: string): Promise<string
       .map(block => (block.type === 'text' && typeof block.text === 'string' ? block.text : ''))
       .filter(Boolean)
       .join('\n')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

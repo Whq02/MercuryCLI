@@ -17,6 +17,7 @@ import {
   type InterviewSessionId,
   type InterviewSessionState,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_SESSIONS = 10
 const SAVE_DEBOUNCE_MS = 150
@@ -404,7 +405,7 @@ export function adoptDurableSessionSync(keys: {
             reason: String(e),
           }),
         )
-        .catch(() => {})
+        .catch(passedOver)
     }
     return false
   }

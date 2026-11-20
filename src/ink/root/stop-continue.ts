@@ -1,5 +1,6 @@
 import { runTeardownSuite, type TeardownHost } from './teardown.js'
 import { reassertModesBytes } from './screen-session.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const POSIX_STOP_SIGNALS = ['SIGTSTP', 'SIGTTIN', 'SIGTTOU'] as const
 export type StopSignal = (typeof POSIX_STOP_SIGNALS)[number]
@@ -38,7 +39,8 @@ export function restoreTerminalForStop(
     try {
       stdin.setRawMode(false)
       rawModeOff = true
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return { rawModeOff }

@@ -35,6 +35,7 @@ import { sleep } from './sleep.js'
 import type { Message } from '../types/message.js'
 import type { LSPServerInstance } from '../services/lsp/LSPServerInstance.js'
 import type { LSPServerManager } from '../services/lsp/LSPServerManager.js'
+import { passedOver, passedOverAs } from './passedOver.js'
 
 type CheckResult = Omit<HealthCheck, 'id' | 'label'>
 
@@ -99,7 +100,7 @@ export async function probeRunKernel(): Promise<CheckResult> {
       evidence: `functional: create→persist→torn-recover→reload→reconcile→dispose completed (fixture owner, atomic sidecar)`,
     }
   } finally {
-    await sidecar.deleteRunSidecar(owner).catch(() => {})
+    await sidecar.deleteRunSidecar(owner).catch(passedOver)
     await lifecycle.disposeOwner(owner)
   }
 }
@@ -600,7 +601,7 @@ export async function probeDurableTransaction(): Promise<CheckResult> {
         compensate: async () => {
           compensated = true
           const { unlink } = await import('node:fs/promises')
-          await unlink(orphan).catch(() => {})
+          await unlink(orphan).catch(passedOver)
         },
       },
     })
@@ -772,7 +773,7 @@ export async function probeServiceLifecycle(): Promise<CheckResult> {
     if (!sawLog) return { status: 'fail', evidence: 'the cursored log read missed the boot line' }
     return { status: 'ok', evidence: 'start → log+stable readiness → cursored logs → explicit stop, all observed' }
   } finally {
-    if (running) await stopService(dir, 'health-probe').catch(() => undefined)
+    if (running) await stopService(dir, 'health-probe').catch(passedOverAs(undefined))
     sweepProbeDir(dir)
   }
 }

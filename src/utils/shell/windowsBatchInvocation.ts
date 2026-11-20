@@ -11,6 +11,7 @@ import { getTaskOutputDir } from '../task/diskOutput.js'
 import { TaskOutput } from '../task/TaskOutput.js'
 import { wrapSpawn, createFailedCommand, type ShellCommand } from '../ShellCommand.js'
 import { windowsBatchTail } from './windowsBatchLine.js'
+import { passedOver } from '../passedOver.js'
 
 export { windowsBatchTail }
 
@@ -25,7 +26,8 @@ export type WindowsBatchInvocation =
 function isBatchFile(candidate: string): boolean {
   try {
     return BATCH_EXTENSIONS.test(candidate) && statSync(candidate).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -120,7 +122,8 @@ export async function runWindowsBatchCommand(
     })
     try {
       child.stdin?.end()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     shellCommand = wrapSpawn(child, abortSignal, options.timeout, taskOutput, options.shouldAutoBackground)
     shellCommand.scrubbedSessionEnv = base.scrubbed
@@ -128,7 +131,8 @@ export async function runWindowsBatchCommand(
       await new Promise<void>(resolveTick => setImmediate(resolveTick))
       try {
         closeSync(outputFd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       outputFd = undefined
     }
@@ -142,7 +146,8 @@ export async function runWindowsBatchCommand(
     if (outputFd !== undefined) {
       try {
         closeSync(outputFd)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     taskOutput.clear()

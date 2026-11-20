@@ -11,6 +11,7 @@ import { effortStampLine, isEffortStamp } from '../../../utils/effortStamp.js'
 import { replyAddressLine, replyMarksOf } from '../../../utils/messages/replyAddress.js'
 import { collapseAndSlice } from '../../../utils/stringUtils.js'
 import { agentStatusWord } from './agent.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
   if (!ctx.getAppState) return null
@@ -18,7 +19,8 @@ function registryStatusOf(ctx: ResourceContext, taskId: string): string | null {
     const state = ctx.getAppState() as { tasks?: Record<string, { status?: unknown }> } | null
     const status = state?.tasks?.[taskId]?.status
     return typeof status === 'string' ? status : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -33,7 +35,8 @@ function transcriptPathFor(sessionId: string): string | null {
     const { getTranscriptPathForSession } =
       require('../../../utils/sessionStorage/paths.js') as typeof import('../../../utils/sessionStorage/paths.js')
     return getTranscriptPathForSession(sessionId)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -46,7 +49,8 @@ function entryOfLine(parsed: Record<string, unknown>): Record<string, unknown> |
   if (kind !== 'output' && kind !== 'input') return null
   try {
     return recordToEntry(validated.record)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -68,7 +72,8 @@ export function jsonlConciseRows(file: string): string[] {
     let parsed: Record<string, unknown>
     try {
       parsed = JSON.parse(line) as Record<string, unknown>
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     const entry = entryOfLine(parsed)
@@ -225,7 +230,8 @@ export const transcriptAdapter: ResourceAdapter = {
           }
         }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return children
   },

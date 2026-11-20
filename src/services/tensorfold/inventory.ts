@@ -10,6 +10,7 @@ import { cacheDirOfRepo, ggufOnDisk, hfCacheRoot } from './hfCache.js'
 import { servedTensorFold } from './serve.js'
 import { QWEN_27B, QWEN_27B_SECOND_WORDS, QWEN_2B, TENSORFOLD_STARTING_POINTS, startingPointOf, tensorFoldLabel, tensorFoldShortName, tensorFoldStartingOrder, type TensorFoldCheckpoint } from './starting.js'
 import { configFactsOf, rec, type ConfigFacts } from './configFacts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export { cacheDirOfRepo, hfCacheRoot } from './hfCache.js'
 export { configFactsOf, type ConfigFacts } from './configFacts.js'
@@ -41,7 +42,8 @@ export function hfCacheWords(root: string, home: string = homedir()): string {
 function defaultListDir(path: string): string[] {
   try {
     return readdirSync(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -49,7 +51,8 @@ function defaultListDir(path: string): string[] {
 function defaultReadText(path: string): string | undefined {
   try {
     return readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -57,7 +60,8 @@ function defaultReadText(path: string): string | undefined {
 function defaultSizeOf(path: string): number | undefined {
   try {
     return statSync(path).size
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -89,7 +93,8 @@ export function readHfSnapshot(root: string, repo: string, io: Pick<InventoryIo,
       dir = join(snapshots, sha)
       config = parsed
       break
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

@@ -13,6 +13,7 @@ import {
   type TransitionOptions,
 } from './executionPlane.js'
 import type { OwnerKey } from '../run/ownerKey.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface ExternalProjectionSpec {
   id: string
@@ -69,7 +70,8 @@ export function projectExternalState(
         transitionExecution(owner, spec.id, step, last ? opts : {})
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

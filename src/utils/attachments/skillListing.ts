@@ -11,6 +11,7 @@ import { getContextWindowForModel } from '../context.js'
 import { logForDebugging } from '../debug.js'
 import type { Attachment } from './types.js'
 import { capsuleStateFor, resetCapsuleSkillNames, suppressCapsuleSkillListing } from './capsuleState.js'
+import { passedOver } from '../passedOver.js'
 
 export async function getDynamicSkillAttachments(
   toolUseContext: ToolUseContext,
@@ -25,13 +26,15 @@ export async function getDynamicSkillAttachments(
         try {
           await stat(resolve(skillDir, entry.name, 'SKILL.md'))
           return entry.name
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       }))
       const skillNames = names.filter((name): name is string => name !== null)
       return skillNames.length ? { type: 'dynamic_skill' as const, skillDir, skillNames, displayPath: relative(getCwd(), skillDir) } : null
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }))

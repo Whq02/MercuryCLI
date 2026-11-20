@@ -3,6 +3,7 @@ import { join, posix } from 'node:path'
 import { logForDebugging } from './debug.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { getProjectDir } from './sessionStoragePortable.js'
+import { passedOver } from './passedOver.js'
 
 export const PROJECT_HOME_STORES: ReadonlyArray<readonly string[]> = Object.freeze([
   ['workflows', 'runs'],
@@ -47,7 +48,8 @@ export function projectHomeLeftovers(root: string): string[] {
     const folder = projectFolderPath(root, ...segments)
     try {
       if (existsSync(folder) && statSync(folder).isDirectory()) out.push(posix.join(MERCURY_PROJECT_DIR, ...segments))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return out

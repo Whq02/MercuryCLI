@@ -46,6 +46,7 @@ import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { openProjectOf, runRowOf, type BootRow } from './bootSplash/rowActions.js';
 import { bootSplashCompositionOf, bootSplashFaceView } from './bootSplash/face.js';
 import { armBootSettingsLayerDeepLink, consumeBootSettingsLayerDeepLink } from './bootSplash/settingsLayerDeepLink.js';
+import { passedOver } from '../utils/passedOver.js';
 
 
 export { armBootSettingsLayerDeepLink };
@@ -174,7 +175,7 @@ export function BootSplashScreen(): React.ReactNode {
       .then(sup => {
         if (!cancelled) setLiveCount(sup.countLiveConcourseWorkers());
       })
-      .catch(() => {});
+      .catch(passedOver);
     return () => {
       cancelled = true;
     };
@@ -188,7 +189,7 @@ export function BootSplashScreen(): React.ReactNode {
         const counts = await m.runningByProjectKey();
         if (!cancelled && counts.size > 0) setRunningByKey(counts);
       })
-      .catch(() => {});
+      .catch(passedOver);
     return () => {
       cancelled = true;
     };
@@ -196,7 +197,8 @@ export function BootSplashScreen(): React.ReactNode {
   const runningOf = (dir: string): number => {
     try {
       return runningByKey.get(getProjectDir(dir)) ?? 0;
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return 0;
     }
   };
@@ -218,7 +220,8 @@ export function BootSplashScreen(): React.ReactNode {
             `${glance.count} schedule${glance.count === 1 ? '' : 's'}${glance.nextFireMs !== null ? ` · next ${fireDeltaWords(glance.nextFireMs, Date.now())}` : ''}${glance.held > 0 ? ` · ${glance.held} held` : ''}`,
           );
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     })();
     return () => {
@@ -236,7 +239,7 @@ export function BootSplashScreen(): React.ReactNode {
         const n = defs.activeAgents.length;
         if (!cancelled && n > 0) setAgentsCtx(`${n} agent${n === 1 ? '' : 's'}`);
       })
-      .catch(() => {});
+      .catch(passedOver);
     return () => {
       cancelled = true;
     };
@@ -245,7 +248,8 @@ export function BootSplashScreen(): React.ReactNode {
   const loginsCtx = useMemo(() => {
     try {
       return loginsGlance(deriveFamilySlotGroups());
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null;
     }
   }, [presenceEpoch, signInEpoch]);
@@ -364,7 +368,7 @@ export function BootSplashScreen(): React.ReactNode {
       pending = false;
     }
     if (!pending) return;
-    void readComputedDefaultCatalogue().catch(() => {});
+    void readComputedDefaultCatalogue().catch(passedOver);
   }, [signInEpoch, catalogueEpoch]);
   const chips = useMemo(() => {
     let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };

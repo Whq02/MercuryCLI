@@ -4,6 +4,7 @@ import { isAbsolute, join } from 'node:path'
 import { memoize } from 'lodash-es'
 
 import { whichSync } from '../which.js'
+import { passedOver } from '../passedOver.js'
 
 export const gitExe = memoize((): string => {
   const executable = whichSync('git') ?? 'git'
@@ -11,7 +12,7 @@ export const gitExe = memoize((): string => {
   const developer = process.env.DEVELOPER_DIR?.trim()
   const directories = developer ? [developer] : ['/Library/Developer/CommandLineTools', '/Applications/Xcode.app/Contents/Developer']
   if (!developer) {
-    try { directories.unshift(realpathSync('/var/db/xcode_select_link')) } catch {}
+    try { directories.unshift(realpathSync('/var/db/xcode_select_link')) } catch (error) { passedOver(error) }
   }
   for (const directory of directories) {
     if (!isAbsolute(directory)) continue
@@ -19,7 +20,7 @@ export const gitExe = memoize((): string => {
     try {
       accessSync(candidate, fsConstants.X_OK)
       if (statSync(candidate).isFile()) return candidate
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return executable
 })

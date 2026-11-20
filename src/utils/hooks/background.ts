@@ -8,6 +8,7 @@ import type { CommandHookProcess } from './commandRunner.js'
 import { HOOK_BACKGROUND_ANSWER_FIELDS, type HookEvent } from './contract.js'
 import type { HookSource } from './hooksConfigSnapshot.js'
 import type { HookScope } from './sessionHooks.js'
+import { passedOverAs } from '../passedOver.js'
 
 type BackgroundHook = {
   id: string
@@ -75,7 +76,7 @@ export function backgroundHooksRunning(): number {
 export async function endBackgroundHooks(): Promise<void> {
   const open = [...running.values()]
   for (const hook of open) hook.process.kill()
-  await Promise.all(open.map(hook => hook.process.result.catch(() => undefined)))
+  await Promise.all(open.map(hook => hook.process.result.catch(passedOverAs(undefined))))
   running.clear()
 }
 

@@ -9,6 +9,7 @@ import {
   missionCompletedLine,
   setActiveMission,
 } from '../../guards/mission.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export const call = async (
@@ -35,7 +36,8 @@ export const call = async (
             `${stateLine}: ${card.goal}${card.nextStep ? `\nNext step: ${card.nextStep}` : ''}`,
           )
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return text('No mission set. Usage: `/mission <goal>` (or `/goal <goal>`)')
     }

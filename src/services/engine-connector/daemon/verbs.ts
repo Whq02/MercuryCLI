@@ -10,6 +10,7 @@ import type {
   SendReceiptV1,
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const LEAVE_RPC_TIMEOUT_MS = 135_000
 
@@ -152,7 +153,7 @@ export class VerbsPart {
 
   async leave(opts?: { signal?: AbortSignal }): Promise<LeaveReceiptV1> {
     const skip = (): void => {
-      void this.needs.rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() }).catch(() => {})
+      void this.needs.rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() }).catch(passedOver)
     }
     if (opts?.signal?.aborted) return { note: 'none', detail: 'the handoff was skipped' }
     opts?.signal?.addEventListener('abort', skip, { once: true })

@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
 import { globalConfigFileIn } from '../env.js'
 import { getMercuryHome } from '../envUtils.js'
+import { passedOver } from '../passedOver.js'
 
 type ScopeIdentity = { uuid?: string; email?: string }
 
@@ -41,7 +42,8 @@ export function readScopeIdentity(configFile: string): ScopeIdentity {
           : {}),
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return {}
 }
@@ -76,7 +78,8 @@ function storedLoginLive(dir: string): boolean {
     const { readAccountOAuthCreds } =
       require('./scopedCredentialRead.js') as typeof import('./scopedCredentialRead.js')
     return readAccountOAuthCreds(dir) !== undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

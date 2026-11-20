@@ -27,6 +27,7 @@ import {
   renderEvalResultMessage,
   renderEvalToolUseMessage,
 } from './UI.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const inputSchema = () => {
   return z.strictObject({
@@ -84,7 +85,8 @@ function screenshotImageOf(screenshot: BridgeScreenshot | undefined): { mediaTyp
     const bytes = readFileSync(screenshot.inlinePath ?? screenshot.imagePath)
     const mediaType = screenshot.inlinePath !== undefined && screenshot.inlineMediaType === 'image/jpeg' ? 'image/jpeg' : 'image/png'
     return { mediaType, data: bytes.toString('base64') }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

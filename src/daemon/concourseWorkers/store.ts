@@ -6,6 +6,7 @@ import { daemonDir } from '../controlSocket.js'
 import { type ConcourseWorkerRecordV1, sessionActivityOf, turnInFlightOf } from './record.js'
 import { canonicalWorkspaceId } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 interface ConcourseWorkerFileV1 {
   version: 1
@@ -125,7 +126,8 @@ function stampConcourseDelta(dir?: string): void {
       `${JSON.stringify({ version: 1, revision: concourseDeltaRevision, pid: process.pid, at: Date.now() } satisfies ConcourseDeltaStampV1)}\n`,
       { dir },
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

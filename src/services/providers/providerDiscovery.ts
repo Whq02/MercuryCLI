@@ -9,6 +9,7 @@ import {
 } from './openai/openaiAccounts.js'
 import { openrouterKeySource } from './openrouter/openrouterAccounts.js'
 import { resolveGeminiAccount } from './gemini/geminiAccounts.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 export const PROVIDER_DISCOVERY_TTL_MS = 5 * 60_000
 
@@ -524,7 +525,7 @@ export function refreshProviderDiscovery(
       if (id === 'local') {
         const { refreshLocalDiscovery } =
           require('./local/localDiscovery.js') as typeof import('./local/localDiscovery.js')
-        await refreshLocalDiscovery({ ...(opts?.force ? { force: true } : {}), env: io.env as NodeJS.ProcessEnv }).catch(() => undefined)
+        await refreshLocalDiscovery({ ...(opts?.force ? { force: true } : {}), env: io.env as NodeJS.ProcessEnv }).catch(passedOverAs(undefined))
       }
       const record =
         id === 'openai'

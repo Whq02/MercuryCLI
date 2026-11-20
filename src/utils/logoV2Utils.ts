@@ -10,6 +10,7 @@ import { getCwd } from './cwd.js'
 import { getDisplayPath } from './file.js'
 import { listProjectSessions } from './sessionStorage.js'
 import { getInitialSettings } from './settings/settings.js'
+import { passedOver } from './passedOver.js'
 
 const RECENT_ACTIVITY_LOAD_LIMIT = 10
 const RECENT_ACTIVITY_KEEP = 3
@@ -35,7 +36,8 @@ export function getRecentActivity(): Promise<SessionListing[]> {
         .filter(log => meaningful(log.summary) || meaningful(log.firstPrompt))
         .slice(0, RECENT_ACTIVITY_KEEP)
       return kept
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return []
     }
   })()
@@ -77,7 +79,8 @@ export function getLogoDisplayData(): { version: string; cwd: string; billingTyp
       if (route === 'fireworks') return 'Fireworks API billing'
       if (route === 'qwen') return 'QwenCloud or Model Studio pay-as-you-go or plan billing'
       if (route === null) return 'unrecognised model · no billed lane'
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     return isClaudeAISubscriber() ? getSubscriptionName() : 'API usage billing'
   })()

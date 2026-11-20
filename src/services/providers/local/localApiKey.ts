@@ -2,6 +2,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { readStoredLocalApiKey } from '../providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { tensorFoldHostKey, tensorFoldHostRoot } from './tensorfoldHosts.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function resolveLocalApiKey(
   env: Record<string, string | undefined> = process.env,
@@ -30,7 +31,8 @@ export function sharedTensorFoldKey(root: string): string | undefined {
     const served = readServedRecord()
     if (served === null || served.port !== port || served.keyFile === undefined) return undefined
     return readTensorFoldKeyFile(served.keyFile)?.key
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -44,7 +46,8 @@ export function resolveLocalApiKeyFor(
   try {
     const hostKey = (reads.hostKey ?? tensorFoldHostKey)(root)
     if (hostKey !== undefined) return { key: hostKey, source: 'host' }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const shared = (reads.sharedKey ?? sharedTensorFoldKey)(root)
   if (shared !== undefined) return { key: shared, source: 'shared' }

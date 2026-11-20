@@ -35,6 +35,7 @@ import {
 } from './types.js'
 import { getProjectMcpServerStatus, mcpVariableCarriesCode } from './utils.js'
 import { PROJECT_MCP_FILE, getEnterpriseMcpFilePath, projectMcpFilePath } from './configPaths.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type McpConfigError = {
@@ -471,7 +472,8 @@ function urlGlobMatches(pattern: string, url: string): boolean {
   )
   try {
     return new RegExp(`^${escaped}$`).test(url)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -851,7 +853,8 @@ async function writeProjectMcpFile(document: ProjectMcpDocument): Promise<void> 
     if (fs.existsSync(mcpJsonPath)) {
       mode = fs.statSync(mcpJsonPath).mode & 0o777
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     await durableAtomicPublish(mcpJsonPath, `${JSON.stringify(document, null, 2)}\n`, { mode })

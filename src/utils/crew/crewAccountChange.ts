@@ -1,4 +1,5 @@
 import { subscribeSignInEpoch } from '../accounts/signInLedger.js'
+import { passedOver } from '../passedOver.js'
 
 const listeners = new Set<() => void>()
 let ledgerArmed = false
@@ -7,7 +8,8 @@ export function noteCrewAccountChange(): void {
   for (const listener of [...listeners]) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }

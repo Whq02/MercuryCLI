@@ -11,6 +11,7 @@ import { permissionModeTitle } from '../../../utils/permissions/PermissionMode.j
 import { MODE_GLOSS } from '../../../utils/settings/validationTips.js'
 import { permissionAskWire, permissionAllowedOf } from './asks.js'
 import type { AcpSessionState } from './state.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function refuse(sentence: string): never {
   throw new RequestError(-32602, sentence)
@@ -83,7 +84,7 @@ const notifyModeChanged = (ctx: AgentContext, sessionId: string, modeId: string)
 }
 
 export const setSessionMode = (ctx: AgentContext, sessionId: string, state: AcpSessionState, modeId: string): Promise<void> => {
-  const change = state.modeChanges.catch(() => {}).then(async () => {
+  const change = state.modeChanges.catch(passedOver).then(async () => {
     if (modeId === 'sovereign') {
       const consent = await ctx.request(
         methods.client.session.requestPermission,

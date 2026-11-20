@@ -10,6 +10,7 @@ import type {
 } from '../contracts.js'
 import { resolveRequestedInstructionProfile } from '../profile.js'
 import { conventionsForProfile as composeNativeFirst } from '../compositionOrder.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const mercuryAdapter: InstructionAdapter = {
   id: 'mercury',
@@ -27,7 +28,8 @@ export function conventionsForProfile(profile: 'auto' | 'native'): InstructionCo
 function isFile(path: string): boolean {
   try {
     return getFsImplementation().statSync(path).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

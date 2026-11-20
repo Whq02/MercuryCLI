@@ -11,6 +11,7 @@ import { stampProviderWait } from '../../../api/recoveryBudget.js'
 import { markUnknownModel } from '../../../api/backupEngines.js'
 import { apiErrorMessage, openaiFaultToTypedError } from './faults.js'
 import { busyPrefix, withEffort, type AttemptFault, type OpenaiTurn } from './turnState.js'
+import { passedOver } from '../../../../utils/passedOver.js'
 
 export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): Promise<AssistantMessage> {
   const { auth } = turn
@@ -22,7 +23,8 @@ export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): P
       const { slotWallAppendix } =
         require('../../slotSwitch.js') as typeof import('../../slotSwitch.js')
       return slotWallAppendix('openai')
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return ''
     }
   })()
@@ -33,7 +35,8 @@ export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): P
         require('../../../rateLimitMessages.js') as typeof import('../../../rateLimitMessages.js')
       const line = crossFamilyLaneRemedy('openai')
       return line === null ? '' : ` ${line}`
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return ''
     }
   })()
@@ -44,7 +47,8 @@ export async function refuseUsageLimit(turn: OpenaiTurn, fault: AttemptFault): P
         require('../../providerUsage.js') as typeof import('../../providerUsage.js')
       const words = usageCarryWords(usageForProvider('openai').carry)
       return words === undefined ? '' : ` · ${words}`
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return ''
     }
   })()

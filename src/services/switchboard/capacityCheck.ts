@@ -9,6 +9,7 @@ import { execFileNoThrow } from '../../utils/execFileNoThrow.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type SeatKind = 'agent' | 'runner'
 export const SEAT_COST_BYTES: Readonly<Record<SeatKind, number>> = {
@@ -84,7 +85,8 @@ export function sampleAvailableMemory(): MemorySample {
       const available = availableFromCounter(freemem())
       return rememberMemorySample(available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return rememberMemorySample(fallback)
 }
@@ -139,7 +141,7 @@ async function takeMemorySample(): Promise<MemorySample> {
       const available = availableFromCounter(freemem())
       return available === null ? fallback : { availableBytes: available, totalBytes, read: 'counter' }
     }
-  } catch {}
+  } catch (error) { passedOver(error) }
   return fallback
 }
 
@@ -153,7 +155,7 @@ export function refreshMemorySample(): Promise<MemorySample> {
 }
 
 export function lastMemorySample(now: number = Date.now()): { sample: MemorySample; sampledAt: number } | null {
-  if (memorySampleMemo === null || now - memorySampleMemo.sampledAt >= SAMPLE_TTL_MS) void refreshMemorySample().catch(() => {})
+  if (memorySampleMemo === null || now - memorySampleMemo.sampledAt >= SAMPLE_TTL_MS) void refreshMemorySample().catch(passedOver)
   return memorySampleMemo
 }
 
@@ -199,7 +201,7 @@ export function heldMachineSeatFacts(): { seats: number; sample: SeatReadingSamp
   if (held === null || now - lastSampledAt >= SAMPLE_TTL_MS) {
     if (heldReadingServedFromBackground && held !== null) {
       const standing = held
-      void refreshHeldReadingAsync().catch(() => {})
+      void refreshHeldReadingAsync().catch(passedOver)
       return standing
     }
     const sample = freshSample()

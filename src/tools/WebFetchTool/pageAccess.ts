@@ -1,4 +1,5 @@
 import { htmlToText, readAttribute } from '../../services/search/htmlText.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const PAYWALL_MESSAGE = 'this page is paywalled; search for another source — do not retry this URL'
 
@@ -11,7 +12,7 @@ export function pageAccessNotice(html: string): string | undefined {
   const pending: unknown[] = []
   for (const match of html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi)) {
     if (readAttribute(match[1]!, 'type') !== 'application/ld+json') continue
-    try { pending.push(JSON.parse(match[2]!)) } catch {}
+    try { pending.push(JSON.parse(match[2]!)) } catch (error) { passedOver(error) }
   }
   while (pending.length) {
     const node = pending.pop()

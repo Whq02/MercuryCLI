@@ -1,5 +1,6 @@
 import { posix } from 'node:path'
 import { boardLabelKey, type BoardEvent, type BoardPost, type BoardSeat } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type PublicKind = 'ask' | 'answer' | 'blocker' | 'result' | 'correction'
 export type BoardWaitPredicate =
@@ -20,7 +21,7 @@ function addressToken(text: string): string | null {
   if (!match) return null
   const token = match[1]!
   if (token.startsWith('"')) {
-    try { return JSON.parse(token) as string } catch { return null }
+    try { return JSON.parse(token) as string } catch (error) { passedOver(error); return null }
   }
   return token.startsWith("'") ? token.slice(1, -1) : token
 }

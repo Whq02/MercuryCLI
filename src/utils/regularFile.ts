@@ -1,5 +1,6 @@
 import { closeSync, constants, fstatSync, openSync, readFileSync, statSync, type Stats } from 'node:fs'
 import { open, stat, type FileHandle } from 'node:fs/promises'
+import { passedOverAs } from './passedOver.js'
 
 type NotAFile = 'a named pipe' | 'a socket' | 'a device'
 
@@ -47,7 +48,7 @@ export async function openRegularFile(path: string, early?: Stats): Promise<{ ha
     refuseWhatIsNotAFile(path, stats)
     return { handle, stats }
   } catch (error) {
-    await handle.close().catch(() => undefined)
+    await handle.close().catch(passedOverAs(undefined))
     throw error
   }
 }
@@ -66,6 +67,6 @@ export async function readRegularFile(path: string, signal?: AbortSignal, early?
   try {
     return await handle.readFile(signal ? { signal } : {})
   } finally {
-    await handle.close().catch(() => undefined)
+    await handle.close().catch(passedOverAs(undefined))
   }
 }

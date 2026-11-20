@@ -21,6 +21,7 @@ import { engineWorkerCount, newEngineJobId } from './service.js'
 import { spawnEngine } from './spawn.js'
 import { startEngineHeartbeat } from './liveness.js'
 import { engineLogDrift, latestMatchingEvidenceRun, proofTreeFingerprint, runEvidenceDrift, sourceProofDrift, type ProofDriftRow } from './proofDrift.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_CHECK_TIMEOUT_MS = 60_000
 const SHADER_MARKER_PREFIX = 'MERCURY SHADER '
@@ -86,7 +87,8 @@ export function projectAutoloads(projectRoot: string): string[] {
   let text: string
   try {
     text = readFileSync(path.join(projectRoot, 'project.godot'), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: string[] = []
@@ -485,7 +487,8 @@ export async function runEngineCheck(projectRoot: string, args: EngineCheckArgs,
     for (const rel of scripts) {
       try {
         if (isScriptModeHead(readFileSync(path.join(enginePath, rel), 'utf8'))) roots.add(`res://${rel}`)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
     }

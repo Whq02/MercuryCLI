@@ -9,6 +9,7 @@ import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibra
 import { mnemeEnabled, mnemeLibraryDir } from './mnemeGates.js'
 import type { MnemeEntry, MnemeTopicDoc } from './mnemeTopicDocs.js'
 import { pinnedTextLimit, readPins, readUsage, type PinRecord, type UsageRecord } from './mnemeUsage.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const FRONT_PAGE_FILE = 'front-page.md'
 export const PINNED_STATUS_FILE = 'pinned-status.json'
@@ -172,7 +173,8 @@ export function publishFrontPage(dir: string = mnemeLibraryDir(), now: Date = ne
 export function readFrontPage(dir: string = mnemeLibraryDir()): string | null {
   try {
     return readFileSync(frontPagePath(dir), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -181,7 +183,8 @@ export function readPinnedStatus(dir: string = mnemeLibraryDir()): PinnedStatus 
   try {
     const parsed = JSON.parse(readFileSync(pinnedStatusPath(dir), 'utf8')) as PinnedStatus
     return typeof parsed?.pinned === 'number' && typeof parsed?.limit === 'number' && typeof parsed?.used === 'number' ? parsed : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -190,7 +193,8 @@ export function frontPageKey(dir: string = mnemeLibraryDir()): string {
   try {
     const st = statSync(frontPagePath(dir))
     return `${st.mtimeMs}:${st.size}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'none'
   }
 }

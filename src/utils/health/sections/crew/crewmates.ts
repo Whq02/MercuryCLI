@@ -1,4 +1,5 @@
 import type { CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function permissionPostureCheck(): CheckSpec {
   return {
@@ -81,13 +82,15 @@ export function agentDefinitionsCheck(): CheckSpec {
       let projectDir = ''
       try {
         projectDir = projectLocalPath(getOriginalCwd(), 'agents')
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       const countMd = (dir: string): number | null => {
         try {
           if (!dir || !existsSync(dir)) return null
           return readdirSync(dir).filter(f => f.endsWith('.md')).length
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return null
         }
       }

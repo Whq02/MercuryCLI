@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import { readdirSync, readFileSync, statSync, type Dirent } from 'node:fs'
 import { join, relative, sep } from 'node:path'
+import { passedOver } from '../utils/passedOver.js'
 
 const SKIP = new Set(['.git', 'node_modules', '__pycache__', '.DS_Store'])
 
@@ -8,7 +9,8 @@ function walk(root: string, dir: string, out: string[]): void {
   let entries: Dirent[]
   try {
     entries = readdirSync(dir, { withFileTypes: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   for (const entry of entries) {
@@ -62,7 +64,8 @@ export function folderSize(root: string): number {
   for (const file of files) {
     try {
       total += statSync(file).size
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return total

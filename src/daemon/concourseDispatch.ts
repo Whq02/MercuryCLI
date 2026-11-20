@@ -31,6 +31,7 @@ import type { SaturnOrigin, ScreenCommandOrigin } from '../utils/messages/notice
 import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messages/outsideReport.js'
 import type { InputBlock, InputRow } from '../rows/vocabulary.js'
 import { isStoredImageRef, readStoredImageRef } from '../utils/imageStore.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
 
 export interface ConcourseDispatchRecordV1 {
   schema: 1
@@ -125,7 +126,8 @@ function ledgerStamp(path: string): string | null {
   try {
     const st = statSync(path)
     return `${st.ino}:${st.mtimeMs}:${st.size}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -364,7 +366,8 @@ export function readConcourseControlOps(dir?: string): Record<string, ConcourseC
   let text: string
   try {
     text = readFileSync(path, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
   let raw: unknown
@@ -534,7 +537,8 @@ export async function preflightConcourseDispatch(
   let workspaceOk = false
   try {
     workspaceOk = statSync(req.workspaceDir).isDirectory()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (!workspaceOk) {
     refusals.push({ code: 'invalid-workspace', reason: `project folder not found: ${req.workspaceDir} — pick an existing folder` })
@@ -1038,7 +1042,7 @@ export function makeConcourseDispatchHandler(
     )
     tail = next.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     )
     return next
   }) as ConcourseDispatchHandler
@@ -1049,7 +1053,7 @@ export function makeConcourseDispatchHandler(
     )
     tail = next.then(
       () => undefined,
-      () => undefined,
+      passedOverAs(undefined),
     )
     return next
   }

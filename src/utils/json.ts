@@ -4,6 +4,7 @@ import { stripBOM } from './jsonRead.js'
 import { logError } from './log.js'
 import { memoizeWithLRU } from './memoize.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+import { passedOver } from './passedOver.js'
 
 export { stripBOM }
 
@@ -139,7 +140,8 @@ export function parseJSONL<T>(data: string | Buffer): T[] {
     if (line === '') continue
     try {
       results.push(jsonParse(line) as T)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return results

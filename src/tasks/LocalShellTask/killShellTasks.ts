@@ -8,6 +8,7 @@ import { evictTaskOutput } from '../../utils/task/diskOutput.js'
 import { updateTaskState } from '../../utils/task/framework.js'
 import type { LocalShellTaskState, ShellKillSource } from './guards.js'
 import { isLocalShellTask } from './guards.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 const KILL_SETTLEMENT_GRACE_MS = 3000
@@ -88,7 +89,8 @@ export function killTask(taskId: string, setAppState: SetAppState, killedBy: She
         processesEnded: receipt.ended,
         ...(receipt.survivors.length > 0 ? { processSurvivors: receipt.survivors.length } : {}),
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return {}
     }
   }

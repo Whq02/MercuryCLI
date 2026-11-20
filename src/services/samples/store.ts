@@ -15,6 +15,7 @@ import {
   type SampleVersionV1,
 } from './contracts.js'
 import { renderSampleShell } from './shell.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const RECORD_FILE = 'sample.json'
 const SAMPLE_ID_RE = /^[a-z0-9]{6,32}$/
@@ -46,7 +47,8 @@ function noteSampleChange(): void {
   for (const listener of [...changeListeners]) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -125,7 +127,8 @@ export function listSamples(sessionId: string): SampleRecordV1[] {
   let names: string[]
   try {
     names = readdirSync(root)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const out: SampleRecordV1[] = []
@@ -147,7 +150,8 @@ export function readVersion(sessionId: string, id: string, n: number): string | 
   if (!Number.isInteger(n) || n < 1) return null
   try {
     return readFileSync(join(sampleDir(sessionId, id), `v${n}.html`), 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -317,7 +321,8 @@ function writeAtomic(path: string, text: string): void {
   } catch (err) {
     try {
       unlinkSync(temp)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     throw err
   }

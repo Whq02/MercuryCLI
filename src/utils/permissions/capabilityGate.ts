@@ -4,6 +4,7 @@ import { lspFamilyMatches } from '../../services/lsp/toolFamily.js'
 import type { Tool } from '../../Tool.js'
 import { deriveCategory, deriveRisk, type CapabilityCategory } from '../capability/manifest.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../passedOver.js'
 
 export const ALL_AGENTS = '*'
 const ALL_TOOLS = '*'
@@ -57,7 +58,8 @@ export function restoreCapability(
 function currentAgentTypeSafe(): string | undefined {
   try {
     return getMainThreadAgentType()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -211,7 +213,8 @@ function parseAgentCapPolicy(): Map<string, AgentCapRule> {
 export function getAgentCapParseRejects(): string[] {
   try {
     return parseAgentCapPolicyWithRejects().rejects
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -238,7 +241,8 @@ function agentPolicyDenies(
       if (rule.denyCat && rule.denyCat.has(cat)) return true
     }
     return false
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -269,7 +273,8 @@ function agentPolicyReason(
       }
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -327,7 +332,8 @@ function seedFromEnv(): void {
         if (toolName) killCapability(agentType, toolName)
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

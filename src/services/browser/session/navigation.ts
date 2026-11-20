@@ -2,18 +2,21 @@ import { POPUP_SETTLE_MS, FIRST_NAVIGATION_SILENCE_MS, FIRST_NAVIGATION_STARTS, 
 import { holdOf } from './owners.js'
 import { pageKits } from './stealth.js'
 import { abortReason } from './launch.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 function leftForHost(origins: Set<string>, url: string): boolean {
   let host: string
   try {
     host = new URL(url).hostname
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
   for (const origin of origins) {
     try {
       if (new URL(origin).hostname === host) return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
   }
@@ -36,7 +39,7 @@ export async function firstNavigation<T>(session: Session, url: string, go: () =
   const web = /^https?:/i.test(url)
   const stopped = (): boolean => signal?.aborted === true
   const halted = (): unknown => {
-    void pageKits.get(session.page)?.cdp?.send('Page.stopLoading').catch(() => undefined)
+    void pageKits.get(session.page)?.cdp?.send('Page.stopLoading').catch(passedOverAs(undefined))
     return abortReason(signal as AbortSignal)
   }
   const quiet = (until: number | null): { over: Promise<null>; end: () => void } => {
@@ -117,6 +120,6 @@ export async function popupsSettled(session: Session): Promise<void> {
 export async function bringTabToFront(session: Session): Promise<void> {
   const hold = holdOf(session)
   if (hold.front === session) return
-  if (typeof session.page.bringToFront === 'function') await session.page.bringToFront().catch(() => undefined)
+  if (typeof session.page.bringToFront === 'function') await session.page.bringToFront().catch(passedOverAs(undefined))
   hold.front = session
 }

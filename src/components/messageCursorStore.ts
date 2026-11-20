@@ -1,6 +1,7 @@
 
 import { useSyncExternalStore } from 'react'
 import type { MessageActionsState } from './messageActions.js'
+import { passedOver } from '../utils/passedOver.js'
 
 let cursor: MessageActionsState | null = null
 const listeners = new Set<() => void>()
@@ -9,7 +10,8 @@ function notify(): void {
   for (const listener of listeners) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

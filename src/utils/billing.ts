@@ -7,11 +7,13 @@ import {
   isClaudeAISubscriber,
 } from './auth.js'
 import { getGlobalConfig } from './config/globalConfig.js'
+import { passedOver } from './passedOver.js'
 
 function hasResolvableApiKey(): boolean {
   try {
     return getAnthropicApiKey() !== null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

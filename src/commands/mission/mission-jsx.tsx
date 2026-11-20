@@ -10,6 +10,7 @@ import { renderToString } from '../../utils/staticRender.js'
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import { MISSION_CONDITION_MAX_LENGTH, isMissionClearKeyword } from '../../guards/mission.js'
 import type { MissionCardFactV1 } from '../../services/engine-connector/types.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 type MissionView = Pick<MissionCardFactV1, 'goal' | 'state' | 'nextStep' | 'iterations' | 'setAt' | 'outcome'>
@@ -56,7 +57,8 @@ async function sessionMissionCard(): Promise<MissionCardFactV1 | null> {
     const { readMissionCard } = await import('../../services/mission/missionCard.js')
     const card = readMissionCard(connector.sessionId(), connector.workspace().originalCwd)
     return card === null ? null : { goal: card.goal, state: card.state, nextStep: card.nextStep, iterations: card.iterations, setAt: card.setAt, updatedAt: card.updatedAt, ...(card.outcome !== undefined ? { outcome: card.outcome } : {}) }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

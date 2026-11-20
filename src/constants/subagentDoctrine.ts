@@ -10,6 +10,7 @@ import { RETAIN_TOOL_NAME } from '../tools/MemoryTools/prompt.js'
 import { changeTransactionEnabled } from '../services/changeTransaction/contracts.js'
 import { ENVELOPE_DOCTRINE } from '../services/agentResults/contracts.js'
 import { MERCURY_SCOUT_AGENT } from '../tools/AgentTool/built-in/mercuryScoutAgent.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const FIXED_OUTPUT_AGENT_TYPES = new Set<string>(
   [MERCURY_SCOUT_AGENT]
@@ -33,7 +34,8 @@ export function agentFanoutCap(): number | null {
 function safeMemoryPrompt(verbs: 'all' | 'read'): string | null {
   try {
     return loadMemoryPrompt({ verbs, role: 'child' })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

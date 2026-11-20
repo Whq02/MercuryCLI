@@ -45,6 +45,7 @@ import { runPostCompactCleanup } from './postCompactCleanup.js'
 import { trySessionMemoryCompaction, shouldUseSessionMemoryCompaction } from './sessionMemoryCompact.js'
 import { APIUserAbortError } from '../api/sdkErrors.js'
 import { calculateTokenWarningState, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, getBlockingLimit, getEffectiveContextWindowSize, isAutoCompactEnabled, SUMMARY_RESERVE_MAX_WINDOW_DIVISOR, thresholdOverridden } from './autoCompactWindow.js'
+import { passedOver } from '../../utils/passedOver.js'
 export { MIN_AUTOCOMPACT_WINDOW, MAX_AUTOCOMPACT_WINDOW, WARNING_THRESHOLD_BUFFER_TOKENS, MANUAL_COMPACT_BUFFER_TOKENS, AUTOCOMPACT_BUFFER_TOKENS, autoCompactWindowIsInputLimit, resolveAutoCompactWindow, getEffectiveContextWindowSize, getTurnReserveTokens, getAutoCompactThreshold, getAutoCompactThresholdWithFixed, autoCompactDisabledReason, isAutoCompactEnabled, compactionSettingsText, getBlockingLimit, calculateTokenWarningState } from './autoCompactWindow.js'
 export type { AutoCompactWindowSource, TokenWarningLevel } from './autoCompactWindow.js'
 
@@ -117,7 +118,8 @@ function helperFoldModel(): string | undefined {
   try {
     const { helperCompactionModelId } = require('../providers/local/tensorfoldHelper.js') as typeof import('../providers/local/tensorfoldHelper.js')
     return helperCompactionModelId()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -127,7 +129,8 @@ function seatedLocalServing(seated: string): boolean {
     const { localRecordFor } = require('../providers/local/localCatalogue.js') as typeof import('../providers/local/localCatalogue.js')
     const record = localRecordFor(seated)
     return record !== undefined && record.loaded !== false
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

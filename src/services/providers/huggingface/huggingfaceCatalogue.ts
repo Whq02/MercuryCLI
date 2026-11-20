@@ -22,6 +22,7 @@ import {
   isHuggingfaceModelId,
   splitHuggingfaceSlug,
 } from './huggingfacePins.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 const CATALOGUE_FETCH_TIMEOUT_MS = 15_000
@@ -330,10 +331,10 @@ export function getHuggingfaceAvailability(env: NodeJS.ProcessEnv = process.env)
       catalogueNote: verdict.reason,
     }
   }
-  if (!snapshot) void refreshHuggingfaceCatalogue({ env }).catch(() => {})
+  if (!snapshot) void refreshHuggingfaceCatalogue({ env }).catch(passedOver)
   const liveIds = snapshot?.models.map(m => m.id) ?? []
   if (snapshot && snapshot.models.length === 0 && snapshot.lastError && /refused the credential/.test(snapshot.lastError)) {
-    void refreshHuggingfaceCatalogue({ env }).catch(() => {})
+    void refreshHuggingfaceCatalogue({ env }).catch(passedOver)
     return {
       state: 'disabled',
       why: 'auth-invalid',

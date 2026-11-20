@@ -17,6 +17,7 @@ import { captureHostHuggingfaceCredential } from './jobCredentials.js'
 import { hostRetuneLive, readTunePreferences, tunedRecipe } from './tune.js'
 import { HOST_IDLE_POLL_MS, sweepHostIdle } from './idle.js'
 import { HOST_VENDOR_INFO } from './vendors/vendor.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const serviceName = (id: string): string => 'host-' + id.toLowerCase()
 const serviceHome = (): string => hostDirectory()
@@ -110,7 +111,7 @@ export function hostLogTail(record: HostRecord): string {
     const bytes = Buffer.alloc(Math.min(size, 16384))
     readSync(fd, bytes, 0, bytes.length, size - bytes.length)
     return bytes.toString('utf8').replaceAll('MERCURY_STEP ', '').split(/[\r\n]/).filter(Boolean).slice(-3).join(' · ')
-  } catch { return '' } finally { if (fd !== undefined) closeSync(fd) }
+  } catch (error) { passedOver(error); return '' } finally { if (fd !== undefined) closeSync(fd) }
 }
 export async function sweepHostJobs(options: { stallMs?: number; launch?: (record: HostRecord) => Promise<void>; alive?: (record: HostRecord) => boolean; records?: HostRecord[] } = {}): Promise<void> {
   for (const record of options.records ?? hostRecords()) {

@@ -5,6 +5,7 @@ import { getEngineModel } from '../utils/model/model.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelReceivesImageBlocks } from '../utils/model/capabilities.js'
 import { declaredRouteOf } from './providers/routeLaw.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type LooseBlock = Record<string, unknown>
 
@@ -42,7 +43,8 @@ function pdfPageCountOf(bytes: Buffer): number | null {
     if (end < 0) break
     try {
       pages += pdfPageObjects(inflateSync(bytes.subarray(start, end)).toString('latin1'))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return pages > 0 ? pages : null

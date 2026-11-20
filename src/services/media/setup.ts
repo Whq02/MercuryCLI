@@ -8,6 +8,7 @@ import { stripTerminalControls } from '../../utils/stringUtils.js'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { mediaCheckpointFile, mediaCheckpointInstalled, mediaFileInstalled, mediaModelFiles, mediaModelJoined, mediaPartialBytes, readMediaCatalogue, type MediaCatalogue, type MediaModel } from './catalogue.js'
 import { mediaConfigModule, mediaEnvironment, mediaHealth, mediaRoot, mediaServerPath, readMediaSettings, type MediaConfig, type MediaSettings } from './settings.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type MediaFit = { residentBytes: number; peakMetalBytes: number; fits: boolean; diskFits: boolean }
 type MediaRow = { model: MediaModel; installed: boolean; bytes: number; pullBytes: number; fit: MediaFit; words: string }
@@ -182,7 +183,7 @@ export async function runMediaSetup(args: string[], onProgress: (event: MediaPro
           const rel = relative(mediaRoot(settings), paused.file)
           if (!isAbsolute(rel) && rel !== '..' && !rel.startsWith('../') && !rel.startsWith('..\\')) {
             for (const file of [`${paused.file}.part`, paused.file]) {
-              try { const stat = statSync(file); if (stat.isFile()) { paused.bytes = stat.size; break } } catch {}
+              try { const stat = statSync(file); if (stat.isFile()) { paused.bytes = stat.size; break } } catch (error) { passedOver(error) }
             }
           }
         }
@@ -203,5 +204,5 @@ function runtimeRecord(root: string): { tag?: string; variant?: string; requeste
   try {
     const record = JSON.parse(readFileSync(join(root, 'runtime.json'), 'utf8')) as { tag?: unknown; variant?: unknown; requestedVariant?: unknown }
     return { ...(typeof record.tag === 'string' ? { tag: record.tag } : {}), ...(typeof record.variant === 'string' ? { variant: record.variant } : {}), ...(typeof record.requestedVariant === 'string' ? { requestedVariant: record.requestedVariant } : {}) }
-  } catch { return undefined }
+  } catch (error) { passedOver(error); return undefined }
 }

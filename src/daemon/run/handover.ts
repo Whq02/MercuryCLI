@@ -10,6 +10,7 @@ import { helperPidSocketsOnDisk } from '../status.js'
 import type { periodicArmer } from './periodic.js'
 import { successorRuntime } from './restart.js'
 import type { DaemonRunState } from './state.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const IDLE_PREDECESSOR_READS = 3
 const FIRST_IDLE_SWEEP_MS = 1_000
@@ -30,7 +31,7 @@ export function armHandoverBeats(state: DaemonRunState, { handoverPredecessor, a
       sweepInflight = true
       try {
         for (const pid of helperPidSocketsOnDisk()) {
-          if (pid !== process.pid && !isProcessAlive(pid) && daemonHomeStands('the departed-helper sweep')) await unlink(predecessorSockPath(pid)).catch(() => undefined)
+          if (pid !== process.pid && !isProcessAlive(pid) && daemonHomeStands('the departed-helper sweep')) await unlink(predecessorSockPath(pid)).catch(passedOverAs(undefined))
         }
         for (const pid of predecessors.predecessorPids()) {
           if (predecessors.heldRunners(pid).size > 0) {
@@ -48,7 +49,7 @@ export function armHandoverBeats(state: DaemonRunState, { handoverPredecessor, a
           if (reads < (holdsLock ? 1 : IDLE_PREDECESSOR_READS)) continue
           idleReads.delete(pid)
           console.error(`[daemon] the daemon this one took over from (pid ${pid}, v${reply.version}) holds no live session and has not left on its own — asking it to leave`)
-          await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers: false, forwarded: true }), 3000).catch(() => undefined)
+          await forwardFrame(predecessorSockPath(pid), JSON.stringify({ op: 'shutdown', reapWorkers: false, forwarded: true }), 3000).catch(passedOverAs(undefined))
         }
       } finally {
         sweepInflight = false

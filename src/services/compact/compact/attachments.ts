@@ -22,6 +22,7 @@ import { estimateContextTokens } from '../microCompact.js'
 import { FOLDED_RESULT_KEY } from '../verbatimTail.js'
 import { POST_COMPACT_MAX_FILES_TO_RESTORE, POST_COMPACT_TOKEN_BUDGET, POST_COMPACT_MAX_TOKENS_PER_FILE, POST_COMPACT_MAX_TOKENS_PER_SKILL, POST_COMPACT_SKILLS_TOKEN_BUDGET, ERROR_MESSAGE_POST_COMPACT_OVER_THRESHOLD } from './limits.js'
 import { type CompactionResult, buildPostCompactMessages } from './result.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 function shouldExcludeFromPostCompactRestore(filename: string): boolean {
   const normalizedFilename = expandPath(filename)
@@ -29,7 +30,8 @@ function shouldExcludeFromPostCompactRestore(filename: string): boolean {
   try {
     const memoryPaths = MEMORY_TYPE_VALUES.map(memoryType => expandPath(getMemoryPath(memoryType)))
     if (memoryPaths.includes(normalizedFilename)) return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return false
 }
@@ -115,7 +117,7 @@ export async function createPostCompactFileAttachments(
       candidates.map(([path]) =>
         generateFileAttachment(path, toolUseContext, 'compact', {
           limit: MAX_LINES_TO_READ,
-        }).catch(() => null),
+        }).catch(passedOverAs(null)),
       ),
     )
 

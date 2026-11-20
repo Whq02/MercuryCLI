@@ -1,5 +1,6 @@
 
 import type { OwnerKey } from './ownerKey.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 interface OwnerScopedStoreOptions<T> {
   name: string
@@ -85,7 +86,7 @@ export class OwnerScopedStore<T> {
       return Promise.resolve()
     }
     if (!(result instanceof Promise)) return Promise.resolve()
-    const tracked = result.catch(() => undefined).then(() => {
+    const tracked = result.catch(passedOverAs(undefined)).then(() => {
       this.#pending.delete(tracked)
     })
     this.#pending.add(tracked)

@@ -16,6 +16,7 @@ import {
   type SearchOutcome,
   type SearchRequest,
 } from './searchContract.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const MAX_SEARCH_USES = 8
 
@@ -30,7 +31,8 @@ function extractQueryFromPartialJson(partial: string): string | undefined {
   if (!match) return undefined
   try {
     return JSON.parse(`"${match[1]}"`) as string
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

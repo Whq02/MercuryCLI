@@ -12,6 +12,7 @@ import { videoToolEnabled } from '../../services/video/registry.js'
 import type { VideoInput, VideoOutput } from '../../services/video/types.js'
 import { VIDEO_PROMPT } from './prompt.js'
 import { VideoToolResult } from './VideoToolResult.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const aspect = () => z.enum(['adaptive', '21:9', '16:9', '4:3', '1:1', '3:4', '9:16'])
 const inputSchema = lazySchema(() => z.strictObject({
@@ -103,7 +104,7 @@ export const VideoTool = buildTool({
           { type: 'text' as const, text: output.result },
           { type: 'image' as const, source: { type: 'base64' as const, media_type: (output.inlineMediaType ?? 'image/png') as 'image/png', data: readFileSync(output.inlinePath).toString('base64') } },
         ] }
-      } catch { }
+      } catch (error) { passedOver(error) }
     }
     return { type: 'tool_result' as const, tool_use_id: toolUseId, content: output.result, is_error: output.outcome !== 'succeeded' }
   },

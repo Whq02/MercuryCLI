@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { defineStore } from '../../substrate/fileStore.js'
 import { getMercuryHome } from '../envUtils.js'
 import { projectSlug, sanitizePath } from '../sessionStoragePortable.js'
+import { passedOver } from '../passedOver.js'
 
 export interface SavedPromptV1 {
   id: string
@@ -32,7 +33,8 @@ export function savedPromptsPath(projectPath: string): string {
     if (existsSync(legacy)) {
       try {
         renameSync(legacy, hashed)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -200,8 +202,7 @@ export function subscribeSavedPrompts(projectPath: string, listener: () => void)
         if (c.drafts === null) c.drafts = NO_DRAFTS
         for (const l of c.listeners) l()
       })
-      .catch(() => {
-      })
+      .catch(passedOver)
   }
   return () => {
     c.listeners.delete(listener)

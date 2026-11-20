@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const VOICE_PACK_PATH = 'vendor/voice'
 export const VOICE_ADDON_FILE = 'mercury_voice.node'
@@ -82,7 +83,8 @@ export function readVoicePackManifest(dir: string): VoicePackManifest | null {
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(dir, VOICE_PACK_MANIFEST_FILE), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof raw !== 'object' || raw === null) return null

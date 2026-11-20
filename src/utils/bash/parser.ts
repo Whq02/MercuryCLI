@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { TSNode } from '../../services/structure/grammarFacility.js'
 import type { TsNode } from './bashParser.js'
+import { passedOver } from '../passedOver.js'
 
 export type Node = TsNode
 
@@ -91,7 +92,8 @@ async function parseRaw(command: string): Promise<RawParse> {
     } finally {
       parsed.tree.delete()
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

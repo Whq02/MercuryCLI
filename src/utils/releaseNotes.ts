@@ -3,6 +3,7 @@ import { coerce } from 'semver'
 import { MERCURY_CHANGELOG } from '../constants/changelog.js'
 import { logError } from './log.js'
 import { gt } from './semver.js'
+import { passedOver } from './passedOver.js'
 
 
 function getStoredChangelogFromMemory(): string {
@@ -56,14 +57,16 @@ export function getRecentReleaseNotes(
         if (previous === undefined || epochReset) return true
         try {
           return gt(version, previous)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return false
         }
       })
       .sort((a, b) => {
         try {
           return gt(a, b) ? -1 : 1
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return 0
         }
       })
@@ -87,7 +90,8 @@ export function getAllReleaseNotes(changelogContent: string = getStoredChangelog
       .sort(([a], [b]) => {
         try {
           return gt(a, b) ? 1 : -1
-        } catch {
+        } catch (error) {
+          passedOver(error)
           return 0
         }
       })

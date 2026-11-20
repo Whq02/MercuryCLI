@@ -1,5 +1,6 @@
 
 import { declaredRouteOf } from '../../services/providers/routeLaw.js'
+import { passedOver } from '../passedOver.js'
 
 const SOURCE_WAIT_MS = 3_000
 const LOCAL_WINDOW_WAIT_MS = 10_000
@@ -149,7 +150,8 @@ export async function awaitContextWindowSource(model: string, wait: ContextWindo
       default:
         return true
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return declaredRouteOf(model) !== 'local'
 }
@@ -158,6 +160,7 @@ export async function warmContextWindowSources(): Promise<void> {
   try {
     const { refreshLocalDiscovery } = await import('../../services/providers/local/localDiscovery.js')
     await refreshLocalDiscovery()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

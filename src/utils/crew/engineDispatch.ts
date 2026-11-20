@@ -138,6 +138,7 @@ async function readLiveListsForBareId(modelParam: string | undefined): Promise<v
 }
 
 import { MODEL_LOOKUP_LADDER } from '../model/modelLookup.js'
+import { passedOverAs } from '../passedOver.js'
 
 const ENGINE_ID_SHAPES = 'gpt-*, glm-*, kimi-*, deepseek-*, grok-*, muse-spark-*, gemini-*, google/*, mistral-*, minimax-*, command-*, qwen3*, qwen-*, compat/*, huggingface/*, local/*, openrouter/*, nous/*, together/*'
 
@@ -300,7 +301,7 @@ async function resolveHuggingfaceClassDispatch(): Promise<EngineDispatch> {
   if (declaredRouteOf(main) === 'huggingface') {
     return { backend: 'huggingface', model: main, displayLabel: main.slice(HUGGINGFACE_MODEL_PREFIX.length) }
   }
-  await refreshHuggingfaceCatalogue().catch(() => null)
+  await refreshHuggingfaceCatalogue().catch(passedOverAs(null))
   const head = huggingfaceLiveCatalogue()?.entries[0] ?? HUGGINGFACE_STATIC_CATALOGUE[0]
   if (!head) throw new Error("The 'huggingface' class cannot resolve — the router's model list could not be read and this build pins no Hugging Face row. Name an exact huggingface/<org>/<model> id from mercury://models/known, or ask the operator for the model id; never switch to another provider on your own.")
   return { backend: 'huggingface', model: head.id, displayLabel: head.displayLabel }
@@ -308,7 +309,7 @@ async function resolveHuggingfaceClassDispatch(): Promise<EngineDispatch> {
 
 async function resolveHuggingfaceExactModel(id: string): Promise<EngineDispatch> {
   const slug = id.slice(HUGGINGFACE_MODEL_PREFIX.length)
-  const snapshot = await refreshHuggingfaceCatalogue().catch(() => null)
+  const snapshot = await refreshHuggingfaceCatalogue().catch(passedOverAs(null))
   if (snapshot && snapshot.models.length > 0) {
     const live = huggingfaceLiveModel(slug)
     if (!live) {
@@ -344,7 +345,7 @@ async function resolveGeminiClassDispatch(): Promise<EngineDispatch> {
       'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
     )
   }
-  const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(passedOverAs(null))
   const head = newestGeminiGenerationFirst(geminiGenerateModels(snapshot), m => m.id)[0]
   if (!head) {
     throw new Error(
@@ -363,7 +364,7 @@ async function resolveGeminiExactModel(id: string): Promise<EngineDispatch> {
       'Engine provider gemini has no connected account source — /logins gemini signs in or attaches an API key.',
     )
   }
-  const snapshot = await refreshGeminiCatalogue(account.kind).catch(() => null)
+  const snapshot = await refreshGeminiCatalogue(account.kind).catch(passedOverAs(null))
   const live = geminiGenerateModels(snapshot)
   if (live.length > 0) {
     const match = live.find(m => m.id === id) ?? (account.kind === 'plan' ? geminiPlanEffortRow(id, undefined) : undefined)
@@ -463,7 +464,7 @@ async function resolveOpenrouterExactModel(id: string): Promise<EngineDispatch> 
     )
   }
   const slug = id.slice(OPENROUTER_MODEL_PREFIX.length)
-  const snapshot = await refreshOpenrouterCatalogue(account.keySource).catch(() => null)
+  const snapshot = await refreshOpenrouterCatalogue(account.keySource).catch(passedOverAs(null))
   if (snapshot && snapshot.models.length > 0) {
     const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
     if (!match) {
@@ -484,7 +485,7 @@ async function resolveNousClassDispatch(): Promise<EngineDispatch> {
     return { backend: 'nous', model: main, displayLabel: main.slice(NOUS_ENGINE_MODEL_PREFIX.length) }
   }
   const { getNousModelOptions, refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
-  await refreshNousCatalogue().catch(() => null)
+  await refreshNousCatalogue().catch(passedOverAs(null))
   const head = getNousModelOptions().find(option => option.value.startsWith(NOUS_ENGINE_MODEL_PREFIX) && option.unavailable === undefined)
   if (!head) {
     throw new Error("The 'nous' class cannot resolve — the Nous Portal catalogue serves no selectable row yet (the key's live list has not been read, or listed none). Name an exact nous/<vendor>/<model> id from mercury://models, or ask the operator for the model id; never switch to another provider on your own.")
@@ -499,7 +500,7 @@ async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
   }
   const { refreshNousCatalogue } = await import('../../services/providers/nous/nousCatalogue.js')
   const slug = id.slice(NOUS_ENGINE_MODEL_PREFIX.length)
-  const snapshot = await refreshNousCatalogue().catch(() => null)
+  const snapshot = await refreshNousCatalogue().catch(passedOverAs(null))
   if (snapshot && snapshot.models.length > 0) {
     const match = snapshot.models.find(m => m.id.toLowerCase() === slug.toLowerCase())
     if (!match) {
@@ -513,7 +514,7 @@ async function resolveNousExactModel(id: string): Promise<EngineDispatch> {
 }
 
 async function resolveLocalExactModel(id: string): Promise<EngineDispatch> {
-  if (!localRecordFor(id)) await refreshLocalDiscovery({ force: true }).catch(() => null)
+  if (!localRecordFor(id)) await refreshLocalDiscovery({ force: true }).catch(passedOverAs(null))
   const record = localRecordFor(id)
   if (!record) {
     const listed = localLiveCatalogue().map(e => e.id)

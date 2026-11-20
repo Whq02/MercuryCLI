@@ -16,6 +16,7 @@ import { utilityCallFor } from '../../utils/model/utilityModel.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { goalCriteria, goalWords, type GoalStatement } from './goal.js'
 import { MISSION_MET_SENTINEL } from './sentinel.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const GOAL_VERDICT_FLOOR = 0.6
 export const MISSION_JUDGE_TIMEOUT_MS = 20_000
@@ -121,7 +122,8 @@ export function readJudgeAnswer(text: string): { kind: GoalVerdictKind; reason: 
   let parsed: unknown
   try {
     parsed = JSON.parse(text.trim())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return null

@@ -5,6 +5,7 @@ import { valueOr } from '../../substrate/sourceState.js'
 import { listAgentSessions } from './identity.js'
 import { listConversations } from './conversations.js'
 import { resolveCrewSnapshot } from './projection.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const GRAPH_EDGE_KINDS = [
   'spawned-by',
@@ -94,7 +95,7 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
     }
   }
 
-  const sessions = await listAgentSessions().catch(() => [])
+  const sessions = await listAgentSessions().catch((error) => { passedOver(error); return [] })
   for (const s of sessions) {
     if (s.endedAt !== undefined) continue
     addNode({ id: `session:${s.sessionId}`, kind: 'session', label: s.sessionId, agentId: s.agentId as string })
@@ -112,7 +113,7 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
     }
   }
 
-  const conversations = await listConversations().catch(() => [])
+  const conversations = await listConversations().catch((error) => { passedOver(error); return [] })
   const windowed = [...conversations]
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, 60)
@@ -159,7 +160,8 @@ export async function assembleSessionGraph(): Promise<SessionGraph> {
         owner: 'review-journal',
       })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   const structural = [...nodes.values()].filter(n => n.kind === 'agent' || n.kind === 'session' || n.kind === 'worktree')

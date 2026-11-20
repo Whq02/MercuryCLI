@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../envUtils.js'
 import type { RawReadResult } from './rawRead.js'
+import { passedOver } from '../../passedOver.js'
 
 interface MdmProbeMemoV1 {
   schema: 1
@@ -18,7 +19,8 @@ export function readMdmProbeMemo(home?: string): MdmProbeMemoV1 | null {
     const raw = JSON.parse(readFileSync(mdmProbeMemoPath(home), 'utf8')) as Partial<MdmProbeMemoV1> | null
     if (!raw || raw.schema !== 1 || typeof raw.present !== 'boolean' || typeof raw.checkedAt !== 'number') return null
     return { schema: 1, present: raw.present, checkedAt: raw.checkedAt }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -28,7 +30,8 @@ export function writeMdmProbeMemo(present: boolean, home?: string): void {
     const path = mdmProbeMemoPath(home)
     mkdirSync(dirname(path), { recursive: true })
     writeFileSync(path, `${JSON.stringify({ schema: 1, present, checkedAt: Date.now() } satisfies MdmProbeMemoV1)}\n`)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 

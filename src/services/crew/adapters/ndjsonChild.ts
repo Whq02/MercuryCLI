@@ -1,6 +1,7 @@
 
 import { spawn, type ChildProcess } from 'node:child_process'
 import { logForDebugging } from '../../../utils/debug.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const MAX_LINE_BUFFER_BYTES = 8 * 1024 * 1024
 const EXIT_CLOSE_BACKSTOP_MS = 1_500
@@ -39,7 +40,8 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     for (const l of [...exitListeners]) {
       try {
         l(code, reason)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
   }
@@ -140,7 +142,8 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
     kill: () => {
       try {
         child.kill()
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     },
     stderrTail: () => stderrRing,
@@ -168,12 +171,14 @@ export function realNdjsonChild(cmd: string, args: string[], opts: { cwd?: strin
         })()
         try {
           child.kill('SIGTERM')
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         escalation = setTimeout(() => {
           try {
             child.kill('SIGKILL')
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
         }, graceMs)
         escalation.unref?.()

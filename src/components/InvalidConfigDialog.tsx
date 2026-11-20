@@ -12,6 +12,7 @@ import { gracefulShutdownSync } from '../utils/gracefulShutdown.js'
 import { findMostRecentBackup, getConfigBackupDir, restoreConfigFromBackup } from '../utils/config/globalConfig.js'
 import { logError } from '../utils/log.js'
 import { DEFAULT_THEME_SETTING } from '../utils/systemTheme.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type Choice = 'exit' | 'reset' | 'restore'
 
@@ -87,7 +88,8 @@ export function showInvalidConfigDialog({
                         2,
                         `mercury: the configuration was restored from ${backupPath}${quarantinePath ? ` — the corrupt bytes are kept at ${quarantinePath}` : ''}. Start Mercury again.\n`,
                       )
-                    } catch {
+                    } catch (error) {
+                      passedOver(error)
                     }
                     gracefulShutdownSync(0)
                   } catch (restoreError) {
@@ -97,7 +99,8 @@ export function showInvalidConfigDialog({
                         2,
                         `mercury: the restore from ${backupPath} failed (${restoreError instanceof Error ? restoreError.message : String(restoreError)}) — the file is unchanged; copy it by hand: cp "${backupPath}" "${error.filePath}"\n`,
                       )
-                    } catch {
+                    } catch (error) {
+                      passedOver(error)
                     }
                     gracefulShutdownSync(1)
                   }
@@ -126,7 +129,8 @@ export function showInvalidConfigDialog({
                         2,
                         `mercury: the reset could not write ${error.filePath} (${writeError instanceof Error ? writeError.message : String(writeError)}) — the file is unchanged; fix or replace it by hand.\n`,
                       )
-                    } catch {
+                    } catch (error) {
+                      passedOver(error)
                     }
                     gracefulShutdownSync(1)
                     return
@@ -136,7 +140,8 @@ export function showInvalidConfigDialog({
                       2,
                       `mercury: the configuration was reset to defaults${quarantinePath ? ` — the corrupt bytes are kept at ${quarantinePath}` : ''}.\n`,
                     )
-                  } catch {
+                  } catch (error) {
+                    passedOver(error)
                   }
                   gracefulShutdownSync(0)
                 } else {

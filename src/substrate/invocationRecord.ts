@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type ShellHint = 'powershell' | 'cmd' | 'posix-sh' | 'unknown'
 
@@ -64,7 +65,8 @@ export function recordInvocation(): InvocationCapabilityRecordV1 {
     try {
       const raw = JSON.parse(readFileSync(invocationRecordPath(), 'utf8')) as InvocationFileV1
       if (raw && raw.version === 1 && Array.isArray(raw.rows)) rows = raw.rows
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     rows = [...rows, rec].slice(-MAX_ROWS)
     const path = invocationRecordPath()
@@ -72,7 +74,8 @@ export function recordInvocation(): InvocationCapabilityRecordV1 {
     const tmp = `${path}.tmp-${process.pid}-${Math.random().toString(16).slice(2, 10)}`
     writeFileSync(tmp, `${JSON.stringify({ version: 1, rows } satisfies InvocationFileV1, null, 1)}\n`)
     renameSync(tmp, path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return rec
 }
@@ -82,7 +85,8 @@ export function readInvocationRecords(): InvocationCapabilityRecordV1[] {
     const raw = JSON.parse(readFileSync(invocationRecordPath(), 'utf8')) as InvocationFileV1
     if (!raw || raw.version !== 1 || !Array.isArray(raw.rows)) return []
     return raw.rows
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

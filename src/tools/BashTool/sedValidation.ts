@@ -4,6 +4,7 @@ import {
   splitCommand,
   preparedSecurityParse,
 } from '../../utils/permissions/decision/commandAnalysis.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 function sedWords(command: string): { success: boolean; tokens: string[] } {
   const parsed = preparedSecurityParse(command)
@@ -171,7 +172,8 @@ export function sedCommandIsAllowedByAllowlist(command: string, options?: { allo
   let expressions: string[]
   try {
     expressions = extractSedExpressions(command)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 

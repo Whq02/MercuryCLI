@@ -18,6 +18,7 @@ import { MAX_PDF_PAGES_PER_REQUEST } from '../prompt.js'
 import { selectedPages, type Input, type Output, type LaneResult } from './schema.js'
 import { parseLineRangesList } from './target.js'
 import { readRichFormatLane } from './richFormatLane.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export async function readPdfLane(
   resolvedPath: string,
@@ -113,7 +114,7 @@ export async function readPdfLane(
   const stats = await stat(resolvedPath)
   const pdfSupported = isPDFSupported(turnModel)
   if (!pdfSupported || stats.size > PDF_TARGET_RAW_SIZE) {
-    const extraction = await extractPDFPages(resolvedPath).catch(() => undefined)
+    const extraction = await extractPDFPages(resolvedPath).catch(passedOverAs(undefined))
     if (extraction?.success) await removePDFPages(extraction.data.file.outputDir)
   }
   if (!pdfSupported) {

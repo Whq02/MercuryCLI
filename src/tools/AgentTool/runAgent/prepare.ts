@@ -30,6 +30,7 @@ import { REVIEW_BRIEF } from '../reviewerPolicy.js'
 import { agentPostureOf, agentToolsOf, childContextOf, runStartRecordOf } from './setup.js'
 import { type AgentRun, sdkStatusOf } from './watch.js'
 import type { connectAgentMcpServers, landAgentTranscriptRows, resolveAgentEffort, RecoveryAccountant, RunAgentParams } from '../runAgent.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 type PrepareNeeds = Pick<RunAgentParams, 'name' | 'description' | 'override' | 'agentDefinition' | 'instructionProfileOverride' | 'toolUseContext' | 'isAsync' | 'canShowPermissionPrompts' | 'allowedTools' | 'effortOverride' | 'useExactTools' | 'promptMessages' | 'cwd' | 'availableTools' | 'structuredOutputSpec' | 'worktreePath' | 'thinkingConfigOverride' | 'querySource' | 'contentReplacementState' | 'seatHolder' | 'onWait' | 'preserveToolUseResults' | 'onQueryProgress' | 'onCacheSafeParams' | 'model' | 'launchedAt'> & {
   agentId: AgentId
@@ -211,11 +212,12 @@ export async function prepareAgentRun({ agentId, name, description, swarm, abort
       agentId,
       getAgentTranscriptPath(agentId),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   await landAgentTranscriptRows(messages, agentId)
 
-  const latestRecord = await readAgentMetadata(agentId).catch(() => null)
+  const latestRecord = await readAgentMetadata(agentId).catch(passedOverAs(null))
   await writeAgentMetadata(agentId, runStartRecordOf({ latestRecord, model, effortOverride, agentDefinition, swarm, worktreePath, cwd, description, name, launchedAt, swarmWords, thinkingOverride, structuredOutputSpec, instructionCapture, resolvedAgentModel, resolvedEffort })).catch((error: unknown) => {
     logForDebugging(`runAgent: the record of crewmate ${agentId} could not be saved, so a resume falls back to the default agent type, model and directory: ${errorMessage(error)}`)
   })

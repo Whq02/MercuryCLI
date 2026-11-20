@@ -48,6 +48,7 @@ import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../auth.js'
 import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
 import type { AnthropicLiveRow } from '../../services/providers/anthropic/anthropicCatalogue.js'
+import { passedOver } from '../passedOver.js'
 
 export type ModelOption = {
   value: string
@@ -83,7 +84,8 @@ function liveAnthropicRows(): readonly AnthropicLiveRow[] {
     const { anthropicLiveUnion } =
       require('../../services/providers/anthropic/anthropicCatalogue.js') as typeof import('../../services/providers/anthropic/anthropicCatalogue.js')
     return anthropicLiveUnion()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

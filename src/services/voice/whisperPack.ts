@@ -7,6 +7,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { voiceCheckoutRoot, voicePackPlatform, voicePackTreeDigest, voiceSourceTreeDigest } from './voicePack.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const WHISPER_PACK_SEGMENTS = ['vendor', 'whisper'] as const
 export const WHISPER_PACK_PATH = 'vendor/whisper'
@@ -68,7 +69,8 @@ export function readWhisperPackManifest(dir: string): WhisperPackManifest | null
   let raw: unknown
   try {
     raw = JSON.parse(readFileSync(path.join(dir, WHISPER_PACK_MANIFEST_FILE), 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (typeof raw !== 'object' || raw === null) return null
@@ -157,7 +159,7 @@ export function whisperPackAbsentNote(checkoutRoot: string | null = voiceCheckou
     try {
       const manifest = JSON.parse(readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'manifest.json'), 'utf8')) as { onDeviceTranscriber?: { remedy?: string } }
       if (typeof manifest.onDeviceTranscriber?.remedy === 'string') remedy = manifest.onDeviceTranscriber.remedy
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return `this build carries no on-device transcriber for ${voicePackPlatform()} — ${remedy}`
 }
@@ -230,7 +232,8 @@ function reportedCpuFlags(platform: string): Set<string> | null {
       if (res.status !== 0) return null
       return new Set(res.stdout.toLowerCase().split(/\s+/).filter(f => f !== ''))
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return null
 }
@@ -270,7 +273,8 @@ export function probeCpuFloorByLoad(addonPath: string, opts: CpuFloorHelperOptio
       if (typeof answer.met === 'boolean' && Array.isArray(answer.missing)) {
         return answer.met ? { state: 'met', via: 'helper' } : { state: 'unmet', via: 'helper', missing: answer.missing.map(String) }
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   const said = out.find(l => l.startsWith(FLOOR_ERROR_MARK))

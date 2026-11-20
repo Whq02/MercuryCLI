@@ -12,6 +12,7 @@ import { isENOENT } from './errors.js'
 import { getMercuryHome, isEnvTruthy } from './envUtils.js'
 import { getFsImplementation } from './fsOperations.js'
 import { writeToStderr } from './process.js'
+import { passedOver } from './passedOver.js'
 
 
 type DebugLogLevel = 'verbose' | 'debug' | 'info' | 'warn' | 'error'
@@ -99,14 +100,16 @@ async function maybeRotateDebugLog(
       if (!isENOENT(err)) {
         try {
           await fs.unlink(rotatedPath)
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         try {
           await renameWithWin32Retry(path, rotatedPath)
         } catch {
           try {
             await fs.unlink(path)
-          } catch {
+          } catch (error) {
+            passedOver(error)
           }
         }
       }
@@ -123,11 +126,13 @@ function refreshLatestSymlink(logPath: string, logDir: string): void {
   const fs = getFsImplementation()
   try {
     fs.unlinkSync(join(logDir, 'latest'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     fs.symlinkSync(logPath, join(logDir, 'latest'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -143,13 +148,15 @@ function writeLogLine(content: string): void {
   if (currentLogDirectory !== logDir) {
     try {
       fs.mkdirSync(logDir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     currentLogDirectory = logDir
   }
   try {
     fs.appendFileSync(logPath, content)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
   if (getDebugFilePath() !== null) return

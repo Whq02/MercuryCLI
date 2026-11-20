@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as path from 'node:path'
 import { unityBridgeTokenOverride } from '../../utils/unity/bridgeGates.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function unityBridgeTokenPath(projectRoot: string): string {
   return path.join(projectRoot, 'Library', 'mercury-unity-bridge-token')
@@ -29,7 +30,8 @@ export function readUnityBridgeToken(projectRoot: string): string | undefined {
   try {
     const existing = readFileSync(unityBridgeTokenPath(projectRoot), 'utf8').trim()
     return /^[0-9a-f]{64}$/.test(existing) ? existing : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

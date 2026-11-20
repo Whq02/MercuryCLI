@@ -1,5 +1,6 @@
 import { statSync, watch, mkdirSync, type FSWatcher } from 'node:fs'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const HEARTBEAT_MS = 400
 
@@ -74,13 +75,15 @@ export class ProjectionFeed {
       watcher.on('error', () => {
         try {
           watcher.close()
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
         if (this.watcher === watcher) this.watcher = null
         this.rearm()
       })
       this.watcher = watcher
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     this.timerMs = this.cadenceMs()
     this.timer = setInterval(this.tick, this.timerMs)
@@ -99,7 +102,8 @@ export class ProjectionFeed {
     }
     try {
       this.watcher?.close()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     this.watcher = null
     this.lastKey = PROJECTION_ABSENT

@@ -14,6 +14,7 @@ import { settle, complete, resumeAdmitted, claimWake, wakePacket, admitWake, hol
 import { reserveEnrollment, cancelEnrollment, enroll, assignCaptain, assignTeam } from './store/enrollment.js'
 import { post, postOwner } from './store/posting.js'
 import { read, leadPosts, leadPainted, markLeadPainted, boundary, presented } from './store/reading.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const requireRuntime = createRequire(import.meta.url)
 const feeds = new Map<string, Set<() => void>>()
@@ -92,14 +93,14 @@ export function open(path: string, sessionId: string, now: () => number = Date.n
   const emit = (): void => {
     if (closed) return
     let next: string
-    try { next = version() } catch { return }
+    try { next = version() } catch (error) { passedOver(error); return }
     if (observed === next) return
     observed = next
-    for (const listener of listeners) { try { listener() } catch {} }
+    for (const listener of listeners) { try { listener() } catch (error) { passedOver(error) } }
   }
   const publish = (): void => {
     const signal = `${path}.${randomUUID()}.notify`
-    try { writeFileSync(signal, '', { mode: 0o600 }); renameSync(signal, `${path}.notify`) } catch { try { rmSync(signal, { force: true }) } catch {} }
+    try { writeFileSync(signal, '', { mode: 0o600 }); renameSync(signal, `${path}.notify`) } catch { try { rmSync(signal, { force: true }) } catch (error) { passedOver(error) } }
     for (const listener of feeds.get(feedKey) ?? []) listener()
   }
   const transaction = <T,>(fn: () => T): T => {

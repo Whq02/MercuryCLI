@@ -7,6 +7,7 @@ import { FRONTMATTER_REGEX, parseFrontmatter } from '../../utils/frontmatterPars
 import { parseYaml } from '../../utils/yaml.js'
 import { MAX_LISTING_DESC_CHARS } from '../SkillTool/constants.js'
 import { stripBom } from '../../utils/readFileInRange.js'
+import { passedOver } from '../../utils/passedOver.js'
 type ParseFormat = 'JSON' | 'YAML'
 
 function formatForPath(filePath: string): ParseFormat | undefined {
@@ -113,7 +114,8 @@ async function checkSourceParseError(filePath: string, before: string | null, af
     }
     const name = names[language.name] ?? language.name.charAt(0).toUpperCase() + language.name.slice(1)
     return `${name} parse error at line ${introduced.line}: ${introduced.node} (the edit introduced it)`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }

@@ -6,6 +6,7 @@ import { runnerParkRefusal } from '../parkRefusal.js'
 import { flushSessionStorage } from '../../../utils/sessionStorage/writer.js'
 import { subscribeToCommandQueue, getCommandQueue } from '../../../utils/messageQueueManager.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 function run(ports: RunnerPorts): BootMade<'stopShellsForClose' | 'settleIdle' | 'idleTimeout' | 'quiescence'> {
   const { getAppState, isLocalShellTask, killTask, live, setAppState } = ports
@@ -13,7 +14,7 @@ function run(ports: RunnerPorts): BootMade<'stopShellsForClose' | 'settleIdle' |
     const shells = getRunningTasks(getAppState()).filter(task => isLocalShellTask(task))
     if (shells.length === 0) return
     logForDebugging(`[session-runner] the input closed with ${shells.length} shell task(s) running: every watch and background shell ends with its seat`)
-    await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(() => undefined)))
+    await Promise.all(shells.map(task => killTask(task.id, setAppState).catch(passedOverAs(undefined))))
   }
 
   const settleIdle = async (): Promise<'reenter' | 'close' | 'stay'> => {

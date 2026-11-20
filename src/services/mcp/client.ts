@@ -62,6 +62,7 @@ export { withoutNullOptionals } from './client/nullOptionals.js'
 export { fenceMcpPrefixCollisions } from './client/bulkParts.js'
 export type { McpPrefixCollision } from './client/bulkParts.js'
 import { tellMcpToolsTheClient } from './client/forTools.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function getServerCacheKey(name: string, serverRef: ScopedMcpServerConfig): string {
   return `${name}:${JSON.stringify(serverRef)}`
@@ -126,9 +127,9 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         const pid = stdioTransport?.pid ?? null
         if (pid !== null) {
           const { endProcessTree } = await import('../../utils/processGroup.js')
-          await endProcessTree(pid, 'SIGKILL').catch(() => {})
+          await endProcessTree(pid, 'SIGKILL').catch(passedOver)
         }
-        await stdioTransport?.close().catch(() => {})
+        await stdioTransport?.close().catch(passedOver)
       })
       if (isShuttingDown()) spawnRefused = true
     } else {
@@ -146,7 +147,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         logMCPError(name, `stderr: ${stderrBuffer}`)
         stderrBuffer = ''
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   stdioTransport?.stderr?.on('data', onStderr)
@@ -195,8 +197,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
         ),
       )
       void endStdioTree(name, stdioTransport).finally(() => {
-        void inProcessServer?.close().catch(() => {})
-        void transport.close().catch(() => {})
+        void inProcessServer?.close().catch(passedOver)
+        void transport.close().catch(passedOver)
       })
     }, connectTimeoutMs())
   })
@@ -214,7 +216,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     await clearEraVerdict(eraKey)
     if (spawnRefused) {
       releaseSpawnGuard?.()
-      await transport.close().catch(() => {})
+      await transport.close().catch(passedOver)
       return { name, type: 'disabled', config: serverRef }
     }
     if (type === 'sse') logMCPError(name, `SSE connect failed: ${getLoggingSafeMcpBaseUrl(config) ?? '(url withheld)'} ${errorMessage(err)} ${(err as Error)?.stack ?? ''}`)
@@ -226,8 +228,8 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
     if (type === 'claudeai-proxy' && (err as { code?: unknown } | null)?.code === 401) return handleRemoteAuthFailure(name, serverRef, 'claude.ai proxy')
     releaseSpawnGuard?.()
     await endStdioTree(name, stdioTransport)
-    await inProcessServer?.close().catch(() => {})
-    await transport.close().catch(() => {})
+    await inProcessServer?.close().catch(passedOver)
+    await transport.close().catch(passedOver)
     if (stderrBuffer) logMCPError(name, `stderr: ${stderrBuffer}`)
     if (type === 'stdio' || type === 'sse' || type === 'http') {
       const stderrTail = redactStderr(Array.from(new Set(stderrBuffer.trim().split('\n').map(line => line.trim()).filter(line => line !== ''))).slice(-3).join(' · ')).slice(0, 300)
@@ -266,7 +268,7 @@ const connectImpl = async (name: string, serverRef: ScopedMcpServerConfig, serve
   const closeViaClient = (): void => {
     if (closing) return
     closing = true
-    void client.close().catch(() => {})
+    void client.close().catch(passedOver)
   }
   client.onerror = (error: Error) => {
     sawError = true
@@ -346,7 +348,8 @@ export async function clearServerCache(name: string, serverRef: ScopedMcpServerC
     try {
       const existing = await memoized
       if (existing.type === 'connected') await existing.cleanup()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   connectToServer.cache.delete(getServerCacheKey(name, serverRef))

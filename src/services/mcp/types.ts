@@ -1,6 +1,7 @@
 import type { Client, Implementation, Resource, ServerCapabilities } from './sdk.js'
 import type { McpBootstrapManifest } from './lazyStdio.js'
 import { z } from 'zod'
+import { passedOver } from '../../utils/passedOver.js'
 
 function once<T>(build: () => T): () => T {
   const held: T[] = []
@@ -20,7 +21,8 @@ function secureMetadataUrl(value: string | undefined): boolean {
   try {
     new URL(value)
     return value.startsWith('https://')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

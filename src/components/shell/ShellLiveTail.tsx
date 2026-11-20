@@ -8,6 +8,7 @@ import { useFocusedWorkRows } from '../tasks/useFocusedWork.js'
 import type { WorkRowV1 } from '../../services/engine-connector/types.js'
 import { MessageResponse } from '../MessageResponse.js'
 import { shellLiveTailBudget, shellLiveTailLines } from './liveShellTail.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const TAIL_BYTES = 8 * 1024
 
@@ -15,7 +16,8 @@ function readOutput(path: string | undefined): string {
   if (path === undefined) return ''
   try {
     return tailFileSync(path, TAIL_BYTES).content
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

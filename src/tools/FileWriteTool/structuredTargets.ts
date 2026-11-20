@@ -44,6 +44,7 @@ import {
 } from '../FileReadTool/readRichFormats.js'
 import type { Output as FileWriteOutput } from './FileWriteTool.js'
 import { checkIntroducedParseError } from './parseCheck.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const LOC_SIG = 0x04034b50
 const CEN_SIG = 0x02014b50
@@ -141,7 +142,8 @@ export function expandStructuredTargetPath(rawPath: string): string {
 function hostIsRegularFile(hostPath: string): boolean | null {
   try {
     return statSync(hostPath).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -409,7 +411,7 @@ function replaceFileAtomically(hostPath: string, bytes: Buffer): void {
   } catch (err) {
     try {
       unlinkSync(tmpPath)
-    } catch {}
+    } catch (error) { passedOver(error) }
     throw err
   }
 }
@@ -638,7 +640,7 @@ function bindable(value: unknown, integerColumn = false): string | number | bigi
       try {
         const big = BigInt(value)
         if (big >= -9223372036854775808n && big <= 9223372036854775807n) return big
-      } catch {}
+      } catch (error) { passedOver(error) }
     }
     return value
   }

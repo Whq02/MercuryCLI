@@ -8,6 +8,7 @@ import {
   type LocalContextSource,
   type LocalModelRecord,
 } from './localDiscovery.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const LOCAL_MODEL_PREFIX = 'local/'
 export const LOCAL_MODEL_GROUP = 'Mercury — local models'
@@ -104,7 +105,7 @@ export function localFitRefusalFacts(text: string): LocalFitRefusalFacts | null 
 }
 
 export function getLocalModelOptions(): Array<ModelOption & { executionOrigin?: LocalModelRecord['executionOrigin'] }> {
-  void refreshLocalDiscovery().catch(() => {})
+  void refreshLocalDiscovery().catch(passedOver)
   const snapshot = getCachedLocalDiscovery()
   if (!snapshot) return []
   const rows: Array<ModelOption & { executionOrigin?: LocalModelRecord['executionOrigin'] }> = []

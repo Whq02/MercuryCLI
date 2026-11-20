@@ -10,6 +10,7 @@ import { rememberedTensorFoldRepos } from '../../services/providers/local/tensor
 import { tensorFoldShortName } from '../../services/tensorfold/starting.js'
 import { canonicalWorkspaceId } from './admission.js'
 import { readSessionWorkers } from './store.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: string): string | undefined {
   const fromRecord = Object.values(readSessionWorkers(dir))
@@ -19,7 +20,8 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
   let workspaceId = workspaceDir
   try {
     workspaceId = canonicalWorkspaceId(workspaceDir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const transcript = join(getProjectDir(workspaceId), `${sessionId}.jsonl`)
   if (!existsSync(transcript)) return undefined
@@ -44,11 +46,13 @@ export function resumeModelKeyOf(sessionId: string, workspaceDir: string, dir?: 
           retained = billingSafeRetainedForm(served)
           return true
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       return
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return retained
 }

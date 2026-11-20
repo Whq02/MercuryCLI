@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process'
 import { locateBridgeVsix, MERCURY_IDE_EXTENSION_ID } from '../utils/editorExtensionPackage.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const EDITOR_CLIS = ['code', 'code-insiders', 'cursor', 'codium', 'windsurf'] as const
 
@@ -36,7 +37,8 @@ function findEditorCli(): string | null {
         ...(isWindows ? { shell: true } : {}),
       })
       return candidate
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return null

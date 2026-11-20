@@ -25,6 +25,7 @@ import { ruleSentence } from '../permissions/ruleReason.js'
 import { matchingRuleForInput } from '../permissions/filesystem.js'
 import { isFileReadDenied } from './shared.js'
 import type { AlreadyReadFileAttachment, Attachment, CompactFileReferenceAttachment, DroppedImageAttachment, FileAttachment, PDFReferenceAttachment } from './types.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 type FileRow = FileAttachment | CompactFileReferenceAttachment | PDFReferenceAttachment | AlreadyReadFileAttachment | DroppedImageAttachment
 type ReadWindow = { offset?: number; limit?: number }
@@ -87,7 +88,7 @@ export function mentionDeniedByRule(filename: string, permissions: Parameters<ty
 
 async function unreadMention(filename: string, context: ToolUseContext, mode: ReadMode, failure: unknown): Promise<FileRow | null> {
   if (mode !== 'at-mention' || context.abortController.signal.aborted) return null
-  const standing = await getFsImplementation().stat(filename).then(info => info.isFile()).catch(() => false)
+  const standing = await getFsImplementation().stat(filename).then(info => info.isFile()).catch(passedOverAs(false))
   if (!standing) return null
   const line = (failure instanceof Error ? failure.message : String(failure)).split('\n')[0]!.trim().replace(/\.+$/, '')
   return droppedUnread(filename, `Reading it failed: ${line}.`, 'refused')
@@ -101,7 +102,8 @@ async function tooLargeToMention(filename: string): Promise<FileRow | null | fal
     return isImageFilePath(filename)
       ? droppedImage(filename, `The image is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`)
       : droppedUnread(filename, `The file is ${formatFileSize(size)}, over the ${formatFileSize(limit)} limit for a mentioned file.`, 'retry')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -114,7 +116,8 @@ async function reusableRead(filename: string, recorded: FileState, offset?: numb
       type: 'already_read_file', filename, displayPath: displayOf(filename),
       content: { type: 'text', file: { filePath: filename, content: recorded.content, numLines: lines, startLine: offset ?? 1, totalLines: lines } },
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -150,7 +153,8 @@ export async function tryGetPDFReference(filename: string): Promise<PDFReference
     return pageCount > PDF_AT_MENTION_INLINE_THRESHOLD
       ? { type: 'pdf_reference', filename, pageCount, fileSize, displayPath: displayOf(filename) }
       : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

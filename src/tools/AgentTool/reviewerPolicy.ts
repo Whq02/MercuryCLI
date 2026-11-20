@@ -14,6 +14,7 @@ import { BASH_TOOL_NAME } from '../BashTool/toolName.js'
 import type { Tool, Tools } from '../../Tool.js'
 import { FILE_EDIT_TOOL_NAME } from '../FileEditTool/constants.js'
 import { sectionHeadings } from '../FileEditTool/sectionEdit.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const REVIEW_BRIEF = `You are reviewing one committed change for Mercury, on frozen inputs. Find what the author missed, with evidence, and record it where the next reader looks.
 
@@ -59,7 +60,7 @@ async function verificationCommand(command: string, worktree: string, receipt: s
   const cd = /^cd\s+("(?:[^"\\]|\\.)*"|'[^']*'|\S+)\s+&&\s+([\s\S]+)$/.exec(command)
   if (cd) {
     const directory = (await commandWords(`cd ${cd[1]}`))?.[1]
-    try { if (!directory || realpathSync(resolve(worktree, directory)) !== worktree) return null } catch { return null }
+    try { if (!directory || realpathSync(resolve(worktree, directory)) !== worktree) return null } catch (error) { passedOver(error); return null }
     command = cd[2]!
   }
   const words = await commandWords(command)
@@ -72,7 +73,7 @@ async function verificationCommand(command: string, worktree: string, receipt: s
   const program = args[0]
   if (!program || program.startsWith('-')) return null
   let path: string
-  try { path = realpathSync(resolve(worktree, program)); if (!statSync(path).isFile()) return null } catch { return null }
+  try { path = realpathSync(resolve(worktree, program)); if (!statSync(path).isFile()) return null } catch (error) { passedOver(error); return null }
   if (executable === 'bash' && basename(path) === 'with-box-lock.sh') {
     if (!args[1] || !/^[A-Za-z0-9_.-]+$/.test(args[1])) return null
     const inner = await verificationCommand(quote(args.slice(2)), worktree, receipt)
@@ -80,7 +81,7 @@ async function verificationCommand(command: string, worktree: string, receipt: s
     const base = boxLockDirOfScript(path)
     if (!base) return null
     let lockRoot: string
-    try { lockRoot = realpathSync(base) } catch { return null }
+    try { lockRoot = realpathSync(base) } catch (error) { passedOver(error); return null }
     const temporary = [realpathSync(tmpdir()), ...(process.platform === 'win32' ? [] : [realpathSync('/tmp')])]
     if (!temporary.some(root => lockRoot !== root && within(root, lockRoot)) || within(lockRoot, worktree) || within(worktree, lockRoot) || within(lockRoot, receipt)) return null
     return { command, lockRoot }
@@ -198,7 +199,8 @@ export async function reviewerRefusal(tool: Tool, input: Record<string, unknown>
   if (typeof input.file_path !== 'string') return 'The reviewer edit must name its declared receipt.'
   try {
     if (realpathSync(resolve(getCwd(), input.file_path)) !== receipt) return 'The reviewer may edit only its declared receipt.'
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'The declared receipt must be an existing file.'
   }
   if (input.old_string !== undefined || input.hunks !== undefined || input.replace_all === true) return 'Reviewer edits must use the Review section, not whole-file or range replacement.'
@@ -218,7 +220,8 @@ function reviewerOffersTool(tool: Tool): boolean {
   if (tool.name === FILE_EDIT_TOOL_NAME || tool.name === BASH_TOOL_NAME) return true
   try {
     return tool.isReadOnly({}) === true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -248,7 +251,7 @@ export function restrictReviewerTools(tools: Tools, receiptPath: string, worktre
         background = id !== undefined
         if (id) {
           const task = args[1].getAppState().tasks[id] as { shellCommand?: { result: Promise<unknown> } } | undefined
-          if (task?.shellCommand) void task.shellCommand.result.finally(() => rmSync(scratch, { recursive: true, force: true })).catch(() => {})
+          if (task?.shellCommand) void task.shellCommand.result.finally(() => rmSync(scratch, { recursive: true, force: true })).catch(passedOver)
         }
         return result
       } finally {

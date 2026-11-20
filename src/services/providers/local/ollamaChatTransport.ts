@@ -43,6 +43,7 @@ import {
   type CompatWireMessage,
 } from '../openaicompat/compatChatClient.js'
 import type { ZaiContentPart } from '../zai/zaiClient.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 const TOTAL_TIMEOUT_MS = 50 * 60_000
 export const OLLAMA_WIRE_DUMP_CHARS = 2_000
@@ -115,7 +116,8 @@ function parsedArguments(raw: string): Record<string, unknown> | undefined {
   try {
     const parsed: unknown = JSON.parse(raw.trim() === '' ? '{}' : raw)
     return rec(parsed)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -445,7 +447,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
         startPromiseLoop()
       }
       if (law.loadedAtSend !== false) startPromiseLoop()
-      void watchLoading().catch(() => undefined)
+      void watchLoading().catch(passedOverAs(undefined))
     }
     try {
       const fetchImpl = options.fetchImpl ?? getApiFetch()
@@ -492,7 +494,8 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     ingestMs = timers.now() - ingestStartedAt
     try {
       options.onResponseHeaders?.(response.headers, response.status)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       void 0
     }
     if (firstByteTimer !== null) timers.clearTimeout(firstByteTimer)
@@ -542,7 +545,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
       } catch (error) {
         const isIdle = error instanceof StreamIdleTimeoutError
         const cancelled = options.signal?.aborted === true
-        void reader.cancel().catch(() => {})
+        void reader.cancel().catch(passedOver)
         yield fault(
           cancelled
             ? { kind: 'cancelled', code: 'cancelled', message: 'cancelled mid-stream', retryable: false }
@@ -599,7 +602,7 @@ export async function* streamOllamaChat(options: CompatStreamOptions, knobs: Oll
     silenceWatch?.stop()
     options.signal?.removeEventListener('abort', onOuterAbort)
     controller.abort()
-    void reader?.cancel().catch(() => {})
+    void reader?.cancel().catch(passedOver)
     if (shape.ended === 'open') shape.ended = options.signal?.aborted === true ? 'cancelled' : 'abandoned'
     logForDebugging(ollamaWireDumpLine(options.request.model, shape, head, totalChars))
   }

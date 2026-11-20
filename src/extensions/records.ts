@@ -5,6 +5,7 @@ import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { lazySchema } from '../utils/lazySchema.js'
 import { SWITCH_KINDS, type SwitchKind } from './manifest.js'
 import { getExtensionsLog, getInstalledFile, getSourcesFile } from './paths.js'
+import { passedOver } from '../utils/passedOver.js'
 
 
 export const SourceRecordSchema = lazySchema(() =>
@@ -162,6 +163,7 @@ export function logAct(line: string): void {
     const path = getExtensionsLog()
     mkdirSync(dirname(path), { recursive: true })
     appendFileSync(path, `${new Date().toISOString()} ${line}\n`, 'utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }

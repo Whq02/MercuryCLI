@@ -46,6 +46,7 @@ import { QueuePart } from './writer/queue.js'
 import { RemovePart } from './writer/remove.js'
 import { SettlePart } from './writer/settle.js'
 import { describeTranscriptStoreFailure } from './writer/storeHealth.js'
+import { passedOver } from '../passedOver.js'
 export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
 const sessionRecordIds = new Map<string, Set<UUID>>()
@@ -87,7 +88,8 @@ const getAgentFileMessages = memoize(
         }
         const uuid = e.annotations?.uuid
         if (typeof uuid === 'string') set.add(uuid)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     return set

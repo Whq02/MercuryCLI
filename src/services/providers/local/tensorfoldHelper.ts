@@ -16,6 +16,7 @@ import { LOCAL_MODEL_PREFIX, localRecordFor, localServerName } from './localCata
 import { cachedLocalModels, refreshLocalDiscovery, type LocalModelRecord } from './localDiscovery.js'
 import { ADAPTER_ENGINE_WORDS } from '../../tensorfold/adapter/identity.js'
 import { QWEN_2B_GGUF } from '../../tensorfold/adapter/models.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export type HelperModelSetting = 'off' | HelperModelSize
 
@@ -58,7 +59,8 @@ export function tensorFoldEngineFound(reads: { candidates?: () => string[]; exec
     try {
       accessSync(path, constants.X_OK)
       return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -74,7 +76,8 @@ export function helperEngineIsAdapter(reads: { candidates?: () => string[]; exec
     try {
       accessSync(path, constants.X_OK)
       return true
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -91,7 +94,8 @@ export function helper2bOnDisk(reads: { snapshot?: (repo: string) => boolean; ad
     const { hfCacheRoot, readHfSnapshot } = require('../../tensorfold/inventory.js') as typeof import('../../tensorfold/inventory.js')
     const snapshot = readHfSnapshot(hfCacheRoot(), HELPER_2B_REPO)
     return snapshot !== undefined && snapshot.weightsBytes > 0 && snapshot.incompleteBytes === 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -144,7 +148,8 @@ function usableBytes(): number {
 function sessionLocalRecord(): LocalModelRecord | undefined {
   try {
     return localRecordFor(getEngineModel())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -157,7 +162,8 @@ function banked4b(): { model: string; weightsGb: number } | undefined {
   try {
     const recipe = bankedHostRecipes(bankFolder()).find(row => HELPER_4B_PATTERN.test(row.model) && typeof row.weightFile === 'string')
     return recipe ? { model: recipe.model, weightsGb: recipe.weightsGb } : undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -248,7 +254,7 @@ export function helperModelId(opts: { start?: boolean } = {}): string | undefine
   if (choice?.available !== true) return undefined
   const serving = helperServing(setting.size)
   if (serving === undefined) {
-    if (opts.start !== false) void ensureHelperServing().catch(() => undefined)
+    if (opts.start !== false) void ensureHelperServing().catch(passedOverAs(undefined))
     return undefined
   }
   const twins = cachedLocalModels().filter(record => record.id.toLowerCase() === serving.id.toLowerCase()).length
@@ -331,7 +337,8 @@ async function start2b(): Promise<void> {
 export function helperServedRecord(): TensorFoldServed | undefined {
   try {
     return helperSeam().served().find(record => record.name === HELPER_2B_NAME)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -397,8 +404,8 @@ export async function stopHelperServing(): Promise<void> {
   if (running === undefined) return
   if (running.stop !== undefined) {
     const { liveServiceChildren } = await import('../../projectServices/serviceManager.js')
-    if (liveServiceChildren().some(child => child.pid === running.pid)) await running.stop().catch(() => undefined)
-  } else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(() => undefined)
+    if (liveServiceChildren().some(child => child.pid === running.pid)) await running.stop().catch(passedOverAs(undefined))
+  } else if (helperServedRecord()?.port === running.port) await helperSeam().stop(HELPER_2B_NAME).catch(passedOverAs(undefined))
 }
 
 export function __pinHelperProcessForTest(started: typeof helperProcess): void {

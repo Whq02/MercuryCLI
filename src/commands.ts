@@ -109,6 +109,7 @@ export type {
 export { getCommandName } from './types/command.js'
 export { commandOffInPlainWorld, isCommandEnabled } from './commands/enablement.js'
 import { tellSessionStorageTheBuiltInCommands } from './utils/sessionStorage/builtInCommands.js'
+import { passedOver } from './utils/passedOver.js'
 
 const require = createRequire(import.meta.url)
 
@@ -118,7 +119,8 @@ const clearSkillIndexCache: (() => void) | null = (() => {
       clearSkillIndexCache?: () => void
     }
     return searchModule.clearSkillIndexCache ?? null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 })()

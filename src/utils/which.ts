@@ -1,5 +1,6 @@
 import { accessSync, constants, statSync } from 'node:fs'
 import * as path from 'node:path'
+import { passedOver } from './passedOver.js'
 
 
 type BunWhich = { which?: (command: string, options?: { PATH?: string }) => string | null }
@@ -56,7 +57,8 @@ function isExecutableFile(candidate: string, platform: string): boolean {
   try {
     if (platform !== 'win32') accessSync(candidate, constants.X_OK)
     return statSync(candidate).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

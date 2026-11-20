@@ -7,6 +7,7 @@ import { type LSPServerInstance } from '../../../services/lsp/LSPServerInstance.
 import { normalizeWorkspaceEdit, type LspRangeLike, type LspTextEditLike, type NormalizedFileEdits, type WorkspaceEditLike } from '../../../services/lsp/workspaceEditApply.js'
 import type { OpEnv } from './types.js'
 import { PREPARE_ROUNDS, IGNORED_WALK_DIRS, displayPathFor, uriToFilePath, syncFileFromDisk } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 function lspRangesIntersect(a: LspRangeLike, b: LspRangeLike): boolean {
   const cmp = (x: { line: number; character: number }, y: { line: number; character: number }): number =>
@@ -43,7 +44,8 @@ export async function pathRenameClaimants(
     let entries: Dirent[]
     try {
       entries = await readdir(dir, { withFileTypes: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     for (const entry of entries) {
@@ -111,7 +113,8 @@ const renameTextEditSchema = z.object({
 const renameUriSchema = z.string().refine(uri => {
   try {
     return isAbsolute(uriToFilePath(uri))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }, 'invalid file URI')

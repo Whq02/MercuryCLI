@@ -1,5 +1,6 @@
 import { registerCleanup } from './cleanupRegistry.js'
 import { logForDebugging } from './debug.js'
+import { passedOver } from './passedOver.js'
 
 
 const STDOUT_GUARD_MARKER = '[stdout-guard]'
@@ -12,7 +13,8 @@ function isParseableJson(line: string): boolean {
   try {
     JSON.parse(line)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

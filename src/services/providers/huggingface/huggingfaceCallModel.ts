@@ -18,6 +18,7 @@ import { clearHuggingfaceUsageLimit, huggingfaceLimitWindow, recordHuggingfaceBi
 
 import { refreshProviderUsage } from '../providerUsage.js'
 import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProviderKeyCommand } from '../providerKeyCommand.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 
 export const huggingfaceLaneProfile: CompatLaneProfile = {
@@ -59,7 +60,7 @@ export const huggingfaceLaneProfile: CompatLaneProfile = {
     recordHuggingfaceRateHeaders(headers, status)
     recordHuggingfaceBillingStatus(status)
     if (status !== undefined && status >= 200 && status < 300) clearHuggingfaceUsageLimit()
-    void refreshHuggingfaceCatalogue().catch(() => {})
+    void refreshHuggingfaceCatalogue().catch(passedOver)
   },
 }
 

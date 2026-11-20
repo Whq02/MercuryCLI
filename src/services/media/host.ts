@@ -11,6 +11,7 @@ import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { mediaRoot, mediaServerPath, type MediaSettings, type MediaConfig } from './settings.js'
 import { parseMediaCatalogue, type MediaCatalogue } from './catalogue.js'
 import { mediaRows, mediaRuntimeChoice, MediaSetupPaused, type MediaSnapshot, type MediaProgress } from './setup.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const REMOTE_DIR = '/workspace/mercury-media'
 const REMOTE_PORT = 30080
@@ -58,7 +59,7 @@ export async function connectMediaHost(id: string, signal: AbortSignal, runner: 
   const state = readState(id)
   if (!state) throw new Error('Media runtime missing · /imagesetup')
   if (state.url) {
-    try { if ((await fetch(state.url + '/health', { headers: headers(state), redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(1500)]) })).ok) return state } catch {}
+    try { if ((await fetch(state.url + '/health', { headers: headers(state), redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(1500)]) })).ok) return state } catch (error) { passedOver(error) }
   }
   signal.throwIfAborted()
   let pending = connecting.get(id)

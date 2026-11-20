@@ -18,6 +18,7 @@ import {
   type ProjectIntelSnapshot,
   type SnapshotRead,
 } from './contracts.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const CHANGED_CAP = 200
 const NO_DIGEST_TTL_MS = 30_000
@@ -36,7 +37,8 @@ function exists(p: string): boolean {
   try {
     statSync(p)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -1,5 +1,6 @@
 import { memoizeWithLRU } from '../memoize.js'
 import localSpecs from './specs/index.js'
+import { passedOver } from '../passedOver.js'
 
 export type CommandSpec = {
   name: string
@@ -36,7 +37,8 @@ async function loadFigSpec(command: string): Promise<CommandSpec | null> {
        `@withfig/autocomplete/build/${command}.js`
     )) as { default?: CommandSpec } & CommandSpec
     return (imported.default ?? imported) as CommandSpec
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

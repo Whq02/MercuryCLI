@@ -27,6 +27,7 @@ import {
 } from './mnemeTopicDocs.js'
 import { publishFrontPage } from './mnemeFrontPage.js'
 import { isPinned, movePin, readPins, unpinFact } from './mnemeUsage.js'
+import { passedOver } from '../utils/passedOver.js'
 
 function allDocs(dir: string): MnemeTopicDoc[] {
   return [...listTopicDocs(dir), ...listArchiveDocs(dir)]
@@ -86,7 +87,8 @@ function verifyLanded(dir: string, written: MnemeTopicDoc, newSeq: number, targe
     const liveHasNew = liveSeqs(doc).has(newSeq)
     const hist = doc.history.find(e => e.seq === targetSeq)
     return (expectLive ? liveHasNew : !liveSeqs(doc).has(targetSeq)) && !!hist && hist.supersededBy === newSeq
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -329,7 +331,8 @@ function verifyPointed(dir: string, written: MnemeTopicDoc, holder: MnemeTopicDo
       successor !== undefined &&
       expandSeqRange(successor.supersedes ?? '').includes(targetSeq)
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -342,7 +345,8 @@ function parseBufferRow(line: string): MnemeObservation | null {
   try {
     const row = JSON.parse(line) as MnemeObservation
     return typeof row?.ts === 'string' && typeof row?.text === 'string' && typeof row?.source === 'string' ? row : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -351,7 +355,8 @@ function bufferFiles(dir: string): string[] {
   let names: string[] = []
   try {
     names = readdirSync(dir)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return [...names.filter(n => /^consuming-.*\.jsonl$/.test(n)).sort().map(n => join(dir, n)), currentBufferPath(dir)]

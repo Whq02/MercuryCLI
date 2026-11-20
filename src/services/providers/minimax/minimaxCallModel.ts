@@ -12,6 +12,7 @@ import { configuredProviderKeyCommand, providerKeyCommandFailure, recoverProvide
 import { MINIMAX_ENV_KEY, minimaxChatCompletionsUrl, resolveMinimaxAccount, resolveMinimaxApiKey } from './minimaxAccounts.js'
 import { getCachedMinimaxCatalogue, minimaxListedModel, minimaxModelFacts, minimaxWireId, newestMinimaxModel } from './minimaxCatalogue.js'
 import { MINIMAX_DISPLAY_PINS, isMinimaxTextModelId, minimaxDisplayPin } from './minimaxPins.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export function buildMinimaxExtras(args: LaneExtrasArgs): Record<string, unknown> {
   const facts = minimaxModelFacts(args.wireModel)
@@ -51,7 +52,7 @@ const minimaxLaneProfile: CompatLaneProfile = {
   buildExtras: buildMinimaxExtras,
   onResponseHeaders: (_headers, status) => {
     if (status === undefined || status < 200 || status >= 300) return
-    void refreshProviderUsage('minimax', { reason: 'operator' }).catch(() => {})
+    void refreshProviderUsage('minimax', { reason: 'operator' }).catch(passedOver)
   },
 }
 

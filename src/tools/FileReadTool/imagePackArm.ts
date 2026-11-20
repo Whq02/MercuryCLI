@@ -3,6 +3,7 @@ import Module, { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { recordOwnEnvWrite } from '../../substrate/envStamps.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const IMAGE_PACK_PATH = 'vendor/image-processor'
 
@@ -17,7 +18,8 @@ function isMusl(): boolean {
       | { header?: { glibcVersionRuntime?: string } }
       | undefined
     return report?.header?.glibcVersionRuntime === undefined
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -36,7 +38,8 @@ function imageBindingResolvable(packPlatform: string = imagePackPlatform()): boo
   try {
     createRequire(import.meta.url).resolve(`@img/sharp-${packPlatform}/sharp.node`)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -7,6 +7,7 @@ import { BSU, ESU, HIDE_CURSOR, SHOW_CURSOR } from '../termio/dec.js'
 import { link } from '../termio/osc.js'
 import { noteTerminalWriteHeld } from '../terminalOut.js'
 import { sleepSync } from '../../utils/timers.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 export type Terminal = {
@@ -167,7 +168,8 @@ export function writeDiffToTerminal(
         }) + '\n',
       )
       appendFileSync(process.env.INK_WRITE_TEE + '.raw', buffer)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return delivered

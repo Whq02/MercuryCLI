@@ -2,6 +2,7 @@ import { z } from 'zod/v4'
 import { recipeFits, type HostRecipe } from './recipes.js'
 import { currentHostRecipes, refreshHostRecipes } from './recipesFile.js'
 import { retryAfterSeconds } from './vendors/http.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const podSchema = z.object({ id: z.string().regex(/^[a-zA-Z0-9_-]+$/), name: z.string(), status: z.string(), cost: z.number().nonnegative(), createdAt: z.string(), startedAt: z.string().nullable().optional(), ssh: z.object({ direct: z.object({ host: z.string(), port: z.number().int().min(1).max(65535), username: z.string() }).nullable().optional() }).nullable().optional(), mounts: z.object({ network: z.array(z.object({ volumeId: z.string() })).optional(), global: z.array(z.object({ volumeId: z.string() })).optional() }).nullish() })
 const clusterMemberSchema = z.object({ id: z.string(), rank: z.number().int().nonnegative().nullable(), ip: z.string().optional() })
@@ -34,7 +35,7 @@ export function podLogLines(stream: string): string[] {
     try {
       const event = JSON.parse(data) as { source?: unknown; line?: unknown }
       if (typeof event.line === 'string') lines.push((event.source === 'system' ? 'system: ' : '') + event.line)
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return lines
 }
@@ -54,7 +55,7 @@ export class RunpodClient {
     const response = await fetch(this.base + path, { method, headers: { Authorization: 'Bearer ' + this.key, 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), ...(create ? { keepalive: false } : {}), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000) })
     this.policy = response.headers.get('ratelimit-policy') ?? undefined
     if (!response.ok) {
-      const text = await response.text().catch(() => '')
+      const text = await response.text().catch(passedOverAs(''))
       let detail = ''
       try { const problem = JSON.parse(text) as { detail?: unknown; error?: unknown; title?: unknown; errors?: unknown }; detail = [problem.detail ?? problem.error ?? problem.title ?? '', ...(Array.isArray(problem.errors) ? problem.errors : [])].map(String).filter(Boolean).join(' · ') } catch { detail = text.trimStart().startsWith('<') ? '' : text }
       detail = detail.split(this.key).join('[redacted]').replace(/\s+/g, ' ').trim().slice(0, 240)
@@ -147,7 +148,7 @@ export class RunpodClient {
     try {
       const response = await this.response('/pods/' + encodeURIComponent(id) + '/logs?tail=12', 'GET', undefined, signal ? AbortSignal.any([signal, controller.signal]) : controller.signal)
       const reader = response.body?.getReader()
-      if (reader) try { const decoder = new TextDecoder(); while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(() => {}) }
+      if (reader) try { const decoder = new TextDecoder(); while (text.length < 12000) { const part = await reader.read(); if (part.done) break; text += decoder.decode(part.value, { stream: true }) } } finally { await reader.cancel().catch(passedOver) }
     } catch (error) { if (signal) { signal.throwIfAborted(); if (!text) throw error } else if (!text) text = 'Log tail unavailable; open this pod in Runpod to read its container logs.' } finally { clearTimeout(timer) }
     const lines = /^(?:data|id|event):/m.test(text) ? podLogLines(text) : text.split('\n')
     return lines.map(line => line.split(this.key).join('[redacted]')).filter(Boolean).slice(-12).join('\n')

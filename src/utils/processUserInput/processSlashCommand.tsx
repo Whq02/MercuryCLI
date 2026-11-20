@@ -54,6 +54,7 @@ import type {
   ProcessUserInputBaseResult,
   ProcessUserInputContext,
 } from './processUserInput.js'
+import { passedOver } from '../passedOver.js'
 
 const UNKNOWN_COMMAND_PREFIX = 'Unknown skill'
 
@@ -79,7 +80,8 @@ export function unknownCommandLine(name: string, commands: Command[]): string {
     const top = generateCommandSuggestions(`/${name}`, byNameAlone)[0]
     const meta = top?.metadata as Command | undefined
     if (meta !== undefined && typeof meta === 'object' && typeof meta.type === 'string') near = getCommandName(meta)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return `Unknown command: /${name}${near !== undefined && near !== name ? ` — closest: /${near}` : ''} · /help lists commands`
 }
@@ -93,7 +95,8 @@ function isExistingPath(slashPrefixed: string): boolean {
   try {
     statSync(slashPrefixed)
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

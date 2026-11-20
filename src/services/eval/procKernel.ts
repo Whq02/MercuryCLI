@@ -12,6 +12,7 @@ import {
 import { EVAL_SHUTDOWN_GRACE_MS } from './contracts.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { endProcessTree, strikeProcessGroupNow } from '../../utils/processGroup.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type KernelTransport = 'fd' | 'loopback'
 
@@ -313,7 +314,8 @@ export class ProcKernel {
       const pid = this.child.pid
       const sigint: NodeJS.Signals = 'SIGINT'
       process.kill(pid, sigint)
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 

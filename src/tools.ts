@@ -112,6 +112,7 @@ import { beginLoginFiles } from './utils/shell/shellRecord.js'
 import { isPowerShellToolEnabled } from './utils/shell/shellToolUtils.js'
 
 import { tellTheToolTable } from './tools/toolTable.js'
+import { passedOver } from './utils/passedOver.js'
 
 
 export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
@@ -120,7 +121,8 @@ export { ALL_AGENT_DISALLOWED_TOOLS, CUSTOM_AGENT_DISALLOWED_TOOLS }
 function cycleTolerant<T>(get: () => T): T | undefined {
   try {
     return get()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -253,7 +255,8 @@ function settledTools(permissionContext: ToolPermissionContext, agentId?: string
   const enabled = filtered.map(tool => {
     try {
       return tool.isEnabled()
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })

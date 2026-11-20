@@ -5,6 +5,7 @@ import {
   getHoverOwner,
   subscribeHover,
 } from '../../utils/cockpit/hoverOwner.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function useHoverOwned(id: string): boolean {
   const owned = useSyncExternalStore(
@@ -20,7 +21,8 @@ export function useHoverOwned(id: string): boolean {
         p,
         JSON.stringify({ ev: 'commit', id, owned }) + '\n',
       )
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }, [owned, id])
   return owned

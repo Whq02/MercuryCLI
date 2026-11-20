@@ -9,6 +9,7 @@ import { subscribeObligations } from '../../../services/crew/obligations.js';
 import { subscribeCurrentProject } from '../../../utils/bootCardFacts.js';
 import { subscribeFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
 import type { ConcourseSnapshotV1 } from '../contracts.js';
+import { passedOver } from '../../../utils/passedOver.js';
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
 
@@ -104,21 +105,24 @@ export function useConcourseSnapshot(): {
               const key = `${stamp.pid ?? 0}:${stamp.revision ?? 0}`
               if (key === lastDelta) return
               lastDelta = key
-            } catch {
+            } catch (error) {
+              passedOver(error)
             }
             rebuild()
           })
           watcher.on('error', () => {
             try {
               watcher?.close()
-            } catch {
+            } catch (error) {
+              passedOver(error)
             }
             watcher = null
           })
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       })
-      .catch(() => {})
+      .catch(passedOver)
     const timer = setInterval(rebuild, 15_000)
     timer.unref?.()
     return () => {
@@ -161,7 +165,8 @@ export function readFixtureSnapshot(): ConcourseSnapshotV1 | null {
       groups: parsed.groups.map(g => ({ ...g, rows: g.rows.map(floor) })),
       peek: parsed.peek ? floor(parsed.peek) : null,
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

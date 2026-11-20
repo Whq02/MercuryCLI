@@ -24,6 +24,7 @@ import { refusalNextStep, refusedWords, wiredLimitCommand, wiredLimitCostWords, 
 import { rememberedTensorFoldPort, servedTensorFold, TENSORFOLD_DEFAULT_PORT, TENSORFOLD_HOST, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE } from '../../services/tensorfold/starting.js'
 import { TENSORFOLD_WORDS as W } from './words.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export type TensorFoldAct =
   | { kind: 'installing'; line?: string }
@@ -98,7 +99,8 @@ function defaultDiskFree(path: string): number | undefined {
   try {
     const stats = statfsSync(path)
     return Number(stats.bavail) * Number(stats.bsize)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -106,7 +108,8 @@ function defaultDiskFree(path: string): number | undefined {
 function portOf(baseUrl: string): number | undefined {
   try {
     return Number(new URL(baseUrl).port || 80)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -115,7 +118,8 @@ export function loopbackPortOf(baseUrl: string): number | undefined {
   if (!isLoopbackUrl(baseUrl)) return undefined
   try {
     return Number(new URL(baseUrl).port || 80)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -156,7 +160,8 @@ async function defaultKeyedAt(port: number): Promise<boolean> {
   try {
     const response = await fetch(`http://${TENSORFOLD_HOST}:${port}/v1/models`, { signal: AbortSignal.timeout(400) })
     return response.status === 401 || response.status === 403
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -166,7 +171,8 @@ function answersAsOf(records: readonly LocalModelRecord[], port: number): string
   const hit = records.find(record => {
     try {
       return Number(new URL(record.baseUrl).port) === port
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -199,9 +205,9 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
   const hosts = withDiscoveredHosts(quietly(() => io.hosts?.() ?? tensorFoldHosts(), [] as readonly TensorFoldHost[])).map(host => host.origin === 'pod' && host.lastReply === undefined && host.serving !== undefined && turn !== undefined && turn.address === tensorFoldHostAddress(host.baseUrl) && (turn.model === host.serving || turn.model.endsWith(`/${host.serving}`)) ? { ...host, lastReply: { ...(turn.timeToFirstTokenS !== undefined ? { firstTokenMs: turn.timeToFirstTokenS * 1000 } : {}), ...(turn.tokensPerSecond !== undefined ? { tokensPerSecond: turn.tokensPerSecond } : {}) } } : host)
   const outside = outsideOf(records, served, helperServed, hosts, current).filter(server => !hosts.some(host => sameUrl(host.baseUrl, server.baseUrl)))
   const helper = quietly(() => (io.helper ?? helperHeadingWords)(), undefined)
-  const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(() => undefined) : undefined
+  const app = platform === 'darwin' ? await (io.app ?? detectTensorFoldApp)().catch(passedOverAs(undefined)) : undefined
   const rent = quietly(() => (io.rent ?? defaultRent)(), undefined)
-  if (io.pods === undefined) await settleStoppingTensorFoldPods().catch(() => 0)
+  if (io.pods === undefined) await settleStoppingTensorFoldPods().catch(passedOverAs(0))
   const pods = quietly(() => (io.pods ?? (() => tensorFoldPodRows(currentHostRecipes())))(), [] as readonly TensorFoldPodRowFacts[])
   const install = engine === null ? tensorFoldInstallPlan(machine, { ...io, platform }) : adapterNeedsLlamaCpp(engine) ? llamaCppInstallPlan(engine, platform, io) : null
   const remembered = rememberedTensorFoldPort(io)

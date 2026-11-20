@@ -6,6 +6,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { safeParseJSON } from '../utils/json.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type LifecycleLane = 'mechanical-debris' | 'semantic-state' | 'daemon-reconciliation'
 type LifecycleKind = 'semantic' | 'cache' | 'lock' | 'claim' | 'temp' | 'log'
@@ -151,7 +152,8 @@ async function collectLockSidecars(budget: LifecycleBudget): Promise<LifecycleCl
   try {
     const { daemonDir } = await import('../daemon/controlSocket.js')
     roots.push(daemonDir())
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   for (const root of roots) {
     if (overBudget(budget)) return receipt
@@ -213,7 +215,8 @@ async function collectCrewSkeletons(budget: LifecycleBudget): Promise<LifecycleC
       let mtime = Number.MAX_SAFE_INTEGER
       try {
         mtime = (await stat(p)).mtimeMs
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (budget.now() - mtime <= SKELETON_RETENTION_MS) {
@@ -249,7 +252,8 @@ async function collectShellSnapshots(budget: LifecycleBudget): Promise<Lifecycle
     let mtime: number
     try {
       mtime = (await stat(p)).mtimeMs
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     if (budget.now() - mtime <= SEMANTIC_RETENTION_MS) {
@@ -352,7 +356,8 @@ async function collectBundledExtensionFolders(budget: LifecycleBudget): Promise<
         let mtime = Number.MAX_SAFE_INTEGER
         try {
           mtime = (await stat(p)).mtimeMs
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         if (budget.now() - mtime <= DAY_MS) {
@@ -414,7 +419,8 @@ async function collectBashAuditLedger(budget: LifecycleBudget): Promise<Lifecycl
     const p = join(dir, entry.name)
     try {
       rotated.push({ path: p, size: (await stat(p)).size })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   rotated.sort((a, b) => (a.path < b.path ? 1 : a.path > b.path ? -1 : 0))
@@ -849,7 +855,8 @@ async function readCursor(): Promise<LifecycleCursor> {
         updatedAtMs: typeof raw.updatedAtMs === 'number' ? raw.updatedAtMs : 0,
       }
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return { v: 1, classIndex: 0, cycleFailures: 0, updatedAtMs: 0 }
 }
@@ -857,7 +864,8 @@ async function readCursor(): Promise<LifecycleCursor> {
 async function writeCursor(c: LifecycleCursor): Promise<void> {
   try {
     await writeFile(cursorPath(), JSON.stringify(c))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -938,5 +946,5 @@ export async function runLifecyclePass(opts?: {
 
 export async function _resetLifecycleForProofs(): Promise<void> {
   lastPass = null
-  await unlink(cursorPath()).catch(() => {})
+  await unlink(cursorPath()).catch(passedOver)
 }

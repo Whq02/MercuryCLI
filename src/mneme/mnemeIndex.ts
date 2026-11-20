@@ -8,6 +8,7 @@ import { pendingRows } from './mnemeBuffer.js'
 import { mnemeLibraryDir } from './mnemeGates.js'
 import { listArchiveDocs, listTopicDocs, publishLibraryFile } from './mnemeLibrary.js'
 import type { MnemeTopicDoc } from './mnemeTopicDocs.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const INDEX_DIR = '.index'
 const INDEX_FILE = 'embeddings.json'
@@ -143,7 +144,8 @@ export function searchEmbedIndex(query: string, index: EmbeddingIndexFile, engin
   let q: number[]
   try {
     q = roundVector(addon.addon.embed(load.handle, query, true))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   if (q.length !== index.dimension) return []
@@ -180,7 +182,8 @@ export function readEmbedIndex(dir: string): EmbeddingIndexFile | null {
   try {
     const st = statSync(path)
     stamp = `${st.mtimeMs}:${st.size}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   if (fileCache !== null && fileCache.path === path && fileCache.stamp === stamp) return fileCache.file
@@ -319,7 +322,8 @@ export async function appendFactToEmbedIndex(dir: string, fact: IndexedFact): Pr
     rows.sort((a, b) => a.key.localeCompare(b.key))
     publishLibraryFile(indexPath(dir), JSON.stringify({ version: INDEX_VERSION, model: current.model, dimension: current.dimension, rows }))
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

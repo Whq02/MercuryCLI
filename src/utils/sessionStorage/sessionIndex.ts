@@ -10,6 +10,7 @@ import {
   unescapeJsonString,
   validateUuid,
 } from '../sessionStoragePortable.js'
+import { passedOver } from '../passedOver.js'
 
 export type IndexedSession = {
   sessionId: string
@@ -21,7 +22,7 @@ export type IndexedSession = {
 
 export async function sessionFiles(projectDir: string, options: { stat?: boolean; concurrency?: number; failed?: (path: string) => void } = {}): Promise<IndexedSession[]> {
   let entries
-  try { entries = await readdir(projectDir, { withFileTypes: true }) } catch { return [] }
+  try { entries = await readdir(projectDir, { withFileTypes: true }) } catch (error) { passedOver(error); return [] }
   const candidates = entries.flatMap(entry => {
     if (!entry.isFile() || !entry.name.endsWith('.jsonl')) return []
     const sessionId = validateUuid(entry.name.slice(0, -6))
@@ -87,7 +88,7 @@ export function sessionPromptFromWindow(chunk: string, builtIn: (name: string) =
         if (/^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/.test(flat)) continue
         return clippedPrompt(flat)
       }
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return commandFallback
 }
@@ -98,7 +99,7 @@ function firstField(head: string, field: string): unknown {
     try {
       const record = JSON.parse(line)
       if (record && typeof record === 'object' && field in record) return record[field]
-    } catch {}
+    } catch (error) { passedOver(error) }
   }
   return undefined
 }

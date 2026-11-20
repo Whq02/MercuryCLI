@@ -1,3 +1,4 @@
+import { passedOver } from './passedOver.js'
 
 export class DeadlineExceededError extends Error {
   override readonly name = 'DeadlineExceededError'
@@ -63,7 +64,7 @@ export function armInactivityDeadline(opts: InactivityDeadlineOptions): Inactivi
   const expiry = new Promise<never>((_, reject) => {
     rejectExpiry = reject
   })
-  expiry.catch(() => {})
+  expiry.catch(passedOver)
 
   if (!armed) {
     return {

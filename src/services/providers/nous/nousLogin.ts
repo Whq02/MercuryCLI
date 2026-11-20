@@ -6,6 +6,7 @@ import { NOUS_API_KEY_ENV, nousApiBase, nousSigninIdentity } from './nousAccount
 import { peekNousClient } from './nousClientContract.js'
 import { pollNousDeviceToken, startNousDeviceAuth, writeNousTokens, writePreferredNousSource, type NousDeviceAuthStart, type NousOauthIo, type NousTokens } from './nousOauth.js'
 import { fetchNousAccount, nousCreditsDisplay, type NousObservedAccount, type NousUsageIo } from './nousUsageState.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 export interface NousKeyLoginOutcome {
   ok: boolean
@@ -79,7 +80,7 @@ export async function runNousDeviceLogin(args: {
   const pause = args.sleep ?? sleep
   const fail = (what: string): { ok: false; receipt: string } => ({ ok: false, receipt: `${what} — nothing stored. ${NOUS_KEY_LEG_OFFER}` })
   args.onEvent?.({ phase: 'starting' })
-  await peekNousClient(args.io).catch(() => undefined)
+  await peekNousClient(args.io).catch(passedOverAs(undefined))
   if (cancelled()) return { ok: false, receipt: `Nous Portal sign-in cancelled — nothing stored. ${NOUS_KEY_LEG_OFFER}` }
   let start: NousDeviceAuthStart
   try {

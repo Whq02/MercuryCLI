@@ -6,6 +6,7 @@ import { readLedger } from './ledger.js'
 import { mnemeProjectKey } from './paths.js'
 import type { LedgerEntry } from './types.js'
 import { gradeLines, HANDOFF_GRADE } from './memoryEvidence.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export function confirmCitedFacts(text: string, dir: string = mnemeLibraryDir(), now: Date = new Date()): number[] {
   if (!mnemeEnabled()) return []
@@ -39,7 +40,8 @@ export interface FootnoteContext {
 export function currentLedger(): LedgerEntry[] {
   try {
     return readLedger(mnemeProjectKey())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

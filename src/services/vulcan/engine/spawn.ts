@@ -10,6 +10,7 @@ import { engineUserEnv } from './userDir.js'
 import { VULCAN_INSTANCE_ENV, launchedVulcanInstance, type VulcanInstance, type VulcanInstanceLaunch } from '../instances.js'
 import { engineEstateEntry, engineTreeLiveness } from './liveness.js'
 import { removeEngineTree } from './frozenTree.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const ENGINE_OUTPUT_CAP = 64 * 1024 * 1024
 
@@ -64,7 +65,8 @@ function killLiveEnginesSync(): void {
     } catch {
       try {
         process.kill(pid, 'SIGKILL')
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
     }
@@ -209,7 +211,8 @@ export function removeDeadEngineTrees(projectRoot: string, processes: readonly G
     let names: string[] = []
     try {
       names = readdirSync(dir)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     for (const name of names) {

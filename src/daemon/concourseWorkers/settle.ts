@@ -12,6 +12,7 @@ import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { recordCollisionEvidence } from './collisions.js'
 import { type ConcourseWorkerRecordV1, isNewbornRecord, stampedTerminalPid, stampParked, stampStopped, turnCutStanding } from './record.js'
 import { errorMessage } from '../../utils/errors.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type ConcoursePauseOutcome =
   | { outcome: 'applied' }
@@ -150,7 +151,8 @@ export function settleConcourseWorker(runnerId: string, dir?: string): boolean {
   if (settled && settledRec !== undefined) {
     try {
       sweepScratchpadDir(scratchpadDirFor(settledRec.worktreePath ?? settledRec.workspaceId, settledRec.sessionId))
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return settled

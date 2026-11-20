@@ -6,6 +6,7 @@ import { type Layer, type ReadCommand, type ShellRead, UNREAD_PART, layersOf, wo
 import { expandPath } from '../../path.js'
 import { protectedPathForms, spelling } from './paths.js'
 import { GLOB_PART, HOLDS_CONVENTIONAL_HOME, SECRET_NAME_SAMPLES, secretsHeld, wildcardSource } from './homes.js'
+import { passedOver } from '../../passedOver.js'
 
 function gitUnindexedGrep(layer: Layer): { folder: string | undefined; rest: string[] } | undefined {
   if (layer.program !== 'git') return undefined
@@ -317,7 +318,8 @@ export function namesNoSecret(patterns: readonly string[], homes: readonly strin
     try {
       const test = new RegExp(`^${wildcardSource(pattern.toLowerCase())}$`)
       return !secrets.some(secret => test.test(secret))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return false
     }
   })
@@ -332,7 +334,8 @@ export function findNamesASecret(argv: readonly string[], homes: readonly string
     try {
       const pattern = new RegExp(`^${wildcardSource(name.toLowerCase())}$`)
       return secrets.some(secret => pattern.test(secret))
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return true
     }
   })

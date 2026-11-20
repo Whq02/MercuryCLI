@@ -4,6 +4,7 @@ import { dirname, join, resolve } from 'node:path'
 import { LRUCache } from 'lru-cache'
 
 import { logForDiagnosticsNoPII } from '../diagLogs.js'
+import { passedOver } from '../passedOver.js'
 
 
 const ROOT_CACHE_ENTRIES = 50
@@ -38,7 +39,8 @@ export const findGitRoot: CachedFinder = makeCachedFinder(startPath => {
         logForDiagnosticsNoPII('debug', 'git_root_discovery_completed', { found: true, stats, duration_ms: Date.now() - startedAt })
         return current.normalize('NFC')
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
     const parent = dirname(current)
     if (parent === current) break

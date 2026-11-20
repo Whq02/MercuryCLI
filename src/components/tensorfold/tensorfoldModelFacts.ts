@@ -8,6 +8,7 @@ import { getCachedLocalDiscovery } from '../../services/providers/local/localDis
 import type { TensorFoldEngineFound } from '../../services/tensorfold/engine.js'
 import { refreshTensorFoldAnnouncements, subscribeTensorFoldFacts, tensorFoldAnnouncementsNow, tensorFoldFactsStamp, tensorFoldHostsNow } from './tensorfoldFacts.js'
 import type { TensorFoldPickerFacts } from './tensorfoldRows.js'
+import { passedOverAs } from '../../utils/passedOver.js'
 
 const REFRESH_MS = 1_000
 
@@ -58,7 +59,7 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
     }
   }, [])
   useLoad(() => {
-    if (!off) void read().catch(() => undefined)
+    if (!off) void read().catch(passedOverAs(undefined))
   }, [off, read, version, discovery])
   useLoad(() => {
     if (!off) void refreshTensorFoldAnnouncements()
@@ -66,7 +67,7 @@ export function useModelTensorFoldFacts(current: string | undefined, onNotice: (
   const inFlight = facts !== undefined && Object.values(facts.panel.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing')
   useTimer(() => {
     if (!inFlight) return
-    const timer = setInterval(() => void read().catch(() => undefined), REFRESH_MS)
+    const timer = setInterval(() => void read().catch(passedOverAs(undefined)), REFRESH_MS)
     return () => clearInterval(timer)
   }, [inFlight, read])
   const notice = useRef(tensorFoldRoadState().notice)

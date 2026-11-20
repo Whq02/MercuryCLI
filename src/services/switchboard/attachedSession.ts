@@ -1,3 +1,4 @@
+import { passedOver } from '../../utils/passedOver.js'
 
 export async function completeHandback(
   kind: 'detach' | 'valve-resume' | 'grant-workflows',
@@ -26,7 +27,8 @@ export async function completeHandback(
       await store.writeConcoursePendingHandback(null)
     }
     return applied
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -43,7 +45,8 @@ export async function healStaleAttachRecords(): Promise<number> {
       if (heldByLive) continue
       if (await completeHandback('detach', rec.sessionId)) healed++
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return healed
 }

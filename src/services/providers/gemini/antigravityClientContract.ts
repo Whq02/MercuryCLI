@@ -5,6 +5,7 @@ import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getAuthConfigHomeDir } from '../../../utils/envUtils.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'
 import { getEssentialTrafficOnlyReason, isLoopbackUrl, isProofShapeRun, proofShapeReason } from '../../../utils/privacyLevel.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 export const ANTIGRAVITY_OAUTH_CLIENT_ID = '1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com'
 export const ANTIGRAVITY_OAUTH_CLIENT_SECRET = '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'
@@ -112,7 +113,8 @@ export function readAntigravityClientRecord(): AntigravityClientRecord {
   try {
     if (statSync(path).size > RECORD_MAX_BYTES) return {}
     return decodeAntigravityClientRecord(JSON.parse(readFileSync(path, 'utf8')))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return {}
   }
 }
@@ -167,7 +169,7 @@ async function boundedText(response: Response): Promise<string | null> {
     if (next.done) break
     size += next.value.byteLength
     if (size > ANSWER_MAX_BYTES) {
-      await reader.cancel().catch(() => undefined)
+      await reader.cancel().catch(passedOverAs(undefined))
       return null
     }
     chunks.push(next.value)
@@ -199,7 +201,7 @@ export async function readAntigravityVersionFromManifest(io?: AntigravityClientI
       return { ok: false, words: typeof code === 'string' ? `no network (${code})` : 'no network' }
     }
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined)
+      await response.body?.cancel().catch(passedOverAs(undefined))
       return { ok: false, words: `HTTP ${response.status}` }
     }
     const text = await boundedText(response)
@@ -229,14 +231,14 @@ export function peekAntigravityClient(io?: AntigravityClientIo & { force?: boole
     const answer = await readAntigravityVersionFromManifest(io)
     const fresh = readAntigravityClientRecord()
     if (!answer.ok) {
-      try { writeAntigravityClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch {}
+      try { writeAntigravityClientRecord({ ...fresh, lastFailure: { atMs: now(), words: answer.words.slice(0, 256) } }) } catch (error) { passedOver(error) }
       return { kind: 'read', answer, learned: false }
     }
     const newest = compareAntigravityVersions(answer.version, fresh.learned?.version ?? ANTIGRAVITY_CLIENT_CONTRACT_VERSION) > 0
     const next: AntigravityClientRecord = { ...fresh, lastPeekAtMs: now() }
     delete next.lastFailure
     if (newest) next.learned = { version: answer.version, learnedAtMs: now(), from: answer.from }
-    try { writeAntigravityClientRecord(next) } catch {}
+    try { writeAntigravityClientRecord(next) } catch (error) { passedOver(error) }
     return { kind: 'read', answer, learned: newest }
   })().finally(() => {
     peekInFlight = null

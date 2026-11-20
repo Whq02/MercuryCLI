@@ -23,6 +23,7 @@ import {
   writeResumeSnapshot,
 } from './resumeSnapshot.js'
 import { transcriptIo as io, transcriptReaderCensus } from './transcriptBytes.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 export { nodeTranscriptReaderIo, readTranscriptBytesAfter, setTranscriptReaderIoForTesting, transcriptReaderCensus } from './transcriptBytes.js'
 
@@ -55,7 +56,8 @@ function fanOutLoadDegradation(): void {
   for (const listener of degradationListeners) {
     try {
       listener()
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }
@@ -192,7 +194,7 @@ export async function readTranscript(
     return viewOf(cold.state, cold.read)
   }
   const prev = inflight.get(path) ?? Promise.resolve()
-  const run = prev.catch(() => undefined).then(async (): Promise<TranscriptView> => {
+  const run = prev.catch(passedOverAs(undefined)).then(async (): Promise<TranscriptView> => {
     const existing = states.get(path)
     const servable = existing !== undefined && existing.offset > 0 && (existing.policy === policy || existing.policy === 'all')
     if (servable) {
@@ -309,7 +311,8 @@ function isCompleteJsonLine(line: Buffer): boolean {
   try {
     JSON.parse(line.toString('utf8'))
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -579,7 +582,8 @@ function recordIdOfLine(line: Buffer): string | null {
     if (typeof parsed.recordId === 'string') return parsed.recordId
     if (typeof parsed.annotations?.uuid === 'string') return parsed.annotations.uuid
     if (typeof parsed.uuid === 'string') return parsed.uuid
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   return null
@@ -643,7 +647,7 @@ async function scanRecordIds(path: string): Promise<Set<string>> {
 
 export async function readTranscriptRecordIds(path: string): Promise<Set<string>> {
   const prev = recordIdScanRuns.get(path) ?? Promise.resolve(new Set<string>())
-  const run = prev.catch(() => undefined).then(() => scanRecordIds(path))
+  const run = prev.catch(passedOverAs(undefined)).then(() => scanRecordIds(path))
   recordIdScanRuns.set(path, run)
   try {
     return await run
@@ -664,7 +668,8 @@ export function readTranscriptTailSync(path: string, bytes: number): string {
     const buffer = io.readRangeSync(path, Math.max(0, stat.size - bytes), stat.size)
     transcriptReaderCensus.bytesRead += buffer.length
     return buffer.toString('utf8')
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }

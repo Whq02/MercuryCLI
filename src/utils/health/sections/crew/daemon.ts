@@ -3,6 +3,7 @@ import { formatAge } from '../../../healthCertCore.js'
 import { daemonSnapshot } from '../../../cockpit/daemonSnapshot.js'
 import type { DaemonSignInViewV1 } from '../../../../daemon/protocol.js'
 import type { CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function daemonSignInsCheck(): CheckSpec {
   return {
@@ -83,7 +84,8 @@ export function daemonCheck(): CheckSpec {
             rec.deadPid != null ? ` (pid ${rec.deadPid} gone)` : ''
           }`
         }
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (d.state === 'unavailable') {
         if (receipt) {

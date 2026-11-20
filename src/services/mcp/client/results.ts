@@ -8,6 +8,7 @@ import { getBinaryBlobSavedMessage, getFormatDescription, getLargeOutputInstruct
 import { mcpContentNeedsTruncation, truncateMcpContent, type MCPToolResult } from '../../../utils/mcpValidation.js'
 import { persistToolResult } from '../../../utils/toolResultStorage.js'
 import { normalizeNameForMCP } from '../normalization.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
 
@@ -148,7 +149,8 @@ export async function transformMCPResult(result: unknown, tool: string, name: st
       if (typeof text !== 'string') return false
       try {
         return isEqual(JSON.parse(text), record.structuredContent)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return false
       }
     }

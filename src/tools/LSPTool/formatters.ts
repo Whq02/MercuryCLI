@@ -8,6 +8,7 @@ import { readFileInRange } from '../../utils/readFileInRange.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { logError } from '../../utils/log.js'
 import { getCwd } from '../../utils/cwd.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 
 
@@ -93,7 +94,8 @@ export function uriToPath(uri: string): string {
   let path = uri.startsWith('file://') ? uri.slice('file://'.length) : uri
   try {
     path = decodeURIComponent(path)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   if (/^\/[A-Za-z]:/.test(path)) path = path.slice(1)
   return path

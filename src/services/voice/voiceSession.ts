@@ -6,6 +6,7 @@ import { captureBoundMs, microphonePermissionHint, resolveCaptureBackend, startC
 import type { CaptureStreamErrors } from './voicePack.js'
 import { localDecodesInFlight, resolveTranscriber, transcribeWav, warmLocalTranscriber, type TranscriberResolution } from './transcribe.js'
 import { mbWords, whisperDownloadDoor, whisperModelByName } from './whisperModels.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type VoicePhase = 'idle' | 'recording' | 'transcribing'
 interface VoiceReceipt { seq: number; text: string; tone: 'info' | 'error' }
@@ -57,13 +58,13 @@ function currentTakeStreamWords(): string | null {
 }
 
 export function voiceInputEnabled(): boolean {
-  try { return getGlobalConfig().voiceInputEnabled === true } catch { return false }
+  try { return getGlobalConfig().voiceInputEnabled === true } catch (error) { passedOver(error); return false }
 }
 
 function publish(patch: Partial<VoiceSnapshot>): void {
   snapshot = { ...snapshot, enabled: voiceInputEnabled(), ...patch }
   for (const listener of [...listeners]) {
-    try { listener() } catch {}
+    try { listener() } catch (error) { passedOver(error) }
   }
 }
 
@@ -204,7 +205,7 @@ export function releaseVoiceCaptureOnExit(): boolean {
   const handle = active
   if (handle === null) return false
   active = null
-  try { handle.cancel() } catch {}
+  try { handle.cancel() } catch (error) { passedOver(error) }
   publish({ phase: 'idle', startedAt: null, backend: null })
   return true
 }
@@ -284,7 +285,7 @@ export function describeVoiceReadiness(env: NodeJS.ProcessEnv = process.env): Vo
 
 export function resetVoiceForTest(): void {
   if (active !== null) {
-    try { active.cancel() } catch {}
+    try { active.cancel() } catch (error) { passedOver(error) }
   }
   active = null
   receiptSeq = 0

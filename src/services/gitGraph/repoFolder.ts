@@ -1,5 +1,6 @@
 import { readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
+import { passedOver } from '../../utils/passedOver.js'
 
 type RepoFolder =
   | { state: 'ok'; root: string; folder: string; via: 'folder' | 'below' }
@@ -11,7 +12,8 @@ function hasGitEntry(path: string): boolean {
   try {
     const entry = statSync(path)
     return entry.isDirectory() || entry.isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -32,7 +34,8 @@ function repositoriesDirectlyBelow(folder: string): string[] {
     names = readdirSync(folder, { withFileTypes: true })
       .filter(entry => entry.isDirectory() && entry.name !== '.git')
       .map(entry => entry.name)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   return names.filter(name => hasGitEntry(join(folder, name, '.git'))).sort()

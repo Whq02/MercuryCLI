@@ -3,6 +3,7 @@ import { waitForDap } from '../dapCancellation.js'
 import { startBodyOf, type DapStartOptions } from './launch.js'
 import { adapterSilenceMessage } from './probes.js'
 import { CLIENT_INIT_ARGS, REQUEST_TIMEOUT_MS, type DapAdapterSpec, type DapBreakpointSpec, type DapFunctionBreakpointSpec } from './shared.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 interface StartNeeds {
   rootStart(): StartPart
@@ -79,7 +80,7 @@ export class StartPart {
       adapterID: this.session.adapterKey,
     })
     const startDone = this.session.request(requestKind, configuration, 20_000)
-    startDone.catch(() => {})
+    startDone.catch(passedOver)
     const sawInitialized = await waitForDap(this.needs.initializedEvent().then(() => true), this.needs.operationSignal(), 10_000)
     if (!sawInitialized) {
       throw new Error(adapterSilenceMessage('child adapter never sent initialized (10s)', this.session.adapterKey))
@@ -100,8 +101,7 @@ export class StartPart {
         this.needs.pushOutput(`[dap] child '${this.session.label}' function breakpoints failed: ${(err as Error).message}`),
       )
     }
-    await this.session.request('configurationDone').catch(() => {
-    })
+    await this.session.request('configurationDone').catch(passedOver)
     await startDone
   }
 
@@ -118,7 +118,7 @@ export class StartPart {
     this.session.startMode = attach ? 'attach' : 'launch'
     const startBody = startBodyOf(this.needs.spec(), this.needs.cwd(), options, attach)
     const launchDone = this.session.request(attach ? 'attach' : 'launch', startBody, 20_000)
-    launchDone.catch(() => {})
+    launchDone.catch(passedOver)
     const initializedTimeoutMs = options.noDebug ? 2_000 : 10_000
     const sawInitialized = await waitForDap(this.needs.initializedEvent().then(() => true), this.needs.operationSignal(), initializedTimeoutMs)
     if (!sawInitialized && !options.noDebug) {
@@ -137,8 +137,7 @@ export class StartPart {
           }
         }
       }
-      await this.session.request('configurationDone').catch(() => {
-      })
+      await this.session.request('configurationDone').catch(passedOver)
     }
     await launchDone
   }

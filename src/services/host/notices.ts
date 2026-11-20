@@ -7,6 +7,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { escapeXml } from '../../utils/xml.js'
 import { hostDirectory, type HostRecord } from './store.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function hostNotice(record: HostRecord, kind: string, words: string): void {
   if (!record.sessionId) return
@@ -58,7 +59,7 @@ function readNotice(path: string): { sessionId: string; words: string } | undefi
   }
 }
 export function watchHostNotices(sessionId: () => string): () => void {
-  const tick = (): void => { try { deliverHostNotices(sessionId()) } catch {} }
+  const tick = (): void => { try { deliverHostNotices(sessionId()) } catch (error) { passedOver(error) } }
   const timer = setInterval(tick, 1000); timer.unref(); tick()
   return () => clearInterval(timer)
 }

@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getGlobalConfig } from '../utils/config.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface NamedSection {
   name: string
@@ -140,7 +141,8 @@ export function getMercuryContractSections(): NamedSection[] {
         text: 'The operator has set the concise response profile: default to the shortest complete answer that satisfies the request, and expand only when asked.',
       })
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return sections
 }

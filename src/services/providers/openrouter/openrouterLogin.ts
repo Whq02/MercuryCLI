@@ -3,6 +3,7 @@ import { writeStoredOpenrouterApiKey } from '../providerSecrets.js'
 import { forgetOpenrouterKeyRefusal, type OpenrouterAccountRef } from './openrouterAccounts.js'
 import { refreshOpenrouterCatalogue } from './openrouterCatalogue.js'
 import { probeOpenrouterKey, type OpenrouterKeyProbe } from './openrouterUsageState.js'
+import { passedOverAs } from '../../../utils/passedOver.js'
 
 interface OpenrouterKeyLoginOutcome {
   ok: boolean
@@ -17,7 +18,7 @@ export async function storeOpenrouterApiKeyLogin(
   key = key.trim()
   if (!key) return { ok: false, stored: false, receipt: 'Paste a non-empty OpenRouter API key.' }
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue('stored', { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue('stored', { force: true }).catch(passedOverAs(null)))
   const probe = await (io?.probeKey ?? probeOpenrouterKey)(key)
   if (probe.state === 'refused') {
     return {
@@ -57,7 +58,7 @@ export async function finishOpenrouterConnect(
   io?: { refreshCatalogue?: () => Promise<{ models: unknown[]; lastError?: string } | null> },
 ): Promise<{ ok: true; receipt: string }> {
   const refresh =
-    io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue(ref.keySource, { force: true }).catch(() => null))
+    io?.refreshCatalogue ?? (() => refreshOpenrouterCatalogue(ref.keySource, { force: true }).catch(passedOverAs(null)))
   const snapshot = await refresh()
   const catalogueNote = snapshot?.lastError
     ? ` · catalogue: unavailable (${snapshot.lastError})`

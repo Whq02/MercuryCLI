@@ -36,6 +36,7 @@ import { concourseRecordState, type ConcourseWorkerRecordV1 } from '../../daemon
 import type { DaemonSessionRecordV1 } from '../engine-connector/daemonConnector.js'
 import { withoutMissionMetSentinel } from '../mission/sentinel.js'
 import type { ObligationV1 } from '../crew/obligations.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 export const PARKING_NOW_LEAD = 'parking — '
 export const PARK_REFUSED_NOW_LEAD = 'park refused — '
@@ -78,7 +79,8 @@ function entryShapeOf(entry: unknown): { type?: unknown; message?: { content?: u
   if (typeof env.schemaVersion === 'number' && env.payload && typeof env.payload === 'object') {
     try {
       return recordToEntry(entry as MercuryRecord) as { type?: unknown; message?: { content?: unknown }; timestamp?: unknown }
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return null
     }
   }
@@ -122,7 +124,8 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): T
       let entry: unknown
       try {
         entry = JSON.parse(raw)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       const e = entryShapeOf(entry)
@@ -163,7 +166,8 @@ export function tailActivity(rec: { sessionId: string; workspaceId: string }): T
       }
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -188,7 +192,8 @@ export function headBriefLabel(rec: { sessionId: string; workspaceId: string }, 
     const flat = extractFirstPromptFromHead(lines.join('\n'), opts).replace(/\s+/g, ' ').trim()
     if (flat.length === 0) return null
     return sanitizeLabel(flat.length > maxChars ? `${flat.slice(0, maxChars)}…` : flat)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -570,7 +575,8 @@ export async function resolveHarnessGround(dir?: string): Promise<string> {
   try {
     const seeds = await readConcourseSeedOverrides(dir)
     if (typeof seeds.projectDir === 'string' && seeds.projectDir.length > 0) return seeds.projectDir
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return getCwd()
 }
@@ -756,7 +762,8 @@ export function olderChatsCensus(
         let st: { mtimeMs: number; size: number }
         try {
           st = statSync(s.transcriptPath)
-        } catch {
+        } catch (error) {
+          passedOver(error)
           continue
         }
         candidates.push({ sessionId: s.sessionId, file: s.transcriptPath, mtimeMs: st.mtimeMs, size: st.size, ageMs: s.ageMs })
@@ -775,7 +782,8 @@ export function olderChatsCensus(
             size: st.size,
             ageMs: Math.max(0, nowMs - st.mtimeMs),
           })
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
     }
@@ -842,7 +850,8 @@ export function parkedBoardRows(
       ...(sessions !== undefined ? { sessions } : {}),
     })
     if (census.total > 0) rows.push(olderChatsRow(projectDir, projectLabel, census.total))
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   return rows
 }
@@ -894,7 +903,7 @@ export async function buildConcourseSnapshot(
   const records = allRecords.filter(r => inProject(project, r.workspaceId))
   await obligations
     .foldLegacyObligationsIntoSwitchboardScope(opts.crewDir)
-    .catch(() => 0)
+    .catch(passedOverAs(0))
   const openObl = await obligations.openObligations({
     scope: 'switchboard',
     ...(opts.crewDir !== undefined ? { dir: opts.crewDir } : {}),
@@ -910,7 +919,8 @@ export async function buildConcourseSnapshot(
       const seat = await import('../engine-connector/daemonConnector.js')
       focusedRecord = seat.getDaemonSessionConnector(focusedSessionId)?.record
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   const foreignOf = (workspaceId: string): string | undefined =>
     inProject(project, workspaceId) ? undefined : sanitizeLabel(projectDisplayName(workspaceId))
@@ -956,7 +966,8 @@ export async function buildConcourseSnapshot(
         }
       })
     allRows.push(...heldRows)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   try {
@@ -980,7 +991,8 @@ export async function buildConcourseSnapshot(
     for (const r of retainedRows) {
       if (!allRows.some(x => x.sessionId === r.sessionId)) allRows.push(r)
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 
   const rows = allRows.flatMap(r => {
@@ -1115,7 +1127,8 @@ export async function buildConcourseSnapshot(
                   current: cap.profileRevision === nowRev,
                 },
               }
-            } catch {
+            } catch (error) {
+              passedOver(error)
               return {}
             }
           })()),
@@ -1339,7 +1352,8 @@ function scopeDetailOf(
       if (latest !== undefined) {
         scopeDetail = `exclusive overlap · ${latest.holders.length} holder(s) · ${clockOf(latest.observedAt)}`
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return scopeDetail

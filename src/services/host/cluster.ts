@@ -10,6 +10,7 @@ import { sshArguments, startHostEngine, waitHostEngine, type HostRunner, type Ss
 import { hostJobReadOnly, HostTerminationUnconfirmed, type HostReadOnly } from './retry.js'
 import { shQuote as quote } from './boxExecution.js'
 import { runpodOnly } from './vendors/runpodOnly.js'
+import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
 const clusterPlacementMs = 30 * 60_000
 
@@ -32,7 +33,7 @@ export async function createHostResource(api: RunpodClient | HostVendor, offer: 
   if (volume) throw new Error('A kept weights disk mounts on one pod; a cluster downloads its weights on every node.')
   const client = runpodOnly(api, 'Clusters')
   const cluster = await client.createCluster(offer, publicKey, name)
-  const nodes = await client.clusterPods(cluster.id).catch(() => [])
+  const nodes = await client.clusterPods(cluster.id).catch((error) => { passedOver(error); return [] })
   return familyPod(cluster, nodes, offer.price)
 }
 
@@ -130,7 +131,7 @@ export async function startHostCluster(api: RunpodClient, record: HostRecord, re
           }
           for (const [rank, target] of targets.entries()) {
             if (rank === 0) continue
-            const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(() => '')
+            const state = await runner.run('ssh', [...sshArguments(target), 'if kill -0 "$(cat ' + quote(dir + '/engine.pid') + ')" 2>/dev/null; then echo MERCURY_ENGINE_ALIVE; else echo MERCURY_ENGINE_GONE; tail -n 12 ' + quote(dir + '/engine.log') + '; fi'], signal).catch(passedOverAs(''))
             if (/^MERCURY_ENGINE_GONE\b/m.test(state)) throw new Error('Cluster node ' + nodes[rank]!.id + ' (rank ' + rank + ') stopped its engine, so the head cannot finish loading. ' + state.replace(/^MERCURY_ENGINE_GONE\b/m, '').trim())
           }
         }

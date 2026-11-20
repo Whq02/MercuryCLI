@@ -6,6 +6,7 @@ import { providerDisplayName } from '../../../../services/providers/routeLaw.js'
 import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../../../../services/providers/idSpaces.js'
 import { unresolvedDefaultRow, type CheckSpec } from '../../../healthReport.js'
+import { passedOver } from '../../../passedOver.js'
 
 export function modelCheck(): CheckSpec {
   return {
@@ -32,7 +33,8 @@ export function modelCheck(): CheckSpec {
       let pinResolved = pin
       try {
         pinResolved = parseUserSpecifiedModel(pin)
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
       if (pinResolved === session) {
         return {

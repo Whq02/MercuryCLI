@@ -1,6 +1,7 @@
 import { readdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function hfCacheRoot(env: NodeJS.ProcessEnv = process.env, home: string = homedir()): string {
   if (env.HF_HUB_CACHE) return env.HF_HUB_CACHE
@@ -30,7 +31,8 @@ export function ggufPaths(root: string, gguf: GgufSource): GgufPaths {
 function sizeOf(path: string): number | undefined {
   try {
     return statSync(path).size
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return undefined
   }
 }
@@ -47,7 +49,8 @@ export function cacheBlobBytes(root: string, repo: string): number {
   let total = 0
   try {
     for (const name of readdirSync(blobs)) total += sizeOf(join(blobs, name)) ?? 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   return total

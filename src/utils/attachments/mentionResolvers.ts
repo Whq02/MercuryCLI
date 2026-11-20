@@ -10,6 +10,7 @@ import { generateFileAttachment, mentionDeniedByRule, mentionPastCeiling } from 
 import { extractAgentMentions, extractAtMentionedFiles, extractMcpResourceMentions, parseAtMentionedFileLines } from './mentions.js'
 import { isFileReadDenied } from './shared.js'
 import type { Attachment } from './types.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 export function processAgentMentions(input: string, agents: AgentDefinition[]): Attachment[] {
   return extractAgentMentions(input).flatMap(word => {
@@ -36,7 +37,8 @@ async function readMentionedResource(word: string, context: ToolUseContext, clie
       logError(error)
       return []
     }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -57,7 +59,8 @@ async function directoryMention(path: string): Promise<Attachment[]> {
     const remaining = entries.length - lines.length
     if (remaining > 0) lines.push(`… and ${remaining} more entries`)
     return [{ type: 'directory', path, content: lines.join('\n'), displayPath: relative(getCwd(), path) }]
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -65,7 +68,7 @@ async function directoryMention(path: string): Promise<Attachment[]> {
 const MENTION_READ_CEILING_MS = 10_000
 
 async function readMention(path: string, range: ReturnType<typeof parseAtMentionedFileLines>, context: ToolUseContext, state: ReturnType<ToolUseContext['getAppState']>): Promise<Attachment[]> {
-  const standing = await stat(path).catch(() => null)
+  const standing = await stat(path).catch(passedOverAs(null))
   if (isFileReadDenied(path, state.toolPermissionContext)) {
     const denied = standing === null ? null : mentionDeniedByRule(path, state.toolPermissionContext)
     return denied ? [denied] : []

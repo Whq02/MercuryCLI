@@ -3,6 +3,7 @@ import { anthropicLimitVerdict, type RateLimitType } from '../anthropicLimits.js
 import { anthropicSignInWords, anthropicWindowWords, type AnthropicWindowObservation } from './anthropicRefusal.js'
 import { getGptSeatAvailability } from './openai/openaiCatalogue.js'
 import { providerDisplayName } from './routeLaw.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type ProviderId =
   | 'anthropic'
@@ -118,7 +119,8 @@ function kickAnthropicDoors(): void {
     const { kickAnthropicCatalogue } =
       require('./anthropic/anthropicCatalogue.js') as typeof import('./anthropic/anthropicCatalogue.js')
     kickAnthropicCatalogue()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -130,7 +132,8 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
     anthropicApiKey: () => {
       try {
         return getAnthropicApiKey()
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return null
       }
     },
@@ -319,7 +322,8 @@ function liveProviderUsabilityReads(opts?: ProviderUsabilityReadOptions): Provid
         const { usageCarryWords, usageForProvider } =
           require('./providerUsage.js') as typeof import('./providerUsage.js')
         return usageCarryWords(usageForProvider(lane).carry)
-      } catch {
+      } catch (error) {
+        passedOver(error)
         return undefined
       }
     },

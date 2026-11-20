@@ -54,6 +54,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { ensureBinDirOnPath, manualPathLine, planBinDirOnPath, realPathEntryIo, type PathEntryIo, type PathEntryOutcome } from './installPath.js'
 import { foreignInstallerOf, resolveInstallProvenance } from './installProvenance.js'
 import { describeRunningRuntime, payloadRuntimeLine, runningBundlePayloadDir, runtimeLine, type RunningRuntime } from './vendoredRuntime.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function runningRuntime(): RunningRuntime {
   return describeRunningRuntime({
@@ -269,7 +270,8 @@ function resolveWindowsShell(): string | null {
     try {
       execFileSync(exe, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { windowsHide: true, stdio: 'pipe', timeout: 30_000, env: { ...subprocessEnv() } })
       return exe
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   return null
@@ -339,7 +341,8 @@ function writeUpdateReceipt(roots: LayoutRoots, startedAt: string, outcome: Upda
       ) + '\n',
     )
     return path
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

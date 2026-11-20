@@ -15,6 +15,7 @@ import { MC_CLEARED_PLACEHOLDER, MC_DIGEST_PREFIX } from '../compact/microCompac
 import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../run/ownerKey.js'
 import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../run/ownerScopedStore.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const IDENTICAL_CALL_REMINDER_STEPS: readonly number[] = [3, 5, 8]
 const CYCLE_WINDOW = 25
@@ -437,7 +438,8 @@ export function ambientRound(owner: OwnerKey, parentToolUseID: string | undefine
     const parent = state.roundCalls.get(parentToolUseID)
     if (parent === undefined) return null
     return { id: state.roundID, ordinal: parent.ordinal }
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -461,7 +463,8 @@ export function recordToolCall(owner: OwnerKey, observation: LoopGuardObservatio
       errorText,
       bookkeeping: isBookkeepingTool(observation.toolName),
     })
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return
   }
 }
@@ -539,7 +542,8 @@ export async function repeatedResultPointer(owner: OwnerKey, observation: Repeat
     const kept = await persistToolResult(extracted.content, toolUseID)
     const where = 'error' in kept ? '' : ` The full text is also kept at ${kept.filepath}.`
     return `${REPEATED_RESULT_TAG} this ${observation.toolName} call (${argumentPreview(observation.arguments)}) returned exactly the same ${extracted.text.length} characters as call ${known.toolUseID} earlier in this turn, so the text is not repeated here. Reread that result — it is unchanged.${where}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

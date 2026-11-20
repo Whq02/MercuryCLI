@@ -15,6 +15,7 @@ import { logError } from './log.js'
 import { getErrnoCode } from './errors.js'
 import { createSignal } from './signal.js'
 import { jsonParse, jsonStringify } from './slowOperations.js'
+import { passedOver } from './passedOver.js'
 
 
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed'] as const
@@ -80,7 +81,8 @@ export function getTaskPath(taskListId: string, taskId: string): string {
 export async function ensureTasksDir(taskListId: string): Promise<void> {
   try {
     await fs.promises.mkdir(getTasksDir(taskListId), { recursive: true })
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -106,7 +108,8 @@ const tasksUpdatedSignal = createSignal()
 export function notifyTasksUpdated(): void {
   try {
     tasksUpdatedSignal.emit()
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
 }
 
@@ -141,7 +144,8 @@ export async function readTaskEpoch(taskListId: string): Promise<number> {
     const raw = await fs.promises.readFile(epochPath(taskListId), 'utf8')
     const parsed = jsonParse(raw) as { epoch?: unknown } | undefined
     return typeof parsed?.epoch === 'number' ? parsed.epoch : 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -157,7 +161,8 @@ async function listTaskIdsOnDisk(taskListId: string): Promise<string[]> {
       .filter(isTaskBodyName)
       .map(name => name.slice(0, -'.json'.length))
       .sort(byCreationOrder)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }
@@ -183,7 +188,8 @@ async function readHighWatermark(taskListId: string): Promise<number> {
     const raw = await fs.promises.readFile(highWatermarkPath(taskListId), 'utf8')
     const parsed = jsonParse(raw)
     return typeof parsed === 'number' && !Number.isNaN(parsed) ? parsed : 0
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
 }
@@ -217,7 +223,8 @@ export async function resetTaskList(
       if (!isTaskBodyName(name)) continue
       try {
         await fs.promises.unlink(join(getTasksDir(taskListId), name))
-      } catch {
+      } catch (error) {
+        passedOver(error)
       }
     }
     return true
@@ -232,7 +239,8 @@ export async function sweepDeadEpochTasks(taskListId: string): Promise<number> {
   let names: string[] = []
   try {
     names = await fs.promises.readdir(getTasksDir(taskListId))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   let removed = 0
@@ -246,7 +254,8 @@ export async function sweepDeadEpochTasks(taskListId: string): Promise<number> {
         await fs.promises.unlink(path)
         removed += 1
       }
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
   if (removed > 0) notifyTasksUpdated()
@@ -380,7 +389,8 @@ export async function deleteTask(taskListId: string, taskId: string): Promise<bo
     }
     notifyTasksUpdated()
     return true
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

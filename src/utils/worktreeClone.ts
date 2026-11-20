@@ -7,6 +7,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { logForDebugging } from './debug.js'
 import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
 import { subprocessEnv } from './subprocessEnv.js'
+import { passedOver } from './passedOver.js'
 
 export type CloneOutcome = 'cloned' | 'present' | 'missing' | 'outside' | 'held' | 'unsupported' | 'failed'
 
@@ -82,7 +83,7 @@ function inTurn<T>(work: () => Promise<T>): Promise<T> {
   const mine = helperTurn.then(work)
   helperTurn = mine.then(
     () => {},
-    () => {},
+    passedOver,
   )
   return mine
 }
@@ -147,7 +148,8 @@ async function admitPair(pair: ClonePair, index: number, checkout: string, road:
   let source: string
   try {
     source = await realpath(pair.source)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 'missing'
   }
   const sourceStat = await stat(source)
@@ -245,7 +247,8 @@ async function clonefileEach(jobs: readonly HelperJob[], answerBoundMs: number):
   try {
     const codes: unknown = JSON.parse(answer.stdout.trim())
     if (Array.isArray(codes) && codes.length === jobs.length && codes.every(code => Number.isInteger(code))) return codes as number[]
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   logForDebugging(`worktree clone: osascript answered something else than its codes: ${answer.stdout.trim().slice(0, 120)}`, { level: 'warn' })
   return null
@@ -253,7 +256,7 @@ async function clonefileEach(jobs: readonly HelperJob[], answerBoundMs: number):
 
 async function openFolders(folder: string): Promise<void> {
   if (!(await lstat(folder)).isDirectory()) return
-  await chmod(folder, 0o700).catch(() => {})
+  await chmod(folder, 0o700).catch(passedOver)
   for (const entry of await readdir(folder, { withFileTypes: true })) if (entry.isDirectory()) await openFolders(join(folder, entry.name))
 }
 
@@ -261,7 +264,8 @@ async function removeTree(path: string): Promise<void> {
   try {
     await rm(path, { recursive: true, force: true })
     return
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   await openFolders(path)
   await rm(path, { recursive: true, force: true })
@@ -469,7 +473,7 @@ async function reflinkRefused(pair: AdmittedPair, held?: HeldBack): Promise<bool
     if (NO_REFLINK_CODES.has((error as NodeJS.ErrnoException).code ?? '')) return true
     throw error
   } finally {
-    await rm(probe, { force: true }).catch(() => {})
+    await rm(probe, { force: true }).catch(passedOver)
   }
 }
 
@@ -587,7 +591,8 @@ export async function cloneRefusedBetween(checkoutRoot: string, worktreeRoot: st
   let volumes: string
   try {
     volumes = `${(await stat(checkoutRoot)).dev}:${(await stat(worktreeRoot)).dev}`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return true
   }
   if (volumesThatCannotClone.has(volumes)) return true
@@ -603,7 +608,7 @@ export async function cloneRefusedBetween(checkoutRoot: string, worktreeRoot: st
       volumesThatCannotClone.add(volumes)
       return true
     } finally {
-      await rm(probe, { force: true }).catch(() => {})
+      await rm(probe, { force: true }).catch(passedOver)
     }
   }
   return false
@@ -615,7 +620,8 @@ export async function carryEntries(relPaths: readonly string[], checkoutRoot: st
   let checkout: string
   try {
     checkout = await realpath(checkoutRoot)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
   const worktree = resolve(worktreeRoot)
@@ -631,7 +637,8 @@ export async function carryEntries(relPaths: readonly string[], checkoutRoot: st
     let entry
     try {
       entry = await lstat(source)
-    } catch {
+    } catch (error) {
+      passedOver(error)
       return
     }
     if (entry.isSymbolicLink()) links.push(rel)
@@ -651,7 +658,7 @@ export async function carryEntries(relPaths: readonly string[], checkoutRoot: st
     }
   }
   if (files.length === 0) return carried
-  for (const parent of new Set(files.map(rel => dirname(join(worktree, rel))))) await mkdir(parent, { recursive: true }).catch(() => {})
+  for (const parent of new Set(files.map(rel => dirname(join(worktree, rel))))) await mkdir(parent, { recursive: true }).catch(passedOver)
   if (road === 'clonefile') {
     const codes = await inTurn(() => clonefileEach([{ from: checkout, to: worktree, folders: [], clones: files.map(rel => `/${rel}`), loose: true }], CLONE_ANSWER_BOUND_MS))
     if (codes === null || codes[0] !== 0) logForDebugging(`worktree carry: some ignored files were not cloned (${codes === null ? 'no answer' : `errno ${codes[0]}`})`, { level: 'warn' })
@@ -670,7 +677,7 @@ export async function carryEntries(relPaths: readonly string[], checkoutRoot: st
       if (NO_REFLINK_CODES.has(code)) refused = true
       else if (code !== 'EEXIST') logForDebugging(`worktree carry: ${rel} was not cloned: ${code === '' ? String(error) : code}`, { level: 'warn' })
     }
-  }).catch(() => {})
+  }).catch(passedOver)
   return carried
 }
 
@@ -705,7 +712,8 @@ function worktreeAdminDir(worktreePath: string): string | null {
   try {
     const pointer = readFileSync(join(worktreePath, '.git'), 'utf8').trim()
     return pointer.startsWith('gitdir:') ? resolve(worktreePath, pointer.slice('gitdir:'.length).trim()) : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -753,12 +761,13 @@ export function returnWorktreeFromAside(aside: string, worktreePath: string): vo
 export function discardSetAside(aside: string): void {
   if (!isWorktreeDebris(aside)) return
   const inProcess = (): void => {
-    void rm(aside, { recursive: true, force: true }).catch(() => {})
+    void rm(aside, { recursive: true, force: true }).catch(passedOver)
   }
   try {
     const now = new Date()
     lutimesSync(aside, now, now)
-  } catch {
+  } catch (error) {
+    passedOver(error)
   }
   try {
     const child = spawn(process.execPath, ['-e', DISCARD_SCRIPT, aside], { detached: true, stdio: 'ignore', windowsHide: true, env: subprocessEnv() })
@@ -773,7 +782,8 @@ export function sweepSetAside(home: string): number {
   let entries: string[]
   try {
     entries = readdirSync(home)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return 0
   }
   let swept = 0
@@ -781,7 +791,8 @@ export function sweepSetAside(home: string): number {
     if (!isWorktreeDebris(join(home, entry))) continue
     try {
       if (Date.now() - lstatSync(join(home, entry)).mtimeMs < DEBRIS_GRACE_MS) continue
-    } catch {
+    } catch (error) {
+      passedOver(error)
       continue
     }
     discardSetAside(join(home, entry))

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export interface BootNote {
   kind: 'info' | 'warn'
@@ -44,7 +45,8 @@ export function collectLauncherNotes(configHome: string = getMercuryHome()): voi
   } finally {
     try {
       rmSync(path, { force: true })
-    } catch {
+    } catch (error) {
+      passedOver(error)
     }
   }
 }

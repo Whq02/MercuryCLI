@@ -14,6 +14,7 @@ import { getFsImplementation } from '../fsOperations.js'
 import { getMercuryHome } from '../envUtils.js'
 import { isFsInaccessible } from '../errors.js'
 import { logForDebugging } from '../debug.js'
+import { passedOver, passedOverAs } from '../passedOver.js'
 
 export const MAX_TRANSCRIPT_READ_BYTES = 50 * 1024 * 1024
 
@@ -51,7 +52,8 @@ export function sessionIdExists(sessionId: string): boolean {
   const file = originalTranscript(sessionId)
   try {
     getFsImplementation().statSync(file)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
   return true
@@ -128,7 +130,7 @@ export async function listAgentMetadata(): Promise<AgentMetadataRow[]> {
   const names = await currentSidecarNames()
   const rows: AgentMetadataRow[] = []
   for (const agentId of sidecarIds(names)) {
-    const metadata = await readAgentMetadata(agentId).catch(() => null)
+    const metadata = await readAgentMetadata(agentId).catch(passedOverAs(null))
     if (metadata === null) continue
     rows.push({ agentId, metadata })
   }

@@ -4,6 +4,7 @@ import { runningBuildTree } from '../../utils/artifactIdentity.js'
 import { readSessionWorkers, updateConcourseWorkers } from './store.js'
 import { sessionActivityOf } from './record.js'
 import { errorMessage } from '../../utils/errors.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function markConcourseWorkerActivity(
   runnerId: string,
@@ -19,7 +20,7 @@ export function markConcourseWorkerActivity(
       const rec = workers[runnerId]
       if (rec && rec.endedAt === undefined) rec.activity = activity
     }, dir)
-  } catch {}
+  } catch (error) { passedOver(error) }
 }
 
 export function markConcourseWorkerDelivery(runnerId: string, dir?: string): void {

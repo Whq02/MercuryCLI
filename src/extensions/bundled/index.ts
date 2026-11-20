@@ -5,6 +5,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getBundledDir } from '../paths.js'
 import { MERCURY_VERSION } from '../../constants/product.js'
 import { bundledMetadata, bundledPayloads } from './content.generated.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 type BundledExtensionDefinition = {
   name: string
@@ -57,7 +58,8 @@ export function bundledReleaseMissingFor(root: string, name: string): string | n
   let platforms: Record<string, unknown> | undefined
   try {
     platforms = (JSON.parse(readFileSync(lock, 'utf8')) as { platforms?: Record<string, unknown> }).platforms
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   const platform = craftPlatform()
@@ -72,7 +74,8 @@ export function bundledRoster(): BundledExtensionDefinition[] {
       const root = join(fixture, entry)
       try {
         if (!statSync(root).isDirectory()) continue
-      } catch {
+      } catch (error) {
+        passedOver(error)
         continue
       }
       if (!existsSync(join(root, 'mercury-extension.json'))) continue
@@ -84,7 +87,8 @@ export function bundledRoster(): BundledExtensionDefinition[] {
           const parsed = JSON.parse(readFileSync(defaults, 'utf8')) as { defaultOn?: boolean; available?: boolean }
           if (parsed.defaultOn === false) defaultOn = false
           if (parsed.available === false) available = false
-        } catch {
+        } catch (error) {
+          passedOver(error)
         }
       }
       roster.push({ name: entry, root, defaultOn, isAvailable: () => available })

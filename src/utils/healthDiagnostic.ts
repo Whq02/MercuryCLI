@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { getFsImplementation } from './fsOperations.js'
 import { CUSTOMIZATION_SURFACES } from './settings/types.js'
 import { getManagedFilePath } from './settings/managedPath.js'
+import { passedOver } from './passedOver.js'
 
 type ManagedPolicyWarning = { issue: string; fix: string }
 
@@ -13,7 +14,8 @@ export function managedPolicyPath(): string {
 export function managedPolicyPresent(): boolean {
   try {
     return getFsImplementation().existsSync(managedPolicyPath())
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -60,7 +62,8 @@ export function detectManagedSettingsWarnings(): ManagedPolicyWarning[] {
       }
     }
     return []
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return []
   }
 }

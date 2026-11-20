@@ -8,6 +8,7 @@ import {
   compareUnityVersionsDesc,
   findUnityProjectRoot,
 } from '../ide/unityProject.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const UNITY_DAP_ADAPTER_KEY = 'unity'
 
@@ -27,7 +28,8 @@ interface UnityAdapterFailure {
 function isFile(p: string): boolean {
   try {
     return statSync(p).isFile()
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }
@@ -46,7 +48,8 @@ function newestVstucDll(extensionsDir: string): string | null {
     entries = readdirSync(extensionsDir).filter(name =>
       name.toLowerCase().startsWith('visualstudiotoolsforunity.vstuc-'),
     )
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
   entries.sort((a, b) =>

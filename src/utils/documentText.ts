@@ -6,6 +6,7 @@ import { extractPdfText, renderPdfText } from './pdfText.js'
 import { recognisePdfPage, renderOcr } from './ocr.js'
 import { readRegularFile } from './regularFile.js'
 import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
+import { passedOver } from './passedOver.js'
 
 export const SEARCHABLE_DOCUMENT_EXTENSIONS = ['pdf', 'docx', 'pptx', 'xlsx', 'odt', 'ods', 'odp', 'epub', 'rtf'] as const
 export function isSearchableDocument(path: string): boolean {
@@ -34,7 +35,7 @@ export async function extractDocumentText(path: string, signal?: AbortSignal): P
   const bytes = await readRegularFile(path, signal, info)
   const digest = createHash('sha256').update(bytes).update(ext).digest('hex')
   const cached = join(getToolResultsDir(), `document-text-v4-${digest}.txt`)
-  try { return await readFile(cached, 'utf8') } catch {}
+  try { return await readFile(cached, 'utf8') } catch (error) { passedOver(error) }
   const text = renderDocumentBytes(bytes, ext, path)
   await ensureToolResultsDir()
   const stage = `${cached}.${randomUUID()}`

@@ -8,6 +8,7 @@ import { USER_ASKED_RULE_ROAD } from '../../mneme/mnemeCorrect.js'
 import { listArchiveDocs, listTopicDocs } from '../../mneme/mnemeLibrary.js'
 import { memorySecretRefusal } from '../../mneme/mnemeSecretGuard.js'
 import { readPins } from '../../mneme/mnemeUsage.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export const RULE_CARD_KEEP = 'keepRule'
 
@@ -94,7 +95,8 @@ const cards = new WeakMap<object, string>()
 function underSovereign(context: Pick<ToolUseContext, 'getAppState'>): boolean {
   try {
     return modeBypassesPermissions(context.getAppState().toolPermissionContext.mode)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

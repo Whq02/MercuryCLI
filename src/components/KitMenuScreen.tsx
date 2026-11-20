@@ -38,6 +38,7 @@ import { useInteractiveList } from './mercury-ui/useInteractiveList.js';
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { kitMenuView } from './kitMenu/kitMenuView.js';
+import { passedOver } from '../utils/passedOver.js';
 
 
 interface KitMenuScreenProps {
@@ -224,7 +225,7 @@ export function KitMenuScreen({ onClose, fullScene, catalogue: given, store = ki
         });
     };
     enumerate();
-    void skillChangeDetector.rearmWatchRoots().catch(() => {});
+    void skillChangeDetector.rearmWatchRoots().catch(passedOver);
     const unsubscribe = skillChangeDetector.subscribe(enumerate);
     return () => {
       cancelled = true;

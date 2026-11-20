@@ -15,6 +15,7 @@ import { pidFieldsOf, buildTreeFields } from './marks.js'
 import { migrateTranscriptHomeToLaw } from './revive.js'
 import type { ConcourseWorkerRecordV1 } from './record.js'
 import type { AdmitSeat, ConcourseAdmitDeps, ConcourseAdmitResult, WorkerRosterPort } from './admit.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function coldRunnerIdOf(records: Record<string, ConcourseWorkerRecordV1>, roster: NonNullable<ReturnType<ConcourseAdmitDeps['roster']>>): string | null {
   const used = new Set(
@@ -62,9 +63,9 @@ export function coldSpecOf({ req, records, workspaceId, sessionId, runnerId, wor
             if (level === undefined) return
             saved = level
             return true
-          } catch {}
+          } catch (error) { passedOver(error) }
         })
-      } catch {}
+      } catch (error) { passedOver(error) }
       return saved
     })() ??
     'high'

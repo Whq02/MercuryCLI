@@ -28,6 +28,7 @@ import type {
   JourneyStep,
 } from './contracts.js'
 import { sleep } from '../../utils/sleep.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 const RING = 16
 const MAX_DETAIL = 400
@@ -103,7 +104,8 @@ function isLoopbackUrl(raw: string): boolean {
   try {
     const u = new URL(raw)
     return LOOPBACK_HOSTS.has(u.hostname)
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return false
   }
 }

@@ -9,11 +9,13 @@ import {
 import { lastPreflightPath } from '../healthPreflight.js'
 import { healthCertEnabled, gateVerdictPath, lastCertPath } from '../healthReport.js'
 import { type Snapshot } from './types.js'
+import { passedOver } from '../passedOver.js'
 
 function readJson(path: string): unknown {
   try {
     return JSON.parse(readFileSync(path, 'utf8'))
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }

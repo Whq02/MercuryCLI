@@ -12,6 +12,7 @@ import { getCachedXaiCatalogue, xaiModelFacts } from './xaiCatalogue.js'
 import { isXaiChatModelId } from './xaiPins.js'
 import { refreshXaiTokens } from './xaiOauth.js'
 import { xaiResponsesTransport } from './xaiResponsesTransport.js'
+import { passedOver } from '../../../utils/passedOver.js'
 
 export const xaiLaneProfile: CompatLaneProfile = {
   lane: 'xai',
@@ -20,7 +21,7 @@ export const xaiLaneProfile: CompatLaneProfile = {
     try {
       const key = await resolveXaiCredential()
       return key ? { apiKey: key.key, requestUrl: xaiChatCompletionsUrl(undefined, key.source) } : undefined
-    } catch { return undefined }
+    } catch (error) { passedOver(error); return undefined }
   },
   recoverCredential: async () => {
     if (!configuredProviderKeyCommand('xai')) return null

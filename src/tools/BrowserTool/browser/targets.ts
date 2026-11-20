@@ -4,6 +4,7 @@ import type { OwnerKey } from '../../../services/run/ownerKey.js'
 import { type Input, WAIT_CAP_MS, WAIT_DEFAULT_MS } from './schema.js'
 import { isDriverTimeout } from './failures.js'
 import { type LiveSession, targetOrigin, targetSurface } from './page.js'
+import { passedOver, passedOverAs } from '../../../utils/passedOver.js'
 
 function framesDiagnosis(s: LiveSession): string {
   try {
@@ -14,7 +15,8 @@ function framesDiagnosis(s: LiveSession): string {
       .map(f => f.url().split('?')[0])
       .join(', ')
     return `; ${children.length} child frame(s) present (${urls}); set frame to an index from extract or a unique URL substring`
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return ''
   }
 }
@@ -59,10 +61,11 @@ async function framedOnly(s: LiveSession, selector: string): Promise<string | nu
     if (children.length === 0) return null
     if ((await s.page.$(selector)) !== null) return null
     for (const frame of children) {
-      if ((await frame.$(selector).catch(() => null)) !== null) return frame.url().split('?')[0] ?? frame.url()
+      if ((await frame.$(selector).catch(passedOverAs(null))) !== null) return frame.url().split('?')[0] ?? frame.url()
     }
     return null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
@@ -89,7 +92,7 @@ export async function resolveActTarget(
       .waitHandle({ signal })) as ElementHandle<Element>
   } catch (err) {
     if (isDriverTimeout(err)) {
-      const attached = await surface.$(selector).catch(() => null)
+      const attached = await surface.$(selector).catch(passedOverAs(null))
       const framedLate = attached || frame !== undefined ? null : await framedOnly(s, selector)
       throw new Error(
         attached

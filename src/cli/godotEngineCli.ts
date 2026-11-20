@@ -5,6 +5,7 @@ import { runningGodotProcesses } from '../services/vulcan/godotProcessCensus.js'
 import { engineTreePath } from '../services/vulcan/engine/paths.js'
 import { engineProcessesFor } from '../services/vulcan/engine/spawn.js'
 import { endProcessTree } from '../utils/processGroup.js'
+import { passedOver } from '../utils/passedOver.js'
 
 const GODOT_CLI_VERBS = ['run', 'check', 'jobs', 'cancel', 'result', 'capture', 'frames', 'profile', 'tour'] as const
 
@@ -70,7 +71,8 @@ function parsed(text: string): Record<string, unknown> | null {
   try {
     const v = JSON.parse(text) as unknown
     return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null
-  } catch {
+  } catch (error) {
+    passedOver(error)
     return null
   }
 }
