@@ -9,12 +9,14 @@ import { LOCAL_UNREACHABLE_REMEDY } from '../services/providers/local/localAccou
 import type { AnthropicWindowFactV1, LaneWindowFactV1, OpenaiWindowFactV1 } from '../services/engine-connector/types.js'
 import type { ScheduleAccountV1, ScheduleAccountVerdictV1 } from './saturn.js'
 import { passedOver } from '../utils/passedOver.js'
+import { errorMessage } from '../utils/errors.js'
 import { hostEnv } from '../utils/hostEnv.js'
 
 
 export interface FamilyCredentialPresenceV1 {
   credentialed: boolean
   kind: 'oauth' | 'api-key' | 'keyless' | 'none'
+  unread?: string
 }
 
 export interface AnthropicOauthDetailV1 {
@@ -37,8 +39,8 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
       const resolved = compatModelEndpoint(modelKey)
       const account = resolved === undefined ? undefined : resolveCompatAccount(hostEnv(), resolved.endpoint.name)
       return account === undefined ? { credentialed: false, kind: 'none' } : { credentialed: true, kind: account.kind }
-    } catch {
-      return { credentialed: false, kind: 'none' }
+    } catch (error) {
+      return { credentialed: false, kind: 'none', unread: errorMessage(error) }
     }
   }
   if (family === 'anthropic') {
@@ -47,8 +49,8 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
       if (!presence.credentialed) return { credentialed: false, kind: 'none' }
       const detail = productionAnthropicDetail()
       return { credentialed: true, kind: detail !== null && detail.subscriber ? 'oauth' : 'api-key' }
-    } catch {
-      return { credentialed: false, kind: 'none' }
+    } catch (error) {
+      return { credentialed: false, kind: 'none', unread: errorMessage(error) }
     }
   }
   try {
@@ -59,8 +61,8 @@ function productionPresenceOf(family: string, modelKey?: string): FamilyCredenti
     }
     if (account.kind === 'keyless') return { credentialed: true, kind: 'keyless' }
     return { credentialed: true, kind: account.kind === 'api-key' ? 'api-key' : 'oauth' }
-  } catch {
-    return { credentialed: false, kind: 'none' }
+  } catch (error) {
+    return { credentialed: false, kind: 'none', unread: errorMessage(error) }
   }
 }
 
@@ -137,7 +139,7 @@ export function deriveScheduleAccountForModel(
         if (endpoint !== undefined) door = `compat/${endpoint.name}`
       } catch (error) { passedOver(error) }
     }
-    return { ok: false, reason: noCredentialRefusal(door) }
+    return { ok: false, reason: presence.unread !== undefined ? `unread:${door} — the sign-in could not be read (${presence.unread})` : noCredentialRefusal(door) }
   }
   if (presence.kind === 'keyless') {
     return { ok: true, account: { family, source: 'keyless', ...scope } }

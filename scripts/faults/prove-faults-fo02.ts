@@ -60,8 +60,17 @@ async function sweepRegistrationUnreadable(): Promise<void> {
   }
 }
 
+async function scheduleSignInUnread(): Promise<void> {
+  const { deriveScheduleAccountForModel } = await import(join(SRC, 'daemon/saturnAccount.ts'))
+  const unread = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none', unread: 'EACCES: permission denied' }) })
+  check('schedule account: a sign-in that could not be read is refused as unread, not as no credential', !unread.ok && unread.reason === 'unread:anthropic — the sign-in could not be read (EACCES: permission denied)', JSON.stringify(unread))
+  const absent = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none' }) })
+  check('schedule account: an absent sign-in still reads no-credential', !absent.ok && absent.reason.startsWith('no-credential:anthropic'), JSON.stringify(absent))
+}
+
 await reconcileUnlinkRefused()
 await sweepRegistrationUnreadable()
+await scheduleSignInUnread()
 
 console.log(failures === 0 ? 'prove-faults-fo02: all rows hold' : `prove-faults-fo02: ${failures} row(s) failed`)
 process.exit(failures === 0 ? 0 : 1)

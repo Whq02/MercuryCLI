@@ -11,6 +11,7 @@ import {
 import { GLYPH } from '../../components/mercury-ui/glyphs.js'
 import type { LongLivedSeat, RosterOptions, WorkerHandle } from './types.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { errorMessage } from '../../utils/errors.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const EXIT_DRAIN_BACKSTOP_MS = 2_000
@@ -49,7 +50,7 @@ export class LifePart {
         sup.completeRequestedStop(short)
         await sup.completeFencedRetirement(short)
       })
-      .catch(passedOver)
+      .catch(e => console.error(`[daemon] ${short}: the stop was not stamped on its session record, which still reads stopping: ${errorMessage(e)}`))
   }
 
   superviseChildLife(
