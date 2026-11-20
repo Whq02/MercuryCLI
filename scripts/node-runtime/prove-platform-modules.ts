@@ -28,7 +28,13 @@ const PROGRAMS: Row[] = [
 const SPAWN: Row[] = [
 ]
 
+import { childGetsOwnProcessGroup } from '../../src/utils/platform/processes.js'
 const PROCESSES: Row[] = [
+  {
+    name: 'childGetsOwnProcessGroup',
+    answers: stand => [childGetsOwnProcessGroup(), childGetsOwnProcessGroup(stand.node)],
+    recorded: {"win32":[false,false],"darwin":[true,true],"linux":[true,true],"win32 by process.platform alone":[false,false],"win32 by getPlatform() alone":[true,true]},
+  },
 ]
 
 const FILES: Row[] = [
