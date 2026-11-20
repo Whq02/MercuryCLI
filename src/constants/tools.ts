@@ -1,4 +1,4 @@
-import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from './tools/agent.js'
 import { APOLLO_REVIEW_TOOL_NAME } from './tools/apolloReview.js'
 import { ASK_ADVISOR_TOOL_NAME } from '../tools/AskAdvisorTool/constants.js'
 import { ASK_USER_QUESTION_TOOL_NAME } from '../tools/AskUserQuestionTool/prompt.js'

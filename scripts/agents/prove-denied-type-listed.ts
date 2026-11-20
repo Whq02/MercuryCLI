@@ -13,7 +13,7 @@ const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
 setSessionTrustAccepted(true)
 const { buildAgentLaunchPlan } = await import('../../src/services/crew/agentLaunchPlan.ts')
-const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/tools/AgentTool/constants.ts')
+const { MERCURY_CREW_AGENT_TYPE } = await import('../../src/constants/tools/agent.ts')
 type AgentDefinition = import('../../src/tools/AgentTool/loadAgentsDir.ts').AgentDefinition
 type ToolPermissionContext = import('../../src/Tool.ts').ToolPermissionContext
 

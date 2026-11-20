@@ -3,7 +3,7 @@ import { evaluateLaunchAuthority } from '../../services/switchboard/launchAuthor
 import { buildTool, type Tool as ToolShape, type ToolDef, type ToolUseContext } from '../../Tool.js'
 import { getDenyRuleForAgent } from '../../utils/permissions/decision/rules.js'
 import { reasonForRule, refusalWithReason, ruleSentence } from '../../utils/permissions/ruleReason.js'
-import { AGENT_TOOL_NAME } from './constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { agentRosterOf, getPrompt, withoutAgentRoster } from './prompt.js'
 import { swarmSessionEnabled } from '../../services/crewBoard/seam.js'
 import * as UI from './UI.js'

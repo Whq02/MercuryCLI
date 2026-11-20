@@ -3,7 +3,7 @@ import { semanticBoolean } from '../../../utils/semanticBoolean.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../../utils/effort.js'
 import { lazySchema } from '../../../utils/lazySchema.js'
 import { agentToolResultSchema } from '../agentToolUtils.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../constants.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../../constants/tools/agent.js'
 import type { AgentToolProgress, ShellProgress } from '../../../types/tools.js'
 import type { describeAgentRuntimeRef } from '../../../services/providers/primaryBackend.js'
 

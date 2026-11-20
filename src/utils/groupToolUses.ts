@@ -7,7 +7,7 @@ import type {
 } from '../types/message.js'
 import type { ToolUseBlock } from '../types/wire.js'
 
-import { AGENT_TOOL_NAME } from '../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../constants/tools/agent.js'
 
 type MessageWithoutProgress = Exclude<NormalizedMessage, { type: 'progress' }>
 

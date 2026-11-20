@@ -7,7 +7,7 @@ import type {
 } from '../../Tool.js'
 import { closestToolByName, findToolByName, offeredToolNamesClause, toolMatchesName } from '../../Tool.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
-import { AGENT_TOOL_NAME } from '../../tools/AgentTool/constants.js'
+import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { completionIdentity } from '../agentResults/summaryRoom.js'
 import { addToToolDuration, canAnswerAsks, getSessionId, getSessionKind, getStatsStore } from '../../bootstrap/state.js'
 import { guardKeysOf, judgeToolCall } from '../../guards/guards.js'

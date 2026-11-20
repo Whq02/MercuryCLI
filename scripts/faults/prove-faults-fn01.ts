@@ -146,7 +146,7 @@ else {
     } finally {
       fs.chmodSync(unreadableTranscript, 0o600)
     }
-    const { AGENT_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'tools/AgentTool/constants.ts'))})
+    const { AGENT_TOOL_NAME } = await import(${JSON.stringify(join(SRC, 'constants/tools/agent.ts'))})
     const { BACKGROUND_LAUNCH_LINE } = await import(${JSON.stringify(join(SRC, 'tasks/LocalAgentTask/launchReceipts.ts'))})
     const agent1 = 'a12345678'
     const agent2 = 'b87654321'

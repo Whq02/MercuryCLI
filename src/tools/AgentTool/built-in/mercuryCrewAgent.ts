@@ -1,5 +1,5 @@
 import type { BuiltInAgentDefinition } from '../loadAgentsDir.js'
-import { MERCURY_CREW_AGENT_TYPE } from '../constants.js'
+import { MERCURY_CREW_AGENT_TYPE } from '../../../constants/tools/agent.js'
 
 export const MERCURY_CREW_AGENT: BuiltInAgentDefinition = {
   agentType: MERCURY_CREW_AGENT_TYPE,

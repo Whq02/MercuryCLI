@@ -165,7 +165,7 @@ const { createFileStateCacheWithSizeLimit } = await import(
 const { SYNTHETIC_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/SyntheticOutputTool/SyntheticOutputTool.ts'
 )
-const { AGENT_TOOL_NAME } = await import('../../src/tools/AgentTool/constants.ts')
+const { AGENT_TOOL_NAME } = await import('../../src/constants/tools/agent.ts')
 const { logError } = await import('../../src/utils/log.ts')
 const printMod = await import('../../src/cli/run.ts')
 const resumeMod = await import('../../src/cli/headless/resume.ts')
