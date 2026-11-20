@@ -20,10 +20,11 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { dirname, join, win32 as pathWin32 } from 'node:path'
+import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'
+import { hostOrWin32PathModule, stripExtendedLengthPrefixForPlatform } from '../../utils/platform/paths.js'
 import { stripExtendedLengthPrefix } from '../../utils/windowsPaths.js'
 import { NODE_SUPPORT } from '../../utils/runtime/nodePolicy.js'
 import { TEARDOWN_SUITE } from '../../ink/root/teardown.js'
@@ -1181,5 +1182,5 @@ export function formatUninstallReport(roots: LayoutRoots, report: UninstallRepor
 
 export function runningPayloadDir(): string {
   const raw = process.argv[1] ?? ''
-  return process.platform === 'win32' ? pathWin32.dirname(stripExtendedLengthPrefix(raw)) : dirname(raw)
+  return hostOrWin32PathModule().dirname(stripExtendedLengthPrefixForPlatform(raw))
 }
