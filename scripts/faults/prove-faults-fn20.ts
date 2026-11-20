@@ -116,5 +116,37 @@ console.log('\nremoteFiles/ops.ts — unwritable tmpdir fails closed in remoteIs
   check('ops-remote-facts-probe-fails-closed', r.code === 'ENOENT' || r.code === 'EACCES', JSON.stringify(r))
 }
 
+console.log('\nrepoHost/repoHost.ts — corrupt or unreadable latest.json throws instead of returning null')
+{
+  const r = runSub(`
+    const { latestReview } = await import(path.join(SRC, 'services/repoHost/repoHost.ts'))
+    const { projectHomeStore } = await import(path.join(SRC, 'utils/projectHomeStores.ts'))
+    out.absent = latestReview(PROJECT)
+    const dir = projectHomeStore(PROJECT, 'reviews')
+    fs.mkdirSync(dir, { recursive: true })
+    const file = path.join(dir, 'latest.json')
+    fs.writeFileSync(file, '{broken json', { mode: 0o600 })
+    try {
+      out.corrupt = latestReview(PROJECT)
+    } catch (e) {
+      out.corruptErr = e.name
+    }
+    if (${JSON.stringify(POSIX_MODES)}) {
+      fs.writeFileSync(file, '{"schema":1,"id":"r1","at":1,"scope":"worktree","inspected":[],"findings":[]}', { mode: 0o600 })
+      fs.chmodSync(file, 0o000)
+      try {
+        out.unreadable = latestReview(PROJECT)
+      } catch (e) {
+        out.unreadableCode = e.code ?? e.name
+      } finally {
+        fs.chmodSync(file, 0o600)
+      }
+    }
+  `)
+  check('repoHost-latest-review-absent-null', r.absent === null, JSON.stringify(r))
+  check('repoHost-latest-review-corrupt-throws', r.corruptErr === 'SyntaxError', JSON.stringify(r))
+  if (POSIX_MODES) check('repoHost-latest-review-unreadable-throws', r.unreadableCode === 'EACCES', JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

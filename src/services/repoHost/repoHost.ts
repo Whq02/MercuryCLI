@@ -209,8 +209,11 @@ export function latestReview(root: string = getCwd()): ReviewRecord | null {
   try {
     return JSON.parse(readFileSync(path.join(reviewsDir(root), 'latest.json'), 'utf8')) as ReviewRecord
   } catch (error) {
-    passedOver(error)
-    return null
+    if ((error as NodeJS.ErrnoException | null)?.code === 'ENOENT') {
+      passedOver(error)
+      return null
+    }
+    throw error
   }
 }
 
