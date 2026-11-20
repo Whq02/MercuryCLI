@@ -83,7 +83,7 @@ export async function restartSessionOnInstalledBuild(args: {
   if (runnerAlive(rec)) {
     const { daemonControlRpc } = await import('../../daemon/controlSocket.js')
     const stop = (await daemonControlRpc(
-      { op: 'sessionControl', action: 'stop', sessionId: args.sessionId, by: `operator:${process.pid}` } as never,
+      { op: 'sessionControl', action: 'stop', sessionId: args.sessionId, by: `operator:${process.pid}` },
       { timeoutMs: 15_000 },
     )) as { ok?: boolean; outcome?: string; detail?: string; error?: string }
     if (stop.ok !== true || stop.outcome === 'refused') {

@@ -1,3 +1,4 @@
+import type { CreateElicitationRequest } from '@agentclientprotocol/sdk'
 import type { ToolAsk } from '../childSession.js'
 import type { ElicitationAnswer, ElicitationRequestParams, PermissionAnswer } from '../../../runner/wire/methods.js'
 
@@ -38,7 +39,7 @@ export function permissionAnswerOf(result: unknown, ask: Pick<ToolAsk, 'suggesti
   return { outcome: 'allow' }
 }
 
-export function elicitationWire(params: ElicitationRequestParams, acpSessionId: string): Record<string, unknown> {
+export function elicitationWire(params: ElicitationRequestParams, acpSessionId: string): CreateElicitationRequest {
   if (params.mode === 'url') {
     return { sessionId: acpSessionId, mode: 'url', message: params.message, url: params.url ?? '', elicitationId: params.elicitation_id ?? '' }
   }

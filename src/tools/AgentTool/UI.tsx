@@ -21,7 +21,7 @@ import { safeSearchOrReadClassification, safeUserFacingName } from '../../Tool.j
 import { buildSubagentLookups } from '../../utils/messages.js'
 import { formatTokens } from '../../utils/format.js'
 import { getTokenCountFromUsage } from '../../utils/tokens.js'
-import type { ApiUsage } from '../../types/wire.js'
+import type { ApiUsage, ToolResultBlockParam } from '../../types/wire.js'
 import { renderModelName, getEngineModel } from '../../utils/model/model.js'
 import { Markdown } from '../../components/Markdown.js'
 import { getAgentColor } from './agentColorManager.js'
@@ -303,7 +303,7 @@ export function renderToolUseProgressMessage(
             <MessageComponent
               message={row.data.message as never}
               tools={tools}
-              commands={[] as never}
+              commands={[]}
               verbose={false}
               addMargin={false}
               shouldAnimate={false}
@@ -311,7 +311,7 @@ export function renderToolUseProgressMessage(
               isTranscriptMode={false}
               isStatic={true}
               inProgressToolUseIDs={EMPTY_SET}
-              progressMessagesForMessage={[] as never}
+              progressMessagesForMessage={[]}
               lookups={lookups as never}
             />
           </MessageResponse>
@@ -413,7 +413,7 @@ export function renderToolResultMessage(
                   <MessageComponent
                     message={message as never}
                     tools={tools}
-                    commands={[] as never}
+                    commands={[]}
                     verbose={false}
                     addMargin={false}
                     shouldAnimate={false}
@@ -421,7 +421,7 @@ export function renderToolResultMessage(
                     isTranscriptMode={true}
                     isStatic={true}
                     inProgressToolUseIDs={EMPTY_SET}
-                    progressMessagesForMessage={[] as never}
+                    progressMessagesForMessage={[]}
                     lookups={lookups as never}
                   />
                 </MessageResponse>
@@ -473,7 +473,7 @@ export function renderToolUseRejectedMessage(
     <Box flexDirection="column">
       {progress.length > 0
         ? renderToolUseProgressMessage(progress, {
-            tools: options?.tools ?? ([] as never),
+            tools: options?.tools ?? [],
             verbose: options?.verbose ?? false,
             isTranscriptMode: options?.isTranscriptMode,
           })
@@ -484,7 +484,7 @@ export function renderToolUseRejectedMessage(
 }
 
 export function renderToolUseErrorMessage(
-  result?: unknown,
+  result?: ToolResultBlockParam['content'],
   options?: {
     tools?: Tools
     verbose?: boolean
@@ -497,13 +497,13 @@ export function renderToolUseErrorMessage(
     <Box flexDirection="column">
       {progress.length > 0
         ? renderToolUseProgressMessage(progress, {
-            tools: options?.tools ?? ([] as never),
+            tools: options?.tools ?? [],
             verbose: options?.verbose ?? false,
             isTranscriptMode: options?.isTranscriptMode,
           })
         : null}
       <FallbackToolUseErrorMessage
-        result={result as never}
+        result={result}
         verbose={options?.verbose ?? false}
       />
     </Box>
@@ -604,7 +604,7 @@ function extractLastToolInfo(
       if (!tool) return use.name
       let summary: string | null | undefined
       try {
-        summary = tool.getToolUseSummary?.(use.input as never)
+        summary = tool.getToolUseSummary?.(use.input)
       } catch {
         summary = undefined
       }

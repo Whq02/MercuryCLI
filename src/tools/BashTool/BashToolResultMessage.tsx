@@ -8,7 +8,7 @@ import { ShellTimeDisplay } from '../../components/shell/ShellTimeDisplay.js'
 import { ToolCardMarker, ToolCardMeta } from '../../components/mercury-ui/toolCardMeta.js'
 import { formatFileSize } from '../../utils/format.js'
 
-type BashResultContent = {
+export type BashResultContent = {
   stdout: string
   stderr: string
   isImage?: boolean

@@ -1,4 +1,4 @@
-import { performance as perf } from 'node:perf_hooks'
+import { performance as perf, type EventLoopUtilization } from 'node:perf_hooks'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { FRAME_INTERVAL_MS } from '../../ink/constants.js'
 import { critterIdleEnabled } from './critterIdle.js'
@@ -25,19 +25,15 @@ interface LoopMeter {
   busyShare(): number | null
 }
 
-type LoopUtilization = { utilization: number }
-type PerfWithLoop = { eventLoopUtilization?: (since?: LoopUtilization) => LoopUtilization }
-
 const REAL_LOOP_METER: LoopMeter = (() => {
-  let mark: LoopUtilization | null = null
-  const p = perf as unknown as PerfWithLoop
+  let mark: EventLoopUtilization | null = null
   return {
     begin() {
-      mark = typeof p.eventLoopUtilization === 'function' ? p.eventLoopUtilization() : null
+      mark = typeof perf.eventLoopUtilization === 'function' ? perf.eventLoopUtilization() : null
     },
     busyShare() {
-      if (mark === null || typeof p.eventLoopUtilization !== 'function') return null
-      const share = p.eventLoopUtilization(mark).utilization
+      if (mark === null || typeof perf.eventLoopUtilization !== 'function') return null
+      const share = perf.eventLoopUtilization(mark).utilization
       return Number.isFinite(share) ? share : null
     },
   }

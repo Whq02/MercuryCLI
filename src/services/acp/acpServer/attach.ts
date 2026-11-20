@@ -27,21 +27,7 @@ export function attachSession(
 ): AcpSessionState {
   const { sessions, entry } = server
   const acpSessionId = args.acpSessionId
-  const state: AcpSessionState = {
-    child: null as unknown as MercuryChildSession,
-    cwd: args.cwd,
-    modeId: args.modeId ?? 'default',
-    modePath: savedModePath(args.cwd, acpSessionId),
-    modeChanges: Promise.resolve(),
-    turnResolve: null,
-    cancelled: false,
-    promptAbort: null,
-    editorContext: null,
-    toolNames: new Map(),
-    planChain: Promise.resolve(),
-    planEverSent: false,
-    costTotalUsd: 0,
-  }
+  let state: AcpSessionState
   const emitPlan = (): void => {
     state.planChain = state.planChain
       .then(async () => {
@@ -193,7 +179,7 @@ export function attachSession(
       onElicitation: async (params, withdrawn) => {
         if (params.mode === 'url' ? !server.clientUrlElicitation : !server.clientFormElicitation) return { action: 'cancel' }
         try {
-          const result = await ctx.request(methods.client.elicitation.create, elicitationWire(params, acpSessionId) as never, { cancellationSignal: withdrawn })
+          const result = await ctx.request(methods.client.elicitation.create, elicitationWire(params, acpSessionId), { cancellationSignal: withdrawn })
           return elicitationAnswerOf(result)
         } catch {
           return { action: 'cancel' }
@@ -310,7 +296,21 @@ export function attachSession(
       },
     },
   )
-  state.child = child
+  state = {
+    child,
+    cwd: args.cwd,
+    modeId: args.modeId ?? 'default',
+    modePath: savedModePath(args.cwd, acpSessionId),
+    modeChanges: Promise.resolve(),
+    turnResolve: null,
+    cancelled: false,
+    promptAbort: null,
+    editorContext: null,
+    toolNames: new Map(),
+    planChain: Promise.resolve(),
+    planEverSent: false,
+    costTotalUsd: 0,
+  }
   sessions.set(acpSessionId, state)
   return state
 }

@@ -265,7 +265,7 @@ export async function resumeAgentBackground(args: {
   try {
     await latchSwarmAgent(agentId, meta?.name ?? description, true, undefined, task.abortController?.signal)
     tools = resolveWorkerTools(definition, workerPermissionMode, assembleToolPool(
-      { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode as never },
+      { ...toolUseContext.getAppState().toolPermissionContext, mode: workerPermissionMode },
       toolUseContext.getAppState().mcp?.tools ?? [],
       agentId,
     ))
@@ -313,7 +313,7 @@ export async function resumeAgentBackground(args: {
           ...(onQueryProgress !== undefined ? { onQueryProgress } : {}),
           onWait: line => setAgentWaitLine(agentId, line, rootSetAppState),
           toolUseContext,
-          canUseTool: canUseTool ?? ((async () => ({ behavior: 'allow', updatedInput: {} })) as never),
+          canUseTool: canUseTool ?? (async () => ({ behavior: 'allow' as const, updatedInput: {} })),
           isAsync: true,
           resumed: true,
           querySource,
@@ -338,7 +338,7 @@ export async function resumeAgentBackground(args: {
           ...(instructionProfileOverride
             ? { instructionProfileOverride }
             : {}),
-          onCacheSafeParams: onCacheSafeParams as never,
+          onCacheSafeParams,
         }),
       metadata: {
         prompt,

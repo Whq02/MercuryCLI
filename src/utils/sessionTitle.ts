@@ -64,7 +64,7 @@ export async function generateSessionTitle(description: string, signal: AbortSig
         hasAppendSystemPrompt: false,
         agents: [],
         mcpTools: [],
-      } as unknown as Parameters<typeof queryUtility>[0]['options'],
+      },
     })
     const text = extractTextContent(response.message.content, '\n')
     const parsed = safeParseJSON(text, false)
