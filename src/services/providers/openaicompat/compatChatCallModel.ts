@@ -163,7 +163,10 @@ export async function* compatChatCallModel(
       if (fresh !== null) recovery = 'no-new-credential'
     }
     const verdict = yield* retries.afterFault(outcome.fault, { typed, retryEligible: outcome.retryEligible, invisibleOnly: outcome.invisibleOnly === true })
-    if (verdict.kind === 'again') continue
+    if (verdict.kind === 'again') {
+      if (outcome.afterPartial === true) options.onStreamingFallback?.()
+      continue
+    }
     if (verdict.kind === 'cancelled') return
     if (verdict.kind === 'stream-reconnect-spent') {
       try {
@@ -213,7 +216,7 @@ export async function* compatChatCallModel(
     }
     const terminalText = compatTerminalFaultText(profile, outcome.fault, typed, { ...(recovery ? { recovery } : {}), requestUrl: credential.requestUrl ?? profile.requestUrl() }) + (profile.policyFaultNote?.(outcome.fault, request.extra) ?? '')
     const stayedBusy =
-      busy !== undefined && takesBusyLadder(outcome.fault, typed)
+      busy !== undefined && takesBusyLadder(outcome.fault)
         ? `${API_ERROR_MESSAGE_PREFIX}: ${profile.providerLabel} stayed busy through ${busy.ladder.waitsMs.length} ${busy.ladder.waitsMs.length === 1 ? 'retry' : 'retries'} over ${retrySeconds(Date.now() - busy.ladder.startedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`
         : emptyEnd
           ? `${API_ERROR_MESSAGE_PREFIX}: ${emptyStreamSpentWords(profile.providerLabel, Date.now() - turnStartedAtMs)} — ${terminalText.slice(`${API_ERROR_MESSAGE_PREFIX}: `.length)}`

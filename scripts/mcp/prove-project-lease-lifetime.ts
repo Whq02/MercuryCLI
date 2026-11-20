@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { proofHome } from '../lib/hermetic.ts'
-import { mkdirSync, rmSync } from 'node:fs'
+import { removeScratch } from '../lib/removeScratch.ts'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { mock } from 'bun:test'
 import type { QueryParams } from '../../src/query.ts'
@@ -145,7 +146,11 @@ try {
   const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
   await runCleanupFunctions()
   mock.restore()
-  rmSync(proofHome, { recursive: true, force: true })
+  try {
+    removeScratch(proofHome, { maxRetries: 4, retryDelayMs: 50 })
+  } catch (error) {
+    if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY') throw error
+  }
 }
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures ? 1 : 0)

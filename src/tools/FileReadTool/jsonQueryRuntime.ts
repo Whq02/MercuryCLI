@@ -6,6 +6,7 @@ import { nodePackPlatform, runtimeBinaryFor } from '../../services/privateChanne
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { vendoredNodeRelativePath } from '../../utils/platform/programs.js'
 
 const QUERY_BOUND_MS = 10 * 60_000
 
@@ -34,7 +35,7 @@ interface JsonQueryRun {
 
 function jsonQueryPack(): { pack: string; process: string; runtime: string } {
   const here = dirname(fileURLToPath(import.meta.url))
-  const binary = process.platform === 'win32' ? 'node.exe' : 'bin/node'
+  const binary = vendoredNodeRelativePath()
   const bundled = join(here, 'vendor/json-query')
   if (existsSync(join(bundled, '.vendor-manifest.json'))) return { pack: bundled, process: join(bundled, 'jsonQueryProcess.mjs'), runtime: join(here, 'vendor/node', binary) }
   let at = here

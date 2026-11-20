@@ -4,6 +4,7 @@ import { join, resolve } from 'node:path'
 import { compileCacheDirUsable } from './compileCachePath.js'
 import { passedOverAs } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
+import { samePathCase } from '../platform/paths.js'
 
 export const COMPILE_CACHE_MAX_BYTES = 512 * 1024 * 1024
 export const COMPILE_CACHE_MAX_FILES = 8192
@@ -15,8 +16,7 @@ type PruneResult = { state: 'skipped' | 'fresh' | 'busy' | 'complete' | 'failed'
 
 export async function pruneCompileCache(home: string, env: NodeJS.ProcessEnv = hostEnv()): Promise<PruneResult> {
   const root = join(home, 'compile-cache')
-  const samePath = (a: string, b: string): boolean => process.platform === 'win32'
-    ? resolve(a).toLowerCase() === resolve(b).toLowerCase() : resolve(a) === resolve(b)
+  const samePath = (a: string, b: string): boolean => samePathCase(resolve(a), resolve(b))
   if (env.NODE_DISABLE_COMPILE_CACHE !== undefined || (env.NODE_COMPILE_CACHE && !samePath(env.NODE_COMPILE_CACHE, root)) || !compileCacheDirUsable(root)) return { state: 'skipped', removed: [] }
   const rootStat = await lstat(root).catch(passedOverAs(null))
   if (!rootStat?.isDirectory()) return { state: 'skipped', removed: [] }

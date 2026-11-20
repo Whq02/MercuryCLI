@@ -99,3 +99,4 @@ prove-editor-terminal-shell.ts
 prove-recorded-shell-gone.ts
 prove-engine-session-frame.ts
 prove-cd-lasts-the-session.ts
+prove-readers-recording.ts

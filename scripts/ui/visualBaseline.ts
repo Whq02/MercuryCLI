@@ -22,7 +22,6 @@ export interface VisualBaselineEntry {
   gridDigest: string
   styleDigest: string
   masks: string[]
-  generatedAt: string
 }
 
 export interface VisualManifest {
@@ -30,7 +29,6 @@ export interface VisualManifest {
   generator: 'scripts/ui/generate-visual-baseline.ts'
   sourceSha: string
   buildDigest: string
-  generatedAt: string
   descoped: string[]
   entries: VisualBaselineEntry[]
 }

@@ -4,7 +4,7 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { getEngineModel } from '../../../utils/model/model.js'
 import { openaiObservedWindowViews, metaMuseCodeUsage, providerSessionSpend, providerUsageView, usageForProvider, zaiAccountFacts, type UsageFigureView } from '../../../services/providers/providerUsage.js'
 import { useFocusedServedEffort, useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
-import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../../services/providers/gemini/geminiPlanQuota.js'
+import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaMeter, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../../services/providers/gemini/geminiPlanQuota.js'
 import { shownIdentityWords } from '../../../services/providers/providerIdentityLine.js'
 import { openrouterSlots } from '../../../services/providers/accountSlots.js'
 import { usageSourceWords } from '../../../services/providers/usageFreshness.js'
@@ -144,7 +144,6 @@ function OpenrouterUsageSection({ width }: { width?: number }): React.ReactNode 
 }
 
 function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
-  void width
   const entries = walletEntries().filter(e => e.provider === 'gemini')
   const active = activeWalletEntry('gemini')
   const spend = providerSessionSpend('gemini')
@@ -166,6 +165,19 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
     setOthersOpen(open => !open)
   })
   const quotaLine = (figure: UsageFigureView, tail?: string): string => [`${figure.label}: ${figure.value}`, ...(figure.resetsAtMs !== undefined ? [`resets ${new Date(figure.resetsAtMs).toLocaleString()}`] : []), ...(usageSourceWords(figure) !== undefined ? [usageSourceWords(figure)!] : []), ...(tail !== undefined ? [tail] : [])].join(' · ')
+  const quotaRow = (figure: UsageFigureView, tail?: string): React.ReactNode => {
+    const meter = geminiPlanQuotaMeter(figure)
+    if (meter === null) return <Text key={figure.key} dimColor>{quotaLine(figure, tail)}</Text>
+    return (
+      <ObservedWindowMeter
+        key={figure.key}
+        window={meter.window}
+        title={meter.title}
+        {...(tail !== undefined ? { tail } : {})}
+        {...(width !== undefined ? { maxWidth: width } : {})}
+      />
+    )
+  }
   return (
     <Box flexDirection="column">
       <Text bold>Gemini usage</Text>
@@ -178,17 +190,13 @@ function GeminiUsageSection({ width }: { width?: number }): React.ReactNode {
           <Box flexDirection="column">
             <Text dimColor>{shownIdentityWords('gemini', plan.identity?.email !== undefined ? `${plan.label} · ${plan.identity.email}` : plan.label)}</Text>
             {tierFigure !== undefined ? <Text dimColor>{[`${tierFigure.label}: ${tierFigure.value}`, ...(tierStamp !== undefined ? [tierStamp] : [])].join(' · ')}</Text> : null}
-            {quota.active !== undefined ? <Text dimColor>{quotaLine(quota.active, `the session's model${quota.activeRow !== undefined && sessionModel !== null && quota.activeRow !== sessionModel.toLowerCase() ? ` (${sessionModel} ▸ ${quota.activeRow})` : ''}`)}</Text> : null}
-            {quota.used.map(figure => (
-              <Text key={figure.key} dimColor>{quotaLine(figure, 'used this session')}</Text>
-            ))}
+            {quota.active !== undefined ? quotaRow(quota.active, `the session's model${quota.activeRow !== undefined && sessionModel !== null && quota.activeRow !== sessionModel.toLowerCase() ? ` (${sessionModel} ▸ ${quota.activeRow})` : ''}`) : null}
+            {quota.used.map(figure => quotaRow(figure, 'used this session'))}
             {quota.unreported.map(entry => (
               <Text key={`plan-quota-unreported:${entry.model}`} dimColor>{`${geminiPlanQuotaUnreportedWords(entry.model)} · ${entry.active ? "the session's model" : 'used this session'}`}</Text>
             ))}
             {quota.others.length > 0 ? <Text dimColor>{geminiPlanQuotaFoldWords(quota.others.length, othersOpen)}</Text> : null}
-            {othersOpen ? quota.others.map(figure => (
-              <Text key={figure.key} dimColor>{quotaLine(figure)}</Text>
-            )) : null}
+            {othersOpen ? quota.others.map(figure => quotaRow(figure)) : null}
             {planActive && usage.readerNote !== undefined ? <Text dimColor>{usage.readerNote}</Text> : null}
             <SlotSpend active={planActive} route="gemini" spend={spend} withCost={false} />
           </Box>

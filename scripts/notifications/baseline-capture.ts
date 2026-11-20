@@ -92,7 +92,6 @@ function write(name: string, data: Record<string, unknown>): void {
     `${JSON.stringify(
       {
         baseline: name,
-        capturedAt: new Date().toISOString(),
         tree: { source: SRC_TREE, dirty: DIRTY },
         dist: { bytes: distBytes, sha256: distSha },
         machine: MACHINE,

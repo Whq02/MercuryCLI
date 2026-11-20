@@ -176,6 +176,61 @@ console.log('\n§6 mcp remove --scope project in a project with no config home r
   }
 }
 
+console.log('\n§7 mcp list prints the settings fault sentence when .mercury/mcp.json cannot be read')
+{
+  const DIST = join(ROOT, 'dist', 'mercury.mjs')
+  const posixModes = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+  if (!existsSync(DIST)) {
+    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
+  } else if (posixModes) {
+    const { chmodSync } = await import('node:fs')
+    const { spawnSync } = await import('node:child_process')
+    const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-list-home-')))
+    const fresh = realpathSync(mkdtempSync(join(tmpdir(), 'project-mcp-file-list-proj-')))
+    const mcpDir = join(fresh, '.mercury')
+    const mcpFile = join(mcpDir, 'mcp.json')
+    mkdirSync(mcpDir, { recursive: true })
+    seedFirstRun(home, [fresh])
+    writeFileSync(join(home, 'settings.json'), JSON.stringify({ kit: { trustProjectServers: true } }))
+    writeFileSync(mcpFile, JSON.stringify({ mcpServers: { readable: stdio('/usr/bin/true') } }))
+    chmodSync(mcpFile, 0o000)
+    try {
+      const env = { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_MCP_TIMEOUT_MS: '1000' }
+      delete env.MERCURY_HOME
+      delete env.NODE_ENV
+      const unread = spawnSync(process.env.MERCURY_NODE ?? 'node', [DIST, 'mcp', 'list'], { cwd: fresh, env, encoding: 'utf8', timeout: 30_000 })
+      const errOut = unread.stderr ?? ''
+      const allOut = `${unread.stdout ?? ''}\n${errOut}`
+      check(
+        'mcp list reports the unreadable project .mercury/mcp.json with the settings fault sentence',
+        unread.status === 0 &&
+          errOut.includes('settings: Failed to read MCP configuration file: ') &&
+          errOut.includes(' — the file is skipped') &&
+          errOut.includes('EACCES'),
+        `rc=${unread.status} stdout=${JSON.stringify(unread.stdout)} stderr=${JSON.stringify(errOut)}`,
+      )
+      check(
+        'mcp list does not print "No MCP servers configured" when reading the project file failed',
+        !allOut.includes('No MCP servers configured'),
+        allOut.slice(0, 300),
+      )
+      chmodSync(mcpFile, 0o644)
+      const ok = spawnSync(process.env.MERCURY_NODE ?? 'node', [DIST, 'mcp', 'list'], { cwd: fresh, env, encoding: 'utf8', timeout: 30_000 })
+      const okOut = `${ok.stdout ?? ''}\n${ok.stderr ?? ''}`
+      check(
+        'control: readable .mercury/mcp.json lists the server with no read-fault sentence',
+        ok.status === 0 && okOut.includes('readable:') && !okOut.includes('Failed to read MCP configuration file'),
+        `rc=${ok.status} out=${okOut.slice(0, 300)}`,
+      )
+    } finally {
+      try { chmodSync(mcpFile, 0o644) } catch {}
+      rmSync(home, { recursive: true, force: true })
+      rmSync(fresh, { recursive: true, force: true })
+    }
+  }
+}
+
 rmSync(CONFIG_DIR, { recursive: true, force: true })
 rmSync(PROJ, { recursive: true, force: true })
 console.log(failures === 0 ? '\n✅ PROJECT MCP FILE — all checks pass' : `\n❌ PROJECT MCP FILE — ${failures} check(s) failed`)

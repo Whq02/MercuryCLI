@@ -177,6 +177,54 @@ try {
     check('nothing listens at the provider\'s address: the count is unknown (null) and no retry is waited for (base: every rung of the ladder slept, 15 s on a read)', n.result === null && n.hits.length === 0 && !n.lines.some(line => line.includes('waiting')), { result: n.result, lines: n.lines })
     check('the debug log says nothing answers there and the caller keeps its estimate', n.lines.some(line => line.includes('not retried: network unreachable (connection refused)') && line.includes('the caller keeps its estimate')), n.lines)
   }
+  {
+    const realFetch = globalThis.fetch
+    let badPortAttempts = 0
+    globalThis.fetch = (async () => {
+      badPortAttempts++
+      throw Object.assign(new TypeError('fetch failed'), { cause: new Error('bad port') })
+    }) as unknown as typeof fetch
+    try {
+      const m = await leg([], () => countMessagesTokensWithAPI(messages, []))
+      check('Node undici bad-port Connection error (no errno code, e.g. https://127.0.0.1:9): the count gives up at once with no retry', m.result === null && badPortAttempts === 1 && !m.lines.some(line => line.includes('waiting')), { result: m.result, attempts: badPortAttempts, lines: m.lines })
+      check('the debug log says the bad-port connection error was not retried and the caller keeps its estimate', m.lines.some(line => line.includes('not retried:') && line.includes('the caller keeps its estimate')), m.lines)
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  }
+  {
+    const realFetch = globalThis.fetch
+    let bareAttempts = 0
+    globalThis.fetch = (async () => {
+      bareAttempts++
+      throw new Error('Connection error.')
+    }) as unknown as typeof fetch
+    try {
+      const m = await leg([], () => countMessagesTokensWithAPI(messages, []))
+      check('bare SDK Connection error (no errno code): the count gives up at once with no retry', m.result === null && bareAttempts === 1 && !m.lines.some(line => line.includes('waiting')), { result: m.result, attempts: bareAttempts, lines: m.lines })
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  }
+  {
+    const realFetch = globalThis.fetch
+    let staleAttempts = 0
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      staleAttempts++
+      if (staleAttempts === 1) {
+        throw Object.assign(new TypeError('fetch failed'), {
+          cause: Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+        })
+      }
+      return realFetch(input, init)
+    }) as unknown as typeof fetch
+    try {
+      const s = await leg([counted(63)], () => countMessagesTokensWithAPI(messages, []))
+      check('stale keep-alive socket (ECONNRESET) IS retried and returns the count from the second answer', s.result === 63 && staleAttempts === 2 && s.hits.length === 1 && s.lines.some(line => line.includes('waiting')), { result: s.result, attempts: staleAttempts, hits: s.hits.length, lines: s.lines })
+    } finally {
+      globalThis.fetch = realFetch
+    }
+  }
 
   console.log('\nthe create probe on the same wire')
   {

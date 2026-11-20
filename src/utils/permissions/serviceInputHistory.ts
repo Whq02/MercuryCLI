@@ -1,5 +1,5 @@
 import { logForDebugging } from '../debug.js'
-import { PARSE_ABORTED, pinnedCommandAnalysis, type Node } from './decision/commandAnalysis.js'
+import { pinnedCommandAnalysis, stateStatements } from './decision/commandAnalysis.js'
 
 type Run = { id: string; state: string[]; pending: string; reading: Promise<void> }
 
@@ -8,30 +8,6 @@ const MAX_RUNS = 64
 const MAX_STATE_CHARS = 4000
 const MAX_PENDING_CHARS = 8000
 const LINE_EDITING = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/
-const STATE_COMMANDS: ReadonlySet<string> = new Set(['cd', 'pushd', 'popd', 'alias', 'unalias'])
-const STATE_STATEMENTS: ReadonlySet<string> = new Set(['variable_assignment', 'variable_assignments', 'declaration_command', 'unset_command', 'function_definition'])
-const OPENED_STATEMENTS: ReadonlySet<string> = new Set(['program', 'list', 'redirected_statement', 'compound_statement'])
-
-function stateLeftBy(node: Node, kept: string[]): void {
-  if (STATE_STATEMENTS.has(node.type)) {
-    kept.push(node.text)
-    return
-  }
-  if (node.type === 'command') {
-    const name = node.children.find(child => child.type === 'command_name')?.text ?? ''
-    if (STATE_COMMANDS.has(name)) kept.push(node.text)
-    return
-  }
-  if (OPENED_STATEMENTS.has(node.type)) for (const child of node.children) stateLeftBy(child, kept)
-}
-
-async function stateStatements(script: string): Promise<string[]> {
-  const root = await pinnedCommandAnalysis.parseCommandRaw(script)
-  if (!root || root === PARSE_ABORTED) return []
-  const kept: string[] = []
-  stateLeftBy(root, kept)
-  return kept
-}
 
 export function serviceInputKey(project: string, name: string): string {
   return `${project}\u0000${name}`
@@ -58,7 +34,7 @@ export function noteServiceInput(service: string, run: string, text: string, sub
   const held = known
   held.reading = held.reading.then(async () => {
     try {
-      held.state.push(...(await stateStatements(lines)))
+      held.state.push(...(await stateStatements(lines, pinnedCommandAnalysis.parseCommandRaw)))
     } catch (error) {
       logForDebugging(`service input: the folder, alias and variable lines of an input could not be picked out (${error instanceof Error ? error.message : String(error)}), so nothing of that input is kept for judging what follows`, { level: 'warn' })
     }

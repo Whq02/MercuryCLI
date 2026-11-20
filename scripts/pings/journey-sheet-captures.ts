@@ -90,6 +90,15 @@ function makeWorld(tag: string): World {
   return { home, cwd, aux, out }
 }
 
+const TERMINAL_IDENTITY_ENV = [
+  'TERM_PROGRAM', 'TERM_PROGRAM_VERSION', 'LC_TERMINAL', 'LC_TERMINAL_VERSION',
+  'ITERM_SESSION_ID', 'ITERM_PROFILE', 'TERM_SESSION_ID', '__CFBundleIdentifier',
+  'KITTY_WINDOW_ID', 'KITTY_PID', 'WEZTERM_EXECUTABLE', 'WEZTERM_PANE',
+  'GHOSTTY_RESOURCES_DIR', 'WT_SESSION', 'VTE_VERSION', 'KONSOLE_VERSION',
+  'DOMTERM', 'ZED_TERM', 'ConEmuANSI', 'ConEmuPID', 'ConEmuTask',
+  'FORCE_HYPERLINK', 'TMUX', 'TMUX_PANE', 'STY',
+] as const
+
 function baseEnv(w: World, extra: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -109,7 +118,7 @@ function baseEnv(w: World, extra: Record<string, string | undefined> = {}): Node
     MERCURY_DAEMON_DIR: join(w.aux, 'daemon'),
     ...extra,
   }
-  for (const k of ['ANTHROPIC_API_KEY', 'CI', 'NODE_ENV', 'OPENROUTER_API_KEY']) {
+  for (const k of ['ANTHROPIC_API_KEY', 'CI', 'NODE_ENV', 'OPENROUTER_API_KEY', ...TERMINAL_IDENTITY_ENV]) {
     if (!(k in extra)) delete env[k]
   }
   return env

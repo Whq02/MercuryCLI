@@ -739,6 +739,28 @@ section('§9 session/claim: the claim binds and answers, the load runs behind th
   await within(claimSession({ session_id: SID, resume: true }, lost.ports))
   await within(lost.live.claimSettling)
   check('a claimed session whose transcript does not load ends as a cold runner would: the load error, exit 1, the session scope released, and nothing of the session applied', j(said('emitLoadError').map(call => call.args[0])) === j([`No conversation found for session id ${SID}`]) && j(said('gracefulShutdownSync').map(call => call.args[0])) === j([1]) && names().at(-1) === 'release:session' && !names().includes('switchSession') && lost.live.awaitingSessionClaim && said('port:releaseQueueUntilClaimed').length === 0, j(names()))
+
+  const posixModes = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
+  if (posixModes) {
+    const { chmodSync, mkdirSync, writeFileSync } = await import('node:fs')
+    const lockedDir = join(home, 'locked-pin')
+    mkdirSync(lockedDir, { recursive: true })
+    const lockedFile = join(lockedDir, `${SID}.jsonl`)
+    writeFileSync(lockedFile, '{"type":"user","uuid":"u1"}\n', 'utf8')
+    chmodSync(lockedFile, 0o000)
+    try {
+      armed()
+      answers.set('consumeSessionHomePin', () => lockedDir)
+      answers.set('loadConversationForResume', async () => null)
+      const unread = scene()
+      await within(claimSession({ session_id: SID, resume: true }, unread.ports))
+      await within(unread.live.claimSettling)
+      const msg = String(said('emitLoadError')[0]?.args[0] ?? '')
+      check('a claimed session whose transcript exists and cannot be read reports the read error instead of absent', msg.includes(`Session ${SID} transcript could not be read:`) && msg.includes('EACCES'), msg)
+    } finally {
+      chmodSync(lockedFile, 0o644)
+    }
+  }
   rmSync(home, { recursive: true, force: true })
 }
 

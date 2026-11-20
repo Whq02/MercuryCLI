@@ -9,6 +9,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const hostPlatform = process.platform
 const platformDescriptor = Object.getOwnPropertyDescriptor(process, 'platform')
 function pinPlatform(value: NodeJS.Platform): void {
   Object.defineProperty(process, 'platform', { value, configurable: true })
@@ -135,12 +136,27 @@ async function main(): Promise<void> {
   }
 
   section('§6 the Mac road is unchanged — the Windows set never joins off win32')
-  check(`platform restored (${process.platform})`, process.platform !== 'win32')
-  check('rm -rf / still refused on this host', refused('rm -rf /'))
-  check('rm -rf ~ still refused on this host', refused('rm -rf ~'))
-  check('rd /s /q C:\\ (the drive-root pattern is platform-neutral) still refused on this host', refused('rd /s /q C:\\'))
-  check('Remove-Item -Recurse -Force $env:USERPROFILE is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force $env:USERPROFILE'))
-  check('rm -rf node_modules allowed on this host', !refused('rm -rf node_modules'))
+  check(`platform restored (${process.platform})`, process.platform === hostPlatform)
+  if (hostPlatform === 'win32') {
+    pinPlatform('darwin')
+    process.env.HOME = '/Users/alice'
+    delete process.env.USERPROFILE
+  }
+  try {
+    check('rm -rf / still refused on this host', refused('rm -rf /'))
+    check('rm -rf ~ still refused on this host', refused('rm -rf ~'))
+    check('rd /s /q C:\\ (the drive-root pattern is platform-neutral) still refused on this host', refused('rd /s /q C:\\'))
+    check('Remove-Item -Recurse -Force $env:USERPROFILE is NOT judged by the Windows set on this host', !refused('Remove-Item -Recurse -Force $env:USERPROFILE'))
+    check('rm -rf node_modules allowed on this host', !refused('rm -rf node_modules'))
+  } finally {
+    if (hostPlatform === 'win32') {
+      restorePlatform()
+      if (savedHome === undefined) delete process.env.HOME
+      else process.env.HOME = savedHome
+      if (savedProfile === undefined) delete process.env.USERPROFILE
+      else process.env.USERPROFILE = savedProfile
+    }
+  }
 
   console.log(`\n${failures === 0 ? 'OK' : 'FAIL'} — ${failures} failure(s)`)
   process.exit(failures === 0 ? 0 : 1)

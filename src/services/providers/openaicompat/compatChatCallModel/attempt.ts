@@ -37,7 +37,7 @@ import { gateCompatToolCalls, paintedCallsOf, settleCompatUsage, terminationNote
 type AttemptOutcome =
   | { kind: 'done'; served?: string }
   | { kind: 'cancelled' }
-  | { kind: 'fault'; fault: CompatFault; retryEligible: boolean; invisibleOnly?: boolean }
+  | { kind: 'fault'; fault: CompatFault; retryEligible: boolean; invisibleOnly?: boolean; afterPartial?: true }
 
 export type CompatAttemptCtx = {
   profile: CompatLaneProfile
@@ -343,7 +343,7 @@ export async function* streamOneCompatAttempt(ctx: CompatAttemptCtx): AsyncGener
   yield streamEvent({ type: 'message_stop' })
 
   if (fault && profile.partialFaultPolicy === 'stop') return { kind: 'fault', fault, retryEligible: false }
-  if (fault && (retryTemporary || retryStream)) return { kind: 'fault', fault, retryEligible: true }
+  if (fault && (retryTemporary || retryStream)) return { kind: 'fault', fault, retryEligible: true, afterPartial: true }
   if (fault && typedEnd === null) {
     const faultRow = apiErrorMessage(
       streamFaultAfterPartialText(profile.providerLabel, fault.code, fault.message),

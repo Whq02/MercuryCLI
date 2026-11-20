@@ -9,6 +9,7 @@ import { MAX_TASK_OUTPUT_BYTES, MAX_TASK_OUTPUT_BYTES_DISPLAY } from './task/dis
 import { TaskOutput } from './task/TaskOutput.js'
 import { passedOver } from './passedOver.js'
 import { startImmediate, startInterval, startTimeout, stopInterval, stopTimeout } from './timers.js'
+import { isOwnKillExitCode } from './platform/processes.js'
 
 
 export const HARD_CAP_MULTIPLIER = 10
@@ -122,7 +123,7 @@ export function wrapSpawn(
     void assembleResult(code)
   }
 
-  const terminatedByOurKill = (code: number): boolean => killedByMercury && process.platform === 'win32' && (code === 1 || code === 137)
+  const terminatedByOurKill = (code: number): boolean => isOwnKillExitCode(killedByMercury, code)
 
   const deriveExitCode = (code: number | null, exitSignal: NodeJS.Signals | null): number => {
     if (code !== null && code !== undefined && !terminatedByOurKill(code)) return code
