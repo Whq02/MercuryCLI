@@ -487,5 +487,24 @@ console.log('\nLogSelector — failed session rename reports the failure sentenc
   check('rename failure produces the error sentence and does not call onRenamed', r.error === 'Could not rename session (disk full) — press ctrl+r to try again' && r.renamed === 0, JSON.stringify(r))
 }
 
+console.log('\nMercuryContentSearch — non-abort search failure returns failure sentence instead of 0 hits')
+{
+  const r = runCase(`
+    const mod = await import(path.join(SRC, 'components/MercuryContentSearch.tsx'))
+    if (typeof mod.runContentSearch !== 'function') {
+      out.missing = true
+    } else {
+      const ac1 = new AbortController()
+      out.failed = await mod.runContentSearch('needle', ac1.signal, async () => { throw new Error('rg EACCES') })
+      const ac2 = new AbortController()
+      ac2.abort()
+      out.aborted = await mod.runContentSearch('needle', ac2.signal, async () => { throw new Error('aborted') })
+    }
+  `)
+  const failed = r.failed as { matches?: unknown[]; error?: string | null } | undefined
+  check('non-abort loadMatches failure returns the failure sentence', failed?.error === 'search could not run (rg EACCES) — edit the query or retry', JSON.stringify(failed ?? r))
+  check('aborted loadMatches returns null without surfacing an error', r.aborted === null, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
