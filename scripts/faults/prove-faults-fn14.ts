@@ -195,6 +195,35 @@ const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== '
   }
 }
 
+{
+  const { readFileSync } = await import('node:fs')
+  const { planProjectInstruction, captureProjectInstruction } = await import('../../src/services/instructions/projectInstructionWriter.ts')
+  const dir = makeTempDir('fn14-instwriter-')
+  try {
+    if (POSIX_MODES) {
+      const file = join(dir, 'MERCURY.md')
+      const original = '# MERCURY.md\n\n- Keep existing standing orders.\n'
+      writeFileSync(file, original, { mode: 0o600 })
+      chmodSync(file, 0o200)
+      try {
+        const plan = planProjectInstruction({ cwd: dir, rule: 'Add one more rule.' })
+        const cap = captureProjectInstruction({ cwd: dir, rule: 'Add one more rule.' })
+        chmodSync(file, 0o600)
+        const after = readFileSync(file, 'utf8')
+        check(
+          'projectInstructionWriter: unreadable target refuses without overwriting',
+          !plan.write && plan.result.action === 'invalid' && cap.action === 'invalid' && after === original,
+          `plan=${JSON.stringify(plan)} cap=${JSON.stringify(cap)} same=${after === original}`,
+        )
+      } finally {
+        chmodSync(file, 0o600)
+      }
+    }
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
 rmSync(scratchHome, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
