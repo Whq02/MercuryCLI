@@ -62,11 +62,14 @@ import { declaredRouteOf } from '../../services/providers/callModelRouter.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../services/run/resolveOwner.js'
 import { planToolPayloadUnseeded, toolsOnTheWire } from '../../services/providers/toolEconomy.js'
 import { localPromptFitRefusal, localPromptFits } from '../../services/providers/local/localCallModel.js'
-import '../../utils/analyzeContext.js'
+import { countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD } from '../../utils/analyzeContext.js'
+import { tellHowToolDefinitionsAreCounted } from '../../utils/toolSearch.js'
 import type { QueryDeps } from '../../query/deps.js'
 import type { Terminal } from '../../query/transitions.js'
 import type { RunEvent } from '../events.js'
 import type { IterationState, NextTurn, RequestDecision, RunCtx, SettledDecision, TurnState } from './state.js'
+
+tellHowToolDefinitionsAreCounted(countToolDefinitionTokens, TOOL_TOKEN_COUNT_OVERHEAD)
 
 type Autocompacted = Awaited<ReturnType<QueryDeps['autocompact']>>
 
