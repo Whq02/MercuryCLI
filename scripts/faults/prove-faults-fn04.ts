@@ -95,6 +95,28 @@ console.log('\nFilePermissionDialog — resolveSymlinkTarget resolves dangling s
   check('FilePermissionDialog.resolveSymlinkTarget keeps live symlink, plain file, and absent file behaviour', r.live === r.expectedLive && r.plain === null && r.absent === null, JSON.stringify(r))
 }
 
+console.log('\nmcp — buildServePermissionContext refuses to drop deny rules when loading permission rules fails')
+{
+  const r = runScenario(`
+    const { mock } = await import('bun:test')
+    const loaderMod = path.join(SRC, 'utils/permissions/permissionsLoader.ts')
+    const real = await import(loaderMod)
+    mock.module(loaderMod, () => ({
+      ...real,
+      loadAllPermissionRulesFromDisk: () => { throw new Error('EACCES: permission rules unreadable') },
+    }))
+    const mod = await import(path.join(SRC, 'entrypoints/mcp.ts'))
+    out.hasExport = typeof mod.buildServePermissionContext === 'function'
+    try {
+      if (out.hasExport) await mod.buildServePermissionContext()
+      out.threw = null
+    } catch (error) {
+      out.threw = error instanceof Error ? error.message : String(error)
+    }
+  `)
+  check('mcp.buildServePermissionContext rejects instead of returning empty permission context', r.hasExport === true && r.threw === 'EACCES: permission rules unreadable', JSON.stringify(r))
+}
+
 void skip
 void POSIX_MODES
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
