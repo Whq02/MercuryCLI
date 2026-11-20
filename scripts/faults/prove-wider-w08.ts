@@ -461,6 +461,39 @@ async function w08_7_polyglotUnreadableDirAndStatNoted(): Promise<void> {
   }
 }
 
+async function w08_9_gitOperationTrackingPrLinkFailureSurfaced(): Promise<void> {
+  const { mkdirSync } = await import('node:fs')
+  const { getTranscriptPathForSession } = await import(join(SRC, 'utils/sessionStorage.ts'))
+  const { getSessionId } = await import(join(SRC, 'bootstrap/state.ts'))
+  const { trackGitOperations } = await import(join(SRC, 'tools/shared/gitOperationTracking.ts'))
+  const { BashTool } = await import(join(SRC, 'tools/BashTool/BashTool.tsx'))
+  const { getDefaultAppState } = await import(join(SRC, 'state/AppStateStore.ts'))
+  const transcriptPath = getTranscriptPathForSession(String(getSessionId()) as never)
+  rmSync(transcriptPath, { recursive: true, force: true })
+  mkdirSync(transcriptPath, { recursive: true })
+  try {
+    const note = await trackGitOperations('gh pr create --fill', 0, 'https://github.com/org/repo/pull/42\n')
+    check('w08-9: trackGitOperations returns failure note when PR link write fails', typeof note === 'string' && note.includes('the pull request link could not be saved (') && note.includes('so this session will not show it'), JSON.stringify(note))
+
+    const ctx = {
+      abortController: new AbortController(),
+      getAppState: () => getDefaultAppState(),
+      setAppState: () => {},
+      messages: [],
+      options: {},
+      readFileState: new Map(),
+      userModified: false,
+      updateFileHistoryState: () => {},
+      dynamicSkillDirTriggers: new Set(),
+      nestedMemoryAttachmentTriggers: new Set(),
+    } as never
+    const res = await BashTool.call({ command: 'echo https://github.com/org/repo/pull/42 # gh pr create' } as never, ctx)
+    check('w08-9: BashTool includes the PR link save failure note in output', (res.data as { stdout: string }).stdout.includes('the pull request link could not be saved (') && (res.data as { stdout: string }).stdout.includes('so this session will not show it'), JSON.stringify(res.data))
+  } finally {
+    rmSync(transcriptPath, { recursive: true, force: true })
+  }
+}
+
 const rows: Array<() => Promise<void>> = [
   w08_1_sedUncompilablePatternFallsBackToRealSed,
   w08_2_serviceListAndStatusReportReadErrors,
@@ -470,6 +503,7 @@ const rows: Array<() => Promise<void>> = [
   w08_6_executionStopHookFailureSurfaced,
   w08_7_polyglotUnreadableDirAndStatNoted,
   w08_8_contextUnserializableToolAndMessageBlockNoted,
+  w08_9_gitOperationTrackingPrLinkFailureSurfaced,
 ]
 for (const row of rows) {
   try {

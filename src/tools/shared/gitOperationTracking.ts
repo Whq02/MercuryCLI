@@ -128,26 +128,27 @@ export function detectGitOperation(command: string, output: string): GitOperatio
   return result
 }
 
-export function trackGitOperations(command: string, exitCode: number, stdout?: string): void {
-  if (exitCode !== 0) return
+export async function trackGitOperations(command: string, exitCode: number, stdout?: string): Promise<string | undefined> {
+  if (exitCode !== 0) return undefined
   void GLAB_MR_CREATE.test(command)
   void isCurlPrCreate(command)
-  if (prActionFor(command) !== 'created') return
+  if (prActionFor(command) !== 'created') return undefined
   const urlMatch = GITHUB_PULL_URL.exec(stdout ?? '')
-  if (!urlMatch) return
+  if (!urlMatch) return undefined
   const repository = urlMatch[1]!
   const number = Number(urlMatch[2])
   const url = urlMatch[0]
-  void (async () => {
-    try {
-      const [{ linkSessionToPR }, { getSessionId }] = await Promise.all([
-        import('../../utils/sessionStorage.js'),
-        import('../../bootstrap/state.js'),
-      ])
-      await linkSessionToPR(String(getSessionId()) as UUID, number, url, repository)
-    } catch (error) {
-      const { logError } = await import('../../utils/log.js')
-      logError(new Error(`the session could not be recorded against pull request ${url}, so it is not listed with it: ${error instanceof Error ? error.message : String(error)}`))
-    }
-  })()
+  try {
+    const [{ linkSessionToPR }, { getSessionId }] = await Promise.all([
+      import('../../utils/sessionStorage.js'),
+      import('../../bootstrap/state.js'),
+    ])
+    await linkSessionToPR(String(getSessionId()) as UUID, number, url, repository)
+    return undefined
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    const { logError } = await import('../../utils/log.js')
+    logError(new Error(`the session could not be recorded against pull request ${url}, so it is not listed with it: ${message}`))
+    return `the pull request link could not be saved (${message}), so this session will not show it`
+  }
 }
