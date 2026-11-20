@@ -289,6 +289,65 @@ function skip(label: string, why: string): void {
   )
 }
 
+{
+  console.log('\nmentionResolvers: unreadable directory mention reports failure and readMentionedResource lets bugs throw')
+  const { processAtMentionedFiles, processMcpResourceAttachments } = await import('../../src/utils/attachments/mentionResolvers.ts')
+  const unreadDir = join(SCRATCH, 'unreadable-mention-dir')
+  mkdirSync(unreadDir, { recursive: true })
+  const ctx = {
+    getAppState: () => ({
+      toolPermissionContext: {
+        mode: 'default',
+        alwaysAllowRules: {},
+        alwaysDenyRules: {},
+        alwaysAskRules: {},
+        additionalWorkingDirectories: new Map(),
+      },
+    }),
+    options: {},
+    abortController: new AbortController(),
+    readFileState: new Map(),
+  }
+  if (!POSIX_MODES) skip('mentionResolvers-unreadable-dir', 'needs non-root POSIX')
+  else {
+    chmodSync(unreadDir, 0o000)
+    try {
+      const rows = await processAtMentionedFiles(`@${unreadDir}`, ctx as never)
+      const first = rows[0]
+      check(
+        'mentionResolvers-unreadable-dir: unreadable directory mention returns dropped_image_file instead of []',
+        rows.length === 1 &&
+          first?.type === 'dropped_image_file' &&
+          first.unread === 'refused' &&
+          first.reason.startsWith('Reading it failed:'),
+        JSON.stringify(rows),
+      )
+    } finally {
+      chmodSync(unreadDir, 0o700)
+    }
+  }
+
+  let bugThrew: unknown = null
+  try {
+    await processMcpResourceAttachments('@srv:res', {
+      options: {
+        mcpClients: {
+          find() {
+            throw new TypeError('bug in mcpClients lookup')
+          },
+        },
+      },
+    } as never)
+  } catch (err) {
+    bugThrew = err
+  }
+  check(
+    'mentionResolvers-mcp-bug-throws: readMentionedResource propagates lookup bug instead of returning []',
+    bugThrew instanceof TypeError && bugThrew.message === 'bug in mcpClients lookup',
+    String(bugThrew),
+  )
+}
+
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
