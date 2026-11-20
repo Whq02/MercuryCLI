@@ -274,5 +274,55 @@ console.log('\nhealthPresentation.ts — sync non-EPIPE stdout error exits 1 ins
   check('healthPresentation: sync EPIPE still exits with requested code 0', epipe.status === 0, `status=${epipe.status}`)
 }
 
+console.log('\nmodels.ts — non-EPIPE stdout write failure rejects instead of being swallowed')
+{
+  const enospc = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    mock.module('node:fs', () => ({
+      ...fs,
+      writeSync: () => { throw Object.assign(new Error('no space'), { code: 'ENOSPC' }) },
+    }))
+    mock.module(path.join(SRC, 'services/resources/registry.js'), () => ({}))
+    mock.module(path.join(SRC, 'services/resources/adapters/models.js'), () => ({
+      liveModelsReference: async () => ({ models: [] }),
+      liveModelsReferenceText: () => 'models',
+    }))
+    const { modelsCli } = await import(path.join(SRC, 'cli/handlers/models.ts'))
+    try {
+      await modelsCli({ json: true })
+      out.threw = null
+    } catch (e) {
+      out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+    }
+  `)
+  const epipe = runSubprocess(`
+    const fs = await import('node:fs')
+    const path = await import('node:path')
+    const { mock } = await import('bun:test')
+    mock.module('node:fs', () => ({
+      ...fs,
+      writeSync: () => { throw Object.assign(new Error('broken pipe'), { code: 'EPIPE' }) },
+    }))
+    mock.module(path.join(SRC, 'services/resources/registry.js'), () => ({}))
+    mock.module(path.join(SRC, 'services/resources/adapters/models.js'), () => ({
+      liveModelsReference: async () => ({ models: [] }),
+      liveModelsReferenceText: () => 'models',
+    }))
+    const { modelsCli } = await import(path.join(SRC, 'cli/handlers/models.ts'))
+    try {
+      await modelsCli({ json: true })
+      out.threw = null
+    } catch (e) {
+      out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
+    }
+  `)
+  const t1 = enospc.out.threw as { code: string | null } | null
+  const t2 = epipe.out.threw as { code: string | null } | null
+  check('models: non-EPIPE writeSync failure rejects with ENOSPC instead of silently succeeding', t1?.code === 'ENOSPC', JSON.stringify(enospc.out))
+  check('models: EPIPE writeSync failure is still passed over', t2 === null, JSON.stringify(epipe.out))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
