@@ -158,11 +158,11 @@ console.log('\nsrc/mneme/mnemeHandover.ts')
 {
   const r = runCase(`
     const ho = await import(${JSON.stringify(join(SRC, 'mneme/mnemeHandover.ts'))})
-    const memDir = path.join(home, 'ho-eloop')
-    fs.mkdirSync(memDir, { recursive: true })
+    const notesDir = path.join(home, 'ho-eloop')
+    fs.mkdirSync(notesDir, { recursive: true })
     try {
-      fs.symlinkSync(path.join(memDir, 'b.md'), path.join(memDir, 'a.md'))
-      fs.symlinkSync(path.join(memDir, 'a.md'), path.join(memDir, 'b.md'))
+      fs.symlinkSync(path.join(notesDir, 'b.md'), path.join(notesDir, 'a.md'))
+      fs.symlinkSync(path.join(notesDir, 'a.md'), path.join(notesDir, 'b.md'))
     } catch (e) {
       if (process.platform === 'win32' && e?.code === 'EPERM') {
         out.noSymlink = true
@@ -172,7 +172,7 @@ console.log('\nsrc/mneme/mnemeHandover.ts')
     }
     if (!out.noSymlink) {
       try {
-        out.listed = ho.listOldNotes(memDir)
+        out.listed = ho.listOldNotes(notesDir)
       } catch (e) {
         out.threw = { code: e?.code ?? null, message: String(e?.message ?? e) }
       }
