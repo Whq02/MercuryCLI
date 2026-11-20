@@ -140,5 +140,22 @@ console.log('\ndesktopClaim.readDesktopClaimFile — non-ENOENT read error throw
   check('readDesktopClaimFile still returns idle on ENOENT vanish race', (r.vanished as { phase?: string })?.phase === 'idle', JSON.stringify(r))
 }
 
+console.log('\nfakeDesktopDriver.readFakeActLog — non-ENOENT read error throws instead of returning empty list')
+{
+  const r = runScenario(`
+    const fake = await import(path.join(SRC, 'services/desktop/fakeDesktopDriver.ts'))
+    const logDir = path.join(SCRATCH, 'not-a-file')
+    fs.mkdirSync(logDir)
+    try {
+      out.onDir = fake.readFakeActLog(logDir)
+    } catch (e) {
+      out.dirErr = { code: e.code ?? null, message: String(e.message ?? e) }
+    }
+    out.onAbsent = fake.readFakeActLog(path.join(SCRATCH, 'absent.jsonl'))
+  `)
+  check('readFakeActLog throws on non-ENOENT error (EISDIR)', r.dirErr !== undefined && r.onDir === undefined, JSON.stringify(r))
+  check('readFakeActLog still returns [] on ENOENT', Array.isArray(r.onAbsent) && r.onAbsent.length === 0, JSON.stringify(r))
+}
+
 console.log(failures === 0 ? '\nGREEN' : `\nRED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)
