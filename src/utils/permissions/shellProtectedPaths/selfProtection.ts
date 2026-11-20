@@ -1,10 +1,10 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type Layer, type ReadCommand, UNREAD_PART, layersOf } from '../../wards/wardsShellRead.js'
+import { type Layer, type ReadCommand, UNREAD_PART, layersOf } from '../decision/commandAnalysis.js'
 import { namesMercuryProcess, runtimeProcessRefusal, runtimeWritePath } from '../runtimeProtection.js'
 import { protectedPathForms } from './paths.js'
-import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, pathLike, runtimeOperands, unreadWords, verb } from './words.js'
-import { inlineScriptWrites } from './inlineScripts.js'
+import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
+import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { walkShellCommands } from './walk.js'
 import { mercuryHomes, readForFloors } from './homes.js'
 import { foldersAfter } from './folders.js'
@@ -15,8 +15,9 @@ const GIT_WRITES = new Set(['checkout', 'clean', 'reset', 'restore', 'switch', '
 const PACKAGE_WRITES = new Set(['install', 'i', 'ci', 'add', 'uninstall', 'remove', 'rm', 'update', 'up', 'upgrade', 'dedupe', 'prune', 'rebuild', 'link'])
 const ATTRIBUTE_WRITERS = new Set(['chown', 'chgrp', 'chflags', 'xattr', 'touch', 'setfacl', 'lchown'])
 
-const SCRIPT_LANGUAGES = /^(?:node|nodejs|bun|deno|python[\d.]*|ruby|perl|php|lua)$/
 const PATTERN_READERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'awk', 'gawk', 'sed', 'pgrep', 'pidof'])
+const KILL_RECEIVERS = new Set(['kill', 'stop-process', 'spps'])
+const PS_NET_RUNTIME_WRITER = /\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
 
 function valuesOf(argv: string[], ...names: string[]): string[] {
   const out: string[] = []
@@ -91,12 +92,6 @@ function runtimeTargetsOf(layer: Layer): Array<{ path: string; removesTree: bool
   }
 }
 
-function inlineScriptOf(layer: Layer): string | null {
-  if (!SCRIPT_LANGUAGES.test(layer.program)) return null
-  const flag = layer.argv.findIndex((word, i) => i > 0 && /^-(?:e|c|p|E|r)$/.test(word))
-  return flag >= 0 ? layer.argv.slice(flag + 1).join(' ') : null
-}
-
 export async function killOfNamedPid(text: string): Promise<string | null> {
   if (!/kill|terminate/i.test(text)) return null
   for (const number of [...new Set([...text.matchAll(/\b\d{2,}\b/g)].map(match => match[0]))].slice(0, 32)) {
@@ -111,12 +106,59 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
   return protectedPathForms(word, cwd).some(form => homes.some(home => form === home || form.startsWith(`${home}/`)))
 }
 
+async function namedPowerShellSelfProtection(command: string, cwd: string): Promise<string | null> {
+  return walkShellCommands(command, true, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
+    if (ps) {
+      for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
+        const hit = runtimeWritePath(call[2]!, here, true)
+        if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+      }
+    }
+    const processReason = await runtimeProcessRefusal(commands, operandEnds)
+    if (processReason) return processReason
+    for (const target of runtimeOperands(argv, ps)) {
+      const hit = runtimeWritePath(target.path, here, target.removesTree)
+      if (hit !== null) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+    }
+    const script = inlineScriptOfArgv(verb(argv[0] ?? ''), argv)
+    if (script !== null) {
+      for (const target of inlineScriptWrites(script)) {
+        const hit = runtimeWritePath(target, here, true)
+        if (hit) return 'Changing ' + target + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+      }
+      for (const killCall of script.matchAll(/\b(?:process|os)\.kill\s*\(\s*(\d+)/g)) {
+        const reason = await runtimeProcessRefusal([['kill', killCall[1]!]])
+        if (reason) return reason
+      }
+    }
+    return null
+  }, cwd)
+}
+
 export async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  if (powershell) {
+    const named = await namedPowerShellSelfProtection(command, cwd)
+    if (named !== null) return named
+  }
   const read = await readForFloors(command, powershell, cwd)
   if (read === null) return null
   const homes = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
   const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
-  for (const { simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ simple, here })))) {
+  const feedsKill = (at: number, simple: ReadCommand): boolean =>
+    read.commands.some(
+      other =>
+        other !== simple &&
+        (sharesEarlierStage(simple, other) || other.inner.some(list => list.includes(at)) || other.inputInner.includes(at)) &&
+        layersOf(other.argv).some(found => KILL_RECEIVERS.has(found.program)),
+    )
+  for (const { at, simple, here } of read.commands.flatMap((simple, at) => foldersAfter(read, at, cwd).folders.map(here => ({ at, simple, here })))) {
+    const ps = simple.dialect === 'powershell'
+    if (ps) {
+      for (const call of simple.text.matchAll(PS_NET_RUNTIME_WRITER)) {
+        const hit = runtimeWritePath(call[2]!, here, true)
+        if (hit !== null) return changing(call[2]!, hit)
+      }
+    }
     const feeders = (piped: boolean): ReadCommand[] => {
       const out: ReadCommand[] = []
       const seen = new Set<number>()
@@ -140,15 +182,35 @@ export async function readSelfProtection(command: string, powershell: boolean, c
       const hit = runtimeWritePath(redirect.target, here, false)
       if (hit !== null) return changing(redirect.target, hit)
     }
+    const killReceiver = feedsKill(at, simple)
     for (const layer of layersOf(simple.argv)) {
-      const reason = await runtimeProcessRefusal([layer.argv])
-      if (reason) return reason
+      const written = writtenLayerArgv(simple, layer)
+      const piped = layer.wrappers.includes('xargs')
+      const argvs = expandedLayerArgvs(layer)
+      if (piped) {
+        const words = pipedPrinterOperands(feeders(true))
+        if (words.length > 0) argvs.push([...layer.argv, ...words])
+      }
+      for (const argv of argvs) {
+        const processArgv = argv === layer.argv ? spelledUserArgv(argv, written) : argv
+        const reason = await runtimeProcessRefusal(killReceiver ? [processArgv, ['kill']] : [processArgv])
+        if (reason) return reason
+      }
+      const writtenScript = written !== undefined ? inlineScriptOfArgv(layer.program, written) : null
       const script = inlineScriptOf(layer)
-      if (script !== null) {
-        const killed = await killOfNamedPid(script)
+      for (const code of writtenScript !== null && writtenScript !== script ? [writtenScript, script] : [script]) {
+        if (code === null) continue
+        for (const target of inlineScriptWrites(code)) {
+          const hit = runtimeWritePath(target, here, true)
+          if (hit !== null) return changing(target, hit)
+        }
+        for (const killCall of code.matchAll(/\b(?:process|os)\.kill\s*\(\s*(\d+)/g)) {
+          const reason = await runtimeProcessRefusal([['kill', killCall[1]!]])
+          if (reason) return reason
+        }
+        const killed = await killOfNamedPid(code)
         if (killed) return killed
       }
-      const piped = layer.wrappers.includes('xargs')
       if (layer.program === 'kill' && (piped || layer.argv.some(word => word.includes(UNREAD_PART)))) {
         if (simple.input !== undefined) {
           const killed = await killOfNamedPid(`kill ${simple.input}`)
@@ -170,9 +232,15 @@ export async function readSelfProtection(command: string, powershell: boolean, c
           }
         }
       }
-      for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv, simple.dialect === 'powershell')]) {
-        const hit = runtimeWritePath(target.path, here, target.removesTree)
-        if (hit !== null) return changing(target.path, hit)
+      for (const argv of argvs) {
+        const displayWritten = argv === layer.argv ? written : undefined
+        for (const target of [...(argv === layer.argv ? runtimeTargetsOf(layer) : runtimeTargetsOf({ ...layer, argv })), ...runtimeOperands(argv, ps)]) {
+          const hit = runtimeWritePath(target.path, here, target.removesTree)
+          if (hit !== null) {
+            const shown = spelledTargetWord(target.path, argv, displayWritten, candidate => runtimeWritePath(candidate, here, target.removesTree) !== null)
+            return changing(shown, hit)
+          }
+        }
       }
       if (TREE_REMOVERS.has(layer.program) && (piped || layer.argv.some(word => word.includes(UNREAD_PART)))) {
         for (const feeder of feeders(piped)) {
@@ -188,6 +256,16 @@ export async function readSelfProtection(command: string, powershell: boolean, c
       }
     }
   }
+  if (read.exact.kind === 'simple') {
+    for (const simple of read.exact.commands) {
+      for (const layer of layersOf(simple.argv)) {
+        for (const target of [...runtimeTargetsOf(layer), ...runtimeOperands(layer.argv, false)]) {
+          const hit = runtimeWritePath(target.path, cwd, target.removesTree)
+          if (hit !== null) return changing(target.path, hit)
+        }
+      }
+    }
+  }
   const words = unreadWords(read, command, powershell)
   const removes = words.some(word => TREE_MOVERS.includes(verb(word)))
   if (removes || words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word)) || RUNTIME_WRITERS.has(verb(word))) || (words.length > 0 && WRITE_REDIRECT.test(command))) {
@@ -197,35 +275,4 @@ export async function readSelfProtection(command: string, powershell: boolean, c
     }
   }
   return null
-}
-
-export async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
-  return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd, text, powershell: ps }) => {
-    if (ps) {
-      for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
-        const hit = runtimeWritePath(call[2]!, cwd, true)
-        if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
-      }
-    }
-    const processReason = await runtimeProcessRefusal(commands, operandEnds)
-    if (processReason) return processReason
-    for (const target of runtimeOperands(argv, ps)) {
-      const hit = runtimeWritePath(target.path, cwd, target.removesTree)
-      if (hit !== null) return 'Changing ' + target.path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
-    }
-    const name = verb(argv[0] ?? '')
-    const flag = argv.findIndex((word, i) => i > 0 && /^-(?:e|c|p|command)$/i.test(word))
-    if (/^(?:node|bun|python[\d.]*|ruby|perl)$/.test(name) && flag >= 0) {
-      const script = argv.slice(flag + 1).join(' ')
-      for (const target of inlineScriptWrites(script)) {
-        const hit = runtimeWritePath(target, cwd, true)
-        if (hit) return 'Changing ' + target + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
-      }
-      for (const killCall of script.matchAll(/\b(?:process|os)\.kill\s*\(\s*(\d+)/g)) {
-        const reason = await runtimeProcessRefusal([['kill', killCall[1]!]])
-        if (reason) return reason
-      }
-    }
-    return null
-  }, cwd)
 }

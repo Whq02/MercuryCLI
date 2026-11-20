@@ -1,5 +1,74 @@
 import { shellTextOutsideFileHeredocs } from '../../wards/wards.js'
-import { type ShellRead, layersOf, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
+import { type Layer, type ReadCommand, type ShellRead, layersOf, pinnedCommandAnalysis, wordsAsWritten } from '../decision/commandAnalysis.js'
+
+const PIPED_PRINTERS = new Set(['echo', 'printf', 'write-output'])
+const WRITTEN_USER_VAR = /^\$(?:USER|LOGNAME|USERNAME|UID|EUID)$/
+
+export function expandedLayerArgvs(layer: Layer): string[][] {
+  if (layer.findRoots === undefined || layer.program === 'find') return [layer.argv]
+  const roots = layer.findRoots.length > 0 ? layer.findRoots : ['.']
+  return roots.map(root => layer.argv.map(word => (word === '{}' ? root : word.replace(/\{\}/g, root))))
+}
+
+export function pipedPrinterOperands(feeders: readonly ReadCommand[]): string[] {
+  const out: string[] = []
+  for (const feeder of feeders) {
+    for (const fed of layersOf(feeder.argv)) {
+      if (!PIPED_PRINTERS.has(fed.program)) continue
+      for (const word of fed.argv.slice(1)) {
+        if (!word.startsWith('-') && !(fed.program === 'printf' && word.includes('%'))) out.push(word)
+      }
+    }
+  }
+  return out
+}
+
+function unquoteWritten(raw: string): string {
+  let out = ''
+  let quote = ''
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]!
+    if (quote === "'") {
+      if (ch === "'") quote = ''
+      else out += ch
+    } else if (quote === '"') {
+      if (ch === '"') quote = ''
+      else if (ch === '\\' && i + 1 < raw.length && (raw[i + 1] === '"' || raw[i + 1] === '\\' || raw[i + 1] === '$' || raw[i + 1] === '`')) out += raw[++i]!
+      else out += ch
+    } else if (ch === "'" || ch === '"') {
+      quote = ch
+    } else if (ch === '\\' && i + 1 < raw.length) {
+      out += raw[++i]!
+    } else {
+      out += ch
+    }
+  }
+  return out.replace(/\$\{([A-Za-z_][\w:]*)\}/g, '$$$1')
+}
+
+export function writtenLayerArgv(simple: ReadCommand, layer: Layer): string[] | undefined {
+  const raw = wordsAsWritten(simple)
+  if (raw === undefined || raw.length !== simple.argv.length) return undefined
+  const offset = simple.argv.length - layer.argv.length
+  if (offset < 0) return undefined
+  for (let i = 0; i < layer.argv.length; i++) {
+    if (simple.argv[offset + i] !== layer.argv[i]) return undefined
+  }
+  return raw.slice(offset).map(unquoteWritten)
+}
+
+export function spelledUserArgv(argv: string[], written: readonly string[] | undefined): string[] {
+  if (written === undefined || written.length !== argv.length) return argv
+  return argv.map((word, index) => (WRITTEN_USER_VAR.test(written[index]!) ? written[index]! : word))
+}
+
+export function spelledTargetWord(value: string, argv: readonly string[], written: readonly string[] | undefined, matches: (candidate: string) => boolean): string {
+  if (written === undefined || written.length !== argv.length) return value
+  const index = argv.indexOf(value)
+  if (index < 0) return value
+  const candidate = written[index]!
+  return candidate !== value && matches(candidate) ? candidate : value
+}
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text

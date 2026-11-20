@@ -6,7 +6,7 @@ import { inlineScriptReads, inlineScriptWrites, normalizeInlineScript } from './
 import { couldNameSecret, mercuryHomes, spellingsOf } from './shellProtectedPaths/homes.js'
 import { credentialWriteAfterMove, credentialWriteInBlocks, credentialWriteWalked } from './shellProtectedPaths/credentialWrite.js'
 import { readSecretReach } from './shellProtectedPaths/secretReach.js'
-import { killOfNamedPid, namedSelfProtectionReason, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
+import { killOfNamedPid, readSelfProtection } from './shellProtectedPaths/selfProtection.js'
 export { inlineScriptWriteTargets } from './shellProtectedPaths/inlineScripts.js'
 
 export async function shellCredentialWritePath(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
@@ -19,8 +19,7 @@ export async function shellMercurySecretPath(command: string, powershell = false
 }
 
 export async function shellSelfProtectionReason(command: string, powershell = false, cwd = getShellCwd()): Promise<string | null> {
-  const named = await namedSelfProtectionReason(command, powershell, cwd)
-  return named ?? readSelfProtection(command, powershell, cwd)
+  return readSelfProtection(command, powershell, cwd)
 }
 
 export async function evalCodePermission(code: string, cwd = getShellCwd()): Promise<{ behavior: 'deny'; message: string; decisionReason: { type: 'other'; reason: string } } | null> {
