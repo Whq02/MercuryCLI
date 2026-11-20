@@ -152,7 +152,6 @@ const GRAMMAR_READERS: Array<[string, number]> = [
   ['src/utils/bash/ast.ts', 89],
   ['src/utils/bash/ast/preCheck.ts', 4],
   ['src/utils/bash/commands.ts', 21],
-  ['src/utils/bash/treeSitterAnalysis.ts', 8],
   ['src/utils/permissions/flowLaw.ts', 27],
   ['src/utils/permissions/serviceInputHistory.ts', 5],
   ['src/utils/permissions/shellProtectedPaths/walk.ts', 4],
