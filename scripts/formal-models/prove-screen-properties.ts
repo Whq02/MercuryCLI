@@ -451,9 +451,6 @@ async function runScenario(scenario: Scenario): Promise<void> {
         throw new Error(`wrong fullPath resumed: expected ${expected.fullPath}, got ${got.fullPath}`)
       }
     } else {
-      if (frame.includes('no sessions match')) {
-        return
-      }
       await sendKey(KEYS.esc)
       if (resumedCalls.length !== 0) {
         throw new Error(`Escape triggered resume of ${resumedCalls[0]!.sessionId}`)
@@ -564,6 +561,28 @@ try {
       `25 generated search-escape sequences respected clear -> back -> cancel staging (seed ${SEED_SEARCH_ESC})`,
       !result.failed,
       result.failed ? `path=${result.counterexamplePath} error=${String(result.errorInstance)}` : '',
+    )
+
+    const { listings } = buildSessions([{ ageRank: 1 }, { ageRank: 2 }], 0)
+    exitTrapActive = true
+    let emptyEscClosed = false
+    let emptyEscDetail = ''
+    try {
+      let frame = await mountScenario(22, listings)
+      frame = await sendKey('/')
+      for (const ch of 'zzz') frame = await sendKey(ch)
+      frame = await sendKey(KEYS.enter)
+      const emptyShown = frame.includes('no sessions match') && frame.includes('esc close')
+      await sendKey(KEYS.esc)
+      emptyEscClosed = emptyShown && cancelExits.length === 1 && cancelExits[0] === 1 && resumedCalls.length === 0
+      emptyEscDetail = `emptyShown=${emptyShown} cancelExits=${JSON.stringify(cancelExits)} resumed=${resumedCalls.length}`
+    } finally {
+      exitTrapActive = false
+    }
+    t.check(
+      'Esc closes ResumeConversation when an applied filter leaves no sessions match',
+      emptyEscClosed,
+      emptyEscDetail,
     )
   }
 
