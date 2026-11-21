@@ -5,7 +5,7 @@ import { toError } from '../../errors.js'
 import { logError } from '../../log.js'
 import { fireHooks } from '../../hooks/fire.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages.js'
+import { AUTO_REJECT_MESSAGE, DONT_ASK_REJECT_MESSAGE } from '../../messages/rejectionText.js'
 import type {
   PermissionAskDecision,
   PermissionDecision,

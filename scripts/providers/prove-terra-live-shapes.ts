@@ -35,7 +35,7 @@ try {
   const { ResponsesStreamFold } = await import('../../src/services/providers/openai/openaiWire.js')
   const { streamOneOpenaiAttempt, replayableItems, toBridgeMessages } = await import('../../src/services/providers/openai/openaiCallModel.js')
   const { buildOpenaiResponsesRequest } = await import('../../src/services/providers/openai/responsesBridge.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const model = 'gpt-6.1-terra'
   const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
   const { getContextWindowForModel } = await import('../../src/utils/context.js')

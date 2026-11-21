@@ -6,7 +6,7 @@ import type {
   SystemMessage,
 } from '../../types/message.js'
 import { isHookAttachmentMessage } from './lookups.js'
-import { isToolUseRequestMessage } from './normalize.js'
+import { isToolUseRequestMessage } from '../../utils/messages/normalize.js'
 
 type DisplayMessage =
   | NormalizedUserMessage

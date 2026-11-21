@@ -1,5 +1,5 @@
 import type { RenderableMessage } from '../../types/message.js'
-import { EMPTY_STRING_SET } from '../../utils/messages/lookups.js'
+import { EMPTY_STRING_SET } from '../../services/messages/lookups.js'
 import { RowErrorBoundary } from '../RowErrorBoundary.js'
 import type { MessageActionsState } from '../messageActions.js'
 import { NameplateContinuationContext } from '../messages/TranscriptNameplate.js'

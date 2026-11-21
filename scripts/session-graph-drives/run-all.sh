@@ -14,7 +14,7 @@
 # gate-watch: src/services/resources/registry.ts
 # gate-watch: src/components/messages/AttachmentMessage.tsx
 # gate-watch: src/components/mercury-ui/screens/CrewView.tsx
-# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/utils/messages/attachmentText.ts
+# gate-watch: src/tools/SendMessageTool/SendMessageTool.ts src/services/messages/attachmentText.ts
 # gate-watch: src/utils/tasks.ts
 # gate-watch: src/rows/* src/runner/wire/*
 set -uo pipefail

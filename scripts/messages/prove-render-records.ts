@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import * as factories from '../../src/utils/messages/factories.js'
 import * as system from '../../src/utils/messages/systemMessages.js'
-import { normalizeAttachmentForAPI } from '../../src/utils/messages/attachmentText.js'
-import { errorDrivenStripTargets } from '../../src/utils/messages/apiPlan.js'
+import { normalizeAttachmentForAPI } from '../../src/services/messages/attachmentText.js'
+import { errorDrivenStripTargets } from '../../src/services/messages/apiPlan.js'
 import { getImageTooLargeErrorMessage, getPdfInvalidErrorMessage, getRequestTooLargeErrorMessage } from '../../src/services/api/errors.js'
 import { NO_CONTENT_MESSAGE } from '../../src/constants/messages.js'
 

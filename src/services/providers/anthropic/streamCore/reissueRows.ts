@@ -10,7 +10,7 @@ import { errorMessage } from '../../../../utils/errors.js'
 import {
   createStreamCutMessage,
   createSystemAPIErrorMessage,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { transportCutOf, transportCutWords } from '../../../../utils/api/transportEvidence.js'
 import { createStreamIdleWatchdog } from '../../streamIdleBudget.js'
 import { patienceSeconds } from '../../patience.js'

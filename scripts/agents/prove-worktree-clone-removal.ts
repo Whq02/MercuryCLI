@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, cleanupWorktree, createAgentWorktree, createWorktreeForSession, getCurrentWorktreeSession, unlockAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { cleanupStaleAgentWorktrees, cleanupWorktree, createAgentWorktree, createWorktreeForSession, getCurrentWorktreeSession, unlockAgentWorktree } = await import('../../src/services/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
 const { crewLeftoverWorktrees } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const clones = (await import('../../src/utils/worktreeClone.ts')) as Record<string, unknown>

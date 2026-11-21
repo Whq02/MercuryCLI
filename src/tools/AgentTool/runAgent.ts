@@ -45,7 +45,7 @@ import { honourRecoveryWait, makeRecoveryBudget, retryWaitWords, settleRecoveryW
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { createChildAbortController } from '../../utils/abortController.js'
 import { AbortError, errorMessage } from '../../utils/errors.js'
-import { createUserMessage, extractTextContent } from '../../utils/messages.js'
+import { createUserMessage, extractTextContent } from '../../services/messages.js'
 import { isCompactBoundaryMessage } from '../../utils/messages/systemMessages.js'
 import { refusalRetryRowOf } from './refusalRetry.js'
 import { getAgentModel } from '../../services/model/agent.js'

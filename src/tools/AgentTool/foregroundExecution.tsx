@@ -50,7 +50,7 @@ import {
   extractTextContent,
   isSyntheticMessage,
   normalizeMessages,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'
 import { getTaskOutputPath } from '../../utils/task/diskOutput.js'

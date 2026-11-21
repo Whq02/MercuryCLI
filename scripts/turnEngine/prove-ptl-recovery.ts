@@ -36,13 +36,13 @@ bootstrap.setProjectRoot(projDir)
 
 const { query } = await import('../../src/query.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
   '../../src/utils/fileStateCache.ts'
 )
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
 const { query: startTurn } = await import('../../src/query.ts')
 
 let failures = 0

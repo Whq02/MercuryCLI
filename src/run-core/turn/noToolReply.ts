@@ -39,7 +39,7 @@ import {
   createCloseUsageMessage,
   createStreamCutMessage,
   createAssistantAPIErrorMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import {
   CHANT_RECOVERY_LIMIT,
   chantNoticeLine,

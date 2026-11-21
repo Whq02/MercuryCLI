@@ -13,8 +13,8 @@ mock.module('../../src/utils/log.ts', () => ({
   },
 }))
 
-const M = await import('../../src/utils/messages.ts')
-const mergeMod = await import('../../src/utils/messages/merge.ts')
+const M = await import('../../src/services/messages.ts')
+const mergeMod = await import('../../src/services/messages/merge.ts')
 const rejection = await import('../../src/utils/messages/rejectionText.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 

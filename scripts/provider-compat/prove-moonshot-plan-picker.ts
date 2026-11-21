@@ -135,7 +135,7 @@ const engine = await import('../../src/services/crew/engineDispatch.ts')
 const { getContextWindowForModel, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type ListState = { kind: string; reading?: boolean; error?: string; count?: number }

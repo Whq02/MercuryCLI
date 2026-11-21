@@ -20,7 +20,7 @@ function section(t: string): void {
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 const { isOperatorTurn, countOperatorTurns } = await import('../../src/utils/messages/operatorTurns.ts')
 const { selectOperatorMessages, operatorTextOf } = await import('../../src/utils/compact/operatorMessages.ts')
 type AnyMsg = Parameters<typeof selectOperatorMessages>[0][number]

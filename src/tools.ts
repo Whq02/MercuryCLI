@@ -31,7 +31,7 @@ import { isLspToolCatalogEnabled } from './services/lsp/mercuryLsp.js'
 import { servicesEnabled } from './services/projectServices/contracts.js'
 import { mercuryRefsEnabled } from './services/resources/contracts.js'
 import { structureEnabled, structurePolyglotEnabled } from './services/structure/contracts.js'
-import { isToolSearchEnabledOptimistic } from './utils/toolSearch.js'
+import { isToolSearchEnabledOptimistic } from './services/messages/toolSearch.js'
 
 import { AgentTool } from './tools/AgentTool/AgentTool.js'
 import { AstEditTool } from './tools/AstEditTool/AstEditTool.js'

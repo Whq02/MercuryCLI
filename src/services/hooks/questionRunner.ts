@@ -1,36 +1,20 @@
 import type { z } from 'zod/v4'
 import { toJSONSchema } from 'zod/v4'
-import type { ToolPermissionContext, ToolUseContext } from '../../Tool.js'
-import { routedCallModelSettled } from '../../services/providers/callModelRouter.js'
-import { readCatalogueIfPending } from '../../services/providers/catalogueOnDemand.js'
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
-import { createCombinedAbortSignal } from '../combinedAbortSignal.js'
-import { errorMessage } from '../errors.js'
+import type { ToolPermissionContext } from '../../Tool.js'
+import { routedCallModelSettled } from '../providers/callModelRouter.js'
+import { readCatalogueIfPending } from '../providers/catalogueOnDemand.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
+import { errorMessage } from '../../utils/errors.js'
 import { createUserMessage, extractTextContent } from '../messages.js'
-import { stripExplicitNulls } from '../messages/structuredOutputDialect.js'
-import { getEngineModel } from '../model/model.js'
+import { stripExplicitNulls } from '../../utils/messages/structuredOutputDialect.js'
+import { getEngineModel } from '../../utils/model/model.js'
 import { utilityCallFor } from '../model/utilityModel.js'
-import { jsonParse } from '../slowOperations.js'
-import { asSystemPrompt } from '../systemPromptType.js'
+import { jsonParse } from '../../utils/slowOperations.js'
+import { asSystemPrompt } from '../../utils/systemPromptType.js'
+import type { ModelHookEnd, ModelHookRun } from '../../utils/hooks/runnerRegistry.js'
 
-export type ModelHookRun = {
-  text: string
-  name: string
-  event: string
-  payloadJson: string
-  answerSchema: z.ZodType
-  model?: string
-  timeoutMs: number
-  signal?: AbortSignal
-  toolUseContext: ToolUseContext
-}
-
-export type ModelHookEnd =
-  | { kind: 'answered'; answer: unknown; durationMs: number }
-  | { kind: 'timed_out'; durationMs: number }
-  | { kind: 'cancelled'; durationMs: number }
-  | { kind: 'failed'; detail: string; durationMs: number }
-
+export type { ModelHookEnd, ModelHookRun }
 export function hookBrief(text: string, payloadJson: string): string {
   const placeholder = /\$EVENT(?!\w)/g
   if (placeholder.test(text)) return text.replace(placeholder, () => payloadJson)

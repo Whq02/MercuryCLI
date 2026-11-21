@@ -5,7 +5,7 @@ import { fireHooks, type HookFireResult } from '../../../utils/hooks/fire.js'
 import { boundHookContext } from '../../../utils/hooks/contextBound.js'
 import { hookRowsOfResult } from '../../../utils/hooks/rows.js'
 import { getSessionId } from '../../../bootstrap/state.js'
-import { createUserMessage } from '../../../utils/messages.js'
+import { createUserMessage } from '../../messages.js'
 
 function compactionHookScope(context: ToolUseContext): { sessionId: string; crewmateId?: string } {
   return { sessionId: String(getSessionId()), ...(context.agentId !== undefined ? { crewmateId: context.agentId } : {}) }

@@ -1,5 +1,5 @@
 import { getSettingsWithAllErrors } from './allErrors.js'
-import { settingsFaultLine, type ValidationError } from './validation.js'
+import { settingsFaultLine, type ValidationError } from '../../utils/settings/validation.js'
 
 const told = new Set<string>()
 

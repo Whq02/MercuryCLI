@@ -10,7 +10,7 @@ process.env.MERCURY_TMPDIR = TMP_SCRATCH
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'ab-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
-const { createBaselineWorktree } = await import(join(ROOT, 'src/utils/worktree.ts'))
+const { createBaselineWorktree } = await import(join(ROOT, 'src/services/worktree.ts'))
 const { listScratchLeftovers } = await import(join(ROOT, 'src/utils/scratchLeases.ts'))
 
 let failures = 0

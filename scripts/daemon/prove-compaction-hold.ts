@@ -100,7 +100,7 @@ section('F4 the wiring — the seat, the roster, the daemon, the hint row, the c
 section("F5 a context block is known by its header and its isMeta mark, never by its words — the fixture's recognisers are the product's own")
 {
   const { operatorMessagesBlockText } = await import(join(SRC, 'utils/compact/operatorMessages.ts'))
-  const { normalizeAttachmentForAPI } = await import(join(SRC, 'utils/messages/attachmentText.ts'))
+  const { normalizeAttachmentForAPI } = await import(join(SRC, 'services/messages/attachmentText.ts'))
   const { getCompactUserSummaryMessage } = await import(join(SRC, 'services/compact/prompt.ts'))
   const block = { type: 'compact_operator_messages', messages: [{ ordinal: 2, text: 'second held words' }, { ordinal: 1, text: 'first held words' }], omitted: 0 }
   const projected = normalizeAttachmentForAPI(block as never) as Array<{ isMeta?: boolean; message: { content: unknown } }>

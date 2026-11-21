@@ -1,7 +1,7 @@
 import type { ToolResultBlockParam } from '../types/wire.js'
 import * as React from 'react'
 import stripAnsi from 'strip-ansi'
-import { extractTag } from 'src/utils/messages.js'
+import { extractTag } from 'src/services/messages.js'
 import { OUTPUT_CONNECTOR } from '../constants/figures.js'
 import { Box, Text } from '../ink.js'
 import { classifyToolError } from '../utils/errors/classifyToolError.js'

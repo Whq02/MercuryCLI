@@ -1,7 +1,7 @@
 import type { CanUseToolFn } from '../../../Tool.js'
 import type { Message, UserMessage } from '../../../types/message.js'
 import { boundHookContext } from '../../../utils/hooks/contextBound.js'
-import { createUserMessage, isCompactBoundaryMessage } from '../../../utils/messages.js'
+import { createUserMessage, isCompactBoundaryMessage } from '../../messages.js'
 import { getPromptTooLongTokenGap } from '../../api/errors.js'
 import { overflowGapTokens, overflowSignalOf } from '../../api/overflowSignal.js'
 import { groupMessagesByApiRound } from '../grouping.js'

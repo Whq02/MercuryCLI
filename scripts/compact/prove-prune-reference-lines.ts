@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
 const { digestClearedToolResult } = await import('../../src/services/compact/microCompactDigest.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { getTimeBasedMCConfig } = await import('../../src/services/compact/timeBasedMCConfig.ts')
 
 for (const text of [

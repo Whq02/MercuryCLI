@@ -126,7 +126,7 @@ const { discoverLocalServers, refreshLocalDiscovery, __resetLocalDiscoveryForTes
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 const { localCallModel } = await import('../../src/services/providers/local/localCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')

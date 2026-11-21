@@ -7,7 +7,7 @@ import {
   COMMAND_ARGS_TAG,
   COMMAND_MESSAGE_TAG,
 } from '../../constants/xml.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 
 export function UserCommandMessage({
   addMargin,

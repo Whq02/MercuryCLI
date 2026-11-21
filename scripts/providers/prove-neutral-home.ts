@@ -135,7 +135,7 @@ process.env.OPENROUTER_API_KEY = 'sk-or-fixture-sovereign-home'
 seedHome(HOME_MODEL)
 const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { utilityCallFor } = await import('../../src/utils/model/utilityModel.js')
+const { utilityCallFor } = await import('../../src/services/model/utilityModel.js')
 {
   const main = getEngineModel()
   check('the main-loop model is the operator\'s OpenRouter free tier', main === HOME_MODEL, main)
@@ -242,7 +242,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const drive = await hitsDuring(async () => {
     const seen: string[] = []
     const stream = routedCallModel({

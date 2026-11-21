@@ -7,7 +7,6 @@ import { runningBuildTree } from '../utils/artifactIdentity.js'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { passedOver } from '../utils/passedOver.js'
 import { pathModuleFor, stripExtendedLengthPrefixForPlatform } from '../utils/platform/paths.js'
-import { registerOtherBuildAliveProbe } from '../utils/secureStorage/keychainPrefetch.js'
 
 const NO_OWN_BUNDLE = 'this process does not run from a mercury.mjs it can name, so it cannot tell its own build from another'
 
@@ -157,8 +156,4 @@ export async function otherBuildAlive(deps: OtherBuildsDeps = {}): Promise<strin
   } catch (error) {
     return `the Mercury processes could not be read (${error instanceof Error ? error.message : String(error)})`
   }
-}
-
-export function registerOtherBuildAliveDoor(): void {
-  registerOtherBuildAliveProbe(() => otherBuildAlive())
 }

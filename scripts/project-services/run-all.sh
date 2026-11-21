@@ -3,7 +3,7 @@
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
 # gate-watch: src/services/run/**
 # gate-watch: src/tools/**
-# gate-watch: src/utils/messages/attachmentText*
+# gate-watch: src/services/messages/attachmentText*
 # gate-watch: scripts/lib/proofHome.ts
 # gate-watch: src/fabric/entryCodec.ts src/fabric/ordinal.ts
 # gate-watch: src/services/crew/agentTranscriptReader.ts

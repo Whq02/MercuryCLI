@@ -53,7 +53,7 @@ if (scenario !== undefined) {
   if (scenario === 'launch') {
     const state = await import('../../src/bootstrap/state.ts')
     const config = await import('../../src/utils/config/globalConfig.ts')
-    const { createAgentWorktree } = await import('../../src/utils/worktree.ts')
+    const { createAgentWorktree } = await import('../../src/services/worktree.ts')
     process.chdir(dir)
     state.setOriginalCwd(dir)
     state.setCwdState(dir)

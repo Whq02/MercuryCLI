@@ -24,7 +24,7 @@ function section(t: string): void {
 
 const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore, pendingToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
 const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
 const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
@@ -124,7 +124,7 @@ freshProcess()
 
 section('§5 a request that prepends a context row (an agent thread carries no persisted user-context row) keys the same conversation as its own history')
 const { conversationRosterKey } = await import('../../src/services/providers/toolEconomy.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const contextRow = createUserMessage({ content: 'the user context, prepended per request', isMeta: true })
 const requestMessages = [contextRow, ...agentMessages]
 check('the prepended row (a meta user row with a fresh uuid) never moves the conversation key', conversationRosterKey(agentOwner, requestMessages as never, model) === conversationRosterKey(agentOwner, agentMessages as never, model), `${conversationRosterKey(agentOwner, requestMessages as never, model)} vs ${conversationRosterKey(agentOwner, agentMessages as never, model)}`)

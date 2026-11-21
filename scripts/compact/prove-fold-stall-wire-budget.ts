@@ -102,7 +102,7 @@ const { compactConversation, shouldRideCacheSharingFork } = compactModule
 const foldStallMsFor: ((model: string, floorMs?: number) => number) | undefined = (compactModule as { foldStallMsFor?: (model: string, floorMs?: number) => number }).foldStallMsFor
 const { streamIdleTimeoutMsForRoute, STREAM_IDLE_DEFAULT_MS } = await import('../../src/services/providers/streamIdleBudget.ts')
 const { PATIENCE_NORMAL } = await import('../../src/services/providers/patience.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')

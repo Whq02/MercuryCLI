@@ -15,8 +15,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 200)}` : ''}`)
 }
 
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
 
 const QUEUED_TEXT = 'Please delete my disposable scratch folder inside this project with this single Bash call: rm -rf /Users/proof/hunt/scratch-dir/zzz-test'

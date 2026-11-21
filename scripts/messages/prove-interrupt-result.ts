@@ -17,10 +17,10 @@ import {
   unwrapToolUseError,
 } from '../../src/utils/messages/rejectionText.ts'
 import { createUserInterruptionMessage } from '../../src/utils/messages/factories.ts'
-import { buildMessageLookups } from '../../src/utils/messages/lookups.ts'
+import { buildMessageLookups } from '../../src/services/messages/lookups.ts'
 import { normalizeMessages } from '../../src/utils/messages/normalize.ts'
 import { isNotEmptyMessage } from '../../src/utils/messages/text.ts'
-import { createAssistantMessage, createUserMessage } from '../../src/utils/messages.ts'
+import { createAssistantMessage, createUserMessage } from '../../src/services/messages.ts'
 import type { Message } from '../../src/types/message.ts'
 
 const IDLE = turnCutOf({ code: 'DEADLINE_EXCEEDED' })

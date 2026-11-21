@@ -20,7 +20,7 @@ const { glmTakesImages } = await import('../../src/utils/model/pins/glmPins.ts')
 const { imagesSupportedForCompatModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { buildZaiChatRequest, imageRefusalWords, requestCarriesImage } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { classifyImageRefusalFault, providerRefusedImage } = await import('../../src/utils/api/mediaRefusal.ts')
-const { stripImagesRefusedByStamp } = await import('../../src/utils/messages/apiPlan.ts')
+const { stripImagesRefusedByStamp } = await import('../../src/services/messages/apiPlan.ts')
 const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 
 const ZAI_WORDS = "messages.content.type is invalid, allowed values: ['text']"

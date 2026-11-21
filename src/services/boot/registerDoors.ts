@@ -1,5 +1,7 @@
 import { registerDefaultProviderCapabilities } from '../providers/registerCapabilities.js'
-import { registerOtherBuildAliveDoor } from '../../daemon/otherBuilds.js'
+import { registerOtherBuildAliveProbe } from '../../utils/secureStorage/otherBuildsRegistry.js'
+import { registerDefaultModelHookRunners } from '../hooks/registerRunners.js'
+import { registerDefaultTranscriptProjector } from '../sessionStorage/registerTranscriptProjector.js'
 
 let booted = false
 
@@ -7,5 +9,10 @@ export function registerBootDoors(): void {
   if (booted) return
   booted = true
   registerDefaultProviderCapabilities()
-  registerOtherBuildAliveDoor()
+  registerOtherBuildAliveProbe(() => {
+    const { otherBuildAlive } = require('../../daemon/otherBuilds.js') as typeof import('../../daemon/otherBuilds.js')
+    return otherBuildAlive()
+  })
+  registerDefaultModelHookRunners()
+  registerDefaultTranscriptProjector()
 }

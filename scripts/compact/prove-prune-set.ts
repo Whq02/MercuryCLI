@@ -25,7 +25,7 @@ const law = await import('../../src/services/compact/pruneProtections.ts')
 const { projectTimeBasedMicrocompact, microcompactMessages, TIME_BASED_MC_CLEARED_MESSAGE } = await import('../../src/services/compact/microCompact.ts')
 const { MC_DIGEST_PREFIX, isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
 const { buildLargeToolResultMessage } = await import('../../src/utils/toolResultStorage.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const CLASS = ['Read', 'Bash', 'Grep', 'Crewmate', 'Eval', 'Inspect', 'Zzz']

@@ -3,7 +3,7 @@ import type { NormalizedMessage, RenderableMessage } from '../../types/message.j
 import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { hiddenAgentToolUses } from '../../tools/AgentTool/UI.js'
 import { expandedRowsOf, subscribeExpandedRows, toggleExpandedRow } from '../messages/transcriptMemory.js'
-import { getToolUseID } from '../../utils/messages/lookups.js'
+import { getToolUseID } from '../../services/messages/lookups.js'
 import { hasNoticeFold } from '../../utils/messages/noticeRows.js'
 import { findToolByName } from '../../Tool.js'
 import type { MessagesProps, VisibleRowsState, TranscriptRowsState } from './shapes.js'

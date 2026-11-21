@@ -65,7 +65,7 @@ function buildOldDist(version: string): string {
   const schemaStart = 'function buildModelSchema() {\n  return z.strictObject({'
   if (bash.split(schemaStart).length !== 2 || bash.includes(RETIRED)) throw new Error('The predecessor fixture must add exactly one field to the current Bash schema')
   writeFileSync(bashPath, bash.replace(schemaStart, schemaStart + '\n    ' + RETIRED + ": semanticBoolean(z.boolean().optional()).describe('An explicit, dangerous override that runs the command without sandboxing.'),"))
-  const normalizerPath = join(tree, 'src/utils/api.ts')
+  const normalizerPath = join(tree, 'src/services/messages/api.ts')
   const normalizer = readFileSync(normalizerPath, 'utf8')
   const rebuild = 'const rebuilt: Record<string, unknown> = { command, description: parsed.description }'
   if (normalizer.split(rebuild).length !== 2) throw new Error('The predecessor fixture needs exactly one Bash input normalizer')

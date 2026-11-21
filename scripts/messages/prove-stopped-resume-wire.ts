@@ -4,8 +4,8 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/utils/messages.ts')
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
 const { addCacheBreakpoints } = await import('../../src/services/providers/anthropic/cacheAndUsage.ts')
 const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { mapMessagesToOpenaiInput } = await import('../../src/services/providers/openai/responsesBridge.ts')

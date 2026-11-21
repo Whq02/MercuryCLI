@@ -54,7 +54,7 @@ const { EvalTool } = await import(src('tools/EvalTool/EvalTool.ts'))
 const { FileEditTool } = await import(src('tools/FileEditTool/FileEditTool.ts'))
 const { createLiveTurnFold, liveTurnStateOf } = await import(src('services/resume/conversationRecovery.ts'))
 const { readTranscriptChainSince } = await import(src('utils/sessionStorage/transcriptReader.ts'))
-const { buildMessageLookups, buildSubagentLookups } = await import(src('utils/messages/lookups.ts'))
+const { buildMessageLookups, buildSubagentLookups } = await import(src('services/messages/lookups.ts'))
 const { normalizeMessages } = await import(src('utils/messages/normalize.ts'))
 const openToolUseIDsOf = await import(src('utils/messages/openToolUses.ts')).then(
   m => (m as { openToolUseIDsOf: (messages: readonly unknown[]) => Set<string> }).openToolUseIDsOf,

@@ -32,7 +32,7 @@ const restore = (): void => {
 const { toolDeferralEnabled } = await import(
   '../../src/utils/model/capabilities.ts'
 )
-const { getToolSearchMode } = await import('../../src/utils/toolSearch.ts')
+const { getToolSearchMode } = await import('../../src/services/messages/toolSearch.ts')
 const { toolReferenceWireAccepted } = await import('../../src/services/providers/deferralWire.ts')
 
 section('§1 GATE POLARITY — live env re-reads; the base URL selects the wire form, never the gate')

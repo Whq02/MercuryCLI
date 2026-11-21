@@ -53,7 +53,7 @@ if (child) {
   const { ERROR_MESSAGE_PROMPT_TOO_LONG } = await import('../../src/services/compact/compact.ts')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   type Facts = import('../../src/components/Spinner/liveCounterWords.ts').LiveCounterFacts
   type Props = Parameters<typeof SpinnerWithVerb>[0]
   const started = Date.now()

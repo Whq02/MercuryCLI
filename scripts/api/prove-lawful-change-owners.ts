@@ -29,7 +29,7 @@ check('a reset forgets the shared clause too', law.consumeLawfulPrefixChange('ma
 console.log(failures === 0 ? '\nprove-lawful-change-owners: all green' : `\nprove-lawful-change-owners: ${failures} FAILURE(S)`)
 
 {
-  const { toolToAPISchema } = await import('../../src/utils/api.ts')
+  const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
   const { clearToolSchemaCache, clearConversationToolSchemas, getToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const model = 'claude-fable-5-1'

@@ -2,7 +2,7 @@ import type { CompactMetadata, Message, SystemCompactBoundaryMessage } from '../
 import { createAttachmentMessage } from '../../attachments/orchestrator.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { getTranscriptPath } from '../../../utils/sessionStorage/paths.js'
-import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { roughTokenCountEstimationForMessages } from '../../tokenEstimation.js'
 import { renderFoldLedger, type FoldLedger } from '../foldLedger.js'
 import { getCompactUserSummaryMessage, renderFoldedWork } from '../prompt.js'

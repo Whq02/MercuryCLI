@@ -68,7 +68,7 @@ const routerAnthropic = await import('../../src/services/providers/anthropic/ant
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const B = await import('../../src/constants/betas.ts')
 

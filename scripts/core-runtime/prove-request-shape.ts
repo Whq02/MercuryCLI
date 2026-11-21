@@ -20,7 +20,7 @@ bootstrap.setIsInteractive(false)
 const { queryModelWithStreaming } = await import(
   '../../src/services/providers/anthropic/streamCore.ts'
 )
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const requestParams = await import(
   '../../src/services/providers/anthropic/requestParams.ts'

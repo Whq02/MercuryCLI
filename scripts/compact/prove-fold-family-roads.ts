@@ -59,7 +59,7 @@ enableConfigs()
 const compactModule = await import('../../src/services/compact/compact.ts')
 const { compactConversation, shouldRideCacheSharingFork, foldFamilyOf, setFoldBoundsForTests, buildPostCompactMessages } = compactModule
 const { classifyModelRoute, laneLabelForVerdict } = await import('../../src/services/providers/routeLaw.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
@@ -374,7 +374,7 @@ section("§8 the OpenAI road: the fold's request IS the session's last request p
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { appendSystemContext } = await import('../../src/utils/api.ts')
+  const { appendSystemContext } = await import('../../src/services/messages/api.ts')
   const model = 'gpt-5.5'
   const pool = [FileReadTool, ToolSearchTool]
   const { ctx } = makeContext(model)
@@ -713,7 +713,7 @@ section('§4 the threshold is the SERVED window — the GPT ceiling and the [ser
 section('§5 the OpenAI road across a fold — the kept tail replays its reasoning items; the folded head\'s never ride')
 {
   process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
-  const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
+  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const record = (k: string, items: unknown[]): Record<string, unknown> => ({
     apexProviderTurn: { provider: 'openai', responseId: `resp_${k}`, items, contractDigest: 'fixture' },

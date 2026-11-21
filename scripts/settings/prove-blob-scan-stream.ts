@@ -16,7 +16,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const cleanup = await import('../../src/utils/cleanup.ts')
+const cleanup = await import('../../src/services/cleanup.ts')
 const fsOps = await import('../../src/utils/fsOperations.ts')
 const { TOOL_RESULTS_SUBDIR } = await import('../../src/utils/toolResultStorage.ts')
 const census = cleanup.blobScanCensus

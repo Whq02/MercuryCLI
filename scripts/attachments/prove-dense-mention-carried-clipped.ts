@@ -43,7 +43,7 @@ try {
   bootstrap.setOriginalCwd(cwd)
   bootstrap.setProjectRoot(cwd)
   const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
 
   type Row = { type: string; truncated?: boolean; content?: { file?: { numLines?: number; totalLines?: number; startLine?: number } } }
   const context = (): unknown => ({

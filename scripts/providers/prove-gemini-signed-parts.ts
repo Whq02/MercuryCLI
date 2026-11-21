@@ -21,7 +21,7 @@ const { geminiCallModel } = await import('../../src/services/providers/gemini/ge
 const { buildGeminiRequest, GEMINI_SKIP_SIGNATURE_VALIDATION } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { foldSplitTurnsForWire } = await import('../../src/utils/messages/pairing.ts')
+const { foldSplitTurnsForWire } = await import('../../src/services/messages/pairing.ts')
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { GeminiContent, GeminiPart } from '../../src/services/providers/gemini/geminiCodec.ts'

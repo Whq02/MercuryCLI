@@ -20,7 +20,7 @@ const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: true, subagents: true } }))
 await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/utils/messages.ts')
+await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
@@ -137,7 +137,7 @@ section('§7 THE DEFERRED ROSTER lists the new tools for a crewmate exactly as f
   const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
   const { ECONOMY_DEFERRED } = await import('../../src/tools/ToolSearchTool/prompt.ts')
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const context = getEmptyToolPermissionContext()
   const first = createUserMessage({ content: 'Reply with exactly: ok' })
   const plan = async (tools: Tool[], source: string) => {

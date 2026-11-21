@@ -6,8 +6,8 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import {
   createUserMessage,
   getAssistantMessageText,
-} from '../utils/messages.js'
-import { utilityCallFor } from '../utils/model/utilityModel.js'
+} from './messages.js'
+import { utilityCallFor } from './model/utilityModel.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
 import {
   type AgentState,

@@ -19,7 +19,7 @@ const { toOpenaiStrictSchema, stripExplicitNulls } = await import(
 const { buildOpenaiResponsesRequest } = await import(
   '../../src/services/providers/openai/responsesBridge.ts'
 )
-const { hookAnswerJsonSchema } = await import('../../src/utils/hooks/questionRunner.ts')
+const { hookAnswerJsonSchema } = await import('../../src/services/hooks/questionRunner.ts')
 const { hookAnswerSchema } = await import('../../src/utils/hooks/contract.ts')
 const VERDICT_JSON_SCHEMA = hookAnswerJsonSchema(hookAnswerSchema('tool.before'))
 

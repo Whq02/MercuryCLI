@@ -91,7 +91,7 @@ else {
   const r = runIsolated(`
     const fs = await import('node:fs')
     const path = await import('node:path')
-    const { recordingsUnderSweep } = await import(SRC + '/utils/cleanup.ts')
+    const { recordingsUnderSweep } = await import(SRC + '/services/cleanup.ts')
     const { getProjectsDir } = await import(SRC + '/utils/sessionStorage.ts')
     const root = getProjectsDir()
     out.absent = await recordingsUnderSweep()

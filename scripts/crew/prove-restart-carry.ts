@@ -25,7 +25,7 @@ const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 const lr = await import('../../src/tasks/LocalAgentTask/launchReceipts.ts')
 const q = await import('../../src/input-core/command-queue.ts')
 const { recordTranscript } = await import('../../src/utils/sessionStorage.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { AGENT_RESUME_NOTE, agentStopReasonOf, AGENT_STOP_BY_OPERATOR } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 
 console.log('============================================================')

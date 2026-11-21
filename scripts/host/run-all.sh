@@ -8,7 +8,7 @@
 # gate-watch: src/services/providers/huggingface/** src/components/HuggingfaceConnect.tsx src/keybindings/**
 # gate-watch: src/utils/model/modelPickerGroups.ts src/components/MercuryModelPicker.tsx
 # gate-watch: src/main.tsx
-# gate-watch: src/types/message.ts src/utils/messages/pairing.ts
+# gate-watch: src/types/message.ts src/services/messages/pairing.ts
 # gate-watch: src/utils/settings/modelFacts.ts
 # gate-watch: src/components/mercury-ui/menuFold.tsx
 # gate-watch: src/context/overlayContext.tsx src/ink/**

@@ -9,7 +9,7 @@ import {
   extractDiscoveredToolNames,
   isToolReferenceBlock,
   isToolSearchEnabled,
-} from '../../utils/toolSearch.js'
+} from '../messages/toolSearch.js'
 import { deferralSearchIsServerSide, deferralWireFormFor, supportsToolDeferral, type DeferralWireForm, type DeferralWireVerdict } from './deferralWire.js'
 
 interface ToolPayloadPlanInput {

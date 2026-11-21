@@ -53,7 +53,7 @@ const { restoreSessionStateFromLog } = sessionRestore
 const { restoreSessionMetadata } = await import('../../src/utils/sessionStorage.ts')
 const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { restoreWorktreeSession, getCurrentWorktreeSession } = await import('../../src/utils/worktree.ts')
+const { restoreWorktreeSession, getCurrentWorktreeSession } = await import('../../src/services/worktree.ts')
 const { asSessionId } = await import('../../src/types/ids.ts')
 
 const MODEL = 'claude-fable-5-1'

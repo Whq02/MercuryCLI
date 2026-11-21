@@ -23,7 +23,7 @@ const { lastToolCallsOf } = await import('../../src/tools/AgentTool/agentToolUti
 const { noteCrewWorktreeLeftover, CREW_JANITOR_DAYS } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { enqueueAgentNotification } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { dequeueAll } = await import('../../src/utils/messageQueueManager.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
 type Block = { type: 'text'; text: string }

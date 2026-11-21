@@ -29,7 +29,7 @@ await seam.latchSwarmAgent('writer', 'Writer')
 const board = seam.swarmStore()!
 const writer = seam.swarmPrincipal('writer')!
 const { query } = await import('../../src/query.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { buildTool } = await import('../../src/Tool.ts')

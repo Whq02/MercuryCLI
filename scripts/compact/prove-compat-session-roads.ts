@@ -32,7 +32,7 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 resetSettingsCache()
 const { saveGlobalConfig } = await import('../../src/utils/config.ts')
 saveGlobalConfig(current => ({ ...current, autoCompactEnabled: true }))
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')

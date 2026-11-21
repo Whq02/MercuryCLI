@@ -8,7 +8,7 @@ import {
   isContinuableStreamFaultMessage,
   streamFaultAfterPartialText,
 } from '../../src/services/api/errors.js'
-import { createAssistantAPIErrorMessage } from '../../src/utils/messages.js'
+import { createAssistantAPIErrorMessage } from '../../src/services/messages.js'
 
 
 let failures = 0

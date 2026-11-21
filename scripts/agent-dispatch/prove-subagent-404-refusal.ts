@@ -59,7 +59,7 @@ process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as { port
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { deriveAgentTerminalOutcome, finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')

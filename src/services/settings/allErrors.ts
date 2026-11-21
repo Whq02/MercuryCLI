@@ -1,9 +1,9 @@
-import { getMcpConfigsByScope } from '../../services/mcp/config.js'
-import { ConfigAccessBeforeAllowedError } from '../config/globalConfig.js'
-import { errorMessage } from '../errors.js'
-import { getSettingsWithErrors } from './settings.js'
-import type { SettingsWithErrors, ValidationError } from './validation.js'
-import { passedOver } from '../passedOver.js'
+import { getMcpConfigsByScope } from '../mcp/config.js'
+import { ConfigAccessBeforeAllowedError } from '../../utils/config/globalConfig.js'
+import { errorMessage } from '../../utils/errors.js'
+import { getSettingsWithErrors } from '../../utils/settings/settings.js'
+import type { SettingsWithErrors, ValidationError } from '../../utils/settings/validation.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export function getSettingsWithAllErrors(): SettingsWithErrors {
   const base = getSettingsWithErrors()

@@ -18,7 +18,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'wj-home-'))
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { cleanupStaleAgentWorktrees } = await import(
-  join(ROOT, 'src/utils/worktree.ts')
+  join(ROOT, 'src/services/worktree.ts')
 )
 const { runWithCwdOverride } = await import(join(ROOT, 'src/utils/cwd.ts'))
 

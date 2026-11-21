@@ -276,7 +276,7 @@ try {
   const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
   const { SettingsSchema } = await import(`${root}/src/utils/settings/types.ts`)
   const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-  const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
+  const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
   const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
   const { processOwnerForLane } = await import(`${root}/src/utils/run/resolveOwner.ts`)
   const idle = (await import(`${root}/src/services/providers/streamIdleBudget.ts`)) as Record<string, any>

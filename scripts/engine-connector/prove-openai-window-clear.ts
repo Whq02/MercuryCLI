@@ -26,7 +26,7 @@ const reset = at + 3600_000
 const reads = { activeSource: () => source, window: () => state.openaiLimitWindow(source), observed: () => state.openaiObservedWall(source) }
 state.__resetOpenaiLimitStateForTest()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const model = OVERFLOW_LANES.find(road => road.lane === 'openai')!.model

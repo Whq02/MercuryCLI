@@ -269,7 +269,7 @@ try {
   clearModeTransitions()
   const bareRows = lifecycles.getModePackAttachments([packRow], mkContext('implement') as never) as Array<{ type: string; reason?: string }>
   check('with no recorded exit the row carries no reason (never a made-up one)', bareRows.length === 1 && bareRows[0]?.reason === undefined)
-  const text = (await import('../../src/utils/messages/attachmentText.js')) as typeof import('../../src/utils/messages/attachmentText.js')
+  const text = (await import('../../src/services/messages/attachmentText.js')) as typeof import('../../src/services/messages/attachmentText.js')
   const spoken = text.normalizeAttachmentForAPI({ type: 'mode_pack_exit', mode: 'apollo', reason: 'the review card moved the session to Flow' } as never)
   const spokenText = JSON.stringify(spoken.map(m => m.message.content))
   check('the reminder speaks the reason to the model', /Exited Apollo mode/.test(spokenText) && /What ended it: the review card moved the session to Flow\./.test(spokenText), spokenText.slice(0, 300))

@@ -156,7 +156,7 @@ try {
   const { runToolUse, toolUseError } = await import('../../src/services/tools/toolExecution.js')
   const { formatError } = await import('../../src/utils/toolErrors.js')
   const { ShellError } = await import('../../src/utils/errors.js')
-  const { createAssistantMessage } = await import('../../src/utils/messages.js')
+  const { createAssistantMessage } = await import('../../src/services/messages.js')
   const transaction = async (command: string) => {
     const context = await makeContext({ tools: [BashTool] })
     const id = `toolu_b8_${Math.random().toString(36).slice(2, 8)}`

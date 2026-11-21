@@ -5,7 +5,7 @@ import { TerminalSizeContext } from '../../../ink/components/TerminalSizeContext
 import type { getTools } from '../../../tools.js'
 import type { RenderableMessage } from '../../../types/message.js'
 import type { Screen } from '../../../screens/Chat.js'
-import { EMPTY_STRING_SET } from '../../../utils/messages.js'
+import { EMPTY_STRING_SET } from '../../../services/messages.js'
 import { hasContentAfterIndex, MessageRow } from '../../MessageRow.js'
 import { RowErrorBoundary } from '../../RowErrorBoundary.js'
 import type { controlNoteOf } from '../contracts.js'

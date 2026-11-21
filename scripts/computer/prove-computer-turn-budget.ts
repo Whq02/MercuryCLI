@@ -19,7 +19,7 @@ const { resolveDesktopDriver, resetDesktopDriverForTest } = await import('../../
 const { forgetDesktopOwner } = await import('../../src/services/desktop/desktopSession.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { query } = await import('../../src/query.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
 

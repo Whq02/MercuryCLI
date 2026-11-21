@@ -6,7 +6,7 @@ import { getMercuryHome } from '../utils/envUtils.js'
 
 import { getIsInteractive, getLastInteractionTime } from '../bootstrap/state.js'
 import { runLifecyclePass } from '../substrate/stateLifecycle.js'
-import { cleanupOldMessageFilesInBackground } from '../utils/cleanup.js'
+import { cleanupOldMessageFilesInBackground } from './cleanup.js'
 import { logForDebugging } from '../utils/debug.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout } from '../utils/timers.js'

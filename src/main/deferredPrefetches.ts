@@ -32,7 +32,7 @@ export function startDeferredPrefetches(): void {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_skipped_no_trust')
       }
       void getTipToShowOnSpinner().catch(passedOver)
-      const { prefetchThirdPartyCredentials } = (await import('../utils/api.js')) as {
+      const { prefetchThirdPartyCredentials } = (await import('../services/messages/api.js')) as {
         prefetchThirdPartyCredentials?: () => void
       }
       prefetchThirdPartyCredentials?.()

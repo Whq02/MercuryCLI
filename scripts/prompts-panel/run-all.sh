@@ -5,7 +5,7 @@
 # gate-watch: src/components/MessageSelector.tsx src/utils/messages/noticeRows.ts
 # gate-watch: src/ink.ts src/components/App.tsx src/state/AppStateStore.ts src/keybindings/KeybindingProviderSetup.tsx src/utils/staticRender.tsx
 # gate-watch: src/components/messages/UserTextMessage.tsx src/components/MessageRow.tsx src/components/concourse/workerTranscriptFold.ts
-# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/utils/messages.ts src/utils/config.ts src/types/message.ts
+# gate-watch: src/services/engine-connector/focusedConnector.ts src/services/engine-connector/noSessionConnector.ts src/services/messages.ts src/utils/config.ts src/types/message.ts
 # gate-watch: src/hooks/useSessionConnector.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/lib/fixtureApi.ts scripts/streaming/artifactArena.ts scripts/ui/gridToPng.ts
 set -uo pipefail

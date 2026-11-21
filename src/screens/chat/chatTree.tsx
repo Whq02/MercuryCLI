@@ -8,7 +8,7 @@ import { CockpitBottomStatus } from '../../context/cockpitActiveContext.js';
 import { Box } from '../../ink.js';
 import { KeybindingSetup } from '../../keybindings/KeybindingProviderSetup.js';
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js';
-import { getCurrentWorktreeSession } from '../../utils/worktree.js';
+import { getCurrentWorktreeSession } from '../../services/worktree.js';
 import { ChatKeys } from './ChatKeys.js';
 import type { useChatAsksCard } from './useChatAsks.js';
 import type { useChatDialogPaints, useChatDialogs, useChatDialogsView } from './useChatDialogs.js';

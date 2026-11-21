@@ -22,7 +22,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { generateTaskId } = await import('../../src/Task.ts')
 const { toAgentId } = await import('../../src/types/ids.ts')
-const worktree = await import('../../src/utils/worktree.ts')
+const worktree = await import('../../src/services/worktree.ts')
 const reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 

@@ -520,7 +520,7 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     else slot.setFocusedSessionConnector(focused.connector as never)
   }
   if (options.plant === 'worktree') {
-    const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+    const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
     restoreWorktreeSession({ originalCwd: project, worktreePath: project, worktreeName: 'proof-tree', sessionId: 'rec-session', creationDurationMs: 21_000 })
   }
   route.initializeSurfaceRoute(route.ROOT_CHAT_ROUTE)

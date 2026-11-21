@@ -51,7 +51,7 @@ Object.assign(process.env, fixture.env)
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { call } = await import('../../src/commands/compact/compact.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 

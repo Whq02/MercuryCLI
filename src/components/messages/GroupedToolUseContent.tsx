@@ -7,7 +7,7 @@ import type {
 } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { findToolByName } from '../../Tool.js'
-import type { MessageLookups } from '../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../services/messages/lookups.js'
 import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,

@@ -35,7 +35,7 @@ bootstrap.setIsInteractive(false)
 
 const { mapMessagesToZai, buildZaiChatRequest } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { userMessageToMessageParam, assistantMessageToMessageParam } = await import('../../src/services/providers/anthropic/messageParams.ts')
-const { healWalkableForWire } = await import('../../src/utils/messages.ts')
+const { healWalkableForWire } = await import('../../src/services/messages.ts')
 const { buildGeminiRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 const { ollamaChatBody, ollamaMessagesOf } = await import('../../src/services/providers/local/ollamaChatTransport.ts')
 const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION, VIRTUAL_ROW, canonicalJson } = await import('./dialectFixture.ts')

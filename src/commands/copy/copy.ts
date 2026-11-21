@@ -5,7 +5,7 @@ import type {
   LocalJSXCommandOnDone,
 } from '../../types/command.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
-import { stripPromptXMLTags } from '../../utils/messages.js'
+import { stripPromptXMLTags } from '../../services/messages.js'
 
 const LOOK_BACK_CAP = 20
 

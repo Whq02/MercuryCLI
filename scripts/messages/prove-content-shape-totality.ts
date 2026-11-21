@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { normalizeMessages, isToolUseRequestMessage, isToolUseResultMessage, contentBlocksOf } from '../../src/utils/messages/normalize.js'
-import { buildMessageLookups, buildSubagentLookups, getSiblingToolUseIDs } from '../../src/utils/messages/lookups.js'
-import { ensureToolResultPairing, orderToolResultsByUse } from '../../src/utils/messages/pairing.js'
+import { buildMessageLookups, buildSubagentLookups, getSiblingToolUseIDs } from '../../src/services/messages/lookups.js'
+import { ensureToolResultPairing, orderToolResultsByUse } from '../../src/services/messages/pairing.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {

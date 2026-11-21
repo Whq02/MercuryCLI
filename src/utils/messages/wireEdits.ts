@@ -1,4 +1,4 @@
-import { isThinkingBlock } from './apiFilters.js'
+import { isThinkingBlock } from './thinkingBlock.js'
 
 export interface WireEdit {
   index: number

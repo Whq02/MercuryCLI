@@ -7,9 +7,9 @@ import {
   projectTimeBasedMicrocompact,
 } from '../compact/microCompact.js'
 import type { Message } from '../../types/message.js'
-import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { getMessagesAfterCompactBoundary } from '../messages.js'
 import { expandPath } from '../../utils/path.js'
-import { stripThinkingInPreservedTail } from '../../utils/messages/apiFilters.js'
+import { stripThinkingInPreservedTail } from '../messages/apiFilters.js'
 import { projectRewoundWindows } from '../compact/checkpointRewind.js'
 import { collectPreservedReadPaths } from '../compact/compact.js'
 import { dropSeenLines, rebuildSeenLinesFromTranscript } from '../changeTransaction/seenLines.js'

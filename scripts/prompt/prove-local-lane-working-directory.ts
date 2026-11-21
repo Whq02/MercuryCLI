@@ -67,7 +67,7 @@ const vllm = await serve((req, _body, res) => {
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `vllm=${vllm.root}`
 
 const { getSystemPrompt, localFirstTurnFacts } = await import('../../src/constants/prompts.ts')
-const { appendSystemContext } = await import('../../src/utils/api.ts')
+const { appendSystemContext } = await import('../../src/services/messages/api.ts')
 const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
 const { getOriginalCwd, setOriginalCwd, setCwdState, getSystemPromptSectionCache } = await import('../../src/bootstrap/state.ts')
 const { refreshLocalDiscovery } = await import('../../src/services/providers/local/localDiscovery.ts')

@@ -7,7 +7,7 @@ const { operatorPauseGate } = await import('../../src/run-core/pauseGate.ts')
 const { engineLadderOf } = await import('../../src/services/api/backupEngines.ts')
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
 const { ImageSizeError } = await import('../../src/utils/imageValidation.ts')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>

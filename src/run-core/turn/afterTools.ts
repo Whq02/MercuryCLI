@@ -4,7 +4,7 @@ import {
   createUserMessage,
   createUserInterruptionMessage,
   createSystemMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { buildRewindRecordIfSettled } from '../../services/compact/checkpointRewind.js'
 import {
   createAttachmentMessage,

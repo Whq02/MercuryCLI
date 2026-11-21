@@ -6,7 +6,7 @@ import {
   type Tools,
 } from '../../../Tool.js'
 import type { ProgressMessage } from '../../../types/message.js'
-import type { MessageLookups } from '../../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../../services/messages/lookups.js'
 import { getTheme } from '../../../utils/theme.js'
 import { useTheme } from '../../design-system/ThemeProvider.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'

@@ -1,35 +1,35 @@
-import { isEnvTruthy } from './envUtils.js'
-import { isWholeRecordedComposition } from '../prompt/recordedComposition.js'
-import { logForDebugging } from './debug.js'
+import { isEnvTruthy } from '../../utils/envUtils.js'
+import { isWholeRecordedComposition } from '../../prompt/recordedComposition.js'
+import { logForDebugging } from '../../utils/debug.js'
 import {
   fineGrainedToolStreamingEnabled,
   resolveModelCapabilities,
   toolDeferralEnabled,
-} from './model/capabilities.js'
-import { getEngineModel } from './model/model.js'
-import { declaredRouteOf } from '../services/providers/routeLaw.js'
-import { deferralWireFormFor, toolReferenceWireAccepted } from '../services/providers/deferralWire.js'
-import { localPromptProfileApplies, localToolForm } from '../constants/localPromptProfile.js'
-import { zodToJsonSchema } from './zodToJsonSchema.js'
-import { inlineLocalSchemaRefs } from './inlineSchemaRefs.js'
-import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from './normalizeToolSchema.js'
-import { userContextReminderBody } from './userContextReminder.js'
+} from '../../utils/model/capabilities.js'
+import { getEngineModel } from '../../utils/model/model.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
+import { deferralWireFormFor, toolReferenceWireAccepted } from '../providers/deferralWire.js'
+import { localPromptProfileApplies, localToolForm } from '../../constants/localPromptProfile.js'
+import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
+import { inlineLocalSchemaRefs } from '../../utils/inlineSchemaRefs.js'
+import { normalizeToolSchemaFor, rememberRenamedArgumentKeys, schemaLaneFor } from '../../utils/normalizeToolSchema.js'
+import { userContextReminderBody } from '../../utils/userContextReminder.js'
 
-import { BASH_TOOL_NAME } from '../constants/tools/bash.js'
-import { FILE_EDIT_TOOL_NAME } from '../constants/tools/fileEdit.js'
-import { editFormCacheMark } from './editForm.js'
-import { normalizeFileEditInput } from './fileEditUtils.js'
-import { FILE_WRITE_TOOL_NAME } from '../constants/tools/fileWrite.js'
-import { resolveShellCwd } from './Shell.js'
-import { createUserMessage } from './messages/factories.js'
-import { rememberedPlatform } from './platform/host.js'
-import { hostPathSpellings } from './platform/paths.js'
-import { jsonStringify } from './slowOperations.js'
-import { getConversationToolSchemas, getToolSchemaCache } from './toolSchemaCache.js'
-import type { Tool, Tools, ToolPermissionContext } from '../Tool.js'
-import type { AgentDefinition } from '../types/agent.js'
-import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../types/wire.js'
-import type { Message } from '../types/message.js'
+import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
+import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
+import { editFormCacheMark } from '../../utils/editForm.js'
+import { normalizeFileEditInput } from '../../utils/fileEditUtils.js'
+import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'
+import { resolveShellCwd } from '../../utils/Shell.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
+import { rememberedPlatform } from '../../utils/platform/host.js'
+import { hostPathSpellings } from '../../utils/platform/paths.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
+import { getConversationToolSchemas, getToolSchemaCache } from '../../utils/toolSchemaCache.js'
+import type { Tool, Tools, ToolPermissionContext } from '../../Tool.js'
+import type { AgentDefinition } from '../../types/agent.js'
+import type { ApiTool, ApiToolUnion, ToolInputSchema } from '../../types/wire.js'
+import type { Message } from '../../types/message.js'
 
 
 type SystemPromptBlock = { text: string; cached: boolean }
@@ -73,7 +73,7 @@ export function appendSystemContext(
 }
 
 function firstTurnSegment(segment: string): boolean {
-  const { isFirstTurnSegment } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  const { isFirstTurnSegment } = require('../../constants/prompts.js') as typeof import('../../constants/prompts.js')
   return isFirstTurnSegment(segment)
 }
 
@@ -97,7 +97,7 @@ export async function firstTurnUserContext(
   input?: string | null,
 ): Promise<Record<string, string>> {
   if (model === undefined || !localPromptProfileApplies(model)) return userContext
-  const { localFirstTurnFacts } = require('../constants/prompts.js') as typeof import('../constants/prompts.js')
+  const { localFirstTurnFacts } = require('../../constants/prompts.js') as typeof import('../../constants/prompts.js')
   const system = typeof systemContext === 'function' ? await systemContext() : systemContext
   const prompt = firstUserPrompt(messages) ?? (input ? input : undefined)
   const facts = await localFirstTurnFacts(agentId, prompt === undefined ? undefined : { prompt })

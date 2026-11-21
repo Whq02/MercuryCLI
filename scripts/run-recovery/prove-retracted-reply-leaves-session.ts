@@ -34,7 +34,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { flushSessionStorage, getTranscriptPath, loadTranscriptFile, resetSessionFilePointer } = await import('../../src/utils/sessionStorage.ts')
 const { loadConversationForResume } = await import('../../src/services/resume/conversationRecovery.ts')
-const { normalizeMessagesForAPI } = await import('../../src/utils/messages.ts')
+const { normalizeMessagesForAPI } = await import('../../src/services/messages.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 import type { Message } from '../../src/types/message.ts'
 

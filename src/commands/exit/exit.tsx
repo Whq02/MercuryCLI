@@ -12,7 +12,7 @@ import type { TaskState } from '../../tasks/types.js'
 import type { LocalJSXCommandOnDone } from '../../types/command.js'
 import { liveBackgroundCounts, liveWorkWords, settleOwnerlessTasks, type LiveWorkCounts } from '../../utils/task/framework.js'
 import { gracefulShutdown } from '../../utils/gracefulShutdown.js'
-import { getCurrentWorktreeSession } from '../../utils/worktree.js'
+import { getCurrentWorktreeSession } from '../../services/worktree.js'
 import { farewellWithTesterDoor } from '../feedback/testerDoor.js'
 
 const FAREWELL = 'Session saved. Reopen it any time with /sessions.'

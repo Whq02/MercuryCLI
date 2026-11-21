@@ -17,7 +17,7 @@ import {
   isToolSearchToolAvailable,
   modelSupportsToolReference,
   type DeferredToolsDeltaScanContext,
-} from '../../utils/toolSearch.js'
+} from '../messages/toolSearch.js'
 import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../../constants/tools/toolSearch.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 

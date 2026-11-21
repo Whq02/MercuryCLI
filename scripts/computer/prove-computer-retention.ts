@@ -9,7 +9,7 @@ const retention = await import('../../src/services/desktop/screenshotRetention.t
 const session = await import('../../src/services/desktop/desktopSession.ts')
 const { stripImagesFromMessages } = await import('../../src/services/compact/compact.ts')
 const { processOwnerForLane } = await import('../../src/utils/run/resolveOwner.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const PNG_B64 = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 73, 72, 68, 82]).toString('base64')

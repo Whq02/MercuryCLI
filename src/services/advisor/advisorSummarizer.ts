@@ -19,7 +19,7 @@ export async function liveAdvisorSummarizer(args: {
     await Promise.all([
       import('../providers/callModelRouter.js'),
       import('../../utils/systemPromptType.js'),
-      import('../../utils/messages.js'),
+      import('../messages.js'),
       import('../../Tool.js'),
     ])
   const signal = AbortSignal.timeout(ADVISOR_SUMMARY_WALL_MS)

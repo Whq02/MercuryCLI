@@ -126,7 +126,7 @@ section('§6 the stored row: a reasoning block the runtime settles is an assista
   try {
     process.env.MOONSHOT_API_KEY = 'fixture-moonshot-key-not-real'
     const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-    const { createUserMessage } = await import('../../src/utils/messages.ts')
+    const { createUserMessage } = await import('../../src/services/messages.ts')
     const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
     const { entryToRecord } = await import('../../src/fabric/entryCodec.ts')
     const assistants: Array<{ message: { content: unknown } }> = []

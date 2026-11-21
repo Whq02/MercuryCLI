@@ -161,7 +161,7 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 const socketRoadModule = await import('../../src/services/providers/openai/openaiSocketTransport.ts').catch(() => null)
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { z } = await import('zod/v4')
 

@@ -7,7 +7,7 @@ import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import type { SessionListing } from '../../../types/logs.js'
 import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
-import { retentionWindowDays } from '../../../utils/cleanup.js'
+import { retentionWindowDays } from '../../../services/cleanup.js'
 import {
   buildPruneOffer,
   operatorPruneTranscripts,
