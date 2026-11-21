@@ -5,7 +5,7 @@ import { OTHER_WRITERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArg
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { expandShellConstants, walkShellCommands } from './walk.js'
 import { GLOB_PART, readForFloors } from './homes.js'
-import { foldersAfter } from './folders.js'
+import { foldersAfter, placesCertain } from './folders.js'
 import { POWERSHELL_LISTERS, powershellListing, sharesEarlierStage } from './listings.js'
 
 const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
@@ -125,7 +125,7 @@ async function credentialWritePowerShell(command: string, cwd: string): Promise<
 export async function readCredentialWrite(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   if (powershell) return credentialWritePowerShell(command, cwd)
   const read = await readForFloors(command, false, cwd)
-  if (read === null || read.exact.kind === 'parse-unavailable') {
+  if (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command)) {
     const walked = await credentialWriteWalked(command, false, cwd)
     if (walked !== null) return walked
   }

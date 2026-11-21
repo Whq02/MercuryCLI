@@ -6,7 +6,7 @@ import { UNREAD_ADVICE, flaggedReadOperands, readOperands, unreadWords, verb } f
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptReads } from './inlineScripts.js'
 import { expandShellConstants, walkShellCommands } from './walk.js'
 import { GLOB_PART, SECRET_NAME_SAMPLES, UPLOADERS, couldNameSecret, globNamesStore, holdsMercuryHome, mercuryHomes, namesMercuryHome, readForFloors, secretNameBehindUnread, secretsHeld, spellingsOf, underOtherHomes } from './homes.js'
-import { foldersAfter, foldersRead } from './folders.js'
+import { foldersAfter, foldersRead, placesCertain } from './folders.js'
 import { FILE_READERS, FIND_NON_READERS, POWERSHELL_LISTERS, callsUnreadName, filesSentOrPrinted, findMaxDepth, findNamesASecret, findstrFolderFiles, gitGrepRoots, joinedUnderStanding, keychainItemRead, namesNoSecret, powershellListing, readsHandedFiles, readsWholeTree, receivesListing, ripgrepReachesHidden, searcherOf, searchesNamesAsText, searchesTextOfListing, sharesEarlierStage, stagesApart, standingSpelled, storeBelowDepth, treeReadRoots } from './listings.js'
 
 const PS_NET_SECRET_READER = /\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
@@ -73,7 +73,7 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
   }
   const read = await readForFloors(command, powershell, cwd)
   if (!powershell) {
-    if (read === null || read.exact.kind === 'parse-unavailable') {
+    if (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command)) {
       const named = await namedMercurySecretPath(command, false, cwd)
       if (named !== null) return named
     } else {
