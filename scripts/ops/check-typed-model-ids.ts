@@ -256,7 +256,7 @@ const skipped: string[] = []
 {
   const { resolveZaiDispatch } = await import('../../src/services/providers/providerDiscovery.js')
   const { zaiChatCompletionsUrl } = await import('../../src/services/providers/zai/zaiClient.js')
-  const { keyLanePins } = await import('../../src/utils/model/modelOptions.js')
+  const { keyLanePins } = await import('../../src/services/model/modelOptions.js')
   const { GLM_PRICE_PINS } = await import('../../src/utils/model/pins/glmPins.js')
   const typed = keyLanePins('zai').map(pin => pin.id)
   const table: ListResult = { typedTable: GLM_PRICE_PINS.map(pin => pin.observedAt).sort().at(-1) ?? 'unknown', ids: GLM_PRICE_PINS.map(pin => pin.id) }

@@ -37,7 +37,7 @@ const {
 } = await import('../../src/utils/blender/bridgeProtocol.js')
 const { getBlenderBridgeClient, resetBlenderBridgeClientForTest } = await import('../../src/services/blender/bridgeClient.js')
 const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.js')
-const { computeHarnessMapLines } = await import('../../src/utils/cockpit/harnessMap.js')
+const { computeHarnessMapLines } = await import('../../src/services/cockpit/harnessMap.js')
 const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.js')
 const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
 const { startFakeBlenderBridge } = await import('./fake-bridge.js')

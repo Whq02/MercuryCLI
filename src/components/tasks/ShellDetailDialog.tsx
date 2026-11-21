@@ -18,7 +18,7 @@ import { KeyboardShortcutHint } from '../design-system/KeyboardShortcutHint.js'
 import { CommandCenter, SectionHeader } from '../mercury-ui/components.js'
 import { WorkingGlyph } from '../mercury-ui/LiveGlyphs.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { subscribeTaskOutputPath } from '../../utils/task/diskOutput.js'
 
 const TAIL_BYTES = 8 * 1024
 const COUNT_CHUNK_BYTES = 64 * 1024
@@ -177,13 +177,21 @@ export function ShellDetailDialog({
   const count = useRef(freshLineCount(shell.outputFile))
   const [tail, setTail] = useState(() => readTail(shell.outputFile, count.current))
   useTimer(() => {
-    if (count.current.path !== shell.outputFile) count.current = freshLineCount(shell.outputFile)
-    setTail(readTail(shell.outputFile, count.current))
-    if (!running) return
-    const timer = startInterval(() => {
-      setTail(readTail(shell.outputFile, count.current))
-    }, 1000)
-    return () => stopInterval(timer)
+    const path = shell.outputFile
+    if (count.current.path !== path) count.current = freshLineCount(path)
+    const refresh = (): void => {
+      const next = readTail(path, count.current)
+      setTail(prev =>
+        prev.present === next.present && prev.totalBytes === next.totalBytes && prev.totalLines === next.totalLines && prev.content === next.content ? prev : next,
+      )
+    }
+    if (!running || path === undefined) {
+      refresh()
+      return
+    }
+    const stop = subscribeTaskOutputPath(path, refresh)
+    refresh()
+    return stop
   }, [shell.outputFile, running])
   const deferredTail = useDeferredValue(tail)
 

@@ -11,14 +11,14 @@ import {
   describeComputedDefaultLabel,
   describeComputedDefaultRow,
   isChooseAModel,
-} from './computedDefault.js'
+} from '../../services/model/computedDefault.js'
 import { context1mNeedsUnsentHeader, has1mContext } from './capabilities.js'
 import { gptDisplayName } from './pins/gptPins.js'
 import { isMistralModelId } from './pins/mistralPins.js'
 import { getModelStrings } from './modelStrings.js'
 import { recognizeModelId } from '../../services/providers/idSpaces.js'
 import { deepseekRetiredAliasTarget } from './pins/deepseekPins.js'
-import { resolveBareFamilyWord } from './bareFamilyWords.js'
+import { resolveBareFamilyWord } from '../../services/model/bareFamilyWords.js'
 import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from './modelNames.js'
 import { tellHowAModelSettingResolves } from './settingResolution.js'
 import { passedOver } from '../passedOver.js'

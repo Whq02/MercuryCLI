@@ -1,6 +1,7 @@
 import * as fs from 'node:fs'
-import { join, resolve } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 
+import { subscribeUiClock } from '../cockpit/uiClock.js'
 import { readFileRange } from '../fsOperations.js'
 import { getErrnoCode } from '../errors.js'
 import { logError } from '../log.js'
@@ -9,6 +10,8 @@ import { rememberedPlatform } from '../platform/host.js'
 import { getProjectTempDir } from '../permissions/filesystem.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { sleep } from '../sleep.js'
+import { startTimeout, stopTimeout } from '../timers.js'
+import { resolveWatchRoot } from '../watchRoot.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 
 
@@ -69,6 +72,7 @@ async function createTaskOutputFile(taskId: string): Promise<string> {
     throw error
   }
   await handle.close()
+  notifyTaskOutputPath(path)
   return path
 }
 
@@ -92,6 +96,7 @@ async function replaceEmptyOutputWithLink(outputPath: string, transcriptPath: st
     } catch {
       await fs.promises.writeFile(outputPath, '', { flag: 'wx' })
     }
+    notifyTaskOutputPath(outputPath)
   } catch (error) {
     passedOver(error)
   }
@@ -138,6 +143,7 @@ async function createTaskOutputSymlink(taskId: string, targetPath: string): Prom
       await fs.promises.unlink(path)
       await fs.promises.symlink(targetPath, path)
     }
+    notifyTaskOutputPath(path)
     return path
   } catch (error) {
     logError(error)
@@ -231,6 +237,7 @@ export class DiskTaskOutput {
     await handle.write(Buffer.from(note, 'utf8'))
     this.lostChars = 0
     this.lastWriteError = undefined
+    notifyTaskOutputPath(this.path)
   }
 
   private async drainCycle(): Promise<void> {
@@ -241,6 +248,7 @@ export class DiskTaskOutput {
         await this.writeLossNoteIfOwed(handle)
         while (this.queue.length > 0) {
           await handle.write(takeQueuedPayload(this.queue))
+          notifyTaskOutputPath(this.path)
         }
       } finally {
         await handle.close()
@@ -296,5 +304,227 @@ export async function getTaskOutputDelta(
     if (getErrnoCode(error) === 'ENOENT') return { content: '', newOffset: fromOffset }
     logError(error)
     return { content: '', newOffset: fromOffset }
+  }
+}
+
+const TASK_OUTPUT_COALESCE_MS = 50
+const TASK_OUTPUT_FALLBACK_POLL_MS = 200
+
+type OutputWatchEntry = {
+  path: string
+  listeners: Set<() => void>
+  fileWatcher: fs.FSWatcher | null
+  dirWatcher: fs.FSWatcher | null
+  fallbackStop: (() => void) | null
+  coalesceTimer: ReturnType<typeof setTimeout> | null
+  dirty: boolean
+  closed: boolean
+}
+
+const outputWatchers = new Map<string, OutputWatchEntry>()
+
+function closeWatcher(watcher: fs.FSWatcher | null): void {
+  if (watcher === null) return
+  try {
+    watcher.close()
+  } catch (error) {
+    passedOver(error)
+  }
+}
+
+function stopFallback(entry: OutputWatchEntry): void {
+  if (entry.fallbackStop === null) return
+  const stop = entry.fallbackStop
+  entry.fallbackStop = null
+  stop()
+}
+
+function closeTaskOutputEntry(entry: OutputWatchEntry): void {
+  closeWatcher(entry.fileWatcher)
+  entry.fileWatcher = null
+  closeWatcher(entry.dirWatcher)
+  entry.dirWatcher = null
+  stopFallback(entry)
+  if (entry.coalesceTimer !== null) {
+    stopTimeout(entry.coalesceTimer)
+    entry.coalesceTimer = null
+  }
+  entry.dirty = false
+}
+
+function flushTaskOutputListeners(entry: OutputWatchEntry): void {
+  if (entry.closed) return
+  for (const listener of [...entry.listeners]) {
+    try {
+      listener()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+}
+
+function emitTaskOutput(entry: OutputWatchEntry): void {
+  if (entry.closed) return
+  if (entry.coalesceTimer !== null) {
+    entry.dirty = true
+    return
+  }
+  flushTaskOutputListeners(entry)
+  if (entry.closed) return
+  entry.coalesceTimer = startTimeout(() => {
+    entry.coalesceTimer = null
+    if (!entry.dirty || entry.closed) return
+    entry.dirty = false
+    emitTaskOutput(entry)
+  }, TASK_OUTPUT_COALESCE_MS)
+  entry.coalesceTimer.unref?.()
+}
+
+function armFallbackClock(entry: OutputWatchEntry): void {
+  if (entry.closed || entry.fallbackStop !== null) return
+  entry.fallbackStop = subscribeUiClock(TASK_OUTPUT_FALLBACK_POLL_MS, () => {
+    if (entry.closed) return
+    if (tryArmFileWatcher(entry)) {
+      closeWatcher(entry.dirWatcher)
+      entry.dirWatcher = null
+      stopFallback(entry)
+    }
+    emitTaskOutput(entry)
+  })
+}
+
+function nearestExistingDir(targetPath: string): string | null {
+  let current = dirname(targetPath)
+  for (;;) {
+    if (fs.existsSync(current)) return current
+    const parent = dirname(current)
+    if (parent === current) return null
+    current = parent
+  }
+}
+
+function tryArmFileWatcher(entry: OutputWatchEntry): boolean {
+  if (entry.closed) return false
+  if (entry.fileWatcher !== null) return true
+  try {
+    const watcher = fs.watch(resolveWatchRoot(entry.path), { persistent: false }, event => {
+      if (entry.closed) return
+      if (event === 'rename') {
+        closeWatcher(entry.fileWatcher)
+        entry.fileWatcher = null
+        armTaskOutputWatcher(entry)
+      }
+      emitTaskOutput(entry)
+    })
+    watcher.on('error', () => {
+      if (entry.closed) return
+      closeWatcher(entry.fileWatcher)
+      entry.fileWatcher = null
+      armTaskOutputWatcher(entry)
+    })
+    watcher.unref?.()
+    entry.fileWatcher = watcher
+    return true
+  } catch (error) {
+    passedOver(error)
+    return false
+  }
+}
+
+function armTaskOutputWatcher(entry: OutputWatchEntry): void {
+  if (entry.closed) return
+  if (tryArmFileWatcher(entry)) {
+    closeWatcher(entry.dirWatcher)
+    entry.dirWatcher = null
+    stopFallback(entry)
+    return
+  }
+  let isDanglingLink = false
+  try {
+    isDanglingLink = fs.lstatSync(entry.path).isSymbolicLink()
+  } catch (error) {
+    passedOver(error)
+  }
+  if (isDanglingLink) {
+    armFallbackClock(entry)
+    return
+  }
+  if (entry.dirWatcher !== null) return
+  const watchDir = nearestExistingDir(entry.path)
+  if (watchDir === null) {
+    armFallbackClock(entry)
+    return
+  }
+  const parentDir = dirname(entry.path)
+  const fileName = basename(entry.path)
+  try {
+    const watcher = fs.watch(resolveWatchRoot(watchDir), { persistent: false }, (_event, changed) => {
+      if (entry.closed) return
+      if (watchDir === parentDir && changed !== null && String(changed) !== fileName) return
+      if (tryArmFileWatcher(entry)) {
+        closeWatcher(entry.dirWatcher)
+        entry.dirWatcher = null
+        stopFallback(entry)
+        emitTaskOutput(entry)
+      } else if (watchDir !== parentDir) {
+        const deeper = nearestExistingDir(entry.path)
+        if (deeper !== null && deeper !== watchDir) {
+          closeWatcher(entry.dirWatcher)
+          entry.dirWatcher = null
+          armTaskOutputWatcher(entry)
+        }
+      }
+    })
+    watcher.on('error', () => {
+      if (entry.closed) return
+      closeWatcher(entry.dirWatcher)
+      entry.dirWatcher = null
+      armFallbackClock(entry)
+    })
+    watcher.unref?.()
+    entry.dirWatcher = watcher
+    if (fs.existsSync(entry.path) && tryArmFileWatcher(entry)) {
+      closeWatcher(entry.dirWatcher)
+      entry.dirWatcher = null
+      stopFallback(entry)
+      emitTaskOutput(entry)
+    }
+  } catch (error) {
+    passedOver(error)
+    armFallbackClock(entry)
+  }
+}
+
+function notifyTaskOutputPath(path: string): void {
+  const entry = outputWatchers.get(resolve(path))
+  if (entry === undefined) return
+  if (entry.fileWatcher === null) armTaskOutputWatcher(entry)
+  emitTaskOutput(entry)
+}
+
+export function subscribeTaskOutputPath(path: string, listener: () => void): () => void {
+  const key = resolve(path)
+  let entry = outputWatchers.get(key)
+  if (entry === undefined) {
+    entry = {
+      path: key,
+      listeners: new Set(),
+      fileWatcher: null,
+      dirWatcher: null,
+      fallbackStop: null,
+      coalesceTimer: null,
+      dirty: false,
+      closed: false,
+    }
+    outputWatchers.set(key, entry)
+    armTaskOutputWatcher(entry)
+  }
+  entry.listeners.add(listener)
+  return () => {
+    entry.listeners.delete(listener)
+    if (entry.listeners.size > 0) return
+    entry.closed = true
+    closeTaskOutputEntry(entry)
+    outputWatchers.delete(key)
   }
 }

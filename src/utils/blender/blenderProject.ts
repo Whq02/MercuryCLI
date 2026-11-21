@@ -8,7 +8,7 @@ import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
 import { whichSync } from '../which.js'
 import { passedOver } from '../passedOver.js'
-import { hostEnv } from '../hostEnv.js'
+import { blenderProgramFilesRoot } from '../platform/vendors.js'
 
 export const BLEND_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
@@ -135,10 +135,8 @@ export function locateBlender(testOpts?: {
       if (isFile(candidate)) return { blender: { path: candidate, source: 'app-bundle' } }
     }
   }
-  if (platform === 'win32') {
-    const root =
-      testOpts?.programFilesRoot ??
-      path.join(hostEnv().ProgramFiles ?? 'C:\\Program Files', 'Blender Foundation')
+  const root = blenderProgramFilesRoot(platform, testOpts?.programFilesRoot)
+  if (root !== null) {
     let dirs: string[] = []
     try {
       dirs = readdirSync(root).filter(name => isDir(path.join(root, name)))

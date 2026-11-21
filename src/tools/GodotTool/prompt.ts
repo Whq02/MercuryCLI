@@ -1,5 +1,5 @@
 import { VULCAN_OPS, type VulcanOp } from '../../utils/vulcan/optable.generated.js'
-import { vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanLiteMode } from '../../services/vulcan/vulcanGates.js'
 
 export const GODOT_TOOL_NAME = 'Godot' as const
 

@@ -19,10 +19,10 @@ const { catalogueEpoch } = await import('../../src/services/providers/catalogueE
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const router = await import('../../src/services/providers/zai/zaiAdapter.ts')
-const { keyLanePins, keyLaneListState, getModelOptions, ZAI_MODEL_GROUP, LIVE_UNKNOWN_ROW_WORDS } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, keyLaneListState, getModelOptions, ZAI_MODEL_GROUP, LIVE_UNKNOWN_ROW_WORDS } = await import('../../src/services/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
 const { zaiApiBase } = await import('../../src/services/providers/zai/zaiClient.ts')
 

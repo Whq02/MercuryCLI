@@ -1,6 +1,6 @@
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getIsNonInteractiveSession } from '../bootstrap/state.js'
-import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credentialEnvSpellings.js'
+import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../constants/credentialEnvSpellings.js'
 import { isEnvTruthy } from './envUtils.js'
 import { AGENT_CLI_SESSION_ENV_VARS, AGENT_CLI_TOKEN_FD_ENV_VARS } from './knownAgentClis.js'
 import { hostEnv } from './hostEnv.js'

@@ -19,7 +19,7 @@ import {
 import { walletEntries } from '../../services/wallet/wallet.js'
 import { providerDisplayName } from '../../services/providers/routeLaw.js'
 import { familyRouteWords } from '../../services/providers/accountSlots.js'
-import { CHOOSE_A_MODEL_DOOR, computedDefault } from '../../utils/model/computedDefault.js'
+import { CHOOSE_A_MODEL_DOOR, computedDefault } from '../../services/model/computedDefault.js'
 import { isRateLimitErrorMessage } from '../../services/rateLimitMessages.js'
 import { getUpgradeMessage } from '../../utils/model/contextWindowUpgradeCheck.js'
 import {

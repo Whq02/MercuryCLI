@@ -1,9 +1,9 @@
-import { readSignInRefusal, signInRefusalWords } from '../utils/accounts/signInRefusal.js'
+import { readSignInRefusal, signInRefusalWords } from '../services/providers/signInRefusal.js'
 import { providerFamilyPresences } from '../services/providers/providerUsage.js'
 import { readModelListFacts } from '../services/providers/typedModelIds.js'
 import { dropCredentialMemos } from '../utils/auth.js'
 import { getAuthConfigHomeDir } from '../utils/envUtils.js'
-import { computedDefault, resetComputedDefaultMemo } from '../utils/model/computedDefault.js'
+import { computedDefault, resetComputedDefaultMemo } from '../services/model/computedDefault.js'
 import { getSecureStorage } from '../utils/secureStorage/index.js'
 import type { DaemonSignInViewV1, SignInFamilyViewV1 } from './protocol.js'
 

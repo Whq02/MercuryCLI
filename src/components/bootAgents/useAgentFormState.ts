@@ -5,7 +5,7 @@ import type { AgentDefinition } from '../../types/agent.js';
 import type { AgentTrashEntry } from '../../services/agents/store.js';
 import { createStudioEditorMachine, type FieldId, type StudioDraftBase, type StudioEditorMachine, type StudioEditorSnapshot } from '../agents/studio/studioEditorModel.js';
 import type { EffortValue } from '../../utils/effort.js';
-import type { AgentModelPickerRow } from '../../utils/model/agentModelPicker.js';
+import type { AgentModelPickerRow } from '../../services/model/agentModelPicker.js';
 import type { AgentDefinitions } from './context.js';
 
 export function useAgentFormState({ defs, workspaceDir, mainModel, setNote, refreshEverywhere }: { defs: AgentDefinitions['defs']; workspaceDir: string; mainModel: ReturnType<typeof useEngineModel>; setNote: AgentDefinitions['setNote']; refreshEverywhere: AgentDefinitions['refreshEverywhere'] }) {

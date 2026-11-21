@@ -3,7 +3,7 @@ import { proofHome } from '../lib/hermetic.ts'
 import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_META_API_BASE = 'http://127.0.0.1:1/v1'
@@ -16,10 +16,10 @@ const { parseUserSpecifiedModel, getCanonicalName } = await import('../../src/ut
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/utils/model/modelFamilies.ts')
 const { metaCatalogueEntries } = await import('../../src/services/providers/meta/metaAdapter.ts')
-const { keyLanePins, getModelOptions, META_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions, META_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor, modelThinkingAlwaysOn, modelReceivesImageBlocks, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 let count = 0
 const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }

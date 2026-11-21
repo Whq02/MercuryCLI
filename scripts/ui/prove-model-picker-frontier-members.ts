@@ -53,7 +53,7 @@ enableConfigs()
 
 section('the rows: the alias row and the previous generation\'s literal row are adjacent, named, undescribed')
 {
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
   const { renderModelName } = await import('../../src/utils/model/model.ts')
@@ -84,7 +84,7 @@ if (driver.kind !== 'posix-pty') {
   writeFileSync(join(home, '.credentials.json'), FIXTURE_CREDS)
   const grid = join(SCRATCH, 'frontier-members-120x40.json')
   const cfgPath = join(SCRATCH, 'vshot.json')
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   if (!getModelOptions({ anthropicCredentialed: () => true }).some(row => row.group === undefined)) throw new Error('The Anthropic section is absent from the catalogue')
   writeFileSync(
     cfgPath,

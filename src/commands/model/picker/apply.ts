@@ -1,4 +1,4 @@
-import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type SeatReceiptState } from '../../../utils/model/modelTransition.js'
+import { crossProviderNote, providerFamilyOfSetting, settleModelSelection, type SeatReceiptState } from '../../../services/model/modelTransition.js'
 import { previewForSelection, transitionPlanSummary } from '../../../services/providers/transitionPreview.js'
 import { persistModelChoice } from '../persistModelChoice.js'
 import type { EngineConnectorV1 } from '../../../services/engine-connector/types.js'

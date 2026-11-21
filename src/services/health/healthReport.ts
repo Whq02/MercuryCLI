@@ -33,7 +33,7 @@ import {
   type LastCertSummary,
 } from '../../utils/healthCertCore.js'
 import { getUserSpecifiedModelSetting } from '../../utils/model/model.js'
-import { computedDefault } from '../../utils/model/computedDefault.js'
+import { computedDefault } from '../model/computedDefault.js'
 import { gitSnapshot } from '../../utils/cockpit/gitSnapshot.js'
 import { healthFixEnabled } from '../../utils/healthFix.js'
 import { sleep } from '../../utils/sleep.js'
@@ -42,6 +42,7 @@ import { passedOver } from '../../utils/passedOver.js'
 import { withDeadline } from '../../utils/deadline.js'
 import { heldFileRetriesApply } from '../../utils/platform/files.js'
 import { childGetsOwnProcessGroup, processTreeEndMethod } from '../../utils/platform/processes.js'
+import { homeRepoRemovalCommands } from '../../utils/platform/words.js'
 import { sleepSync } from '../../utils/timers.js'
 
 const treeScratchDirs = new Set<string>()
@@ -155,16 +156,7 @@ function gitLogSubjects(dir: string, limit: number): Promise<string[] | null> {
 
 export function homeRepositoryRemovalWords(dir: string, platform: NodeJS.Platform = process.platform): { inspect: string; remove: string } {
   const inside = isHomeDirectory(dir) ? [] : [basename(dir)]
-  if (platform === 'win32') {
-    const segments = ['$env:USERPROFILE', ...inside.map(s => `'${s}'`)]
-    const folder = inside.length === 0 ? '$env:USERPROFILE' : `([IO.Path]::Combine(${segments.join(', ')}))`
-    return {
-      inspect: `git -C ${folder} log --oneline`,
-      remove: `Remove-Item -Recurse -Force ([IO.Path]::Combine(${[...segments, "'.git'"].join(', ')}))`,
-    }
-  }
-  const folder = inside.length === 0 ? '"$HOME"' : `"$HOME/${inside.join('/')}"`
-  return { inspect: `git -C ${folder} log --oneline`, remove: `rm -rf ${folder.slice(0, -1)}/.git"` }
+  return homeRepoRemovalCommands(inside, platform)
 }
 
 const QUIT_FIRST_WORDS = 'quit every Mercury window and its background process (sign out and back in on Windows if unsure)'

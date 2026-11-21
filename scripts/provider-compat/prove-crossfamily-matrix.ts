@@ -594,7 +594,7 @@ section('§A the dispatch boundary — the engine grammar is TOTAL over the rout
 {
   const engine = await import('../../src/services/crew/engineDispatch.ts')
   const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
-  const { getAgentModel } = await import('../../src/utils/model/agent.ts')
+  const { getAgentModel } = await import('../../src/services/model/agent.ts')
 
   const CLASS_TO_ROUTE: Record<string, string> = {
     gpt: 'openai', glm: 'zai', kimi: 'moonshot', deepseek: 'deepseek', grok: 'xai', muse: 'meta',

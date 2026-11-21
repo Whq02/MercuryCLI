@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -69,7 +69,7 @@ try {
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
   const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+  const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
   const { readStoredCerebrasApiKey } = await import('../../src/services/providers/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never

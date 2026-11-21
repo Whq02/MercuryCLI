@@ -750,3 +750,13 @@ export type TombstoneMessage = {
   type: 'tombstone'
   message: AssistantMessage
 }
+
+export interface ModelTransitionReceipt {
+  previous: string | null
+  requested: string | null
+  applied: string | null
+  resolution: 'applied' | 'cancelled-pending'
+  boundary: 'idle' | 'turn-boundary'
+  crossProvider: boolean
+  cacheDisposition: 'keyed-sections-recompute-once' | 'none'
+}

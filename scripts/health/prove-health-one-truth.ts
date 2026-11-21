@@ -48,7 +48,7 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
   const cockpit = { ...view, families: view.families.map(f => (f.family === 'openai' ? { family: 'openai', credentialed: true, usable: true, row: 'GPT-6 Astra', why: 'the newest row this sign-in can use' } : f)) } as never
   const gaps = compareSignInViews(cockpit, view)
   check('RED ON THE BASE: a cockpit that has fetched the catalogue and a daemon that has not disagree on nothing (the Air read FAULT: daemon ≠ client — openai)', gaps.length === 0, j(gaps))
-  const options = (await import('../../src/utils/model/modelOptions.ts')).getModelOptions()
+  const options = (await import('../../src/services/model/modelOptions.ts')).getModelOptions()
   const gptRows = options.filter(o => o.group !== undefined && /gpt|openai/i.test(o.group) && !String(o.value).startsWith('__'))
   check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending])))
 

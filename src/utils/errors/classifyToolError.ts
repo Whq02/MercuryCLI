@@ -1,4 +1,6 @@
 
+import { accessDeniedErrorHint } from '../platform/words.js'
+
 type ClassifiedToolError = {
   firstLine: string
   bodyLines: string[]
@@ -11,12 +13,7 @@ const STACK_FRAME_RE = /^\s+at /
 function hintsFor(platform: NodeJS.Platform): ReadonlyArray<readonly [RegExp, string]> {
   return [
     [/\bENOENT\b/, 'path does not exist — check the cwd/spelling'],
-    platform === 'win32'
-      ? [
-          /\bEACCES\b|\bEPERM\b|\bEBUSY\b/,
-          'file in use: on Windows another program often holds a brief lock (antivirus, search indexer, or open handle). Mercury retried; if it persists, close the holder or exclude the folder from real-time scanning',
-        ]
-      : [/\bEACCES\b|\bEPERM\b/, 'permission denied — check file modes/ownership'],
+    accessDeniedErrorHint(platform),
     [/\bETIMEDOUT\b|timed out/i, 'timed out — retry or raise the timeout'],
     [/\bENOSPC\b/, 'disk full'],
   ]

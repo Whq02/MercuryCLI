@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import fixture from './fixtures/melious-documented-2026-10-24.json'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_CONFIG_DIR = proofHome
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[name]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_MELIOUS_API_BASE = 'http://127.0.0.1:1/v1'
@@ -19,7 +19,7 @@ const { loginFamilyRows, KEY_PAGES } = await import('../../src/components/loginF
 const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.ts')
 const { modelSupportsThinking, effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { getContextWindowForModel } = await import('../../src/utils/context.ts')
-const { keyLanePins, keyLaneListState, parseKeyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, keyLaneListState, parseKeyConnectValue } = await import('../../src/services/model/modelOptions.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 const { meliousRecordHeaders, meliousRecordChunk, meliousObservedUsage } = await import('../../src/services/providers/melious/meliousUsageState.ts')
 const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')

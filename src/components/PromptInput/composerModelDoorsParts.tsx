@@ -4,7 +4,7 @@ import type { Message } from '../../types/message.js'
 import type { AppState } from '../../state/AppState.js'
 import type { AppStateStore } from '../../state/AppStateStore.js'
 import type { Notification } from '../../context/notifications.js'
-import { crossProviderNote, providerFamilyOfSetting, seatWithFold, settleModelSelection, type SeatReceiptState, type TransitionPlan } from '../../utils/model/modelTransition.js'
+import { crossProviderNote, providerFamilyOfSetting, seatWithFold, settleModelSelection, type SeatReceiptState, type TransitionPlan } from '../../services/model/modelTransition.js'
 import {
   previewForSelection,
   reconfirmTransitionPlan,

@@ -7,7 +7,7 @@ import { z } from 'zod/v4'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL', 'DASHSCOPE_BASE_URL', 'DASHSCOPE_WORKSPACE_ID']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -118,14 +118,14 @@ try {
   const { usageForProvider } = await import('../../src/services/providers/providerUsage.ts')
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
   const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
-  const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+  const { keyLaneListState, keyLanePins, keyLaneProviderRows, QWEN_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
   const pickerWords = (): string[] => keyLaneProviderRows().filter(row => row.group === QWEN_MODEL_GROUP).map(row => row.descriptionForModel ?? '')
   const { readStoredQwenApiKey, readStoredQwenKeyBase } = await import('../../src/services/providers/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
   const { loginFamilyRows, KEY_PAGES, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
   const { providerAuthLogin, normalizeTerminalAuthFamily } = await import('../../src/cli/handlers/providerAuth.ts')
   const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-  const { bareFamilyWordOf } = await import('../../src/utils/model/bareFamilyWords.ts')
+  const { bareFamilyWordOf } = await import('../../src/services/model/bareFamilyWords.ts')
   const { getContextWindowForModel, getModelMaxOutputTokens, modelSupportsThinking } = await import('../../src/utils/model/capabilities.ts')
   const { getModelCosts, modelPricingBasis } = await import('../../src/services/usage/modelCost.ts')
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')

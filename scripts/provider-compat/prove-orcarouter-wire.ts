@@ -8,7 +8,7 @@ import fixture from './fixtures/orcarouter-documented.json'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'ANTHROPIC_BASE_URL']) delete process.env[key]
 process.env.ORCAROUTER_API_KEY = 'proof-key-orcarouter-fixture-not-a-real-key'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -72,7 +72,7 @@ try {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
   const catalogue = await import('../../src/services/providers/orcarouter/orcarouterCatalogue.ts')
-  const { getModelOptions, keyLaneListState } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, keyLaneListState } = await import('../../src/services/model/modelOptions.ts')
   const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
   const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
@@ -120,7 +120,7 @@ try {
   check('billing cents and total-credit units yield remaining credit', usageForProvider('orcarouter').balance?.display === 'USD 7.25 remaining credit')
   billingUnlimited = true; await refreshProviderUsage('orcarouter', { force: true })
   check('an unlimited key is not a fabricated wallet', usageForProvider('orcarouter').balance === undefined && usageForProvider('orcarouter').credits?.state === 'unreported')
-  const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
   for (const testMode of ['budget', 'key-quota', 'cycle', 'byok']) {
     mode = testMode; const before = captures.length; const result = await run()
     check(`${testMode} is terminal policy, not an expired credential`, captures.length === before + 1 && result.some(row => row.error === 'invalid_request') && readSignInRefusal('orcarouter') === undefined)

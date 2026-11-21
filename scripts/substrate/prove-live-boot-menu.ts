@@ -361,7 +361,7 @@ section('§3 receipts, evaluateExplicitApply & admitted snapshot revision')
 
 section('§4 tail announcements in-process — harness_map_delta + deferred_tools_delta once on ON and once on OFF, system prompt frozen')
 {
-  const { getHarnessMapDelta, resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
+  const { getHarnessMapDelta, resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
   const { resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
   const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')

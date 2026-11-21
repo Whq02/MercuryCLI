@@ -22,7 +22,7 @@ import { deriveScheduleAccountForModel, readLiveAccountFacts, scheduleAccountVer
 import { readBoxSchedules, removeBoxSchedule, setBoxSchedulePaused } from '../daemon/saturnBoxSchedules.js';
 import { WHEN_SPELLING_EXAMPLES } from '../services/saturn/whenSpelling.js';
 import { listKitPresets } from '../services/mcp/presetStore.js';
-import { getModelOptions, KEY_CONNECT_PREFIX } from '../utils/model/modelOptions.js';
+import { getModelOptions, KEY_CONNECT_PREFIX } from '../services/model/modelOptions.js';
 import { readSessionReceipts, type SessionReceiptEntry } from '../services/switchboard/sessionReceipts.js';
 import { accountIdentityShown } from '../services/wallet/identityWords.js';
 import { getProjectDir } from '../utils/sessionStorage/paths.js';

@@ -1,7 +1,7 @@
 import { getAnthropicApiKeyWithSource, getAuthTokenSource } from '../../../utils/auth.js'
 import { buildProviderSnapshot } from '../../providers/modelRegistry.js'
 import { getEngineModel, getUserSpecifiedModelSetting } from '../../../utils/model/model.js'
-import { computedDefault, mostRecentSignInFamily } from '../../../utils/model/computedDefault.js'
+import { computedDefault, mostRecentSignInFamily } from '../../model/computedDefault.js'
 import { tensorFoldHealthChecks, unresolvedDefaultRow, type CheckSpec } from '../healthReport.js'
 import { passedOver } from '../../../utils/passedOver.js'
 

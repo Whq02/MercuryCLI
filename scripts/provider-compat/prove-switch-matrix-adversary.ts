@@ -200,7 +200,7 @@ const { createUserMessage } = await import('../../src/utils/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/utils/model/modelTransition.ts'
+  '../../src/services/model/modelTransition.ts'
 )
 type Message = import('../../src/types/message.ts').Message
 

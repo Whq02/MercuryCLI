@@ -131,6 +131,7 @@ try {
   {
     const r = runIsolated(`
       const { ListMcpResourcesTool } = await import(SRC + '/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts')
+      const { getEmptyToolPermissionContext } = await import(SRC + '/Tool.ts')
       const { tellMcpToolsTheClient } = await import(SRC + '/services/mcp/client/forTools.ts')
       tellMcpToolsTheClient({
         ensureConnectedClient: async client => {
@@ -141,6 +142,7 @@ try {
         reconnectMcpServerImpl: async () => { throw new Error('unused') },
       })
       const ctx = {
+        getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }),
         options: {
           mcpClients: [
             { type: 'connected', name: 'broken' },

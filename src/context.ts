@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import {
   getCwdState,
+  getProjectRoot,
 } from './bootstrap/state.js'
 import {
   composeInstructionPrompt,
@@ -14,6 +15,7 @@ import { isBareMode } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
 import { getCwd } from './utils/cwd.js'
 import { memoizeByCwd } from './utils/cwdMemo.js'
+import { getOwnerContext } from './utils/run/ownerContext.js'
 import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
 import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
@@ -23,6 +25,10 @@ import { INSTRUCTIONS_CONTEXT_KEY } from './utils/userContextReminder.js'
 
 const GIT_STATUS_MAX_LENGTH = 2000
 const CONTEXT_MEMO_CAP = 64
+
+function contextRootDir(): string {
+  return getOwnerContext()?.directory?.cwd ?? getProjectRoot()
+}
 export function isInstructionDiscoveryDisabled(): boolean {
   return isBareMode()
 }
@@ -101,7 +107,7 @@ export const getGitStatus = memoizeByCwd(async (): Promise<string | null> => {
     logError(error)
     return null
   }
-}, CONTEXT_MEMO_CAP)
+}, CONTEXT_MEMO_CAP, contextRootDir)
 
 let instructionInvalidationArmed = false
 function armInstructionInvalidation(): void {
@@ -134,6 +140,7 @@ export const getSystemContext = memoizeByCwd(
     }
   },
   CONTEXT_MEMO_CAP,
+  contextRootDir,
 )
 
 function localIsoDate(): string {

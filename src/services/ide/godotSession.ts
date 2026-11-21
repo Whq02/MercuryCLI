@@ -22,7 +22,7 @@ import {
   listDapSessions,
   resolveAdapter,
 } from '../dap/dapClient.js'
-import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanEnabled } from '../vulcan/vulcanGates.js'
 import {
   vulcanInstallStatus,
   type VulcanInstallStatus,

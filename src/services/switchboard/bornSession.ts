@@ -92,7 +92,7 @@ function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: b
     if (!savedDefaultRoad(resolved)) return { setting: resolved, receipt: null }
     const { declaredRouteOf, providerDisplayName } = require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     if (declaredRouteOf(resolved) === 'local') return { setting: resolved, receipt: null }
-    const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+    const { computedDefault } = require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')
     const decision = computedDefault()
     const fallback =
       decision.source === 'keyless' || decision.provider === null
@@ -118,7 +118,7 @@ function birthModelForSignedInFamily(resolved: string | undefined, screenRoad: b
 async function birth(req: BirthRequest): Promise<BirthOutcome> {
   const facts = bootBirthFacts()
   if (facts.model === null && (req.model ?? null) === null) {
-    const { readComputedDefaultCatalogue } = await import('../../utils/model/computedDefault.js')
+    const { readComputedDefaultCatalogue } = await import('../model/computedDefault.js')
     await readComputedDefaultCatalogue()
   }
   const screen = screenBirthModel()

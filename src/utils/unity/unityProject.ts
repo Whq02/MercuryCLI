@@ -1,13 +1,12 @@
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { homedir } from 'node:os'
 import * as path from 'node:path'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
 import { getCwd } from '../cwd.js'
 import { projectFolderPath } from '../projectHomeStores.js'
 import { whichSync } from '../which.js'
 import { passedOver } from '../passedOver.js'
-import { hostEnv } from '../hostEnv.js'
+import { unityEditorExecutablePath, unityHubEditorRoots } from '../platform/vendors.js'
 
 const ROOT_WALK_LIMIT = 24
 
@@ -92,23 +91,6 @@ interface UnityEditorCensus {
   pinError?: string
 }
 
-function unityHubRoots(platform: NodeJS.Platform = process.platform): string[] {
-  if (platform === 'darwin') return ['/Applications/Unity/Hub/Editor']
-  if (platform === 'win32') {
-    const programFiles = hostEnv().ProgramFiles ?? 'C:\\Program Files'
-    return [path.join(programFiles, 'Unity', 'Hub', 'Editor')]
-  }
-  return [path.join(homedir(), 'Unity', 'Hub', 'Editor')]
-}
-
-function editorExecutableIn(versionDir: string, platform: NodeJS.Platform): string {
-  if (platform === 'darwin') {
-    return path.join(versionDir, 'Unity.app', 'Contents', 'MacOS', 'Unity')
-  }
-  if (platform === 'win32') return path.join(versionDir, 'Editor', 'Unity.exe')
-  return path.join(versionDir, 'Editor', 'Unity')
-}
-
 export function compareUnityVersionsDesc(a: string, b: string): number {
   const as = a.split(/[.\-]/)
   const bs = b.split(/[.\-]/)
@@ -139,7 +121,7 @@ export function locateUnityEditors(testOpts?: {
     }
   }
   const editors: UnityEditorLocation[] = []
-  for (const root of testOpts?.hubRoots ?? unityHubRoots(platform)) {
+  for (const root of testOpts?.hubRoots ?? unityHubEditorRoots(platform)) {
     let versionDirs: string[]
     try {
       versionDirs = readdirSync(root).filter(name => isDir(path.join(root, name)))
@@ -149,7 +131,7 @@ export function locateUnityEditors(testOpts?: {
     }
     versionDirs.sort(compareUnityVersionsDesc)
     for (const version of versionDirs) {
-      const executable = editorExecutableIn(path.join(root, version), platform)
+      const executable = unityEditorExecutablePath(path.join(root, version), platform)
       if (isFile(executable)) editors.push({ version, path: executable, source: 'hub' })
     }
   }

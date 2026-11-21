@@ -307,7 +307,7 @@ t.section('§13 — BOARD CONNECT ROWS (the selected action opens sign-in on its
 
 t.section('§14 — THE FAMILY RIDES THE DOOR (the row names its family; the face opens the sign-in layer on it and returns to the opener)')
 {
-  const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/utils/model/modelOptions.js')
+  const { signInFamilyOfRow, GPT_CONNECT_OPTION_VALUE, ANTHROPIC_CONNECT_OPTION_VALUE, keyConnectValue } = await import('../../src/services/model/modelOptions.js')
   t.check('the GPT connect row names openai', signInFamilyOfRow(GPT_CONNECT_OPTION_VALUE) === 'openai')
   t.check('the Anthropic connect row names anthropic', signInFamilyOfRow(ANTHROPIC_CONNECT_OPTION_VALUE) === 'anthropic')
   for (const family of ['openrouter', 'gemini', 'huggingface']) t.check(`the ${family} connect row names ${family}`, signInFamilyOfRow(`__mercury_${family}_connect__`) === family)

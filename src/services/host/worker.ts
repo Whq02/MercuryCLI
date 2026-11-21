@@ -18,7 +18,7 @@ import { createHostResource, hostClusterRecord, hostCreateRefusal, hostResourceK
 import { hostSetupTimeout } from './costs.js'
 import { hostRecipeOfRecord } from './recipesFile.js'
 import { hostNotice } from './notices.js'
-import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord, type HostRecord } from './store.js'
+import { hostDirectory, patchHostRecord, readHostRecord, removeHostRecord, subscribeHostRecord, type HostRecord } from './store.js'
 import type { HostRecipe } from './recipes.js'
 import { activeHostWatches, queueHostSetup, watchModel, watchRateWords } from './jobs.js'
 import { bankModelPath, bytesWords, recordBankFailure, shortFolder, verifyBank } from './bank.js'
@@ -33,7 +33,6 @@ import { hostMachineOf, noteHostLink, hostLinkAttemptWords, hostLinkRecoveredWor
 import { shQuote as quote } from './boxExecution.js'
 import { TENSORFOLD_HOST_WORDS, isTensorFoldRecipe, registerTensorFoldPod, tensorFoldPodAnsweringCommand, tensorFoldPodKey, tensorFoldPodService, writeTensorFoldPodKey } from './tensorfoldPod.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const notFound = (error: unknown): boolean => (error instanceof RunpodHttpError || error instanceof HostVendorHttpError) && error.status === 404
 class HostPodMissing extends Error {}
@@ -124,24 +123,24 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const tools = hostJobTools(run, ports)
   const { huggingfaceKey, clean, mark, log } = tools
   run.key = vendor === 'huggingface' ? await huggingfaceKey() : vendorKey(vendor)
-  let offset = 0
-  let logBusy = false
   let target: SshTarget | undefined
   const originalRecipe = hostRecipeOfRecord(initial)
   const recipe = originalRecipe && initial.tune ? tunedRecipe(originalRecipe, initial.tune) : originalRecipe
   patchHostRecord(id, { jobState: 'running', error: undefined })
-  const timer = startInterval(() => {
-    const current = readHostRecord(id)
+  const checkStop = (current: HostRecord | undefined): void => {
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
-    if (initial.jobKind === 'watch' || !target || !recipe || logBusy || signal.aborted || current?.jobState === 'ready' || current?.jobState === 'paused' || current?.jobState === 'failed') return
-    const checking = current?.volumeId && !current.weightsCheck
-    if (!checking && !initial.cluster) return
-    logBusy = true
-    void runner.run('ssh', [...sshArguments(target), checking ? 'tail -n 1 /workspace/mercury-host/' + recipe.id + '/weights-check.log 2>/dev/null || true' : 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
-      .then(text => { if (!checking) offset += Buffer.byteLength(text); log(text) })
-      .catch(passedOver)
-      .finally(() => { logBusy = false })
-  }, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
+  }
+  const stopRecordWatch = subscribeHostRecord(id, checkStop)
+  checkStop(readHostRecord(id))
+  const logTailController = new AbortController()
+  const logTailSignal = AbortSignal.any([signal, logTailController.signal])
+  let logTailStarted = false
+  const startLogTail = (): void => {
+    if (logTailStarted || !recipe || (!initial.cluster && !initial.volumeId)) return
+    logTailStarted = true
+    startHostRemoteLogTail(id, generation, Boolean(initial.cluster), recipe, () => target, runner, pause, logTailSignal, log)
+  }
+  const stopMonitor = (): void => { stopRecordWatch(); logTailController.abort() }
   if (initial.jobKind === 'bank') {
     const verifying = initial.bankTask === 'verify'
     let token: { key: string } | undefined
@@ -165,7 +164,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       removeHostRecord(id)
     } catch (error) {
       hostBankFailed(ports, tools, recipe, verifying, scrub, error)
-    } finally { stopInterval(timer) }
+    } finally { stopMonitor() }
     return
   }
   if (initial.jobKind === 'watch') {
@@ -210,7 +209,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
       }
     } catch (error) {
       hostWatchFailed(watch, ports, tools, error)
-    } finally { stopInterval(timer) }
+    } finally { stopMonitor() }
     return
   }
   const deadline = Date.now() + timeout
@@ -242,7 +241,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
         { signal },
       )
     } else if (initial.cluster) {
-      target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head })
+      target = await startHostCluster(runpodOnly(api, 'Clusters'), initial, recipe, runner, signal, pause, timeout, mark, head => { target = head; startLogTail() })
     } else {
     let last = 'SSH address not yet assigned'
     let sshDeadline = deadline
@@ -263,7 +262,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
           if (pod.status === 'EXITED' || pod.status === 'ERROR') throw new Error('Pod is ' + pod.status + '. ' + await failureLog(sshRead))
           if (direct && pod.status === 'RUNNING') {
             const candidate = { host: direct.host, port: direct.port, user: direct.username, key: initial.sshKey ?? initial.target?.key }
-            try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; return 'done' } catch (error) {
+            try { await runner.run('ssh', [...sshArguments(candidate), vendor === 'lambda' ? 'cloud-init status --wait >/dev/null && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : api.capabilities.vm ? 'test -r /workspace/.mercury-vm-ready && test -w /workspace && command -v setsid >/dev/null && command -v curl >/dev/null' : 'true'], signal); target = candidate; startLogTail(); return 'done' } catch (error) {
               last = String(error)
               const refused = /Permission denied \(publickey\)/i.test(last)
               keyRefused = refused
@@ -403,7 +402,33 @@ export async function runHostJob(id: string, generation: string, options: { runn
     }
     hostSetupFailed(ports, tools, failure)
     closeHostTunnel(id)
-  } finally { stopInterval(timer) }
+  } finally { stopMonitor() }
+}
+
+function startHostRemoteLogTail(id: string, generation: string, cluster: boolean, recipe: HostRecipe, getTarget: () => SshTarget | undefined, runner: HostRunner, pause: number, signal: AbortSignal, log: (text: string) => void): void {
+  let offset = 0
+  void pollUntil(
+    async () => {
+      const current = readHostRecord(id)
+      if (!current || current.generation !== generation || current.jobState === 'stopped' || current.jobState === 'ready' || current.jobState === 'paused' || current.jobState === 'failed') return true
+      const target = getTarget()
+      if (!target) return undefined
+      const checking = Boolean(current.volumeId && !current.weightsCheck)
+      if (!checking && !cluster) return true
+      try {
+        const text = await runner.run('ssh', [...sshArguments(target), checking ? 'tail -n 1 /workspace/mercury-host/' + recipe.id + '/weights-check.log 2>/dev/null || true' : 'dd if=/workspace/mercury-host/' + recipe.id + '/engine.log bs=1 skip=' + offset + ' count=8192 status=none'], signal)
+        if (!checking) offset += Buffer.byteLength(text)
+        log(text)
+      } catch (error) {
+        passedOver(error)
+      }
+      return undefined
+    },
+    pause,
+    Infinity,
+    () => undefined,
+    { signal, onAbort: () => undefined, unref: true },
+  )
 }
 
 type HostJobOptions = NonNullable<Parameters<typeof runHostJob>[2]>

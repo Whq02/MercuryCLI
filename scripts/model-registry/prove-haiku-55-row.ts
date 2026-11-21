@@ -29,11 +29,11 @@ try {
   const effort = await import('../../src/utils/effort.ts')
   const cost = await import('../../src/services/usage/modelCost.ts')
   const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-  const { getModelOptions, focusedOptionSupports1m } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, focusedOptionSupports1m } = await import('../../src/services/model/modelOptions.ts')
   const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
   const { routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
-  const { getAgentModel } = await import('../../src/utils/model/agent.ts')
+  const { getAgentModel } = await import('../../src/services/model/agent.ts')
 
   check('Haiku 5.5 has its own canonical and declared row', model.getCanonicalName(ID) === ID && configs.familyHeadOf(ID) === null)
   check('case and context annotation retain the canonical', model.getCanonicalName('Claude-Haiku-5-5[1m]') === ID)

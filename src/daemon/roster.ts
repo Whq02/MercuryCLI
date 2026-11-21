@@ -1,6 +1,6 @@
 
 import type { InputRow } from '../rows/vocabulary.js'
-import { PendingQueueAck, type RunnerDoor } from './runnerConnection.js'
+import { PendingQueueAck, type QueueAckPolicy, type RunnerDoor } from './runnerConnection.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
 import { lastStderrLine, deriveWireSpec, type LongLivedRespawnConfig } from './longLivedRespawn.js'
@@ -16,6 +16,40 @@ import { stopTimeout } from '../utils/timers.js'
 export { RUNNER_ASK_BOUND_MS, decideRunnerEnd } from './roster/end.js'
 
 const DELIVERED_ID_CAP = 500
+
+function wireEntry(h: WorkerHandle, retarget: RetargetPart): WireRosterEntry {
+  const e: WireRosterEntry = { ...h.entry }
+  if (h.longLived) {
+    const wire = deriveWireSpec({
+      running: h.longLived.running,
+      spec: { model: h.longLived.spec.model, effort: h.longLived.spec.effort },
+      pendingReconfigure: h.longLived.pendingReconfigure,
+      reconfiguring: h.longLived.reconfiguring,
+    })
+    e.model = wire.model
+    e.effort = wire.effort
+    if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) e.turnStartedAt = h.longLived.turnStartedAt
+    if (wire.pendingModel !== undefined) e.pendingModel = wire.pendingModel
+    if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
+    e.respawns = h.longLived.respawns
+    if (h.longLived.contextPct !== undefined) e.contextPct = h.longLived.contextPct
+    if (h.longLived.paused !== undefined && !h.entry.outcome) e.paused = { ...h.longLived.paused }
+    e.maxRespawns = h.longLived.cfg.maxRespawns
+    e.ready = h.longLived.ready === true
+    e.spawnedAt = h.longLived.claimedAt ?? h.longLived.lastSpawnAt
+    if (h.longLived.crashedAt !== undefined) e.crashedAt = h.longLived.crashedAt
+    const lastError = h.longLived.lastErrorText || lastStderrLine(h.longLived.stderrTail)
+    if (lastError !== undefined && lastError !== '') e.lastError = lastError
+    if (!h.entry.outcome) {
+      e.busy = !retarget.seatIsIdle(h.longLived)
+      if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
+      if (e.busy && h.longLived.turnStartedAt !== undefined) {
+        e.turnElapsedMs = Math.max(0, Date.now() - h.longLived.turnStartedAt)
+      }
+    }
+  }
+  return e
+}
 
 export class TaskRoster {
   private readonly handles = new Map<string, WorkerHandle>()
@@ -86,39 +120,7 @@ export class TaskRoster {
   }
 
   list(): WireRosterEntry[] {
-    return Array.from(this.handles.values()).map(h => {
-      const e: WireRosterEntry = { ...h.entry }
-      if (h.longLived) {
-        const wire = deriveWireSpec({
-          running: h.longLived.running,
-          spec: { model: h.longLived.spec.model, effort: h.longLived.spec.effort },
-          pendingReconfigure: h.longLived.pendingReconfigure,
-          reconfiguring: h.longLived.reconfiguring,
-        })
-        e.model = wire.model
-        e.effort = wire.effort
-        if (h.longLived.turnActive && h.longLived.turnStartedAt !== undefined) e.turnStartedAt = h.longLived.turnStartedAt
-        if (wire.pendingModel !== undefined) e.pendingModel = wire.pendingModel
-        if (wire.pendingEffort !== undefined) e.pendingEffort = wire.pendingEffort
-        e.respawns = h.longLived.respawns
-        if (h.longLived.contextPct !== undefined) e.contextPct = h.longLived.contextPct
-        if (h.longLived.paused !== undefined && !h.entry.outcome) e.paused = { ...h.longLived.paused }
-        e.maxRespawns = h.longLived.cfg.maxRespawns
-        e.ready = h.longLived.ready === true
-        e.spawnedAt = h.longLived.claimedAt ?? h.longLived.lastSpawnAt
-        if (h.longLived.crashedAt !== undefined) e.crashedAt = h.longLived.crashedAt
-        const lastError = h.longLived.lastErrorText || lastStderrLine(h.longLived.stderrTail)
-        if (lastError !== undefined && lastError !== '') e.lastError = lastError
-        if (!h.entry.outcome) {
-          e.busy = !this.retargetPart.seatIsIdle(h.longLived)
-          if (h.longLived.turnActive !== undefined) e.turnActive = h.longLived.turnActive
-          if (e.busy && h.longLived.turnStartedAt !== undefined) {
-            e.turnElapsedMs = Math.max(0, Date.now() - h.longLived.turnStartedAt)
-          }
-        }
-      }
-      return e
-    })
+    return Array.from(this.handles.values()).map(h => wireEntry(h, this.retargetPart))
   }
 
   has(short: string): { alive: boolean; present: boolean; ready: boolean } {
@@ -157,7 +159,7 @@ export class TaskRoster {
     return true
   }
 
-  async reply(short: string, row: InputRow): Promise<boolean> {
+  async reply(short: string, row: InputRow, policy: QueueAckPolicy = 'bounded'): Promise<boolean> {
     const h = this.handles.get(short)
     if (!h || h.entry.outcome || h.entry.state === 'retiring') return false
     const door = h.longLived?.connection
@@ -186,7 +188,7 @@ export class TaskRoster {
       }
     }
     try {
-      const accepted = await door.deliver(row)
+      const accepted = await door.deliver(row, policy)
       if (!accepted) undoStart()
       return accepted
     } catch (error) {

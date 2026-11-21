@@ -68,7 +68,7 @@ const promptA3 = await getSystemPrompt([], MODEL_A)
 check('§F cleared recompose mints a fresh entry', cache.get('env_info_simple') !== entryPreClear && lineOf(promptA3) === '(no identity line)')
 
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/utils/model/modelTransition.ts'
+  '../../src/services/model/modelTransition.ts'
 )
 const base = {
   engineModel: 'claude-opus-5' as string | null,

@@ -1,7 +1,7 @@
 import { isInvocationTraceEnabled } from '../../../../utils/observability/invocationTrace.js'
 import { mcpGauge } from '../../../cockpit/mcpGauge.js'
 import { substrateSnapshot } from '../../../cockpit/substrateSnapshot.js'
-import { describeUntrustedMcpHardening, getMcpPolicyRejects } from '../../../mcp/toolPolicy.js'
+import { describeUntrustedMcpHardening, getMcpPolicyRejects } from '../../../../utils/mcp/toolPolicy.js'
 import { summarizeMcpAuthCurrency } from '../../../mcp/auth.js'
 import { describeMcpProtocolCurrency } from '../../../mcp/protocolRevision.js'
 import { extensionsHealthRow } from '../../../../extensions/boot.js'
@@ -170,7 +170,7 @@ export function vulcanCheck(): CheckSpec {
     id: 'vulcan',
     label: 'Godot control (VULCAN)',
     run: async () => {
-      const { vulcanEnabled, vulcanLiteMode } = await import('../../../../utils/vulcan/vulcanGates.js')
+      const { vulcanEnabled, vulcanLiteMode } = await import('../../../vulcan/vulcanGates.js')
       if (!vulcanEnabled()) {
         return {
           status: 'off' as const,

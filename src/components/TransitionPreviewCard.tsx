@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { Box, Text } from '../ink.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
-import type { TransitionPlan } from '../utils/model/modelTransition.js'
+import type { TransitionPlan } from '../services/model/modelTransition.js'
 import type { ProviderUsability } from '../services/providers/providerUsability.js'
 import { Dialog } from './design-system/Dialog.js'
 import { AMBER, FAINT, TEAL } from './mercuryPalette.js'

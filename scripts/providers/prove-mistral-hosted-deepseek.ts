@@ -33,7 +33,7 @@ const { buildProviderSnapshot } = await import('../../src/services/providers/mod
 await import('../../src/services/resources/registry.js')
 const { knownModelsReference } = await import('../../src/services/resources/adapters/models.js')
 const { validateModel } = await import('../../src/services/providers/validateModel.js')
-const { getModelOptions, MISTRAL_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
+const { getModelOptions, MISTRAL_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
 const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.js')
 const { effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
 const { restoreConversationModel } = await import('../../src/services/resume/sessionRestore.js')

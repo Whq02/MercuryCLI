@@ -44,10 +44,10 @@ const SECTION_OWNERS: ReadonlyMap<string, string> = new Map([
   ['static:constitution', 'src/prompt/mercuryContract.ts'],
   ['dynamic:memory', 'src/mneme/mnemeFrontPage.ts'],
   ['dynamic:memory_at_start', 'src/mneme/entryKnapsack.ts'],
-  ['dynamic:harness_map', 'src/utils/cockpit/harnessMap.ts'],
+  ['dynamic:harness_map', 'src/services/cockpit/harnessMap.ts'],
   ['dynamic:runtime_posture', 'src/utils/cockpit/runtimePosture.ts'],
   ['mode:mode-apollo', 'src/prompt/apolloMode.ts'],
-  ['mode:mode-vulcan', 'src/utils/vulcan/vulcanGates.ts'],
+  ['mode:mode-vulcan', 'src/services/vulcan/vulcanGates.ts'],
 ])
 
 const GROUP_OWNERS: Readonly<Record<BehaviourGroup, string>> = {

@@ -1,7 +1,10 @@
-import { mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, watch, type FSWatcher } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
+import { passedOver } from '../../utils/passedOver.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostCluster, HostClusterPod } from './runpod.js'
@@ -67,4 +70,118 @@ export function removeHostRecord(id: string): void {
 export function hostRecords(): HostRecord[] {
   const dir = podsDirectory()
   try { return readdirSync(dir).filter(name => name.endsWith('.json')).flatMap(name => { try { return [{ vendor: 'runpod', ...JSON.parse(readFileSync(join(dir, name), 'utf8')) } as HostRecord] } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error } }) } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw new Error('Host records could not be read. The paid-pods list still shows the connected vendors’ account resources.') }
+}
+export function watchHostDirectory(dir: string, onChange: (filename: string | null) => void, fallbackMs = 1000): () => void {
+  let closed = false
+  let watcher: FSWatcher | null = null
+  let ancestor: FSWatcher | null = null
+  const closeWatcher = (handle: FSWatcher | null): void => {
+    try { handle?.close() } catch (error) { passedOver(error) }
+  }
+  const arm = (): void => {
+    if (closed || watcher) return
+    if (existsSync(dir)) {
+      closeWatcher(ancestor)
+      ancestor = null
+      try {
+        const w = watch(resolveWatchRoot(dir), { persistent: false }, (_event, filename) => {
+          if (!closed) onChange(filename ? String(filename) : null)
+        })
+        w.unref?.()
+        w.on('error', () => {
+          closeWatcher(w)
+          if (watcher === w) watcher = null
+        })
+        watcher = w
+      } catch (error) {
+        passedOver(error)
+      }
+      return
+    }
+    if (ancestor) return
+    let root = dirname(dir)
+    while (root !== dirname(root) && !existsSync(root)) root = dirname(root)
+    try {
+      const w = watch(resolveWatchRoot(root), { persistent: false }, () => {
+        if (closed) return
+        if (existsSync(dir)) {
+          arm()
+          onChange(null)
+        } else {
+          closeWatcher(w)
+          if (ancestor === w) ancestor = null
+          arm()
+        }
+      })
+      w.unref?.()
+      w.on('error', () => {
+        closeWatcher(w)
+        if (ancestor === w) ancestor = null
+      })
+      ancestor = w
+      if (existsSync(dir)) {
+        arm()
+        onChange(null)
+      }
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  arm()
+  const stopFloor = subscribeUiClock(fallbackMs, () => {
+    if (closed) return
+    if (!watcher) arm()
+    onChange(null)
+  })
+  return () => {
+    closed = true
+    stopFloor()
+    closeWatcher(watcher)
+    watcher = null
+    closeWatcher(ancestor)
+    ancestor = null
+  }
+}
+export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefined) => void): () => void {
+  const path = recordPath(id)
+  const file = id + '.json'
+  const readRaw = (): string | null => {
+    try { return readFileSync(path, 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error }
+  }
+  let lastRaw = readRaw()
+  const check = (): void => {
+    let raw: string | null
+    try { raw = readRaw() } catch (error) { passedOver(error); return }
+    if (raw === lastRaw) return
+    lastRaw = raw
+    if (raw === null) { cb(undefined); return }
+    try { cb({ vendor: 'runpod', ...JSON.parse(raw) } as HostRecord) } catch (error) { passedOver(error) }
+  }
+  return watchHostDirectory(podsDirectory(), filename => {
+    if (filename === null || filename === file || filename.startsWith('.' + file + '.')) check()
+  })
+}
+export function subscribeHostRecords(cb: () => void): () => void {
+  const dir = podsDirectory()
+  const snapshot = (): string => {
+    try {
+      return readdirSync(dir).filter(name => name.endsWith('.json')).sort().map(name => {
+        try { return name + '\0' + readFileSync(join(dir, name), 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''; throw error }
+      }).join('\0')
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return ''
+      passedOver(error)
+      return ''
+    }
+  }
+  let last = snapshot()
+  const check = (): void => {
+    const next = snapshot()
+    if (next === last) return
+    last = next
+    cb()
+  }
+  return watchHostDirectory(dir, filename => {
+    if (filename === null || filename.endsWith('.json') || filename.endsWith('.tmp')) check()
+  })
 }

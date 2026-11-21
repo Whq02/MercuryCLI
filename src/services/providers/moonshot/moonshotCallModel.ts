@@ -18,6 +18,7 @@ import {
 import { qualifyMoonshotModel } from './moonshotCatalogue.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { refreshKimiManagedUsage } from './moonshotUsageState.js'
 
@@ -63,18 +64,8 @@ export function moonshotLiveProofState(): { at: number; model: string } | null {
 export async function* moonshotCallModel(params: CallModelParams): CallModelStream {
   if (params.signal.aborted) return
   if (moonshotDispatchSource() !== undefined) {
-    let onAbort: () => void = () => {}
-    const cancelled = new Promise<null>(resolve => {
-      onAbort = () => resolve(null)
-      params.signal.addEventListener('abort', onAbort, { once: true })
-    })
-    let qualification: Awaited<ReturnType<typeof qualifyMoonshotModel>> | null
     const asked = normalizeModelStringForAPI(params.options.model)
-    try {
-      qualification = await Promise.race([qualifyMoonshotModel(asked), cancelled])
-    } finally {
-      params.signal.removeEventListener('abort', onAbort)
-    }
+    const qualification = await withDeadline(qualifyMoonshotModel(asked), Infinity, () => null, { signal: params.signal, onAbort: () => null })
     if (qualification === null || params.signal.aborted) return
     if (qualification.kind === 'refused') {
       yield createAssistantAPIErrorMessage({ content: `${API_ERROR_MESSAGE_PREFIX}: ${qualification.message}` })

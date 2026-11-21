@@ -1,4 +1,5 @@
-import { platform, release, type as osType, version as osVersion } from 'node:os'
+import { platform } from 'node:os'
+import { platformKernelLine } from '../utils/platform/words.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
@@ -15,7 +16,7 @@ import {
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
+import { getVulcanSection } from '../services/vulcan/vulcanGates.js'
 import { getModelKnowledgeCutoff } from '../utils/model/capabilities.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -41,7 +42,7 @@ import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/promp
 import { RETAIN_TOOL_NAME } from './tools/memory.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
-import { isMcpPolicyActive } from '../services/mcp/toolPolicy.js'
+import { isMcpPolicyActive } from '../utils/mcp/toolPolicy.js'
 import { isAutoCompactEnabled } from '../services/compact/autoCompact.js'
 import {
   LOCAL_CREWMATE_NOTES,
@@ -52,7 +53,7 @@ import {
   localPromptProfileApplies,
   localServerKind,
 } from './localPromptProfile.js'
-import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
+import { getHarnessMapSection } from '../services/cockpit/harnessMap.js'
 import { missionSection, missionSectionKey, type ServedMission } from '../services/mission/served.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../utils/mcp/types.js'
@@ -102,8 +103,7 @@ async function shellLine(): Promise<string> {
 }
 
 function getUnameSR(): string {
-  if (process.platform === 'win32') return `${osVersion()} ${release()}`
-  return `${osType()} ${release()}`
+  return platformKernelLine()
 }
 
 function knowledgeCutoffSentence(modelId: string): string | null {

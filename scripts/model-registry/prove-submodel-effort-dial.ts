@@ -58,7 +58,7 @@ const ESC = String.fromCharCode(27)
 
 const { enableConfigs, getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 enableConfigs()
-const slots = await import('../../src/utils/model/subModelSlots.ts')
+const slots = await import('../../src/services/model/subModelSlots.ts')
 const effort = await import('../../src/utils/effort.ts')
 const thinking = await import('../../src/utils/thinking.ts')
 const requestParams = await import('../../src/services/providers/anthropic/requestParams.ts')

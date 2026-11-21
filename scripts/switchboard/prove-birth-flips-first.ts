@@ -62,7 +62,7 @@ section('§3 a live keyless home — the unnamed session admits keyless; the cre
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
   const wm = await import('../../src/services/concourse/workerModels.ts')
-  const { NO_SIGN_IN_ROW, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+  const { NO_SIGN_IN_ROW, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
   resetComputedDefaultMemo()
   check('no neutral default on this home', wm.neutralSeatDefault() === null)
   const unnamed = await wm.validateWorkerModelChoice(undefined, 'session')

@@ -1,4 +1,4 @@
-import { recentSignIns, mostRecentSignInFamily } from '../../../utils/model/computedDefault.js'
+import { recentSignIns, mostRecentSignInFamily } from '../../../services/model/computedDefault.js'
 import { getUserSpecifiedModelSetting, parseUserSpecifiedModel } from '../../../utils/model/model.js'
 import { declaredRouteOf } from '../../../services/providers/callModelRouter.js'
 import type { ProviderFamilyId } from '../../../services/providers/providerAdapter.js'

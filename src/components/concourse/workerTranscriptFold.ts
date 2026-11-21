@@ -25,7 +25,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { errorMessage } from '../../utils/errors.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { pollUntil } from '../../utils/deadline.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 
 
 const RECORD_CAP = 500
@@ -86,7 +86,7 @@ export function useWorkerTranscriptFold(
     const controller = new AbortController()
     let cursorRef: import('../../services/concourse/workerTranscript.js').TranscriptCursor | null = null
     let watcher: import('node:fs').FSWatcher | null = null
-    let heartbeat: ReturnType<typeof setInterval> | null = null
+    let heartbeat: (() => void) | null = null
     let liftSeq = 0
     let current: TranscriptFold | null = null
     void Promise.all([
@@ -169,14 +169,13 @@ export function useWorkerTranscriptFold(
             { signal: controller.signal, onAbort: () => false, unref: true },
           )
         }
-        heartbeat = startInterval(drain, 5000)
-        heartbeat.unref?.()
+        heartbeat = subscribeUiClock(5000, drain)
       },
     )
     return () => {
       controller.abort()
       if (watcher) watcher.close()
-      if (heartbeat) stopInterval(heartbeat)
+      if (heartbeat) heartbeat()
     }
   }, [sessionId, workspaceId])
   return { fold, malformed, readError }

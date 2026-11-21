@@ -1,9 +1,9 @@
-import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js';
+import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../services/providers/signInRefusal.js';
 import { deriveFamilySlotGroups, familyDisplayName, type AccountSlot, type FamilySlotGroup } from '../../services/providers/accountSlots.js';
 import { resolveProviderUsability, type ProviderId, type ProviderUsability } from '../../services/providers/providerUsability.js';
 import type { ProviderFamilyPresence } from '../../services/providers/providerUsage.js';
 import { providerDisplayName } from '../../services/providers/routeLaw.js';
-import { mostRecentSignInFamily } from '../../utils/model/computedDefault.js';
+import { mostRecentSignInFamily } from '../../services/model/computedDefault.js';
 import { wrapPlain } from '../BootHealthScreen.js';
 import { loginFamilyFocusFor, loginFamilyRows, type LoginFamilyRow } from '../loginFamilyRows.js';
 

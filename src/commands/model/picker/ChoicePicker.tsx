@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { MercuryModelPicker, type ModelChoice } from '../../../components/MercuryModelPicker.js'
 import { getSdkBetas } from '../../../bootstrap/state.js'
-import { getModelOptions, isCatalogueDoorRow, isProviderActionRow } from '../../../utils/model/modelOptions.js'
+import { getModelOptions, isCatalogueDoorRow, isProviderActionRow } from '../../../services/model/modelOptions.js'
 import { useCatalogueEpoch } from '../../../hooks/useCatalogueEpoch.js'
 import { GPT_ROAD, OPENROUTER_ROAD, GEMINI_ROAD, ANTHROPIC_SUBSCRIPTION_ROAD, ANTHROPIC_KEY_ROAD, ANTHROPIC_BEARER_ROAD, NOUS_ROAD, HUGGINGFACE_ROAD, MOONSHOT_ROAD, DEEPSEEK_ROAD, ZAI_ROAD, XAI_ROAD, META_ROAD, MINIMAX_ROAD, TOGETHER_ROAD, COHERE_ROAD, GROQ_ROAD, MELIOUS_ROAD, CEREBRAS_ROAD, FIREWORKS_ROAD, QWEN_ROAD, MISTRAL_ROAD, LOCAL_ROAD, useCatalogueRefreshOnOpen } from './roads.js'
 import { providerHeadingsOf } from './headings.js'

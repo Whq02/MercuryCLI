@@ -58,12 +58,12 @@ for (const base of [
 process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 ;(await import('../../src/utils/config.js')).enableConfigs()
 
-const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
-type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
+const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
+type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
 type LiveRow = import('../../src/services/providers/anthropic/anthropicCatalogue.ts').AnthropicLiveRow
 const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
-const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
+const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {

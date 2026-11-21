@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../services/providers/credentialEnvSpellings.js'
+import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../constants/credentialEnvSpellings.js'
 import { getApiKeyFromConfigOrMacOSKeychain } from './auth.js'
 import { getAuthConfigHomeDir } from './envUtils.js'
 import { getSecureStorage } from './secureStorage/index.js'

@@ -35,8 +35,8 @@ import { elicitationPausedClock } from './elicitationHandler.js'
 import { buildMcpToolName, wireSafeMcpToolName } from '../../utils/mcp/mcpStringUtils.js'
 import { normalizeNameForMCP } from '../../utils/mcp/normalization.js'
 import { isMercuryServerEnabled, isMercuryServer, withMercuryLeaseHolder } from './mercuryServer.js'
-import { withMcpToolCardHeader } from './toolCard.js'
-import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from './toolPolicy.js'
+import { withMcpToolCardHeader } from '../../utils/mcp/toolCard.js'
+import { mcpPolicyDenyReason, mcpToolAllowed, type McpToolAnnotations } from '../../utils/mcp/toolPolicy.js'
 import type { ConnectedMCPServer, MCPServerConnection, ScopedMcpServerConfig, ServerResource } from '../../utils/mcp/types.js'
 import { describeMcpConnectFailure, getLoggingSafeMcpBaseUrl, mcpConfigAsWritten, MCP_CONNECT_TIMEOUT_TELEMETRY } from './utils.js'
 import { McpAuthError, McpToolCallError_I_VERIFIED_THIS_IS_NOT_CODE_OR_FILEPATHS, McpSessionExpiredError, isMcpSessionExpiredError, isConnectionClosedError, isProbeExitError, isStaleSocketFetchError, isResponseStreamEndedError } from './client/errors.js'
@@ -923,7 +923,7 @@ const MCP_RESOURCE_TOOL_NAMES = new Set([ListMcpResourcesTool.name, ReadMcpResou
 
 export function supplementaryToolsForMcpClient(client: MCPServerConnection): Tool[] {
   if (client.type === 'connected') {
-    return client.capabilities.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
+    return client.capabilities?.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
   }
   if (client.type === 'needs-auth') {
     return [createMcpAuthTool(client.name, client.config)]
@@ -935,7 +935,7 @@ export function pruneStaleMcpResourceTools(
   clients: readonly MCPServerConnection[],
   tools: Tool[],
 ): Tool[] {
-  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities.resources))) {
+  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities?.resources))) {
     return tools
   }
   return tools.filter(tool => !MCP_RESOURCE_TOOL_NAMES.has(tool.name))
@@ -951,7 +951,7 @@ export async function reconnectMcpServerImpl(
     await clearServerCache(name, config)
     const connection = await connectToServer(name, config)
     if (connection.type !== 'connected') return { client: connection, tools: supplementaryToolsForMcpClient(connection), commands: [] }
-    return discoverFor(connection, Boolean(connection.capabilities.resources))
+    return discoverFor(connection, Boolean(connection.capabilities?.resources))
   } catch (err) {
     logMCPError(name, err)
     return { client: { name, type: 'failed', config, error: errorMessage(err) }, tools: [], commands: [] }

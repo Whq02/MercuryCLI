@@ -22,7 +22,7 @@ function section(t: string): void {
 const cap = await import('../../src/services/capFailover.ts')
 const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { previewForSelection } = await import('../../src/services/providers/transitionPreview.ts')
-const { settleModelSelection } = await import('../../src/utils/model/modelTransition.ts')
+const { settleModelSelection } = await import('../../src/services/model/modelTransition.ts')
 
 const FABLE_52 = ALL_MODEL_CONFIGS.fable52.firstParty
 const FABLE_51 = ALL_MODEL_CONFIGS.fable51.firstParty

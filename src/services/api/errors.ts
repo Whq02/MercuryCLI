@@ -36,6 +36,7 @@ import { ImageSizeError } from '../../utils/imageValidation.js'
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 import { providerAskedWaitMs } from './recoveryBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { clearEnvVarCommandWords } from '../../utils/platform/words.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
@@ -751,10 +752,7 @@ function composeAuthFailureMessage(status: number, model: string, message: strin
         : `${API_ERROR_MESSAGE_PREFIX} (${status}): ${detail.text}`
   const authSource = getAuthTokenSource().source
   if (isEnvShadowedAuthSource(authSource)) {
-    const clearVerb =
-      process.platform === 'win32'
-        ? `clear ${authSource} (PowerShell: Remove-Item Env:\\${authSource} · cmd: set ${authSource}=)`
-        : `unset ${authSource}`
+    const clearVerb = clearEnvVarCommandWords(authSource)
     const fix = hasStoredOAuthToken()
       ? `restart Mercury (or ${clearVerb}) to use your saved login`
       : `${clearVerb} and then run /logins`
@@ -845,7 +843,7 @@ export function getErrorMessageIfRefusal(
     : 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session.'
   try {
     const { providerLightFact } =
-      require('../../utils/model/providerFrontier.js') as typeof import('../../utils/model/providerFrontier.js')
+      require('../model/providerFrontier.js') as typeof import('../model/providerFrontier.js')
     const { declaredRouteOf } =
       require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     const errorRoute = declaredRouteOf(model)

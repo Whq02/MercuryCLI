@@ -10,6 +10,7 @@ import type { TensorFoldMachineTruth } from './fit.js'
 import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE, TENSORFOLD_RELEASE_BASE } from './starting.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { tensorFoldMachineSupportKind, tensorFoldRuntimeDisplayPath } from '../../utils/platform/tensorfold.js'
 
 export type TensorFoldInstallPlan =
   | { kind: 'brew'; brew: string; commands: string[]; words: string; found: string }
@@ -74,7 +75,7 @@ function archiveInstallCommands(archive: string, folderWords: string = RUNTIME_F
 export const LLAMACPP_INSTALL_WORDS = `llama.cpp release ${LLAMACPP_RELEASE.build} · checksum verified`
 
 export function llamaCppRuntimeWords(platform: NodeJS.Platform): string {
-  return platform === 'win32' ? `~\\${LLAMACPP_RUNTIME_BIN.join('\\')}` : `~/${LLAMACPP_RUNTIME_BIN.join('/')}`
+  return tensorFoldRuntimeDisplayPath(LLAMACPP_RUNTIME_BIN, platform)
 }
 
 export function adapterNeedsLlamaCpp(engine: TensorFoldEngine | TensorFoldEngineFound | null | undefined): boolean {
@@ -97,8 +98,9 @@ export function llamaCppInstallPlan(engine: Pick<TensorFoldEngine, 'binary'>, pl
 
 export function tensorFoldInstallPlan(machine: Pick<TensorFoldMachineTruth, 'platform' | 'gpu'>, io: InstallIo = {}): TensorFoldInstallPlan {
   const platform = io.platform ?? machine.platform
-  if (platform === 'win32') return { kind: 'windows', words: WINDOWS_WORDS, found: 'nothing served here · TensorFold runs on a host' }
-  if (platform === 'darwin') {
+  const support = tensorFoldMachineSupportKind(platform)
+  if (support === 'windows-adapter') return { kind: 'windows', words: WINDOWS_WORDS, found: 'nothing served here · TensorFold runs on a host' }
+  if (support === 'macos-metal') {
     const brew = findBrew(io)
     if (brew === undefined) return { kind: 'needs-brew', words: 'needs Homebrew', needs: NEEDS_BREW_WORDS, found: 'not installed · Homebrew not found' }
     return { kind: 'brew', brew, commands: [BREW_INSTALL_COMMAND], words: `Homebrew · ${TENSORFOLD_BREW_FORMULA.slice(0, TENSORFOLD_BREW_FORMULA.lastIndexOf('/'))}`, found: `not installed · Homebrew found at ${brew}` }

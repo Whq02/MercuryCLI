@@ -132,8 +132,12 @@ export async function controlSessionAgent(
   })
 }
 
+type EmptyDetailSeatVerbKey = {
+  [K in HostRequestVerbKey]: (typeof SESSION_VERBS)[K] extends { readonly carrier: 'empty-detail' } ? K : never
+}[HostRequestVerbKey]
+
 interface GenericZeroArgSeatVerb {
-  readonly key: HostRequestVerbKey
+  readonly key: EmptyDetailSeatVerbKey
   readonly action: string
   readonly olderDetail: string
 }
@@ -150,7 +154,7 @@ const GENERIC_ZERO_ARG_SEAT_VERBS: ReadonlyMap<string, GenericZeroArgSeatVerb> =
     if (row.runner?.from !== 'host' || row.runner.kind !== 'request') return []
     const action = row.daemon.action
     return [[action, {
-      key: key as HostRequestVerbKey,
+      key: key as EmptyDetailSeatVerbKey,
       action,
       olderDetail: EMPTY_DETAIL_OLDER_DETAIL[action] ?? `this session's runner predates ${action} · /daemon restart, then reopen the session`,
     }] as const]
@@ -170,7 +174,7 @@ export async function forwardGenericSeatVerb(
 ): Promise<SeatVerbOutcome> {
   const entry = GENERIC_ZERO_ARG_SEAT_VERBS.get(action)
   if (entry === undefined) return { outcome: 'refused', detail: `unregistered session action: ${action}` }
-  return runSeatVerb(sessionId, {} as never, roster, dir, {
+  return runSeatVerb(sessionId, {}, roster, dir, {
     verb: entry.key,
     label: entry.action,
     ...(opts?.deadlineMs !== undefined ? { deadlineMs: opts.deadlineMs } : {}),

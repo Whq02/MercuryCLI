@@ -1,14 +1,14 @@
 
-import { basename, dirname } from 'node:path'
 import { closeSync, openSync, readSync } from 'node:fs'
-import { concourseDeltaPath, readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
+import { readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
+import { subscribeConcourseDelta } from '../../daemon/concourseWorkers/store.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../fabric/record.js'
 import { workerTranscriptPath } from './workerTranscript.js'
 import { shouldMintTitle } from './sessionNaming.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const HEAD_BYTES = 48 * 1024
 const RETRY_MS = 15 * 60_000
@@ -108,19 +108,47 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
   const abort = new AbortController()
   let alive = true
   let busy = false
+  let pending = false
+  let retryTimer: ReturnType<typeof setTimeout> | null = null
+  const clearRetryTimer = (): void => {
+    if (retryTimer !== null) {
+      stopTimeout(retryTimer)
+      retryTimer = null
+    }
+  }
+  const scheduleRetry = (atMs: number): void => {
+    clearRetryTimer()
+    if (!alive) return
+    retryTimer = startTimeout(() => {
+      retryTimer = null
+      beat()
+    }, Math.max(1, atMs - Date.now()))
+    retryTimer.unref?.()
+  }
   const beat = (): void => {
-    if (!alive || busy) return
+    if (!alive) return
+    if (busy) {
+      pending = true
+      return
+    }
     busy = true
     void (async () => {
+      let nextRetryAt: number | null = null
+      const noteRetryAt = (at: number): void => {
+        if (nextRetryAt === null || at < nextRetryAt) nextRetryAt = at
+      }
       try {
         const recs = Object.values(readSessionWorkers(opts.recordsDir))
           .filter(r => r.endedAt === undefined)
           .slice(0, SWEEP_CAP)
         for (const rec of recs) {
           if (!alive) break
-          const last = attempted.get(rec.sessionId)
-          if (last !== undefined && Date.now() - last < RETRY_MS) continue
           if (!shouldMintTitle(rec, Number.POSITIVE_INFINITY)) continue
+          const last = attempted.get(rec.sessionId)
+          if (last !== undefined && Date.now() - last < RETRY_MS) {
+            noteRetryAt(last + RETRY_MS)
+            continue
+          }
           let facts: HeadFacts
           try {
             facts = transcriptHeadFacts(rec)
@@ -130,59 +158,35 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
           }
           if (!shouldMintTitle(rec, facts.assistantTurns)) continue
           if (facts.description.trim().length === 0) continue
-          attempted.set(rec.sessionId, Date.now())
-          await mintOne(rec, facts.description, abort.signal)
+          const attemptedAt = Date.now()
+          attempted.set(rec.sessionId, attemptedAt)
+          const minted = await mintOne(rec, facts.description, abort.signal)
+          if (!minted) noteRetryAt(attemptedAt + RETRY_MS)
         }
         for (const id of [...attempted.keys()]) {
           if (!recs.some(r => r.sessionId === id) && attempted.size > SWEEP_CAP * 4) attempted.delete(id)
         }
+        if (nextRetryAt !== null) scheduleRetry(nextRetryAt)
+        else clearRetryTimer()
       } catch (e) {
         logForDebugging(`[session-title] mint sweep failed (next beat retries): ${e}`)
       } finally {
         busy = false
+        if (pending && alive) {
+          pending = false
+          beat()
+        }
       }
     })()
   }
-  let watcher: import('node:fs').FSWatcher | null = null
-  void import('node:fs')
-    .then(fs => {
-      if (!alive) return
-      const deltaPath = concourseDeltaPath(opts.recordsDir)
-      const dir = dirname(deltaPath)
-      const name = basename(deltaPath)
-      try {
-        fs.mkdirSync(dir, { recursive: true })
-        watcher = fs.watch(dir, (_ev, file) => {
-          if (file !== null && file !== name) return
-          beat()
-        })
-        watcher.on('error', () => {
-          try {
-            watcher?.close()
-          } catch (error) {
-            passedOver(error)
-          }
-          watcher = null
-        })
-      } catch (error) {
-        passedOver(error)
-      }
-    })
-    .catch(passedOver)
-  const timer = startInterval(beat, opts.tickMs ?? 20_000)
-  timer.unref?.()
+  const unsubDelta = subscribeConcourseDelta(beat, opts.recordsDir)
   beat()
   return {
     dispose: () => {
       alive = false
       abort.abort()
-      stopInterval(timer)
-      try {
-        watcher?.close()
-      } catch (error) {
-        passedOver(error)
-      }
-      watcher = null
+      clearRetryTimer()
+      unsubDelta()
     },
     _attemptedForTesting: () => attempted,
   }

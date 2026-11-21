@@ -1,7 +1,7 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { META_SIGN_IN_ROADS } from './loginWords.js'
-import { connectToBrowseReason, type CatalogueFamily } from '../../services/providers/catalogueGate.js'
-import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
+import { META_SIGN_IN_ROADS } from '../../utils/model/loginWords.js'
+import { connectToBrowseReason, type CatalogueFamily } from '../providers/catalogueGate.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
 import {
   EFFORT_LEVELS,
   NO_EFFORT_CONTROL_LABEL,
@@ -9,27 +9,27 @@ import {
   resolveEffortTruth,
   type EffortLevel,
   type EffortTruthContext,
-} from '../effort.js'
+} from '../../utils/effort.js'
 import {
   providerDisplayName,
   declaredRouteOf,
   type CallModelRoute,
-} from '../../services/providers/routeLaw.js'
+} from '../providers/routeLaw.js'
 import {
   providerFamilyPresences,
   type ProviderFamilyPresence,
-} from '../../services/providers/providerUsage.js'
+} from '../providers/providerUsage.js'
 import {
   buildProviderSnapshot,
   type ProviderSnapshot,
-} from '../../services/providers/modelRegistry.js'
+} from '../providers/modelRegistry.js'
 import {
   getModelOptions,
   isProviderActionRow,
   stripContext1m,
   type ModelOption,
 } from './modelOptions.js'
-import { parseUserSpecifiedModel } from './model.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 
 export type SubModelContainer = 'advisor'
 

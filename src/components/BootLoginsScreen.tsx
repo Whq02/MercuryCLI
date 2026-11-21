@@ -9,7 +9,7 @@ import { useAnthropicLoginModel } from './mercury-ui/screens/anthropicLoginModel
 import type { KimiRegion } from '../services/providers/moonshot/moonshotAccounts.js';
 import { useSetAppStateMaybe } from '../state/AppState.js';
 import { resolveProviderUsability } from '../services/providers/providerUsability.js';
-import { mostRecentSignInFamily } from '../utils/model/computedDefault.js';
+import { mostRecentSignInFamily } from '../services/model/computedDefault.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { renderModelChip } from '../utils/model/model.js';

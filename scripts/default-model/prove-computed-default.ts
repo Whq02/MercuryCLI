@@ -81,14 +81,14 @@ const {
   mostRecentSignInFamily,
   orderCredentials,
   resetComputedDefaultMemo,
-} = await import('../../src/utils/model/computedDefault.ts')
-type ComputedDefaultFacts = import('../../src/utils/model/computedDefault.ts').ComputedDefaultFacts
-type LaneRowVerdict = import('../../src/utils/model/computedDefault.ts').LaneRowVerdict
+} = await import('../../src/services/model/computedDefault.ts')
+type ComputedDefaultFacts = import('../../src/services/model/computedDefault.ts').ComputedDefaultFacts
+type LaneRowVerdict = import('../../src/services/model/computedDefault.ts').LaneRowVerdict
 const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel, renderModelChip, renderModelName } =
   await import('../../src/utils/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-const { getModelOptions, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
@@ -340,7 +340,7 @@ section('§4 the live chain in a scratch home')
 section('§4b a stored key the provider refuses is skipped by the default until that family signs in again')
 {
   const { refreshZaiCatalogue } = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-  const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
   const refusing = (async () =>
     new Response(JSON.stringify({ error: { message: 'invalid api key' } }), { status: 401, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
   const snapshot = await refreshZaiCatalogue({ force: true, env: { ...process.env }, fetchImpl: refusing })
@@ -372,7 +372,7 @@ section('§5 the sign-in owners — every credential-landing site records; the r
 {
   {
     const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
-    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/utils/model/computedDefault.ts')
+    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/services/model/computedDefault.ts')
     const { providerDisplayName: nameOf } = await import('../../src/services/providers/routeLaw.ts')
     const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()
     check("/health's Default model row projects it", frontier?.evidence.includes(describe(decide(), nameOf)) === true && frontier.link === '/model', frontier?.evidence)

@@ -1,4 +1,4 @@
-import type { CallModelRoute } from './idSpaces.js'
+import type { CallModelRoute } from '../types/providerRoute.js'
 
 export const PROVIDER_CREDENTIAL_ENV_VARS: Record<CallModelRoute, readonly string[]> = {
   anthropic: ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'],

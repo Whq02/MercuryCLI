@@ -24,7 +24,7 @@ const {
   MOONSHOT_MODEL_GROUP,
   DEEPSEEK_MODEL_GROUP,
   COMPAT_MODEL_GROUP,
-} = await import('../../src/utils/model/modelOptions.ts')
+} = await import('../../src/services/model/modelOptions.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
