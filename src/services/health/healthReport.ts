@@ -491,7 +491,7 @@ export async function tensorFoldHealthChecks(): Promise<CheckSpec[]> {
   return specs
 }
 
-export function ocrReadinessCheck(reads?: Parameters<typeof import('../../utils/ocr.js').resolveOcrEngine>[0]): CheckSpec {
+export function ocrReadinessCheck(reads?: Parameters<typeof import('../ocr.js').resolveOcrEngine>[0]): CheckSpec {
   return {
     id: 'iface-ocr',
     label: 'OCR',
@@ -499,7 +499,7 @@ export function ocrReadinessCheck(reads?: Parameters<typeof import('../../utils/
     probe: 'configuration',
     timeoutMs: 11_000,
     run: async () => {
-      const { resolveOcrEngine } = await import('../../utils/ocr.js')
+      const { resolveOcrEngine } = await import('../ocr.js')
       const engine = await resolveOcrEngine(reads)
       return engine.kind === 'unavailable'
         ? { status: 'info', evidence: `unavailable — ${engine.message}`, fix: engine.message }

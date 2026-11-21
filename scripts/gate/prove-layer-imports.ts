@@ -55,7 +55,6 @@ const LAYERS: Rule = {
     ['src/utils/model/subModelSlots.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
     ['src/utils/model/utilityModel.ts', 'the utility-model picker reads route law and the local helper id for the hook runners'],
     ['src/utils/normalizeToolSchema.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
-    ['src/utils/ocr.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/permissions/decision/', 'row 8'],
     ['src/utils/permissions/flowLaw.ts', 'row 8'],
     ['src/utils/permissions/runtimeProtection.ts', "self-protection reads the live daemon pid and script; row 8's floors call it"],
