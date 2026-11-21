@@ -26,12 +26,14 @@ import {
   type SessionFileRestoreRequest,
 } from './protocol.js'
 import {
+  SESSION_OP_ALIASES,
   controlSockPath,
   currentVersion,
   ownsControlPlaneSync,
   daemonStatePath,
   verifyControlAuth,
 } from './controlSocket.js'
+import { SESSION_VERBS, type DaemonOpFor, type SessionControlAction, type SessionVerbRow } from '../runner/wire/sessionVerbs.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { predecessorSockPidOf } from './handover.js'
 import { clientPresenceKindOf, noteClientPresence } from './clientPresence.js'
@@ -74,7 +76,7 @@ export interface ControlServerDeps {
   hello?: () => DaemonHelloFacts
   restartWhenIdle?: (by: string) => { state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
   signIns?: (opts: { refresh: boolean }) => DaemonSignInViewV1
-  processSweep?: (request: { action: 'facts' | 'end'; expected?: ProcessSweepEntry }) => Promise<Extract<DaemonReply, { op: 'processSweep' }>>
+  processSweep?: (request: { action: 'facts' | 'end'; expected?: ProcessSweepEntry }) => Promise<Extract<DaemonReply, { op: DaemonOpFor<'processSweep'> }>>
   handover?: {
     roadOf: (op: string, raw: Record<string, unknown>) => 'here' | 'predecessor'
     forward: (line: string) => Promise<DaemonReply>
@@ -159,39 +161,7 @@ export interface ControlServerDeps {
   }>
   warmRunnerCount?: () => number
   concourseControl?: (req: {
-    action:
-      | 'pause'
-      | 'resume'
-      | 'interrupt'
-      | 'attach'
-      | 'detach'
-      | 'grant-workflows'
-      | 'revoke-workflows'
-      | 'answer-permission'
-      | 'stop'
-      | 'set-model'
-      | 'set-permission-mode'
-      | 'session-facts'
-      | 'set-title'
-      | 'focus'
-      | 'blur'
-      | 'park'
-      | 'park-all'
-      | 'set-effort'
-      | 'contract'
-      | 'set-kit'
-      | 'mcp-action'
-      | 'mcp-tools'
-      | 'set-schedule'
-      | 'set-spawn-switch'
-      | 'stop-agent'
-      | 'resume-agent'
-      | 'withdraw-send'
-      | 'background-shell'
-      | 'pause-gate'
-      | 'leave'
-      | 'send-now'
-      | 'board-post'
+    action: SessionControlAction
     sessionId: string
     by: string
     reason?: string
@@ -467,16 +437,87 @@ export async function startControlServer(
   }
 }
 
-const SESSION_OP_ALIASES: Record<string, string> = {
-  concourseAdmit: 'sessionAdmit',
-  concourseDispatch: 'sessionDispatch',
-  concourseList: 'sessionList',
-  concourseRelease: 'sessionRelease',
-  concourseControl: 'sessionControl',
+const CONTROL_OP = SESSION_VERBS.sessionControl.daemon.op
+
+const SESSION_CONTROL_ACTIONS: ReadonlySet<SessionControlAction> = new Set(
+  (Object.values(SESSION_VERBS) as readonly SessionVerbRow[])
+    .filter(
+      (row): row is SessionVerbRow & { daemon: { op: string; action: SessionControlAction } } =>
+        row.daemon?.op === CONTROL_OP && row.daemon.action !== undefined,
+    )
+    .map(row => row.daemon.action),
+)
+
+function isSessionControlAction(value: unknown): value is SessionControlAction {
+  return typeof value === 'string' && SESSION_CONTROL_ACTIONS.has(value as SessionControlAction)
+}
+
+const BASE_ADVERTISED_CONTROL_ROWS = [
+  SESSION_VERBS.pause,
+  SESSION_VERBS.resume,
+  SESSION_VERBS.interrupt,
+  SESSION_VERBS.attach,
+  SESSION_VERBS.detach,
+  SESSION_VERBS.grantWorkflows,
+  SESSION_VERBS.revokeWorkflows,
+  SESSION_VERBS.answerAsk,
+  SESSION_VERBS.stop,
+  SESSION_VERBS.setModel,
+  SESSION_VERBS.setPermissionMode,
+  SESSION_VERBS.sessionFacts,
+  SESSION_VERBS.setTitle,
+  SESSION_VERBS.focus,
+  SESSION_VERBS.blur,
+  SESSION_VERBS.park,
+  SESSION_VERBS.parkAll,
+  SESSION_VERBS.setEffort,
+  SESSION_VERBS.contract,
+  SESSION_VERBS.setKit,
+  SESSION_VERBS.setSchedule,
+  SESSION_VERBS.setSpawnSwitch,
+  SESSION_VERBS.stopAgent,
+  SESSION_VERBS.resumeAgent,
+  SESSION_VERBS.withdrawSend,
+  SESSION_VERBS.backgroundShell,
+  SESSION_VERBS.pauseGate,
+  SESSION_VERBS.leave,
+  SESSION_VERBS.sendNow,
+  SESSION_VERBS.postBoard,
+] as const
+
+const BASE_UNADVERTISED_CONTROL_ACTIONS: ReadonlySet<string> = new Set([
+  SESSION_VERBS.mcpAction.daemon.action,
+  SESSION_VERBS.mcpTools.daemon.action,
+])
+
+const UNKNOWN_CONTROL_ACTION_ERROR = (() => {
+  const advertised: string[] = []
+  const seen = new Set<string>()
+  for (const row of BASE_ADVERTISED_CONTROL_ROWS) {
+    const action = row.daemon.action
+    if (SESSION_CONTROL_ACTIONS.has(action) && !seen.has(action)) {
+      advertised.push(action)
+      seen.add(action)
+    }
+  }
+  for (const action of SESSION_CONTROL_ACTIONS) {
+    if (!seen.has(action) && !BASE_UNADVERTISED_CONTROL_ACTIONS.has(action)) {
+      advertised.push(action)
+      seen.add(action)
+    }
+  }
+  return `${CONTROL_OP} requires { action: ${advertised.join('|')}, sessionId, by }`
+})()
+
+function echoAliasedOp<O extends string, L extends string>(
+  requestedOp: string | undefined,
+  spec: { readonly op: O; readonly legacyOp: L },
+): O | L {
+  return requestedOp === spec.legacyOp ? spec.legacyOp : spec.op
 }
 
 export const ESTARTING_HOLD_MS = 4_000
-const PROMPT_WHILE_STARTING = new Set(['sessionList', 'list', 'has', 'status'])
+const PROMPT_WHILE_STARTING = new Set([SESSION_VERBS.sessionList.daemon.op, 'list', 'has', 'status'])
 
 async function awaitReadiness(deps: ControlServerDeps, holdMs: number): Promise<boolean> {
   if (deps.isReady()) return true
@@ -503,7 +544,7 @@ async function routeControlRequest(
     return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'bad json' })
   }
   const requestedOp = raw.op
-  const op = requestedOp !== undefined ? (SESSION_OP_ALIASES[requestedOp] ?? requestedOp) : requestedOp
+  const op = requestedOp !== undefined && Object.hasOwn(SESSION_OP_ALIASES, requestedOp) ? SESSION_OP_ALIASES[requestedOp] : requestedOp
 
   if (op === 'ping') {
     return answer(sock, {
@@ -514,7 +555,7 @@ async function routeControlRequest(
       working: Math.max(0, answering - 1),
     })
   }
-  if (op === 'hello') {
+  if (op === SESSION_VERBS.hello.daemon.op) {
     const facts = deps.hello?.()
     const presenceKind = clientPresenceKindOf(raw.clientKind)
     if (presenceKind !== undefined && typeof raw.clientPid === 'number') noteClientPresence(raw.clientPid, presenceKind)
@@ -525,7 +566,7 @@ async function routeControlRequest(
     )
     return answer(sock, {
       ok: true,
-      op: 'hello',
+      op: SESSION_VERBS.hello.daemon.op,
       proto: MERCURY_DAEMON_PROTO,
       minProto: MIN_PROTO,
       ready: deps.isReady(),
@@ -671,36 +712,36 @@ async function routeControlRequest(
       return answer(sock, { ok: true, op: 'reconfigure', ...pickDefined(r, RECONFIGURE_WIRE_KEYS) })
     }
 
-    case 'sessionAdmit': {
+    case SESSION_VERBS.sessionAdmit.daemon.op: {
       const read = readSessionAdmit(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerSessionAdmit(deps as DepsWith<'concourseAdmit'>, sock, requestedOp, read)
     }
 
-    case 'concourseWithdraw': {
+    case SESSION_VERBS.concourseWithdraw.daemon.op: {
       const read = readConcourseWithdraw(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerConcourseWithdraw(deps as DepsWith<'concourseWithdraw'>, sock, read)
     }
 
-    case 'concourseWarm': {
+    case SESSION_VERBS.concourseWarm.daemon.op: {
       const read = readConcourseWarm(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerConcourseWarm(deps as DepsWith<'concourseWarm'>, sock, raw, read)
     }
-    case 'sessionDispatch': {
+    case SESSION_VERBS.sendWords.daemon.op: {
       const read = readSessionDispatch(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerSessionDispatch(deps as DepsWith<'concourseDispatch'>, sock, raw, requestedOp, read)
     }
 
-    case 'sessionControl': {
+    case SESSION_VERBS.sessionControl.daemon.op: {
       const read = readSessionControl(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerSessionControl(deps as DepsWith<'concourseControl'>, sock, raw, requestedOp, read)
     }
 
-    case 'sessionFileRestore': {
+    case SESSION_VERBS.fileRestore.daemon.op: {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.sessionFileRestore) return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not support single-file restore or undo' })
       if (typeof raw.sessionId !== 'string' || !raw.sessionId || typeof raw.by !== 'string' || !raw.by || typeof raw.userMessageId !== 'string' || !raw.userMessageId ||
@@ -713,39 +754,39 @@ async function routeControlRequest(
         ...(raw.dryRun === true ? { dryRun: true } : {}),
       }
       const receipt = await deps.sessionFileRestore({ ...request, sessionId: raw.sessionId, by: raw.by })
-      return answer(sock, { ok: true, op: 'sessionFileRestore', ...receipt })
+      return answer(sock, { ok: true, op: SESSION_VERBS.fileRestore.daemon.op, ...receipt })
     }
-    case 'sessionRewind': {
+    case SESSION_VERBS.rewind.daemon.op: {
       const read = readSessionRewind(deps, sock, raw, auth, op)
       if (read === undefined) return
       return await answerSessionRewind(deps as DepsWith<'sessionRewind'>, sock, raw, read)
     }
 
-    case 'sessionList': {
+    case SESSION_VERBS.sessionList.daemon.op: {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.concourseList) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
       }
-      return answer(sock, { ok: true, op: requestedOp === 'concourseList' ? 'concourseList' : 'sessionList', workers: deps.concourseList() })
+      return answer(sock, { ok: true, op: echoAliasedOp(requestedOp, SESSION_VERBS.sessionList.daemon), workers: deps.concourseList() })
     }
 
-    case 'sessionRelease': {
+    case SESSION_VERBS.sessionRelease.daemon.op: {
       return answerSessionRelease(deps, sock, raw, auth, op, requestedOp)
     }
 
-    case 'restart-when-idle': {
+    case SESSION_VERBS.restartWhenIdle.daemon.op: {
       return answerRestartWhenIdle(deps, sock, raw, auth, op)
     }
 
-    case 'signIns': {
+    case SESSION_VERBS.signIns.daemon.op: {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.signIns) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no sign-in view' })
       }
-      return answer(sock, { ok: true, op: 'signIns', view: deps.signIns({ refresh: raw.refresh === true }) })
+      return answer(sock, { ok: true, op: SESSION_VERBS.signIns.daemon.op, view: deps.signIns({ refresh: raw.refresh === true }) })
     }
 
-    case 'processSweep': {
+    case SESSION_VERBS.processSweep.daemon.op: {
       if (!verifyControlAuth(auth, deps.controlKey)) return refuseAuth(sock, op)
       if (!deps.processSweep) {
         return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon has no process sweep' })
@@ -942,7 +983,7 @@ async function answerSessionAdmit(deps: DepsWith<'concourseAdmit'>, sock: net.So
   }
   return answer(sock, {
     ok: true,
-    op: requestedOp === 'concourseAdmit' ? 'concourseAdmit' : 'sessionAdmit',
+    op: echoAliasedOp(requestedOp, SESSION_VERBS.sessionAdmit.daemon),
     workerId: r.runnerId,
     ...pickDefined(r, ADMIT_WIRE_KEYS),
   })
@@ -962,7 +1003,7 @@ function readConcourseWithdraw(deps: ControlServerDeps, sock: net.Socket, raw: C
 
 async function answerConcourseWithdraw(deps: DepsWith<'concourseWithdraw'>, sock: net.Socket, { clientMessageId }: Exclude<ReturnType<typeof readConcourseWithdraw>, void>): Promise<void> {
   const withdrawn = await deps.concourseWithdraw(clientMessageId)
-  return answer(sock, { ok: true, op: 'concourseWithdraw', withdrawn })
+  return answer(sock, { ok: true, op: SESSION_VERBS.concourseWithdraw.daemon.op, withdrawn })
 }
 
 function readConcourseWarm(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
@@ -991,7 +1032,7 @@ async function answerConcourseWarm(deps: DepsWith<'concourseWarm'>, sock: net.So
     ...(warmKit !== undefined ? { kit: warmKit } : {}),
     ...(raw.bypassConsent === true ? { bypassConsent: true } : {}),
   })
-  return answer(sock, { ok: true, op: 'concourseWarm', ...pickDefined(warm, WARM_WIRE_KEYS) })
+  return answer(sock, { ok: true, op: SESSION_VERBS.concourseWarm.daemon.op, ...pickDefined(warm, WARM_WIRE_KEYS) })
 }
 
 function readSessionDispatch(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
@@ -1072,7 +1113,7 @@ async function answerSessionDispatch(deps: DepsWith<'concourseDispatch'>, sock: 
   }
   return answer(sock, {
     ok: true,
-    op: requestedOp === 'concourseDispatch' ? 'concourseDispatch' : 'sessionDispatch',
+    op: echoAliasedOp(requestedOp, SESSION_VERBS.sendWords.daemon),
     workerId: r.runnerId,
     ...pickDefined(r, DISPATCH_WIRE_KEYS),
   })
@@ -1083,48 +1124,14 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
   if (!deps.concourseControl) {
     return answer(sock, { ok: false, code: 'ENOTSUP', error: 'this daemon does not host the session concourse' })
   }
-  const action =
-    raw.action === 'pause' ||
-    raw.action === 'resume' ||
-    raw.action === 'interrupt' ||
-    raw.action === 'attach' ||
-    raw.action === 'detach' ||
-    raw.action === 'grant-workflows' ||
-    raw.action === 'revoke-workflows' ||
-    raw.action === 'answer-permission' ||
-    raw.action === 'stop' ||
-    raw.action === 'set-model' ||
-    raw.action === 'set-permission-mode' ||
-    raw.action === 'session-facts' ||
-    raw.action === 'set-title' ||
-    raw.action === 'focus' ||
-    raw.action === 'blur' ||
-    raw.action === 'park' ||
-    raw.action === 'park-all' ||
-    raw.action === 'set-effort' ||
-    raw.action === 'contract' ||
-    raw.action === 'set-kit' ||
-    raw.action === 'mcp-action' ||
-    raw.action === 'mcp-tools' ||
-    raw.action === 'set-schedule' ||
-    raw.action === 'set-spawn-switch' ||
-    raw.action === 'stop-agent' ||
-    raw.action === 'resume-agent' ||
-    raw.action === 'withdraw-send' ||
-    raw.action === 'background-shell' ||
-    raw.action === 'pause-gate' ||
-    raw.action === 'leave' ||
-    raw.action === 'send-now' ||
-    raw.action === 'board-post'
-      ? raw.action
-      : undefined
+  const action = isSessionControlAction(raw.action) ? raw.action : undefined
   const sessionId = String(raw.sessionId ?? '')
   const by = String(raw.by ?? '')
   if (action === undefined || !sessionId || !by) {
-    return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionControl requires { action: pause|resume|interrupt|attach|detach|grant-workflows|revoke-workflows|answer-permission|stop|set-model|set-permission-mode|session-facts|set-title|focus|blur|park|park-all|set-effort|contract|set-kit|set-schedule|set-spawn-switch|stop-agent|resume-agent|withdraw-send|background-shell|pause-gate|leave|send-now|board-post, sessionId, by }' })
+    return answer(sock, { ok: false, code: 'EUNKNOWN', error: UNKNOWN_CONTROL_ACTION_ERROR })
   }
   let boardPost: BoardPostRequestV1 | undefined
-  if (action === 'board-post') {
+  if (action === SESSION_VERBS.postBoard.daemon.action) {
     const p = raw.boardPost && typeof raw.boardPost === 'object' && !Array.isArray(raw.boardPost) ? (raw.boardPost as Record<string, unknown>) : undefined
     const channel = p?.channel === 'general' || p?.channel === 'team' || p?.channel === 'whisper' ? p.channel : undefined
     if (channel === undefined || typeof p?.clientOpId !== 'string' || p.clientOpId.length === 0 || p.clientOpId.length > 160 || typeof p.text !== 'string' || p.text.length === 0 || (p.target !== undefined && typeof p.target !== 'string')) {
@@ -1165,7 +1172,7 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
         }
       : undefined
   let mcpAction: { name: string; action: 'authenticate' | 'reconnect' | 'cancel-auth' } | undefined
-  if (raw.action === 'mcp-action') {
+  if (action === SESSION_VERBS.mcpAction.daemon.action) {
     const m = raw.mcpAction as Record<string, unknown> | undefined
     if (!m || typeof m.name !== 'string' || m.name.length === 0 || m.name.length > 200 || !['authenticate', 'reconnect', 'cancel-auth'].includes(String(m.action))) {
       return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-action requires { name, action: authenticate|reconnect|cancel-auth }' })
@@ -1173,7 +1180,7 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
     mcpAction = { name: m.name, action: m.action as 'authenticate' | 'reconnect' | 'cancel-auth' }
   }
   let mcpServer: string | undefined
-  if (raw.action === 'mcp-tools') {
+  if (action === SESSION_VERBS.mcpTools.daemon.action) {
     if (typeof raw.mcpServer !== 'string' || raw.mcpServer.length === 0 || raw.mcpServer.length > 200) {
       return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'mcp-tools requires { mcpServer }' })
     }
@@ -1212,7 +1219,7 @@ function readSessionControl(deps: ControlServerDeps, sock: net.Socket, raw: Cont
   }
   let terminalApplication: { identity: string; name: string; windowId?: string | null; tty?: string | null } | null | undefined
   if (raw.terminalApplication !== undefined) {
-    if (action !== 'focus') return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
+    if (action !== SESSION_VERBS.focus.daemon.action) return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'terminalApplication belongs to focus only' })
     const candidate = raw.terminalApplication as { identity?: unknown; name?: unknown; windowId?: unknown; tty?: unknown } | null
     if (candidate === null) terminalApplication = null
     else if (typeof candidate === 'object' && !Array.isArray(candidate) && typeof candidate.identity === 'string' && candidate.identity.length > 0 && candidate.identity.length <= 512 && typeof candidate.name === 'string' && candidate.name.length > 0 && candidate.name.length <= 512) {
@@ -1255,7 +1262,7 @@ async function answerSessionControl(deps: DepsWith<'concourseControl'>, sock: ne
     ...(typeof raw.paused === 'boolean' ? { paused: raw.paused } : {}),
     ...(boardPost !== undefined ? { boardPost } : {}),
   })
-  return answer(sock, { ok: true, op: requestedOp === 'concourseControl' ? 'concourseControl' : 'sessionControl', ...pickDefined(r, CONTROL_WIRE_KEYS) })
+  return answer(sock, { ok: true, op: echoAliasedOp(requestedOp, SESSION_VERBS.sessionControl.daemon), ...pickDefined(r, CONTROL_WIRE_KEYS) })
 }
 
 function readSessionRewind(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string) {
@@ -1285,7 +1292,7 @@ async function answerSessionRewind(deps: DepsWith<'sessionRewind'>, sock: net.So
     userMessageId,
     ...(raw.dryRun === true ? { dryRun: true } : {}),
   })
-  return answer(sock, { ok: true, op: 'sessionRewind', ...r })
+  return answer(sock, { ok: true, op: SESSION_VERBS.rewind.daemon.op, ...r })
 }
 
 function answerSessionRelease(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string, requestedOp: string | undefined): void {
@@ -1298,7 +1305,7 @@ function answerSessionRelease(deps: ControlServerDeps, sock: net.Socket, raw: Co
     return answer(sock, { ok: false, code: 'EUNKNOWN', error: 'sessionRelease requires { runnerId }' })
   }
   const r = deps.concourseRelease(runnerId)
-  return answer(sock, { ok: true, op: requestedOp === 'concourseRelease' ? 'concourseRelease' : 'sessionRelease', ...pickDefined(r, RELEASE_WIRE_KEYS) })
+  return answer(sock, { ok: true, op: echoAliasedOp(requestedOp, SESSION_VERBS.sessionRelease.daemon), ...pickDefined(r, RELEASE_WIRE_KEYS) })
 }
 
 function answerRestartWhenIdle(deps: ControlServerDeps, sock: net.Socket, raw: ControlRequestRaw, auth: string | undefined, op: string): void {
@@ -1310,7 +1317,7 @@ function answerRestartWhenIdle(deps: ControlServerDeps, sock: net.Socket, raw: C
   const r = deps.restartWhenIdle(by)
   return answer(sock, {
     ok: true,
-    op: 'restart-when-idle',
+    op: SESSION_VERBS.restartWhenIdle.daemon.op,
     state: r.state,
     live: r.live,
     ...(r.detail !== undefined ? { detail: r.detail } : {}),
