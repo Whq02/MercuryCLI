@@ -11,6 +11,7 @@ import { METHODS as published } from '../../sdk/src/wire.ts'
 import { DAEMON_VERB_BORN_AT, MERCURY_DAEMON_PROTO, MIN_PROTO } from '../../src/daemon/protocol.ts'
 import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, type MethodName } from '../../src/runner/wire/methods.ts'
 import { Peer } from '../../src/runner/wire/peer.ts'
+import { permissionModeSchema } from '../../src/utils/permissions/PermissionMode.ts'
 
 function samples(schema: JsonSchema, full: boolean): unknown[] {
   if ('const' in schema) return [schema.const]
@@ -210,6 +211,8 @@ async function daemonWireRecording(
 
     const cases: DaemonWireRecording['cases'] = []
     for (const entry of fixtures.cases) {
+      if (entry.frame.permissionMode !== undefined) permissionModeSchema().parse(entry.frame.permissionMode)
+      if (entry.frame.action === 'set-permission-mode') permissionModeSchema().parse(entry.frame.mode)
       nextStubReturn = entry.stubReturn
       lastHandler = null
       const requestFrame = encodeFrame(entry.frame)
@@ -312,6 +315,8 @@ const dispatchOk = (stateRevision: number, state = 'accepted'): ReplySpec => req
 })
 
 function buildSimpleCases(): SimpleCaseSpec[] {
+  const mode = permissionModeSchema().parse('implement')
+  const standard = permissionModeSchema().parse('default')
   const rewindOk = (op: string, mode: string, extra: Obj = {}): Obj => ({ ok: true, op, outcome: 'applied', mode, ...extra })
   const codeDiff = (ins: number, del: number): Obj => ({ filesChanged: ['src/demo.ts'], insertions: ins, deletions: del })
   const answerFollowUp = (rev: number): ReplySpec => req =>
@@ -398,11 +403,11 @@ function buildSimpleCases(): SimpleCaseSpec[] {
     { id: 'setSpawnSwitch.subagents.on', op: 'setSpawnSwitch', variant: 'subagents on applied', reply: ctrl('applied', { detail: 'subagents on' }), call: c => c.setSpawnSwitch!('subagents', true) },
     { id: 'setSpawnSwitch.workflows.off', op: 'setSpawnSwitch', variant: 'workflows off queued', reply: ctrl('queued'), call: c => c.setSpawnSwitch!('workflows', false) },
     { id: 'setSpawnSwitch.refused', op: 'setSpawnSwitch', variant: 'refused', reply: err('EREFUSED', 'locked by policy'), call: c => c.setSpawnSwitch!('subagents', false) },
-    { id: 'setPermissionMode.applied', op: 'setPermissionMode', variant: 'applied', resetFacts: true, reply: ctrl('applied', { detail: 'mode set' }), call: c => c.setPermissionMode!('plan') },
-    { id: 'setPermissionMode.noop', op: 'setPermissionMode', variant: 'noop', resetFacts: true, reply: ctrl('noop'), call: c => c.setPermissionMode!('default') },
-    { id: 'setPermissionMode.refused', op: 'setPermissionMode', variant: 'refused', resetFacts: true, reply: ctrl('refused', { detail: 'not permitted' }), call: c => c.setPermissionMode!('bypassPermissions') },
+    { id: 'setPermissionMode.applied', op: 'setPermissionMode', variant: 'applied', resetFacts: true, reply: ctrl('applied', { detail: 'mode set' }), call: c => c.setPermissionMode!(mode) },
+    { id: 'setPermissionMode.noop', op: 'setPermissionMode', variant: 'noop', resetFacts: true, reply: ctrl('noop'), call: c => c.setPermissionMode!(standard) },
+    { id: 'setPermissionMode.refused', op: 'setPermissionMode', variant: 'refused', resetFacts: true, reply: ctrl('refused', { detail: 'not permitted' }), call: c => c.setPermissionMode!(mode) },
     { id: 'answerAsk.allow.minimal', op: 'answerAsk', variant: 'allow minimal', reply: ctrl('applied'), call: c => c.answerAsk!('ask-1', { kind: 'allow' }) },
-    { id: 'answerAsk.allow.full', op: 'answerAsk', variant: 'allow full with feedback and contentBlocks', reply: answerFollowUp(1), waitExchanges: 2, call: c => c.answerAsk!('ask-2', { kind: 'allow', updatedInput: { command: 'ls -la' }, permissionUpdates: [{ type: 'setMode', mode: 'acceptEdits', destination: 'session' }], feedback: 'run carefully', contentBlocks: [{ type: 'text', text: 'extra note' }] }) },
+    { id: 'answerAsk.allow.full', op: 'answerAsk', variant: 'allow full with feedback and contentBlocks', reply: answerFollowUp(1), waitExchanges: 2, call: c => c.answerAsk!('ask-2', { kind: 'allow', updatedInput: { command: 'ls -la' }, permissionUpdates: [{ type: 'setMode', mode: standard, destination: 'session' }], feedback: 'run carefully', contentBlocks: [{ type: 'text', text: 'extra note' }] }) },
     { id: 'answerAsk.deny.minimal', op: 'answerAsk', variant: 'deny minimal', reply: ctrl('applied'), call: c => c.answerAsk!('ask-3', { kind: 'deny' }) },
     { id: 'answerAsk.deny.full', op: 'answerAsk', variant: 'deny full with feedback and contentBlocks', reply: answerFollowUp(2), waitExchanges: 2, call: c => c.answerAsk!('ask-4', { kind: 'deny', feedback: 'not now', contentBlocks: [{ type: 'text', text: 'block note' }] }) },
     { id: 'answerAsk.abort', op: 'answerAsk', variant: 'abort', reply: ctrl('applied'), call: c => c.answerAsk!('ask-5', { kind: 'abort' }) },
@@ -725,7 +730,7 @@ async function connectorWireRecording(): Promise<ConnectorWireRecordingResult> {
   }
 }
 
-export async function verbWiresRecording(input: DaemonWireFixtures): Promise<Record<string, unknown>> {
+async function verbWiresRecording(input: DaemonWireFixtures): Promise<Record<string, unknown>> {
   const runner = await runnerWireRecording()
   const connector = await connectorWireRecording()
   const daemon = await daemonWireRecording(input)
