@@ -7,6 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'mcp-stdio-limit-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_MCP_STDIO_MESSAGE_MB = '2'
+process.env.MERCURY_MCP_OUTPUT_TOKENS = '1000000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, mcpStdioMaxMessageBytes, DEFAULT_MCP_STDIO_MESSAGE_MB } = await import('../../src/services/mcp/client.ts')
