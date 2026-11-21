@@ -40,7 +40,7 @@ try {
   assert.equal(first.flatMap(m => m.message.content).find(b => b.type === 'tool_use')?.id, id)
   const result = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: id, content: 'hi' }] })
   const second = await run('claude-sonnet-5', [user, ...first, result])
-  assert(second.some(m => !m.isApiErrorMessage && m.message.content.some((b: any) => b.text === 'ok')))
+  assert(second.some(m => !m.isApiErrorMessage && m.message.content.some((b: any) => b.text === 'ok')), `src/services/providers/callModelRouter.ts cross-route replay to Anthropic did not return 'ok': ${JSON.stringify(second.map(m => ({ err: m.isApiErrorMessage, content: m.message.content }))).slice(0, 160)}`)
   const blocks = requests.at(-1).messages.flatMap((m: any) => Array.isArray(m.content) ? m.content : [])
   assert.equal(blocks.find((b: any) => b.type === 'tool_use').id, blocks.find((b: any) => b.type === 'tool_result').tool_use_id)
   assert.equal(first.flatMap(m => m.message.content).find(b => b.type === 'tool_use')?.id, id)
