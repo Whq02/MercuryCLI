@@ -137,7 +137,7 @@ if (SCENE === undefined) {
 
   console.log("T the rewind picker and the prompts list pass over a cut's row as they pass over the interrupt's: it is never offered as words of the user's")
   {
-    const messages = await import('../../src/utils/messages.ts')
+    const messages = await import('../../src/services/messages.ts')
     const selector = await import('../../src/components/MessageSelector.tsx')
     const panel = await import('../../src/components/prompts-panel/rows.ts')
     const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')

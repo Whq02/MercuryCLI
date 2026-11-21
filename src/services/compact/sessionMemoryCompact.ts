@@ -8,14 +8,14 @@ import {
   createUserMessage,
   findLastCompactBoundaryIndex,
   isCompactBoundaryMessage,
-} from '../../utils/messages.js'
+} from '../messages.js'
 import { getSessionMemoryPath } from '../../utils/permissions/filesystem.js'
 import { fireHooks } from '../../utils/hooks/fire.js'
 import { hookRowsOfResult } from '../../utils/hooks/rows.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { getTranscriptPath } from '../../utils/sessionStorage/paths.js'
 import { tokenCountFromLastAPIResponse } from '../context/tokens.js'
-import { extractDiscoveredToolNames } from '../../utils/toolSearch.js'
+import { extractDiscoveredToolNames } from '../messages/toolSearch.js'
 import { isSessionMemoryEmpty, truncateSessionMemoryForCompact } from '../SessionMemory/prompts.js'
 import {
   getLastSummarizedMessageId,

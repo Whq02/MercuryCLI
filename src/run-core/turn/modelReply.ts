@@ -9,7 +9,7 @@ import {
 import {
   createUserInterruptionMessage,
   createSystemMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { getModelMaxOutputTokens } from '../../utils/model/capabilities.js'
 import { outputRoomOf } from '../../services/api/outputFit.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'

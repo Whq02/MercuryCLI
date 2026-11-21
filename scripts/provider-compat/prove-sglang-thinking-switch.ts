@@ -37,7 +37,7 @@ const { routedCallModel } = await import('../../src/services/providers/callModel
 const { buildHostedExtras, buildLocalExtras } = await import('../../src/services/providers/openaicompat/compatWire.ts')
 const { compatModelEfforts } = await import('../../src/services/providers/openaicompat/compatEffort.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
 setIsInteractive(false)
 

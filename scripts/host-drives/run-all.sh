@@ -10,7 +10,7 @@
 # gate-watch: scripts/host/prove-door-drive.ts src/utils/model/modelPickerGroups.ts src/components/MercuryModelPicker.tsx
 # gate-watch: scripts/host/prove-vendor-road-drive.ts
 # gate-watch: src/main.tsx scripts/host/boxFixture.mjs scripts/host/boxDaemonProof.ts
-# gate-watch: src/types/message.ts src/utils/messages/pairing.ts scripts/host/trillionKimiFixture.ts
+# gate-watch: src/types/message.ts src/services/messages/pairing.ts scripts/host/trillionKimiFixture.ts
 # gate-watch: src/utils/settings/modelFacts.ts scripts/host/prove-host-tune.ts
 # gate-watch: scripts/host/hfFixture.mjs scripts/host/prove-hf-recipes.ts scripts/host/prove-host-search-drive.ts src/components/mercury-ui/menuFold.tsx
 # gate-watch: scripts/host/prove-host-bank-drive.ts scripts/host/prove-llmhost-qc-drive.ts

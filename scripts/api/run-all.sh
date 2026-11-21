@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/utils/attachments/toolManuals.ts
+# gate-watch: src/services/attachments/toolManuals.ts
 # gate-watch: src/services/providers/anthropic/**
 # gate-watch: src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**
 # gate-watch: src/services/api/**

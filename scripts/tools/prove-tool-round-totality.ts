@@ -33,7 +33,7 @@ bootstrap.setIsInteractive(false)
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 

@@ -13,7 +13,7 @@
 # gate-watch: src/commands/workbench/workbench.tsx src/constants/subagentDoctrine.ts
 # gate-watch: src/hooks/useTurnEndPing.ts
 # gate-watch: src/utils/run/resolveOwner.ts src/skills/bundled/index.ts src/skills/bundledSkills.ts
-# gate-watch: src/utils/toolSearch.ts
+# gate-watch: src/services/messages/toolSearch.ts
 # gate-watch: scripts/lib/observed_walk.py
 # gate-watch: src/services/context/analyzeContext.ts src/components/concourse/** src/components/mercury-ui/InteractiveRow.tsx
 # gate-watch: src/screens/chat/*

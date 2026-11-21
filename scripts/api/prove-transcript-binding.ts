@@ -38,7 +38,7 @@ guard.unref?.()
 
 const binding = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
 const { THINKING_BINDING_CONTROLS_BETA_HEADER } = await import('../../src/constants/betas.ts')
-const { stripThinkingFromIndex, stripSignatureBlocks } = await import('../../src/utils/messages/apiFilters.ts')
+const { stripThinkingFromIndex, stripSignatureBlocks } = await import('../../src/services/messages/apiFilters.ts')
 const { stripExcessMediaItems } = await import('../../src/services/providers/anthropic/media.ts')
 
 section('§1 the setting table')

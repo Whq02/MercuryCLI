@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const j = (v: unknown): string => JSON.stringify(v)
 
 const { UserToolErrorMessage } = await import('../../src/components/messages/UserToolResultMessage/UserToolErrorMessage.js')
-const { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/utils/messages.js')
+const { INTERRUPT_MESSAGE_FOR_TOOL_USE, REJECT_MESSAGE_WITH_REASON_PREFIX } = await import('../../src/services/messages.js')
 const { OUTPUT_CONNECTOR } = await import('../../src/constants/figures.js')
 const { GLYPH } = await import('../../src/utils/glyphs.js')
 const { AppStoreContext } = await import('../../src/state/AppState.js')

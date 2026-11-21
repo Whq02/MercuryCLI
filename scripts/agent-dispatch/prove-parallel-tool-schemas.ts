@@ -14,7 +14,7 @@ const section = (t: string): void => {
 }
 
 
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 

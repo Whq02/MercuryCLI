@@ -28,9 +28,9 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   filterOrphanedThinkingOnlyMessages,
   filterWhitespaceOnlyAssistantMessages,
-} from '../../utils/messages.js'
-import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
-import { createUserMessage } from '../../utils/messages.js'
+} from '../../services/messages.js'
+import { settleToolUsesOfEndedRun } from '../../services/messages/apiFilters.js'
+import { createUserMessage } from '../../services/messages.js'
 import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getQuerySourceForAgent } from '../../utils/promptCategory.js'

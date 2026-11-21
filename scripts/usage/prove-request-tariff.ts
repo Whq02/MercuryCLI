@@ -15,7 +15,7 @@ globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fe
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { resetCostState, getTotalCost } = await import('../../src/cost-tracker.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { rollupSessionUsage } = await import('../../src/services/usage/usageRollup.ts')

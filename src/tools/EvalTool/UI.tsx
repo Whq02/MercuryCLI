@@ -9,7 +9,7 @@ import { ShellTimeDisplay } from '../../components/shell/ShellTimeDisplay.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { EvalToolProgress } from '../../types/tools.js'
 import type { Tools } from '../../Tool.js'
-import { buildSubagentLookups } from '../../utils/messages.js'
+import { buildSubagentLookups } from '../../services/messages.js'
 import type { EvalToolOutput } from './EvalTool.js'
 
 const EMPTY_SET: Set<string> = new Set()

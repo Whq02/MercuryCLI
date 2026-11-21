@@ -1,4 +1,4 @@
-import { extractTag } from './messages.js'
+import { extractTag } from './messages/text.js'
 
 const REASON_MAX_CHARS = 200
 

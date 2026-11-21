@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react'
 import { Box, Text } from '../../ink.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 
 const ACKNOWLEDGEMENTS = [
   'Noted.',

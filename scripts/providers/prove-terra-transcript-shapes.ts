@@ -57,7 +57,7 @@ const { ResponsesStreamFold, mapOpenaiHttpFailure } = await import('../../src/se
 const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.js')
 const { buildOpenaiResponsesRequest, decodeOpenaiTurnRecord } = await import('../../src/services/providers/openai/responsesBridge.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 const tool = { name: 'Echo', inputSchema: z.object({ value: z.string(), optional: z.string().optional() }), prompt: async () => 'Echo the fixture value.', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool
 const options = { model, effortValue: 'max', querySource: 'sdk', ownerKey: 'terra-shapes', getToolPermissionContext: async () => getEmptyToolPermissionContext(), agents: [], mcpTools: [], isNonInteractiveSession: true, hasAppendSystemPrompt: false } as never
 async function turn(messages: Message[]): Promise<AssistantMessage[]> {

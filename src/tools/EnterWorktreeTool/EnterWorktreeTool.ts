@@ -11,7 +11,7 @@ import {
   createWorktreeForSession,
   getCurrentWorktreeSession,
   validateWorktreeSlug,
-} from '../../utils/worktree.js'
+} from '../../services/worktree.js'
 import { findCanonicalGitRoot } from '../../utils/git.js'
 import { regroundGitWatch } from '../../utils/git/gitFilesystem.js'
 import { saveWorktreeState } from '../../utils/sessionStorage.js'

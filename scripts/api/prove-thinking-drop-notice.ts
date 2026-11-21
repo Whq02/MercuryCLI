@@ -335,7 +335,7 @@ section('§2 the words')
 section('§2b the model-switch receipt — the previous model\'s thinking leaves quietly, once')
 {
   const { isSameModel, modelSwitchReceipt } = binding
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
   check('an alias, a suffix and a dated spelling of one model are the same model', isSameModel('claude-fable-5-1', 'claude-fable-5-1[1m]') && isSameModel('claude-opus-4-8', 'claude-opus-4-6') && isSameModel('claude-opus-5', 'claude-opus-5'))
   check('two families are not', !isSameModel('claude-opus-4-8', 'claude-fable-5-1') && !isSameModel('claude-opus-5', 'claude-fable-5-1'))
   const withModel = (row: Record<string, unknown>, model: string): Record<string, unknown> => ({ ...row, message: { ...(row.message as Record<string, unknown>), model } })

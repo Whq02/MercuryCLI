@@ -114,7 +114,7 @@ delete process.env.MERCURY_WORKFLOWS
 }
 
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
   const projected = normalizeAttachmentForAPI({ type: 'harness_map_delta', added: ['ADDED-SURFACE'], removed: ['REMOVED-SURFACE'] })
   const content = projected[0]?.message.content
   check('attachmentText renders harness_map_delta', projected.length === 1 && projected[0]?.isMeta === true && typeof content === 'string' && content.includes('ADDED-SURFACE') && content.includes('REMOVED-SURFACE'))

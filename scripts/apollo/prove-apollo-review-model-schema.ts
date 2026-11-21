@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const { ApolloReviewTool } = await import('../../src/tools/ApolloReviewTool/ApolloReviewTool.tsx')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
 const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')

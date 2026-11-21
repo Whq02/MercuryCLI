@@ -41,9 +41,9 @@ import {
   createBusyRecoveryMessage,
   createThinkingNoteMessage,
   createAssistantAPIErrorMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { StreamChantWatch } from '../../services/tools/chantGuard.js'
-import { prependUserContext, firstTurnUserContext } from '../../utils/api.js'
+import { prependUserContext, firstTurnUserContext } from '../../services/messages/api.js'
 import { latestUserContextBody } from '../../utils/attachments/userContext.js'
 import { createAttachmentMessage } from '../../services/attachments.js'
 import { reconcileAppliedPlanUsage } from '../../services/run/requestContextPlan.js'

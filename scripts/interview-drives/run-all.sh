@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/interview/**
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
-# gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/services/messages/attachmentText.ts
 # gate-watch: src/components/CustomSelect/*
 # gate-watch: src/services/acp/**
 # gate-watch: src/substrate/flagRegistry.ts src/utils/*

@@ -10,7 +10,7 @@ import type {
   RenderableMessage,
 } from '../types/message.js'
 import { isFullscreenEnvEnabled } from './fullscreen.js'
-import { extractTag } from './messages.js'
+import { extractTag } from './messages/text.js'
 
 export const FOLDED_COUNT_TAG = 'folded'
 

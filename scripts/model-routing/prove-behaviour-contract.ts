@@ -26,8 +26,8 @@ const {
   contractFromSegments,
   __resetBehaviourContractRegistryForTest,
 } = await import('../../src/prompt/behaviourContract.js')
-const { stripUnsignedThinkingBlocks } = await import('../../src/utils/messages/pairing.js')
-const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.js')
+const { stripUnsignedThinkingBlocks } = await import('../../src/services/messages/pairing.js')
+const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.js')
 const { assistantMessageToMessageParam, userMessageToMessageParam } = await import(
   '../../src/services/providers/anthropic/messageParams.js'
 )

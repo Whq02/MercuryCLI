@@ -16,7 +16,7 @@ import {
   type SessionPickerFlatRow,
   type SessionScope,
 } from './mercury-ui/screens/sessionPickerModel.js';
-import { retentionWindowDays } from '../utils/cleanup.js';
+import { retentionWindowDays } from '../services/cleanup.js';
 import { formatFileSize, formatRelativeTimeAgo } from '../utils/format.js';
 import {
   buildPruneOffer,

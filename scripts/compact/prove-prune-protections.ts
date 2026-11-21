@@ -15,7 +15,7 @@ const section = (t: string): void => {
 process.env.MERCURY_TIME_BASED_MC = '1'
 const law = await import('../../src/services/compact/pruneProtections.ts')
 const { projectTimeBasedMicrocompact } = await import('../../src/services/compact/microCompact.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
 section('§A the predicate')

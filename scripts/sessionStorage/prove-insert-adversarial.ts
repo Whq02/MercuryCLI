@@ -9,7 +9,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const { recordTranscript, flushSessionStorage, settleTranscriptMessage } = await import(
   join(ROOT, 'src/utils/sessionStorage/writer.ts')
 )
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/services/messages.ts'))
 const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
 
 let failures = 0

@@ -68,7 +68,7 @@ enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
 const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
 const transport = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.js')
 type Message = import('../../src/types/message.js').Message

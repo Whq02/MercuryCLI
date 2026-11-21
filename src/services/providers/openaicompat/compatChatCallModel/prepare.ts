@@ -23,12 +23,12 @@ import {
   assistantMessageToMessageParam,
   userMessageToMessageParam,
 } from '../../anthropic/messageParams.js'
-import { toolToAPISchema } from '../../../../utils/api.js'
+import { toolToAPISchema } from '../../../messages/api.js'
 import {
   healWalkableForWire,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortValue } from '../../../../utils/effort.js'
-import { floorEffort } from '../../../../utils/model/utilityModel.js'
+import { floorEffort } from '../../../model/utilityModel.js'
 import { effortStampOf, type EffortStampV1 } from '../../../../utils/effortStamp.js'
 import { compatEffortWireFact } from '../compatWire.js'
 import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'
@@ -50,7 +50,7 @@ import { renderToolDialectHistory, toolDialectSystemText } from '../../local/too
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../../toolEconomy.js'
 import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap, type RequestImageFit } from '../../../../utils/imageResizer.js'
-import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
 import { fitToolResultImages } from '../../../../utils/messages/imageRequestFit.js'
 import { imagesSupportedForCompatModel, laneExtrasWithOperatorEffort, type CompatCallModelParams, type CompatCredential, type CompatLaneProfile } from './lane.js'
 import { apiErrorMessage } from './faults.js'

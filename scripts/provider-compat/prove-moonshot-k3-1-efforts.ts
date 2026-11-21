@@ -122,7 +122,7 @@ const { resolveStampedEffortTruth } = await import('../../src/utils/effort.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 const vocabularyOf = (id: string): string => {

@@ -143,7 +143,7 @@ const { query } = await import('../../src/query.ts')
 const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 ;(await import('../../src/bootstrap/state.ts')).setIsInteractive(false)
 type Turn = { notices: string[]; answers: string[]; terminal: string; requests: Array<Record<string, any>> }
 async function runTurn(model: string, prompt: string, steps: Step[]): Promise<Turn> {

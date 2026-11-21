@@ -16,11 +16,10 @@ import { foldAnswers, readAnswerObject, readStdoutAnswer, type FoldedAnswer, typ
 import { startBackgroundHook } from './background.js'
 import { startCommandHook, type CommandHookSource } from './commandRunner.js'
 import { hookAnswerFieldsOf, hookAnswerSchema, hookEventTable, hookKindsOf, HOOK_TIMEOUT_DEFAULT_S, type HookAnswer, type HookEvent, type HookPayload } from './contract.js'
-import { runCrewmateHook } from './crewmateRunner.js'
 import { emitHookResponse, emitHookStarted, getHookRunContext, hookProgressReporter } from './hookEvents.js'
 import { claimOnceHook, matchHooks, type MatchedHook } from './matching.js'
 import type { HookScope } from './sessionHooks.js'
-import { runQuestionHook, type ModelHookEnd } from './questionRunner.js'
+import { modelHookRunners, type ModelHookEnd } from './runnerRegistry.js'
 
 type HookFireOptions = {
   scope: HookScope
@@ -175,6 +174,7 @@ async function runOne(event: HookEvent, match: MatchedHook, payloadJson: string,
     return outcome({ kind: 'failed', line: failedLine({ status: 'failed', class: 'spawn', exit_code: 1, detail: `a ${kind} hook needs a model seat, and ${event} fired without one here` }, name, event, blocks) })
   }
   const run = { text: entry.question ?? entry.crewmate ?? '', name, event, payloadJson, answerSchema: hookAnswerSchema(event), model: entry.model, timeoutMs, signal: options.signal, toolUseContext: options.toolUseContext }
+  const { runQuestionHook, runCrewmateHook } = modelHookRunners()
   const end = kind === 'question' ? await runQuestionHook(run) : await runCrewmateHook(run)
   return outcome(modelEndToState(event, name, end, timeoutMs, blocks), end.durationMs)
 }

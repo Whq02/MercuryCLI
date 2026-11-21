@@ -1,6 +1,6 @@
 import type { AssistantMessage } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { getAssistantMessageText } from '../../../utils/messages.js'
+import { getAssistantMessageText } from '../../messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { SUMMARY_SECTION_TITLES } from '../prompt.js'
 import { ERROR_MESSAGE_INCOMPLETE_RESPONSE, PROVIDER_FINISH_FAULT_PREFIX, PROVIDER_TERMINATION_NOTE, ERROR_MESSAGE_NO_SUMMARY, MODEL_REFUSAL_STOP_KEY } from './limits.js'

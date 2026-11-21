@@ -4,7 +4,7 @@ import { APIError, AuthenticationError, APIConnectionError, NotFoundError } from
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { queryModelWithoutStreaming } from './anthropic/index.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage } from '../messages.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
 import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
 import { isModelFromDisabledProvider, isProviderDisabled } from './disabledProviders.js'

@@ -36,7 +36,7 @@ const { deriveTranscriptRows } = await import('../../src/components/concourse/wo
 const { entryToRecord, recordToEntry } = await import('../../src/fabric/entryCodec.js')
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import('../../src/services/engine-connector/focusedConnector.js')
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
-const { shouldShowUserMessage, normalizeMessages } = await import('../../src/utils/messages.js')
+const { shouldShowUserMessage, normalizeMessages } = await import('../../src/services/messages.js')
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 

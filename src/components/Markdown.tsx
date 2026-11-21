@@ -13,7 +13,7 @@ import {
   formatToken,
   hasMarkdownMarkers,
 } from '../utils/markdown.js'
-import { stripPromptXMLTags, stripPromptXMLTagsKeepEdges } from '../utils/messages.js'
+import { stripPromptXMLTags, stripPromptXMLTagsKeepEdges } from '../services/messages.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import { hashContent } from '../utils/hash.js'
 import {

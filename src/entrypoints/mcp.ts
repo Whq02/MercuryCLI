@@ -16,7 +16,7 @@ import { COMPUTER_TOOL_NAME } from '../services/desktop/toolName.js'
 import { createFileStateCacheWithSizeLimit } from '../utils/fileStateCache.js'
 import { randomUUID } from 'node:crypto'
 import { zodToJsonSchema } from '../utils/zodToJsonSchema.js'
-import { createAssistantMessage } from '../utils/messages.js'
+import { createAssistantMessage } from '../services/messages.js'
 import { repairToolInput } from '../services/providers/toolCallGate.js'
 import { formatZodValidationError } from '../utils/toolErrors.js'
 

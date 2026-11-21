@@ -249,7 +249,7 @@ export function foldAttachmentsIntoCapsule(
   input: string | null,
   context?: Pick<ToolUseContext, 'owner' | 'agentId'>,
 ): Attachment[] {
-  const { normalizeAttachmentForAPI } = require('../../utils/messages/attachmentText.js') as typeof import('../../utils/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = require('../messages/attachmentText.js') as typeof import('../messages/attachmentText.js')
   const sections: CapsuleSection[] = []
   const workingSet: CapsuleWorkingRef[] = []
   const members = new Set<Attachment>()

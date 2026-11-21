@@ -271,7 +271,7 @@ section('K. read knowledge keyed to content')
 
 section('N. the tool-input normaliser keeps every mode')
 {
-  const { normalizeToolInput } = await import('../../src/utils/api.ts')
+  const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
   const hunks = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), hunks: [{ lines: '1', replace: 'a' }], expected_anchor: 'fa:000000000000' }) as Record<string, unknown>
   check('N1 hunks and expected_anchor ride through', Array.isArray(hunks.hunks) && hunks.expected_anchor === 'fa:000000000000' && hunks.old_string === undefined, JSON.stringify(hunks))
   const appended = normalizeToolInput(FileEditTool as never, { file_path: join(fixtures, 'n.md'), section: '## A', append: 'x' }) as Record<string, unknown>

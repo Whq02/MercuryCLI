@@ -162,7 +162,7 @@ try {
   const { getEngineModel } = await import(`${root}/src/utils/model/model.ts`)
   const { getAttachments } = await import(`${root}/src/services/attachments/orchestrator.ts`)
   const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
   const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
 
   type ReadCall = (input: { file_path: string }, context: { abortController: AbortController }, ...rest: unknown[]) => Promise<unknown>

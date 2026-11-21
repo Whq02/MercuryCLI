@@ -162,7 +162,7 @@ tally.section("§4 a re-entered call (an Eval cell's tool.X) rides an app state 
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   await import('../../src/tools.ts')
   const { runToolUse } = await import('../../src/services/tools/toolExecution.ts')
-  const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { createAssistantMessage } = await import('../../src/services/messages.ts')
   const permissionContext = {
     ...getEmptyToolPermissionContext(),
     alwaysDenyRules: { projectSettings: ['Write'] },

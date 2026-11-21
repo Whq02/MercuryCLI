@@ -27,7 +27,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage, createAssistantAPIErrorMessage } = await import(
-  '../../src/utils/messages.ts'
+  '../../src/services/messages.ts'
 )
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import(
@@ -444,7 +444,7 @@ section('S6 — done-carried text paints and settles (never an empty turn)')
 
 section('S7 — the wire heal folds split turns: a grouped round is ONE turn, never a pairing violation')
 {
-  const pairing = await import('../../src/utils/messages/pairing.ts')
+  const pairing = await import('../../src/services/messages/pairing.ts')
   const { SYNTHETIC_TOOL_RESULT_PLACEHOLDER } = await import('../../src/utils/messages/rejectionText.ts')
   const asst = (id: string, blocks: unknown[]): unknown => {
     const m = createAssistantMessage({ content: blocks as never })

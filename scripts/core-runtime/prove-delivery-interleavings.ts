@@ -340,7 +340,7 @@ section('A7 — silence stays detail-only; every other turn-machine notice is re
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
   const { NO_TOOL_RULES, readReply } = await import('../../src/run-core/turn/noToolReply.ts')
-  const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
+  const { createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
   const { resolveAutoCompactWindow } = await import('../../src/services/compact/autoCompact.ts')
   const { fitImagesToRequestCap } = await import('../../src/utils/imageResizer.ts')
   const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')

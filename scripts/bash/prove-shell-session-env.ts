@@ -190,7 +190,7 @@ check(
   `after a run in which a fold landed (boundary seen: ${acrossAFold.folded}) the next scrubbing result carried ${JSON.stringify(acrossAFold.notice)} (the full note is right); after a run with no fold (boundary seen: ${acrossNoFold.folded}) it carried ${JSON.stringify(acrossNoFold.notice)} (nothing is right) — makeRequest in src/run-core/turn/makeRequest.ts resets the once-per-session latch where it yields the compaction boundary`,
 )
 await disposeOwner(processMainOwner())
-const { normalizeToolInput } = await import('../../src/utils/api.ts')
+const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }
 check('the tool-input normaliser keeps inherit_session_env on its way to execution', normalized.inherit_session_env === true, JSON.stringify(normalized))

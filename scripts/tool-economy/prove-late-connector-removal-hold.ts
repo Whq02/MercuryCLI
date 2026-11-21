@@ -23,7 +23,7 @@ function section(t: string): void {
 }
 
 const { getDeferredToolsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-const { getDeferredToolsDelta } = await import('../../src/utils/toolSearch.ts')
+const { getDeferredToolsDelta } = await import('../../src/services/messages/toolSearch.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
 const { z } = await import('zod/v4')

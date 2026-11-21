@@ -219,7 +219,7 @@ console.log('entering a provider key has one home: /logins')
   check('…and no row answers it with a refusal sentence or names it', !RETIRED_ENVS.some(env => words.includes(env)))
 
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-  const { getSettingsWithAllErrors } = await import('../../src/utils/settings/allErrors.ts')
+  const { getSettingsWithAllErrors } = await import('../../src/services/settings/allErrors.ts')
   const { applyConfigEnvironmentVariables } = await import('../../src/utils/managedEnv.ts')
   writeFileSync(
     join(proofHome, 'settings.json'),

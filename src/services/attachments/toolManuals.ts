@@ -1,6 +1,6 @@
 import type { ToolUseContext } from '../../Tool.js'
-import type { Attachment } from './types.js'
-import { extractDiscoveredToolNames } from '../toolSearch.js'
+import type { Attachment } from '../../utils/attachments/types.js'
+import { extractDiscoveredToolNames } from '../messages/toolSearch.js'
 
 export async function getToolManualAttachments(context: ToolUseContext, selected?: readonly string[]): Promise<Attachment[]> {
   const history = context.messages ?? []

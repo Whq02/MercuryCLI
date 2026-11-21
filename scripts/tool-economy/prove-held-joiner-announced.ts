@@ -25,7 +25,7 @@ function section(t: string): void {
 const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 const { getHeldToolsAttachment } = await import('../../src/services/attachments/deltas.ts')
 const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
 const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

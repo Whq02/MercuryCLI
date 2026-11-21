@@ -219,7 +219,7 @@ try {
   assert.match(HOST_HELP, /runs while you are logged in on that computer.*loginctl enable-linger keeps it running without a login/)
   console.log('MERCURY HOST GREEN · the service lifetime is told as it is: while logged in, back at login, lingering on Linux')
   const { compatCallModel } = await import('../../src/services/providers/openaicompat/compatCallModel.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   let reply = ''

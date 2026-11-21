@@ -184,7 +184,7 @@ section('§1 the ledger, pure — digests, the range law, the names per part')
   check('deadThinkingMarks reads every thinking_dead row into a map by response id', collected.size === 2 && collected.get('msg_1')?.has(0) === true && collected.get('msg_2')?.has(0) === true)
   const { createDeadThinkingAttachment } = binding
   const { isTranscribable } = await import('../../src/utils/sessionStorage/chain.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
   const deadAtt = createDeadThinkingAttachment([{ messageId: 'msg_1', blockIndex: 0 }, { messageId: 'msg_2', blockIndex: 0 }])
   check('the dead marks ride a dead_thinking attachment', deadAtt.type === 'attachment' && (deadAtt.attachment as { type: string }).type === 'dead_thinking')
   check('deadThinkingMarks reads the attachment form (and the legacy system row) into the map', deadThinkingMarks([user(TEXT('x')), deadAtt, deadRow] as never).get('msg_1')?.has(0) === true && deadThinkingMarks([deadAtt] as never).get('msg_2')?.has(0) === true)
@@ -297,7 +297,7 @@ section('§1b complete bound fields and reasoning continuity')
 
   const { buildRequestContextPlan } = await import('../../src/services/run/requestContextPlan.js')
   const { createContentReplacementState } = await import('../../src/utils/toolResultStorage.js')
-  const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.js')
+  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.js')
   const saved = process.env.MERCURY_TIME_BASED_MC
   process.env.MERCURY_TIME_BASED_MC = '1'
   const history = Array.from({ length: 13 }, (_, i) => [
@@ -331,7 +331,7 @@ section('§1c the observer sees final transport overlays')
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const savedNodeEnv = process.env.NODE_ENV
   const savedExtra = process.env.MERCURY_EXTRA_BODY
@@ -381,7 +381,7 @@ section('§1d a block the API dropped stays on the wire as returned — the API 
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const savedNodeEnv = process.env.NODE_ENV
   const savedBase = process.env.ANTHROPIC_BASE_URL
@@ -449,7 +449,7 @@ section('capability mounts append guidance while the real request prefix holds')
   const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
   const { getSystemPrompt } = await import('../../src/constants/prompts.js')
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
   const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')

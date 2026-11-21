@@ -13,7 +13,7 @@
 # gate-watch: src/utils/*
 # gate-watch: scripts/idiom/prove-body-shape-registry.ts src/fabric/validate.ts
 # gate-watch: src/services/attachments/mentionResolvers.ts src/utils/attachments/types.ts
-# gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/services/messages/attachmentText.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/mcp/_fixture-estate-server.mjs src/tools/AskUserQuestionTool/**
 # gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
 # gate-watch: scripts/lib/processGroup.ts

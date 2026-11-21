@@ -1,6 +1,6 @@
 import { inflateSync } from 'node:zlib'
 import type { Message } from '../types/message.js'
-import { normalizeAttachmentForAPI } from '../utils/messages/attachmentText.js'
+import { normalizeAttachmentForAPI } from './messages/attachmentText.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { jsonStringify } from '../utils/slowOperations.js'
 import { modelReceivesImageBlocks } from '../utils/model/capabilities.js'

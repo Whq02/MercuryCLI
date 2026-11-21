@@ -18,7 +18,7 @@ console.log("crewmate-foreground-throw: a throw inside the foreground consumer's
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 await import('../../src/services/providers/callModelRouter.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 await import('../../src/Tool.ts')
 const realRunAgent = await import('../../src/tools/AgentTool/runAgent.ts')
 

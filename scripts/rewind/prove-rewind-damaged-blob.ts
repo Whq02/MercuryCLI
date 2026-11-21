@@ -104,7 +104,7 @@ console.log('[4] the resume copy re-records only the snapshots whose blobs match
   const goodSnapshot: FileHistorySnapshot = { messageId: uuid(), timestamp: new Date(), trackedFileBackups: { 'good.txt': { backupFileName: goodName, version: 1, backupTime: new Date(), sourceSize: original.length } } }
   const badSnapshot: FileHistorySnapshot = { messageId: uuid(), timestamp: new Date(), trackedFileBackups: { 'bad.txt': { backupFileName: badName, version: 1, backupTime: new Date(), sourceSize: original.length } } }
   const log = { fileHistorySnapshots: [goodSnapshot, badSnapshot], messages: [{ sessionId: previous }] }
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { recordTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
   await recordTranscript([createUserMessage({ content: 'resume' })])
   await fh.copyFileHistoryForResume(log as never)

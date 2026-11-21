@@ -23,7 +23,7 @@ delete process.env.MERCURY_HOME
 const { DIST, NODE, LEAD_GATE, LEAD_MODEL, closeWorld, makeTally, makeWorld, sleep } = await import('./crew-world.ts')
 const { hostRunner } = await import('../lib/runnerHost.ts')
 const { getQueuedCommandAttachments } = await import('../../src/services/attachments/queuedCommands.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
 const { enqueuePendingNotification, getCommandQueue } = await import('../../src/utils/messageQueueManager.ts')
 
 const tally = makeTally('operator-note-reads-as-the-operators')

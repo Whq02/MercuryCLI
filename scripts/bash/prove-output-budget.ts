@@ -63,7 +63,7 @@ const bashUtils = (await import('../../src/utils/shell/utils.ts')) as Record<str
 const formatOutput = bashUtils.formatOutput as (content: string, opts?: { preExcerpted?: boolean; maxLength?: number }) => { totalLines: number; truncatedContent: string }
 const outputBudgetClause = bashUtils.outputBudgetClause as (budget: Budget) => string | undefined
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
-const { normalizeToolInput } = await import('../../src/utils/api.ts')
+const { normalizeToolInput } = await import('../../src/services/messages/api.ts')
 const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
 const { getScratchpadDir } = await import('../../src/utils/permissions/filesystem.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')

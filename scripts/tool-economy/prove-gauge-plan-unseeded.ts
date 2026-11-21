@@ -33,7 +33,7 @@ const { planToolPayload, planToolPayloadUnseeded, toolsOnTheWire, toolRosterLatc
 const { rosterOwnerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
 const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message

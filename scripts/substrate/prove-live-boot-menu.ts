@@ -367,7 +367,7 @@ section('§4 tail announcements in-process — harness_map_delta + deferred_tool
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
   const { getTools } = await import('../../src/tools.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { getDeferredToolsDelta } = await import('../../src/utils/toolSearch.ts')
+  const { getDeferredToolsDelta } = await import('../../src/services/messages/toolSearch.ts')
   const { _resetBlenderBridgeContextCacheForTesting } = await import('../../src/utils/blender/bridgeGates.ts')
   const { settleDapAdapterProbes } = await import('../../src/services/dap/dapClient.ts')
   await settleDapAdapterProbes()

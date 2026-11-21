@@ -32,7 +32,7 @@ process.env.MERCURY_MINIMAX_API_BASE = `http://127.0.0.1:${server.port}/v1`
 try {
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { getModelCosts, calculateUSDCost } = await import('../../src/services/usage/modelCost.ts')
   const { getModelUsage } = await import('../../src/bootstrap/state.ts')

@@ -37,7 +37,7 @@ for (const definition of roster) check(`the agents inventory renders ${definitio
 section('§2 the frozen worktree on a real repository')
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/services/worktree.ts')
 const { crewWorktreeLeftoverOf } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'reviewer-frozen-')))

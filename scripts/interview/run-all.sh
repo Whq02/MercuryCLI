@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/tools/AskUserQuestionTool/** src/components/permissions/AskUserQuestionPermissionRequest/**
-# gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/services/messages/attachmentText.ts
 # gate-watch: scripts/lib/captureDriver.ts
 # gate-watch: scripts/streaming/artifactArena.ts
 # gate-watch: src/components/CustomSelect/*

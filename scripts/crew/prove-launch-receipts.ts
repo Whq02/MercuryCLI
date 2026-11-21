@@ -524,7 +524,7 @@ const EXPECTED: Record<keyof typeof transcripts, RegExp> = {
 
 section('R10 · a death is delivered once — the typed cause, what landed, never a second notice')
 const { runAsyncAgentLifecycle } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { streamFaultAfterPartialText, STREAM_FAULT_RECOVERY_NUDGE } = await import('../../src/services/api/errors.ts')
 const META = { prompt: 'plant the foliage', resolvedAgentModel: 'gpt-5.6-sol', isBuiltInAgent: false, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true }
 const FAULT = streamFaultAfterPartialText('OpenAI', 'read-failed', 'terminated')

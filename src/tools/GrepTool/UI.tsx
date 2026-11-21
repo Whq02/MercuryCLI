@@ -12,7 +12,7 @@ import { Box, Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { FILE_NOT_FOUND_CWD_NOTE } from '../../utils/file.js'
 import { truncate } from '../../utils/format.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 
 
 type GrepRenderOutput = {

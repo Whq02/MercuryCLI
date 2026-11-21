@@ -46,7 +46,7 @@ const { composeSignInView, summarizeSignInView } = await import('../../src/daemo
 const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/components/BootLoginsScreen.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
 async function turn(model: string) {
   clearToolRosterLatches()

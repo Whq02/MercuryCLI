@@ -23,7 +23,7 @@ export async function prepare() {
   return {
     ...await import(`${root}/src/utils/settings/settings.ts`),
     ...await import(`${root}/src/bootstrap/state.ts`),
-    ...await import(`${root}/src/utils/messages.ts`),
+    ...await import(`${root}/src/services/messages.ts`),
     ...await import(`${root}/src/services/providers/callModelRouter.ts`),
     ...await import(`${root}/src/constants/prompts.ts`),
     ...await import(`${root}/src/utils/systemPromptType.ts`),

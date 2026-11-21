@@ -23,7 +23,7 @@ const { loadKeybindingsSync } = await import('../../src/keybindings/loadUserBind
 const { MessageRow, hasContentAfterIndex } = await import('../../src/components/MessageRow.tsx')
 const { deriveTranscriptRows } = await import('../../src/components/concourse/workerTranscriptFold.ts')
 const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool.ts')
-const { EMPTY_STRING_SET } = await import('../../src/utils/messages.ts')
+const { EMPTY_STRING_SET } = await import('../../src/services/messages.ts')
 const { stringWidth } = await import('../../src/ink/stringWidth.ts')
 
 let failures = 0

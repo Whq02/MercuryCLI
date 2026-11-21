@@ -1,6 +1,6 @@
 import { useClaim } from './effects.js'
 import type { Message } from '../types/message.js'
-import { createSeatReceiptMessage } from '../utils/messages.js'
+import { createSeatReceiptMessage } from '../services/messages.js'
 import { subscribeSeatReceipts } from '../utils/model/seatReceipts.js'
 
 export function useSeatReceipts({

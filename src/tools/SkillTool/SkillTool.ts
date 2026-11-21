@@ -22,7 +22,7 @@ import {
   prepareForkedCommandContext,
 } from '../../services/agents/forkedAgent.js'
 import { lazySchema } from '../../utils/lazySchema.js'
-import { normalizeMessages } from '../../utils/messages.js'
+import { normalizeMessages } from '../../services/messages.js'
 import { resolveSkillModelOverride } from '../../utils/model/model.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/permissions.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'

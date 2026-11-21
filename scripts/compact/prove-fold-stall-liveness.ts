@@ -189,7 +189,7 @@ const allowanceOf = (estTokens: number): number => (foldFirstByteAllowanceMs ===
 const { COLD_INGEST_MS_PER_1K_TOKENS } = await import('../../src/services/providers/streamIdleBudget.ts')
 const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.ts')
 const { streamOpenrouterResponses } = await import('../../src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')

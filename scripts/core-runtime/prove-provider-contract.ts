@@ -70,7 +70,7 @@ const tokEst = await import('../../src/services/tokenEstimation.js')
 const rp = await import('../../src/services/providers/anthropic/requestParams.js')
 const registry = await import('../../src/substrate/flagRegistry.js')
 const mp = await import('../../src/services/providers/anthropic/messageParams.js')
-const msgs = await import('../../src/utils/messages.js')
+const msgs = await import('../../src/services/messages.js')
 const state = await import('../../src/bootstrap/state.js')
 const caps = await import('../../src/utils/model/capabilities.js')
 

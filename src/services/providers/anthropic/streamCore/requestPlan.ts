@@ -19,8 +19,8 @@ import type {
   Message,
   UserMessage,
 } from '../../../../types/message.js'
-import { toolToAPISchema } from '../../../../utils/api.js'
-import { isToolSearchEnabledOptimistic, isToolSearchToolAvailable, modelSupportsToolReference } from '../../../../utils/toolSearch.js'
+import { toolToAPISchema } from '../../../messages/api.js'
+import { isToolSearchEnabledOptimistic, isToolSearchToolAvailable, modelSupportsToolReference } from '../../../messages/toolSearch.js'
 import { getMergedBetas } from '../../../../utils/betas.js'
 import { isTurnOwningQuerySource } from '../../../../utils/effort.js'
 import { computeFingerprintFromMessages } from '../../../../utils/fingerprint.js'
@@ -29,9 +29,9 @@ import {
   stripCallerFieldFromAssistantMessage,
   stripToolReferenceBlocksFromUserMessage,
   stripUnsignedThinkingBlocks,
-} from '../../../../utils/messages.js'
-import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../../utils/messages/apiFilters.js'
-import { pairConversationMessages } from '../../../../utils/messages/pairing.js'
+} from '../../../messages.js'
+import { stripThinkingFromIndex, stripThinkingFromOtherModels } from '../../../messages/apiFilters.js'
+import { pairConversationMessages } from '../../../messages/pairing.js'
 import type { SystemPrompt } from '../../../../utils/systemPromptType.js'
 import { getAnthropicClient } from '../../../api/client.js'
 import {

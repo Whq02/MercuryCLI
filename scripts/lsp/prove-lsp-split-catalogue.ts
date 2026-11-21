@@ -2,7 +2,7 @@ import { armScratch, check, cleanup, finish } from './lspProofDoor.ts'
 
 const scratch = armScratch('lsp-split-catalogue')
 const { getAllBaseTools } = await import('../../src/tools.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.js')
 const { isDeferredToolFor } = await import('../../src/tools/ToolSearchTool/prompt.ts')

@@ -16,25 +16,14 @@ import { plainTextStorage } from './plainTextStorage.js'
 import { startSealedStore } from './sealedStoreStart.js'
 import { sealsUnder, systemProtectorFor } from './systemProtector.js'
 import { credentialStoreWaitNote } from '../platform/words.js'
+import { otherBuildAliveProbe, registerOtherBuildAliveProbe } from './otherBuildsRegistry.js'
 
+export { registerOtherBuildAliveProbe }
 
 type PrefetchLookupResult = { stdout: string | null; timedOut: boolean }
-type OtherBuildAliveProbe = () => Promise<string | null>
 
 let prefetchInFlight: Promise<void> | null = null
 let legacyApiKeyResult: { stdout: string | null } | null = null
-let registeredOtherBuildAliveProbe: OtherBuildAliveProbe | undefined
-
-export function registerOtherBuildAliveProbe(probe: OtherBuildAliveProbe): void {
-  registeredOtherBuildAliveProbe = probe
-}
-
-function otherBuildAliveProbe(): Promise<string | null> {
-  if (registeredOtherBuildAliveProbe === undefined) {
-    throw new Error('otherBuildAlive probe is not registered: call registerBootDoors() at startup')
-  }
-  return registeredOtherBuildAliveProbe()
-}
 
 function lookup(serviceName: string): Promise<PrefetchLookupResult> {
   return new Promise(resolve => {

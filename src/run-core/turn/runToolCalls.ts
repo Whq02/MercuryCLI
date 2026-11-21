@@ -6,7 +6,7 @@ import {
 import {
   createUserMessage,
   normalizeMessagesForAPI,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { createAttachmentMessage } from '../../services/attachments.js'
 import { runTools } from '../../services/tools/toolOrchestration.js'
 import { turnCutResultText, type TurnCut } from '../../utils/messages/rejectionText.js'

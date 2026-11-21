@@ -52,7 +52,7 @@ console.log('recovered stream-fault presentation ──')
 }
 
 {
-  const { buildMessageLookups } = await import('../../src/utils/messages/lookups.ts')
+  const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
   const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
   const { STREAM_FAULT_RECOVERY_NUDGE, streamFaultAfterPartialText } = await import(
     '../../src/services/api/errors.ts'

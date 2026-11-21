@@ -80,7 +80,7 @@ section('4. ONE CARRIER (FN-020 row 2) — the system prompt is byte-identical w
   process.env.ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY ?? 'sk-ant-proof-mcp-instr'
   process.chdir(cwd)
   const prompts = await import('../../src/constants/prompts.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
   const tools = ['Bash', 'Read', 'Edit', 'Glob', 'Grep'].map(name => ({ name })) as never
   const alpha = { type: 'connected', name: 'alpha', instructions: 'use tool X first' } as never
   const beta = { type: 'connected', name: 'beta', instructions: 'never call Y twice' } as never

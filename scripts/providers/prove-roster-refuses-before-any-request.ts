@@ -46,7 +46,7 @@ const headless = await import('../../src/cli/headless/model.ts')
 const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 recordSignIn('anthropic', 'api-key')
 

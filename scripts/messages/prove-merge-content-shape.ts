@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
-const { mergeAssistantMessages } = await import(`${root}/src/utils/messages/merge.ts`)
+const { mergeAssistantMessages } = await import(`${root}/src/services/messages/merge.ts`)
 const model = DIALECT_CONVERSATION[1] as any
 const left = { ...model, message: { ...model.message, content: 'left text' } }
 const right = { ...model, message: { ...model.message, content: [{ type: 'text', text: 'right text', citations: [] }] } }

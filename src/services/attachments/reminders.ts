@@ -4,7 +4,7 @@ import { toolMatchesName, type ToolUseContext } from '../../Tool.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
-import { isThinkingMessage } from '../../utils/messages.js'
+import { isThinkingMessage } from '../messages.js'
 import {
   getTaskListId,
   isTaskToolsEnabled,

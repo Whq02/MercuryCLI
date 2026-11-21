@@ -251,7 +251,7 @@ async function main(): Promise<void> {
   ) {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
-    const { execIntoTmuxWorktree } = await import('../utils/worktree.js')
+    const { execIntoTmuxWorktree } = await import('../services/worktree.js')
     const outcome = await execIntoTmuxWorktree(args)
     if (outcome.handled) return
     if (outcome.error) {

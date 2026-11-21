@@ -34,7 +34,7 @@ const { UserTextMessage } = await import(join(ROOT, 'src/components/messages/Use
 const { Message } = await import(join(ROOT, 'src/components/Message.tsx'))
 const { MessageMetaProvider, attachedPlateName, formatClock } = await import(join(ROOT, 'src/components/messages/TranscriptNameplate.tsx'))
 const { normalizeMessages } = await import(join(ROOT, 'src/utils/messages/normalize.ts'))
-const { buildMessageLookups } = await import(join(ROOT, 'src/utils/messages/lookups.ts'))
+const { buildMessageLookups } = await import(join(ROOT, 'src/services/messages/lookups.ts'))
 const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages/factories.ts'))
 const { entryToRecord, recordToEntry } = await import(join(ROOT, 'src/fabric/entryCodec.ts'))
 const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
@@ -210,7 +210,7 @@ section("§4 the note between turns: the drain's attachment paints one visible a
 {
   const note = { text: NOTE, origin: advisorOrigin() }
   const { getAdvisorNoteAttachments } = await import(join(ROOT, 'src/services/attachments/queuedCommands.ts'))
-  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/services/messages/apiView.ts'))
   queue.resetCommandQueue()
   const { saveAdvisorSwitch } = await import(join(ROOT, 'src/utils/sessionStorage.ts'))
   advisor.setAdvisorEnabled(true)

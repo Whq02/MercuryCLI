@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/inlineSchemaRefs.ts src/utils/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts
+// gate-watch: src/utils/inlineSchemaRefs.ts src/services/messages/api.ts src/services/providers/gemini/geminiCodec.ts src/services/providers/openai/responsesBridge.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.NODE_ENV = 'test'
 
@@ -14,7 +14,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { codeAssistSchema } = await import('../../src/services/providers/gemini/geminiCodec.ts')

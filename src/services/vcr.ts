@@ -10,7 +10,7 @@ import type { AssistantMessage, Message, StreamEvent } from '../types/message.js
 import { getCwd } from '../utils/cwd.js'
 import { env } from '../utils/env.js'
 import { getMercuryHome } from '../utils/envUtils.js'
-import { normalizeMessagesForAPI } from '../utils/messages.js'
+import { normalizeMessagesForAPI } from './messages.js'
 import { calculateUSDCost } from './usage/modelCost.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 import { passedOver } from '../utils/passedOver.js'

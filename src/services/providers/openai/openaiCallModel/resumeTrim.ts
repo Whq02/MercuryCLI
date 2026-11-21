@@ -11,7 +11,7 @@ import { estimateContentTokens } from '../../../tokenEstimation.js'
 import type {
   OpenaiFault,
 } from '../openaiWire.js'
-import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
 
 export const priorConversation4xx = new Map<string, string>()
 

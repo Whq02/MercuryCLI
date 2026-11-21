@@ -55,7 +55,7 @@ export async function llmhostFixture(options: { model?: string } = {}) {
   enableConfigs()
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
-  const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
+  const { createUserMessage } = await import(`${root}/src/services/messages.ts`)
   const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
   async function run(id: string, messages: any[] = [createUserMessage({ content: 'hello fixture' })], signal = new AbortController().signal, effort: string | null = 'max'): Promise<any[]> {
     const out: any[] = []

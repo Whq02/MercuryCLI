@@ -2,7 +2,7 @@
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import * as M from '../../src/utils/messages.ts';
+import * as M from '../../src/services/messages.ts';
 import { CORPUS, COMPOSITE, TOOLS_FIXTURE } from './fixtures.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));

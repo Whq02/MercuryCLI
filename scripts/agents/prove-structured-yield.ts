@@ -17,7 +17,7 @@ const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolU
 const { getSchemaBoundStructuredOutputTool, SchemaMismatchError, STRUCTURED_OUTPUT_TOOL_NAME } = await import(
   '../../src/tools/SyntheticOutputTool/structuredOutputTool.ts'
 )
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 
 const SCHEMA = {

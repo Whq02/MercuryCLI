@@ -70,7 +70,7 @@ await spied('src/utils/messageQueueManager.ts', ['enqueuePendingNotification'])
 await spied('src/utils/log.ts', ['logError'])
 
 await watched('src/cli/agentFreshness.ts', ['armRunnerAgentFreshness'])
-await watched('src/utils/settings/faultNotices.ts', ['currentSettingsFaults', 'untoldSettingsFaults'])
+await watched('src/services/settings/faultNotices.ts', ['currentSettingsFaults', 'untoldSettingsFaults'])
 await watched('src/utils/text/hiddenCharacterFindings.ts', ['currentHiddenCharacterLines', 'untoldHiddenCharacterLines'])
 await watched('src/utils/hooks/hooksConfigSnapshot.ts', ['hooksSkippedForTrustLine'])
 await watched('src/services/mcp/config.ts', ['mcpServersSkippedForTrustLine'])

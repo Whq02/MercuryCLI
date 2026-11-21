@@ -6,7 +6,7 @@ import type {
 } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { useMinDisplayTime } from '../../hooks/useMinDisplayTime.js'
-import type { MessageLookups } from '../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../services/messages/lookups.js'
 import { isFullscreenEnvEnabled } from '../../utils/fullscreen.js'
 import { plural } from '../../utils/stringUtils.js'
 import { toTildePath } from '../../utils/path.js'

@@ -9,7 +9,7 @@ import { providerWaitIsWindow, providerWaitWords, statedResetWordsOf } from '../
 import { classifyOverflowFault, type OverflowSignal } from '../../../api/overflowSignal.js'
 import {
   createAssistantAPIErrorMessage,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { getContextWindowForModel } from '../../../../utils/model/capabilities.js'
 import type { MediaRefusal } from '../../../../utils/api/mediaRefusal.js'
 import {

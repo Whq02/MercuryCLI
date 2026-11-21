@@ -47,7 +47,7 @@ try {
   assert.match(JSON.stringify(unseen.map(row => row.message.content)), /Image content was not sent.*without its vision projector/)
   const continued = await f.run(model, [...unseenHistory, ...unseen, f.createUserMessage({ content: 'continue with text only' })])
   assert.doesNotMatch(JSON.stringify(continued.map(row => row.message.content)), /Image content was not sent/, 'old unsupported images do not repeat the notice on every text turn')
-  const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { createAssistantMessage } = await import('../../src/services/messages.ts')
   const imageResult = [f.createUserMessage({ content: 'read a picture' }), createAssistantMessage({ content: [{ type: 'tool_use', id: 'image-result', name: 'FixtureEcho', input: { text: 'picture' } }] as never }), f.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'image-result', content: image()[0]!.message.content }] as never })]
   const unseenResult = await f.run(model, imageResult)
   assert.match(JSON.stringify(unseenResult.map(row => row.message.content)), /Image content was not sent.*without its vision projector/)

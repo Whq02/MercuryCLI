@@ -384,7 +384,7 @@ section('fold 46b: the initialized runtime feeds the transport the local law, an
 {
   const discovery = await import('../../src/services/providers/local/localDiscovery.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const discoveryFetch = (async (input: unknown) => {
     const url = String(input)
     const json = (body: unknown): Response => new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } })

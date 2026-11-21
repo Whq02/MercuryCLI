@@ -45,7 +45,7 @@ mock.module('../../src/services/eval/interpreters.js', () => ({
 }))
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
 const tools = getAllBaseTools().filter(tool => tool.name !== ComputerTool.name && tool.name !== DebugTool.name)

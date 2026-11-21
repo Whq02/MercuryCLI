@@ -4,7 +4,7 @@ import type {
   UserMessage,
 } from '../../types/message.js'
 import { requestConversationPlan } from './apiPlan.js'
-export { ensureToolResultPairing, foldSplitTurnsForWire, orderToolResultsByUse, pairConversationMessages } from './resultPairing.js'
+export { ensureToolResultPairing, foldSplitTurnsForWire, orderToolResultsByUse, pairConversationMessages } from '../../utils/messages/resultPairing.js'
 
 export function healWalkableForWire(
   messages: readonly { type: string }[],

@@ -53,7 +53,7 @@ const { getAssistantMessageFromError, PROMPT_TOO_LONG_ERROR_MESSAGE } = await im
 const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { truncateHeadForPTLRetry } = await import('../../src/services/compact/compact.ts')
 

@@ -21,7 +21,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { createWorktreeForSession, getCurrentWorktreeSession, keepWorktree } = await import('../../src/utils/worktree.ts')
+const { createWorktreeForSession, getCurrentWorktreeSession, keepWorktree } = await import('../../src/services/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'session-worktree-')))
 const links = accountLinks(scratch)

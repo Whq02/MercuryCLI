@@ -22,8 +22,8 @@ try {
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
   const { getUserContextAttachment } = await import('../../src/utils/attachments/userContext.ts')
   const { getMcpInstructionsDeltaAttachment } = await import('../../src/services/attachments/deltas.ts')
-  const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
   const { capsuleShouldEmit } = await import('../../src/services/attachments/contextCapsule.ts')
   const state = { toolPermissionContext: getEmptyToolPermissionContext(), mcp: { clients: [], commands: [], tools: [] }, tasks: {} }
   const client = (name: string) => ({ name, type: 'connected', instructions: `Use ${name} only after reading its input.` })

@@ -20,7 +20,7 @@ state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSetting
 const { parseSettingsFile, getSettingsWithErrors } = await import('../../src/utils/settings/settings.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 const { settingsFaultLine } = await import('../../src/utils/settings/validation.ts')
-const { untoldSettingsFaults, resetToldSettingsFaults } = await import('../../src/utils/settings/faultNotices.ts')
+const { untoldSettingsFaults, resetToldSettingsFaults } = await import('../../src/services/settings/faultNotices.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

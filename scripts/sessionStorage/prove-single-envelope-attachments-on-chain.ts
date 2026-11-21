@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'single-envelope-hom
 
 const ROOT = join(import.meta.dir, '..', '..')
 const { recordTranscript, flushSessionStorage } = await import(join(ROOT, 'src/utils/sessionStorage/writer.ts'))
-const { createUserMessage, createAssistantMessage, createSystemMessage } = await import(join(ROOT, 'src/utils/messages.ts'))
+const { createUserMessage, createAssistantMessage, createSystemMessage } = await import(join(ROOT, 'src/services/messages.ts'))
 const { createAttachmentMessage } = await import(join(ROOT, 'src/services/attachments/orchestrator.ts'))
 const { getSessionId } = await import(join(ROOT, 'src/bootstrap/state.ts'))
 const loading = await import(join(ROOT, 'src/utils/sessionStorage/loading.ts'))
