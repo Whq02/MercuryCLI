@@ -1,3 +1,4 @@
+import { constants as bufferLimits } from 'node:buffer'
 import { historyHead } from './historyParts.js'
 import { createHash } from 'node:crypto'
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
@@ -128,11 +129,12 @@ type SnapshotHit = {
   fileSize: number
 }
 
-export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<SnapshotHit | null> {
+export async function tryLoadResumeSnapshot(transcriptPath: string, streamTail = false): Promise<SnapshotHit | null> {
   if (!resumeSnapshotEnabled()) return null
   const snapPath = snapshotPathFor(transcriptPath)
   if (!existsSync(snapPath)) return null
   try {
+    if (statSync(snapPath).size > bufferLimits.MAX_STRING_LENGTH) return null
     const raw = jsonParse(await readFile(snapPath, 'utf8')) as {
       schemaVersion?: number
       byteCursor?: number
@@ -151,6 +153,8 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     if (size < cursor) return null
     if (digestPrefixTail(transcriptPath, cursor) !== raw.prefixDigest) return null
     const tailLen = size - cursor
+    if (streamTail) return { fold: deserializeFold(raw.fold, order), tail: Buffer.alloc(0), byteCursor: cursor, fileSize: size }
+    if (tailLen > 5 * 1024 * 1024) return null
     const tail = Buffer.allocUnsafe(tailLen)
     const fd = openSync(transcriptPath, 'r')
     let read = 0

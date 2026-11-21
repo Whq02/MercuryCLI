@@ -1,12 +1,11 @@
 import type { UUID } from 'crypto'
-import { open, readFile } from 'node:fs/promises'
-import { decodeTranscriptBuffer, type MalformedLine } from '../../fabric/transcriptDecode.js'
+import { open } from 'node:fs/promises'
+import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
 import { logError } from '../log.js'
 import {
-  readTranscriptForLoad,
   SKIP_PRECOMPACT_THRESHOLD,
 } from '../sessionStoragePortable.js'
 import {
@@ -24,6 +23,7 @@ import {
 } from './resumeSnapshot.js'
 import { transcriptIo as io, transcriptReaderCensus, transcriptLinesInReverse } from './transcriptBytes.js'
 import { historyHead, historyIndex, historyLines, sealedExtents } from './historyParts.js'
+import { streamFold } from './streamFold.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 
 export { nodeTranscriptReaderIo, readTranscriptBytesAfter, setTranscriptReaderIoForTesting, transcriptReaderCensus } from './transcriptBytes.js'
@@ -31,8 +31,6 @@ export { nodeTranscriptReaderIo, readTranscriptBytesAfter, setTranscriptReaderIo
 const WINDOW_BYTES = 4096
 const RECENT_MAX = 2
 const SNAPSHOT_REFRESH_BYTES = 1024 * 1024
-const BACKWARD_WINDOW_BYTES = 64 * 1024
-const FRAGMENT_SCAN_MAX = 16 * 1024 * 1024
 const NEWLINE = 0x0a
 const EMPTY = Buffer.alloc(0)
 
@@ -198,7 +196,7 @@ export async function readTranscript(
     const existing = states.get(path)
     const servable = existing !== undefined && existing.offset > 0 && (existing.policy === policy || existing.policy === 'all')
     if (servable) {
-      const growth = growthRead(existing)
+      const growth = await growthRead(existing)
       if (growth !== null) {
         touch(path)
         return viewOf(existing, growth)
@@ -239,13 +237,45 @@ function tailWindow(prev: Buffer, added: Buffer): Buffer {
   return joined.length > WINDOW_BYTES ? Buffer.from(joined.subarray(joined.length - WINDOW_BYTES)) : joined
 }
 
-function growthRead(state: ReaderState): TranscriptRead | null {
+async function growthRead(state: ReaderState): Promise<TranscriptRead | null> {
   const st = io.statSync(state.path)
   if (st === null) return reset(state, 'the file is gone')
   if (st.ino !== state.ino) return reset(state, 'the file was replaced')
   if (st.size < state.offset) return reset(state, 'the file was truncated')
   if (st.size === state.offset) return none(state, st.size)
   const W = state.window.length
+  if (st.size - state.offset > SKIP_PRECOMPACT_THRESHOLD) {
+    const covered = io.readRangeSync(state.path, state.offset - W, state.offset)
+    transcriptReaderCensus.bytesRead += covered.length
+    if (!covered.equals(state.window)) return reset(state, 'the covered prefix was rewritten')
+    if (state.refusal !== null) return reset(state, 'the refused transcript grew')
+    let result: Awaited<ReturnType<typeof streamFold>>
+    try {
+      result = await streamFold(state.path, state.fold, state.offset, st.size, st.ino, false, false, true, entry => !state.pruned || !isTranscriptMessage(entry) || entry.parentUuid === null || state.fold.messages.has(entry.parentUuid) || state.fold.progressBridge.has(entry.parentUuid))
+    } catch (error) {
+      states.delete(state.path)
+      throw error
+    }
+    if (result.refusal) return reset(state, 'a line outside the record format landed')
+    if (result.rejectedParent) return reset(state, 'a row parents onto a pruned branch')
+    if (result.offset === state.offset) return none(state, st.size)
+    if (io.statSync(state.path)?.ino !== st.ino) return reset(state, 'the file was replaced')
+    const { accounting } = result
+    if (accounting.malformed || accounting.invalid) {
+      logError(new Error(`transcript tail degraded on growth: ${accounting.malformed} malformed, ${accounting.invalid} invalid of ${accounting.totalLines} (${state.path})`))
+      noteLoadDegradation({ path: state.path, ...accounting, refusal: null })
+      state.degradedSinceSnapshot = true
+    }
+    finishTranscriptFold(state.fold)
+    state.bytesSinceSnapshot += result.offset - state.offset
+    state.offset = result.offset
+    state.size = st.size
+    state.window = io.readRangeSync(state.path, Math.max(0, state.offset - WINDOW_BYTES), state.offset)
+    transcriptReaderCensus.bytesRead += state.window.length
+    transcriptReaderCensus.growthReads++
+    maybeRefreshSnapshot(state)
+    return { kind: 'growth', accounting, refusal: null }
+  }
   const buf = io.readRangeSync(state.path, state.offset - W, st.size)
   transcriptReaderCensus.bytesRead += buf.length
   if (buf.length < W) return none(state, state.size)
@@ -300,37 +330,6 @@ function maybeRefreshSnapshot(state: ReaderState): void {
   state.bytesSinceSnapshot = 0
 }
 
-function withoutTornTail(malformed: readonly MalformedLine[], fragment: Buffer | null): MalformedLine[] {
-  if (fragment === null || fragment.length === 0 || isCompleteJsonLine(fragment)) return [...malformed]
-  const last = malformed[malformed.length - 1]
-  if (last === undefined || last.snippet !== fragment.toString('utf8').trim().slice(0, 120)) return [...malformed]
-  return malformed.slice(0, -1)
-}
-
-function isCompleteJsonLine(line: Buffer): boolean {
-  try {
-    JSON.parse(line.toString('utf8'))
-    return true
-  } catch (error) {
-    passedOver(error)
-    return false
-  }
-}
-
-function fileFragment(path: string, size: number): Buffer | null {
-  if (size === 0) return null
-  for (let len = Math.min(size, BACKWARD_WINDOW_BYTES); ; len = Math.min(size, len * 4)) {
-    const buf = io.readRangeSync(path, size - len, size)
-    transcriptReaderCensus.bytesRead += buf.length
-    if (buf.length === 0) return null
-    if (buf[buf.length - 1] === NEWLINE) return null
-    const nl = buf.lastIndexOf(NEWLINE)
-    if (nl !== -1) return Buffer.from(buf.subarray(nl + 1))
-    if (len >= size) return Buffer.from(buf)
-    if (len >= FRAGMENT_SCAN_MAX) return null
-  }
-}
-
 async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ state: ReaderState; read: TranscriptRead }> {
   transcriptReaderCensus.coldReads++
   const state: ReaderState = {
@@ -355,117 +354,53 @@ async function coldRead(path: string, policy: TranscriptReadPolicy): Promise<{ s
   state.size = st.size
 
   let accounting: TranscriptReadAccounting = ZERO_ACCOUNTING
-  let consumed = 0
-  let fragment: Buffer | null = null
-  let plainBuf: Buffer | null = null
+  let offset = 0
   let snapshotCovered = false
   let wroteSnapshot = false
-
   if (policy === 'resume') {
-    const hit = await tryLoadResumeSnapshot(path)
-    if (hit) {
-      const decodedTail = decodeTranscriptBuffer<Entry>(hit.tail)
-      if (decodedTail.refusal) {
-        logError(new Error(`${decodedTail.refusal}: ${path} (snapshot tail — reloading the file whole)`))
-      } else {
+    const hit = await tryLoadResumeSnapshot(path, true)
+    if (hit && hit.fileSize <= st.size) {
+      const tail = await streamFold(path, hit.fold, hit.byteCursor, st.size, st.ino, false, false)
+      if (!tail.refusal) {
         state.fold = hit.fold
-        const nl = hit.tail.lastIndexOf(NEWLINE)
-        fragment = nl === hit.tail.length - 1 ? null : Buffer.from(hit.tail.subarray(nl + 1))
-        const malformedTail = withoutTornTail(decodedTail.malformed, fragment)
-        const degraded = malformedTail.length > 0 || decodedTail.invalid.length > 0
-        if (degraded) {
-          logError(
-            new Error(
-              `transcript tail degraded on snapshot resume: ${malformedTail.length} malformed, ${decodedTail.invalid.length} invalid of ${decodedTail.totalLines}`,
-            ),
-          )
-          noteLoadDegradation({ path, malformed: malformedTail.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines, refusal: null })
-        }
-        for (const entry of decodedTail.entries) applyTranscriptEntry(state.fold, entry)
-        accounting = { malformed: malformedTail.length, invalid: decodedTail.invalid.length, totalLines: decodedTail.totalLines }
+        accounting = tail.accounting
+        offset = tail.offset
         snapshotCovered = true
-        consumed = hit.fileSize
-        transcriptReaderCensus.bytesRead += hit.tail.length
-        state.degradedSinceSnapshot = degraded
-        state.bytesSinceSnapshot = hit.tail.length
-        if (!degraded && hit.tail.length > SNAPSHOT_REFRESH_BYTES) {
-          writeResumeSnapshot(path, state.fold, hit.fileSize)
+        state.bytesSinceSnapshot = offset - hit.byteCursor
+        if (accounting.malformed || accounting.invalid) {
+          logError(new Error(`transcript tail degraded on snapshot resume: ${accounting.malformed} malformed, ${accounting.invalid} invalid of ${accounting.totalLines}`))
+          noteLoadDegradation({ path, ...accounting, refusal: null })
+          state.degradedSinceSnapshot = true
+        } else if (offset === st.size && state.bytesSinceSnapshot > SNAPSHOT_REFRESH_BYTES) {
+          writeResumeSnapshot(path, state.fold, offset)
+          state.bytesSinceSnapshot = 0
           wroteSnapshot = true
         }
-      }
+      } else logError(new Error(`${tail.refusal}: ${path} (snapshot tail — reloading the file whole)`))
     }
   }
-
   if (!snapshotCovered) {
-    let buf: Buffer | null = null
-    let metadataLines: string[] | null = null
-    let hasPreservedSegment = false
-    if (st.size > SKIP_PRECOMPACT_THRESHOLD) {
-      const scan = await readTranscriptForLoad(path, st.size)
-      buf = scan.postBoundaryBuf
-      hasPreservedSegment = scan.hasPreservedSegment
-      transcriptReaderCensus.bytesRead += st.size
-      if (scan.boundaryStartOffset > 0) {
-        metadataLines = await scanPreBoundaryMetadata(path, scan.boundaryStartOffset)
-      }
-      consumed = st.size
-      fragment = fileFragment(path, st.size)
-    }
-    if (buf === null) {
-      buf = await readFile(path)
-      plainBuf = buf
-      transcriptReaderCensus.bytesRead += buf.length
-      consumed = buf.length
-      const nl = buf.lastIndexOf(NEWLINE)
-      fragment = buf.length === 0 || nl === buf.length - 1 ? null : buf.subarray(nl + 1)
-    }
-    if (policy === 'resume' && !hasPreservedSegment && buf.length > SKIP_PRECOMPACT_THRESHOLD) {
-      const before = buf
-      buf = pruneRecordBranchesBeforeParse(buf)
-      state.pruned = buf !== before
-    }
-    if (metadataLines && metadataLines.length > 0) {
-      const metaEntries = decodeTranscriptBuffer<Entry>(Buffer.from(metadataLines.join('\n'))).entries
-      for (const entry of metaEntries) {
-        if (PRE_BOUNDARY_METADATA_KINDS.has(entry.type)) applyTranscriptEntry(state.fold, entry)
-      }
-    }
-    const decoded = decodeTranscriptBuffer<Entry>(buf)
-    if (decoded.refusal) {
-      logError(new Error(`${decoded.refusal}: ${path}`))
-      noteLoadDegradation({ path, malformed: 0, invalid: 0, totalLines: decoded.totalLines, refusal: decoded.refusal })
-      state.refusal = decoded.refusal
+    const result = await streamFold(path, state.fold, 0, st.size, st.ino, st.size > SKIP_PRECOMPACT_THRESHOLD, policy === 'resume')
+    accounting = result.accounting
+    offset = result.offset
+    state.pruned = result.pruned
+    if (result.refusal) {
+      state.refusal = result.refusal
       state.fold = emptyFoldState()
-      accounting = { malformed: 0, invalid: 0, totalLines: decoded.totalLines }
-    } else {
-      const malformed = withoutTornTail(decoded.malformed, fragment)
-      if (malformed.length > 0 || decoded.invalid.length > 0) {
-        logError(
-          new Error(
-            `transcript degraded on load: ${malformed.length} malformed line(s), ` +
-              `${decoded.invalid.length} invalid-shape record(s) of ${decoded.totalLines} ` +
-              `(first: ${malformed[0] ? `line ${malformed[0].line}` : `#${decoded.invalid[0]?.index} ${decoded.invalid[0]?.reason}`})`,
-          ),
-        )
-        noteLoadDegradation({ path, malformed: malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines, refusal: null })
-        state.degradedSinceSnapshot = true
-      }
-      for (const entry of decoded.entries) applyTranscriptEntry(state.fold, entry)
-      accounting = { malformed: malformed.length, invalid: decoded.invalid.length, totalLines: decoded.totalLines }
+      logError(new Error(`${result.refusal}: ${path}`))
+      noteLoadDegradation({ path, ...accounting, refusal: result.refusal })
+    } else if (accounting.malformed || accounting.invalid) {
+      logError(new Error(`transcript degraded on load: ${accounting.malformed} malformed line(s), ${accounting.invalid} invalid-shape record(s) of ${accounting.totalLines} (first: ${result.firstIssue})`))
+      noteLoadDegradation({ path, ...accounting, refusal: null })
+      state.degradedSinceSnapshot = true
     }
   }
-
-  let offset = consumed
-  if (fragment !== null && fragment.length > 0 && !isCompleteJsonLine(fragment)) offset = consumed - fragment.length
+  if (io.statSync(path)?.ino !== st.ino) throw new Error(`History changed during the read: ${path}`)
   state.offset = offset
   if (offset > 0) {
     const from = Math.max(0, offset - WINDOW_BYTES)
-    if (plainBuf !== null) {
-      state.window = Buffer.from(plainBuf.subarray(from, offset))
-    } else {
-      state.window = io.readRangeSync(path, from, offset)
-      transcriptReaderCensus.bytesRead += state.window.length
-    }
+    state.window = io.readRangeSync(path, from, offset)
+    transcriptReaderCensus.bytesRead += state.window.length
   }
 
   if (state.refusal === null) {
@@ -728,282 +663,4 @@ export function _transcriptReaderRetentionForTesting(): { states: string[]; reta
 }
 
 
-function resolveMetadataBuf(carry: Buffer | null, chunkBuf: Buffer): Buffer | null {
-  if (carry === null || carry.length === 0) return chunkBuf
-  if (carry.length < METADATA_PREFIX_BOUND) {
-    return Buffer.concat([carry, chunkBuf])
-  }
-  if (
-    carry.compare(
-      RECORD_CARRY_PREFIX,
-      0,
-      RECORD_CARRY_PREFIX.length,
-      0,
-      Math.min(carry.length, RECORD_CARRY_PREFIX.length),
-    ) === 0
-  ) {
-    return Buffer.concat([carry, chunkBuf])
-  }
-  const firstNl = chunkBuf.indexOf(NEWLINE)
-  return firstNl === -1 ? null : chunkBuf.subarray(firstNl + 1)
-}
-
-const METADATA_SCAN_WINDOW_BYTES = 64 * 1024
-
-function hasMetadataMarker(buf: Buffer, from = 0, to = buf.length): boolean {
-  for (const marker of METADATA_MARKER_BUFS) {
-    const at = buf.indexOf(marker, from)
-    if (at !== -1 && at < to) return true
-  }
-  return false
-}
-
-function collectMetadataLines(buf: Buffer, into: string[]): Buffer {
-  if (!hasMetadataMarker(buf)) {
-    const lastNl = buf.lastIndexOf(NEWLINE)
-    return lastNl >= 0 ? buf.subarray(lastNl + 1) : buf
-  }
-  let lineStart = 0
-  for (let nl = buf.indexOf(NEWLINE); nl !== -1; nl = buf.indexOf(NEWLINE, lineStart)) {
-    if (hasMetadataMarker(buf, lineStart, nl)) into.push(buf.toString('utf-8', lineStart, nl))
-    lineStart = nl + 1
-  }
-  return buf.subarray(lineStart)
-}
-
-async function scanPreBoundaryMetadata(filePath: string, endOffset: number): Promise<string[]> {
-  const metadataLines: string[] = []
-  const handle = await open(filePath, 'r')
-  try {
-    let carry: Buffer | null = null
-    for (let position = 0; position < endOffset; ) {
-      const window = Buffer.allocUnsafe(Math.min(METADATA_SCAN_WINDOW_BYTES, endOffset - position))
-      const { bytesRead } = await handle.read(window, 0, window.length, position)
-      if (bytesRead === 0) break
-      position += bytesRead
-      const buf = resolveMetadataBuf(carry, window.subarray(0, bytesRead))
-      if (buf === null) {
-        carry = null
-        continue
-      }
-      carry = collectMetadataLines(buf, metadataLines)
-      if (carry.length > 64 * 1024) carry = null
-    }
-    if (carry !== null && carry.length > 0 && hasMetadataMarker(carry)) metadataLines.push(carry.toString('utf-8'))
-  } finally {
-    await handle.close()
-  }
-  return metadataLines
-}
-
-
-const RECORD_LINE_PREFIX = Buffer.from('{"schemaVersion":1,"recordId":"')
-const PRUNE_KIND_NEEDLE = Buffer.from('"payload":{"kind":"')
-const PRUNE_PARENT_NEEDLE = Buffer.from('"parentId":"')
-const PRUNE_MESSAGE_ID_NEEDLE = Buffer.from('"providerMessageId":"')
-const PRUNE_KIND_BOUND = 600
-const PRUNE_CHAIN_KINDS = new Set(['input', 'output', 'attachment', 'notice', 'boundary', 'progress'])
-
-export function pruneRecordBranchesBeforeParse(buf: Buffer): Buffer {
-  const QUOTE = 0x22
-  const PREFIX_LEN = RECORD_LINE_PREFIX.length
-
-  const nodeIdx: number[] = []
-  const nodeIds: string[] = []
-  const keepRanges: number[] = []
-  const idToSlots = new Map<string, number[]>()
-  let chainBytes = 0
-
-  let pos = 0
-  const len = buf.length
-  while (pos < len) {
-    const nl = buf.indexOf(NEWLINE, pos)
-    const lineEnd = nl === -1 ? len : nl + 1
-    let isChainNode = false
-    if (
-      lineEnd - pos > PREFIX_LEN + 2 &&
-      buf.compare(RECORD_LINE_PREFIX, 0, PREFIX_LEN, pos, pos + PREFIX_LEN) === 0
-    ) {
-      const idStart = pos + PREFIX_LEN
-      const idEnd = buf.indexOf(QUOTE, idStart)
-      const kindAt = buf.indexOf(PRUNE_KIND_NEEDLE, pos)
-      if (
-        idEnd > idStart &&
-        idEnd - idStart <= 64 &&
-        kindAt !== -1 &&
-        kindAt < pos + PRUNE_KIND_BOUND &&
-        kindAt < lineEnd
-      ) {
-        const kindStart = kindAt + PRUNE_KIND_NEEDLE.length
-        const kindEnd = buf.indexOf(QUOTE, kindStart)
-        if (kindEnd > kindStart && PRUNE_CHAIN_KINDS.has(buf.toString('latin1', kindStart, kindEnd))) {
-          const id = buf.toString('latin1', idStart, idEnd)
-          const slot = nodeIds.length
-          nodeIdx.push(pos, lineEnd)
-          nodeIds.push(id)
-          const slots = idToSlots.get(id)
-          if (slots) slots.push(slot)
-          else idToSlots.set(id, [slot])
-          chainBytes += lineEnd - pos
-          isChainNode = true
-        }
-      }
-    }
-    if (!isChainNode) keepRanges.push(pos, lineEnd)
-    pos = lineEnd
-  }
-  if (nodeIds.length === 0) return buf
-
-  const decodeSlot = (slot: number): Record<string, unknown> | null => {
-    const d = decodeTranscriptBuffer<Record<string, unknown>>(
-      buf.subarray(nodeIdx[slot * 2]!, nodeIdx[slot * 2 + 1]!),
-    )
-    return d.entries.length === 1 ? d.entries[0]! : null
-  }
-
-  let leaf: Record<string, unknown> | null = null
-  for (let slot = nodeIds.length - 1; slot >= 0; slot--) {
-    const e = decodeSlot(slot)
-    if (e === null || e.isSidechain === true) continue
-    leaf = e
-    break
-  }
-  if (leaf === null) return buf
-
-  const liveIds = new Set<string>()
-  const liveMessageIds = new Set<string>()
-  const assistantIds = new Set<string>()
-  const noteAssistant = (e: Record<string, unknown>, id: string): void => {
-    if (e.type !== 'assistant') return
-    const message = e.message as { id?: unknown } | undefined
-    if (typeof message?.id === 'string' && message.id !== '') liveMessageIds.add(message.id)
-    assistantIds.add(id)
-  }
-  let liveBytes = 0
-  let cur: Record<string, unknown> | null = leaf
-  while (cur) {
-    const id = typeof cur.uuid === 'string' ? cur.uuid : null
-    if (id === null || liveIds.has(id)) break
-    liveIds.add(id)
-    noteAssistant(cur, id)
-    for (const slot of idToSlots.get(id) ?? []) {
-      liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
-    }
-    const parent = typeof cur.parentUuid === 'string' && cur.parentUuid ? cur.parentUuid : null
-    if (parent === null) break
-    const slots = idToSlots.get(parent)
-    if (!slots || slots.length === 0) break
-    cur = decodeSlot(slots[slots.length - 1]!)
-  }
-  if (liveIds.size === 0) return buf
-
-  const byParent = new Map<string, number[]>()
-  const byMessageId = new Map<string, number[]>()
-  const indexInto = (index: Map<string, number[]>, line: Buffer, needle: Buffer, cap: number, slot: number): void => {
-    let at = line.indexOf(needle)
-    while (at !== -1) {
-      const from = at + needle.length
-      const close = line.indexOf(QUOTE, from)
-      if (close > from && close - from <= cap) {
-        const key = line.toString('latin1', from, close)
-        const slots = index.get(key)
-        if (slots) slots.push(slot)
-        else index.set(key, [slot])
-      }
-      at = line.indexOf(needle, from)
-    }
-  }
-  for (let slot = 0; slot < nodeIds.length; slot++) {
-    if (liveIds.has(nodeIds[slot]!)) continue
-    const line = buf.subarray(nodeIdx[slot * 2]!, nodeIdx[slot * 2 + 1]!)
-    indexInto(byParent, line, PRUNE_PARENT_NEEDLE, 64, slot)
-    indexInto(byMessageId, line, PRUNE_MESSAGE_ID_NEEDLE, 128, slot)
-  }
-  const kept = new Set<string>()
-  const parentQueue: string[] = [...liveIds]
-  const messageIdQueue: string[] = [...liveMessageIds]
-  const settledEntryOf = (id: string): Record<string, unknown> | null => {
-    const slots = idToSlots.get(id)
-    return slots === undefined || slots.length === 0 ? null : decodeSlot(slots[slots.length - 1]!)
-  }
-  const keepsAsToolResult = (e: Record<string, unknown>, parent: string): boolean => {
-    if (e.type !== 'user' || !assistantIds.has(parent)) return false
-    const content = (e.message as { content?: unknown } | undefined)?.content
-    if (!Array.isArray(content)) return false
-    return (content as Array<{ type?: unknown }>).some(block => block?.type === 'tool_result')
-  }
-  const keepsAsNote = (e: Record<string, unknown>): boolean => e.type === 'system' && e.subtype !== 'compact_boundary' && e.subtype !== 'microcompact_boundary'
-  const consider = (slot: number, road: 'parent' | 'sibling'): void => {
-    const id = nodeIds[slot]!
-    if (liveIds.has(id) || kept.has(id)) return
-    const e = settledEntryOf(id)
-    if (e === null || typeof e.uuid !== 'string' || e.uuid !== id) return
-    const parent = typeof e.parentUuid === 'string' && e.parentUuid ? e.parentUuid : null
-    const parentStands = parent !== null && (liveIds.has(parent) || kept.has(parent))
-    const message = e.message as { id?: unknown } | undefined
-    const sibling = road === 'sibling' && e.type === 'assistant' && typeof message?.id === 'string' && liveMessageIds.has(message.id)
-    const toolResult = road === 'parent' && parentStands && parent !== null && keepsAsToolResult(e, parent)
-    const note = road === 'parent' && parentStands && keepsAsNote(e)
-    if (!sibling && !toolResult && !note) return
-    kept.add(id)
-    if (note) return
-    noteAssistant(e, id)
-    parentQueue.push(id)
-    if (sibling && typeof message?.id === 'string') messageIdQueue.push(message.id)
-  }
-  while (parentQueue.length > 0 || messageIdQueue.length > 0) {
-    const parentId = parentQueue.pop()
-    if (parentId !== undefined) for (const slot of byParent.get(parentId) ?? []) consider(slot, 'parent')
-    const messageId = messageIdQueue.pop()
-    if (messageId !== undefined) for (const slot of byMessageId.get(messageId) ?? []) consider(slot, 'sibling')
-  }
-  for (const id of kept) {
-    for (const slot of idToSlots.get(id) ?? []) {
-      liveBytes += nodeIdx[slot * 2 + 1]! - nodeIdx[slot * 2]!
-    }
-  }
-
-  const deadBytes = chainBytes - liveBytes
-  if (deadBytes < len >> 1) return buf
-
-  const parts: Buffer[] = []
-  let k = 0
-  for (let slot = 0; slot < nodeIds.length; slot++) {
-    const start = nodeIdx[slot * 2]!
-    while (k < keepRanges.length && keepRanges[k]! < start) {
-      parts.push(buf.subarray(keepRanges[k]!, keepRanges[k + 1]!))
-      k += 2
-    }
-    if (liveIds.has(nodeIds[slot]!) || kept.has(nodeIds[slot]!)) {
-      parts.push(buf.subarray(start, nodeIdx[slot * 2 + 1]!))
-    }
-  }
-  while (k < keepRanges.length) {
-    parts.push(buf.subarray(keepRanges[k]!, keepRanges[k + 1]!))
-    k += 2
-  }
-  return Buffer.concat(parts)
-}
-
-const METADATA_TYPE_MARKERS = [
-  '"metaKind":"summary"',
-  '"metaKind":"custom-title"',
-  '"metaKind":"tag"',
-  '"metaKind":"agent-name"',
-  '"metaKind":"agent-color"',
-  '"metaKind":"agent-setting"',
-  '"metaKind":"session-brief"',
-  '"metaKind":"session-brief-add"',
-  '"metaKind":"mode"',
-  '"metaKind":"advisor-switch"',
-  '"metaKind":"swarm-switch"',
-  '"metaKind":"model"',
-  '"metaKind":"worktree-state"',
-  '"metaKind":"pr-link"',
-]
-const METADATA_MARKER_BUFS = METADATA_TYPE_MARKERS.map(m => Buffer.from(m))
-const RECORD_CARRY_PREFIX = Buffer.from('{"schemaVersion":')
-const PRE_BOUNDARY_METADATA_KINDS = new Set(
-  METADATA_TYPE_MARKERS.map(m => /"metaKind":"([^"]+)"/.exec(m)![1]!),
-)
-const METADATA_PREFIX_BOUND = 25
+export { pruneRecordBranchesBeforeParse } from './branchSelection.js'

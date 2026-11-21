@@ -417,18 +417,10 @@ export async function findProjectDir(
 }
 
 
-const LOAD_CHUNK = 1024 * 1024
 const RECORD_PREFIX = Buffer.from('{"schemaVersion":')
 const SNAPSHOT_MARKER = Buffer.from('"payload":{"kind":"session-meta","metaKind":"attribution-snapshot"')
 const BOUNDARY_MARKER = Buffer.from('"payload":{"kind":"boundary","boundaryKind":"compact"')
 const PAYLOAD_SEARCH_BOUND = 600
-const OUTPUT_START_MAX = 8 * 1024 * 1024
-
-export type TranscriptLoadResult = {
-  boundaryStartOffset: number
-  postBoundaryBuf: Buffer
-  hasPreservedSegment: boolean
-}
 
 type LineDisposition =
   | { kind: 'keep' }
@@ -438,7 +430,7 @@ type LineDisposition =
 const hasRecordPrefix = (line: Buffer): boolean =>
   line.length >= RECORD_PREFIX.length && line.subarray(0, RECORD_PREFIX.length).equals(RECORD_PREFIX)
 
-function classifyLine(line: Buffer, requirePrefix: boolean): LineDisposition {
+export function classifyLoadLine(line: Buffer, requirePrefix: boolean): LineDisposition {
   const searchWindow = line.subarray(0, Math.min(line.length, PAYLOAD_SEARCH_BOUND))
   if (searchWindow.indexOf(SNAPSHOT_MARKER) !== -1) {
     if (!requirePrefix || hasRecordPrefix(line)) return { kind: 'snapshot' }
@@ -463,131 +455,4 @@ function classifyLine(line: Buffer, requirePrefix: boolean): LineDisposition {
     }
   }
   return { kind: 'keep' }
-}
-
-export async function readTranscriptForLoad(filePath: string, fileSize: number): Promise<TranscriptLoadResult> {
-  const handle = await open(filePath, 'r')
-  try {
-    let output = Buffer.allocUnsafe(Math.min(fileSize, OUTPUT_START_MAX))
-    let outputLength = 0
-    let boundaryStartOffset = 0
-    let hasPreservedSegment = false
-    let lastSnapshot: Buffer | null = null
-    let carried: Buffer | null = null
-    let position = 0
-    const chunk = Buffer.allocUnsafe(LOAD_CHUNK)
-
-    const ensureRoom = (extra: number): void => {
-      if (outputLength + extra <= output.length) return
-      const grown = Buffer.allocUnsafe(Math.min(Math.max(output.length * 2, outputLength + extra), fileSize + 1))
-      output.copy(grown, 0, 0, outputLength)
-      output = grown
-    }
-
-    const append = (bytes: Buffer): void => {
-      ensureRoom(bytes.length)
-      bytes.copy(output, outputLength)
-      outputLength += bytes.length
-    }
-
-    const resetAtBoundary = (fileOffset: number): void => {
-      outputLength = 0
-      boundaryStartOffset = fileOffset
-      hasPreservedSegment = false
-      lastSnapshot = null
-    }
-
-    while (position < fileSize) {
-      const toRead = Math.min(LOAD_CHUNK, fileSize - position)
-      const { bytesRead } = await handle.read(chunk, 0, toRead, position)
-      if (bytesRead === 0) break
-      const chunkStart = position
-      position += bytesRead
-      let data = chunk.subarray(0, bytesRead)
-
-      if (carried) {
-        const newline = data.indexOf(0x0a)
-        if (newline === -1) {
-          carried = Buffer.concat([carried, data])
-          continue
-        }
-        const headPart = data.subarray(0, newline + 1)
-        const full = Buffer.concat([carried, headPart])
-        const carriedStartOffset = chunkStart - carried.length
-        carried = null
-        const lineNoNewline = full.subarray(0, full.length - 1)
-        const disposition = classifyLine(lineNoNewline, true)
-        if (disposition.kind === 'snapshot') {
-          lastSnapshot = Buffer.from(lineNoNewline)
-        } else if (disposition.kind === 'boundary') {
-          if (disposition.preserved) {
-            hasPreservedSegment = true
-            append(full)
-          } else {
-            resetAtBoundary(carriedStartOffset)
-            append(full)
-          }
-        } else {
-          append(full)
-        }
-        data = data.subarray(newline + 1)
-      }
-
-      let lineStart = 0
-      for (;;) {
-        const newline = data.indexOf(0x0a, lineStart)
-        if (newline === -1) break
-        const line = data.subarray(lineStart, newline)
-        const withNewline = data.subarray(lineStart, newline + 1)
-        const disposition = classifyLine(line, false)
-        if (disposition.kind === 'snapshot') {
-          lastSnapshot = Buffer.from(line)
-        } else if (disposition.kind === 'boundary') {
-          if (disposition.preserved) {
-            hasPreservedSegment = true
-            append(withNewline)
-          } else {
-            resetAtBoundary(chunkStart + (bytesRead - data.length) + lineStart)
-            append(withNewline)
-          }
-        } else {
-          append(withNewline)
-        }
-        lineStart = newline + 1
-      }
-      if (lineStart < data.length) {
-        carried = Buffer.from(data.subarray(lineStart))
-      }
-    }
-
-    if (carried) {
-      const disposition = classifyLine(carried, true)
-      if (disposition.kind === 'snapshot') {
-        lastSnapshot = Buffer.from(carried)
-      } else if (disposition.kind === 'boundary' && !disposition.preserved) {
-        resetAtBoundary(fileSize - carried.length)
-        append(carried)
-      } else if (disposition.kind === 'boundary') {
-        hasPreservedSegment = true
-        append(carried)
-      } else {
-        append(carried)
-      }
-    }
-
-    if (lastSnapshot) {
-      if (outputLength > 0 && output[outputLength - 1] !== 0x0a) {
-        append(Buffer.from('\n'))
-      }
-      append(lastSnapshot)
-    }
-
-    return {
-      boundaryStartOffset,
-      postBoundaryBuf: output.subarray(0, outputLength),
-      hasPreservedSegment,
-    }
-  } finally {
-    await handle.close()
-  }
 }

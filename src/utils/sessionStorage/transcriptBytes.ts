@@ -89,11 +89,11 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
 
 export function* transcriptLineBytes(
   path: string,
-  { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024, ino = 0 } = {},
+  { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024, ino = 0, opened = -1 } = {},
 ): Generator<Buffer> {
   if (!Number.isSafeInteger(pieceBytes) || pieceBytes < 1) throw new RangeError('pieceBytes must be a positive integer')
   if (start >= end) return
-  const fd = transcriptIo === nodeTranscriptReaderIo ? openSync(path, 'r') : undefined
+  const fd = opened >= 0 ? opened : transcriptIo === nodeTranscriptReaderIo ? openSync(path, 'r') : undefined
   try {
     if (fd !== undefined && ino && fstatSync(fd).ino !== ino) throw new Error(`History changed during the read: ${path}`)
     let pending: Buffer[] = []
@@ -118,7 +118,7 @@ export function* transcriptLineBytes(
     }
     if (pending.length > 0) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending)
   } finally {
-    if (fd !== undefined) closeSync(fd)
+    if (fd !== undefined && opened < 0) closeSync(fd)
   }
 }
 
