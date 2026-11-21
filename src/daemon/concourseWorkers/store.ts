@@ -7,6 +7,7 @@ import { type ConcourseWorkerRecordV1, sessionActivityOf, turnInFlightOf } from 
 import { canonicalWorkspaceId } from './admission.js'
 import { withDaemonStoreLock } from './storeLock.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { defineStore } from '../../substrate/fileStore.js'
 
 interface ConcourseWorkerFileV1 {
   version: 1
@@ -112,6 +113,44 @@ export interface ConcourseDeltaStampV1 {
   revision: number
   pid: number
   at: number
+}
+
+const concourseWorkersStore = defineStore<ConcourseWorkerFileV1, [dir?: string]>({
+  name: 'concourse-workers',
+  path: (dir?: string) => concourseWorkersPath(dir),
+  schemaVersion: 1,
+  decode: raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const file = raw as Partial<ConcourseWorkerFileV1>
+    if (file.version !== 1 || typeof file.workers !== 'object' || file.workers === null || Array.isArray(file.workers)) {
+      return null
+    }
+    return file as ConcourseWorkerFileV1
+  },
+  empty: () => ({ version: 1, workers: {} }),
+  onReadFailure: 'empty',
+})
+
+const concourseDeltaStore = defineStore<ConcourseDeltaStampV1, [dir?: string]>({
+  name: 'concourse-delta',
+  path: (dir?: string) => concourseDeltaPath(dir),
+  schemaVersion: 1,
+  decode: raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const stamp = raw as Partial<ConcourseDeltaStampV1>
+    if (stamp.version !== 1 || typeof stamp.revision !== 'number' || typeof stamp.pid !== 'number') return null
+    return stamp as ConcourseDeltaStampV1
+  },
+  empty: () => ({ version: 1, revision: 0, pid: 0, at: 0 }),
+  onReadFailure: 'empty',
+})
+
+export function subscribeConcourseWorkers(cb: () => void, dir?: string): () => void {
+  return concourseWorkersStore(dir).subscribe(() => cb(), { immediate: false })
+}
+
+export function subscribeConcourseDelta(cb: () => void, dir?: string): () => void {
+  return concourseDeltaStore(dir).subscribe(() => cb(), { immediate: false })
 }
 
 let concourseDeltaRevision = 0
