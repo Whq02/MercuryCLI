@@ -1,7 +1,7 @@
 import { providerDisplayName } from '../routeLaw.js'
 import type { ScopeIdentityState } from '../../../utils/accounts/accountIdentity.js'
 import type { AccountSlot } from './shapes.js'
-import { PROVIDER_CREDENTIAL_ENV_VARS } from '../credentialEnvSpellings.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from '../../../constants/credentialEnvSpellings.js'
 
 export function familyDisplayName(id: string): string {
   return providerDisplayName(id)

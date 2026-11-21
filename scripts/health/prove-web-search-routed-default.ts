@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../../src/services/providers/credentialEnvSpellings.ts'
+import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../../src/constants/credentialEnvSpellings.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const root = join(import.meta.dir, '..', '..')

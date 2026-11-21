@@ -1,4 +1,4 @@
-import type { CallModelRoute } from '../services/providers/idSpaces.js'
+import type { CallModelRoute } from '../types/providerRoute.js'
 import { isRecord } from './isRecord.js'
 
 type SchemaNode = Record<string, unknown>

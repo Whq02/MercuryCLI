@@ -4,7 +4,7 @@ import { strict as assert } from 'node:assert'
 import { rmSync } from 'node:fs'
 import fixture from '../provider-compat/fixtures/orcarouter-documented.json'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin, ORCAROUTER_CONNECT_ROWS } = await import('../../src/services/providers/orcarouter/orcarouterLogin.ts')

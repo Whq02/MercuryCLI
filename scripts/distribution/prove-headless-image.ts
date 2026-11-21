@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { RUNTIME_PACK_PATH, runtimeBinaryFor } from '../../src/services/privateChannel/vendoredRuntime.ts'
-import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../../src/services/providers/credentialEnvSpellings.ts'
+import { ALL_PROVIDER_CREDENTIAL_ENV_VARS } from '../../src/constants/credentialEnvSpellings.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
