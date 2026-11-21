@@ -337,13 +337,13 @@ console.log('\nFeedback — gatherReport reads sealed pre-fold history through t
     await recordTranscript([beforeMsg, boundaryMsg, afterMsg])
     await flushSessionStorage()
     const transcriptFile = getTranscriptPathForSession(getSessionId())
-    const head = historyHead(transcriptFile)
+    const partHead = historyHead(transcriptFile)
     const liveRaw = fs.readFileSync(transcriptFile, 'utf8')
     const logical = Buffer.concat([...historyLines(transcriptFile)]).toString('utf8')
     const { gatherReport } = await import(${JSON.stringify(join(SRC, 'components/Feedback.tsx'))})
     const gathered = await gatherReport('sealed transcript bug', [], {})
     const raw = typeof gathered.report.raw_transcript === 'string' ? gathered.report.raw_transcript : ''
-    out.sealedBefore = head.before
+    out.sealedBefore = partHead.before
     out.liveHasBefore = liveRaw.includes('FEEDBACK_BEFORE_FOLD_NEEDLE')
     out.rawHasBefore = raw.includes('FEEDBACK_BEFORE_FOLD_NEEDLE')
     out.rawHasAfter = raw.includes('FEEDBACK_AFTER_FOLD_NEEDLE')
