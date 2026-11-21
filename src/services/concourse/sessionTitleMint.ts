@@ -1,5 +1,5 @@
 
-import { closeSync, openSync, readSync } from 'node:fs'
+import { historyHead, historyRange } from '../../utils/sessionStorage/historyParts.js'
 import { readSessionWorkers, type ConcourseWorkerRecordV1 } from '../../daemon/concourseWorkers.js'
 import { subscribeConcourseDelta } from '../../daemon/concourseWorkers/store.js'
 import { recordToEntry } from '../../fabric/entryCodec.js'
@@ -22,20 +22,9 @@ interface HeadFacts {
 export function transcriptHeadFacts(rec: { sessionId: string; workspaceId: string }): HeadFacts {
   try {
     const path = workerTranscriptPath(rec)
-    const fd = openSync(path, 'r')
-    let head = ''
-    try {
-      const buf = Buffer.allocUnsafe(HEAD_BYTES)
-      let got = 0
-      while (got < HEAD_BYTES) {
-        const r = readSync(fd, buf, got, HEAD_BYTES - got, got)
-        if (r <= 0) break
-        got += r
-      }
-      head = buf.subarray(0, got).toString('utf8')
-    } finally {
-      closeSync(fd)
-    }
+    const extent = historyHead(path)
+    const size = extent.before + extent.end - extent.start
+    const head = size === 0 ? '' : historyRange(extent, 0, Math.min(size, HEAD_BYTES)).toString('utf8')
     let assistantTurns = 0
     const parts: string[] = []
     for (const line of head.split(String.fromCharCode(10))) {
