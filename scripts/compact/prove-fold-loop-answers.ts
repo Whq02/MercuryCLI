@@ -1,9 +1,10 @@
 #!/usr/bin/env bun
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns, type Frame } from '../lib/rows.ts'
+import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -160,7 +161,8 @@ type Boundary = { pre: number; post: number; epoch: number; rounds: Record<strin
 function boundariesOnDisk(transcript: string): Boundary[] {
   if (transcript === '' || !existsSync(transcript)) return []
   const out: Boundary[] = []
-  for (const line of readFileSync(transcript, 'utf8').split('\n')) {
+  for (const bytes of historyLines(transcript)) {
+    const line = bytes.toString('utf8')
     if (!line.includes('"kind":"boundary"')) continue
     const start = line.lastIndexOf('{"schemaVersion"')
     const record = JSON.parse(start > 0 ? line.slice(start) : line) as { payload?: { kind?: string; fields?: { compactMetadata?: { preTokens?: number; postTokens?: number; ledger?: { epoch?: number }; recentRounds?: Record<string, unknown>; memory?: { state?: string } } } } }

@@ -7,6 +7,7 @@ import { basename, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 import { FAKE_BIN, FAKE_SCRIPT, QWEN_2B_REPO, fakeWorld } from './fixtures/world.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -155,7 +156,7 @@ async function makeWorld(opts: { saved?: string | null; servedBefore?: boolean; 
 }
 
 let captures = 0
-async function capture(world: World, label: string, size: string, sends: Send[], lastScene: string, opts: { argv?: string[]; total?: number; settle?: number } = {}): Promise<Capture> {
+async function capture(world: World, label: string, size: string, sends: Send[], lastScene: string | string[], opts: { argv?: string[]; total?: number; settle?: number } = {}): Promise<Capture> {
   const [cols, rows] = size.split('x').map(Number) as [number, number]
   const n = ++captures
   const out = join(world.root, `capture-${n}.json`)
@@ -196,6 +197,7 @@ function stopDaemon(world: World): void {
 }
 const at = (needle: string, data: string, mark?: string, settle = 3): Send => ({ requireAwait: true, awaitText: needle, awaitSettleTicks: settle, ...(mark !== undefined ? { mark } : {}), data })
 const typed = (after: string, words: string): Send[] => [at(after, words, undefined, 4), at(words, '\r', undefined, 2)]
+const faceAt = (data: string, mark?: string, settle = 2): Send => ({ requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: settle, ...(mark !== undefined ? { mark } : {}), data })
 const requestsOf = (world: World): string[] => (existsSync(world.log) ? readFileSync(world.log, 'utf8').split('\n').filter(line => line.startsWith('request ')).map(line => line.slice('request '.length)) : [])
 const transcriptsOf = (world: World): string[] => {
   const found: string[] = []
@@ -218,7 +220,7 @@ try {
     'new',
     '150x40',
     [
-      at('↑↓ choose', '\r', 'home', 2),
+      faceAt('\r', 'home', 2),
       at(NOTICE_HEAD, '/tensorfold', 'opened', 6),
       at('/tensorfold', '\r', undefined, 2),
       at(SERVE_KEY, '\r', 'panel', 4),
@@ -265,7 +267,7 @@ try {
       'new-narrow',
       '80x40',
       [
-        at('↑↓ choose', '\r', 'home', 2),
+        faceAt('\r', 'home', 2),
         at(NOTICE_HEAD, RAIN, 'opened', 6),
         at(RAIN, '\r', undefined, 2),
         at(UNLISTED, `/model ${HOSTED}`, 'meanwhile', 4),
@@ -274,9 +276,9 @@ try {
         at(SNOW, '\r', undefined, 2),
         at(HOSTED_ANSWER, BACK, 'answered', 4),
         at('enters it', BACK, 'board', 4),
-        at('↑↓ choose', '', 'home-again', 4),
+        faceAt('', 'home-again', 4),
       ],
-      '↑↓ choose',
+      ['>_', '↵', '↑↓'],
       { total: 320 },
     )
     check('at 80 columns the notice is wrapped, not cut, and names the local server where the engine never served the model', small.delivered === small.asked && flat(small.marks.opened).includes(NOTICE_PLAIN.replace('▲ ', '')) && count(small.marks.opened, NOTICE_HEAD) === 1 && !(small.marks.opened ?? '').split('\n').some(line => line.includes(NOTICE_HEAD) && line.includes('…')), `${small.delivered}/${small.asked} ${small.note} ${(small.marks.opened ?? '').split('\n').filter(line => /served|server|chooses/.test(line)).join(' | ')}`)
@@ -284,7 +286,7 @@ try {
     check('/model chooses another model in that chat: the status row names it, its prompt is answered there, the notice stays the one row', flat(small.marks.switched).includes(`ready · ${HOSTED_NAME}`) && flat(small.marks.switched).includes(`Model now: ${HOSTED_NAME}`) && count(small.marks.switched, NOTICE_HEAD) === 1 && flat(small.marks.answered).includes(HOSTED_ANSWER), flat(small.marks.answered).slice(-400))
     const sent = provider.messageRequests().map(request => JSON.stringify(request.body))
     check('the other model’s request carries nothing of the notice', sent.length >= 1 && !sent.some(body => body.includes(NOTICE_HEAD)), `${sent.length} requests`)
-    check('back on the home screen nothing of the notice is painted', flat(small.marks['home-again']).includes('↑↓ choose') && !flat(small.marks['home-again']).includes(NOTICE_HEAD), flat(small.marks['home-again']).slice(-300))
+    check('back on the home screen nothing of the notice is painted', paintsBootFaceReady(flat(small.marks['home-again'])) && !flat(small.marks['home-again']).includes(NOTICE_HEAD), flat(small.marks['home-again']).slice(-300))
     stopDaemon(narrow)
   } finally {
     await provider.close()
@@ -308,7 +310,7 @@ try {
         settle(false)
       })
     })
-    const plain = await capture(serving, 'serving', '150x40', [at('↑↓ choose', '\r', 'home', 2), at(`ready · ${MODEL}`, SNOW, 'opened', 8), at(SNOW, '\r', undefined, 2), at(SAID, '', 'answered', 6), ...typed(SAID, '/exit')], 'Session saved', { total: 220 })
+    const plain = await capture(serving, 'serving', '150x40', [faceAt('\r', 'home', 2), at(`ready · ${MODEL}`, SNOW, 'opened', 8), at(SNOW, '\r', undefined, 2), at(SAID, '', 'answered', 6), ...typed(SAID, '/exit')], 'Session saved', { total: 220 })
     check('a chat born on a served model carries no notice and is answered (holds on the parent too)', up && plain.delivered === plain.asked && !flat(plain.marks.opened).includes(NOTICE_HEAD) && flat(plain.marks.answered).includes(SAID), `${plain.delivered}/${plain.asked} ${flat(plain.marks.answered).slice(-300)}`)
     const names = (world: World, body: string): string => body.split(world.root).join('<root>').split(world.engine.root).join('<engine>').split(basename(world.root)).join('<run>').replace(/-repo-[0-9a-f]{8}\b/g, '-repo-<hash>').replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<id>').replace(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z?/g, '<time>').replace(/\b\d{2}:\d{2}(:\d{2})?\b/g, '<clock>')
     const listing = /## Skills\\n[\s\S]*?capsule-digest:[0-9a-f]+/
@@ -333,8 +335,8 @@ try {
     ['the local family named with no server', 'local', 'model refused (unreachable:local)'],
   ] as const) {
     const refusing = await makeWorld({ saved: null })
-    const refused = await capture(refusing, `refused-${model}`, '150x40', [at('↑↓ choose', '\r', 'home', 2), at('the chat could not start', '', 'refused', 4)], 'the chat could not start', { argv: ['--model', model], total: 160 })
-    check(`${name} (${model}): the home screen stays and says why`, refused.delivered === refused.asked && flat(refused.marks.refused).includes('↑↓ choose') && flat(refused.marks.refused).includes(`▲ the chat could not start — ${words}`), flat(refused.marks.refused).slice(-400))
+    const refused = await capture(refusing, `refused-${model}`, '150x40', [faceAt('\r', 'home', 2), at('the chat could not start', '', 'refused', 4)], 'the chat could not start', { argv: ['--model', model], total: 160 })
+    check(`${name} (${model}): the home screen stays and says why`, refused.delivered === refused.asked && paintsBootFaceReady(flat(refused.marks.refused)) && flat(refused.marks.refused).includes(`▲ the chat could not start — ${words}`), flat(refused.marks.refused).slice(-400))
     stopDaemon(refusing)
   }
 
@@ -353,7 +355,7 @@ try {
   const lender = await startFixtureApi(Array.from({ length: 6 }, () => ({ kind: 'text' as const, text: HOSTED_ANSWER })))
   try {
     const lent = await makeWorld({ saved: HOSTED, key: KEY, provider: lender.url })
-    const ran = await capture(lent, 'credential', '150x40', [at('↑↓ choose', '\r', 'home', 2), at(`ready · ${HOSTED_NAME}`, RAIN, 'opened', 6), at(RAIN, '\r', undefined, 2), at(HOSTED_ANSWER, '', 'answered', 4), ...typed(HOSTED_ANSWER, '/exit')], 'Session saved', { total: 260 })
+    const ran = await capture(lent, 'credential', '150x40', [faceAt('\r', 'home', 2), at(`ready · ${HOSTED_NAME}`, RAIN, 'opened', 6), at(RAIN, '\r', undefined, 2), at(HOSTED_ANSWER, '', 'answered', 4), ...typed(HOSTED_ANSWER, '/exit')], 'Session saved', { total: 260 })
     check('a chat on a hosted model with its credential is answered and saved (holds on the parent too)', ran.delivered === ran.asked && flat(ran.marks.answered).includes(HOSTED_ANSWER) && !flat(ran.marks.answered).includes('has no credential here'), `${ran.delivered}/${ran.asked} ${flat(ran.marks.answered).slice(-300)}`)
     stopDaemon(lent)
     delete lent.env.ANTHROPIC_API_KEY
@@ -371,7 +373,7 @@ try {
   {
     const signed = await makeWorld({ saved: HOSTED })
     signed.env.OPENROUTER_API_KEY = KEY
-    const opened = await capture(signed, 'no-usable', '80x40', [at('↑↓ choose', '\r', 'home', 2), at(NO_USABLE, '', 'opened', 8)], NO_USABLE, { total: 160 })
+    const opened = await capture(signed, 'no-usable', '80x40', [faceAt('\r', 'home', 2), at(NO_USABLE, '', 'opened', 8)], NO_USABLE, { total: 160 })
     const frame = opened.marks.opened
     check('New Session where a sign-in has no usable model: the admission’s own note is a row of the chat, wrapped and whole, once (on the parent it was minted before the chat was entered and never reached it)', opened.delivered === opened.asked && flat(frame).includes(`▲ ${NO_USABLE}`) && flat(frame).includes('name a model by id with /model, or sign in with /logins') && count(frame, NO_USABLE) === 1 && flat(frame).includes('Type a prompt'), `${opened.delivered}/${opened.asked} ${opened.note} ${flat(frame).slice(-500)}`)
     stopDaemon(signed)

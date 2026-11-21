@@ -57,7 +57,7 @@ export function subscribeTensorFoldRoad(listener: Listener): () => void {
 }
 
 export function subscribeTensorFoldPods(hasStopping: boolean, onChange: () => void): () => void {
-  const stopRecords = subscribeHostRecords(onChange)
+  const stopRecords = subscribeHostRecords(onChange, onChange)
   if (!hasStopping) return stopRecords
   let settling = false
   const stopClock = subscribeUiClock(1_000, () => {

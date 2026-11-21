@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.js'
 import { seedFirstRun } from '../lib/firstRunSeed.js'
 import { parseFrame } from '../lib/rows.js'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -149,7 +150,7 @@ function ptyBoot(
   env: NodeJS.ProcessEnv,
   cwd: string,
   dir: string,
-  opts: { sends?: unknown[]; totalTicks?: number; ready?: string | null } = {},
+  opts: { sends?: unknown[]; totalTicks?: number; ready?: string | string[] | null } = {},
 ): { readyAt: number | null; endReason: string; status: number | null; stderr: string } {
   if (driver.kind !== 'posix-pty') {
     return { readyAt: null, endReason: 'no-driver', status: null, stderr: 'no POSIX capture driver' }
@@ -239,8 +240,8 @@ if (driver.kind !== 'posix-pty') {
   section('I1–I3 — interactive legs')
   check('a POSIX capture driver (python3 + pyte) is available for the interactive legs', false, why)
 } else {
-  const FACE_READY = '↑↓ choose'
-  const FACE_ENTER = { atTick: 40, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' }
+  const FACE_READY = ['>_', '↵', '↑↓']
+  const FACE_ENTER = { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' }
   const FIRST_MESSAGE = [
     FACE_ENTER,
     { atTick: 200, awaitText: COMPOSER_SIGIL, minTick: 5, awaitSettleTicks: 4, data: 'hi' },
