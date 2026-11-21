@@ -36,6 +36,8 @@ import {
   getNodeEnv,
   getTranscriptPath,
   isChainParticipant,
+  notifyStorageFile,
+  subscribeStorageFile,
 } from './paths.js'
 import {
   encodeTranscriptLine,
@@ -49,6 +51,10 @@ import { SettlePart } from './writer/settle.js'
 import { describeTranscriptStoreFailure, setStoreHealth } from './writer/storeHealth.js'
 import { passedOver } from '../passedOver.js'
 export { describeTranscriptStoreFailure, subscribeTranscriptStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
+
+export function subscribeTranscriptFile(path: string, listener: () => void): () => void {
+  return subscribeStorageFile(path, listener)
+}
 
 const sessionRecordIds = new Map<string, Set<UUID>>()
 
@@ -363,7 +369,10 @@ class Project {
   private readonly filesPart = new FilesPart(this, { shouldSkipPersistence: () => this.shouldSkipPersistence() })
   private readonly queuePart = new QueuePart()
   private readonly settlePart = new SettlePart({
-    enqueueRawLine: (filePath, line, capture) => this.queuePart.enqueueRawLine(filePath, line, capture),
+    enqueueRawLine: (filePath, line, capture) =>
+      this.queuePart.enqueueRawLine(filePath, line, capture).then(() => {
+        notifyStorageFile(filePath)
+      }),
     writeQueues: () => this.queuePart.writeQueues,
     shouldSkipPersistence: () => this.shouldSkipPersistence(),
   })
@@ -411,8 +420,10 @@ class Project {
     return this.queuePart.flush()
   }
 
-  removeMessageByUuid(targetUuid: UUID): Promise<void> {
-    return this.removePart.removeMessageByUuid(targetUuid)
+  async removeMessageByUuid(targetUuid: UUID): Promise<void> {
+    const file = this.sessionFile
+    await this.removePart.removeMessageByUuid(targetUuid)
+    if (file !== null) notifyStorageFile(file)
   }
 
   private shouldSkipPersistence(): boolean {
@@ -471,7 +482,7 @@ class Project {
     if (sessionFile === null) return
 
     if (storageRowPolicy(entry.type)?.write === 'append') {
-      void this.queuePart.enqueueWrite(sessionFile, entry)
+      void this.queuePart.enqueueWrite(sessionFile, entry).then(() => notifyStorageFile(sessionFile), passedOver)
       return
     }
 
@@ -480,12 +491,12 @@ class Project {
         ? (agentTranscriptDestinations.get(entry.agentId) ??
           getAgentTranscriptPath(entry.agentId))
         : sessionFile
-      void this.queuePart.enqueueWrite(targetFile, entry)
+      void this.queuePart.enqueueWrite(targetFile, entry).then(() => notifyStorageFile(targetFile), passedOver)
       return
     }
 
     if (entry.type === 'queue-operation') {
-      void this.queuePart.enqueueWrite(sessionFile, entry)
+      void this.queuePart.enqueueWrite(sessionFile, entry).then(() => notifyStorageFile(sessionFile), passedOver)
       return
     }
 
@@ -538,5 +549,6 @@ export function appendEntryToFile(
       throw describeTranscriptStoreFailure(fullPath, error)
     }
   }
+  notifyStorageFile(fullPath)
 }
 
