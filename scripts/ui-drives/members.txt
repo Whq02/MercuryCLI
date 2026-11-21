@@ -34,3 +34,5 @@ prove-crew-screens-unchanged.ts
 prove-collapse-off-tail-drive.ts
 prove-resume-first-status.ts
 prove-resume-conversation-drive.ts
+prove-history-search-drive.ts
+prove-media-settings-picker-drive.ts

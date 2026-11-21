@@ -49,3 +49,4 @@ prove-xai-login-surfaces.ts
 prove-xai-login.ts
 prove-zen-login.ts
 prove-roles-account-drive.ts
+prove-auth-logout-built.ts
