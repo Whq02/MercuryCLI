@@ -136,6 +136,7 @@ async function approve(host: Host, name: string, authorizationUrl: URL): Promise
   const location = new URL(approved.headers.get('location')!)
   assert.equal(location.searchParams.get('iss'), host.origin)
   assert.ok(location.searchParams.get('code'), `approved OAuth redirect missing authorization code param (query=${location.searchParams.toString().slice(0, 120)}); check MCP OAuth authorize handler`)
+  const replay = await fetch(`${host.origin}/oauth/authorize`, form({ request: requestId, code, decision: 'approve' }, { origin: host.origin }))
   assert.equal(replay.status, 400)
   return location
 }
