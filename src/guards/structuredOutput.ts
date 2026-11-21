@@ -1,7 +1,7 @@
 import { SYNTHETIC_OUTPUT_TOOL_NAME } from '../constants/tools/syntheticOutput.js'
 import type { Message } from '../types/message.js'
-import { hasSuccessfulToolCall } from '../utils/messages.js'
-import { isToolResultMessage } from '../utils/messages/merge.js'
+import { hasSuccessfulToolCall } from '../services/messages.js'
+import { isToolResultMessage } from '../services/messages/merge.js'
 import { disengageTurnGuard, engageTurnGuard } from './guards.js'
 
 const STRUCTURED_OUTPUT_GUARD_ID = 'structured-output'

@@ -20,9 +20,9 @@ export {
   turnCutWhy,
   type TurnCut,
   type TurnCutKind,
-} from './messages/rejectionText.js'
+} from '../utils/messages/rejectionText.js'
 
-export { deriveShortMessageId, deriveUUID } from './messages/identity.js'
+export { deriveShortMessageId, deriveUUID } from '../utils/messages/identity.js'
 
 export {
   createAssistantAPIErrorMessage,
@@ -38,7 +38,7 @@ export {
   prepareUserContent,
   SYNTHETIC_MESSAGES,
   SYNTHETIC_MODEL,
-} from './messages/factories.js'
+} from '../utils/messages/factories.js'
 
 export {
   extractTag,
@@ -54,13 +54,13 @@ export {
   wrapCommandText,
   wrapInSystemReminder,
   wrapMessagesInSystemReminder,
-} from './messages/text.js'
+} from '../utils/messages/text.js'
 
 export {
   isToolUseRequestMessage,
   isToolUseResultMessage,
   normalizeMessages,
-} from './messages/normalize.js'
+} from '../utils/messages/normalize.js'
 
 export {
   buildMessageLookups,
@@ -134,14 +134,14 @@ export {
   isCompactBoundaryMessage,
   isThinkingMessage,
   shouldShowUserMessage,
-} from './messages/systemMessages.js'
+} from '../utils/messages/systemMessages.js'
 
 export {
   handleMessageFromStream,
   isDroppedLateStreamFrame,
   type StreamingThinking,
   type StreamingToolUse,
-} from './messages/streaming.js'
+} from '../utils/messages/streaming.js'
 
 export {
   ensureToolResultPairing,

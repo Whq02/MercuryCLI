@@ -78,7 +78,7 @@ section('§1 the predicate: the exact objects the runtime produces for a cut con
 
 const { queryModelWithStreaming } = await import('../../src/services/providers/anthropic/streamCore.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
 const MODEL = 'claude-sonnet-5'
 const event = (type: string, body: unknown): string => `event: ${type}\ndata: ${JSON.stringify(body)}\n\n`

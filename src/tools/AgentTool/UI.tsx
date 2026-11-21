@@ -18,7 +18,7 @@ import type {
 } from '../../types/message.js'
 import type { Tools } from '../../Tool.js'
 import { safeSearchOrReadClassification, safeUserFacingName } from '../../Tool.js'
-import { buildSubagentLookups } from '../../utils/messages.js'
+import { buildSubagentLookups } from '../../services/messages.js'
 import { formatTokens } from '../../utils/format.js'
 import { getTokenCountFromUsage } from '../../services/context/tokens.js'
 import type { ApiUsage, ToolResultBlockParam } from '../../types/wire.js'

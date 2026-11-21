@@ -30,7 +30,7 @@ import {
   INTERRUPT_MESSAGE,
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
   NO_RESPONSE_REQUESTED,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { isMacOsKeychainLocked } from '../../utils/secureStorage/macOsKeychainStorage.js'
 import { CtrlOToExpand } from '../CtrlOToExpand.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'

@@ -1,7 +1,7 @@
 import type { ContentBlockParam, TextBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { contentItemsOf, joinContentAtTextSeam, resultsFirst, storedBlocksOf } from '../../rows/content.js'
-import { isToolReferenceBlock } from '../toolSearch.js'
+import { isToolReferenceBlock } from './toolSearch.js'
 
 type ContentJoin = (left: ContentBlockParam[], right: ContentBlockParam[]) => ContentBlockParam[]
 type ToolResultContentItem = Extract<ToolResultBlockParam['content'], readonly unknown[]>[number]

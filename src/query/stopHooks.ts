@@ -18,7 +18,7 @@ import { errorMessage } from '../utils/errors.js'
 import { createCacheSafeParams, saveCacheSafeParams } from '../services/agents/forkedAgent.js'
 import { prepareHooks } from '../utils/hooks/fire.js'
 import { hookProgressMessage, hookRowsOfResult } from '../utils/hooks/rows.js'
-import { extractTextContent, getLastAssistantMessage } from '../utils/messages.js'
+import { extractTextContent, getLastAssistantMessage } from '../services/messages.js'
 import { createUserInterruptionMessage, createUserMessage } from '../utils/messages/factories.js'
 import { createSystemMessage } from '../utils/messages/systemMessages.js'
 

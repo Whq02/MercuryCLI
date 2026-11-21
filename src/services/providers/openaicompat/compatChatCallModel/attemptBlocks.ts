@@ -13,7 +13,7 @@ import { busyRecoveryDetail } from '../../busyRetry.js'
 import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   normalizeContentFromAPI,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { logForDebugging } from '../../../../utils/debug.js'
 import { addToTotalSessionCost } from '../../../../cost-tracker.js'
 import { calculateUSDCost } from '../../../usage/modelCost.js'

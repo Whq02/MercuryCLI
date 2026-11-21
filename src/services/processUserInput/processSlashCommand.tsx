@@ -39,7 +39,7 @@ import {
   createUserMessage,
   INTERRUPT_MESSAGE,
   isCompactBoundaryMessage,
-} from '../../utils/messages.js'
+} from '../messages.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
 import { logError } from '../../utils/log.js'
 import { resetMicrocompactState } from '../compact/microCompact.js'

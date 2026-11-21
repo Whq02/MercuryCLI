@@ -33,7 +33,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
   '../../src/utils/messages/factories.ts'
 )
-const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
+const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 const queueStore = await import('../../src/input-core/command-queue.ts')

@@ -25,7 +25,7 @@ bootstrap.setSessionTrustAccepted(true)
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages/factories.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getAttachments } = await import('../../src/services/attachments/orchestrator.ts')
 const model = 'gpt-6-astra'

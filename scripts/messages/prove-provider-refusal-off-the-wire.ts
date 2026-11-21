@@ -16,7 +16,7 @@ type AssistantMessage = import('../../src/types/message.js').AssistantMessage
 type UserMessage = import('../../src/types/message.js').UserMessage
 type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
 
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
 const { createAssistantAPIErrorMessage, createAssistantMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
 const { REFUSAL_WARDS, buildWardDenial, evaluateWards } = await import('../../src/utils/wards/wards.ts')
 

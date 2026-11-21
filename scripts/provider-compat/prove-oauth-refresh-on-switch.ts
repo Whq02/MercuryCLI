@@ -145,7 +145,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.ts')
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage

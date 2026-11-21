@@ -5,7 +5,7 @@ import {
   type CacheSafeParams,
 } from '../agents/forkedAgent.js'
 import { logError } from '../../utils/log.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage } from '../messages.js'
 import type { TurnAnswerContext } from '../../query/turnAnswerContext.js'
 import { currentLimits } from '../anthropicLimits.js'
 import type { AppState } from '../../state/AppState.js'

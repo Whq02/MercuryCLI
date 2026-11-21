@@ -13,28 +13,28 @@ import {
   getPdfPasswordProtectedErrorMessage,
   getPdfTooLargeErrorMessage,
   getRequestTooLargeErrorMessage,
-} from '../../services/api/errors.js'
-import { mediaRefusalOf } from '../api/mediaRefusal.js'
-import { isSyntheticApiErrorMessage } from './factories.js'
+} from '../api/errors.js'
+import { mediaRefusalOf } from '../../utils/api/mediaRefusal.js'
+import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import {
   isSystemLocalCommandMessage,
   reorderAttachmentsForAPI,
 } from './apiViewRows.js'
-import { joinBatchedContent } from './batchedContent.js'
+import { joinBatchedContent } from '../../utils/messages/batchedContent.js'
 import { storedBlocksOf } from '../../rows/content.js'
 import { normalizeAttachmentForAPI } from './attachmentText.js'
-import { createUserMessage } from './factories.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
 import { mergeAssistantMessages, mergeUserMessages, mergeUserMessagesAndToolResults, isToolResultMessage } from './merge.js'
-import { isTurnCutText } from './turnCut.js'
-import { pairConversationMessages } from './resultPairing.js'
+import { isTurnCutText } from '../../utils/messages/turnCut.js'
+import { pairConversationMessages } from '../../utils/messages/resultPairing.js'
 import { dropEmptyTextBlocks, filterOrphanedThinkingOnlyMessages, filterTrailingThinkingFromLastAssistant, filterWhitespaceOnlyAssistantMessages, ensureNonEmptyAssistantContent, sanitizeErrorToolResultContent } from './apiFilters.js'
 import { stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferencesFromUserMessage, withToolReferenceTurnBoundary } from './apiViewRows.js'
-import { isToolSearchEnabledOptimistic } from '../toolSearch.js'
-import { normalizeToolInputForAPI } from '../api.js'
+import { isToolSearchEnabledOptimistic } from './toolSearch.js'
+import { normalizeToolInputForAPI } from './api.js'
 import { toolMatchesName } from '../../Tool.js'
-import { validateImagesForAPI } from '../imageValidation.js'
+import { validateImagesForAPI } from '../../utils/imageValidation.js'
 import { LOCAL_COMMAND_CAVEAT_TAG } from '../../constants/xml.js'
-import { IMAGE_ELIDED_TEXT } from './imageRequestFit.js'
+import { IMAGE_ELIDED_TEXT } from '../../utils/messages/imageRequestFit.js'
 const CAVEAT_MARK = `<${LOCAL_COMMAND_CAVEAT_TAG}>`
 
 function leadingTextOf(message: UserMessage): string {

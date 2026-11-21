@@ -15,7 +15,7 @@ import type { RewindReceiptV1 } from '../../services/engine-connector/types.js';
 import type { Message, NormalizedUserMessage, UserMessage } from '../../types/message.js';
 import type { PromptInputMode } from '../../types/textInputTypes.js';
 import { getCwd } from '../../utils/cwd.js';
-import { textForResubmit } from '../../utils/messages.js';
+import { textForResubmit } from '../../services/messages.js';
 import { modelDisplayString } from '../../utils/model/model.js';
 import { readAllTranscriptEntries } from '../../utils/sessionStorage/materialize.js';
 import type { FocusedInputDialog } from './focusedDialog.js';

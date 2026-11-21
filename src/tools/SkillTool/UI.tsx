@@ -12,7 +12,7 @@ import type { Tools } from '../../Tool.js'
 import type { ProgressMessage } from '../../types/message.js'
 import type { SkillToolProgress } from '../../types/tools.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
-import { buildSubagentLookups } from '../../utils/messages.js'
+import { buildSubagentLookups } from '../../services/messages.js'
 import { plural } from '../../utils/stringUtils.js'
 import type { Output } from './SkillTool.js'
 

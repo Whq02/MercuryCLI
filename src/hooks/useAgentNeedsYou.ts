@@ -8,7 +8,7 @@ import {
   recordAgentStateVerdict,
 } from '../services/agentNeedsYou.js'
 import type { Message } from '../types/message.js'
-import { getAssistantMessageText } from '../utils/messages.js'
+import { getAssistantMessageText } from '../services/messages.js'
 
 
 function latestAssistantText(messages: readonly Message[]): string | null {

@@ -20,7 +20,7 @@ enableConfigs()
 const { getModelPricingString, calculateUSDCost, resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { getTotalCost, resetCostState } = await import('../../src/cost-tracker.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 try {
   for (const model of aliases) {
     assert.equal(getModelPricingString(model), '$0.70/$2.10 per Mtok')

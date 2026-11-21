@@ -8,7 +8,7 @@ const { z } = await import('zod/v4')
 const { setCwd } = await import('../../src/utils/Shell.ts')
 const { createProgressTracker, updateProgressFromMessage, getProgressUpdate } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const { countToolUses } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage } = await import('../../src/services/messages.ts')
 setCwd(work)
 let unblock = () => {}
 const gate = new Promise<void>(resolve => { unblock = resolve })

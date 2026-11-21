@@ -24,7 +24,7 @@ bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 
 const MODEL = 'claude-opus-4-8'

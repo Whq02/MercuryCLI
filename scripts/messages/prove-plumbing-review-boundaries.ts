@@ -2,13 +2,13 @@ import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
 ;(globalThis as any).MACRO = { VERSION: '1.0.0' }
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
-const merge = await import(`${root}/src/utils/messages/merge.ts`)
-const view = await import(`${root}/src/utils/messages/apiView.ts`)
+const merge = await import(`${root}/src/services/messages/merge.ts`)
+const view = await import(`${root}/src/services/messages/apiView.ts`)
 const cache = await import(`${root}/src/services/providers/anthropic/cacheAndUsage.ts`)
 const params = await import(`${root}/src/services/providers/anthropic/requestParams.ts`)
 const caps = await import(`${root}/src/utils/model/capabilities.ts`)
 const state = await import(`${root}/src/bootstrap/state.ts`)
-const filters = await import(`${root}/src/utils/messages/apiFilters.ts`)
+const filters = await import(`${root}/src/services/messages/apiFilters.ts`)
 const streaming = await import(`${root}/src/utils/messages/streaming.ts`)
 const config = await import(`${root}/src/utils/config.ts`)
 config.enableConfigs()

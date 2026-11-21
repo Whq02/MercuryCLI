@@ -44,7 +44,7 @@ import type {
   JsonOutputFormat,
   StreamCapabilityAdvertisement,
 } from '../../../types/wire.js'
-import { toolToAPISchema } from '../../../utils/api.js'
+import { toolToAPISchema } from '../../messages/api.js'
 import { resolveAppliedEffort, resolveEffortTruth } from '../../../utils/effort.js'
 import { effortStampOf } from '../../../utils/effortStamp.js'
 import { isEnvTruthy } from '../../../utils/envUtils.js'
@@ -54,7 +54,7 @@ import { captureAPIRequest } from '../../../utils/log.js'
 import {
   createAssistantAPIErrorMessage,
   createUserMessage,
-} from '../../../utils/messages.js'
+} from '../../messages.js'
 import { processOwnerForLane } from '../../../utils/run/resolveOwner.js'
 import { utilityCallFor } from '../../model/utilityModel.js'
 import { startSessionActivity } from '../../../utils/sessionActivity.js'

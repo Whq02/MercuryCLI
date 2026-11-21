@@ -3,7 +3,7 @@ import { resolve } from 'node:path'
 import { DIALECT_CONVERSATION } from './dialectFixture.ts'
 
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
-const { foldSplitTurnsForWire } = await import(`${root}/src/utils/messages/pairing.ts`)
+const { foldSplitTurnsForWire } = await import(`${root}/src/services/messages/pairing.ts`)
 const model = DIALECT_CONVERSATION[1] as any
 const left = { ...model, message: { ...model.message, content: 'left text', stop_reason: null } }
 const right = { ...model, message: { ...model.message, content: [{ type: 'text', text: 'right text', citations: [] }], stop_reason: 'end_turn' }, apexProviderTurn: { provider: 'openai', items: [{ type: 'reasoning', encrypted_content: 'fixture-private-replay' }] } }

@@ -108,7 +108,7 @@ async function main(): Promise<void> {
   check('child capsule differs from the parent capsule', c1.digest !== a2.digest)
 
   section('(7) projection + null transcript render')
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
   const projected = normalizeAttachmentForAPI(a1 as never)
   const text = JSON.stringify(projected)
   check('projection carries the block + digest needle + guidance', text.includes('Working set') && text.includes(`capsule-digest:${a1.digest}`) && text.includes('evidence-ranked'))

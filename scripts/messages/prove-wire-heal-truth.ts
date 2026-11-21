@@ -5,7 +5,7 @@ import {
   healWalkableForWire,
   orderToolResultsByUse,
   SYNTHETIC_TOOL_RESULT_PLACEHOLDER,
-} from '../../src/utils/messages.ts'
+} from '../../src/services/messages.ts'
 import type {
   AssistantMessage,
   Message,

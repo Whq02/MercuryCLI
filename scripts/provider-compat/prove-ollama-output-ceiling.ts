@@ -117,7 +117,7 @@ const { routedCallModel } = await import('../../src/services/providers/callModel
 const { getMaxOutputTokensForModel } = await import('../../src/services/providers/anthropic/streamCore.ts')
 const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const w = await import('../../src/services/providers/local/localWindow.ts')
 

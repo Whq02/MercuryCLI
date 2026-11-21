@@ -39,7 +39,7 @@ process.env.MERCURY_MOONSHOT_OAUTH_BASE = `http://127.0.0.1:${server.port}/auth`
 try {
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { compatChatCallModel, mapCompatUsageToAnthropic } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const { decodeCompatUsage } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')

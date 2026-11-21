@@ -2,7 +2,7 @@
 # gate-class: pure
 # gate-watch: src/utils/config/** src/utils/effort* src/utils/settings/settings*
 # gate-watch: src/components/PromptInput/PromptInput.tsx
-# gate-watch: src/utils/attachments/* src/utils/messages/attachmentText.ts
+# gate-watch: src/utils/attachments/* src/services/messages/attachmentText.ts
 # gate-watch: src/utils/thinking.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

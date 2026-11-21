@@ -106,7 +106,7 @@ enableConfigs()
 const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage

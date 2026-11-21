@@ -86,7 +86,7 @@ try {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { assembleToolPool } = await import('../../src/tools.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
   const permission = getEmptyToolPermissionContext()
   const pool = assembleToolPool(permission, [])

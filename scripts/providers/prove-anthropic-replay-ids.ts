@@ -28,7 +28,7 @@ try {
   ;(await import('../../src/utils/config.ts')).enableConfigs()
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const tool = { name: 'EchoTool', description: async () => 'echo', prompt: async () => 'echo', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'EchoTool', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   async function run(model: string, messages: any[]) {
     const out: any[] = []

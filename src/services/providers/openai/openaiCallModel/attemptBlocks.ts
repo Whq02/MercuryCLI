@@ -13,7 +13,7 @@ import type {
 import { EMPTY_USAGE } from '../../../../utils/api/emptyUsage.js'
 import {
   normalizeContentFromAPI,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { busyRecoveryDetail } from '../../busyRetry.js'
 import type { OpenaiAttemptCtx } from './attempt.js'
 

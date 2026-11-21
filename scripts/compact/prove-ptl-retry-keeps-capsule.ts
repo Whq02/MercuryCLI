@@ -16,7 +16,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { truncateHeadForPTLRetry } = await import(join(SRC, 'services/compact/compact.ts'))
 const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage, createCompactBoundaryMessage, isCompactBoundaryMessage } =
-  await import(join(SRC, 'utils/messages.ts'))
+  await import(join(SRC, 'services/messages.ts'))
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import(join(SRC, 'services/api/errors.ts'))
 
 let failures = 0

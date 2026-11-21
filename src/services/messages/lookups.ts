@@ -1,11 +1,11 @@
 import type { ToolUseBlockParam } from '../../types/wire.js'
-import type { HookEvent } from '../hooks/contract.js'
+import type { HookEvent } from '../../utils/hooks/contract.js'
 import type { AssistantMessage, AttachmentMessage, Message, NormalizedMessage, NormalizedUserMessage, ProgressMessage } from '../../types/message.js'
-import type { HookAttachment } from '../attachments/types.js'
-import { isContinuableStreamFaultMessage, isStreamFaultRecoveryNudgeText } from '../../services/api/errors.js'
-import { contentBlocksOf } from './normalize.js'
-import { accumulateOpenToolUses, freshOpenToolUses } from './openToolUses.js'
-import { isDenialResultText } from './rejectionText.js'
+import type { HookAttachment } from '../../utils/attachments/types.js'
+import { isContinuableStreamFaultMessage, isStreamFaultRecoveryNudgeText } from '../api/errors.js'
+import { contentBlocksOf } from '../../utils/messages/normalize.js'
+import { accumulateOpenToolUses, freshOpenToolUses } from '../../utils/messages/openToolUses.js'
+import { isDenialResultText } from '../../utils/messages/rejectionText.js'
 
 type HookCounts = Map<string, Map<HookEvent, number>>
 export type MessageLookups = {

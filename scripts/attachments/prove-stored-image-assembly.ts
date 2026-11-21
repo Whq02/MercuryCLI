@@ -10,7 +10,7 @@ process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
 
 const store = await import('../../src/utils/imageStore.ts')
-const messages = await import('../../src/utils/messages.ts')
+const messages = await import('../../src/services/messages.ts')
 const sharp = (await import('sharp')).default
 
 let failures = 0

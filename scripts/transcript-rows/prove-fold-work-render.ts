@@ -17,7 +17,7 @@ const { ResumeRecapCard } = await import('../../src/components/messages/ResumeRe
 const { composeTranscript } = await import('../../src/components/Messages.tsx')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
-const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createCompactBoundaryMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { annotateBoundaryWithWork, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
 

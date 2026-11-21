@@ -593,7 +593,7 @@ section('§8 ONCE MORE ON AN EMPTY ANSWER, THEN A QUIET ROW: an empty answer is 
   check('the service mints the quiet row and its words (red on the base: no such factory)', minted)
   const row = minted ? (advisor.createAdvisorQuietMessage(quiet as never) as unknown as Raw) : ({} as Raw)
   check("the quiet row is a system record of its own subtype with the origin and the words, info level, never meta — a row the transcript keeps and the model never sees", row.type === 'system' && row.subtype === 'advisor_quiet' && minted && advisor.isAdvisorQuietMessage(row) && j(row.origin) === j(quiet!.origin) && row.content === 'had nothing to say this round — answered with no text, twice' && row.level === 'info' && row.isMeta === false && typeof row.uuid === 'string' && typeof row.timestamp === 'string', j(row))
-  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/utils/messages/apiView.ts'))
+  const { normalizeMessagesForAPI } = await import(join(ROOT, 'src/services/messages/apiView.ts'))
   const planned = normalizeMessagesForAPI([...transcript, ...(minted ? [row] : [])] as never)
   check('the API plan leaves the quiet row out: the agent never reads it', minted && planned.length === 2 && !j(planned).includes('had nothing to say'), j(planned.map((m: Raw) => m.type)))
   quiets.length = 0

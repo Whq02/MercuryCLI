@@ -18,7 +18,7 @@ bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { emptyReplyNote, markEmptyReply } = await import('../../src/services/providers/emptyReply.ts')
 const errors = (await import('../../src/services/api/errors.ts')) as Record<string, unknown>

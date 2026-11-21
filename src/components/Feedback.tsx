@@ -24,7 +24,7 @@ import { platformDisplayName } from '../utils/platform/words.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { utilityCallFor } from '../services/model/utilityModel.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
-import { createUserMessage, normalizeMessagesForAPI } from '../utils/messages.js'
+import { createUserMessage, normalizeMessagesForAPI } from '../services/messages.js'
 import { asSystemPrompt } from '../utils/systemPromptType.js'
 import type { ToolPermissionContext } from '../Tool.js'
 import {

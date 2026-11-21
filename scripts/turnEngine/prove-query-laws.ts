@@ -22,7 +22,7 @@ bootstrap.setProjectRoot(projDir)
 
 const { query } = await import('../../src/query.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/utils/messages.ts')
+const { createUserMessage, INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import(
   '../../src/utils/fileStateCache.ts'

@@ -14,7 +14,7 @@ import {
   type TransitionPlanItem,
   type TransitionWindowFact,
 } from '../model/modelTransition.js'
-import { isUnsignedThinkingBlock } from '../../utils/messages.js'
+import { isUnsignedThinkingBlock } from '../messages.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { contextFill, usageAnchorModel } from '../context/tokens.js'
 import { autoCompactWindowIsInputLimit, getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'

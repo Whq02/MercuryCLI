@@ -9,20 +9,20 @@ import { RESUME_AGENT_TOOL_NAME } from '../../constants/tools/resumeAgent.js'
 import { TASK_CREATE_TOOL_NAME } from '../../constants/tools/taskCreate.js'
 import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { TASK_UPDATE_TOOL_NAME } from '../../constants/tools/taskUpdate.js'
-import { DiagnosticTrackingService } from '../diagnosticTracking.js'
-import { operatorMessagesBlockText } from '../compact/operatorMessages.js'
-import { attachedInstructionText } from '../../services/instructions/attachedText.js'
+import { DiagnosticTrackingService } from '../../utils/diagnosticTracking.js'
+import { operatorMessagesBlockText } from '../../utils/compact/operatorMessages.js'
+import { attachedInstructionText } from '../instructions/attachedText.js'
 import { DEFERRED_TOOLS_ANNOUNCEMENT_HEAD } from '../../constants/tools/toolSearch.js'
-import type { Attachment } from '../attachments/types.js'
-import { boundHookContext } from '../hooks/contextBound.js'
-import { quote } from '../bash/shellQuote.js'
-import { formatFileSize, formatNumber } from '../format.js'
-import { jsonStringify } from '../slowOperations.js'
-import { isTaskToolsEnabled } from '../tasks.js'
-import { createUserMessage } from './factories.js'
-import { isAdvisorOrigin } from './noticeRows.js'
-import { wrapCommandText, wrapInSystemReminder, wrapMessagesInSystemReminder } from './text.js'
-import { samplesRoadText } from '../attachments/samplesRoad.js'
+import type { Attachment } from '../../utils/attachments/types.js'
+import { boundHookContext } from '../../utils/hooks/contextBound.js'
+import { quote } from '../../utils/bash/shellQuote.js'
+import { formatFileSize, formatNumber } from '../../utils/format.js'
+import { jsonStringify } from '../../utils/slowOperations.js'
+import { isTaskToolsEnabled } from '../../utils/tasks.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
+import { isAdvisorOrigin } from '../../utils/messages/noticeRows.js'
+import { wrapCommandText, wrapInSystemReminder, wrapMessagesInSystemReminder } from '../../utils/messages/text.js'
+import { samplesRoadText } from '../../utils/attachments/samplesRoad.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { mapResultToBlock } from '../../tools/BashTool/resultBlock.js'
 import { mapToolResultToToolResultBlockParam } from '../../tools/FileReadTool/read/resultBlock.js'
@@ -234,7 +234,7 @@ const renderers: Renderers = {
     const allowance = item.budget === null ? '' : ` of ${formatNumber(item.budget)}`
     return notice(`Output so far — this turn: ${turn}${allowance} tokens; this session: ${formatNumber(item.session)} tokens`)
   },
-  usage_limit_notice: item => notice((require('../../services/providers/limitWarning.js') as typeof import('../../services/providers/limitWarning.js')).usageWarningNoticeText(item.text, item.pct)),
+  usage_limit_notice: item => notice((require('../providers/limitWarning.js') as typeof import('../providers/limitWarning.js')).usageWarningNoticeText(item.text, item.pct)),
   mission_status: item => notice(item.text),
   held_tools: item => reminders(item.body),
   tool_schema_delta: item => reminders(item.body),

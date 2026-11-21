@@ -1,5 +1,5 @@
 import type { RenderableMessage } from '../types/message.js'
-import { isTurnCutText } from './messages.js'
+import { isTurnCutText } from './messages/rejectionText.js'
 import { passedOver } from './passedOver.js'
 
 type SearchTextTool = { name: string; extractSearchText?(output: unknown): string }

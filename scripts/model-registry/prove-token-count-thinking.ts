@@ -110,7 +110,7 @@ try {
   const { getAttributionHeader } = await import('../../src/constants/system.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
   const { computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.js')
   const attribution = getAttributionHeader(computeFingerprintFromMessages([createUserMessage({ content: 'Say OK.' })]))
   const session = asSystemPrompt(['# Session\nA session prompt for the count proof.', 'A second part.'])

@@ -1,6 +1,6 @@
 import type { Message } from '../../types/message.js'
-import { isToolResultMessage } from '../../utils/messages/merge.js'
-import { isLocalCommandCaveat } from '../../utils/messages/apiPlan.js'
+import { isToolResultMessage } from '../../services/messages/merge.js'
+import { isLocalCommandCaveat } from '../../services/messages/apiPlan.js'
 import { refused } from '../../runner/wire/errors.js'
 import type { AppState } from '../../state/AppStateStore.js'
 import { resolvePermissionModeTransition } from './controlHandlers.js'

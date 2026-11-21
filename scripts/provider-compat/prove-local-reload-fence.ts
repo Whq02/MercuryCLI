@@ -148,7 +148,7 @@ const windowModule = (await import('../../src/services/providers/local/localWind
 const { writeLocalWindowSetting, __resetLocalWindowsForTest, heldLocalWindow } = windowModule
 const seam = <T>(fn: T | undefined): T | (() => undefined) => (typeof fn === 'function' ? fn : () => undefined)
 const warmModule = await import('../../src/services/providers/local/localWarm.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 
 type Yielded = { type?: string; isApiErrorMessage?: boolean; message?: { content?: Array<{ text?: string; name?: string; type?: string }> | string; usage?: Record<string, number> } }
 function textOf(m: Yielded | undefined): string {

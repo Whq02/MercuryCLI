@@ -9,7 +9,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { buildTool, getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { tool } = await import('../../src/services/crewBoard/implementation.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
 const { buildGeminiRequest, buildGeminiPlanRequest } = await import('../../src/services/providers/gemini/geminiCodec.ts')
 

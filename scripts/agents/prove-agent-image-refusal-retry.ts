@@ -120,7 +120,7 @@ const refusalRetryRowOf: (last: Message | undefined, retried: ReadonlySet<string
 const imageRefusalRetryLine: (model: string, detail: string | undefined) => string = leaf === null ? () => '' : leaf.imageRefusalRetryLine
 const { mediaRefusalOf } = await import('../../src/utils/api/mediaRefusal.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { query: startTurn } = await import('../../src/query.ts')
 const { getAgentTranscript } = await import('../../src/utils/sessionStorage/logs.ts')

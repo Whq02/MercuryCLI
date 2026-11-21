@@ -23,12 +23,12 @@ function section(t: string): void {
 const state = await import('../../src/bootstrap/state.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getPrompt } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { isToolSearchEnabledOptimistic } = await import('../../src/utils/toolSearch.ts')
+const { isToolSearchEnabledOptimistic } = await import('../../src/services/messages/toolSearch.ts')
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
 const { getEngineModel } = await import('../../src/utils/model/model.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 
 const output = {
   matches: ['WebFetch', 'Browser'],

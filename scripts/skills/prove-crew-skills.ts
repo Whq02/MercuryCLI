@@ -491,7 +491,7 @@ check('a published feature whose upstream equals its head is compared with its i
 check('a missing PR head uses patch-only evidence rather than freezing unrelated HEAD', reviewSource.includes('patch-only') && !reviewSource.includes('set `<head_sha>` to `HEAD`') && reviewSource.includes('`file: "<path>"`') && reviewSource.includes('`page: 0`'))
 
 const { finalizeAgentTool } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage } = await import('../../src/services/messages.ts')
 const missingOutput = createAssistantMessage({ content: [{ type: 'text', text: 'Looks fine overall.' }] as never })
 missingOutput.message.stop_reason = 'end_turn'
 for (const [name, source] of [['deep-research', deepSource], ['code-review', reviewSource]] as const) {

@@ -107,7 +107,7 @@ section('D. the builder applies the lane to an explicit schema only; every built
 {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
-  const { toolToAPISchema } = await import('../../src/utils/api.ts')
+  const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')
   const permissionContext = getEmptyToolPermissionContext()

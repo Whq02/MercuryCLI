@@ -233,7 +233,7 @@ bootstrap.setIsInteractive(false)
 const { query } = await import('../../src/query.ts')
 const { productionDeps } = await import('../../src/query/deps.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { TOOL_CALL_REFUSAL_CORRECTION_HEAD } = await import('../../src/services/providers/toolCallGate.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }

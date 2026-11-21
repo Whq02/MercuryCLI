@@ -1,7 +1,7 @@
 import type { UUID } from 'node:crypto'
 import type { CompactMetadata, Message } from '../../../types/message.js'
 import { logForDebugging } from '../../../utils/debug.js'
-import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import { computeVerbatimRecentTail, isMercuryCompactKeepTailEnabled } from '../verbatimTail.js'
 import type { FitsUnder } from './foldSummary.js'
 

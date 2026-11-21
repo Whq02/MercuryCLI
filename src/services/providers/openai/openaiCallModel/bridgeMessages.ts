@@ -12,7 +12,7 @@ import {
 import { validateImagesForAPI } from '../../../../utils/imageValidation.js'
 import {
   healWalkableForWire,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import { getSessionId } from '../../../../bootstrap/state.js'
 import {
   type GptCandidate,
@@ -23,7 +23,7 @@ import {
   type OpenaiTurnRecord,
 } from '../responsesBridge.js'
 import { logForDebugging } from '../../../../utils/debug.js'
-import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
 import { imagesSupportedForModel } from './images.js'
 import type { RequestImageFit } from '../../../../utils/imageResizer.js'
 

@@ -11,7 +11,7 @@ import { createSyntheticOutputTool } from '../../tools/SyntheticOutputTool/Synth
 import { createAbortController } from '../../utils/abortController.js'
 import { createCombinedAbortSignal } from '../../utils/combinedAbortSignal.js'
 import { errorMessage } from '../../utils/errors.js'
-import { createUserMessage, handleMessageFromStream } from '../../utils/messages.js'
+import { createUserMessage, handleMessageFromStream } from '../messages.js'
 import { stripExplicitNulls } from '../../utils/messages/structuredOutputDialect.js'
 import { forgetAgentEffortWord, noteAgentEffortWord } from '../../utils/effort.js'
 import { getEngineModel } from '../../utils/model/model.js'

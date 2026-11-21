@@ -23,7 +23,7 @@ const { createUserMessage } = await import('../../src/utils/messages/factories.t
 const { createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
 const { processSlashCommand, resolveUnknownSlashName, unknownCommandLine } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
 const { expandPastedTextRefs } = await import('../../src/history.ts')
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
 
 type Send = { clientMessageId: string; text: string; sentAtMs: number; state: 'queued' | 'taken' | 'delivered'; mode: 'prompt' }
 type Guts = {

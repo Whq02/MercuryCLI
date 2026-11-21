@@ -11,7 +11,7 @@ import {
   normalizeMessages,
   reorderMessagesInUI,
   shouldShowUserMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { applyGrouping } from '../../utils/groupToolUses.js'
 import { collapseReadSearchGroups } from '../messages/collapseReadSearch.js'
 import { collapseBackgroundBashNotifications } from '../../utils/collapseBackgroundBashNotifications.js'

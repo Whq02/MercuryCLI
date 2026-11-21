@@ -57,12 +57,13 @@ env-read	src/bootstrap/state.ts	1
 env-read	src/context.ts	1
 env-read	src/ink/reconciler.ts	1
 env-read	src/interactiveHelpers.tsx	1
+env-read	src/services/auth/oauthLifecycle.ts	1
+env-read	src/services/messages/api.ts	1
 env-read	src/services/vcr.ts	1
 env-read	src/tools.ts	1
 env-read	src/tools/GrepTool/GrepTool.ts	1
 env-read	src/tools/testing/TestingPermissionTool.tsx	1
-env-read	src/utils/api.ts	1
-env-read	src/utils/auth.ts	2
+env-read	src/utils/auth.ts	1
 env-read	src/utils/config/globalConfig.ts	6
 env-read	src/utils/config/projectConfig.ts	1
 env-read	src/utils/debug.ts	1

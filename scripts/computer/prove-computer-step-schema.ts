@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DESKTOP_DRIVER = 'fake'
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { normalizeToolSchemaFor } = await import('../../src/utils/normalizeToolSchema.ts')
 const { compileJsonSchema } = await import('../../src/services/schema/jsonSchemaEngine.ts')

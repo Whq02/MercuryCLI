@@ -15,7 +15,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 
 const { projectTimeBasedMicrocompact, microcompactMessages } = await import('../../src/services/compact/microCompact.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { isClearedOrDigested } = await import('../../src/services/compact/microCompactDigest.ts')
 type Message = import('../../src/types/message.ts').Message
 const big = 'the complete original result remains available until a successful later file operation supersedes it\n'.repeat(800)

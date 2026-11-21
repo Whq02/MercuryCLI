@@ -1,7 +1,7 @@
 import { mediaRefusalOf } from '../../utils/api/mediaRefusal.js'
 import { declaredRouteOf, providerDisplayName } from '../../services/providers/routeLaw.js'
 import type { Message, UserMessage } from '../../types/message.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage } from '../../services/messages.js'
 
 export const IMAGE_REFUSAL_RETRY_CLASS = 'image'
 

@@ -15,9 +15,9 @@ import {
   recordPromptState,
 } from '../../../api/promptCacheBreakDetection.js'
 import type { Options } from '../../anthropic/streamCore.js'
-import { toolToAPISchema } from '../../../../utils/api.js'
-import { withToolReferenceTurnBoundary } from '../../../../utils/messages/apiView.js'
-import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../../utils/messages/apiPlan.js'
+import { toolToAPISchema } from '../../../messages/api.js'
+import { withToolReferenceTurnBoundary } from '../../../messages/apiView.js'
+import { applyStripTargetsToMessages, errorDrivenStripTargets } from '../../../messages/apiPlan.js'
 import type { ApiShapedTool } from '../../zai/zaiCodec.js'
 import {
   renderOpenaiInstructions,
@@ -49,7 +49,7 @@ import { logForDebugging } from '../../../../utils/debug.js'
 import { planToolPayload, renderAdmissionRecordsAsText, type ToolPayloadPlan } from '../../toolEconomy.js'
 import { retireOlderScreenshots } from '../../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap, type RequestImageFit } from '../../../../utils/imageResizer.js'
-import { stripThinkingFromIndex } from '../../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../../messages/apiFilters.js'
 import { fitWireImages } from '../../../../utils/messages/imageRequestFit.js'
 import { OPENAI_IMAGE_LIMITS } from '../../../../constants/apiLimits.js'
 import { resolveTurnEffort, type TurnEffort } from './turnEffort.js'

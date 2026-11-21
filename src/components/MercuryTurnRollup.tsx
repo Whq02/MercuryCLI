@@ -15,7 +15,7 @@ import { PROVIDER_SEARCH_TOOL_NAME, WEB_SEARCH_TOOL_NAME } from '../tools/WebSea
 import type { Message } from '../types/message.js'
 import type { Tools } from '../Tool.js'
 import type { ModelName } from '../utils/model/model.js'
-import type { StreamingThinking } from '../utils/messages.js'
+import type { StreamingThinking } from '../services/messages.js'
 import { passedOver } from '../utils/passedOver.js'
 
 

@@ -1,17 +1,9 @@
-src/utils/api.ts	src/services/providers/deferralWire.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
-src/utils/api.ts	src/services/providers/routeLaw.ts	load	request-shape helpers read provider route and deferral law for messages/apiPlan.ts and apiView.ts
 src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSuggestions.tsx	type	row 8
 src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/runtimePosture.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
 src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	low-level utils checking provider route, env spelling or usage type without owning a service
 src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/messages/apiPlan.ts	src/services/api/errors.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/attachmentText.ts	src/services/instructions/attachedText.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/attachmentText.ts	src/services/providers/limitWarning.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/attachmentText.ts	src/tools/BashTool/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/attachmentText.ts	src/tools/FileReadTool/read/resultBlock.ts	load	the message normalizer formats API error, instruction and tool-result blocks
-src/utils/messages/lookups.ts	src/services/api/errors.ts	load	the message normalizer formats API error, instruction and tool-result blocks
 src/utils/model/model.ts	src/services/model/bareFamilyWords.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
 src/utils/model/model.ts	src/services/model/computedDefault.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
 src/utils/model/model.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
@@ -34,5 +26,3 @@ src/utils/permissions/flowLaw.ts	src/tools/DebugTool/prompt.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts
 src/utils/theme.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/toolSearch.ts	src/services/providers/deferralWire.ts	load	formats deferred-tool lines and reads ToolSearch deferral predicates
-src/utils/toolSearch.ts	src/tools/ToolSearchTool/prompt.ts	load	formats deferred-tool lines and reads ToolSearch deferral predicates

@@ -25,7 +25,7 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   check('…and never reads as a raw TypeError', !s.includes('Cannot read properties'))
 
 
-  const MSGS = await import('../../src/utils/messages.ts')
+  const MSGS = await import('../../src/services/messages.ts')
   const holed = [null as never, { type: 'text', text: 'still here' }, undefined as never]
   let holedOut = ''
   let threw = false
@@ -36,7 +36,7 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   }
   check('extractTextContent survives null holes and keeps the real text', !threw && holedOut === 'still here')
 
-  const AV = await import('../../src/utils/messages/apiView.ts')
+  const AV = await import('../../src/services/messages/apiView.ts')
   let normalized: unknown[] = []
   let normThrew = false
   try {

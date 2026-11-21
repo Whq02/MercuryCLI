@@ -4,9 +4,9 @@ import { DIALECT_CONVERSATION, VIRTUAL_ROW, FIXTURE_TOOLS } from './dialectFixtu
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
-const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
-const { healWalkableForWire } = await import('../../src/utils/messages/pairing.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
+const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
+const { healWalkableForWire } = await import('../../src/services/messages/pairing.ts')
 const history = [...DIALECT_CONVERSATION.slice(0, 2), VIRTUAL_ROW as never, ...DIALECT_CONVERSATION.slice(2)]
 for (const geometry of ['anthropic', 'family'] as const) {
   const plan = requestConversationPlan(history, FIXTURE_TOOLS as never, geometry)

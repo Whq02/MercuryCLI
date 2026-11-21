@@ -30,11 +30,11 @@ saveGlobalConfig(config => ({ ...config, jev: { ...(config.jev ?? {}), enabled: 
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { assembleToolPool, getAllBaseTools } = await import('../../src/tools.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 

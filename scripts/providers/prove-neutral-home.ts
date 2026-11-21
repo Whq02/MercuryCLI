@@ -242,7 +242,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const drive = await hitsDuring(async () => {
     const seen: string[] = []
     const stream = routedCallModel({

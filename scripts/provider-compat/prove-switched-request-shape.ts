@@ -85,7 +85,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 type Message = import('../../src/types/message.ts').Message

@@ -27,7 +27,7 @@ bootstrap.setIsInteractive(false)
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { assembleToolPool } = await import('../../src/tools.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message
 

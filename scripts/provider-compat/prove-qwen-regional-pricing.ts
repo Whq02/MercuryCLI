@@ -44,7 +44,7 @@ const { refreshQwenCatalogue, __resetQwenCatalogueForTest } = await import('../.
 const { rememberQwenBoundBase, qwenBoundBase } = await import('../../src/services/providers/qwen/qwenAccounts.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {

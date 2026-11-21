@@ -37,7 +37,7 @@ enableConfigs()
 const state = await import('../../src/services/providers/openrouter/openrouterUsageState.ts')
 const usageOwner = await import('../../src/services/providers/providerUsage.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 let failures = 0

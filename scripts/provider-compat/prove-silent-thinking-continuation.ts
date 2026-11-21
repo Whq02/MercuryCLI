@@ -50,7 +50,7 @@ bootstrap.setIsInteractive(false)
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const errors = (await import('../../src/services/api/errors.ts')) as Record<string, unknown>
 const { getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')

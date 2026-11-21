@@ -1,7 +1,7 @@
 import { resolve } from 'node:path'
 
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
-const { reorderAttachmentsForAPI } = await import(`${root}/src/utils/messages/apiView.ts`)
+const { reorderAttachmentsForAPI } = await import(`${root}/src/services/messages/apiView.ts`)
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)

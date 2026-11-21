@@ -107,7 +107,7 @@ try {
   check('the qualified namespaces keep their own Qwen rows and a bare vendor slug stays carrier-shaped', classifyModelRoute('zen/qwen3.8-max').route === 'zen' && classifyModelRoute('groq/qwen/qwen3.8-27b').route === 'groq' && classifyModelRoute('together/Qwen/Qwen3.7-Plus').route === 'together' && classifyModelRoute('qwen/qwen3-coder').kind === 'unrecognised')
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
   const { QWEN_SHARED_ENDPOINTS, qwenProbeEndpoints, qwenEndpointBase, qwenBoundBase, forgetQwenBoundBases, qwenUnboundKeyRefusal } = await import('../../src/services/providers/qwen/qwenAccounts.ts')

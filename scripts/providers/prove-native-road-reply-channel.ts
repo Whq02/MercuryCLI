@@ -187,7 +187,7 @@ section('E Â· the runtime road: the real Ollama profile over a fixture server â€
   enableConfigs()
   const discovery = await import('../../src/services/providers/local/localDiscovery.js')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
   const windows = await import('../../src/services/providers/local/localWindow.js')

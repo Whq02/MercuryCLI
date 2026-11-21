@@ -4,7 +4,7 @@ import { CODE_TOOL_SPELLINGS } from '../identity/forbidden-code-tool.js'
 setup()
 const { getAllBaseTools } = await import('../../src/tools.js')
 const { runToolUse } = await import('../../src/services/tools/toolExecution.js')
-const { createAssistantMessage } = await import('../../src/utils/messages.js')
+const { createAssistantMessage } = await import('../../src/services/messages.js')
 const { gateToolCall } = await import('../../src/services/providers/toolCallGate.js')
 const tools = getAllBaseTools()
 const retired = CODE_TOOL_SPELLINGS[0]

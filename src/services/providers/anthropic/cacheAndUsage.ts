@@ -7,7 +7,7 @@ import {
   type UserMessage,
 } from '../../../types/message.js'
 import type { ApiMessageDeltaUsage, ApiUsage } from '../../../types/wire.js'
-import { splitSystemPromptBlocks } from '../../../utils/api.js'
+import { splitSystemPromptBlocks } from '../../messages/api.js'
 import { insertBlockAfterToolResults } from '../../../utils/contentArray.js'
 import { asSystemPrompt, type SystemPrompt } from '../../../utils/systemPromptType.js'
 import { pinCacheEdits } from '../../compact/microCompact.js'

@@ -11,7 +11,7 @@ import type {
   NormalizedUserMessage,
   ProgressMessage,
 } from '../../../types/message.js'
-import type { MessageLookups } from '../../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../../services/messages/lookups.js'
 import { summarizeToolResult } from '../../../tools/toolResultSummary.js'
 import { logError } from '../../../utils/log.js'
 import { getTheme } from '../../../utils/theme.js'

@@ -3,7 +3,7 @@ import { useMemo } from 'react'
 import { type Tool, type Tools } from '../../../Tool.js'
 import { findToolForRender } from '../../../tools/MCPTool/absentToolShim.js'
 import type { ToolUseBlockParam } from '../../../types/wire.js'
-import type { MessageLookups } from '../../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../../services/messages/lookups.js'
 
 export function useGetToolFromMessages(
   toolUseID: string,

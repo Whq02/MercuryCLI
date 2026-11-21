@@ -1,13 +1,13 @@
 import type { ContentBlock, RedactedThinkingBlock, ThinkingBlock, ContentBlockParam, RedactedThinkingBlockParam, TextBlockParam, ThinkingBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import type { AssistantMessage, Message, UserMessage } from '../../types/message.js'
 import { NO_CONTENT_MESSAGE } from '../../constants/messages.js'
-import { DEAD_THINKING_PLACEHOLDER } from '../model/deadThinkingPlaceholder.js'
-import { clientCallItemsOf, contentItemsOf, isReasoningContent, resultItemsOf } from '../../rows/content.js'
-import { createUserMessage } from './factories.js'
+import { DEAD_THINKING_PLACEHOLDER } from '../../utils/model/deadThinkingPlaceholder.js'
+import { clientCallItemsOf, contentItemsOf, resultItemsOf } from '../../rows/content.js'
+import { isThinkingBlock } from '../../utils/messages/thinkingBlock.js'
+import { createUserMessage } from '../../utils/messages/factories.js'
 import { mergeUserMessages } from './merge.js'
-import { ENDED_RUN_TOOL_RESULT } from './rejectionText.js'
+import { ENDED_RUN_TOOL_RESULT } from '../../utils/messages/rejectionText.js'
 
-type ThinkingBlockType = ThinkingBlock | RedactedThinkingBlock | ThinkingBlockParam | RedactedThinkingBlockParam
 type ConversationRow = UserMessage | AssistantMessage
 type AssistantContent = AssistantMessage['message']['content']
 
@@ -29,9 +29,7 @@ function withAssistantContent<M extends Message>(row: M, content: AssistantConte
 
 const placeholder = (text: string): AssistantContent => [{ type: 'text', text, citations: [] }]
 
-export function isThinkingBlock(block: ContentBlockParam | ContentBlock): block is ThinkingBlockType {
-  return isReasoningContent(block)
-}
+export { isThinkingBlock } from '../../utils/messages/thinkingBlock.js'
 
 function withoutThinking<M extends Message>(row: M, emptyText?: string): M {
   if (row.type !== 'assistant' || !Array.isArray(row.message.content)) return row

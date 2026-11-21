@@ -1,5 +1,5 @@
 import type { Message } from '../../types/message.js'
-import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
+import { settleToolUsesOfEndedRun } from '../messages/apiFilters.js'
 import { deriveUUID } from '../../utils/messages/identity.js'
 import type { SessionFactsV1 } from './seatProjections.js'
 

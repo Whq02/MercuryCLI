@@ -1,6 +1,6 @@
 import type { AssistantMessage, UserMessage } from '../../../types/message.js'
 import type { ContentBlockParam, DocumentBlockParam, ImageBlockParam, ToolResultBlockParam } from '../../../types/wire.js'
-import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 
 type Turn = UserMessage | AssistantMessage
 

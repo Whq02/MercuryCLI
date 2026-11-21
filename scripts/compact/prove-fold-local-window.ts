@@ -83,7 +83,7 @@ const overflowModule = await import('../../src/services/compact/overflowRecovery
 const { overflowRefusalText } = overflowModule
 const foldRemedyIsHeadless: (flag: boolean | undefined) => boolean = overflowModule.foldRemedyIsHeadless ?? ((flag: boolean | undefined) => flag === true)
 const { estimateOverflowSignal } = await import('../../src/services/api/overflowSignal.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { FileStateCache, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')

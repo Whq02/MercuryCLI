@@ -96,7 +96,7 @@ section('R3 · the wiring reads the carried count first (source pins on the fold
 {
   const t = await import('../core-runtime/turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const f = t.fixtures
   type Row = Record<string, unknown>
   const j = (value: unknown): string => JSON.stringify(value)

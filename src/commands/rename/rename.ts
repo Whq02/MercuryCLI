@@ -3,7 +3,7 @@ import type { LocalJSXCommandContext, LocalJSXCommandOnDone } from '../../types/
 import { getSessionId } from '../../bootstrap/state.js'
 import { getFocusedSessionConnector, hasFocusedSession } from '../../services/engine-connector/focusedConnector.js'
 import { getTranscriptPath, saveAgentName, saveCustomTitle } from '../../utils/sessionStorage.js'
-import { isCompactBoundaryMessage } from '../../utils/messages.js'
+import { isCompactBoundaryMessage } from '../../services/messages.js'
 import { generateSessionName } from './generateSessionName.js'
 import { partiallySanitizeUnicode } from '../../utils/sanitization.js'
 

@@ -34,7 +34,7 @@ const { localLiveCatalogue } = await import('../../src/services/providers/local/
 const { resolveModelPricing, getModelPricingString } = await import('../../src/services/usage/modelCost.ts')
 const { activeSourceUsage } = await import('../../src/services/providers/providerUsage.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 let failures = 0
 function check(label: string, actual: unknown, expected: unknown): void {

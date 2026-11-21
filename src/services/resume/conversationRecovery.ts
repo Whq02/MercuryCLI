@@ -29,8 +29,8 @@ import {
   normalizeAttachmentForAPI,
   normalizeMessages,
   SYNTHETIC_MESSAGES,
-} from '../../utils/messages.js'
-import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
+} from '../messages.js'
+import { settleToolUsesOfEndedRun } from '../messages/apiFilters.js'
 import { isCutResultText } from '../../utils/messages/turnCut.js'
 import {
   accumulateOpenToolUses,

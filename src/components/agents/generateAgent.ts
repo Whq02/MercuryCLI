@@ -4,11 +4,11 @@ import { getEmptyToolPermissionContext } from '../../Tool.js'
 import { AGENT_TOOL_NAME } from '../../constants/tools/agent.js'
 import { getUserContext } from '../../context.js'
 import { isMnemeEnabled } from '../../mneme/paths.js'
-import { prependUserContext } from '../../utils/api.js'
+import { prependUserContext } from '../../services/messages/api.js'
 import {
   createUserMessage,
   normalizeMessagesForAPI,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 
 type GeneratedAgent = {

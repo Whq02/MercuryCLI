@@ -13,7 +13,7 @@ const section = (t: string): void => {
 }
 
 const cr = await import('../../src/services/compact/checkpointRewind.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 const { CheckpointTool } = await import('../../src/tools/CheckpointTool/CheckpointTool.tsx')
 const { RewindTool } = await import('../../src/tools/RewindTool/RewindTool.tsx')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')

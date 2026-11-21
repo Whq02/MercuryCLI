@@ -37,11 +37,11 @@ bootstrap.setIsInteractive(false)
 const { planToolPayload, renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
 const { getDeferredToolsDeltaAttachment, SERVER_SEARCH_ANNOUNCEMENT_HEAD } = await import('../../src/services/attachments/deltas.ts')
 const { createAttachmentMessage } = await import('../../src/services/attachments/orchestrator.ts')
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
 const { getPrompt, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Tools = import('../../src/Tool.ts').Tools

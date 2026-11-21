@@ -298,7 +298,7 @@ if (process.platform !== 'win32') {
 
   {
     const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-    const { extractTag } = await import('../../src/utils/messages.ts')
+    const { extractTag } = await import('../../src/services/messages.ts')
     const outcome = await processBashCommand('echoargs.cmd from-bang %BATCHPROOFVAR%', [], [], makeBangContext(), (() => undefined) as never)
     const texts = (outcome.messages as Array<{ message?: { content?: unknown } }>).map(m => (typeof m.message?.content === 'string' ? m.message.content : ''))
     const card = texts.find(text => text.startsWith('<bash-stdout>'))

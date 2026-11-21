@@ -41,7 +41,7 @@ process.env.PATH = `${binDir}${delimiter}${prevPath ?? ''}`
 
 try {
   const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
   const { FileReadTool } = await import(`${root}/src/tools/FileReadTool/FileReadTool.ts`)
   const { getEmptyToolPermissionContext } = await import(`${root}/src/Tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${root}/src/utils/fileStateCache.ts`)

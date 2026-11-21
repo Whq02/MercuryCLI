@@ -8,7 +8,7 @@ const rootArg = process.argv.indexOf('--source-root')
 const root = rootArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process.argv[rootArg + 1]!)
 const recordsArg = process.argv.indexOf('--fixtures')
 const records = recordsArg < 0 ? undefined : resolve(process.argv[recordsArg + 1]!)
-const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
+const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
 const blocks = (attachments: any[]) => attachments.flatMap(attachment => normalizeAttachmentForAPI(attachment).flatMap((message: any) => {
   const content = message.message.content
   return typeof content === 'string' ? [{ type: 'text', text: content }] : content

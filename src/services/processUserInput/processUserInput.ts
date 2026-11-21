@@ -27,7 +27,7 @@ import {
   createSystemMessage,
   createUserMessage,
   extractTextContent,
-} from '../../utils/messages.js'
+} from '../messages.js'
 import { maybeResizeAndDownsampleImageBlock } from '../../utils/imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../../utils/imageStore.js'
 import { logError } from '../../utils/log.js'

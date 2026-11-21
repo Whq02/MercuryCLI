@@ -21,7 +21,7 @@ import type { Message, ProgressMessage, UserMessage } from '../../types/message.
 import { activeToolVerb } from '../../utils/cockpit/toolVerb.js';
 import { publishTurnSignals, turnEndedInError } from '../../utils/cockpit/turnSignals.js';
 import type { FileStateCache } from '../../utils/fileStateCache.js';
-import { extractTag, getUserMessageText } from '../../utils/messages.js';
+import { extractTag, getUserMessageText } from '../../services/messages.js';
 import { renderModelName } from '../../utils/model/model.js';
 import { crossProviderNote, settlePendingAtBoundary } from '../../services/model/modelTransition.js';
 import type { FocusedInputDialog } from './focusedDialog.js';

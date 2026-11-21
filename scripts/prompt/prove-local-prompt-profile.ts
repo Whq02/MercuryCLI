@@ -248,9 +248,9 @@ check('RED ON A TREE WITHOUT THE ENGINE GATE: an admitted tool joins the tools t
 
 section('§11 the first-turn reminder on the attachment road — opening turn only, re-opened after a fold')
 {
-  const { firstTurnUserContext } = await import('../../src/utils/api.ts')
+  const { firstTurnUserContext } = await import('../../src/services/messages/api.ts')
   const { getUserContextAttachment } = await import('../../src/utils/attachments/userContext.ts')
-  const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
   const firstUser = createUserMessage({ content: 'Read README.md.' })
   const userContext = { environment: 'Is a git repository: Yes', currentDate: 'Today\'s date is 2026-01-01.' }
   const systemContext = { gitStatus: 'This is the repository\'s git status: clean', gitRules: 'Git rules.' }

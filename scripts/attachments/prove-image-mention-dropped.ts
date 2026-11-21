@@ -37,7 +37,7 @@ function garbagePng(width: number, height: number, bodyBytes: number): Buffer {
 
 try {
   const { processAtMentionedFiles } = await import(`${root}/src/services/attachments/mentionResolvers.ts`)
-  const { normalizeAttachmentForAPI } = await import(`${root}/src/utils/messages/attachmentText.ts`)
+  const { normalizeAttachmentForAPI } = await import(`${root}/src/services/messages/attachmentText.ts`)
   const context = {
     getAppState() { return { toolPermissionContext: { mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, additionalWorkingDirectories: new Map() } } },
     options: {},

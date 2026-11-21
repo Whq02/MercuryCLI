@@ -61,7 +61,7 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 const streamCore = await import('../../src/services/providers/anthropic/streamCore.ts')
 const { queryModelWithStreaming, getMaxOutputTokensForModel, adjustParamsForNonStreaming, MAX_NON_STREAMING_TOKENS } = streamCore
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const context = await import('../../src/utils/context.ts')
 

@@ -43,7 +43,7 @@ const NOTICE = /session env scrubbed|inherit_session_env|Mercury's own stamps/
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-const { extractTag } = await import('../../src/utils/messages.ts')
+const { extractTag } = await import('../../src/services/messages.ts')
 const { unescapeXml } = await import('../../src/utils/xml.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { setIsInteractive } = await import('../../src/bootstrap/state.ts')

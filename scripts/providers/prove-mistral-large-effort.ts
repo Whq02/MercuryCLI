@@ -31,7 +31,7 @@ enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
 const { buildMistralExtras } = await import('../../src/services/providers/mistral/mistralCallModel.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.js')
 const { resolveEffortTruth } = await import('../../src/utils/effort.js')
 const tool = { name: 'FixtureRead', inputSchema: z.object({ path: z.string() }), prompt: async () => 'Read a fixture', description: async () => 'Read a fixture', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool

@@ -13,7 +13,7 @@ function createDefaultTranscriptProjector(): TranscriptProjector {
     },
     hasApiAttachment(attachment) {
       const { normalizeAttachmentForAPI } =
-        require('../../utils/messages/attachmentText.js') as typeof import('../../utils/messages/attachmentText.js')
+        require('../messages/attachmentText.js') as typeof import('../messages/attachmentText.js')
       return normalizeAttachmentForAPI(attachment).length > 0
     },
   }

@@ -219,7 +219,7 @@ enableConfigs()
 const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.ts')
 const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 type LocalModelRecord = import('../../src/services/providers/local/localDiscovery.ts').LocalModelRecord
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
@@ -395,7 +395,7 @@ section('7b · the extractor reads the gate\'s own view: a deferred tool ADMITTE
 {
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
   const { WebFetchTool } = await import('../../src/tools/WebFetchTool/WebFetchTool.ts')
-  const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+  const { createAssistantMessage } = await import('../../src/services/messages.ts')
   const FETCH = WebFetchTool.name
   const pool = [ToolSearchTool, FileReadTool, WebFetchTool]
   const markup = `<tool_call>\n<function=${FETCH}>\n<parameter=url>\nhttps://example.com/\n</parameter>\n<parameter=prompt>\nthe title\n</parameter>\n</function>\n</tool_call>`

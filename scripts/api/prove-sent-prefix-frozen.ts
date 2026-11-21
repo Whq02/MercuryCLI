@@ -86,7 +86,7 @@ function wireOf(m: unknown): string {
 
 section('§1 the projection law — appended rows extend the view, never rewrite it')
 {
-  const { normalizeMessagesForAPI } = await import('../../src/utils/messages/apiView.ts')
+  const { normalizeMessagesForAPI } = await import('../../src/services/messages/apiView.ts')
   const { enforceToolResultBudget, createContentReplacementState } = await import('../../src/utils/toolResultStorage.ts')
   const isPrefix = (earlier: unknown[], later: unknown[]): { ok: boolean; at: number } => {
     for (let k = 0; k < earlier.length; k++) {
@@ -263,7 +263,7 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
     await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
   const { getSystemPromptSectionCache, setSystemPromptSectionCacheEntry, clearSystemPromptSectionState } = await import('../../src/bootstrap/state.ts')
   const { getSystemContext } = await import('../../src/context.ts')
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
   const { isNullRenderingAttachment } = await import('../../src/components/messages/nullRenderingAttachments.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
@@ -371,7 +371,7 @@ section('§1c the resume restore (pure) — the first exchange record, then a NE
 section('serialized tool definitions remain fixed across refresh and reconstruction')
 {
   const { planToolPayload, clearToolRosterLatches, clearToolRosterRestore } = await import('../../src/services/providers/toolEconomy.ts')
-  const { toolToAPISchema } = await import('../../src/utils/api.ts')
+  const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
   const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
   const { boundPrefixRecordToEmit, restoreBoundPrefixFromMessages, resetBoundPrefixEmitted } = await import('../../src/services/providers/anthropic/boundPrefixRecord.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')

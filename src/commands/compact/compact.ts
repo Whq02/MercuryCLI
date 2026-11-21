@@ -27,7 +27,7 @@ import { shouldUseSessionMemoryCompaction, trySessionMemoryCompaction } from '..
 import { setLastSummarizedMessageId } from '../../services/SessionMemory/sessionMemoryUtils.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import type { Message, UserMessage } from '../../types/message.js'
-import { getMessagesAfterCompactBoundary } from '../../utils/messages.js'
+import { getMessagesAfterCompactBoundary } from '../../services/messages.js'
 import { buildEffectiveSystemPrompt } from '../../utils/systemPrompt.js'
 import { fetchSystemPromptParts } from '../../services/agents/queryContext.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'

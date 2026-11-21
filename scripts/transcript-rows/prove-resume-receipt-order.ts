@@ -19,7 +19,7 @@ const { composeTranscript } = await import('../../src/components/Messages.js')
 const { MessageRow } = await import('../../src/components/MessageRow.js')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.js')
 const { isNotEmptyMessage } = await import('../../src/utils/messages/text.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 
 const timestamp = new Date().toISOString()
 const reply = (text: string, inputTokens: number): Message => ({

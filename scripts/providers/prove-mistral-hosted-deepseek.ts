@@ -38,7 +38,7 @@ const { resolveModelPricing, getModelPricingString } = await import('../../src/s
 const { effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.js')
 const { restoreConversationModel } = await import('../../src/services/resume/sessionRestore.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
-const { createUserMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage } = await import('../../src/services/messages.js')
 async function turn(model: string, messages: Message[]) {
   const rows: AssistantMessage[] = []
   for await (const event of routedCallModel({ messages, systemPrompt: ['Fixture'], thinkingConfig: { type: 'enabled', budgetTokens: 10000 }, tools: [], signal: new AbortController().signal, options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => ({}), agents: [], hasAppendSystemPrompt: false, mcpTools: [] } } as never)) if (event.type === 'assistant') rows.push(event)

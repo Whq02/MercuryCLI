@@ -12,7 +12,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { searchToolsWithKeywords, clearToolSearchDescriptionCache } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.ts')
 const { formatDeferredToolLine } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 
 let failures = 0
 let checks = 0

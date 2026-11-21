@@ -14,7 +14,7 @@ import {
 import {
   turnCutOfText,
   turnCutWhy,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { advisorBlockOf, isAdvisorOrigin, isBuildNoticeOrigin, isMonitorText, isSaturnOrigin, noticeOfText, ROW_SECOND_CLOCK_GAP_MS, saturnBlockOf, wrappedNoticeBlocks } from '../../utils/messages/noticeRows.js'
 import { InterruptedByUser } from '../InterruptedByUser.js'
 import { MessageResponse } from '../MessageResponse.js'

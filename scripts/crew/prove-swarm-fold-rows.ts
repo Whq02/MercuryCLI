@@ -11,7 +11,7 @@ const scratch = mkdtempSync(join(home, 'fold-rows-'))
 process.env.MERCURY_TURN_RECEIPT = '1'
 
 const { composeTranscript } = await import('../../src/components/Messages.tsx')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { createCompactBoundaryMessage } = await import('../../src/utils/messages/systemMessages.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { foldedWorkOf } = await import('../../src/services/compact/compact.ts')

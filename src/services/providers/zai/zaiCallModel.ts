@@ -37,12 +37,12 @@ import {
   assistantMessageToMessageParam,
   userMessageToMessageParam,
 } from '../anthropic/messageParams.js'
-import { toolToAPISchema } from '../../../utils/api.js'
+import { toolToAPISchema } from '../../messages/api.js'
 import {
   createAssistantAPIErrorMessage,
   healWalkableForWire,
   normalizeContentFromAPI,
-} from '../../../utils/messages.js'
+} from '../../messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
 import { captureSignInRequest, observeSignInResponse } from '../signInRefusal.js'
@@ -64,7 +64,7 @@ import { noteImageRefusal } from '../../desktop/desktopSession.js'
 import type { MediaRefusal } from '../../../utils/api/mediaRefusal.js'
 import { retireOlderScreenshots } from '../../desktop/screenshotRetention.js'
 import { fitImagesToRequestCap } from '../../../utils/imageResizer.js'
-import { stripThinkingFromIndex } from '../../../utils/messages/apiFilters.js'
+import { stripThinkingFromIndex } from '../../messages/apiFilters.js'
 import {
   buildZaiChatRequest,
   imageRefusalWords,

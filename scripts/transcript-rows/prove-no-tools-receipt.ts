@@ -17,7 +17,7 @@ const { TurnReceiptRow } = await import('../../src/components/messages/TurnRecei
 const { composeTranscript } = await import('../../src/components/Messages.tsx')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { isNotEmptyMessage } = await import('../../src/utils/messages/text.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { NO_TOOLS_RAN_WORDS, hasActivity, formatContextDelta, promptTokensOf } = await import('../../src/utils/cockpit/turnReceipt.ts')
 
 const timestamp = new Date().toISOString()
@@ -105,7 +105,7 @@ try {
   check('a zero-tool turn paints the no-tools words AND the delta: "∙ no tools ran this turn · ctx +1.2k"', secondPainted === `∙ ${NO_TOOLS_RAN_WORDS} · ctx +1.2k`, secondPainted)
   const thirdPainted = deltaReceipts[2] ? await paint(deltaReceipts[2]) : ''
   check('no usage → the no-tools words alone', thirdPainted === `∙ ${NO_TOOLS_RAN_WORDS}`, thirdPainted)
-  const { createCompactBoundaryMessage } = await import('../../src/utils/messages.ts')
+  const { createCompactBoundaryMessage } = await import('../../src/services/messages.ts')
   const { annotateBoundaryWithPreservedSegment, buildPostCompactMessages } = await import('../../src/services/compact/compact.ts')
   const keptPrompt = createUserMessage({ content: 'the kept prompt' })
   const keptReply = reply('the kept reply', 60000)

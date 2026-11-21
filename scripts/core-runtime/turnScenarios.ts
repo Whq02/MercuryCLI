@@ -27,7 +27,7 @@ const { runEventCore } = await import('../../src/run-core/turn-machine.ts')
 const bootstrap = await import('../../src/bootstrap/state.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/services/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
 const { ImageSizeError } = await import('../../src/utils/imageValidation.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
@@ -449,7 +449,7 @@ export async function plantRun(plan: Plan): Promise<Planted> {
   const { createEventMint } = await import('../../src/run-core/events.ts')
   const { BudgetGuard } = await import('../../src/run-core/budget-guard.ts')
   const { FRESH_OVERFLOW_EPISODE } = await import('../../src/services/compact/overflowRecovery.ts')
-  const { createSystemMessage } = await import('../../src/utils/messages.ts')
+  const { createSystemMessage } = await import('../../src/services/messages.ts')
   const emit = createEventMint()
   const pendingMemoryWrites: Array<{ id: string; argumentsRaw: string }> = []
   const params = open.params

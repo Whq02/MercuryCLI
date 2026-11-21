@@ -105,7 +105,7 @@ bootstrap.setIsInteractive(false)
 const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
 const { openaiCallModel } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { composeSystemPrompt } = await import('../../src/prompt/composer.ts')
 type Tool = import('../../src/Tool.ts').Tool
 type Message = import('../../src/types/message.ts').Message

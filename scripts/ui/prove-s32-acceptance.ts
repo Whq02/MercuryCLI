@@ -913,7 +913,7 @@ console.log('\n── clipboard, panel, pipeline (58–72) ──')
 
 
 
-const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
 const hookWords = 'HOOK-HEAD' + 'x'.repeat(80_000) + 'HOOK-TAIL'
 pin('66/79. the hook context bound applies where the model reads a hook row: the context and the tool.after objection', (['context', 'block'] as const).every(outcome => {
   const projected = normalizeAttachmentForAPI({ type: 'hook', outcome, name: 'acceptance-bound', event: 'tool.after', words: hookWords })

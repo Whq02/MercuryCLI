@@ -27,7 +27,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } =
-  await import('../../src/utils/messages.ts')
+  await import('../../src/services/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
 const { ImageSizeError } = await import('../../src/utils/imageValidation.ts')
 const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')

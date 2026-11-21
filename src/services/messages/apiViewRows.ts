@@ -1,7 +1,7 @@
 import type { ContentBlockParam, ToolResultBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, SystemLocalCommandMessage, UserMessage } from '../../types/message.js'
 import { STRIPPED_ADMISSION_RECORD_TEXT } from '../../constants/tools/toolSearch.js'
-import { isToolReferenceBlock } from '../toolSearch.js'
+import { isToolReferenceBlock } from './toolSearch.js'
 
 type ResultItem = Extract<ToolResultBlockParam['content'], readonly unknown[]>[number]
 type ReferencePolicy = (item: ResultItem) => boolean

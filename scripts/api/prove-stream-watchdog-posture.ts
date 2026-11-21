@@ -126,7 +126,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 
 const text = (v: unknown): string => JSON.stringify(v) ?? ''

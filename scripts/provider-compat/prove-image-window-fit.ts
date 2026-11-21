@@ -4,7 +4,7 @@ import { imageWindowFixture } from './imageWindowFixture.ts'
 const fixture = await imageWindowFixture()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { estimateRequestTokens } = await import('../../src/services/tokenEstimation.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const images = (request: Record<string, any>): string[] => request.messages.flatMap((row: any) => Array.isArray(row.content) ? row.content.filter((part: any) => part.type === 'image_url').map((part: any) => part.image_url.url) : [])
 const before = JSON.stringify(fixture.messages)
 async function drive(messages = fixture.messages) {

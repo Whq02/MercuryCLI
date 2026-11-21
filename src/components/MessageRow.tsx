@@ -10,13 +10,13 @@ import type {
 import type { Tools } from '../Tool.js'
 import { findToolByName } from '../Tool.js'
 import type { Command } from '../commands.js'
-import type { MessageLookups } from '../utils/messages/lookups.js'
+import type { MessageLookups } from '../services/messages/lookups.js'
 import {
   getSiblingToolUseIDsFromLookup,
   getProgressMessagesFromLookup,
   getToolUseID,
   hasUnresolvedHooksFromLookup,
-} from '../utils/messages/lookups.js'
+} from '../services/messages/lookups.js'
 import {
   getEphemeralProgressFrame,
   useEphemeralProgressVersion,

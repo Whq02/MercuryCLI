@@ -1,7 +1,7 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { classifyImageRefusalFault } from '../../../utils/api/mediaRefusal.js'
-import { createAssistantMessage } from '../../../utils/messages.js'
+import { createAssistantMessage } from '../../messages.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { noteRunPhase } from '../../../utils/runPhases.js'

@@ -10,7 +10,7 @@ import { Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { FILE_NOT_FOUND_CWD_NOTE, getDisplayPath } from '../../utils/file.js'
 import { truncate } from '../../utils/format.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 import { SearchResultSummary } from '../GrepTool/UI.js'
 import type { Output } from './GlobTool.js'
 

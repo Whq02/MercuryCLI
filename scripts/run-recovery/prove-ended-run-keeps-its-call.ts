@@ -26,7 +26,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { loadConversationForResume, getResumePrompt } = await import('../../src/services/resume/conversationRecovery.ts')
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
-const { normalizeMessagesForAPI } = await import('../../src/utils/messages.ts')
+const { normalizeMessagesForAPI } = await import('../../src/services/messages.ts')
 import type { Message } from '../../src/types/message.ts'
 
 const SENTENCE = 'The previous run ended before this call returned a result; whether the call started or finished is not known.'
