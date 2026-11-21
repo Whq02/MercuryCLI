@@ -200,8 +200,11 @@ try {
     console.log(`S the cockpit at ${cols}×${termRows} — /model reads the list, /health judges the typed ids against it`)
     const size = `${cols}x${termRows}`
     hits.length = 0
+    const settled = termRows >= 26
+      ? { awaitText: `${rows.length} checks` }
+      : { awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ' }
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
+    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, ...settled, awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
     const readyNeedle = cols >= 100 && termRows >= 26 ? '← back' : '1 session on'
     const readOn = termRows < 26
       ? Array.from({ length: 4 }, (_, i) => (i === 0
