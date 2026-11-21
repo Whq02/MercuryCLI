@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-compact-roster-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -175,7 +176,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       if (seat !== null) route = 'seat'
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
-      else if (firstUserText.includes('The context window turned over')) route = 'post'
+      else if (firstUserText.includes('The context window turned over') && offersTool(body, 'Crewmate')) route = 'post'
       else if (answered.includes('Crewmate')) route = 'launched'
       else if (lastUserText.includes(ASK) && offersTool(body, 'Crewmate')) route = 'launch'
       else if (lastUserText.includes(WARM) && offersTool(body, 'Crewmate')) route = 'warm'
@@ -356,7 +357,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${WARM}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: `${ASK}\r`, awaitText: WARMED, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'warmed' },
         { data: '\x1b', awaitText: 'waiting on', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'waiting' },

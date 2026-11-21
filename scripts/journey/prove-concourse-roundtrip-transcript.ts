@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -91,7 +92,7 @@ const cfg = {
   argv: ['node', DIST],
   cwd: WORK,
   sends: [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'run the alpha turn\r' },
     { requireAwait: true, minTick: 5, awaitText: 'SIGMA-ALPHA-7', data: '/model gpt-5.6-sol\r' },
     { requireAwait: true, minTick: 10, awaitText: ALPHA_TAIL, data: 'run the terra turn\r' },
