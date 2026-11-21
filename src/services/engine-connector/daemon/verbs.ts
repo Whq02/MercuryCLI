@@ -5,6 +5,7 @@ import type {
   AgentControlReceiptV1,
   BoardPostReceiptV1,
   BoardPostRequestV1,
+  EmptyDetailControlVerbKey,
   LeaveReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
@@ -12,8 +13,7 @@ import type {
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { controlFrame, sendControlReceipt } from './controlCarrier.js'
-
+import { controlFrame, sendControlReceipt, sendEmptyDetailControl } from './controlCarrier.js'
 const LEAVE_RPC_TIMEOUT_MS = 135_000
 
 interface VerbsNeeds {
@@ -100,28 +100,8 @@ export class VerbsPart {
     }
   }
 
-  async backgroundShell(): Promise<AgentControlReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'background-shell', sessionId: this.needs.record().sessionId, by: 'operator' })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
-  }
-
-  async sendNow(): Promise<AgentControlReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.needs.record().sessionId, by: 'operator' })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
+  controlVerb(key: EmptyDetailControlVerbKey): Promise<AgentControlReceiptV1> {
+    return sendEmptyDetailControl(this.needs.chainRpc, this.needs.record().sessionId, key)
   }
 
   pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
