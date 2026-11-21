@@ -1967,7 +1967,242 @@ const WORDS: Row[] = [
   },
 ]
 
-const ROWS = [...PATHS, ...PROGRAMS, ...SPAWN, ...PROCESSES, ...FILES, ...TERMINAL, ...DESKTOP, ...TENSORFOLD, ...VENDORS, ...WORDS]
+import {
+  argv0EnvAssignmentBody,
+  carriesBashLoginExports,
+  isHostPosixBash,
+  loginGroupMarkLine,
+  loginRunGetsOwnProcessGroup,
+  loginRunScriptFilePath,
+  loginRunUsesProcessTreeCleanup,
+  remembersFailedLoginRun,
+  snapshotAliasPipelineFilter,
+  snapshotPathNeedsShellProbe,
+} from '../../src/utils/platform/loginShell.js'
+import { isCmdDriveSwitchCd, readWorldUsesWindowsForms, shellFolderComparisonKey } from '../../src/utils/platform/commandForms.js'
+import {
+  wardEnvHomePath,
+  wardExpandMsysDrivePrefix,
+  wardNormalizedSlashedPath,
+  wardPathFoldsCase,
+  wardPosixWorldCwd,
+  wardShareSegmentCountIsRoot,
+  wardTracksWindowsStandingFolder,
+  wardUnresolvedWindowsWordFallsThrough,
+  wardUsesWindowsDeletePatterns,
+  wardWindowsHomeEnv,
+  wardWordIsWindowsShaped,
+} from '../../src/utils/platform/wards.js'
+import { hostEnv as row8HostEnv } from '../../src/utils/hostEnv.js'
+
+const ROW8_NODE_PLATFORMS: readonly NodeJS.Platform[] = ['win32', 'darwin', 'linux']
+const ROW8_GIVEN_PLATFORMS: ReadonlyArray<string | undefined> = [undefined, 'windows', 'macos', 'linux']
+const ROW8_ORIGINS: readonly string[] = ['engine', 'path', 'env']
+const ROW8_ZSH: ReadonlyArray<string | null> = [null, '/bin/zsh']
+const ROW8_FOLDERS: readonly string[] = ['C:\\Users\\U\\proj\\', 'c:\\users\\u\\proj', 'D:\\', '\\\\server\\share\\x', '/home/u/proj/', '/c/Users/U', 'relative\\dir', '']
+const ROW8_OPERANDS: ReadonlyArray<readonly string[]> = [['/d', 'D:\\src'], ['/D', 'D:\\src'], ['/d'], ['D:\\src'], ['/d', 'a', 'b'], ['-', 'x'], []]
+const ROW8_TEXTS: readonly string[] = ['C:\\Users\\Other\\Docs', '/c/Users/Other', '/c', '/usr/local', '//server/share', 'Relative\\Path', '~/x', '']
+const ROW8_WORDS: readonly string[] = ['C:\\x', 'c:', '%USERPROFILE%\\x', '$env:USERPROFILE', '${env:HOME}', '\\\\server\\share', '/c/Users', '/c', '//server/x', '~', '~/x', '~\\x', '$HOME/x', '${HOME}', '/usr/local', 'docs', '']
+const ROW8_ENVS: ReadonlyArray<NodeJS.ProcessEnv> = [{ HOME: '/home/u', USERPROFILE: 'C:\\Users\\U' }, { HOME: '/home/u' }, { USERPROFILE: 'C:\\Users\\U' }, { HOME: '', USERPROFILE: '' }, {}]
+
+const LOGIN_SHELL: Row[] = [
+  {
+    name: 'loginShell.loginRunGetsOwnProcessGroup',
+    answers: () => [true, false].map(login => loginRunGetsOwnProcessGroup(login)),
+    old: () => [true, false].map(login => login && getPlatform() !== 'windows'),
+  },
+  {
+    name: 'loginShell.loginRunUsesProcessTreeCleanup',
+    answers: () => [true, false].map(login => loginRunUsesProcessTreeCleanup(login)),
+    old: () => [true, false].map(login => login && getPlatform() === 'windows'),
+  },
+  {
+    name: 'loginShell.snapshotPathNeedsShellProbe',
+    answers: () => ROW8_GIVEN_PLATFORMS.map(given => !snapshotPathNeedsShellProbe(given)),
+    old: () =>
+      ROW8_GIVEN_PLATFORMS.map(given => {
+        const platform = given ?? getPlatform()
+        return platform !== 'windows'
+      }),
+  },
+  {
+    name: 'loginShell.argv0EnvAssignmentBody',
+    answers: () => {
+      const [functionName, argv0Name, quotedBinary, prepend] = ['fn', 'argv0', "'/bin/x'", 'a b ']
+      const body = argv0EnvAssignmentBody(argv0Name, quotedBinary, prepend) ?? 'BODY'
+      return `${functionName}() {
+${body}
+}`
+    },
+    old: () => {
+      const [functionName, argv0Name, quotedBinary, prepend] = ['fn', 'argv0', "'/bin/x'", 'a b ']
+      if (getPlatform() === 'windows') {
+        return `${functionName}() {
+  ARGV0=${argv0Name} ${quotedBinary} ${prepend}"$@"
+}`
+      }
+      return `${functionName}() {
+BODY
+}`
+    },
+  },
+  {
+    name: 'loginShell.loginGroupMarkLine',
+    answers: () => {
+      const lines: string[] = []
+      const groupMark = loginGroupMarkLine('MERCURY_LOGIN_GROUP')
+      if (groupMark !== undefined) lines.push(groupMark)
+      return lines
+    },
+    old: () => {
+      const LOGIN_GROUP_MARK = 'MERCURY_LOGIN_GROUP'
+      const lines: string[] = []
+      if (getPlatform() === 'windows') lines.push(`echo "${LOGIN_GROUP_MARK}=$$"`)
+      return lines
+    },
+  },
+  {
+    name: 'loginShell.snapshotAliasPipelineFilter',
+    answers: () => snapshotAliasPipelineFilter(),
+    old: () => (getPlatform() === 'windows' ? ' | grep -v winpty' : ''),
+  },
+  {
+    name: 'loginShell.isHostPosixBash',
+    answers: () => ROW8_ORIGINS.map(origin => isHostPosixBash(origin)),
+    old: () => ROW8_ORIGINS.map(origin => origin !== 'engine' && getPlatform() !== 'windows'),
+  },
+  {
+    name: 'loginShell.loginRunScriptFilePath',
+    answers: () => ROW8_ORIGINS.map(origin => loginRunScriptFilePath('/s/snapshot-bash.sh', origin)),
+    old: () =>
+      ROW8_ORIGINS.map(origin => {
+        const snapshotFilePath = '/s/snapshot-bash.sh'
+        return getPlatform() === 'windows' && origin !== 'engine' ? `${snapshotFilePath}.login-run` : undefined
+      }),
+  },
+  {
+    name: 'loginShell.carriesBashLoginExports',
+    answers: () => [true, false].flatMap(session => ROW8_ZSH.flatMap(zsh => ROW8_ORIGINS.map(origin => carriesBashLoginExports(session, zsh !== null, origin)))),
+    old: () => [true, false].flatMap(session => ROW8_ZSH.flatMap(zsh => ROW8_ORIGINS.map(origin => session && zsh === null && !(origin === 'engine' && getPlatform() === 'windows')))),
+  },
+  {
+    name: 'loginShell.remembersFailedLoginRun',
+    answers: () => [true, false].map(session => remembersFailedLoginRun(session)),
+    old: () => [true, false].map(session => session && getPlatform() === 'windows'),
+  },
+]
+
+const COMMAND_FORMS: Row[] = [
+  {
+    name: 'commandForms.isCmdDriveSwitchCd',
+    answers: () => ROW8_OPERANDS.map(operands => isCmdDriveSwitchCd(operands)),
+    old: () => ROW8_OPERANDS.map(operands => process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)),
+  },
+  {
+    name: 'commandForms.readWorldUsesWindowsForms',
+    answers: () => ({ windows: readWorldUsesWindowsForms() }),
+    old: () => ({ windows: process.platform === 'win32' }),
+  },
+  {
+    name: 'commandForms.shellFolderComparisonKey',
+    answers: () => ROW8_FOLDERS.map(path => shellFolderComparisonKey(path)),
+    old: () =>
+      ROW8_FOLDERS.map(path => {
+        if (getPlatform() !== 'windows') return path
+        const posix = windowsPathToPosixPath(path).replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive: string) => `/${drive.toLowerCase()}`)
+        return posix.length > 1 && posix.endsWith('/') ? posix.slice(0, -1) : posix
+      }),
+  },
+  {
+    name: 'paths.nativePathToShell where bashPermissions spells the folder of a cd',
+    answers: () => ROW8_FOLDERS.map(cwd => nativePathToShell(cwd)),
+    old: () => ROW8_FOLDERS.map(cwd => (getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd)),
+  },
+]
+
+const WARDS: Row[] = [
+  {
+    name: 'wards.wardPathFoldsCase',
+    answers: () => [wardPathFoldsCase(), ...ROW8_NODE_PLATFORMS.map(platform => wardPathFoldsCase(platform))],
+    old: () => [process.platform === 'darwin' || process.platform === 'win32', ...ROW8_NODE_PLATFORMS.map(platform => platform === 'darwin' || platform === 'win32')],
+  },
+  {
+    name: 'wards.wardNormalizedSlashedPath',
+    answers: () => [...ROW8_TEXTS.map(path => wardNormalizedSlashedPath(path)), ...ROW8_NODE_PLATFORMS.flatMap(platform => ROW8_TEXTS.map(text => wardNormalizedSlashedPath(text, platform)))],
+    old: () => [
+      ...ROW8_TEXTS.map(path => (process.platform === 'win32' ? path.replace(/\\/g, '/').toLowerCase() : path.replace(/\\/g, '/'))),
+      ...ROW8_NODE_PLATFORMS.flatMap(platform => ROW8_TEXTS.map(text => (platform === 'win32' ? text.replace(/\\/g, '/').toLowerCase() : text.replace(/\\/g, '/')))),
+    ],
+  },
+  {
+    name: 'wards.wardEnvHomePath',
+    answers: () => [wardEnvHomePath() === (process.platform === 'win32' ? row8HostEnv().USERPROFILE || row8HostEnv().HOME : row8HostEnv().HOME || row8HostEnv().USERPROFILE), ...ROW8_ENVS.map(env => wardEnvHomePath(env))],
+    old: () => [true, ...ROW8_ENVS.map(env => (process.platform === 'win32' ? env.USERPROFILE || env.HOME : env.HOME || env.USERPROFILE))],
+  },
+  {
+    name: 'wards.wardWindowsHomeEnv',
+    answers: () => ROW8_NODE_PLATFORMS.flatMap(platform => ROW8_ENVS.map(env => wardWindowsHomeEnv(env, platform))),
+    old: () => ROW8_NODE_PLATFORMS.flatMap(platform => ROW8_ENVS.map(env => env.USERPROFILE || (platform === 'win32' ? env.HOME : undefined) || undefined)),
+  },
+  {
+    name: 'wards.wardPosixWorldCwd',
+    answers: () => ROW8_NODE_PLATFORMS.map(platform => wardPosixWorldCwd('/w/project', platform)),
+    old: () =>
+      ROW8_NODE_PLATFORMS.map(platform => {
+        const cwd = '/w/project'
+        return platform === 'win32' ? undefined : cwd
+      }),
+  },
+  {
+    name: 'wards.wardUsesWindowsDeletePatterns',
+    answers: () => ({ windows: wardUsesWindowsDeletePatterns() }),
+    old: () => ({ windows: process.platform === 'win32' }),
+  },
+  {
+    name: 'wards.wardWordIsWindowsShaped',
+    answers: () => ROW8_NODE_PLATFORMS.flatMap(platform => [true, false].flatMap(anywhere => ROW8_WORDS.map(word => wardWordIsWindowsShaped(word, anywhere, platform)))),
+    old: () =>
+      ROW8_NODE_PLATFORMS.flatMap(platform =>
+        [true, false].flatMap(anywhere =>
+          ROW8_WORDS.map(word => {
+            if (/^(?:[A-Za-z]:|%[A-Za-z_()0-9]+%|\$\{?env:|\\\\)/.test(word)) return anywhere || platform === 'win32'
+            if (platform !== 'win32') return false
+            return /^(?:\/[A-Za-z](?:\/|$)|\/\/[^/]|~(?:$|[/\\])|\$\{?[A-Za-z_])/.test(word)
+          }),
+        ),
+      ),
+  },
+  {
+    name: 'wards.wardExpandMsysDrivePrefix',
+    answers: () => ROW8_NODE_PLATFORMS.flatMap(platform => ROW8_TEXTS.map(given => wardExpandMsysDrivePrefix(given, platform))),
+    old: () =>
+      ROW8_NODE_PLATFORMS.flatMap(platform =>
+        ROW8_TEXTS.map(given => {
+          let text = given
+          const msys = platform === 'win32' ? /^\/([A-Za-z])(\/[\s\S]*)?$/.exec(text) : null
+          if (msys !== null) text = `${msys[1]}:${msys[2] ?? '/'}`
+          return text
+        }),
+      ),
+  },
+  {
+    name: 'wards.wardShareSegmentCountIsRoot',
+    answers: () => ROW8_NODE_PLATFORMS.flatMap(platform => [0, 1, 2, 3].map(count => wardShareSegmentCountIsRoot(count, platform))),
+    old: () => ROW8_NODE_PLATFORMS.flatMap(platform => [0, 1, 2, 3].map(count => count === 2 || (count < 2 && platform === 'win32'))),
+  },
+  {
+    name: 'wards.wardUnresolvedWindowsWordFallsThrough',
+    answers: () => ROW8_NODE_PLATFORMS.map(platform => !wardUnresolvedWindowsWordFallsThrough(platform)),
+    old: () => ROW8_NODE_PLATFORMS.map(platform => platform !== 'win32'),
+  },
+  {
+    name: 'wards.wardTracksWindowsStandingFolder',
+    answers: () => ROW8_NODE_PLATFORMS.map(platform => !wardTracksWindowsStandingFolder(platform)),
+    old: () => ROW8_NODE_PLATFORMS.map(platform => platform !== 'win32'),
+  },
+]
+
+const ROWS = [...PATHS, ...PROGRAMS, ...SPAWN, ...PROCESSES, ...FILES, ...TERMINAL, ...DESKTOP, ...TENSORFOLD, ...VENDORS, ...WORDS, ...LOGIN_SHELL, ...COMMAND_FORMS, ...WARDS]
 
 const show = (value: unknown): string =>
   JSON.stringify(value, (_key, v: unknown) =>

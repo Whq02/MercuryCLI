@@ -3,9 +3,26 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, parse } from 'node:path'
 
-const spelledHome = (path: string): boolean => path.startsWith('/Users/') || path.startsWith('/home/')
+const spelledHome = (path: string): boolean => path.startsWith('/Users/') || path.startsWith('/home/') || /^[a-zA-Z]:[\\/]+Users(?:[\\/]|$)/i.test(path)
+const isWindowsSystem = (path: string): boolean => /^[a-zA-Z]:[\\/]+(?:Windows|Program Files(?: \(x86\))?|ProgramData)(?:[\\/]|$)/i.test(path)
+
+function mkdtempOutsideProfiles(prefix: string): string {
+  if (process.platform !== 'win32') return mkdtempSync(join(spelledHome(tmpdir()) ? '/tmp' : tmpdir(), prefix))
+  const driveRoot = parse(tmpdir()).root
+  const repoParent = dirname(join(import.meta.dir, '..', '..'))
+  const candidates = [tmpdir(), process.env.MERCURY_TMPDIR ?? '', join(driveRoot, 'Temp'), repoParent, driveRoot].filter(dir => dir !== '' && !spelledHome(dir) && !isWindowsSystem(dir))
+  for (const dir of candidates) {
+    try {
+      if (!existsSync(dir)) continue
+      return mkdtempSync(join(dir, prefix))
+    } catch {
+      continue
+    }
+  }
+  return mkdtempSync(join(tmpdir(), prefix))
+}
 
 let passed = 0
 let failed = 0
@@ -17,14 +34,14 @@ function check(label: string, ok: boolean, detail = ''): void {
 if (process.argv[2] !== '--home') {
   const configScratch = realpathSync(mkdtempSync(join(tmpdir(), 'ward-home-config-')))
   mkdirSync(join(configScratch, 'home'), { recursive: true })
-  const tempRoot = spelledHome(tmpdir()) ? '/tmp' : tmpdir()
-  const relocatedHome = mkdtempSync(join(tempRoot, 'ward-home-'))
+  const relocatedHome = mkdtempOutsideProfiles('ward-home-')
   const shapes: Array<[string, string | undefined]> = [
     ['relocated', relocatedHome],
     ['unlisted', '/srv/homes/proof'],
     ['unlisted-slash', '/srv/homes/proof/'],
     ['root', '/'],
     ['unset', undefined],
+    ['win32-standin', undefined],
   ]
   console.log('the recursive-delete wards know the home wherever it is')
   try {
@@ -58,7 +75,7 @@ const relocatedHome = process.argv[4] ?? ''
 
 type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
 type WardVerdict = import('../../src/utils/wards/wards.js').WardVerdict
-const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
+const { AUTONOMOUS_WARDS, BUILTIN_WARDS, REFUSAL_WARDS, evaluateWards, setHomeSpellings, wardHomes } = await import('../../src/utils/wards/wards.js')
 const guard = await import('../../src/guards/wardsGuard.js')
 const { deleteWardActive, makeTargetResolver, WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = guard
 const homeSpellings: () => string[] = (guard as { homeSpellings?: () => string[] }).homeSpellings ?? (() => [])
@@ -188,6 +205,89 @@ if (shape === 'unset') {
   if (accountHome !== undefined) {
     check('a recursive delete under that home is warded without a resolver', wardedBy(autonomous(`rm -rf ${bashPath(join(accountHome, 'ward-proof-decoy'))}`), 'no-home-recursive-delete'), holeOf(autonomous(`rm -rf ${bashPath(join(accountHome, 'ward-proof-decoy'))}`)))
     check('the refusal list refuses that home itself', wardedBy(refusal(`rm -rf ${bashPath(accountHome)}`), 'no-root-recursive-delete'), holeOf(refusal(`rm -rf ${bashPath(accountHome)}`)))
+  }
+}
+
+if (shape === 'win32-standin') {
+  const descriptor = Object.getOwnPropertyDescriptor(process, 'platform')!
+  const savedHome = process.env.HOME
+  const savedProfile = process.env.USERPROFILE
+  try {
+    Object.defineProperty(process, 'platform', { ...descriptor, value: 'win32' })
+    const driveHome = 'D:\\work\\home'
+    process.env.HOME = driveHome
+    process.env.USERPROFILE = driveHome
+    setHomeSpellings(() => [driveHome])
+    check('win32 standin: wardHomes keeps a drive spelling outside Users', wardHomes().includes('D:/work/home'), wardHomes().join(' · '))
+    const stub = (path: string) => ({ path: path.replace(/\//g, '\\'), root: 'D:\\work\\home\\hunt' })
+    const ps = (command: string, resolvePath?: PendingToolCall['resolvePath']): PendingToolCall => ({
+      toolName: 'PowerShell',
+      input: { command },
+      shellCommand: command,
+      ...(resolvePath ? { resolvePath } : {}),
+    })
+    for (const [label, command] of [
+      ['forward-slash drive path', 'rm -rf D:/work/home/outside'],
+      ['backslash drive path', 'rm -rf D:\\work\\home\\outside'],
+      ['quoted drive path with space', 'rm -rf "D:/work/home/My Files"'],
+      ['lowercase drive path', 'rm -rf d:/work/home/outside'],
+      ['msys drive path', 'rm -rf /d/work/home/outside'],
+      ['find -delete under drive home', 'find D:/work/home/outside -name "*.log" -delete'],
+    ] as const) {
+      check(`win32 standin: ${label} is warded`, wardedBy(autonomous(command), 'no-home-recursive-delete'), holeOf(autonomous(command)))
+    }
+    for (const [label, command] of [
+      ['Remove-Item under drive home', 'Remove-Item -Recurse -Force D:\\work\\home\\outside'],
+      ['rd /s under drive home', 'rd /s /q D:\\work\\home\\outside'],
+    ] as const) {
+      const verdict = evaluateWards(AUTONOMOUS_WARDS, ps(command))
+      check(`win32 standin: ${label} is warded`, wardedBy(verdict, 'no-home-recursive-delete'), holeOf(verdict))
+    }
+    check('win32 standin: in-project delete under drive home passes with resolver', autonomous('rm -rf D:/work/home/hunt/build', stub).allow, ruleOf(autonomous('rm -rf D:/work/home/hunt/build', stub)))
+    check('win32 standin: quoted ~ in-project delete under drive home passes with resolver', autonomous('rm -rf "~/hunt/build"', stub).allow, ruleOf(autonomous('rm -rf "~/hunt/build"', stub)))
+    check('win32 standin: sibling whose name starts with drive home stays allowed', autonomous('rm -rf D:/work/homereader/x').allow && refusal('rm -rf D:/work/homereader').allow)
+    check('win32 standin: refusal list refuses whole drive home and leaves subfolders alone', wardedBy(refusal('rm -rf D:/work/home'), 'no-root-recursive-delete') && refusal('rm -rf D:/work/home/outside').allow)
+
+    setHomeSpellings(() => ['D:\\'])
+    check('win32 standin: bare drive root D:\\ adds no spelling and leaves D:/tmp/x allowed', wardHomes().length === 0 && autonomous('rm -rf D:/tmp/x').allow, wardHomes().join(' · '))
+
+    const hexBackslash = evaluateWards(BUILTIN_WARDS, {
+      toolName: 'Write',
+      input: { file_path: 'C:\\proj\\src\\components\\New.tsx', content: 'export const c = "#ff0000"\n' },
+      isMercurySource: () => true,
+    })
+    check('win32 standin: backslash path fires no-new-hex-outside-theme', wardedBy(hexBackslash, 'no-new-hex-outside-theme'), holeOf(hexBackslash))
+    const emojiBackslash = evaluateWards(BUILTIN_WARDS, {
+      toolName: 'Write',
+      input: { file_path: 'C:\\proj\\src\\components\\New.tsx', content: 'export const s = "\u{1F600}"\n' },
+      isMercurySource: () => true,
+    })
+    check('win32 standin: backslash path fires no-emoji-in-tui-source', wardedBy(emojiBackslash, 'no-emoji-in-tui-source'), holeOf(emojiBackslash))
+    const paletteBackslash = evaluateWards(BUILTIN_WARDS, {
+      toolName: 'Write',
+      input: { file_path: 'C:\\proj\\src\\components\\mercuryPalette.ts', content: 'export const c = "#ff0000"\n' },
+      isMercurySource: () => true,
+    })
+    check('win32 standin: allowPathPattern permits backslash mercuryPalette.ts', paletteBackslash.allow, ruleOf(paletteBackslash))
+    const generatedBackslash = evaluateWards(BUILTIN_WARDS, {
+      toolName: 'Edit',
+      input: { file_path: 'C:\\proj\\scripts\\settings\\settings-schema.json', new_string: '{}' },
+      resolvePath: () => ({ path: 'C:\\proj\\scripts\\settings\\settings-schema.json', root: 'C:\\proj' }),
+    })
+    check('win32 standin: backslash generated asset path fires no-hand-edit-generated-file', wardedBy(generatedBackslash, 'no-hand-edit-generated-file'), holeOf(generatedBackslash))
+    const lockBackslash = evaluateWards(BUILTIN_WARDS, {
+      toolName: 'Edit',
+      input: { file_path: 'C:\\other\\bun.lock', new_string: '{}' },
+      resolvePath: () => ({ path: 'C:\\other\\bun.lock', root: undefined }),
+    })
+    check('win32 standin: backslash lockfile fires no-hand-edit-generated-file', wardedBy(lockBackslash, 'no-hand-edit-generated-file'), holeOf(lockBackslash))
+  } finally {
+    Object.defineProperty(process, 'platform', descriptor)
+    setHomeSpellings(homeSpellings)
+    if (savedHome === undefined) delete process.env.HOME
+    else process.env.HOME = savedHome
+    if (savedProfile === undefined) delete process.env.USERPROFILE
+    else process.env.USERPROFILE = savedProfile
   }
 }
 

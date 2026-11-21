@@ -337,6 +337,41 @@ async function main(): Promise<void> {
       delete process.env.USERPROFILE
       for (const [command, tool, answer] of OFF_WINDOWS_AS_BEFORE) check(`${platform} · as before (${tool}): ${JSON.stringify(command)} is ${answer}`, (await through(command, tool, project)) === answer, await through(command, tool, project))
     }
+    section('§6i win32 — a relative delete after cd / Set-Location into another user\'s home is refused by no-other-user-delete; own home, non-Users folder, and starting folder inside that home stay allowed')
+    pinPlatform('win32')
+    process.env.USERPROFILE = HOME_FOLDER
+    delete process.env.HOME
+    const throughFrom = async (command: string, tool: string, cwd: string, startingFolder?: string): Promise<string> => {
+      const extra = startingFolder === undefined ? {} : { startingFolder, resolvePath: (path: string) => ({ path: path.replace(/\\/g, '/'), root: startingFolder }) }
+      const verdict = await refusalOfShellCommand({ ...pending(command, tool), ...extra } as never, cwd)
+      return verdict.allow ? '(allowed)' : verdict.rule.name
+    }
+    for (const [command, tool] of [
+      ['cd C:/Users/Other && rm -rf docs', 'Bash'],
+      ["cd 'C:\\Users\\Other' && rm -rf docs", 'Bash'],
+      ['cd /c/Users/Other && rm -rf docs', 'Bash'],
+      ['Set-Location C:\\Users\\Other; Remove-Item -Recurse -Force docs', 'PowerShell'],
+      ['cd C:\\Users\\Other; Remove-Item -Recurse -Force .\\docs', 'PowerShell'],
+    ] as const) {
+      const got = await throughFrom(command, tool, PROJECT)
+      check(`win32 · refused by no-other-user-delete (${tool}): ${JSON.stringify(command)}`, got === 'no-other-user-delete', got)
+    }
+    for (const [command, tool, cwd, start] of [
+      ['cd C:/Users/Alice && rm -rf docs', 'Bash', PROJECT, undefined],
+      ['Set-Location C:\\Users\\Alice; Remove-Item -Recurse -Force docs', 'PowerShell', PROJECT, undefined],
+      ['cd C:/src && rm -rf docs', 'Bash', PROJECT, undefined],
+      ['Set-Location C:\\src; Remove-Item -Recurse -Force docs', 'PowerShell', PROJECT, undefined],
+      ['cd C:/Users/Other && rm -rf docs', 'Bash', 'C:\\Users\\Other', 'C:\\Users\\Other'],
+      ['Set-Location C:\\Users\\Other; Remove-Item -Recurse -Force docs', 'PowerShell', 'C:\\Users\\Other', 'C:\\Users\\Other'],
+      ['cd C:/Users/Other/work && rm -rf docs', 'Bash', 'C:\\Users\\Other\\work', 'C:\\Users\\Other\\work'],
+    ] as const) {
+      const got = await throughFrom(command, tool, cwd, start)
+      check(`win32 · allowed (${tool}${start ? `, start=${start}` : ''}): ${JSON.stringify(command)}`, got === '(allowed)', got)
+    }
+    {
+      const outsideStart = await throughFrom('cd C:/Users/Other && rm -rf docs', 'Bash', 'C:\\Users\\Other\\work', 'C:\\Users\\Other\\work')
+      check('win32 · refused when cd leaves starting folder into sibling under other user', outsideStart === 'no-other-user-delete', outsideStart)
+    }
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME

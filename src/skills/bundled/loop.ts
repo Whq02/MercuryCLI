@@ -7,7 +7,7 @@ import {
   isSaturnSchedulingEnabled,
 } from '../../tools/ScheduleCronTool/prompt.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../../tools/ScheduleWakeupTool/prompt.js'
-import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
+import { MONITOR_TOOL_NAME } from '../../constants/tools/monitor.js'
 import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
 import { SKILL_TOOL_NAME } from '../../constants/tools/skill.js'
 import {

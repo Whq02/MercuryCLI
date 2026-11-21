@@ -155,7 +155,7 @@ if (Bun.which('pwsh') === null) {
   await check('the command-analysis provider exposes a pipeline stage to its allow rule', async () => {
     const parsed = await parse('Get-Content a | Test-Fixture b')
     const stage = getAllCommands(parsed).find(c => c.name === 'Test-Fixture')
-    ok(stage)
+    ok(stage, 'expected getAllCommands to expose the Test-Fixture pipeline stage — fix PowerShell pipeline extraction in src/utils/permissions/decision/commandAnalysis.ts')
     equal(powershellToolCheckPermission({ command: stage.text }, permission()).behavior, 'passthrough')
     equal(powershellToolCheckPermission({ command: stage.text }, permission(['PowerShell(Test-Fixture *)'])).behavior, 'allow')
   })

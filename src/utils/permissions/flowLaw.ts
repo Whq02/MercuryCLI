@@ -6,20 +6,20 @@ import { getOriginalCwd } from '../../bootstrap/state.js'
 import { readBashRuleVerdict } from '../../tools/BashTool/bashPermissions.js'
 import { shellCommandSegments } from '../shell/destructiveCommandWarning.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
-import { MONITOR_TOOL_NAME } from '../../tools/MonitorTool/constants.js'
-import { DEBUG_TOOL_NAME } from '../../tools/DebugTool/prompt.js'
+import { MONITOR_TOOL_NAME } from '../../constants/tools/monitor.js'
+import { DEBUG_TOOL_NAME } from '../../constants/tools/debug.js'
 import { startedCommandText } from '../bash/ast.js'
 import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { getStartingCwd } from '../cwd.js'
 import { getPathsForPermissionCheck } from '../fsOperations.js'
 import { resolveShellCwd } from '../Shell.js'
-import { PARSE_ABORTED, pinnedCommandAnalysis, preparedCommandRoot, type Node } from './decision/commandAnalysis.js'
+import { UNREAD_PART, layersOf, printedBy, readCommand, wordsAsWritten, type ReadCommand } from './decision/commandAnalysis.js'
 import { getMercuryTempDir, getScratchpadDir, matchingRuleForInput, pathInWorkingPath } from './filesystem.js'
 import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
-import { UNREAD_PART, layersOf, printedBy, readShellCommands, type ReadCommand } from '../wards/wardsShellRead.js'
+import { placesCertain } from './shellProtectedPaths/folders.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 
@@ -131,7 +131,8 @@ const DISK_VERBS = new Set(['wipefs', 'fdisk', 'parted', 'sgdisk', 'diskutil'])
 const PSEUDO_DEVICES = new Set(['/dev/null', '/dev/stdout', '/dev/stderr', '/dev/stdin', '/dev/tty', '/dev/zero', '/dev/random', '/dev/urandom', '/dev/full'])
 const SHELLS = /^(?:ba|z|da|k|fi|c|tc)?sh$/
 const RUNNERS = new Set(['npx', 'bunx', 'pnpx', 'uvx'])
-const SKIP_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '{', '}', '(', ')', '!', 'time', 'builtin', 'command', 'exec', 'nohup', 'coproc'])
+const SKIP_KEYWORDS = new Set(['elif', 'if', 'while', 'until', '{', '}', '(', ')', '!'])
+const FLOW_WRAPPERS = new Set(['time', 'builtin', 'command', 'exec', 'nohup', 'coproc', 'env', 'nice', 'ionice', 'timeout', 'caffeinate', 'chronic', 'unbuffer', 'stdbuf', 'xargs'])
 
 export const FLOW_LAW = {
   1: { name: 'privilege escalation', commands: PRIVILEGE_COMMANDS, powershell: ['Start-Process -Verb RunAs', 'runas'] },
@@ -292,70 +293,29 @@ function operandsOf(args: readonly string[], valued: ReadonlySet<string> = new S
 function peel(argv: readonly string[]): { name: string; args: string[]; fromStdin: boolean } | null {
   let words = [...argv]
   let fromStdin = false
-  for (let guard = 0; guard < 8 && words.length > 0; guard++) {
+  for (let guard = 0; guard < 8 && words.length > 0; ) {
     const head = basename(words[0]!).replace(/\.exe$/i, '')
     if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0]!)) {
       words = words.slice(1)
+      guard++
       continue
     }
-    if (SKIP_KEYWORDS.has(head) && head !== 'time') {
+    if (SKIP_KEYWORDS.has(head)) {
       words = words.slice(1)
+      guard++
       continue
     }
-    if (head === 'env') {
-      let i = 1
-      while (i < words.length && (words[i]!.startsWith('-') || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]!))) {
-        if (words[i] === '-u' || words[i] === '-C' || words[i] === '-S' || words[i] === '--unset' || words[i] === '--chdir') i++
-        i++
-      }
-      words = words.slice(i)
-      continue
-    }
-    if (head === 'nice' || head === 'ionice') {
-      let i = 1
-      while (i < words.length && words[i]!.startsWith('-')) {
-        if (/^-[nc]$/.test(words[i]!)) i++
-        i++
-      }
-      words = words.slice(i)
-      continue
-    }
-    if (head === 'timeout') {
-      let i = 1
-      while (i < words.length && words[i]!.startsWith('-')) {
-        if (/^(?:-k|-s|--kill-after|--signal)$/.test(words[i]!)) i++
-        i++
-      }
-      words = words.slice(i + 1)
-      continue
-    }
-    if (head === 'time' || head === 'nohup' || head === 'caffeinate' || head === 'chronic' || head === 'unbuffer') {
-      let i = 1
-      while (i < words.length && words[i]!.startsWith('-')) i++
-      words = words.slice(i)
-      continue
-    }
-    if (head === 'stdbuf') {
-      let i = 1
-      while (i < words.length && words[i]!.startsWith('-')) {
-        if (/^-[ioe]$/.test(words[i]!)) i++
-        i++
-      }
-      words = words.slice(i)
-      continue
-    }
-    if (head === 'xargs') {
-      let i = 1
-      while (i < words.length && words[i]!.startsWith('-')) {
-        if (/^-[aEdILnPs]$/.test(words[i]!) || /^--(?:arg-file|delimiter|eof|replace|max-lines|max-args|max-procs|max-chars)$/.test(words[i]!)) i++
-        i++
-      }
-      words = words.slice(i)
-      fromStdin = true
+    const layers = layersOf(words)
+    const direct = [...layers].reverse().find(layer => !layer.wrappers.includes('find') && layer.wrappers.length <= 8 - guard && layer.wrappers.every(wrapper => FLOW_WRAPPERS.has(wrapper)))
+    if (direct !== undefined && direct.argv.length < words.length) {
+      if (direct.wrappers.includes('xargs')) fromStdin = true
+      words = direct.argv
+      guard += Math.max(1, direct.wrappers.length)
       continue
     }
     if (/^python[\d.]*$/.test(head) && words[1] === '-m' && words[2] !== undefined) {
       words = words.slice(2)
+      guard++
       continue
     }
     if (RUNNERS.has(head) || ((head === 'pnpm' || head === 'yarn' || head === 'npm' || head === 'bun') && (words[1] === 'dlx' || words[1] === 'exec' || words[1] === 'x')) || (head === 'pipx' && words[1] === 'run')) {
@@ -368,6 +328,7 @@ function peel(argv: readonly string[]): { name: string; args: string[]; fromStdi
       if (spec === undefined) return null
       const tail = spec.startsWith('@') ? spec.split('/').pop() ?? spec : spec
       words = [tail.replace(/@[^@]*$/, ''), ...words.slice(i + 1)]
+      guard++
       continue
     }
     break
@@ -399,7 +360,7 @@ function gitAliases(args: readonly string[], scan: Scan): Map<string, string[]> 
   return aliases
 }
 
-function gitAsk(args: readonly string[], scan: Scan, shown: readonly string[]): FlowAsk | null {
+function gitAsk(args: readonly string[], scan: Scan, shown: readonly string[], text: string): FlowAsk | null {
   const parsed = subcommandOf(args, GIT_VALUED_OPTIONS)
   if (parsed === null) return null
   if (parsed.sub === 'config') {
@@ -410,7 +371,7 @@ function gitAsk(args: readonly string[], scan: Scan, shown: readonly string[]): 
   const alias = gitAliases(args, scan).get(parsed.sub)
   const sub = alias === undefined ? parsed.sub : (alias[0] ?? parsed.sub)
   const rest = alias === undefined ? parsed.rest : [...alias.slice(1), ...parsed.rest]
-  if (sub.includes(UNREAD_PART) || /[$`]/.test(sub)) return { item: 2, subject: 'git with a verb set at run time', why: 'it may publish or rewrite history' }
+  if (sub.includes(UNREAD_PART) || /[$`]/.test(sub) || (alias === undefined && /[$`]/.test(text) && !text.includes(parsed.sub))) return { item: 2, subject: 'git with a verb set at run time', why: 'it may publish or rewrite history' }
   const hit = GIT_FORMS.find(entry => entry.test(sub, rest))
   if (hit !== undefined) return { item: 2, subject: `git ${hit.form}`, why: hit.why }
   if (!GIT_TREE_WRITES.has(sub)) return null
@@ -529,7 +490,7 @@ function preAuthorised(text: string, rules: ToolPermissionContext | undefined): 
   }
 }
 
-async function checkCommand(argv: readonly string[], scan: Scan, text = argv.join(' ')): Promise<void> {
+async function checkCommand(argv: readonly string[], scan: Scan, text = argv.join(' '), recurse = false, shown: readonly string[] = argv): Promise<void> {
   if (scan.asks.length > 0 || argv.length === 0) return
   const peeled = peel(argv)
   if (peeled === null) return
@@ -566,19 +527,19 @@ async function checkCommand(argv: readonly string[], scan: Scan, text = argv.joi
     scan.cwd = null
     return
   }
-  if (SHELLS.test(name)) {
+  if (recurse && SHELLS.test(name)) {
     const flag = args.findIndex(arg => /^-[a-zA-Z]*c[a-zA-Z]*$/.test(arg))
     const script = flag >= 0 ? args.slice(flag + 1).find(arg => !arg.startsWith('-')) : undefined
-    if (script !== undefined && scan.depth < 4) await scanScript(script, { ...scan, depth: scan.depth + 1 }, scan)
+    if (script !== undefined && scan.depth < 4) await scanReading(script, scan.cwd, { ...scan, depth: scan.depth + 1 }, scan)
     return
   }
-  if (name === 'eval' || name === 'watch') {
+  if (recurse && (name === 'eval' || name === 'watch')) {
     const script = name === 'watch' ? operandsOf(args, new Set(['-n', '--interval', '-d', '--differences'])).join(' ') : args.join(' ')
-    if (script !== '' && scan.depth < 4) await scanScript(script, { ...scan, depth: scan.depth + 1 }, scan)
+    if (script !== '' && scan.depth < 4) await scanReading(script, scan.cwd, { ...scan, depth: scan.depth + 1 }, scan)
     return
   }
   if (name === 'git' || /^git-[a-z]/.test(name)) {
-    const ask = gitAsk(name === 'git' ? args : [name.slice(4), ...args], scan, argv)
+    const ask = gitAsk(name === 'git' ? args : [name.slice(4), ...args], scan, shown, text)
     if (ask !== null) found(ask)
     return
   }
@@ -597,102 +558,15 @@ async function checkCommand(argv: readonly string[], scan: Scan, text = argv.joi
     if (scan.asks.length > 0) return
   }
   if (fromStdin) return
-  const outside = writeTargetsAsk(name, args, scan, argv)
+  const outside = writeTargetsAsk(name, args, scan, shown)
   if (outside !== null) found(outside)
 }
-
 function checkRedirect(op: string, target: string, scan: Scan, shown: string): void {
   if (scan.asks.length > 0) return
   if (!/^(?:>|>>|>\||&>|&>>)$/.test(op)) return
   if (/^\d+$/.test(target) || target.startsWith('&') || target === '-') return
   const outside = outsidePath(target, scan)
   if (outside !== null) scan.asks.push({ item: 4, subject: cut(shown, 60), why: `it writes ${outside}, outside the project` })
-}
-
-function wordText(node: Node): string {
-  switch (node.type) {
-    case 'raw_string':
-      return node.text.slice(1, -1)
-    case 'ansi_c_string':
-      return node.text.slice(2, -1)
-    case 'string':
-    case 'translated_string':
-      return node.children.filter(child => child.type !== '"').map(child => (child.type === 'string_content' ? child.text : wordText(child))).join('')
-    case 'concatenation':
-      return node.children.map(wordText).join('')
-    case 'command_name':
-      return node.children[0] === undefined ? node.text : wordText(node.children[0])
-    default:
-      return node.text
-  }
-}
-
-function argvOf(command: Node): string[] {
-  const words: string[] = []
-  for (const child of command.children) {
-    if (child.type === 'variable_assignment' || child.type === 'file_redirect' || child.type === 'heredoc_redirect' || child.type === 'herestring_redirect') continue
-    if (child.type === 'command_name' && words.length === 0) {
-      words.push(wordText(child))
-      continue
-    }
-    if (child.type === 'command_name' || child.type === 'word' || child.type === 'number' || child.type === 'string' || child.type === 'raw_string' || child.type === 'ansi_c_string' || child.type === 'concatenation' || child.type === 'simple_expansion' || child.type === 'expansion' || child.type === 'command_substitution' || child.type === 'arithmetic_expansion' || child.type === 'brace_expression' || child.type === 'process_substitution' || child.type === 'translated_string') {
-      words.push(wordText(child))
-    }
-  }
-  return words
-}
-
-function redirectOf(node: Node): { op: string; target: string } | null {
-  let op: string | null = null
-  let target: string | null = null
-  for (const child of node.children) {
-    if (/^(?:>|>>|>\||&>|&>>|>&|<|<&|<<|<<<)$/.test(child.type)) op = child.type
-    else if (child.type !== 'file_descriptor') target = wordText(child)
-  }
-  return op === null || target === null ? null : { op, target }
-}
-
-function lastCommandText(node: Node): string | null {
-  let found: string | null = null
-  const visit = (current: Node): void => {
-    if (current.type === 'command') found = current.text
-    for (const child of current.children) visit(child)
-  }
-  visit(node)
-  return found
-}
-
-async function walk(node: Node, scan: Scan, statement: string): Promise<void> {
-  if (scan.asks.length > 0) return
-  switch (node.type) {
-    case 'subshell':
-    case 'command_substitution':
-    case 'process_substitution': {
-      const inner: Scan = { ...scan }
-      for (const child of node.children) await walk(child, inner, statement)
-      scan.asks.push(...inner.asks)
-      return
-    }
-    case 'redirected_statement': {
-      const body = node.children.find(child => !/redirect$/.test(child.type))
-      const last = body === undefined ? null : lastCommandText(body)
-      const shown = last === null ? node.text : `${last} ${node.children.filter(child => /redirect$/.test(child.type)).map(child => child.text).join(' ')}`
-      for (const child of node.children) await walk(child, scan, shown)
-      return
-    }
-    case 'file_redirect': {
-      const redirect = redirectOf(node)
-      if (redirect !== null) checkRedirect(redirect.op, redirect.target, scan, statement)
-      return
-    }
-    case 'command': {
-      await checkCommand(argvOf(node), scan, node.text)
-      for (const child of node.children) await walk(child, scan, node.text)
-      return
-    }
-    default:
-      for (const child of node.children) await walk(child, scan, statement)
-  }
 }
 
 async function scanTokens(text: string, scan: Scan): Promise<void> {
@@ -711,25 +585,8 @@ async function scanTokens(text: string, scan: Scan): Promise<void> {
       words.push(word)
     }
     const shown = segment.words.join(' ')
-    if (words.length > 0 && !['for', 'case', 'select', 'function', 'done', 'esac', 'fi'].includes(words[0]!)) await checkCommand(words, scan)
+    if (words.length > 0 && !['for', 'case', 'select', 'function', 'done', 'esac', 'fi'].includes(words[0]!)) await checkCommand(words, scan, words.join(' '), true)
     for (const redirect of redirects) checkRedirect(redirect.op, redirect.target, scan, shown)
-  }
-}
-
-async function scanScript(text: string, scan: Scan, parent?: Scan): Promise<void> {
-  let root: Node | null | typeof PARSE_ABORTED = preparedCommandRoot(text)
-  if (root === null && text.length <= 10_000) {
-    try {
-      root = await pinnedCommandAnalysis.parseCommandRaw(text)
-    } catch {
-      root = null
-    }
-  }
-  if (root === null || root === PARSE_ABORTED || root.type === 'ERROR') await scanTokens(text, scan)
-  else await walk(root, scan, text)
-  if (parent !== undefined) {
-    parent.asks.push(...scan.asks)
-    parent.cwd = scan.cwd
   }
 }
 
@@ -741,65 +598,220 @@ function sharesEarlierStage(earlier: ReadCommand, later: ReadCommand): boolean {
   return false
 }
 
-async function scanReading(command: string, cwd: string, scan: Scan): Promise<void> {
+function commandOrder(commands: readonly ReadCommand[]): ReadCommand[] {
+  const nested = new Set<number>()
+  for (const command of commands) {
+    for (const group of command.inner) for (const index of group) nested.add(index)
+    for (const index of command.inputInner) nested.add(index)
+  }
+  const ordered: ReadCommand[] = []
+  const visited = new Set<number>()
+  const visit = (index: number): void => {
+    if (visited.has(index)) return
+    const command = commands[index]
+    if (command === undefined) return
+    visited.add(index)
+    ordered.push(command)
+    for (const group of command.inner) for (const inner of group) visit(inner)
+    for (const inner of command.inputInner) visit(inner)
+  }
+  for (let i = 0; i < commands.length; i++) if (!nested.has(i)) visit(i)
+  for (let i = 0; i < commands.length; i++) visit(i)
+  return ordered
+}
+
+function unquoteWritten(word: string): string {
+  let out = ''
+  let quote = ''
+  let ansi = false
+  for (let i = 0; i < word.length; i++) {
+    const ch = word[i]!
+    if (quote !== '') {
+      if ((quote === '"' || ansi) && ch === '\\' && i + 1 < word.length) out += ch + word[++i]
+      else if (ch === quote) {
+        quote = ''
+        ansi = false
+      } else out += ch
+      continue
+    }
+    if (ch === '$' && (word[i + 1] === "'" || word[i + 1] === '"')) {
+      ansi = word[i + 1] === "'"
+      quote = word[++i]!
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      continue
+    }
+    out += ch
+  }
+  return out
+}
+
+function shownOf(simple: ReadCommand): readonly string[] {
+  const written = wordsAsWritten(simple)
+  return written !== undefined && written.length === simple.argv.length ? written.map(unquoteWritten) : simple.argv
+}
+
+function sameWords(a: readonly string[], b: readonly string[]): boolean {
+  return a.length === b.length && a.every((word, index) => word === b[index])
+}
+
+function splitRedirects(tail: string): string[] {
+  const parts: string[] = []
+  let current = ''
+  let quote = ''
+  for (let i = 0; i < tail.length; i++) {
+    const ch = tail[i]!
+    if (quote !== '') {
+      if (ch === quote) quote = ''
+      current += ch
+      continue
+    }
+    if (ch === '\\' && i + 1 < tail.length) {
+      current += ch + tail[++i]
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      quote = ch
+      current += ch
+      continue
+    }
+    const op = /^(?:&>>?|>>|>\||>&|<<<|<<-?|<&|<|>)/.exec(tail.slice(i))
+    if (op !== null) {
+      if (/^\s*\d*$/.test(current)) current += op[0]
+      else {
+        const fd = /\s(\d+)$/.exec(current)
+        if (fd !== null) {
+          parts.push(current.slice(0, fd.index).trim())
+          current = fd[1]! + op[0]
+        } else {
+          parts.push(current.trim())
+          current = op[0]
+        }
+      }
+      i += op[0].length - 1
+      continue
+    }
+    if (ch === ';' || ch === '|' || ch === '&' || ch === ')' || ch === '}') break
+    current += ch
+  }
+  if (current.trim() !== '') parts.push(current.trim())
+  return parts
+}
+
+function redirectShown(simple: ReadCommand, commands: readonly ReadCommand[], op: string, target: string, scan: Scan): string {
+  const around = simple.around ?? simple.text
+  if (simple.stages.length === 0) {
+    if (commands.some(command => command.substituted === true && command.inner.length === 0 && around !== '' && command.text.includes(around))) return around
+    const rooted = isAbsolute(target) || /^[A-Za-z]:[\\/]/.test(target) || target.startsWith('\\\\') || target === '~' || target.startsWith('~/') || target.startsWith('~\\')
+    if (!rooted && scan.cwd !== null && /[*?[{]/.test(scan.cwd)) return around
+  }
+  const at = simple.text === '' ? -1 : around.lastIndexOf(simple.text)
+  if (at < 0) return around
+  const tail = around.slice(at + simple.text.length).replace(/^[;)}\s]+/, '')
+  if (tail === '' || !/^(?:\d*(?:>>?|>\||<<-?|<<<|<&?|>&)|&>>?)/.test(tail)) return simple.text
+  const parts = splitRedirects(tail)
+  const matching = parts.find(part => part.startsWith(op) && part.slice(op.length).trimStart().startsWith(target))
+  if (matching === undefined && simple.stages.length === 0) {
+    const written = parts.find(part => part.startsWith(op))
+    if (written !== undefined && outsidePath(unquoteWritten(written.slice(op.length).trimStart()), scan) === null) return around
+  }
+  if (matching === undefined && simple.text.includes(op)) return simple.text
+  if (matching !== undefined && matching.slice(op.length).trimStart().slice(target.length).trim() !== '') return around
+  const lastInner = simple.inner.flat().at(-1)
+  const head = lastInner === undefined ? simple.text : (commands[lastInner]?.text ?? simple.text)
+  return `${head} ${parts.join(' ')}`
+}
+
+async function scanReading(command: string, cwd: string | null, scan: Scan, parent?: Scan): Promise<void> {
   const home = homedir().replace(/\\/g, '/')
-  const read = await readShellCommands(command, 'posix', { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [] })
-  for (const simple of read.commands) {
-    if (scan.asks.length > 0) return
-    const here: Scan = { ...scan, cwd: simple.cwd ?? scan.cwd }
-    const text = simple.around ?? simple.text
+  const read = await readCommand(command, 'posix', { cwd: cwd?.replace(/\\/g, '/'), home, homesRoot: home.slice(0, Math.max(0, home.lastIndexOf('/'))) || '/', ownNames: [] })
+  if (read.unread !== undefined && read.unread.text === command) {
+    await scanTokens(command, scan)
+    if (scan.asks.length > 0) {
+      if (parent !== undefined) {
+        parent.asks.push(...scan.asks)
+        parent.cwd = scan.cwd
+      }
+      return
+    }
+  }
+  const places: Array<string | null> | null =
+    read.unread === undefined && !placesCertain(read, command)
+      ? [...new Set<string | null>([cwd, ...read.commands.map(one => one.cwd).filter((folder): folder is string => folder !== undefined)])].slice(0, 8)
+      : null
+  for (const simple of commandOrder(read.commands)) {
+    if (scan.asks.length > 0) break
+    const primary = simple.cwd ?? scan.cwd
+    const folders = places === null ? [primary] : [...new Set<string | null>([primary, ...places])]
+    const around = simple.around ?? simple.text
     const found = (ask: FlowAsk): void => {
-      if (!preAuthorised(text, scan.rules)) scan.asks.push(ask)
+      if (!preAuthorised(around, scan.rules)) scan.asks.push(ask)
     }
-    await checkCommand(simple.argv, here, text)
-    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
-    scan.aliases = here.aliases ?? scan.aliases
-    if (scan.asks.length > 0) return
-    for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(text, 60))
-    scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
-    for (const layer of layersOf(simple.argv)) {
-      if (scan.asks.length > 0) return
-      const fed = layer.wrappers.includes('xargs')
-      const computed = layer.argv.some(word => word.includes(UNREAD_PART))
-      if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
-        const sources: ReadCommand[] = []
-        const seen = new Set<number>()
-        const inner = (indexes: readonly number[]): void => {
-          for (const index of indexes) {
-            const one = read.commands[index]
-            if (one === undefined || seen.has(index)) continue
-            seen.add(index)
-            sources.push(one)
-            inner(one.inner.flat())
+    const shown = shownOf(simple)
+    for (let at = 0; at < folders.length; at++) {
+      if (scan.asks.length > 0) break
+      const place = folders[at]!
+      const here: Scan = { ...scan, cwd: place }
+      if (!shown.some(word => /^~\+(?=\/|$)/.test(word))) {
+        await checkCommand(shown, here, simple.text, false, shown)
+      }
+      if (here.asks.length === 0 && !sameWords(shown, simple.argv)) {
+        here.cwd = place
+        await checkCommand(simple.argv, here, simple.text, false, simple.argv)
+      }
+      if (at === 0 && parent !== undefined && !simple.substituted && simple.stages.length === 0 && simple.body === undefined) scan.cwd = here.cwd
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      scan.aliases = here.aliases ?? scan.aliases
+      if (scan.asks.length > 0) break
+      for (const redirect of simple.redirects) checkRedirect(redirect.op, redirect.target, here, cut(read.unread === undefined ? redirectShown(simple, read.commands, redirect.op, redirect.target, here) : around, 60))
+      scan.asks.push(...here.asks.filter(ask => !scan.asks.includes(ask)))
+      for (const layer of layersOf(simple.argv)) {
+        if (scan.asks.length > 0) break
+        const fed = layer.wrappers.includes('xargs')
+        const computed = layer.argv.some(word => word.includes(UNREAD_PART))
+        if (FLOW_DELETERS.has(layer.program) && (fed || computed)) {
+          const sources: ReadCommand[] = []
+          const seen = new Set<number>()
+          const inner = (indexes: readonly number[]): void => {
+            for (const index of indexes) {
+              const one = read.commands[index]
+              if (one === undefined || seen.has(index)) continue
+              seen.add(index)
+              sources.push(one)
+              inner(one.inner.flat())
+            }
+          }
+          inner(simple.inner.flat())
+          if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
+          const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
+          for (const source of sources.length > 0 ? sources : [simple]) {
+            const ask = outsideAsk('it deletes', words, { ...here, cwd: at === 0 ? (source.cwd ?? here.cwd) : here.cwd }, [cut(around, 60)])
+            if (ask !== null) {
+              found(ask)
+              break
+            }
           }
         }
-        inner(simple.inner.flat())
-        if (fed) for (const earlier of read.commands) if (sharesEarlierStage(earlier, simple)) sources.push(earlier)
-        const words = [...(fed && simple.input !== undefined ? simple.input.split(/\s+/) : []), ...sources.flatMap(source => [...source.argv.slice(1), ...(printedBy(source)?.split(/\s+/) ?? [])])].filter(word => word !== '' && !word.startsWith('-') && !word.includes(UNREAD_PART))
-        for (const source of sources.length > 0 ? sources : [simple]) {
-          const ask = outsideAsk('it deletes', words, { ...here, cwd: source.cwd ?? here.cwd }, [cut(text, 60)])
-          if (ask !== null) {
-            found(ask)
-            break
-          }
+        const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
+        if (flag >= 0 && scan.asks.length === 0) {
+          const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(around, 60)])
+          if (ask !== null) found(ask)
         }
       }
-      const flag = FLOW_SCRIPT_LANGUAGES.test(layer.program) ? layer.argv.findIndex((word, index) => index > 0 && /^-(?:e|c|p|E|r)$/.test(word)) : -1
-      if (flag >= 0 && scan.asks.length === 0) {
-        const ask = outsideAsk('it deletes or overwrites', inlineScriptWriteTargets(layer.argv.slice(flag + 1).join(' ')), here, [cut(text, 60)])
-        if (ask !== null) found(ask)
-      }
     }
+  }
+  if (parent !== undefined) {
+    parent.asks.push(...scan.asks)
+    parent.cwd = scan.cwd
   }
 }
 
 export async function flowShellAsk(command: string, cwd: string, shell: 'bash' | 'powershell' = 'bash', rules?: ToolPermissionContext): Promise<FlowAsk | null> {
   const scan: Scan = { cwd, asks: [], depth: 0, ...(rules === undefined ? {} : { rules }) }
   if (shell === 'powershell') await scanTokens(command, scan)
-  else await scanScript(command, scan)
-  if (shell !== 'powershell' && scan.asks.length === 0) {
-    await scanReading(command, cwd, { ...scan, cwd, asks: scan.asks })
-  }
+  else await scanReading(command, cwd, scan)
   return scan.asks[0] ?? null
 }
 

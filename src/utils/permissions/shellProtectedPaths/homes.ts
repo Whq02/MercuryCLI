@@ -3,11 +3,11 @@ import { homedir, userInfo } from 'node:os'
 import { posix } from 'node:path'
 import { logForDebugging } from '../../debug.js'
 import { defaultMercuryHome, getAuthScope, getMercuryHome } from '../../envUtils.js'
-import { type ReadWorld, type ShellRead, UNREAD_PART, wordKnown } from '../../wards/wardsShellRead.js'
-import { readCommand } from '../decision/commandAnalysis.js'
+import { type CommandReading, type ReadWorld, UNREAD_PART, readCommand, wordKnown } from '../decision/commandAnalysis.js'
 import { mercurySecretPath, protectedPathForms, spelling } from './paths.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
+import { readWorldUsesWindowsForms } from '../../platform/commandForms.js'
 
 export const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
 export const CONVENTIONAL_USER_HOME = '(?:\\/(?:users|home)\\/[^/]+|\\/root|[a-z]:\\/users\\/[^/]+)'
@@ -28,12 +28,12 @@ function currentUser(): { user?: string; uid?: string } {
 
 export function floorsWorld(cwd: string): ReadWorld {
   const home = (hostEnv().HOME || hostEnv().USERPROFILE || homedir()).replace(/\\/g, '/')
-  return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' }
+  return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: readWorldUsesWindowsForms() }
 }
 
 let homeUnknownSaid = false
 
-export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<ShellRead | null> {
+export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<CommandReading | null> {
   let world: ReadWorld
   try {
     world = floorsWorld(cwd)
@@ -123,6 +123,19 @@ export function couldNameSecret(word: string, cwd: string, homes: readonly strin
   return false
 }
 
+export function fileUrlPaths(word: string): string[] {
+  const url = /^file:(?:\/\/(?:(?:localhost|127\.0\.0\.1)(?=\/))?|(?=\/(?!\/)))([\s\S]*)$/i.exec(word)
+  if (url === null || (!url[1]!.startsWith('/') && !DRIVE_PATH.test(url[1]!))) return []
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(url[1]!)
+  } catch {
+    decoded = url[1]!
+  }
+  const drive = decoded.startsWith('/') ? decoded.slice(1) : decoded
+  return DRIVE_PATH.test(drive) && (drive !== decoded || drive[1] === '|') ? [decoded, `${drive[0]}:${drive.slice(2)}`] : [decoded]
+}
+
 export function spellingsOf(word: string): string[] {
   const out = [word]
   const equals = word.indexOf('=')
@@ -130,18 +143,7 @@ export function spellingsOf(word: string): string[] {
   for (const candidate of [...out]) {
     const plain = candidate.startsWith('@') ? candidate.slice(1).split(';')[0]! : candidate
     if (plain !== candidate) out.push(plain)
-    const url = /^file:(?:\/\/(?:(?:localhost|127\.0\.0\.1)(?=\/))?|(?=\/(?!\/)))([\s\S]*)$/i.exec(plain)
-    if (url !== null && (url[1]!.startsWith('/') || DRIVE_PATH.test(url[1]!))) {
-      const from = out.length
-      try {
-        out.push(decodeURIComponent(url[1]!))
-      } catch {
-        out.push(url[1]!)
-      }
-      const path = out[from]!
-      const drive = path.startsWith('/') ? path.slice(1) : path
-      if (DRIVE_PATH.test(drive) && (drive !== path || drive[1] === '|')) out.push(`${drive[0]}:${drive.slice(2)}`)
-    }
+    out.push(...fileUrlPaths(plain))
   }
   return out
 }

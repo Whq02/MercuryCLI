@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostCluster, HostClusterPod } from './runpod.js'
@@ -128,40 +128,43 @@ export function watchHostDirectory(dir: string, onChange: (filename: string | nu
     }
   }
   arm()
-  const stopFloor = subscribeUiClock(fallbackMs, () => {
+  const timer = fallbackMs > 0 ? startInterval(() => {
     if (closed) return
     if (!watcher) arm()
     onChange(null)
-  })
+  }, fallbackMs) : null
   return () => {
     closed = true
-    stopFloor()
+    if (timer !== null) stopInterval(timer)
     closeWatcher(watcher)
     watcher = null
     closeWatcher(ancestor)
     ancestor = null
   }
 }
-export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefined) => void): () => void {
+export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefined) => void, fallbackMs = 1000, onBeat?: () => void): () => void {
   const path = recordPath(id)
   const file = id + '.json'
   const readRaw = (): string | null => {
     try { return readFileSync(path, 'utf8') } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null; throw error }
   }
   let lastRaw = readRaw()
-  const check = (): void => {
+  const check = (beat: boolean): void => {
     let raw: string | null
     try { raw = readRaw() } catch (error) { passedOver(error); return }
-    if (raw === lastRaw) return
+    if (raw === lastRaw) {
+      if (beat) onBeat?.()
+      return
+    }
     lastRaw = raw
     if (raw === null) { cb(undefined); return }
     try { cb({ vendor: 'runpod', ...JSON.parse(raw) } as HostRecord) } catch (error) { passedOver(error) }
   }
   return watchHostDirectory(podsDirectory(), filename => {
-    if (filename === null || filename === file || filename.startsWith('.' + file + '.')) check()
-  })
+    if (filename === null || filename === file || filename.startsWith('.' + file + '.')) check(filename === null)
+  }, fallbackMs)
 }
-export function subscribeHostRecords(cb: () => void): () => void {
+export function subscribeHostRecords(cb: () => void, onBeat?: () => void): () => void {
   const dir = podsDirectory()
   const snapshot = (): string => {
     try {
@@ -175,13 +178,16 @@ export function subscribeHostRecords(cb: () => void): () => void {
     }
   }
   let last = snapshot()
-  const check = (): void => {
+  const check = (beat: boolean): void => {
     const next = snapshot()
-    if (next === last) return
+    if (next === last) {
+      if (beat) onBeat?.()
+      return
+    }
     last = next
     cb()
   }
   return watchHostDirectory(dir, filename => {
-    if (filename === null || filename.endsWith('.json') || filename.endsWith('.tmp')) check()
+    if (filename === null || filename.endsWith('.json') || filename.endsWith('.tmp')) check(filename === null)
   })
 }

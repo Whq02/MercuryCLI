@@ -8,7 +8,7 @@ import { workerTranscriptPath } from './workerTranscript.js'
 import { shouldMintTitle } from './sessionNaming.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const HEAD_BYTES = 48 * 1024
 const RETRY_MS = 15 * 60_000
@@ -180,11 +180,14 @@ export function startSessionTitleMintWatch(opts: { recordsDir?: string; tickMs?:
     })()
   }
   const unsubDelta = subscribeConcourseDelta(beat, opts.recordsDir)
+  const timer = startInterval(beat, opts.tickMs ?? 20_000)
+  timer.unref?.()
   beat()
   return {
     dispose: () => {
       alive = false
       abort.abort()
+      stopInterval(timer)
       clearRetryTimer()
       unsubDelta()
     },

@@ -9,6 +9,7 @@ import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveRe
 import { controlSockPath } from '../../src/daemon/controlSocket.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { afterBootFace } from '../lib/bootFace.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -181,8 +182,7 @@ const bornOf = (workers: Record<string, Worker>): Worker[] => Object.values(work
 
 section(`§2 the drive — ↵ New Session on the Boot face; the scene: ${scene}`)
 const ESC = String.fromCharCode(27)
-const HINT = '↑↓ choose'
-const after = (ms: number, payload: string): string => `after:${HINT}:${ms}:${payload}`
+const after = (ms: number, payload: string): string => afterBootFace(ms, payload)
 const ENTER_AT = 1500
 const BOARD_AT = scene === 'hold-reply' ? 66_000 : 13_000
 const sends = [after(ENTER_AT, '\r'), after(BOARD_AT, `${ESC}[1;2D`)]

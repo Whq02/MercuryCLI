@@ -1,6 +1,7 @@
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { foldContinuations, readShellCommand, shellTextOutsideFileHeredocs, type ShellDialect } from '../permissions/decision/commandAnalysis.js'
+import { wardEnvHomePath, wardNormalizedSlashedPath, wardUsesWindowsDeletePatterns } from '../platform/wards.js'
 
 export { shellTextOutsideFileHeredocs }
 
@@ -547,7 +548,7 @@ export function setHomeSpellings(door: HomeSpellings | undefined): void {
 }
 
 function envHomeSpellings(): readonly string[] {
-  const home = process.platform === 'win32' ? hostEnv().USERPROFILE || hostEnv().HOME : hostEnv().HOME || hostEnv().USERPROFILE
+  const home = wardEnvHomePath()
   return home === undefined || home === '' ? [] : [home]
 }
 
@@ -555,18 +556,22 @@ export function wardHomes(): string[] {
   return homeSpellings()
 }
 
+const DRIVE_HOME = /^[a-zA-Z]:\//
+const DRIVE_PATH = /^[a-zA-Z]:[\\/]/
+
 function homeSpellings(): string[] {
   const out: string[] = []
   for (const spelling of homeSpellingsDoor === undefined ? envHomeSpellings() : homeSpellingsDoor()) {
-    const trimmed = spelling.replace(/\/+$/, '')
-    if (trimmed.startsWith('/') && !out.includes(trimmed)) out.push(trimmed)
+    const slashed = DRIVE_PATH.test(spelling) ? spelling.replace(/\\/g, '/') : spelling
+    const trimmed = slashed.replace(/\/+$/, '')
+    if ((trimmed.startsWith('/') || DRIVE_HOME.test(trimmed)) && !out.includes(trimmed)) out.push(trimmed)
   }
   return out
 }
 
 type HomePatterns = { key: string; itself: RegExp[]; within: RegExp[]; operand: RegExp }
 
-const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~\\/', '[a-zA-Z]:[\\/\\\\]+[Uu]sers[\\/\\\\]+', '\\/[a-zA-Z]\\/[Uu]sers\\/']
+const OPERAND_PREFIXES = ['\\/(?:Users|home|private|var|Volumes|root|etc|opt|tmp)\\/', '~[\\/\\\\]', '[a-zA-Z]:[\\/\\\\]+[Uu]sers[\\/\\\\]+', '\\/[a-zA-Z]\\/[Uu]sers\\/']
 const OPERAND_TAIL = '[^\\s"\'`;&|)]*'
 
 let homePatternCache: HomePatterns | undefined
@@ -575,21 +580,52 @@ function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
+function escapeHomePattern(spelling: string): string {
+  return DRIVE_PATH.test(spelling) ? spelling.split(/[\\/]/).map(escapeRegex).join('[/\\\\]') : escapeRegex(spelling)
+}
+
 function homePatterns(): HomePatterns {
   const spellings = homeSpellings()
   const key = spellings.join('\n')
   if (homePatternCache?.key === key) return homePatternCache
-  const escaped = spellings.map(escapeRegex)
-  const home = escaped.length === 0 ? undefined : `(?:${escaped.join('|')})`
-  const prefixes = [...OPERAND_PREFIXES, ...escaped.map(spelling => `${spelling}(?=[\\/\\s"'\`;&|)]|$)`)]
+  const posixSpellings: string[] = []
+  const driveSpellings: string[] = []
+  for (const spelling of spellings) {
+    if (DRIVE_HOME.test(spelling)) {
+      driveSpellings.push(escapeHomePattern(spelling))
+      driveSpellings.push(escapeRegex(`/${spelling[0]}${spelling.slice(2)}`))
+    } else posixSpellings.push(escapeRegex(spelling))
+  }
+  const posixHome = posixSpellings.length === 0 ? undefined : `(?:${posixSpellings.join('|')})`
+  const driveHome = driveSpellings.length === 0 ? undefined : `(?:${driveSpellings.join('|')})`
+  const prefixes = [
+    ...OPERAND_PREFIXES,
+    ...posixSpellings.map(spelling => `${spelling}(?=[\\/\\s"'\`;&|)]|$)`),
+    ...driveSpellings.map(spelling => `${spelling}(?=[/\\\\\\s"'\`;&|)]|$)`),
+  ]
+  const itself: RegExp[] = []
+  if (posixHome !== undefined) itself.push(new RegExp(`${RECURSIVE_RM}${posixHome}\\/?\\*?(?:\\s|$|["'])`))
+  if (driveHome !== undefined) itself.push(new RegExp(`${RECURSIVE_RM}${driveHome}[/\\\\]?\\*?(?:\\s|$|["'])`, 'i'))
+  const within: RegExp[] = []
+  if (posixHome !== undefined) {
+    within.push(
+      new RegExp(`${RECURSIVE_RM}${posixHome}(?:\\/|\\s|$|["'])`),
+      new RegExp(`\\bfind\\s+["']?${posixHome}(?:\\/|\\s|["'])[^\\n;|&]*\\s-delete\\b`),
+    )
+  }
+  if (driveHome !== undefined) {
+    within.push(
+      new RegExp(`${RECURSIVE_RM}${driveHome}(?:[/\\\\]|\\s|$|["'])`, 'i'),
+      new RegExp(`${RECURSIVE_REMOVE_ITEM}${driveHome}(?:[/\\\\]|\\s|$|["'])`, 'i'),
+      new RegExp(`${RECURSIVE_RD_SLASH}${driveHome}(?:[/\\\\]|\\s|$|["'])`, 'i'),
+      new RegExp(`\\bfind\\s+["']?${driveHome}(?:[/\\\\]|\\s|["'])[^\\n;|&]*\\s-delete\\b`, 'i'),
+    )
+  }
   homePatternCache = {
     key,
-    itself: home === undefined ? [] : [new RegExp(`${RECURSIVE_RM}${home}\\/?\\*?(?:\\s|$|["'])`)],
-    within:
-      home === undefined
-        ? []
-        : [new RegExp(`${RECURSIVE_RM}${home}(?:\\/|\\s|$|["'])`), new RegExp(`\\bfind\\s+["']?${home}(?:\\/|\\s|["'])[^\\n;|&]*\\s-delete\\b`)],
-    operand: new RegExp(`(?:^|[\\s;=])"((?:${prefixes.join('|')})[^"\\n]*)"|(?:^|[\\s;=])'((?:${prefixes.join('|')})[^'\\n]*)'|(?:^|[\\s;"'=])((?:${prefixes.join('|')})${OPERAND_TAIL})`, 'g'),
+    itself,
+    within,
+    operand: new RegExp(`(?:^|[\\s;=])"((?:${prefixes.join('|')})[^"\\n]*)"|(?:^|[\\s;=])'((?:${prefixes.join('|')})[^'\\n]*)'|(?:^|[\\s;"'=])((?:${prefixes.join('|')})${OPERAND_TAIL})`, driveSpellings.length > 0 ? 'gi' : 'g'),
   }
   return homePatternCache
 }
@@ -600,7 +636,7 @@ function pipelineRemovalPattern(): RegExp {
   const spellings = [...homeSpellings(), hostEnv().USERPROFILE ?? ''].filter(Boolean)
   const key = JSON.stringify(spellings)
   if (pipelineRemovalCache?.key === key) return pipelineRemovalCache.pattern
-  const escaped = spellings.map(path => path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  const escaped = spellings.map(escapeHomePattern)
   const roots = [...WINDOWS_REMOVAL_TARGETS_FIXED, '\\/(?:Users|home)(?:\\/[^\\/\\s"\']+)?', '\\/root', ...escaped]
   const segment = '[^\\n;|&]*'
   const target = '\\s["\']?(?:' + roots.join('|') + ')[/\\\\]*\\*?["\']?(?=\\s|$|[|])'
@@ -630,7 +666,7 @@ let otherUserDeleteCache: { key: string; patterns: RegExp[] } | undefined
 
 function otherUserDeletePatterns(): RegExp[] {
   const own = ownHomeNames()
-  const windows = process.platform === 'win32'
+  const windows = wardUsesWindowsDeletePatterns()
   const key = `${windows ? 'win32' : 'posix'}\n${own.join('\n')}`
   if (otherUserDeleteCache?.key === key) return otherUserDeleteCache.patterns
   const heads = windows ? [...OTHER_HOME_HEADS, ...OTHER_HOME_HEADS_WINDOWS] : OTHER_HOME_HEADS
@@ -648,7 +684,7 @@ function otherUserDeletePatterns(): RegExp[] {
 function patternsFor(rule: WardRule): RegExp[] {
   const compiled = compile(rule)
   const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
-  const windows = rule.windowsRoots === true ? [...(process.platform === 'win32' ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
+  const windows = rule.windowsRoots === true ? [...(wardUsesWindowsDeletePatterns() ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
   const other = rule.otherUserHome === true ? otherUserDeletePatterns() : []
   return home.length === 0 && windows.length === 0 && other.length === 0 ? compiled : [...compiled, ...home, ...windows, ...other]
 }
@@ -838,13 +874,14 @@ function bindPath(target: WardTarget, pending: PendingToolCall, work?: WardWork)
   const given = normalisePath(target.path, work)
   if (target.asGiven === true && !given.startsWith('/')) return { relative: given, absolute: '' }
   const resolved = pending.resolvePath?.(given) ?? { path: given, root: undefined }
-  const path = resolved.path
+  const path = resolved.path.replace(/\\/g, '/')
   if (resolved.root !== undefined && resolved.root !== '') {
-    const base = resolved.root.endsWith('/') ? resolved.root : `${resolved.root}/`
-    if (path.startsWith(base)) return { relative: path.slice(base.length), absolute: path }
+    const root = resolved.root.replace(/\\/g, '/')
+    const base = root.endsWith('/') ? root : `${root}/`
+    if (path.startsWith(base) || (DRIVE_HOME.test(base) && path.toLowerCase().startsWith(base.toLowerCase()))) return { relative: path.slice(base.length), absolute: resolved.path }
   }
-  if (!path.startsWith('/')) return { relative: path, absolute: path }
-  return { relative: path.slice(path.lastIndexOf('/') + 1), absolute: path }
+  if (!path.startsWith('/') && !DRIVE_HOME.test(path)) return { relative: path, absolute: resolved.path }
+  return { relative: path.slice(path.lastIndexOf('/') + 1), absolute: resolved.path }
 }
 
 export function evaluateWards(
@@ -882,7 +919,8 @@ function lineResolvesInsideProject(
     if (root === undefined || root === '') continue
     resolvedAny = true
     const base = root.endsWith('/') ? root : `${root}/`
-    if (!resolved.path.replace(/\\/g, '/').startsWith(base)) return false
+    const resolvedSlashed = resolved.path.replace(/\\/g, '/')
+    if (!(DRIVE_HOME.test(base) ? resolvedSlashed.toLowerCase().startsWith(base.toLowerCase()) : resolvedSlashed.startsWith(base))) return false
   }
   return resolvedAny
 }
@@ -893,7 +931,7 @@ function lineResolvesInsideFolder(
   folder: string,
   work?: WardWork,
 ): boolean {
-  const slashed = (path: string): string => (process.platform === 'win32' ? path.replace(/\\/g, '/').toLowerCase() : path.replace(/\\/g, '/'))
+  const slashed = (path: string): string => wardNormalizedSlashedPath(path)
   const base = slashed(folder).replace(/\/+$/, '') + '/'
   let resolvedAny = false
   for (const m of line.matchAll(homePatterns().operand)) {
@@ -917,7 +955,7 @@ function lineResolvesInsideFolder(
 function expandTildeOf(operand: string): string | undefined {
   const home = homeSpellings()[0]
   if (operand === '~') return home
-  if (operand.startsWith('~/')) return home === undefined ? undefined : `${home}/${operand.slice(2)}`
+  if (operand.startsWith('~/') || operand.startsWith('~\\')) return home === undefined ? undefined : `${home}/${operand.slice(2)}`
   return undefined
 }
 
@@ -934,15 +972,16 @@ function evaluateTarget(rules: readonly WardRule[], pending: PendingToolCall, ta
     if (work) countWardWork(work, 'steps')
     if (rule.scope !== target.scope) continue
     if (target.scope === 'edit') {
+      const slashedPath = target.path.includes('\\') ? target.path.replace(/\\/g, '/') : target.path
       if (rule.pathPattern) {
         const re = cachedPathRegex(compiledPathPatterns, rule, rule.pathPattern)
         if (work && re !== null) regexWork(work, target.path)
-        if (re === null || !re.test(target.path)) continue
+        if (re === null || (!re.test(target.path) && (slashedPath === target.path || !re.test(slashedPath)))) continue
       }
       if (rule.allowPathPattern) {
         const re = cachedPathRegex(compiledAllowPathPatterns, rule, rule.allowPathPattern)
         if (work && re !== null) regexWork(work, target.path)
-        if (re !== null && re.test(target.path)) continue
+        if (re !== null && (re.test(target.path) || (slashedPath !== target.path && re.test(slashedPath)))) continue
       }
       if (rule.mercurySourceOnly === true && pending.isMercurySource?.(target.path) !== true) continue
       if (rule.generatedPaths !== undefined && target.path) {
