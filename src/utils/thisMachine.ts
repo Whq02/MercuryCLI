@@ -1,8 +1,8 @@
 import { homedir, hostname, networkInterfaces, userInfo } from 'node:os'
 import { join } from 'node:path'
-import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from '../../utils/remoteFiles/target.js'
-import { passedOver } from '../../utils/passedOver.js'
-import { hostEnv } from '../../utils/hostEnv.js'
+import { isRemotePath, parseRemotePath, resolvedAuthority, type RemoteTarget } from './remoteFiles/target.js'
+import { passedOver } from './passedOver.js'
+import { hostEnv } from './hostEnv.js'
 
 const LOOPBACK_NAMES: ReadonlySet<string> = new Set(['localhost', 'localhost.localdomain', 'ip6-localhost', 'ip6-loopback'])
 

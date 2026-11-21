@@ -14,6 +14,7 @@ prove-config-writes-row.ts
 prove-daemon-signin-refresh.ts
 prove-daemon-signin-view.ts
 prove-daemon-snapshot-slow.ts
+prove-deep-health-concurrent.ts
 prove-default-model-row-pin.ts
 prove-default-route-surfaces-agree.ts
 prove-deployed-assets.ts
