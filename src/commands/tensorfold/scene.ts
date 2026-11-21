@@ -26,6 +26,7 @@ import { TENSORFOLD_BREW_FORMULA, TENSORFOLD_RELEASE } from '../../services/tens
 import { TENSORFOLD_WORDS as W } from './words.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { tensorFoldHasNativeEngine } from '../../utils/platform/tensorfold.js'
 
 export type TensorFoldAct =
   | { kind: 'installing'; line?: string }
@@ -206,7 +207,7 @@ export async function readTensorFoldPanelFacts(io: FactsIo = {}, state: FactsSta
     io.onReadError?.(failure)
     if (!inventoryReadErrors.some(item => item.path === failure.path)) inventoryReadErrors.push(failure)
   }
-  const rows = platform === 'win32' && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served, onReadError: recordInventoryReadError }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
+  const rows = !tensorFoldHasNativeEngine(platform) && engine === null ? [] : withServedReadings(await readTensorFoldInventory(engine, { ...io, machine, served, onReadError: recordInventoryReadError }), records, quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined))
   const current = io.current
   const turn = quietly(() => (io.lastTurn ?? lastTensorFoldTurn)(), undefined)
   const hostsReadError = io.hosts === undefined ? tensorFoldHostsReadError() : undefined
@@ -278,7 +279,7 @@ function landingOf(facts: Pick<TensorFoldPanelFacts, 'rows' | 'served' | 'outsid
   if (facts.served.length > 0) return facts.served[0]!.repo
   if (facts.outside.length > 0) return `outside:${facts.outside[0]!.port}`
   if (facts.install !== null && (facts.install.kind === 'needs-brew' || facts.install.kind === 'archive' || facts.install.kind === 'no-gpu' || facts.install.kind === 'old-driver' || facts.install.kind === 'llamacpp')) return 'install'
-  if (facts.platform === 'win32' && facts.rows.length === 0) return 'rent'
+  if (!tensorFoldHasNativeEngine(facts.platform) && facts.rows.length === 0) return 'rent'
   return bestTensorFoldFit(facts.rows)?.repo ?? facts.rows[0]?.repo
 }
 
@@ -287,7 +288,7 @@ export function servedAddress(port: number): string {
 }
 
 function liveLineOf(facts: Omit<TensorFoldPanelFacts, 'live' | 'copySupportOffered'>): string {
-  if (facts.platform === 'win32' && facts.engine === null) return W.windowsLive
+  if (!tensorFoldHasNativeEngine(facts.platform) && facts.engine === null) return W.windowsLive
   const installing = facts.acts.install
   if (installing?.kind === 'installing') return facts.install?.kind === 'llamacpp' ? `installing llama.cpp ${facts.install.archive}` : `installing TensorFold ${TENSORFOLD_RELEASE} with Homebrew`
   if (facts.engine === null) return facts.install?.found ?? W.notInstalled

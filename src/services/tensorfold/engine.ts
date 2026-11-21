@@ -12,6 +12,7 @@ import { TENSORFOLD_STARTING_POINTS, type TensorFoldCheckpoint } from './startin
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { executableName } from '../../utils/platform/programs.js'
+import { tensorFoldHasNativeEngine } from '../../utils/platform/tensorfold.js'
 
 export const TENSORFOLD_BINARY_NAMES = ['tensorfold-native', 'tensorfold'] as const
 export const TENSORFOLD_RUNTIME_FOLDER = join('.local', 'share', 'mercury-host', 'runtime', 'tensorfold')
@@ -204,7 +205,7 @@ export function tensorFoldMachine(): TensorFoldMachine {
 
 function adapterBinaryFor(io: EngineIo, platform: NodeJS.Platform): string | undefined {
   if (typeof io.adapter === 'string') return io.adapter
-  if (io.adapter === true || platform === 'win32') return adapterEntry()
+  if (io.adapter === true || !tensorFoldHasNativeEngine(platform)) return adapterEntry()
   return undefined
 }
 

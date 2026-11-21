@@ -8,6 +8,7 @@ import { bytesWords } from '../../services/host/bank.js'
 import { gibWords, tokensWords } from '../../services/localServer/localServerMemory.js'
 import { displayWidth } from '../../utils/glyphs.js'
 import type { ProviderHeading } from '../../utils/model/modelPickerGroups.js'
+import { tensorFoldHasNativeEngine } from '../../utils/platform/tensorfold.js'
 import type { ModelChoice } from '../MercuryModelPicker.js'
 
 export const TENSORFOLD_MODEL_GROUP = 'Mercury — TensorFold models'
@@ -598,7 +599,7 @@ function announcedChoice(host: TensorFoldAnnouncedHost, labels: ReadonlyMap<stri
 }
 
 function modelGroupChoices(facts: TensorFoldPickerFacts, ui: TensorFoldPickerUi): ModelChoice[] {
-  if (facts.platform === 'win32' && facts.engine === null) return []
+  if (!tensorFoldHasNativeEngine(facts.platform) && facts.engine === null) return []
   const families = new Set((facts.engine?.families ?? []).map(family => family.id))
   const offered = facts.rows.filter(row => row.qualified || isServed(row) || (row.state === 'on-disk' && families.has(row.family)))
   const served = offered.filter(isServed)
@@ -623,7 +624,7 @@ function servingWords(rows: readonly TensorFoldModelRow[]): string {
 }
 
 function tensorFoldStatus(facts: TensorFoldPickerFacts): string {
-  if (facts.platform === 'win32' && facts.engine === null) return 'no Windows release yet'
+  if (!tensorFoldHasNativeEngine(facts.platform) && facts.engine === null) return 'no Windows release yet'
   if (facts.adapter !== undefined) return facts.helper === undefined ? ADAPTER_HEADING_WORDS : `${ADAPTER_HEADING_WORDS} ${facts.helper}`
   const chip = facts.machine?.chip ?? facts.engine?.chip
   const usableGib = facts.machine?.usableGib ?? facts.rows.find(row => row.fit.availableGib > 0)?.fit.availableGib
@@ -658,6 +659,6 @@ export function tensorFoldPickerRows(facts: TensorFoldPickerFacts, ui: TensorFol
 }
 
 export function tensorFoldFoldedOnOpen(facts: TensorFoldPickerFacts, view: 'model' | 'tensorfold'): string[] {
-  if (facts.platform === 'win32' && facts.engine === null) return [TENSORFOLD_MODEL_GROUP]
+  if (!tensorFoldHasNativeEngine(facts.platform) && facts.engine === null) return [TENSORFOLD_MODEL_GROUP]
   return view === 'tensorfold' ? [TENSORFOLD_HOST_GROUP] : [TENSORFOLD_MODEL_GROUP, TENSORFOLD_HOST_GROUP]
 }
