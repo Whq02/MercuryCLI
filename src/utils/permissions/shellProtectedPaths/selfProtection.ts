@@ -52,10 +52,6 @@ function runtimeTargetsOf(layer: Layer): Array<{ path: string; removesTree: bool
       const into = valuesOf(argv, '-d')
       return at(into.length > 0 ? into : ['.'])
     }
-    case 'curl': {
-      const named = [...valuesOf(argv, '-o', '--output'), ...valuesOf(argv, '--output-dir')]
-      return at(named.length > 0 ? named : argv.some(word => word === '--remote-name' || /^-[A-Za-z]*O/.test(word)) ? ['.'] : [])
-    }
     case 'wget': {
       const named = [...valuesOf(argv, '-O', '--output-document'), ...valuesOf(argv, '-P', '--directory-prefix')]
       return at(named.length > 0 ? named : ['.'])
