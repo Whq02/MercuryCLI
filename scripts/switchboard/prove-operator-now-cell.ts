@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { ConcourseSnapshotV1 } from '../../src/components/concourse/contracts.ts'
 
-assert.ok(process.env.MERCURY_CONFIG_DIR)
+assert.ok(process.env.MERCURY_CONFIG_DIR, 'set scratch MERCURY_CONFIG_DIR before running prove-operator-now-cell.ts')
 delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LIVE_GLYPHS = '0'
