@@ -327,7 +327,7 @@ const SESSION_OP_DOWNGRADES: Readonly<Record<string, { legacyOp: string; bornAt:
   ALIASED_SESSION_ROWS.map(row => [row.daemon.op, { legacyOp: row.daemon.legacyOp, bornAt: row.daemon.bornAt ?? 3 }]),
 )
 
-const SESSION_OP_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
+export const SESSION_OP_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
   ALIASED_SESSION_ROWS.map(row => [row.daemon.legacyOp, row.daemon.op]),
 )
 

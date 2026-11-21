@@ -95,13 +95,13 @@ export type FileCheckpointsFact = z.infer<ReturnType<typeof FileCheckpointsFactS
 export const InitializeResultSchema = METHODS.initialize.result
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>
 
-export const PermissionRequestParamsSchema = METHODS['permission/request'].params
+export const PermissionRequestParamsSchema = METHODS[SESSION_VERBS.answerAsk.runner.name].params
 export type PermissionRequestParams = z.infer<ReturnType<typeof PermissionRequestParamsSchema>>
 
-export type PermissionAnswer = z.infer<ReturnType<(typeof METHODS)['permission/request']['result']>>
-export type ElicitationRequestParams = z.infer<ReturnType<(typeof METHODS)['elicitation/request']['params']>>
-export type ElicitationAnswer = z.infer<ReturnType<(typeof METHODS)['elicitation/request']['result']>>
-export type SessionAppliedParams = z.infer<ReturnType<(typeof METHODS)['session/applied']['params']>>
+export type PermissionAnswer = z.infer<ReturnType<(typeof METHODS)[typeof SESSION_VERBS.answerAsk.runner.name]['result']>>
+export type ElicitationRequestParams = z.infer<ReturnType<(typeof METHODS)[typeof SESSION_VERBS.elicitationRequest.runner.name]['params']>>
+export type ElicitationAnswer = z.infer<ReturnType<(typeof METHODS)[typeof SESSION_VERBS.elicitationRequest.runner.name]['result']>>
+export type SessionAppliedParams = z.infer<ReturnType<(typeof METHODS)[typeof SESSION_VERBS.sessionApplied.runner.name]['params']>>
 
 export type MethodName = keyof typeof METHODS
 export type ParamsOf<M extends MethodName> = z.infer<ReturnType<(typeof METHODS)[M]['params']>>

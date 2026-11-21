@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { Box, Text, useInput } from '../ink.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
-import { useDerivedState, useLoad } from '../hooks/effects.js'
+import { useLoad } from '../hooks/effects.js'
 import TextInput from './TextInput.js'
 import { CommandCenter } from './mercury-ui/components.js'
 import { displayWidth, GLYPH, truncateToWidth } from '../utils/glyphs.js'
@@ -168,9 +168,8 @@ export function MercuryContentSearch({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useDerivedState(() => {
-    setSel(s => Math.min(s, Math.max(0, shown.length - 1)))
-  }, [shown.length])
+  const clampedSel = Math.min(sel, Math.max(0, shown.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
 
   useInput(
     (input, key, event) => {
@@ -184,7 +183,7 @@ export function MercuryContentSearch({
       }
       if (action === 'movePrevious' || action === 'moveNext') {
         event.stopImmediatePropagation()
-        const target = applyNavMotion(action, sel, shown.length, { orientation: 'vertical' })
+        const target = applyNavMotion(action, clampedSel, shown.length, { orientation: 'vertical' })
         if (target !== null) setSel(target)
         return
       }
@@ -205,7 +204,7 @@ export function MercuryContentSearch({
           }}
           onSubmit={() => {
             if (!pastOpenEvent()) return
-            const it = shown[Math.min(sel, Math.max(0, shown.length - 1))]
+            const it = shown[clampedSel]
             if (it) onPick(`@${it.file}#L${it.line} `)
           }}
           focus={isActive}
@@ -241,7 +240,7 @@ export function MercuryContentSearch({
       ) : (
         <Box marginTop={1} flexDirection="column">
           {shown.map((it, i) => {
-            const here = i === sel
+            const here = i === clampedSel
             const loc = `${truncateToWidth(it.file, FILE_WIDTH)}:${it.line}`
             const pad = ' '.repeat(Math.max(0, FILE_WIDTH + 6 - displayWidth(loc)))
             return (

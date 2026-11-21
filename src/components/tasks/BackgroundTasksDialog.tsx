@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useSyncExternalStore } from 'react'
-import { useDerivedState } from '../../hooks/effects.js'
+import { usePublish } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { KeyboardEvent } from '../../ink/events/keyboard-event.js'
@@ -205,14 +205,16 @@ export function BackgroundTasksDialog({
     setDetailTaskId(undefined)
   }
 
-  useDerivedState(() => {
-    if (detailTaskId === undefined) return
-    const task = tasks[detailTaskId]
-    if (task !== undefined && (isManageableTask(task) || isLocalShellTask(task))) return
-    if (task === undefined && roster.rows.some(w => w.id === detailTaskId)) return
-    if (skippedListRef.current) onDone()
-    else setDetailTaskId(undefined)
-  }, [detailTaskId, tasks, roster, onDone])
+  const detailMissing =
+    detailTaskId !== undefined &&
+    !(detailTask !== undefined && (isManageableTask(detailTask) || isLocalShellTask(detailTask))) &&
+    !(detailTask === undefined && detailWork !== undefined)
+  if (detailMissing && !skippedListRef.current) {
+    setDetailTaskId(undefined)
+  }
+  usePublish(() => {
+    if (detailMissing && skippedListRef.current) onDone()
+  }, [detailMissing, onDone])
 
   const openDetail = (item: BoardItem): void => openDetailOf(ctx, item)
 

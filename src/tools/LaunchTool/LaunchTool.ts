@@ -1,8 +1,10 @@
 import { resolve } from 'node:path'
 import { z } from 'zod/v4'
 import { buildTool, findToolByName, type ToolCallProgress, type ToolEffectOutcome, type ToolUseContext } from '../../Tool.js'
-import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
-import type { OwnerKey } from '../../utils/run/ownerKey.js'
+import { ownerFromToolUseContext, processMainOwner } from '../../utils/run/resolveOwner.js'
+import { parseOwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { lazySchema } from '../../utils/lazySchema.js'
 import { getCwd } from '../../utils/cwd.js'
 import { semanticNumber } from '../../utils/semanticNumber.js'
@@ -62,7 +64,14 @@ type Route =
 type OpResult = Pick<Output, 'result' | 'outcome' | 'route'> & { details?: Record<string, unknown> }
 type Resolution = { refuse: OpResult } | { own: 'run' | 'build' } | { route: Route }
 
-const lastActions = new Map<OwnerKey, { at: number; summary: string }>()
+type LastLaunchAction = { at: number; summary: string }
+
+const lastActions = new OwnerScopedStore<{ last: LastLaunchAction | null }>({
+  name: 'launch-last-actions',
+  retain: (_state, owner) => parseOwnerKey(owner).sessionId === parseOwnerKey(processMainOwner()).sessionId,
+  create: () => ({ last: null }),
+})
+registerOwnerScopedStore(lastActions)
 
 function profileOps(p: LaunchProfile): string {
   return p.debug ? 'op:"debug" or op:"run"' : p.test || (p.runnerRef && p.kind === 'test')
@@ -271,7 +280,7 @@ async function runRoute(p: LaunchProfile, route: Route, context: ToolUseContext,
       : op.record
         ? `test ${p.id} — ${op.record.counts.passed} passed · ${op.record.counts.failed} failed (${op.record.id})`
         : `test ${p.id} — ${op.outcome}`
-  lastActions.set(owner, { at: Date.now(), summary })
+  lastActions.get(owner).last = { at: Date.now(), summary }
   const routed = { tool: route.tool, input: route.input }
   return {
     result: `${op.result}\n${await routeLine(p, route, context, replaced)}`,
@@ -289,7 +298,7 @@ async function runRoute(p: LaunchProfile, route: Route, context: ToolUseContext,
 async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCallProgress): Promise<OpResult> {
   const owner = ownerFromToolUseContext(context)
   const note = (summary: string): void => {
-    lastActions.set(owner, { at: Date.now(), summary })
+    lastActions.get(owner).last = { at: Date.now(), summary }
   }
   if (input.op === 'list') {
     const d = await discoverLaunchProfiles()
@@ -307,7 +316,7 @@ async function runOp(input: Input, context: ToolUseContext, onProgress?: ToolCal
     }
   }
   if (input.op === 'last') {
-    const last = lastActions.get(owner)
+    const last = lastActions.peek(owner)?.last
     return {
       result: last ? `${new Date(last.at).toISOString()} — ${last.summary}` : 'no launch-profile action this session',
       outcome: 'no-change',

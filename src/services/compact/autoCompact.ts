@@ -1,5 +1,5 @@
 import type { ToolUseContext } from '../../Tool.js'
-import { queuedCompactRequest } from '../../input-core/command-queue.js'
+import { beginQueuedCompact } from '../../input-core/command-queue.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { isMercurySubstrateProfileOn } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -9,6 +9,7 @@ import { logError } from '../../utils/log.js'
 import { awaitContextWindowSource } from '../context/contextWindowWarmup.js'
 import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../context/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { readRequestGauge } from '../run/requestGauge.js'
 import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
@@ -253,11 +254,13 @@ const advanceState = new OwnerScopedStore<CompactionState>({
   name: 'autocompact-advance',
   create: () => ({ lastFiredTurn: null, rearmed: true }),
 })
+registerOwnerScopedStore(advanceState)
 
 const fixedMaterialSkipState = new OwnerScopedStore<{ noted: boolean }>({
   name: 'autocompact-fixed-material-skip',
   create: () => ({ noted: false }),
 })
+registerOwnerScopedStore(fixedMaterialSkipState)
 
 
 export async function autoCompactIfNeeded(
@@ -308,21 +311,12 @@ export async function autoCompactIfNeeded(
     slot.noted = true
     logForDebugging(message)
   }
-  const queued = toolUseContext.agentId === undefined && (querySource === 'sdk' || querySource?.startsWith('main_thread'))
-    ? queuedCompactRequest(ownerFromToolUseContext(toolUseContext)) : undefined
   const askedByOperator = operatorCompactionAsked(toolUseContext)
   if (askedByOperator) {
     takeOperatorCompactionAsk(toolUseContext)
     logForDebugging(`autoCompact: crewmate ${String(toolUseContext.agentId)} folds now — the operator asked for it from the crew view${forced ? ' (the overflow fold at this boundary is the one fold)' : ''}`)
   }
-  const asked = askedByOperator && !forced
-  if (asked) {
-    const projection = await projectManualFold(messages, toolUseContext, cacheSafeParams, getAutoCompactThreshold(model))
-    const refold = isRefold(messages)
-    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
-      return { ...notCompacted, refusal: crewmateCompactNothingWords(askingCrewmateName(toolUseContext), nothingToCompactLine(projection.context, refold)), declined: true }
-    }
-  }
+  let asked = askedByOperator && !forced
   let compact: boolean
   if (forced) {
     if (querySource === 'session_memory' || querySource === 'compact') {
@@ -377,6 +371,12 @@ export async function autoCompactIfNeeded(
       }
     }
   }
+  const queued = messages.length > 0 && toolUseContext.agentId === undefined && (querySource === 'sdk' || querySource?.startsWith('main_thread'))
+    ? beginQueuedCompact(ownerFromToolUseContext(toolUseContext)) : undefined
+  if (!compact && queued?.fresh) {
+    asked = true
+    compact = true
+  }
   if (!compact) return { ...notCompacted, measuredRawTokenCount }
 
   fixedTokens ??= await measureFixed()
@@ -385,11 +385,20 @@ export async function autoCompactIfNeeded(
     const message = `autoCompact: fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`
     if (!forced && !asked && !thresholdOverridden()) {
       noteFixedSkip(`autoCompact: skipping — fixed prefix (~${overflow.prefixTokens} tokens) exceeds the threshold (${overflow.thresholdTokens}); compaction cannot help`)
-      return { ...notCompacted, measuredRawTokenCount }
+      if (!queued?.fresh) return { ...notCompacted, measuredRawTokenCount }
+      asked = true
     }
     logForDebugging(message)
   }
 
+  if (asked) {
+    const projection = await projectManualFold(messages, toolUseContext, cacheSafeParams, getAutoCompactThreshold(model))
+    const refold = isRefold(messages)
+    if (projection !== null && (refold ? manualFoldHasNothingToFold(projection) : projection.after >= projection.before)) {
+      const line = nothingToCompactLine(projection.context, refold)
+      return { ...notCompacted, refusal: askedByOperator ? crewmateCompactNothingWords(askingCrewmateName(toolUseContext), line) : line, declined: true }
+    }
+  }
   const refills = rapidRefillCount(tracking)
   const tripped = refills >= RAPID_REFILL_LIMIT
   if (tripped) logForDebugging('autoCompact: rapid-refill breaker tripped — this fold lands, then automatic compaction pauses for the run')
@@ -415,7 +424,7 @@ export async function autoCompactIfNeeded(
   try {
     const folded = await withFoldStatus(toolUseContext, async scoped => {
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-    const viaMemory = instructions === undefined ? await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped) : null
+    const viaMemory = instructions === undefined ? await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped, asked && !askedByOperator ? 'manual' : 'auto') : null
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(viaMemory))

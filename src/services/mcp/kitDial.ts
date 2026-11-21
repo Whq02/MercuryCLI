@@ -2,6 +2,7 @@ import type { AppState } from '../../state/AppStateStore.js'
 import type { SessionKitV1 } from '../../daemon/sessionKit.js'
 import { getMcpPrefix } from '../../utils/mcp/mcpStringUtils.js'
 import { isMcpOrgan, kitMembership } from './membership.js'
+import { pruneStaleMcpResourceTools } from './client.js'
 import type { ScopedMcpServerConfig } from '../../utils/mcp/types.js'
 
 function kitSpokenMcpNames(kit: SessionKitV1 | undefined): readonly string[] {
@@ -45,16 +46,20 @@ export function dropMcpServerFromAppState(
   config: ScopedMcpServerConfig,
 ): AppState {
   const prefix = getMcpPrefix(serverName)
+  const nextClients = previous.mcp.clients.map(candidate =>
+    candidate.name === serverName
+      ? { name: serverName, type: 'disabled' as const, config }
+      : candidate,
+  )
   return {
     ...previous,
     mcp: {
       ...previous.mcp,
-      clients: previous.mcp.clients.map(candidate =>
-        candidate.name === serverName
-          ? { name: serverName, type: 'disabled' as const, config }
-          : candidate,
+      clients: nextClients,
+      tools: pruneStaleMcpResourceTools(
+        nextClients,
+        previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
       ),
-      tools: previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
       commands: previous.mcp.commands.filter(
         candidate => !candidate.name.startsWith(prefix),
       ),

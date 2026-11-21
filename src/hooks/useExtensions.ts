@@ -1,6 +1,6 @@
 
 import { useRef } from 'react'
-import { useLoad, useSubscription } from './effects.js'
+import { useClaim, useLoad } from './effects.js'
 import { useNotifications } from '../context/notifications.js'
 import { useSetAppState } from '../state/AppState.js'
 import type { AppState } from '../state/AppState.js'
@@ -60,7 +60,7 @@ export function useExtensions({ enabled = true }: { enabled?: boolean } = {}): v
     })()
   }, [enabled, setAppState])
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!enabled) return
     return onExtensionsPending(pending => {
       setAppState(prev => (prev.extensions.pending === pending ? prev : { ...prev, extensions: { ...prev.extensions, pending } }))

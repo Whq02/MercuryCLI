@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js'
 import type {
   CanUseToolFn,
   AnyObject,
@@ -823,6 +824,7 @@ async function runToolCall({ args, tool, toolUseID, assistantMessage, canUseTool
       roundHandle: args.roundHandle,
       userModifiedInput: decision.userModified,
     }
+    if (!tool.isMcp) featureReached('tool', tool.name)
     let callAbandoned = false
     result = await settleUnderAbort(
       Promise.resolve(

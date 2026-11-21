@@ -132,8 +132,7 @@ and for a directory named in `workspace.worktree.symlinkDirectories`, each is
 a link to the checkout's copy, hidden from git through the clone's exclude
 file. On such a filesystem the worktree also starts with everything else the
 checkout holds that git ignores (build output, caches, generated files,
-`.env` files), each its own copy: that is what a copy that builds and runs
-needs. Build output comes from the checkout as it stood while the worktree
+`.env` files), each its own copy. Build output comes from the checkout as it stood while the worktree
 holds the commit, so a tool that only checks that an artifact exists reads
 the checkout's build. Four things stay behind: Mercury's own folders and
 instruction files, a folder that holds a `pyvenv.cfg` or a `CMakeCache.txt`

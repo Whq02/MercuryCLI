@@ -9,7 +9,6 @@
 # gate-watch: scripts/verify/prove-impact-manifest.ts scripts/verify/prove-impact-run.ts scripts/verify/prove-slice-core.ts
 # gate-watch: src/tasks/LocalShellTask/killShellTasks.ts src/tasks/LocalShellTask/LocalShellTask.tsx src/tools/BashTool/BashTool.tsx
 # gate-watch: src/tools/BashTool/BashToolResultMessage.tsx src/tools/BashTool/UI.tsx src/utils/shell/utils.ts
-# gate-watch: src/utils/bash/shellCompletion.ts
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

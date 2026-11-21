@@ -1,5 +1,6 @@
 
 import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
+import { getAgentContext } from '../agentContext.js'
 import {
   agentLane,
   MAIN_LANE,
@@ -47,6 +48,10 @@ export function processOwnerForLane(agentId?: string | null): OwnerKey {
     sessionId: safeSessionId(),
     lane: agentId ? agentLane(String(agentId)) : MAIN_LANE,
   })
+}
+
+export function currentOwner(): OwnerKey {
+  return processOwnerForLane(getAgentContext()?.agentId)
 }
 
 export function ownerFromToolUseContext(context: {

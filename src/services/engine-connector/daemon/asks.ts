@@ -14,6 +14,7 @@ import { readSessionAsks, type SessionAskProjectionV1, type SessionFactsV1 } fro
 import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1 } from '../types.js'
 import { emitAll, type Listeners } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import { controlFrame } from './controlCarrier.js'
 
 interface AsksNeeds {
   record(): { readonly sessionId: string; readonly modelKey?: string }
@@ -181,25 +182,23 @@ export class AsksPart {
   private async answerThroughDaemon(requestId: string, answer: AskAnswerV1): Promise<AskReceiptV1> {
     this.settleAsk(requestId)
     try {
-      const reply = await this.needs.chainRpc({
-        op: 'sessionControl',
-        action: 'answer-permission',
-        sessionId: this.needs.record().sessionId,
-        by: 'operator',
-        requestId,
-        allow: answer.kind === 'allow',
-        answer:
-          answer.kind === 'allow'
-            ? {
-                ...(answer.updatedInput !== undefined ? { updatedInput: answer.updatedInput } : {}),
-                ...(answer.permissionUpdates !== undefined && answer.permissionUpdates.length > 0
-                  ? { permissionUpdates: answer.permissionUpdates }
-                  : {}),
-              }
-            : answer.kind === 'deny'
-              ? { ...(answer.feedback !== undefined ? { feedback: answer.feedback } : {}) }
-              : { interrupt: true },
-      })
+      const reply = await this.needs.chainRpc(
+        controlFrame('answerAsk', this.needs.record().sessionId, {
+          requestId,
+          allow: answer.kind === 'allow',
+          answer:
+            answer.kind === 'allow'
+              ? {
+                  ...(answer.updatedInput !== undefined ? { updatedInput: answer.updatedInput } : {}),
+                  ...(answer.permissionUpdates !== undefined && answer.permissionUpdates.length > 0
+                    ? { permissionUpdates: answer.permissionUpdates }
+                    : {}),
+                }
+              : answer.kind === 'deny'
+                ? { ...(answer.feedback !== undefined ? { feedback: answer.feedback } : {}) }
+                : { interrupt: true },
+        }),
+      )
       const ok = reply.ok === true && reply.outcome === 'applied'
       if (!ok) return { ok: false, detail: String(reply.detail ?? reply.error ?? 'the ask was already answered') }
       const feedback = answer.kind === 'allow' || answer.kind === 'deny' ? answer.feedback?.trim() : undefined

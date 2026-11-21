@@ -10,6 +10,7 @@ import * as pendingInput from '../../input-core/pending-input.js';
 import { getShortcutDisplay } from '../../keybindings/shortcutFormat.js';
 import { createBranchSession } from '../../services/branches/branchManifest.js';
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js';
+import { waitForTurnEnd } from '../../services/engine-connector/turnEnd.js';
 import type { RewindReceiptV1 } from '../../services/engine-connector/types.js';
 import type { Message, NormalizedUserMessage, UserMessage } from '../../types/message.js';
 import type { PromptInputMode } from '../../types/textInputTypes.js';
@@ -17,7 +18,6 @@ import { getCwd } from '../../utils/cwd.js';
 import { textForResubmit } from '../../utils/messages.js';
 import { modelDisplayString } from '../../utils/model/model.js';
 import { readAllTranscriptEntries } from '../../utils/sessionStorage/materialize.js';
-import { sleep } from '../../utils/sleep.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import type { Screen } from './screen.js';
@@ -117,10 +117,7 @@ export function useChatSelectorView({
       const connector = getFocusedSessionConnector();
       if (connector.turnActive()) {
         connector.interrupt();
-        const deadline = Date.now() + REWIND_SETTLE_WAIT_MS;
-        while (connector.turnActive() && Date.now() < deadline) {
-          await sleep(100);
-        }
+        await waitForTurnEnd(connector, { limitMs: REWIND_SETTLE_WAIT_MS });
       }
       if (message === undefined && files?.userMessageId === undefined) return { outcome: 'refused', mode, refusal: 'not-found', detail: 'no restore point was selected' };
       const receipt = files === undefined && message !== undefined

@@ -1,0 +1,58 @@
+scripts/api/prove-prefix-record-life.ts	1	4	5cc1cf0af2e3	owner	guards privacy promise in docs/SESSIONS.md
+scripts/bash/prove-windows-road-order.ts	1	2	93adeedb62ae	contract	compares windowsShellRoad waysOut strings against docs/INSTALL.md
+scripts/build/prove-windows-desktop-guide.ts	1	3	dc9ecc9630b9	contract	checks package.json setup vendor steps against docs/INSTALL-WINDOWS-FROM-SOURCE.md
+scripts/command-catalogue/prove-readme-roster.ts	1	4	b33563055168	contract	runs built product and compares its roster against README.md
+scripts/dev-context/prove-root-guide.ts	1	2	a54ff182c7e8	contract	holds AGENTS.md 80-line ceiling and package.json engines.node range
+scripts/distribution/prove-distribution-links.ts	3	3	c18c73c0f9b6	owner	resolves local links across active docs and guards README THIRD_PARTY_NOTICES.md pointer
+scripts/distribution/prove-distribution-notices.ts	1	9	d448b8e7fefe	contract	verifies THIRD_PARTY_NOTICES.md against package.json, bun.lock and vendor locks
+scripts/distribution/prove-headless-image.ts	1	12	17231eb035a5	contract	checks Dockerfile WORKDIR, CMD, USER and credential env vars against docs/AUTOMATION.md
+scripts/distribution/prove-json-query-pack.ts	1	3	d448b8e7fefe	contract	verifies vendor json-query lock components appear in THIRD_PARTY_NOTICES.md
+scripts/distribution/prove-no-os-sandbox.ts	1	1	d448b8e7fefe	owner	ensures retired sandbox notice paragraphs are absent from THIRD_PARTY_NOTICES.md
+scripts/distribution/prove-notice-stamp.ts	1	6	d448b8e7fefe	owner	guards Apache NOTICE preservation statements in THIRD_PARTY_NOTICES.md
+scripts/distribution/prove-release-documents.ts	3	8	de1807f182af	owner	guards Apache 2.0 licence statements across README.md, sdk/README.md and sdk-py/README.md
+scripts/docs/prove-automation-examples.ts	1	0	17231eb035a5	contract	extracts and executes runnable TypeScript and Python blocks from docs/AUTOMATION.md
+scripts/docs/prove-llmhost-doc.ts	1	24	da68859d8ace	contract	verifies live host road menus, vendors, recipes and bank keys against docs/LLM-HOST.md
+scripts/editor-bridge/prove-vscode-bridge.ts	1	0	4673a3aba018	owner	compares packaged VS Code extension licence bytes against LICENSE.md
+scripts/extensions/prove-contract-in-sync.ts	1	0	10bc7fcef26b	contract	verifies docs/templates/extension-source-README.md matches bundled skill template byte for byte
+scripts/extensions/prove-extensions-cli.ts	1	2	4d19514e7fce	contract	verifies Craft pinned releases in docs/EXTENSIONS.md match code
+scripts/hooks/prove-hook-event-table.ts	1	4	338b4b96eef2	contract	parses docs/HOOKS.md event table against hookEventTable in code
+scripts/identity/prove-ask-clock-words-gone.ts	1	1	0a412bdac388	scan	scans tracked src, scripts and docs for retired ask-clock spellings
+scripts/identity/prove-crew-docs-words.ts	3	6	c1bd94cd387b	scan	scans active docs for retired crew spellings
+scripts/identity/prove-docs-altitude.ts	7	14	45219e914d33	scan	scans root and docs pages for forbidden internal process words
+scripts/identity/prove-docs-integrity.ts	2	109	bdadcda47869	scan	validates markdown syntax, anchors and local links across README.md and docs
+scripts/identity/prove-docs-names.ts	2	54	83ed67a89d48	contract	parses backticked commands, flags and paths in docs against the live product
+scripts/identity/prove-embed-pack-everywhere-words.ts	5	3	255443836040	scan	scans README.md and docs for retired macOS-only embed pack claims
+scripts/identity/prove-file-tool-absent.ts	1	1	0a412bdac388	scan	scans docs for retired file-tool names
+scripts/identity/prove-flow-judge-words-gone.ts	1	1	0a412bdac388	scan	scans tracked src, scripts and docs for retired flow-judge spellings
+scripts/identity/prove-hook-spellings-retired.ts	1	0	0a412bdac388	scan	scans tracked src, scripts and docs for retired hook spellings
+scripts/identity/prove-readme-headless-words.ts	1	10	17231eb035a5	contract	checks row vocabulary, RPC schema and runnable initialize line in docs/AUTOMATION.md
+scripts/identity/prove-second-sign-in-words-gone.ts	2	3	bdadcda47869	scan	scans README.md and docs for retired sign-in spellings
+scripts/identity/prove-tester-door.ts	1	1	b33563055168	owner	guards install-counter privacy promise in README.md
+scripts/identity/prove-unknown-command-answer.ts	1	1	b33563055168	scan	scans README.md for retired slash commands
+scripts/identity/prove-verb-help-words.ts	5	15	d148b020c8ca	scan	scans docs for retired verb flags and platform claims
+scripts/media/prove-host-docs.ts	2	1	02a7830add59	owner	checks pinned media runtime revision and privacy terms in docs/MEDIA.md and docs/LLM-HOST.md
+scripts/media/prove-media-vendor-manifest.ts	1	4	4e755262bdb6	contract	parses docs/MEDIA.md manifest table against code mediaRows
+scripts/node-runtime/prove-copy-truth.ts	2	0	6ce253dd7bea	contract	checks NODE_SUPPORT.range in docs/INSTALL.md and BUILD-NOTES.md
+scripts/permissions/floorsKit.ts	1	0	201dbf0e07fc	helper	shared docs/TRUST.md reader for owner-protected safety-floor proofs
+scripts/permissions/prove-child-environment.ts	1	3	338b4b96eef2	owner	guards child-environment credential and secret promises in docs/HOOKS.md
+scripts/permissions/prove-flow-keeps-configuration-ask.ts	1	1	201dbf0e07fc	owner	guards configuration-ask credential promise in docs/TRUST.md
+scripts/permissions/prove-monitor-hostless-run.ts	1	1	201dbf0e07fc	owner	guards hostless-run secret promise in docs/TRUST.md
+scripts/permissions/prove-safety-floors.ts	1	3	201dbf0e07fc	owner	guards safety-floor secret promises in docs/TRUST.md
+scripts/providers/prove-nous-contract.ts	1	1	88d6dfbe4c18	contract	checks NOUS_PORTAL_CLIENT_ID constant in docs/ENGINES.md
+scripts/remote-files/prove-remote-page.ts	1	1	4f10e67d9d3d	contract	parses ssh:// example paths and settings JSON block from docs/REMOTE-FILES.md
+scripts/sdk/prove-release-surface.ts	2	1	fbe35c12a5cc	contract	compares package.json versions against sdk/README.md and sdk-py/README.md
+scripts/sdk/prove-sdk-readme.ts	2	17	fbe35c12a5cc	contract	verifies SDK method coverage and executes code blocks from sdk/README.md and sdk-py/README.md
+scripts/self-hosting/prove-formats-page-names-what-is-read.ts	1	20	0333285b158f	contract	parses docs/COMPATIBILITY.md table against instruction format adapters
+scripts/skills/prove-idle-doc-pages.ts	2	0	bdadcda47869	contract	hashes bundled mercury-docs skill pages against README.md and docs on disk
+scripts/skills/prove-image-generation-skill.ts	1	0	4e755262bdb6	contract	verifies bundled mercury-docs ships docs/MEDIA.md byte for byte
+scripts/skills/prove-mercury-docs-skill.ts	2	0	bdadcda47869	contract	verifies bundled mercury-docs page set and links match README.md and docs on disk
+scripts/splash/prove-face-fit-floor.ts	3	1	1c093d47cd57	contract	checks live boot card row names appear in README.md, AGENTS.md and Windows guide
+scripts/tools/prove-parity2-render-economy.ts	1	2	75ec07ad96b3	owner	guards machine-privacy promise in docs/TERMINAL-RUNTIME.md
+scripts/tools/prove-read-json-docs.ts	1	3	1b54258e78ef	contract	checks vendor json-query engine version in docs/DOCUMENTS.md
+scripts/ui/prove-beta40-help.ts	1	2	b33563055168	contract	parses README.md command rows against registered commands
+scripts/ui/prove-gemini-guided-signin.ts	1	3	88d6dfbe4c18	contract	checks live Gemini sign-in step titles appear in docs/ENGINES.md
+scripts/ui/prove-model-picker-reader-census.ts	1	14	0a412bdac388	scan	scans tracked scripts, src and docs for retired model-picker words
+scripts/updater/prove-node-pack.ts	1	2	d448b8e7fefe	owner	guards Node.js runtime notice entry in THIRD_PARTY_NOTICES.md
+scripts/updater/prove-python-pack.ts	1	2	d448b8e7fefe	owner	guards Python runtime notice entry in THIRD_PARTY_NOTICES.md
+scripts/updater/prove-version-contract.ts	1	1	d448b8e7fefe	contract	checks root package version appears in THIRD_PARTY_NOTICES.md
+scripts/wards/prove-floors-spellings.ts	1	16	201dbf0e07fc	owner	guards credential and runtime floor promises in docs/TRUST.md

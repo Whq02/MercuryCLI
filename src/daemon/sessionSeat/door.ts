@@ -1,6 +1,7 @@
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
 import { isRpcError, RPC_METHOD_NOT_FOUND } from '../../runner/wire/errors.js'
 import { PeerClosed, PeerDeadline, type RequestOptions } from '../../runner/wire/peer.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { Verb } from '../runnerConnection.js'
 import type { SeatRosterPort } from './state.js'
 
@@ -12,7 +13,7 @@ export function relayCredentialChange(
     if (worker.kind !== 'long-lived') continue
     const door = roster.door(worker.short)
     if (door === undefined || door.closed) continue
-    door.notify('credentials/changed', {})
+    door.notify(SESSION_VERBS.credentialsChanged.runner.name, {})
     told.push(worker.short)
   }
   return told
@@ -55,11 +56,11 @@ export async function askSeat<M extends Verb>(
 
 export type SeatVerbOutcome = { outcome: 'applied' | 'queued' | 'noop' | 'refused'; detail?: string; respawned?: true }
 
-export const SEAT_VERB_ANSWER_DEADLINE_MS = 5_000
+export const SEAT_VERB_ANSWER_DEADLINE_MS = SESSION_VERBS.setModel.runner.deadlineMs
 
 type SeatVerbAnswer = { at: 'now' | 'turn_end'; model?: string; id: number } | { refused: string } | { silent: true }
 
-export function seatVerbAnswerOf(asked: Awaited<ReturnType<typeof askSeat<'session/set_model' | 'session/set_effort' | 'session/set_spawn_switch'>>>): SeatVerbAnswer {
+export function seatVerbAnswerOf(asked: Awaited<ReturnType<typeof askSeat<typeof SESSION_VERBS.setModel.runner.name | typeof SESSION_VERBS.setEffort.runner.name | typeof SESSION_VERBS.setSpawnSwitch.runner.name>>>): SeatVerbAnswer {
   if (asked.ok) {
     const model = 'model' in asked.result && asked.result.model !== '' ? { model: asked.result.model } : {}
     return { at: asked.result.at, ...model, id: asked.id }

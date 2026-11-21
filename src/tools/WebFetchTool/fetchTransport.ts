@@ -1,5 +1,5 @@
 import axios, { type AxiosResponse } from 'axios'
-import { AsyncLocalStorage } from 'node:async_hooks'
+import { getOwnerContext, withOwnerContext } from '../../utils/run/ownerContext.js'
 import { LRUCache } from 'lru-cache'
 import { AbortError } from '../../utils/errors.js'
 import { webUserAgent } from '../../utils/webUserAgent.js'
@@ -18,17 +18,17 @@ export type RedirectResult = { type: 'redirect'; originalUrl: string; redirectUr
 export type RawResponse = { url: string; status: number; statusText: string; headers: Record<string, unknown>; data: ArrayBuffer }
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308])
 const robotsCache = new LRUCache<string, string>({ max: 128, ttl: 15 * 60_000, ttlAutopurge: true })
-const fetchOwner = new AsyncLocalStorage<OwnerKey>()
 const sessions = new OwnerScopedStore<Map<string, FetchPacing>>({ name: 'webfetch-host-pacing', live: true, create: () => new Map(), dispose: sites => sites.clear() })
 registerOwnerScopedStore(sessions)
 
 export function withFetchSession<T>(owner: OwnerKey, work: () => Promise<T>): Promise<T> {
   const identity = parseOwnerKey(owner)
-  return fetchOwner.run(makeOwnerKey({ workspace: identity.workspace, sessionId: identity.sessionId, lane: 'main' }), work)
+  const fetchSession = makeOwnerKey({ workspace: identity.workspace, sessionId: identity.sessionId, lane: 'main' })
+  return withOwnerContext({ fetchSession }, work)
 }
 
 function sitePacing(url: string): FetchPacing {
-  const sites = sessions.get(fetchOwner.getStore() ?? processMainOwner())
+  const sites = sessions.get(getOwnerContext()?.fetchSession ?? processMainOwner())
   const key = new URL(url).hostname.toLowerCase()
   let pace = sites.get(key)
   if (!pace) { pace = new FetchPacing(); sites.set(key, pace) }

@@ -7,6 +7,7 @@ import type {
   WithdrawReceiptV1,
   AskReceiptV1,
   CheckpointFactsV1,
+  EmptyDetailControlMethods,
   EngineConnectorV1,
   KitDialReceiptV1,
   LeaveReceiptV1,
@@ -34,6 +35,7 @@ import type {
 import type { SpawnSwitchFacts } from '../switchboard/spawnSwitches.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { bootBirthFacts, landingWordsOf } from '../switchboard/bootBirthFacts.js'
+import { installEmptyDetailControlMethods } from './emptyDetailControls.js'
 
 export const NO_CHAT_OPEN = 'no chat is open — ↵ New Session on the boot menu starts one'
 
@@ -72,8 +74,14 @@ const EMPTY_MCP_TOOLS: readonly McpToolEntryV1[] = Object.freeze([])
 const NO_CHECKPOINTS: CheckpointFactsV1 = Object.freeze({ capture: 'off' as const, restorable: Object.freeze(new Set<string>()) as ReadonlySet<string> })
 const NOOP_UNSUBSCRIBE = (): void => {}
 
+export interface NoSessionConnector extends EmptyDetailControlMethods {}
+
 export class NoSessionConnector implements EngineConnectorV1 {
   readonly carrier = 'daemon' as const
+
+  static {
+    installEmptyDetailControlMethods(NoSessionConnector.prototype, async () => ({ outcome: 'refused', detail: NO_CHAT_OPEN }))
+  }
   private cachedModelFacts: ModelFactsV1 | null = null
   private cachedWorkspace: WorkspaceFactsV1 | null = null
 
@@ -119,12 +127,6 @@ export class NoSessionConnector implements EngineConnectorV1 {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   async resumeAgent(): Promise<AgentControlReceiptV1> {
-    return { outcome: 'refused', detail: NO_CHAT_OPEN }
-  }
-  async backgroundShell(): Promise<AgentControlReceiptV1> {
-    return { outcome: 'refused', detail: NO_CHAT_OPEN }
-  }
-  async sendNow(): Promise<AgentControlReceiptV1> {
     return { outcome: 'refused', detail: NO_CHAT_OPEN }
   }
   queuedSendCount(): number {

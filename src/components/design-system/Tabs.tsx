@@ -7,7 +7,7 @@ import React, {
   useRef,
   useState,
 } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
+import { useClaim } from '../../hooks/effects.js'
 import { Box, Text } from '../../ink.js'
 import ScrollBox from '../../ink/components/ScrollBox.js'
 import type { KeyboardEvent } from '../../ink/events/keyboard-event.js'
@@ -240,7 +240,7 @@ export function useTabHeaderFocus(): {
   const context = useContext(TabsContext)
   const register = context?.registerNavOptIn
   const registeredRef = useRef(false)
-  useSubscription(() => {
+  useClaim(() => {
     if (!register || registeredRef.current) return
     registeredRef.current = true
     const unregister = register()

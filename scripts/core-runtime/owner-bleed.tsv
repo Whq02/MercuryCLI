@@ -1,0 +1,2 @@
+id	fault
+shell-cwd-unscoped-agent	Shell cursor is shared without a working-directory override

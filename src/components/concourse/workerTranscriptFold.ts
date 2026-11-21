@@ -82,22 +82,23 @@ interface TranscriptFold {
 
 export function mergeFoldedMessages<T extends { uuid: string }>(
   base: readonly T[],
-  folded: readonly T[],
+  folded: Iterable<T>,
+  cap = Infinity,
+  onShed?: () => void,
 ): T[] {
-  const all = [...base]
-  if (folded.length === 0) return all
-  const slotByUuid = new Map<string, number>()
-  for (let i = 0; i < all.length; i++) slotByUuid.set(all[i]!.uuid, i)
-  for (const m of folded) {
-    const at = slotByUuid.get(m.uuid)
-    if (at !== undefined) {
-      all[at] = m
-    } else {
-      slotByUuid.set(m.uuid, all.length)
-      all.push(m)
+  const kept = new Map(base.map(row => [row.uuid, row]))
+  const shed = new Set<string>()
+  for (const row of folded) {
+    if (shed.has(row.uuid)) continue
+    kept.set(row.uuid, row)
+    if (kept.size > cap) {
+      const first = kept.keys().next().value!
+      kept.delete(first)
+      shed.add(first)
+      onShed?.()
     }
   }
-  return all
+  return [...kept.values()]
 }
 
 export function openInitialWorkerTranscript(
@@ -129,25 +130,8 @@ export function useWorkerTranscriptFold(
     let cursorRef: import('../../services/concourse/workerTranscript.js').TranscriptCursor | null = null
     let watcher: import('node:fs').FSWatcher | null = null
     let heartbeat: ReturnType<typeof setInterval> | null = null
-    const liftSeq = { n: 0 }
-    const foldRecords = (records: unknown[], rewound: boolean, newlyMalformed: number): void => {
-      const folded: MessageType[] = []
-      for (const r of records) {
-        const m = foldWorkerRecord(r, `attach-e${liftSeq.n++}`)
-        if (m !== null) folded.push(m)
-      }
-      if (folded.length === 0 && !rewound && newlyMalformed === 0) return
-      setFold(prev => {
-        const base = rewound || prev === null ? [] : prev.messages
-        const all = mergeFoldedMessages(base, folded)
-        const shedNow = Math.max(0, all.length - RECORD_CAP)
-        return {
-          messages: shedNow > 0 ? all.slice(-RECORD_CAP) : all,
-          shed: (rewound || prev === null ? 0 : prev.shed) + shedNow,
-        }
-      })
-      if (newlyMalformed > 0) setMalformed(prev => prev + newlyMalformed)
-    }
+    let liftSeq = 0
+    let current: TranscriptFold | null = null
     void Promise.all([
       import('../../services/concourse/workerTranscript.js'),
       import('node:fs'),
@@ -157,27 +141,40 @@ export function useWorkerTranscriptFold(
         const path = wt.workerTranscriptPath({ sessionId, workspaceId })
         const drain = (): void => {
           if (controller.signal.aborted) return
-          if (cursorRef === null) {
-            const opened = openInitialWorkerTranscript(path, wt.openWorkerTranscript)
-            if (!opened.ok) {
-              setReadError(opened.error)
-              setFold(prev => prev ?? { messages: [], shed: 0 })
-              return
+          let pending: TranscriptFold | null = null
+          let seq = liftSeq
+          const receive = (records: Iterable<unknown>, rewound: boolean): void => {
+            let changed = rewound || cursorRef === null
+            let shed = rewound ? 0 : current?.shed ?? 0
+            function* messages(): Generator<MessageType> {
+              for (const record of records) {
+                const message = foldWorkerRecord(record, `attach-e${seq++}`)
+                if (message !== null) {
+                  changed = true
+                  yield message
+                }
+              }
             }
-            setReadError(null)
-            cursorRef = opened.result.cursor
-            foldRecords(opened.result.records, true, opened.result.malformed)
-          } else {
-            try {
-              const next = wt.readAfterCursor(cursorRef)
-              setReadError(null)
-              cursorRef = next.cursor
-              if (next.records.length > 0 || next.rewound) foldRecords(next.records, next.rewound, next.malformed)
-            } catch (error) {
-              logForDebugging(`[concourse] worker transcript tail unreadable (${path}): ${error}`)
-              setReadError(errorMessage(error))
-            }
+            const kept = mergeFoldedMessages(rewound ? [] : current?.messages ?? [], messages(), RECORD_CAP, () => { shed++ })
+            if (changed) pending = { messages: kept, shed }
           }
+          const opened = openInitialWorkerTranscript(path, p => cursorRef === null
+            ? wt.openWorkerTranscript(p, receive)
+            : wt.readAfterCursor(cursorRef, receive))
+          if (!opened.ok) {
+            setReadError(opened.error)
+            if (cursorRef === null) setFold(prev => prev ?? { messages: [], shed: 0 })
+            return
+          }
+          if (cursorRef === null && pending === null) pending = { messages: [], shed: 0 }
+          liftSeq = seq
+          cursorRef = opened.result.cursor
+          setReadError(null)
+          if (pending !== null) {
+            current = pending
+            setFold(pending)
+          }
+          if (opened.result.malformed > 0) setMalformed(prev => prev + opened.result.malformed)
         }
         const arm = (): boolean => {
           try {

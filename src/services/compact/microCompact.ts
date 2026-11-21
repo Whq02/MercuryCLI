@@ -6,6 +6,7 @@ import { expandPath } from '../../utils/path.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import type { OwnerKey } from '../../utils/run/ownerKey.js'
 import { processMainOwner } from '../../utils/run/resolveOwner.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { estimateContentTokens, roughTokenCountEstimationForMessages } from '../tokenEstimation.js'
 import { stripThinkingFromIndex } from '../../utils/messages/apiFilters.js'
@@ -267,6 +268,7 @@ const cacheEditStore = new OwnerScopedStore<CacheEditState>({
   name: 'microcompact-cache-edits',
   create: () => ({ registeredToolIds: [], pinnedEdits: [], pendingEdits: null }),
 })
+registerOwnerScopedStore(cacheEditStore)
 
 function ownerOrMain(owner: OwnerKey | undefined): OwnerKey {
   return owner ?? processMainOwner()

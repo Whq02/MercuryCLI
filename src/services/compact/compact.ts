@@ -18,7 +18,7 @@ import { notifyCompaction } from '../api/promptCacheBreakDetection.js'
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import { releaseLspDocumentsForContext } from '../lsp/manager.js'
 import { advanceContextEpoch, getContextEpoch } from '../run/contextEpochs.js'
-import { buildFoldLedger, renderFoldLedger } from './foldLedger.js'
+import { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } from './foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { buildRunContinuationCapsule } from '../run/runContinuationCapsule.js'
 import { estimateRequestGauge, readRequestGauge } from '../run/requestGauge.js'
@@ -136,7 +136,7 @@ export async function compactConversation(
     }
     context.onCompactProgress?.({ type: 'stage', stage: 'restoring' })
     const memory = retireFoldToMemory({
-      messages, owner, epoch: ledger.epoch, records: ledger.sourceRecordIds.length,
+      messages, owner, epoch: ledger.epoch, records: ledger.totals.records,
       aborted: context.abortController.signal.aborted,
       ...(context.agentId === undefined ? {} : { agent: String(context.agentId) }),
     })
@@ -165,7 +165,6 @@ export async function compactConversation(
     const lastMessage = messages[messages.length - 1] as Message
     const anchor = messagesToKeep !== undefined ? tailPrecedingUuid : lastMessage.uuid
     const boundary = createCompactBoundaryMessage(boundaryTrigger, preCompactTokenCount, anchor)
-    boundary.compactMetadata.ledger = ledger
     boundary.compactMetadata.memory = memory
     if (gauge) boundary.compactMetadata.requestGauge = { key: gauge.key, epoch: getContextEpoch(owner).epoch + 1, fixed: gauge.fixed, density: gauge.density }
     boundary.compactMetadata.recentRounds = recentRounds ?? { requested: DEFAULT_KEEP_ROUNDS, kept: 0, tokens: 0, reason: isMercuryCompactKeepTailEnabled() ? 'no-complete-tail' : 'disabled' }
@@ -221,6 +220,7 @@ export async function compactConversation(
     const landed = landFold(partial, messagesToKeep, recentRounds, { messages, boundary, ledger, prose, capsule, memoryText, suppressFollowUpQuestions, newestMessageFollows, landing, ceiling, foldTarget, splitRounds, selectTail, landingCount })
     partial = landed.partial
     messagesToKeep = landed.messagesToKeep
+    boundary.compactMetadata.ledger = withKeptLedgerRows(ledger, messagesToKeep)
     const { truePostCompactTokenCount, folded } = landed
     const visibleReads = collectPreservedReadPaths(messagesToKeep ?? [])
     for (const row of partial.attachments) if (row.attachment.type === 'file') visibleReads.add(expandPath(row.attachment.filename))

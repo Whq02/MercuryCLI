@@ -1,6 +1,6 @@
 
 import { useRef } from 'react'
-import { useDerivedState, usePublish } from '../../hooks/effects.js'
+import { usePublish } from '../../hooks/effects.js'
 import type { PastedContent } from '../../utils/config.js'
 import { maybeTruncateInput } from './inputPaste.js'
 
@@ -21,7 +21,7 @@ export function useMaybeTruncateInput({
 }): void {
   const appliedRef = useRef(false)
 
-  useDerivedState(() => {
+  usePublish(() => {
     if (appliedRef.current) return
     const { newInput, newPastedContents } = maybeTruncateInput(
       input,

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/notifications/**
-# gate-watch: scripts/notifications/**
 # gate-watch: src/services/crew/**
 # gate-watch: src/components/mercury-ui/*
 set -uo pipefail

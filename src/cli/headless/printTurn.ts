@@ -36,6 +36,7 @@ import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFind
 import { GLYPH } from '../../utils/glyphs.js'
 import { holdQueuedWordsForTurnEnd } from '../../utils/messageQueueManager.js'
 import { logError } from '../../utils/log.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 const DEFAULT_HEADLESS_IDLE_MINUTES = 20
@@ -69,7 +70,7 @@ export async function registerElicitationHandlersForClient(client: ConnectedMCPS
     'notifications/elicitation/complete',
     async notification => {
       const elicitationId = notification.params.elicitationId
-      io.outbound.enqueue({ method: 'elicitation/complete', params: { server: serverName, elicitation_id: elicitationId } })
+      io.outbound.enqueue({ method: SESSION_VERBS.elicitationComplete.runner.name, params: { server: serverName, elicitation_id: elicitationId } })
     },
   )
 }
@@ -312,13 +313,13 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
       const held = live.heldSeatModel
       live.heldSeatModel = null
       await applySeatModel(held.model, held.words)
-      io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
+      io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: held.requestId, verb: 'set_model', model: held.model } })
     }
     if (live.heldSeatEffort !== null) {
       const held = live.heldSeatEffort
       live.heldSeatEffort = null
       applySeatEffort(held.effort)
-      io.outbound.enqueue({ method: 'session/applied', params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
+      io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: held.requestId, verb: 'set_effort', effort: held.effort } })
     }
     holdQueuedWordsForTurnEnd(false)
     if (live.deferredModelBreadcrumb !== null) {
@@ -331,7 +332,7 @@ export async function runPrintTurn(command: QueuedCommand, batch: QueuedCommand[
       live.deferredSpawnSwitches = []
       for (const toggle of toggles) {
         landSpawnSwitch(toggle.kind, toggle.on)
-        io.outbound.enqueue({ method: 'session/applied', params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
+        io.outbound.enqueue({ method: SESSION_VERBS.sessionApplied.runner.name, params: { request_id: toggle.requestId, verb: 'set_spawn_switch', switch: toggle.kind, on: toggle.on } })
       }
     }
     if (live.deferredAdvisorQuiet.length > 0) {

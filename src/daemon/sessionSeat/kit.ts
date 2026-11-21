@@ -1,4 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { sessionKitToWire } from '../../services/engine-connector/seatWire.js'
 import { updateConcourseWorkers } from '../concourseWorkers.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
@@ -24,7 +25,7 @@ export function setSessionKitDial(
       const w = workers[rec.runnerId]
       if (w && w.endedAt === undefined) w.pendingKitEdits = [...(w.pendingKitEdits ?? []), { edit, by }]
     }, dir)
-    console.error(`[daemon] seat set-kit parked (the session is mid-turn): ${rec.runnerId}`)
+    console.error(`[daemon] seat ${SESSION_VERBS.setKit.daemon.action} parked (the session is mid-turn): ${rec.runnerId}`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return { outcome: 'queued', detail: KIT_DIAL_QUEUED_DETAIL }
   }
@@ -46,10 +47,10 @@ function forwardSessionKit(short: string, roster: SeatRosterPort, dir?: string):
   if (!rec || rec.kit === undefined) return false
   const door = roster.door(short)
   if (door === undefined || door.closed) return false
-  door.request('session/set_kit', { kit: sessionKitToWire(rec.kit) }).then(
+  door.request(SESSION_VERBS.setKit.runner.name, { kit: sessionKitToWire(rec.kit) }).then(
     () => requestSessionFacts(short, roster, { immediate: true }, dir),
     (error: unknown) => {
-      if (!(error instanceof PeerClosed)) logForDebugging(`[daemon] seat set-kit for ${short}: ${error instanceof Error ? error.message : String(error)}`)
+      if (!(error instanceof PeerClosed)) logForDebugging(`[daemon] seat ${SESSION_VERBS.setKit.daemon.action} for ${short}: ${error instanceof Error ? error.message : String(error)}`)
     },
   )
   return true
@@ -64,7 +65,7 @@ export function drainPendingKitDials(short: string, roster: SeatRosterPort, dir?
     const w = workers[short]
     if (w && w.endedAt === undefined) delete w.pendingKitEdits
   }, dir)
-  console.error(`[daemon] seat set-kit applying ${parked.length} parked dial${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setKit.daemon.action} applying ${parked.length} parked dial${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
   for (const entry of parked) applyConcourseKitOp(rec.sessionId, entry.edit, entry.by, dir)
   forwardSessionKit(short, roster, dir)
 }

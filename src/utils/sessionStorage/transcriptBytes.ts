@@ -83,3 +83,31 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
     size: st.size,
   }
 }
+
+export function* transcriptLineBytes(
+  path: string,
+  { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024 } = {},
+): Generator<Buffer> {
+  if (!Number.isSafeInteger(pieceBytes) || pieceBytes < 1) throw new RangeError('pieceBytes must be a positive integer')
+  let pending: Buffer[] = []
+  for (let from = start; from < end;) {
+    const to = Math.min(from + pieceBytes, end)
+    const chunk = transcriptIo.readRangeSync(path, from, to)
+    transcriptReaderCensus.bytesRead += chunk.length
+    if (chunk.length !== to - from) throw new Error('Transcript changed during the read')
+    from = to
+    let at = 0
+    for (let nl = chunk.indexOf(0x0a); nl !== -1; nl = chunk.indexOf(0x0a, at)) {
+      const part = chunk.subarray(at, nl + 1)
+      if (pending.length === 0) yield part
+      else {
+        pending.push(part)
+        yield Buffer.concat(pending)
+        pending = []
+      }
+      at = nl + 1
+    }
+    if (at < chunk.length) pending.push(chunk.subarray(at))
+  }
+  if (pending.length > 0) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending)
+}
