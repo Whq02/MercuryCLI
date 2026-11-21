@@ -374,6 +374,21 @@ async function main(): Promise<void> {
       const outsideStart = await throughFrom('cd C:/Users/Other && rm -rf docs', 'Bash', 'C:\\Users\\Other\\work', 'C:\\Users\\Other\\work')
       check('win32 · refused when cd leaves starting folder into sibling under other user', outsideStart === 'no-other-user-delete', outsideStart)
     }
+    section('§6j win32 — named tildes identify the home and its neighbours under a drive-rooted Users folder')
+    process.env.USERPROFILE = 'D:\\scratch\\Users\\operator'
+    for (const [command, answer] of [
+      ['rm -rf ~operator', 'no-root-recursive-delete'],
+      ['rm -rf ~operator/', 'no-root-recursive-delete'],
+      ['rm ~other/x', 'no-other-user-delete'],
+      ['rm -rf ~other/Documents C:/src/project/build', 'no-other-user-delete'],
+      ['rm -rf ~other/Documents; ls C:/src/project/build', 'no-other-user-delete'],
+      ['find ~other -name x -delete; ls C:/src/project/build', 'no-other-user-delete'],
+      ['rm ~operator/x', '(allowed)'],
+      ['ls ~other/Documents', '(allowed)'],
+    ] as const) {
+      const got = await throughFrom(command, 'Bash', PROJECT, PROJECT)
+      check(`win32 · ${command}: ${answer}`, got === answer, got)
+    }
   } finally {
     restorePlatform()
     if (savedHome === undefined) delete process.env.HOME
