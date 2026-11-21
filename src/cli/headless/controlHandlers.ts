@@ -3,6 +3,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { type UUID } from 'crypto'
 import { type ToolPermissionContext } from 'src/Tool.js'
 import type { ParamsOf } from 'src/runner/wire/methods.js'
+import type { SESSION_VERBS } from 'src/runner/wire/sessionVerbs.js'
 import { type RewindRefusalKind, type SessionRewindOutcomeV1 } from 'src/daemon/protocol.js'
 import { createOperatorRewindRecordMessage } from 'src/services/compact/checkpointRewind.js'
 import { type Message } from 'src/types/message.js'
@@ -82,7 +83,7 @@ function isOperatorTurn(message: Message, uuid: string): boolean {
 }
 
 export async function handleRewindSession(
-  request: ParamsOf<'session/rewind'>,
+  request: ParamsOf<typeof SESSION_VERBS.rewind.runner.name>,
   ctx: RewindSessionContext,
 ): Promise<SessionRewindOutcomeV1> {
   const { mode } = request
@@ -151,7 +152,7 @@ export async function handleRewindSession(
 }
 
 
-export async function handleFileRestoreSession(request: ParamsOf<'session/file_restore'>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
+export async function handleFileRestoreSession(request: ParamsOf<typeof SESSION_VERBS.fileRestore.runner.name>, ctx: RewindSessionContext): Promise<SessionRewindOutcomeV1> {
   if (ctx.turnActive) return refusedRewind('code', 'turn-active', 'a turn is running in this session — press esc to stop it, then /rewind again')
   if (!fileHistoryEnabled()) return refusedRewind('code', 'capture-off', 'file checkpoints are off for this session')
   const state = ctx.getAppState().fileHistory

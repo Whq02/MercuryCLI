@@ -1,4 +1,5 @@
 import type { FileCheckpointsFact, ResultOf } from '../../runner/wire/methods.js'
+import type { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { fileHistoryEnabled, fileCheckpointSource } from '../../services/changeTransaction/fileHistory.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { sleep } from '../../utils/sleep.js'
@@ -59,7 +60,7 @@ export function fileCheckpointsFact(): FileCheckpointsFact {
   return { capture: fileHistoryEnabled(), source: fileCheckpointSource() }
 }
 
-export async function answerSessionFacts(ports: RunnerPorts): Promise<ResultOf<'session/facts'>> {
+export async function answerSessionFacts(ports: RunnerPorts): Promise<ResultOf<typeof SESSION_VERBS.sessionFacts.runner.name>> {
   const { checkBuildBehind, getAppState, live, liveMcp, mcpSignIns, messages, missionGuard } = ports
   if (live.claimSettling !== null) await live.claimSettling
   void checkBuildBehind()
