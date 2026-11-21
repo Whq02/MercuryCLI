@@ -1,4 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { updateConcourseWorkers, type ConcourseWorkerRecordV1 } from '../concourseWorkers.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
 import { spawnSwitchOfRecord, spawnSwitchToggleReceipt, type SpawnSwitchKind, SPAWN_SWITCH_KINDS } from '../../services/switchboard/spawnSwitches.js'
@@ -21,7 +22,7 @@ export async function setSessionSpawnSwitch(
   if (effectiveOn === toggle.on) return { outcome: 'noop', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'noop') }
   if (seatBusy(rec.runnerId, roster)) {
     parkSpawnSwitch(rec, toggle, by, dir)
-    console.error(`[daemon] seat set-spawn-switch parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
+    console.error(`[daemon] seat ${SESSION_VERBS.setSpawnSwitch.daemon.action} parked (the session is mid-turn): ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return forwardSpawnSwitchToBoundary(rec, toggle, by, roster, dir, { parked: true })
   }
@@ -66,7 +67,7 @@ async function forwardSpawnSwitchToBoundary(
   const queued: SeatVerbOutcome = { outcome: 'queued', detail: spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'queued') }
   const door = roster.door(rec.runnerId)
   if (door === undefined || door.closed) return opts.parked ? queued : landSpawnSwitchOnRecord(rec, toggle, roster, dir, false)
-  const sent = door.send('session/set_spawn_switch', { switch: toggle.kind, on: toggle.on }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
+  const sent = door.send(SESSION_VERBS.setSpawnSwitch.runner.name, { switch: toggle.kind, on: toggle.on }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
   const seat = seatOf(rec.runnerId)
   seat.heldSpawnSwitches = { ...seat.heldSpawnSwitches, [toggle.kind]: { requestId: sent.id, on: toggle.on } }
   const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, 'spawn-switch', SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
@@ -77,7 +78,7 @@ async function forwardSpawnSwitchToBoundary(
       parkSpawnSwitch(rec, toggle, by, dir)
       publishSeatFacts(rec.runnerId, dir, roster)
     }
-    logForDebugging(`[daemon] seat set-spawn-switch held by the runner for its turn boundary: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
+    logForDebugging(`[daemon] seat ${SESSION_VERBS.setSpawnSwitch.daemon.action} held by the runner for its turn boundary: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}`)
     return queued
   }
   dropHeldSpawnSwitch(seat, toggle.kind, sent.id)
@@ -107,7 +108,7 @@ export function landSpawnSwitchOnRecord(
     if (rest.length > 0) w.pendingSpawnSwitches = rest
     else delete w.pendingSpawnSwitches
   }, dir)
-  console.error(`[daemon] seat set-spawn-switch applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live runner door; the record holds it)'}`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setSpawnSwitch.daemon.action} applied: ${rec.runnerId} → ${toggle.kind} ${toggle.on ? 'on' : 'off'}${delivered ? '' : ' (no live runner door; the record holds it)'}`)
   publishSeatFacts(rec.runnerId, dir, roster)
   requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   const receipt = spawnSwitchToggleReceipt(toggle.kind, toggle.on, 'applied')
@@ -119,7 +120,7 @@ export function landSpawnSwitchOnRecord(
 function forwardSpawnSwitch(short: string, toggle: { kind: SpawnSwitchKind; on: boolean }, roster: SeatRosterPort): boolean {
   const door = roster.door(short)
   if (door === undefined || door.closed) return false
-  door.request('session/set_spawn_switch', { switch: toggle.kind, on: toggle.on }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS }).catch((error: unknown) => {
+  door.request(SESSION_VERBS.setSpawnSwitch.runner.name, { switch: toggle.kind, on: toggle.on }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS }).catch((error: unknown) => {
     if (!(error instanceof PeerClosed)) logForDebugging(`[daemon] seat spawn-switch re-forward for ${short}: ${error instanceof Error ? error.message : String(error)}`)
   })
   return true
@@ -140,7 +141,7 @@ export function drainPendingSpawnSwitches(short: string, roster: SeatRosterPort,
   const seat = seatOf(short)
   const parked = (rec.pendingSpawnSwitches ?? []).flatMap(p => (p.kind === 'subagents' && seat.heldSpawnSwitches[p.kind] === undefined ? [{ ...p, kind: p.kind }] : []))
   if (parked.length === 0) return
-  console.error(`[daemon] seat set-spawn-switch applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setSpawnSwitch.daemon.action} applying ${parked.length} parked toggle${parked.length === 1 ? '' : 's'} at the turn's end: ${short}`)
   for (const entry of parked) {
     const fresh = liveRecordByShort(short, dir)
     if (fresh) void forwardSpawnSwitchToBoundary(fresh, { kind: entry.kind, on: entry.on }, entry.by, roster, dir, { parked: true })
