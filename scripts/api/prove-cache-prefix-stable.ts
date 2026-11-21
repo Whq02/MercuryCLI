@@ -386,8 +386,9 @@ if (!existsSync(DIST)) {
       const debug = existsSync(debugFile) ? readFileSync(debugFile, 'utf8') : ''
       check('§5 the debug log names the re-composition once, at the fold', debug.split('\n').filter(line => line.includes('composed again after the fold')).length === 1)
       check('§5 the product\'s ledger saw no rewrite of sent history in the turn after the fold', !debug.includes('names a rewrite of sent history'), debug.split('\n').filter(l => l.includes('rewrite of sent history')).slice(0, 2).join(' | '))
+      const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
       const transcript = findFile(arena.home, p => p.endsWith(`${SID}.jsonl`) && p.includes('projects'))
-      const rows = transcript === null ? [] : readFileSync(transcript, 'utf8').split('\n')
+      const rows = transcript === null ? [] : [...historyLines(transcript)].map(bytes => bytes.toString('utf8'))
       const records = rows.filter(line => line.includes('"attachmentType":"bound_prefix"')).map(line => { try { return (JSON.parse(line) as { payload?: { fields?: { systemContext?: Record<string, string> } } }).payload?.fields?.systemContext } catch { return undefined } })
       check('§5 the bound-prefix record written after the fold carries the status the fold request sent, so a later resume replays the same bytes', records.length >= 2 && /changed\.txt/.test(records[records.length - 1]?.gitStatus ?? ''), j(records.map(r => (r?.gitStatus ?? '').slice(0, 80))))
       if (failures !== failuresBefore && existsSync(debugFile)) {

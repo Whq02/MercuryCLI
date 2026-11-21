@@ -17,7 +17,7 @@ import type {
 import { permissionRuleValueFromString } from '../permissionRuleParser.js'
 import { RULE_INHERITS } from '../../../constants/tools.js'
 import { BASH_TOOL_NAME } from '../../../constants/tools/bash.js'
-import { MONITOR_TOOL_NAME } from '../../../tools/MonitorTool/constants.js'
+import { MONITOR_TOOL_NAME } from '../../../constants/tools/monitor.js'
 
 const PERMISSION_RULE_SOURCES = [
   ...SETTING_SOURCES,

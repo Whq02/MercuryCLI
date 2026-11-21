@@ -1,4 +1,4 @@
-export type OtherBuildAliveProbe = () => Promise<string | null>
+type OtherBuildAliveProbe = () => Promise<string | null>
 
 let registered: OtherBuildAliveProbe | undefined
 

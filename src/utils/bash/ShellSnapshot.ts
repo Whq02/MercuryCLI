@@ -13,7 +13,18 @@ import { errorMessage } from '../errors.js'
 import { pathExists } from '../file.js'
 import { getFsImplementation } from '../fsOperations.js'
 import { logError } from '../log.js'
-import { getPlatform } from '../platform.js'
+import {
+  argv0EnvAssignmentBody,
+  carriesBashLoginExports,
+  isHostPosixBash,
+  loginGroupMarkLine,
+  loginRunGetsOwnProcessGroup,
+  loginRunScriptFilePath,
+  loginRunUsesProcessTreeCleanup,
+  remembersFailedLoginRun,
+  snapshotAliasPipelineFilter,
+  snapshotPathNeedsShellProbe,
+} from '../platform/loginShell.js'
 import { birthAfter, birthMark, endMsysGroupBeside, endProcessBornAfter, endProcessBornAt, endProcessTree, strikeProcessGroupNow, type BirthMark } from '../processGroup.js'
 import { ripgrepCommand } from '../ripgrep.js'
 import { sleep } from '../sleep.js'
@@ -144,8 +155,8 @@ function runBounded(
     let settled = false
     let stdout = ''
     let stderr = ''
-    const ownGroup = login && getPlatform() !== 'windows'
-    const windowsLogin = login && getPlatform() === 'windows'
+    const ownGroup = loginRunGetsOwnProcessGroup(login)
+    const windowsLogin = loginRunUsesProcessTreeCleanup(login)
     const askedAt = Date.now()
     const child = spawn(file, args, { windowsHide: true, env, stdio: ['ignore', 'pipe', 'pipe'], detached: ownGroup })
     const began = ownGroup ? birthMark(child.pid, askedAt) : null
@@ -230,9 +241,8 @@ export async function resolveSnapshotPathValue(
   shellPath: string,
   options?: { platform?: string; exec?: SnapshotPathExecutor; probeTimeoutMs?: number },
 ): Promise<string> {
-  const platform = options?.platform ?? getPlatform()
   const processPath = hostEnv().PATH ?? ''
-  if (platform !== 'windows') return processPath
+  if (!snapshotPathNeedsShellProbe(options?.platform)) return processPath
   if (!isPosixSnapshotShell(shellPath)) return processPath
   const exec = options?.exec ?? defaultSnapshotPathExecutor
   const timeoutMs = options?.probeTimeoutMs ?? SNAPSHOT_PATH_PROBE_TIMEOUT_MS
@@ -257,13 +267,9 @@ function buildArgv0Function(
 ): string {
   const quotedBinary = quote([binaryPath])
   const prepend = prependArgs.length > 0 ? `${prependArgs.join(' ')} ` : ''
-  if (getPlatform() === 'windows') {
-    return `${functionName}() {
-  ARGV0=${argv0Name} ${quotedBinary} ${prepend}"$@"
-}`
-  }
+  const body = argv0EnvAssignmentBody(argv0Name, quotedBinary, prepend) ?? argv0FunctionBody(argv0Name, quotedBinary, prepend)
   return `${functionName}() {
-${argv0FunctionBody(argv0Name, quotedBinary, prepend)}
+${body}
 }`
 }
 
@@ -358,7 +364,8 @@ function buildCaptureScript(args: {
   const lines: string[] = []
 
   lines.push(`SNAPSHOT_FILE=${quote([snapshotFilePath])}`)
-  if (getPlatform() === 'windows') lines.push(`echo "${LOGIN_GROUP_MARK}=$$"`)
+  const groupMark = loginGroupMarkLine(LOGIN_GROUP_MARK)
+  if (groupMark !== undefined) lines.push(groupMark)
 
   if (configExists) {
     lines.push(`source ${quote([configFilePath])} < /dev/null`)
@@ -384,7 +391,7 @@ done`)
     lines.push(...SNAPSHOT_OPTIONS)
 
     lines.push('echo "# Aliases" >> "$SNAPSHOT_FILE"')
-    const winptyFilter = getPlatform() === 'windows' ? ' | grep -v winpty' : ''
+    const winptyFilter = snapshotAliasPipelineFilter()
     lines.push(`( set +o posix 2>/dev/null; alias )${winptyFilter} | sed 's/^alias /alias -- /' | head -n 1000 >> "$SNAPSHOT_FILE"`)
   } else {
     lines.push(SNAPSHOT_KEEPS_ALIASES)
@@ -517,7 +524,7 @@ export async function createAndSaveSnapshot(
   options?: { keptNowhere?: boolean },
 ): Promise<string | undefined> {
   const shellPath = shell.path
-  const bashOfThisMachine = shell.origin !== 'engine' && getPlatform() !== 'windows'
+  const bashOfThisMachine = isHostPosixBash(shell.origin)
   const nothing = (absence: LoginFilesAbsence): undefined => {
     if (bashOfThisMachine) noteLoginFiles(absence)
     return undefined
@@ -573,13 +580,13 @@ export async function createAndSaveSnapshot(
     const session = options?.keptNowhere !== true
     const zsh = zshOfTheUser()
     if (zsh !== null) readByZsh = exportsReadByZsh(zsh, session)
-    const scriptFile = getPlatform() === 'windows' && shell.origin !== 'engine' ? `${snapshotFilePath}.login-run` : undefined
+    const scriptFile = loginRunScriptFilePath(snapshotFilePath, shell.origin)
     if (scriptFile !== undefined) await writeFile(scriptFile, script)
     const handed = scriptFile === undefined ? script : msysSourceLine(windowsPathToPosixPath(scriptFile))
     const outcome = await runBounded(shellPath, shell.origin === 'engine' ? ['-l', '-c', handed] : ['-c', '-l', handed], captureEnv, SNAPSHOT_CAPTURE_BOUND_MS, true)
     if (scriptFile !== undefined) await rm(scriptFile, { force: true }).catch((error: unknown) => logForDebugging(`the login run's script file was not removed (${scriptFile}): ${errorMessage(error)}`))
     await readByZsh
-    const carried = await carriedBy(outcome, session && zsh === null && !(shell.origin === 'engine' && getPlatform() === 'windows'))
+    const carried = await carriedBy(outcome, carriesBashLoginExports(session, zsh !== null, shell.origin))
     if (carried !== undefined) carriedFromBash.set(shellPath, carried)
 
     if (outcome.killed || outcome.exitCode !== 0) {
@@ -602,7 +609,7 @@ export async function createAndSaveSnapshot(
         ].join('\n'),
       )
       logError(`shell snapshot creation failed: ${absence.why} (${shellPath})`)
-      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
+      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shellPath)
       return nothing(absence)
     }
 
@@ -617,7 +624,7 @@ export async function createAndSaveSnapshot(
       } catch {
         logForDebugging(`snapshots directory ${snapshotsDir} no longer exists`)
       }
-      if (session && getPlatform() === 'windows') loginRunsThatFailed.add(shellPath)
+      if (remembersFailedLoginRun(session)) loginRunsThatFailed.add(shellPath)
       return nothing(LOGIN_RUN_HANDED_OVER)
     }
 

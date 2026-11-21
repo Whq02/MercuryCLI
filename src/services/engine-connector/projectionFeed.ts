@@ -10,6 +10,7 @@ export interface ProjectionFeedHandle {
   armTimer(): void
   hasWatcher(): boolean
   heartbeatMs(): number
+  forgetKey(): void
   stop(): void
 }
 
@@ -49,6 +50,9 @@ export class ProjectionFeed {
     this.lastKey = key
     this.onChange()
     return true
+  }
+  forgetKey(): void {
+    this.lastKey = ''
   }
   private readonly report = (): void => {
     if (!this.tick()) this.recheckSoon()

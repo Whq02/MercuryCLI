@@ -130,15 +130,15 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const checkStop = (current: HostRecord | undefined): void => {
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
   }
-  const stopRecordWatch = subscribeHostRecord(id, checkStop)
+  const stopRecordWatch = subscribeHostRecord(id, checkStop, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
   checkStop(readHostRecord(id))
   const logTailController = new AbortController()
   const logTailSignal = AbortSignal.any([signal, logTailController.signal])
   let logTailStarted = false
   const startLogTail = (): void => {
-    if (logTailStarted || !recipe || (!initial.cluster && !initial.volumeId)) return
+    if (initial.jobKind === 'watch' || logTailStarted || !recipe || (!initial.cluster && !initial.volumeId)) return
     logTailStarted = true
-    startHostRemoteLogTail(id, generation, Boolean(initial.cluster), recipe, () => target, runner, pause, logTailSignal, log)
+    startHostRemoteLogTail(id, generation, Boolean(initial.cluster), recipe, () => target, runner, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause, logTailSignal, log)
   }
   const stopMonitor = (): void => { stopRecordWatch(); logTailController.abort() }
   if (initial.jobKind === 'bank') {

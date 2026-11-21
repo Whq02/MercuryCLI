@@ -40,6 +40,7 @@ const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
 const ETX = String.fromCharCode(3)
 const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color'] as const
+const CLEAR_OLD_FOLDER = 'unset OLDPWD 2>/dev/null || :; dirs -c 2>/dev/null || :'
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
 
@@ -143,7 +144,7 @@ export function createEngineCommandProvider(binaryPath: string): ShellProvider {
       if (sessionScript) seeds.push(sessionScript)
       const preamble = getGlobPreambleCommand('engine')
       if (preamble) seeds.push(preamble)
-      const lines = seeds.length === 0 ? [] : [`{\n${seeds.join('\n')}\n} >| ${target} 2>&1 || :`, `: >| ${target}`]
+      const lines = seeds.length === 0 ? [CLEAR_OLD_FOLDER] : [`{\n${seeds.join('\n')}\n} >| ${target} 2>&1 || :`, `: >| ${target}`, CLEAR_OLD_FOLDER]
       lines.push(`eval ${quoteShellCommand(command, false)} && { __mercury_cwd=$(pwd -P 2>&1) && printf '%s' "$__mercury_cwd" >| ${target} || :; }`)
       return { commandString: lines.join('\n'), cwdFilePath: record }
     },
@@ -492,8 +493,8 @@ export function runEngineCommand(binaryPath: string, command: string, options: E
     scrubbedSessionEnv = live.scrubbedSessionEnv
 
     const payload = options.requireCwd && options.cwd !== undefined
-      ? `cd -- ${quote([options.cwd])} && {\n${command}\n}`
-      : `cd -- ${quote([cwdThatResolves(options.cwd)])} || :\n${command}`
+      ? `cd -- ${quote([options.cwd])} && {\n${CLEAR_OLD_FOLDER}\n${command}\n}`
+      : `cd -- ${quote([cwdThatResolves(options.cwd)])} || :\n${CLEAR_OLD_FOLDER}\n${command}`
 
     const marker = Buffer.from(SOH + live.nonce + ' ', 'utf8')
     const etx = ETX.charCodeAt(0)

@@ -1,4 +1,4 @@
-import { setLastAPIRequest, setLastAPIRequestMessages } from '../bootstrap/state.js'
+import { setLastAPIRequest } from '../bootstrap/state.js'
 import { flagEnabled } from '../substrate/flagRegistry.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { TICK_TAG } from '../constants/xml.js'
@@ -126,5 +126,4 @@ export function captureAPIRequest(params: ApiRequestParams, querySource?: QueryS
   if (!querySource || !String(querySource).startsWith('main_thread')) return
   const { messages: _messages, ...rest } = params
   setLastAPIRequest(rest)
-  setLastAPIRequestMessages(null)
 }

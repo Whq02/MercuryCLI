@@ -8,9 +8,9 @@ import { resolveShellCwd } from '../../utils/Shell.js'
 import { hiddenCommandCharacterReason } from '../../utils/sanitization.js'
 import { credentialUploadReason } from '../../utils/permissions/commandContent.js'
 import { refusalWithReason, ruleSentence, ruleWords, withRuleReason } from '../../utils/permissions/ruleReason.js'
-import { getPlatform } from '../../utils/platform.js'
 import { uncPathRisk, uncPathMessage } from '../../utils/permissions/uncPath.js'
-import { windowsPathToPosixPath } from '../../utils/windowsPaths.js'
+import { shellFolderComparisonKey } from '../../utils/platform/commandForms.js'
+import { nativePathToShell } from '../../utils/platform/paths.js'
 import { createPermissionRequestMessage } from '../../utils/permissions/decision/requestMessage.js'
 import { getRuleByContentsForToolName } from '../../utils/permissions/decision/rules.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from '../../utils/permissions/permissionRuleParser.js'
@@ -168,16 +168,10 @@ function isNormalizedCdCommand(command: string): boolean {
 }
 
 
-function folderKey(path: string): string {
-  if (getPlatform() !== 'windows') return path
-  const posix = windowsPathToPosixPath(path).replace(/^\/([A-Za-z])(?=\/|$)/, (_, drive: string) => `/${drive.toLowerCase()}`)
-  return posix.length > 1 && posix.endsWith('/') ? posix.slice(0, -1) : posix
-}
-
 const CURRENT_FOLDER_RELATIVE = /^\.(?:[\\/]\.?)*[\\/]?$/
 
 export function isCurrentFolderSpelling(spelled: string, cwd: string): boolean {
-  return folderKey(spelled) === folderKey(cwd) || CURRENT_FOLDER_RELATIVE.test(spelled)
+  return shellFolderComparisonKey(spelled) === shellFolderComparisonKey(cwd) || CURRENT_FOLDER_RELATIVE.test(spelled)
 }
 
 function isCurrentDirectoryCommand(command: SimpleCommand, cwd: string): boolean {
@@ -482,7 +476,7 @@ export function rewriteReadOnlyGitCommand(command: string, cwd: string, depth = 
 
 
 function asWrittenSingle(command: string, fallback: string, cwd: string): string {
-  const posixCwd = getPlatform() === 'windows' ? windowsPathToPosixPath(cwd) : cwd
+  const posixCwd = nativePathToShell(cwd)
   const written = splitListSegments(command).filter(segment => segment !== `cd ${cwd}` && segment !== `cd ${posixCwd}`)
   return written.length === 1 ? (written[0] as string) : fallback
 }

@@ -24,7 +24,7 @@ const METADATA_TYPE_MARKERS = [
   '"metaKind":"pr-link"',
 ]
 const METADATA_MARKER_BUFS = METADATA_TYPE_MARKERS.map(m => Buffer.from(m))
-export const previousPartMetadata = new Set(METADATA_TYPE_MARKERS.map(marker => /"metaKind":"([^"]+)"/.exec(marker)![1]!))
+const previousPartMetadata = new Set(METADATA_TYPE_MARKERS.map(marker => /"metaKind":"([^"]+)"/.exec(marker)![1]!))
 
 export async function streamFold(path: string, fold: TranscriptFoldState, start: number, end: number, ino: number, plan: boolean, prune: boolean, committedOnly = false, accepts?: (e: Entry) => boolean) {
   const accounting = { malformed: 0, invalid: 0, totalLines: 0 }

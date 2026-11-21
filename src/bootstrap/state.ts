@@ -9,7 +9,6 @@ import type { SessionPermissionModeResolution } from '../utils/permissions/permi
 import type { ModelStrings } from '../utils/model/modelStrings.js'
 import type { SessionKind } from '../utils/sessionKind.js'
 import type { SettingSource } from '../utils/settings/constants.js'
-import type { AgentColorName } from '../tools/AgentTool/agentColorManager.js'
 import { ApiCaptureOwner } from './runtime/api-capture.js'
 import { BootConfigOwner } from './runtime/boot-config.js'
 import { CacheLatchOwner } from './runtime/cache-latches.js'
@@ -25,7 +24,6 @@ import { HookRegistryOwner } from './runtime/hook-registry.js'
 import type { RegisteredHookMatcher } from './runtime/hook-registry.js'
 import { SessionIdentityOwner } from './runtime/session-identity.js'
 import { StatsHandleOwner } from './runtime/stats-handle.js'
-import { TurnAccountingOwner } from './runtime/turn-accounting.js'
 import { UsageLedgerOwner } from './runtime/usage-ledger.js'
 import { resetJevLedger } from '../services/jev/jevLedgerState.js'
 import { passedOver } from '../utils/passedOver.js'
@@ -34,7 +32,6 @@ export type InvokedSkillInfo = RuntimeInvokedSkillInfo
 
 let sessionIdentity = new SessionIdentityOwner()
 let usageLedger = new UsageLedgerOwner()
-let turnAccounting = new TurnAccountingOwner(usageLedger)
 let interactionClock = new InteractionClockOwner()
 let modelConfig = new ModelConfigOwner()
 let posture = new PostureOwner()
@@ -51,14 +48,8 @@ export function getSessionId(): SessionId {
   return sessionIdentity.sessionId
 }
 
-export function regenerateSessionId(
-  options: { setCurrentAsParent?: boolean } = {},
-): SessionId {
-  return sessionIdentity.regenerateSessionId(options)
-}
-
-export function getParentSessionId(): SessionId | undefined {
-  return sessionIdentity.parentSessionId
+export function regenerateSessionId(): SessionId {
+  return sessionIdentity.regenerateSessionId()
 }
 
 export function switchSession(
@@ -118,10 +109,6 @@ export function addToTotalDurationState(
   durationWithoutRetries: number,
 ): void {
   usageLedger.addToTotalDurationState(duration, durationWithoutRetries)
-}
-
-export function resetTotalDurationStateAndCost_FOR_TESTS_ONLY(): void {
-  usageLedger.resetDurationsAndCostForTestsOnly()
 }
 
 export function addToTotalCostState(
@@ -252,55 +239,7 @@ export function setCostStateForRestore(restore: {
 
 
 export function addToToolDuration(duration: number): void {
-  turnAccounting.addToToolDuration(duration)
-}
-
-export function getTurnToolDurationMs(): number {
-  return turnAccounting.turnToolDurationMs
-}
-
-export function resetTurnToolDuration(): void {
-  turnAccounting.resetTurnToolDuration()
-}
-
-export function getTurnToolCount(): number {
-  return turnAccounting.turnToolCount
-}
-
-export function getTurnHookDurationMs(): number {
-  return turnAccounting.turnHookDurationMs
-}
-
-export function addToTurnHookDuration(duration: number): void {
-  turnAccounting.addToTurnHookDuration(duration)
-}
-
-export function resetTurnHookDuration(): void {
-  turnAccounting.resetTurnHookDuration()
-}
-
-export function getTurnHookCount(): number {
-  return turnAccounting.turnHookCount
-}
-
-export function getTurnOutputTokens(): number {
-  return turnAccounting.getTurnOutputTokens()
-}
-
-export function getCurrentTurnTokenBudget(): number | null {
-  return turnAccounting.getCurrentTurnTokenBudget()
-}
-
-export function snapshotOutputTokensForTurn(budget: number | null): void {
-  turnAccounting.snapshotOutputTokensForTurn(budget)
-}
-
-export function getBudgetContinuationCount(): number {
-  return turnAccounting.getBudgetContinuationCount()
-}
-
-export function incrementBudgetContinuationCount(): void {
-  turnAccounting.incrementBudgetContinuationCount()
+  usageLedger.addToolDuration(duration)
 }
 
 
@@ -355,14 +294,6 @@ export function setEngineModelOverride(
   }
 }
 
-export function getInitialEngineModel(): ModelSetting {
-  return modelConfig.initialEngineModel
-}
-
-export function setInitialEngineModel(model: ModelSetting): void {
-  modelConfig.initialEngineModel = model
-}
-
 export function getSdkBetas(): string[] | undefined {
   return modelConfig.sdkBetas
 }
@@ -377,10 +308,6 @@ export function getModelStrings(): ModelStrings | null {
 
 export function setModelStrings(strings: ModelStrings): void {
   modelConfig.modelStrings = strings
-}
-
-export function resetModelStringsForTestingOnly(): void {
-  modelConfig.modelStrings = null
 }
 
 
@@ -434,20 +361,12 @@ export function setIsInteractive(value: boolean): void {
   posture.isInteractive = value
 }
 
-export function getClientType(): string {
-  return posture.clientType
-}
-
 export function setClientType(clientType: string): void {
   posture.clientType = clientType
 }
 
 export function getSdkAgentProgressSummariesEnabled(): boolean {
   return posture.sdkAgentProgressSummariesEnabled
-}
-
-export function setSdkAgentProgressSummariesEnabled(value: boolean): void {
-  posture.sdkAgentProgressSummariesEnabled = value
 }
 
 export function isAssistantFamilyAvailable(): boolean {
@@ -468,14 +387,6 @@ export function getStrictToolResultPairing(): boolean {
 
 export function setStrictToolResultPairing(value: boolean): void {
   posture.strictToolResultPairing = value
-}
-
-export function getSessionSource(): string | undefined {
-  return posture.sessionSource
-}
-
-export function setSessionSource(source: string | undefined): void {
-  posture.sessionSource = source
 }
 
 export function getQuestionPreviewFormat(): 'markdown' | 'html' | undefined {
@@ -528,17 +439,9 @@ export function getIsRemoteMode(): boolean {
   return posture.isRemoteMode
 }
 
-export function setIsRemoteMode(value: boolean): void {
-  posture.isRemoteMode = value
-}
-
 
 export function getDirectConnectServerUrl(): string | undefined {
   return bootConfig.directConnectServerUrl
-}
-
-export function setDirectConnectServerUrl(url: string | undefined): void {
-  bootConfig.directConnectServerUrl = url
 }
 
 export function getFlagSettingsPath(): string | undefined {
@@ -557,32 +460,6 @@ export function setFlagSettingsInline(
   settings: Record<string, unknown> | null,
 ): void {
   bootConfig.flagSettingsInline = settings
-}
-
-export function getSessionIngressToken(): string | null | undefined {
-  return bootConfig.sessionIngressToken
-}
-
-export function setSessionIngressToken(
-  token: string | null | undefined,
-): void {
-  bootConfig.sessionIngressToken = token
-}
-
-export function getOauthTokenFromFd(): string | null | undefined {
-  return bootConfig.oauthTokenFromFd
-}
-
-export function setOauthTokenFromFd(token: string | null | undefined): void {
-  bootConfig.oauthTokenFromFd = token
-}
-
-export function getApiKeyFromFd(): string | null | undefined {
-  return bootConfig.apiKeyFromFd
-}
-
-export function setApiKeyFromFd(key: string | null | undefined): void {
-  bootConfig.apiKeyFromFd = key
 }
 
 export function getAllowedSettingSources(): SettingSource[] {
@@ -636,24 +513,8 @@ export function getLastAPIRequest(): Omit<ApiRequestParams, 'messages'> | null {
   return apiCapture.lastAPIRequest
 }
 
-export function setLastAPIRequestMessages(
-  messages: ApiRequestParams['messages'] | null,
-): void {
-  apiCapture.lastAPIRequestMessages = messages
-}
-
-export function getLastAPIRequestMessages():
-  | ApiRequestParams['messages']
-  | null {
-  return apiCapture.lastAPIRequestMessages
-}
-
 export function getPromptId(): string | null {
   return apiCapture.promptId
-}
-
-export function setPromptId(promptId: string | null): void {
-  apiCapture.promptId = promptId
 }
 
 
@@ -682,14 +543,6 @@ export function clearSystemPromptSectionState(): void {
   cacheLatches.systemPromptSectionCache.clear()
 }
 
-export function getLastEmittedDate(): string | null {
-  return cacheLatches.lastEmittedDate
-}
-
-export function setLastEmittedDate(date: string | null): void {
-  cacheLatches.lastEmittedDate = date
-}
-
 export function getPromptCache1hEligible(): boolean | null {
   return cacheLatches.promptCache1hEligible
 }
@@ -702,22 +555,10 @@ export function getCacheEditingHeaderLatched(): boolean | null {
   return cacheLatches.cacheEditingHeaderLatched
 }
 
-export function setCacheEditingHeaderLatched(value: boolean | null): void {
-  cacheLatches.cacheEditingHeaderLatched = value
-}
-
 export function clearBetaHeaderLatches(): void {
   cacheLatches.clearBetaHeaderLatches()
 }
 
-
-export function getAgentColorMap(): Map<string, AgentColorName> {
-  return collections.agentColorMap
-}
-
-export function getSessionCreatedCrews(): Set<string> {
-  return collections.sessionCreatedCrews
-}
 
 export function addInvokedSkill(
   skillName: string,
@@ -728,20 +569,10 @@ export function addInvokedSkill(
   collections.addInvokedSkill(skillName, skillPath, content, agentId)
 }
 
-export function getInvokedSkills(): Map<string, InvokedSkillInfo> {
-  return collections.invokedSkills
-}
-
 export function getInvokedSkillsForAgent(
   agentId: string | undefined | null,
 ): Map<string, InvokedSkillInfo> {
   return collections.getInvokedSkillsForAgent(agentId)
-}
-
-export function clearInvokedSkills(
-  preservedAgentIds?: ReadonlySet<string>,
-): void {
-  collections.clearInvokedSkills(preservedAgentIds)
 }
 
 export function clearInvokedSkillsForAgent(agentId: string): void {
@@ -788,7 +619,6 @@ export function resetStateForTests(): void {
   }
   sessionIdentity = new SessionIdentityOwner()
   usageLedger = new UsageLedgerOwner()
-  turnAccounting = new TurnAccountingOwner(usageLedger)
   interactionClock = new InteractionClockOwner()
   modelConfig = new ModelConfigOwner()
   posture = new PostureOwner()

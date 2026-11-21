@@ -1,11 +1,30 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
-import { join, sep } from 'node:path'
+import { dirname, join, parse, sep } from 'node:path'
 
-const scratch = mkdtempSync(join(tmpdir(), 'delete-ward-quoted-home-'))
+const spelledHome = (path: string): boolean => path.startsWith('/Users/') || path.startsWith('/home/') || /^[a-zA-Z]:[\\/]+Users(?:[\\/]|$)/i.test(path)
+const isWindowsSystem = (path: string): boolean => /^[a-zA-Z]:[\\/]+(?:Windows|Program Files(?: \(x86\))?|ProgramData)(?:[\\/]|$)/i.test(path)
+
+function mkdtempOutsideProfiles(prefix: string): string {
+  if (process.platform !== 'win32') return mkdtempSync(join(spelledHome(tmpdir()) ? '/tmp' : tmpdir(), prefix))
+  const driveRoot = parse(tmpdir()).root
+  const repoParent = dirname(join(import.meta.dir, '..', '..'))
+  const candidates = [tmpdir(), process.env.MERCURY_TMPDIR ?? '', join(driveRoot, 'Temp'), repoParent, driveRoot].filter(dir => dir !== '' && !spelledHome(dir) && !isWindowsSystem(dir))
+  for (const dir of candidates) {
+    try {
+      if (!existsSync(dir)) continue
+      return mkdtempSync(join(dir, prefix))
+    } catch {
+      continue
+    }
+  }
+  return mkdtempSync(join(tmpdir(), prefix))
+}
+
+const scratch = mkdtempOutsideProfiles('delete-ward-quoted-home-')
 process.env.HOME = join(scratch, 'home')
 process.env.USERPROFILE = process.env.HOME
 mkdirSync(process.env.HOME, { recursive: true })
@@ -32,7 +51,7 @@ const projectPath = join(home, 'Developer', '.delete-ward-quoted-proof')
 mkdirSync(projectPath, { recursive: true })
 const realHome = realpathSync(home)
 const project = realpathSync(projectPath)
-const plainProject = realpathSync(mkdtempSync(join(tmpdir(), 'delete-ward-quoted-plain-')))
+const plainProject = realpathSync(mkdtempOutsideProfiles('delete-ward-quoted-plain-'))
 for (const root of [project, plainProject]) {
   mkdirSync(join(root, '.git'), { recursive: true })
   mkdirSync(join(root, 'build dir'), { recursive: true })

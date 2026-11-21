@@ -5,6 +5,7 @@ import { absolutePath, layersOf, moveOf, programOf, wordKnown } from './layers.j
 import { nestedScripts, type Pending } from './scripts.js'
 import { PosixWalk, READING_CAP } from './totalPosix.js'
 import { PowerShellWalk } from './totalPowerShell.js'
+import { TextWalk } from './textCommands.js'
 import type { ReadCommand, ReadWorld, ShellDialect, ShellRead, Stage } from './reading.js'
 
 const SCRIPT_DEPTH_CAP = 64
@@ -39,6 +40,7 @@ export class Reading {
   readonly aliases = new Map<string, string>()
   readonly expansions = new Map<string, number>()
   readonly bodies = new Map<string, { node: Node; source: string }>()
+  readonly textBodies = new Map<string, string>()
   readonly movers = new Set<string>()
   roots = new Map<string, Node>()
   walks = { left: LEAVE_COUNT_CAP }
@@ -132,11 +134,21 @@ export class Reading {
     else this.movers.delete(name)
   }
 
+  defineText(name: string, source: string, from: number): void {
+    this.textBodies.set(name, source)
+    if (this.commands.slice(from).some(command => moveOf(command) !== undefined)) this.movers.add(name)
+    else this.movers.delete(name)
+  }
+
   leave(command: ReadCommand, scripts: readonly Pending[]): void {
     if (command.background) return
     const head = command.argv[0]
     const called = head !== undefined && command.dialect === 'posix' && command.body === undefined && command.argv.length === 1 ? this.bodies.get(head) : undefined
     if (called !== undefined) this.walked(copy => new PosixWalk(copy, called.source).node(called.node, { background: false, stages: [], body: head, line: 1, dialect: 'posix', around: undefined }))
+    else if (head !== undefined && command.dialect === 'posix' && command.body === undefined && command.argv.length === 1) {
+      const textBody = this.textBodies.get(head)
+      if (textBody !== undefined) this.walked(copy => new TextWalk(copy, textBody).walk({ background: false, stages: [], body: head, line: 1, dialect: 'posix', around: undefined }))
+    }
     for (const script of scripts) {
       if (script.same !== true) continue
       const frame: Frame = { background: false, stages: [], body: script.body, line: 1, dialect: script.dialect, around: undefined, cmd: script.cmd }
@@ -144,6 +156,7 @@ export class Reading {
       else {
         const root = this.roots.get(script.text)
         if (root !== undefined) this.walked(copy => new PosixWalk(copy, script.text).node(walkable(root), frame))
+        else this.walked(copy => new TextWalk(copy, script.text).walk(frame))
       }
     }
   }
@@ -159,6 +172,7 @@ export class Reading {
     for (const [name, body] of this.functions) copy.functions.set(name, body)
     for (const [name, alias] of this.aliases) copy.aliases.set(name, alias)
     for (const [name, body] of this.bodies) copy.bodies.set(name, body)
+    for (const [name, body] of this.textBodies) copy.textBodies.set(name, body)
     copy.roots = this.roots
     copy.second = true
     copy.depth = this.depth + 1
@@ -183,11 +197,12 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     const root = reading.roots.get(text) ?? (await parseCommandRaw(text))
     if (root === null || typeof root === 'symbol') {
       reading.markUnread(text.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser is not available', text)
-      return
+      new TextWalk(reading, text).walk(frame)
+    } else {
+      reading.roots.set(text, root)
+      if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
+      new PosixWalk(reading, text).node(walkable(root), frame)
     }
-    reading.roots.set(text, root)
-    if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
-    new PosixWalk(reading, text).node(walkable(root), frame)
   }
   const scripts = reading.pending.splice(from)
   for (const script of scripts) {
@@ -227,6 +242,53 @@ export async function readShellCommands(text: string, dialect: ShellDialect, wor
     if (failing) throw new Error('the reading was made to fail')
     await readInto(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
     if (reading.moved) reading = await followed(reading, text, dialect)
+  } catch {
+    reading.markUnread('it could not be read', text)
+  }
+  return { commands: reading.commands, pipelineSizes: reading.pipelineSizes, exported: reading.exported, homes: reading.scope.get('HOME') ?? [], unread: reading.unread }
+}
+
+function readIntoFromText(reading: Reading, text: string, frame: Frame, depth: number): void {
+  if (depth > SCRIPT_DEPTH_CAP || ++reading.scripts > SCRIPT_COUNT_CAP) {
+    reading.markUnread('it nests more scripts than are read', text)
+    return
+  }
+  if (text.trim() === '') return
+  const from = reading.pending.length
+  if (frame.dialect === 'powershell') new PowerShellWalk(reading, text, frame).statements(undefined, frame.stages)
+  else new TextWalk(reading, text).walk(frame)
+  const scripts = reading.pending.splice(from)
+  for (const script of scripts) {
+    const parent = reading.commands[script.from]
+    if (parent === undefined) continue
+    const cwd = reading.cwd
+    const before = reading.commands.length
+    reading.cwd = parent.cwd
+    readIntoFromText(reading, script.text, { background: parent.background, stages: parent.stages, body: script.body ?? parent.body, line: parent.line, dialect: script.dialect, around: undefined, cmd: script.cmd }, depth + 1)
+    if (script.same === true && reading.commands.slice(before).some(command => moveOf(command) !== undefined)) reading.moved = true
+    reading.cwd = cwd
+  }
+}
+
+function followedFromText(first: Reading, text: string, dialect: ShellDialect): Reading {
+  const again = new Reading(first.world)
+  again.second = true
+  try {
+    readIntoFromText(again, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+  } catch (error) {
+    passedOver(error)
+    return first
+  }
+  return again.commands.length === first.commands.length ? again : first
+}
+
+export function readShellCommandsFromText(text: string, dialect: ShellDialect, world: ReadWorld, why = 'the shell parser did not answer in time'): ShellRead {
+  let reading = new Reading(world)
+  reading.markUnread(why, text)
+  try {
+    if (failing) throw new Error('the reading was made to fail')
+    readIntoFromText(reading, text, { background: false, stages: [], body: undefined, line: 1, dialect, around: undefined }, 0)
+    if (reading.moved) reading = followedFromText(reading, text, dialect)
   } catch {
     reading.markUnread('it could not be read', text)
   }

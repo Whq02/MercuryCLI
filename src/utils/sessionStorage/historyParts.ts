@@ -8,7 +8,7 @@ const HEADER_MAX = 2048
 export const historyPartDir = (file: string): string => join(dirname(file), basename(file, '.jsonl'), 'history')
 export const sealedFile = (file: string, end: number): string => join(historyPartDir(file), `${end}.jsonl`)
 
-export interface HistoryExtent {
+interface HistoryExtent {
   path: string
   before: number
   start: number
