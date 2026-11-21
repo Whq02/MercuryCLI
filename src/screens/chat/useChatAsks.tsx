@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useDerivedState, useLayoutPublish, useSubscription } from '../../hooks/effects.js';
+import { useClaim, useDerivedState, useLayoutPublish } from '../../hooks/effects.js';
 import { CardQueuedWords } from '../../components/permissions/CardQueuedWords.js';
 import { PermissionQueueContext, permissionQueueStatus } from '../../components/permissions/PermissionQueueContext.js';
 import { PermissionRequest, type ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
@@ -30,7 +30,7 @@ export function useChatAsks({
   setAppState: (updater: (prev: AppState) => AppState) => void;
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
 }) {
-  useSubscription(
+  useClaim(
     () =>
       registerPermissionFocusNotifier(text =>
         addNotification({ key: 'permission-focus-refusal', text, priority: 'high', timeoutMs: 4000 }),
@@ -65,7 +65,7 @@ export function useChatAsks({
       return { ...prev, toolPermissionContext: { ...next, mode: held } };
     });
   }, [setAppState]);
-  useSubscription(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
+  useClaim(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
 
   const setToolPermissionContext = useCallback(
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
