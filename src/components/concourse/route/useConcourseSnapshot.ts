@@ -11,6 +11,7 @@ import { subscribeCurrentProject } from '../../../utils/bootCardFacts.js';
 import { subscribeFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
 import type { ConcourseSnapshotV1 } from '../contracts.js';
 import { passedOver } from '../../../utils/passedOver.js';
+import { subscribeUiClock } from '../../../utils/cockpit/uiClock.js';
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
 
@@ -90,6 +91,7 @@ export function useConcourseSnapshot(): {
     const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())
     const unsubDelta = subscribeConcourseDelta(rebuild)
     const unsubDispatches = subscribeConcourseDispatches(rebuild)
+    const unsubFloor = subscribeUiClock(15_000, rebuild)
     return () => {
       alive.current = false
       unsubObl()
@@ -98,6 +100,7 @@ export function useConcourseSnapshot(): {
       unsubSlot()
       unsubDelta()
       unsubDispatches()
+      unsubFloor()
     }
   }, [rebuild])
   return {

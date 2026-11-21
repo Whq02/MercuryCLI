@@ -365,6 +365,7 @@ function watchDesktopClaimFile(): () => void {
   }
 
   armWatch()
+  startFallback()
   return () => {
     closed = true
     closeWatcher()
