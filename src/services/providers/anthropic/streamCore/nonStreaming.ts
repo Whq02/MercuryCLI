@@ -8,7 +8,7 @@ import type { QuerySource } from 'src/constants/querySource.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { ThinkingConfig } from 'src/utils/thinking.js'
 import type { SystemAPIErrorMessage } from '../../../../types/message.js'
-import { normalizeModelStringForAPI } from '../../../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../../../model/model.js'
 import {
   anthropicLimitVerdict,
   clearAnthropicUsageLimit,

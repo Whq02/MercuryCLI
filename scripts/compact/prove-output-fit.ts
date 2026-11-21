@@ -58,7 +58,7 @@ const ZAI_DOCUMENTED_OUTPUT_CEILING = 131_072
 const { geminiOutputTokenLimitFor, refreshGeminiCatalogue } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type AnyMsg = Record<string, unknown> & { type?: string }

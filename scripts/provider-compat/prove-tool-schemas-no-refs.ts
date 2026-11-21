@@ -8,7 +8,7 @@ process.env.NODE_ENV = 'test'
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const { ComputerTool } = await import('../../src/tools/ComputerTool/ComputerTool.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { mapToolsToZai } = await import('../../src/services/providers/zai/zaiCodec.ts')
 
 const tools = [...new Map([...getAllBaseTools(), ComputerTool].map(tool => [tool.name, tool])).values()]

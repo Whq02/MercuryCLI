@@ -31,7 +31,7 @@ import { EFFORT_LEVELS, normalizeEffortLevelString, resolveStampedEffortTruth, s
 import { errorMessage, isENOENT } from '../../utils/errors.js'
 import { formatDuration, formatTokens } from '../../utils/format.js'
 import { logError } from '../../utils/log.js'
-import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel, renderModelName } from '../../services/model/model.js'
 import { MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
 import type { AgentMetadata } from '../../utils/sessionStorage/paths.js'
 import { formatSessionCost } from '../../services/providers/spendSpelling.js'

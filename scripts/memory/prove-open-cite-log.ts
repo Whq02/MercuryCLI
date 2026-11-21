@@ -21,7 +21,7 @@ const { pointerCitations } = await import('../../src/mneme/memoryCitations.js')
 const { SIGNAL_TURN_LIMIT, finishMemorySignal, memorySignalScope, noteMemoryOffered, noteMemoryOpened, readSignalLog, signalCounts, signalLogPath } = await import('../../src/mneme/mnemeSignal.js')
 const { runEventCore } = await import('../../src/run-core/turn-machine.js')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.js')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.js')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
 
 try {

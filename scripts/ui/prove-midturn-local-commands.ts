@@ -24,7 +24,7 @@ const React = await import('react')
 const { Box } = await import('../../src/ink.ts')
 const { AppStateProvider } = await import('../../src/state/AppState.tsx')
 const { Message: MessageRow } = await import('../../src/components/Message.tsx')
-const { buildMessageLookups } = await import('../../src/utils/messages/lookups.ts')
+const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 

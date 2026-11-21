@@ -15,7 +15,7 @@ for (const name of ['MERCURY_HOME', 'MERCURY_MODEL', 'MERCURY_DISABLE_1M_CONTEXT
 const load = (file: string): Promise<any> => import(join(root, file))
 const { enableConfigs } = await load('src/utils/config/globalConfig.ts')
 enableConfigs()
-const { createAssistantMessage, createUserMessage } = await load('src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await load('src/services/messages.ts')
 const tasks = await load('src/tasks/LocalAgentTask/LocalAgentTask.tsx')
 const queue = await load('src/utils/messageQueueManager.ts')
 const { getQueuedCommandAttachments } = await load('src/services/attachments/queuedCommands.ts')

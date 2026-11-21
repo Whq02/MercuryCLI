@@ -26,7 +26,7 @@ import {
   CREWMATE_MESSAGE_TAG,
   TICK_TAG,
 } from '../constants/xml.js'
-import { isSyntheticMessage, isTurnCutText } from '../utils/messages.js'
+import { isSyntheticMessage, isTurnCutText } from '../services/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
 import { createBranchSession } from '../services/branches/branchManifest.js'

@@ -71,7 +71,7 @@ const mods = await (async () => {
     return {
       helper: await import('../../src/services/providers/local/tensorfoldHelper.js'),
       hosts: await import('../../src/services/providers/local/tensorfoldHosts.js'),
-      utility: await import('../../src/utils/model/utilityModel.js'),
+      utility: await import('../../src/services/model/utilityModel.js'),
       discovery: await import('../../src/services/providers/local/localDiscovery.js'),
       catalogue: await import('../../src/services/providers/local/localCatalogue.js'),
       config: await import('../../src/utils/config/globalConfig.js'),

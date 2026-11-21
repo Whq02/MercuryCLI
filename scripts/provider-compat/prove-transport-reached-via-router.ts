@@ -23,7 +23,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { utilityCallFor } = await import('../../src/utils/model/utilityModel.ts')
+const { utilityCallFor } = await import('../../src/services/model/utilityModel.ts')
 type CallModelParams = import('../../src/services/providers/callModelContract.ts').CallModelParams
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 
@@ -71,7 +71,7 @@ mock.module('../../src/services/providers/catalogueOnDemand.ts', () => ({
 const { queryUtility } = await import('../../src/services/providers/anthropic/streamCore.ts')
 const { nativeSearch } = await import('../../src/services/search/nativeSearch.ts')
 const { nativeSearchFamilyOf, resolveSearchDoorPlan } = await import('../../src/services/search/searchDoor.ts')
-const { runQuestionHook } = await import('../../src/utils/hooks/questionRunner.ts')
+const { runQuestionHook } = await import('../../src/services/hooks/questionRunner.ts')
 const { generateAgent } = await import('../../src/components/agents/generateAgent.ts')
 
 const makeToolContext = (engineModel: string): never =>

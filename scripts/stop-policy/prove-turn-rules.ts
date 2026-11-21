@@ -2,7 +2,7 @@
 import * as t from '../core-runtime/turnScenarios.ts'
 
 const { NO_TOOL_RULES, readReply, replyStands } = await import('../../src/run-core/turn/noToolReply.ts')
-const { createAssistantAPIErrorMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantAPIErrorMessage } = await import('../../src/services/messages.ts')
 
 const f = t.fixtures
 type Row = Record<string, unknown>

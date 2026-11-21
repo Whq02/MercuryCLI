@@ -1,8 +1,8 @@
 import { LRUCache } from 'lru-cache'
 
 import { queryUtility, queryWithModel } from '../../services/providers/anthropic/index.js'
-import { getEngineModel } from '../../utils/model/model.js'
-import { utilityCallFor } from '../../utils/model/utilityModel.js'
+import { getEngineModel } from '../../services/model/model.js'
+import { utilityCallFor } from '../../services/model/utilityModel.js'
 import { AbortError } from '../../utils/errors.js'
 import { isBinaryContentType, persistBinaryContent } from '../../services/mcp/mcpOutputStorage.js'
 import { extractTextContent } from '../../utils/messages/text.js'

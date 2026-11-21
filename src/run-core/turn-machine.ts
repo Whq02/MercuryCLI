@@ -10,7 +10,7 @@ import {
   memoryWriteLostNotice,
   memoryWriteRefusals,
 } from '../services/providers/toolCallGate.js'
-import { createSystemMessage } from '../utils/messages.js'
+import { createSystemMessage } from '../services/messages.js'
 import type { QuerySource } from '../constants/querySource.js'
 import { memorySignalScope } from '../mneme/mnemeSignal.js'
 import { productionDeps, type QueryDeps } from '../query/deps.js'

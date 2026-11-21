@@ -9,7 +9,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/utils/messages.ts')
+await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 const { powershellToolHasPermission } = await import('../../src/tools/PowerShellTool/powershellPermissions.ts')

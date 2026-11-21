@@ -22,7 +22,7 @@ mock.module('../../src/ink/components/Link.js', () => ({ default: ({ url, childr
 const { UserImageMessage } = await import('../../src/components/messages/UserImageMessage.js')
 const { SystemTextMessage } = await import('../../src/components/messages/SystemTextMessage.js')
 const { CollapsedReadSearchContent } = await import('../../src/components/messages/CollapsedReadSearchContent.js')
-const { buildMessageLookups } = await import('../../src/utils/messages/lookups.js')
+const { buildMessageLookups } = await import('../../src/services/messages/lookups.js')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)

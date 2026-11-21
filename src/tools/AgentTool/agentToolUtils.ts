@@ -48,7 +48,7 @@ import {
 import { AbortError, errorMessage } from '../../utils/errors.js'
 import { flushSessionStorage } from '../../utils/sessionStorage.js'
 import { recoveryBudgetMs, recoveryBudgetSpentFactsOf } from '../../services/api/recoveryBudget.js'
-import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getMarketingNameForModel } from '../../services/model/model.js'
 import { getCwdState } from '../../bootstrap/state.js'
 import { runWithCwdOverride } from '../../utils/cwd.js'
 import { pauseResumeWords, type AgentPauseV1 } from '../../tasks/LocalAgentTask/agentPause.js'
@@ -65,7 +65,7 @@ import {
   overloadProbeRequestMs,
   type OverloadEpisode,
 } from '../../tasks/LocalAgentTask/agentOverload.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage } from '../../services/messages.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { getEmptyToolPermissionContext } from '../../Tool.js'
 import type { CacheSafeParams } from '../../services/agents/forkedAgent.js'
@@ -79,7 +79,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import {
   extractTextContent,
   getLastAssistantMessage,
-} from '../../utils/messages.js'
+} from '../../services/messages.js'
 import { isSyntheticApiErrorMessage } from '../../utils/messages/factories.js'
 import { emitTaskProgress as emitSdkTaskProgress } from '../../utils/task/sdkProgress.js'
 import { emitBackgroundAgentRows } from '../../utils/task/sdkAgentFrames.js'

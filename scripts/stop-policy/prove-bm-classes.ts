@@ -292,7 +292,7 @@ async function main(): Promise<void> {
 
   section('WK — the worktree preflight refuses BEFORE allocation, deterministically')
   {
-    const w = await import('../../src/utils/worktree.js')
+    const w = await import('../../src/services/worktree.js')
     w._resetWorktreeRefusalCountsForTesting()
     const bare = mkdtempSync(join(tmpdir(), 'speedster-wk-'))
     const first = w.preflightWorktreeCapability(bare)

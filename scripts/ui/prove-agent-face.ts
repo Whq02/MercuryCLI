@@ -695,7 +695,7 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
   )
   const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
   const { getAgentModel } = await import('../../src/services/model/agent.js')
-  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.js')
+  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.js')
   const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.js')
   const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/components/BootAgentsScreen.js')
   const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')

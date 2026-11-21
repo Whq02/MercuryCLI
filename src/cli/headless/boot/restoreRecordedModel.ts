@@ -1,7 +1,7 @@
 import { getEngineModelOverride, setEngineModelOverride } from '../../../bootstrap/state.js'
 import { restoreConversationModel } from '../../../services/resume/sessionRestore.js'
 import { resolveHeadlessModel, bootModelRefusalLine } from '../model.js'
-import { parseUserSpecifiedModel, getEngineModel } from '../../../utils/model/model.js'
+import { parseUserSpecifiedModel, getEngineModel } from '../../../services/model/model.js'
 import { errorMessage } from '../../../utils/errors.js'
 import { emitLoadError } from '../resume.js'
 import { gracefulShutdownSync } from '../../../utils/gracefulShutdown.js'

@@ -1,6 +1,6 @@
 import React from 'react'
 import type { TextBlockParam } from '../../types/wire.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 import { FOLDED_COUNT_TAG } from '../../utils/collapseBackgroundBashNotifications.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { ROW_SECOND_CLOCK_GAP_MS, taskNoticeBlock } from '../../utils/messages/noticeRows.js'

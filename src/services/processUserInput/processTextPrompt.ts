@@ -3,7 +3,7 @@ import { randomUUID, type UUID } from 'node:crypto'
 import type { ContentBlockParam } from '../../types/wire.js'
 import type { AttachmentMessage, Message, MessageOrigin } from '../../types/message.js'
 import type { PermissionMode } from '../../types/permissions.js'
-import { createUserMessage } from '../../utils/messages.js'
+import { createUserMessage } from '../messages.js'
 
 export function processTextPrompt(
   input: string | ContentBlockParam[],

@@ -152,7 +152,7 @@ enableConfigs()
 const { Conversation } = await import('../../src/rows/turn.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createUserMessage } = await import(
-  '../../src/utils/messages.ts'
+  '../../src/services/messages.ts'
 )
 const { createAttachmentMessage } = await import(
   '../../src/services/attachments/orchestrator.ts'

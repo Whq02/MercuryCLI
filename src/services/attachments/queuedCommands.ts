@@ -8,7 +8,7 @@ import { getImagePasteIds, isValidImagePaste, type QueuedCommand } from 'src/typ
 import type { QuerySource } from '../../constants/querySource.js'
 import type { PastedContent } from '../../utils/config.js'
 import { maybeResizeAndDownsampleImageBlock } from '../../utils/imageResizer.js'
-import { extractTextContent } from '../../utils/messages.js'
+import { extractTextContent } from '../messages.js'
 import type { Attachment } from '../../utils/attachments/types.js'
 import { fitCompletionCommands } from '../agentResults/summaryRoom.js'
 import type { Message } from '../../types/message.js'

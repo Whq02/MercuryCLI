@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, MODEL, NODE, REPO, childEnv, makeTally } from '../daemon/dupline-world.ts'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
 import { seedScratchHome, startScriptedFixture } from '../lib/scriptedTurn.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
@@ -66,7 +67,7 @@ function openWindow(env: NodeJS.ProcessEnv): void {
   writeFileSync(snapshot, JSON.stringify(fixture))
   const file = join(home, 'frame.json')
   const config = join(home, 'capture.json')
-  writeFileSync(config, JSON.stringify({ argv: [NODE, DIST], cwd, cols: 156, rows: 36, sends: [{ atTick: 80, awaitText: '↑↓ choose', requireAwait: true, data: '\x1b[1;2C' }], readyText: savedReply, total: 120, out: file }))
+  writeFileSync(config, JSON.stringify({ argv: [NODE, DIST], cwd, cols: 156, rows: 36, sends: [{ atTick: 80, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, data: '\x1b[1;2C' }], readyText: savedReply, total: 120, out: file }))
   const got = spawnSync(driver.python, [captureEngineEntry(driver, REPO), config], { encoding: 'utf8', env: { ...env, MERCURY_CONCOURSE_FIXTURE: snapshot }, timeout: vshotBudgetMs(60_000) })
   const grid: Array<Array<{ c: string }>> = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')).grid : []
   const text = grid.map(r => r.map(c => c.c).join('')).join('\n')

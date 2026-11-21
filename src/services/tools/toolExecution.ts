@@ -29,7 +29,7 @@ import {
   createUserMessage,
   turnCutOf,
   turnCutResultText,
-} from '../../utils/messages.js'
+} from '../messages.js'
 import { emitInvocationTrace } from '../../utils/observability/invocationTrace.js'
 import type { HermesKillInfo } from '../../utils/permissions/capabilityGate.js'
 import { isToolKilled, toolKillReason } from '../../utils/permissions/capabilityGate.js'
@@ -47,12 +47,12 @@ import {
   extractDiscoveredToolNames,
   isToolSearchEnabledOptimistic,
   isToolSearchToolAvailable,
-} from '../../utils/toolSearch.js'
+} from '../messages/toolSearch.js'
 import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearchTool/prompt.js'
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
 import { repairToolInput, toolCallRefusalResultText } from '../providers/toolCallGate.js'
 import { outputSchemaMismatch } from './toolOutputCheck.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'

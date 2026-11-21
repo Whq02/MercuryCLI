@@ -6,7 +6,7 @@ import { classifyOverflowFault, type OverflowSignal } from '../../../api/overflo
 import { type MediaRefusal } from '../../../../utils/api/mediaRefusal.js'
 import {
   createAssistantAPIErrorMessage,
-} from '../../../../utils/messages.js'
+} from '../../../messages.js'
 import type {
   OpenaiFault,
 } from '../openaiWire.js'

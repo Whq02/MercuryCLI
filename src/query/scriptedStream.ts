@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { createAssistantMessage } from '../utils/messages.js'
+import { createAssistantMessage } from '../services/messages.js'
 import { getCwd } from '../utils/cwd.js'
 import { sleep } from '../utils/sleep.js'
 import type { CallModel } from '../services/providers/callModelContract.js'

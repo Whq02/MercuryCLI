@@ -20,7 +20,7 @@ let countText = '0'
 let changed = ''
 let removed = 0
 const checkedDirectories: string[] = []
-const worktrees = await import('../../src/utils/worktree.js')
+const worktrees = await import('../../src/services/worktree.js')
 const realCleanup = worktrees.cleanupWorktree
 const realCurrent = worktrees.getCurrentWorktreeSession
 let realRemoval = false
@@ -29,7 +29,7 @@ let exitsRecorded = 0
 const execution = await import('../../src/utils/execFileNoThrow.js')
 const logs = await import('../../src/utils/sessionStorage/logs.js')
 const runCommand = execution.execFileNoThrowWithCwd
-mock.module('../../src/utils/worktree.js', () => ({
+mock.module('../../src/services/worktree.js', () => ({
   ...worktrees,
   getCurrentWorktreeSession: () => session,
   cleanupWorktree: async () => { removed++; if (realRemoval) await realCleanup() },

@@ -81,7 +81,7 @@ if (typeof table === 'string') {
 }
 const words = table
 const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
-const model = await import('../../src/utils/model/model.ts')
+const model = await import('../../src/services/model/model.ts')
 const agent = await import('../../src/services/model/agent.ts')
 const engine = await import('../../src/services/crew/engineDispatch.ts')
 const { keyLanePins, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
@@ -95,7 +95,7 @@ const { DEEPSEEK_DISPLAY_PINS } = await import('../../src/utils/model/pins/deeps
 const { KIMI_DISPLAY_PINS } = await import('../../src/utils/model/pins/kimiPins.ts')
 const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 const picker = await import('../../src/commands/model/mercuryModel.tsx')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 type Road = { model?: string; backend?: string; displayLabel?: string; note?: string; threw?: string }

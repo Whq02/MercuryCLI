@@ -61,7 +61,7 @@ section('1b · the home-lane admission at the dispatch seam (the neutrality ruli
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.js')
   const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.js')
   const { FIRST_PARTY_MODEL_ENV_PINS } = await import('../../src/services/providers/idSpaces.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
   const savedFacts: Record<string, string | undefined> = {}
   for (const key of ['ANTHROPIC_BASE_URL', ...FIRST_PARTY_MODEL_ENV_PINS]) {

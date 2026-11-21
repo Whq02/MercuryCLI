@@ -6,7 +6,7 @@ import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { isBareMode } from '../utils/envUtils.js'
 import { startEventLoopStallDetector } from '../utils/eventLoopStallDetector.js'
 import { logError } from '../utils/log.js'
-import { getEngineModel } from '../utils/model/model.js'
+import { getEngineModel } from '../services/model/model.js'
 import { settingsChangeDetector } from '../utils/settings/changeDetector.js'
 import { skillChangeDetector } from '../utils/skills/skillChangeDetector.js'
 import { getTipToShowOnSpinner } from '../services/tips/tipScheduler.js'
@@ -32,7 +32,7 @@ export function startDeferredPrefetches(): void {
         logForDiagnosticsNoPII('info', 'prefetch_system_context_skipped_no_trust')
       }
       void getTipToShowOnSpinner().catch(passedOver)
-      const { prefetchThirdPartyCredentials } = (await import('../utils/api.js')) as {
+      const { prefetchThirdPartyCredentials } = (await import('../services/messages/api.js')) as {
         prefetchThirdPartyCredentials?: () => void
       }
       prefetchThirdPartyCredentials?.()

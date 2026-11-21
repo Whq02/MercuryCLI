@@ -5,6 +5,7 @@ import { join, resolve } from 'node:path'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const root = resolve(import.meta.dir, '../..')
 const scratch = mkdtempSync(join(tmpdir(), 'tester-door-'))
@@ -23,7 +24,7 @@ type Payload = { grid: Grid; endReason: string; marks?: { label: string; grid: G
 const text = (grid: Grid): string => grid.map(row => row.map(cell => cell.c).join('').trimEnd()).join('\n')
 const count = (value: string): number => value.split(door).length - 1
 const enter = [
-  { atTick: 100, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 3, requireAwait: true, data: '\r' },
+  { atTick: 100, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 3, requireAwait: true, data: '\r' },
   { atTick: 180, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, requireAwait: true, data: '' },
 ]
 const composer = 'Type a prompt'

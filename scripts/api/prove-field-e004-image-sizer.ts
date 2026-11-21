@@ -49,7 +49,7 @@ const errorsMod = await import(join(ROOT, 'src/services/api/errors.ts'))
 const { APIError } = await import(join(ROOT, 'src/utils/api/sdkErrors.ts'))
 const { routedCallModel } = await import(join(ROOT, 'src/services/providers/callModelRouter.ts'))
 const { asSystemPrompt } = await import(join(ROOT, 'src/utils/systemPromptType.ts'))
-const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/utils/messages.ts'))
+const { createUserMessage, createAssistantMessage } = await import(join(ROOT, 'src/services/messages.ts'))
 const { getEmptyToolPermissionContext } = await import(join(ROOT, 'src/Tool.ts'))
 const { getDefaultAppState } = await import(join(ROOT, 'src/state/AppStateStore.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(ROOT, 'src/utils/fileStateCache.ts'))
@@ -345,7 +345,7 @@ section('§2 the once-per-session notice: the receipt, the transcript mark, the 
     )
   }
   const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
-  const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/utils/messages/attachmentText.ts'))
+  const { normalizeAttachmentForAPI } = await import(join(ROOT, 'src/services/messages/attachmentText.ts'))
 }
 
 for (const armName of ['jsjpeg', 'jspng', 'jsmany'] as const) {

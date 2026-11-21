@@ -142,7 +142,7 @@ section('§4 a skill file deleted from disk announces too (one roster law)')
 
 section('§5 the render arm and the legacy shape')
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
   const rendered = normalizeAttachmentForAPI(
     { type: 'skill_listing', content: '', skillCount: 0, isInitial: false, removedNames: ['depa-x'] } as never,
   ) as Array<{ message?: { content?: unknown } }>

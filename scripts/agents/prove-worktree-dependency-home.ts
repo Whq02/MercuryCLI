@@ -37,7 +37,7 @@ if (mode !== undefined) {
   mock.module('node:fs/promises', () => instrument(promises, 'async.'))
   const state = await import('../../src/bootstrap/state.ts')
   const config = await import('../../src/utils/config/globalConfig.ts')
-  const { createAgentWorktree } = await import('../../src/utils/worktree.ts')
+  const { createAgentWorktree } = await import('../../src/services/worktree.ts')
   const { mercurySecretPath } = await import('../../src/utils/permissions/protectedPaths.ts')
   process.chdir(repo)
   state.setOriginalCwd(repo); state.setCwdState(repo); state.setIsInteractive(true); config.enableConfigs()

@@ -101,7 +101,7 @@ async function runBaselineRows(): Promise<void> {
 }
 
 async function runWorktreeRows(): Promise<void> {
-  const { cleanupStaleAgentWorktrees, createAgentWorktree, keepWorktree, prepareWorktreeFiles, restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+  const { cleanupStaleAgentWorktrees, createAgentWorktree, keepWorktree, prepareWorktreeFiles, restoreWorktreeSession } = await import('../../src/services/worktree.ts')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
   const gitEnv = {
     ...process.env,

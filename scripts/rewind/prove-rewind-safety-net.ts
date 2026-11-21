@@ -153,7 +153,7 @@ try {
     check('the old rewind method remains callable after an unsupported new method', oldDry.refusal === 'drift', oldDry)
   } else check('the additive runner method exists', false)
 
-  const cleanup = await import('../../src/utils/cleanup.ts')
+  const cleanup = await import('../../src/services/cleanup.ts')
   const store = join(home, 'file-history')
   await flushSessionStorage()
   rmSync(store, { recursive: true, force: true })

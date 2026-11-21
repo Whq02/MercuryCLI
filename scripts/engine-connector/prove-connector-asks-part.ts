@@ -13,7 +13,7 @@ delete process.env.MERCURY_HOME
 
 const { AsksPart } = await import('../../src/services/engine-connector/daemon/asks.ts')
 const { publishSessionAsks, sessionAsksPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {

@@ -25,7 +25,7 @@ const withheld = new Set(withheldTools().map(w => w.tool))
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { filterToolsForAgent, resolveAgentTools } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
 const lspManager = await import('../../src/services/lsp/manager.ts')
-const { toolToAPISchema } = await import('../../src/utils/api.ts')
+const { toolToAPISchema } = await import('../../src/services/messages/api.ts')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.ts')
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 type Tool = import('../../src/Tool.ts').Tool

@@ -1,5 +1,5 @@
 import { measuredPrefillMs, silentAfterHeadersWindowMs } from '../../streamIdleBudget.js'
-import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
+import { getPublicModelDisplayName } from '../../../model/model.js'
 import {
   streamCompatChat,
   type CompatStreamOptions,

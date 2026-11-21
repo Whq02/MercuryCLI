@@ -15,7 +15,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const vnext = await import('../../src/utils/sessionStorage/vnext.ts')
 const logs = await import('../../src/utils/sessionStorage/logs.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
-const attachmentText = await import('../../src/utils/messages/attachmentText.ts')
+const attachmentText = await import('../../src/services/messages/attachmentText.ts')
 const nullRendering = await import('../../src/components/messages/nullRenderingAttachments.ts')
 const decode = await import('../../src/fabric/transcriptDecode.ts')
 

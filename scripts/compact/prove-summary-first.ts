@@ -61,7 +61,7 @@ console.log('PASS all 154 bodies / 740942 rough tokens exposed; no prune or repl
 const { startFixtureApi } = await import('../lib/fixtureApi.js')
 const { compactConversation } = await import('../../src/services/compact/compact.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.js')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.js')
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const api = await startFixtureApi([{ kind: 'text', text: 'The source was read and the requested change is still open. Keep the operator wording and verify the change before reporting it complete.' }])

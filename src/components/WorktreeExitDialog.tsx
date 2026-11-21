@@ -13,7 +13,7 @@ import {
   getCurrentWorktreeSession,
   keepWorktree,
   type WorktreeSession,
-} from '../utils/worktree.js'
+} from '../services/worktree.js'
 import { Select } from './CustomSelect/index.js'
 import Dialog from './design-system/Dialog.js'
 import { Spinner } from './Spinner.js'

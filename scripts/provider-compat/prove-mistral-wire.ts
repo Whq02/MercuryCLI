@@ -54,7 +54,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 process.env.MERCURY_MISTRAL_API_BASE = `http://127.0.0.1:${server.port}/v1`
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
 const { refreshMistralCatalogue, __resetMistralCatalogueForTest } = await import('../../src/services/providers/mistral/mistralCatalogue.ts')
@@ -63,7 +63,7 @@ const { resolveProviderUsability } = await import('../../src/services/providers/
 const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
-const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
 function params(model = 'mistral', effortValue: string | undefined = 'high', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {
   return { messages, tools: [tool], systemPrompt: asSystemPrompt(['Fixture system']), thinkingConfig: thinking ? { type: 'enabled', budgetTokens: 4096 } : { type: 'disabled' }, signal: new AbortController().signal,

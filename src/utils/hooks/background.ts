@@ -1,7 +1,7 @@
 import { hookEndingSentence } from '../../rows/vocabulary.js'
 import { logForDebugging } from '../debug.js'
 import { enqueuePendingNotification } from '../messageQueueManager.js'
-import { wrapInSystemReminder } from '../messages.js'
+import { wrapInSystemReminder } from '../messages/text.js'
 import { boundHookContext } from './contextBound.js'
 import { readStdoutAnswer, type HookOutcome } from './answer.js'
 import type { CommandHookProcess } from './commandRunner.js'

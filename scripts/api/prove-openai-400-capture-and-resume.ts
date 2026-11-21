@@ -197,7 +197,7 @@ bootstrap.setIsInteractive(false)
 const { getOriginalCwd, getSessionId, getSessionProjectDir } = bootstrap
 const { getProjectDir } = await import('../../src/utils/sessionStoragePortable.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { classifyOverflowFault } = await import('../../src/services/api/overflowSignal.ts')

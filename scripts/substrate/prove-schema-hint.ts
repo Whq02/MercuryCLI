@@ -13,7 +13,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'schema-hint-'))
 const ROOT = join(import.meta.dir, '..', '..')
 const { buildSchemaNotSentHint } = await import('../../src/services/tools/toolExecution.ts')
 const { isDeferredTool, TOOL_SEARCH_TOOL_NAME } = await import('../../src/tools/ToolSearchTool/prompt.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 type Tool = Parameters<typeof buildSchemaNotSentHint>[0]
 type Message = Parameters<typeof buildSchemaNotSentHint>[1][number]
 

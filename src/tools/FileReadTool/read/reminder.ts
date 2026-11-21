@@ -1,4 +1,4 @@
-import { getCanonicalName } from '../../../utils/model/model.js'
+import { getCanonicalName } from '../../../services/model/model.js'
 import type { Message } from '../../../types/message.js'
 import { passedOver } from '../../../utils/passedOver.js'
 
@@ -72,7 +72,7 @@ export function takeReminder(parentMessage: unknown, messages: Message[] | undef
 export function cyberRiskReminderForCurrentModel(): string {
   try {
     const { getEngineModel } =
-      require('../../../utils/model/model.js') as typeof import('../../../utils/model/model.js')
+      require('../../../services/model/model.js') as typeof import('../../../services/model/model.js')
     return cyberRiskReminderFor(getEngineModel())
   } catch {
     return CYBER_RISK_MITIGATION_REMINDER

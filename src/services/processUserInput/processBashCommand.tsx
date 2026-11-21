@@ -12,7 +12,7 @@ import {
   createSyntheticUserCaveatMessage,
   createUserMessage,
   INTERRUPT_MESSAGE,
-} from '../../utils/messages.js'
+} from '../messages.js'
 import { resolveDefaultShell } from '../../utils/shell/resolveDefaultShell.js'
 import { isPowerShellToolEnabled } from '../../utils/shell/shellToolUtils.js'
 import { bashToolAvailable, WINDOWS_BASH_NOTICE } from '../../utils/shell/windowsShellRoad.js'

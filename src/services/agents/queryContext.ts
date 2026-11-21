@@ -11,7 +11,7 @@ import type { InternalPermissionMode } from '../../types/permissions.js'
 import type { CacheSafeParams } from './forkedAgent.js'
 import type { FileStateCache } from '../../utils/fileStateCache.js'
 import { createAbortController } from '../../utils/abortController.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import { shouldEnableThinkingByDefault, type ThinkingConfig } from '../../utils/thinking.js'
 

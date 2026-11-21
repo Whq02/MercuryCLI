@@ -21,7 +21,7 @@ const { compatSlotLaneProfile } = await import('../../src/services/providers/ope
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 const { waitRow, partialRowsOf, itemRowsOf, stepRow, outcomeRow } = await import('../../src/rows/project.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const wordsModule = await import('../../src/components/Spinner/liveCounterWords.ts').catch(() => null)
 
 let failures = 0

@@ -28,7 +28,7 @@ section('§1 the writer: no site arms a thinking-clear latch after the idle thre
   const t = await import('./turnScenarios.ts')
   const { makeRequest } = await import('../../src/run-core/turn/makeRequest.ts')
   const { modelReply } = await import('../../src/run-core/turn/modelReply.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const f = t.fixtures
   type Row = Record<string, unknown>
   const HOURS_AGO = new Date(Date.now() - 3 * 3_600_000).toISOString()

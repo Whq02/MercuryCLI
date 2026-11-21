@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import type { Message as WireMessage, RenderableMessage } from '../../types/message.js'
-import { getToolUseID } from '../../utils/messages/lookups.js'
+import { getToolUseID } from '../../services/messages/lookups.js'
 import { normalizeMessages } from '../../utils/messages/normalize.js'
 import { isNotEmptyMessage } from '../../utils/messages/text.js'
 import { deriveUUID } from '../../utils/messages/identity.js'

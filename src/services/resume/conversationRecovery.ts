@@ -16,7 +16,7 @@ import { suppressNextSkillListing } from '../../utils/attachments/skillListing.j
 import { getCwd } from '../../utils/cwd.js'
 import { copyFileHistoryForResume } from '../changeTransaction/fileHistory.js'
 import { logError } from '../../utils/log.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../model/model.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import {
   createAssistantMessage,
@@ -29,8 +29,8 @@ import {
   normalizeAttachmentForAPI,
   normalizeMessages,
   SYNTHETIC_MESSAGES,
-} from '../../utils/messages.js'
-import { settleToolUsesOfEndedRun } from '../../utils/messages/apiFilters.js'
+} from '../messages.js'
+import { settleToolUsesOfEndedRun } from '../messages/apiFilters.js'
 import { isCutResultText } from '../../utils/messages/turnCut.js'
 import {
   accumulateOpenToolUses,

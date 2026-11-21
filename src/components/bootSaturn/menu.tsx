@@ -6,7 +6,7 @@ import { compileWhenSpelling } from '../../services/saturn/whenSpelling.js';
 import type { SessionReceiptEntry } from '../../services/switchboard/sessionReceipts.js';
 import { projectDisplayName } from '../../utils/bootCardFacts.js';
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
-import { renderModelChip } from '../../utils/model/model.js';
+import { renderModelChip } from '../../services/model/model.js';
 import { InteractiveRow } from '../mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from '../mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAccent.js';

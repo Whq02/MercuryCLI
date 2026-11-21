@@ -15,7 +15,7 @@ import { z } from 'zod/v4'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 await import('../../src/services/providers/callModelRouter.ts')
-await import('../../src/utils/messages.ts')
+await import('../../src/services/messages.ts')
 await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes, defaultWrapperPorts } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')

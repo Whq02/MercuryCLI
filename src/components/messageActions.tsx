@@ -15,7 +15,7 @@ import {
   INTERRUPT_MESSAGE_FOR_TOOL_USE,
   isTurnCutText,
   NO_RESPONSE_REQUESTED,
-} from '../utils/messages.js'
+} from '../services/messages.js'
 
 
 type NavigableType =

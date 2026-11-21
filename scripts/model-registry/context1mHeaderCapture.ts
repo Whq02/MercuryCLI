@@ -43,7 +43,7 @@ try {
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
   enableConfigs()
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { isClaudeAISubscriber } = await import('../../src/utils/auth.ts')
@@ -51,7 +51,7 @@ try {
   const { setSdkBetas } = await import('../../src/bootstrap/state.ts')
   const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.ts')
   const { contextFillView, contextWindowLabel } = await import('../../src/services/context/contextFill.ts')
-  const { getPublicModelDisplayName, getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
+  const { getPublicModelDisplayName, getMarketingNameForModel } = await import('../../src/services/model/model.ts')
   subscriber = isClaudeAISubscriber()
   if (arm === 'key-preview') setSdkBetas(filterAllowedSdkBetas(['context-1m-2025-08-07']))
   for (const model of models) {

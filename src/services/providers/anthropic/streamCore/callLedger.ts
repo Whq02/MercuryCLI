@@ -11,11 +11,11 @@ import { roughTokenCountEstimation } from 'src/services/tokenEstimation.js'
 import type { Tools } from '../../../../Tool.js'
 import type { ConnectorTextBlock } from '../../../../types/connectorText.js'
 import type { AssistantMessage } from '../../../../types/message.js'
-import { normalizeContentFromAPI } from '../../../../utils/messages.js'
+import { normalizeContentFromAPI } from '../../../messages.js'
 import {
   getCanonicalName,
   normalizeModelStringForAPI,
-} from '../../../../utils/model/model.js'
+} from '../../../model/model.js'
 import { extractQuotaStatusFromError } from '../../../anthropicLimits.js'
 import {
   logAPIError,

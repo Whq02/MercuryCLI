@@ -1,6 +1,6 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
-import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
-import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { normalizeModelStringForAPI } from '../../model/model.js'
+import { createAssistantAPIErrorMessage } from '../../messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'
@@ -12,7 +12,7 @@ import { QWEN_BASE_OVERRIDE_ENV, QWEN_CONSOLES, QWEN_ENV_KEY, qwenBoundBase, qwe
 import { getCachedQwenCatalogue, newestQwenModel, qwenListedModel, qwenModelFacts, qwenPinScope, qwenWireId } from './qwenCatalogue.js'
 import { isQwenTextModelId, qwenDisplayPin, qwenPinsFor, qwenPreservesThinking } from '../../../utils/model/pins/qwenPins.js'
 import { qwenTemplateEffort } from '../../../utils/model/pins/qwenTemplate.js'
-import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from '../../model/modelOverrides.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 const QWEN_KEY_PAGE = 'qwencloud.com (API Keys) or modelstudio.alibabacloud.com (API-KEY)'

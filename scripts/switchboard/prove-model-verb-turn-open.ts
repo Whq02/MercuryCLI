@@ -27,7 +27,7 @@ check('an unknown seat is not busy', open?.(undefined) === false)
 console.log('T3 the runner defers the breadcrumbs to the turn boundary (source pins)')
 {
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
   const NAMED = 'Sonnet 5'
   const NEXT_MODEL = String(parseUserSpecifiedModel(NAMED))
   const SPOKEN = 'the quiet sonnet'

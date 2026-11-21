@@ -1,7 +1,7 @@
 import type { TextBlockParam } from '../../types/wire.js'
 import * as React from 'react'
 import { Box, Text } from '../../ink.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 import { TranscriptNameplate, useMessageMeta } from './TranscriptNameplate.js'
 import { ShellLiveTail } from '../shell/ShellLiveTail.js'
 

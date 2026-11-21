@@ -91,7 +91,7 @@ export async function accountsWorld() {
 
 export async function fixtureTurn(label = 'fixture turn', agentId?: string) {
   const { routedCallModelSettled } = await import('../../src/services/providers/callModelRouter.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { asAgentId } = await import('../../src/types/ids.ts')

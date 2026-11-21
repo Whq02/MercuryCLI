@@ -31,7 +31,7 @@ import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../providers/local/loca
 import { kickMoonshotCatalogue } from '../providers/moonshot/moonshotCatalogue.js'
 import { kickDeepseekCatalogue } from '../providers/deepseek/deepseekCatalogue.js'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { operatorModelFacts } from '../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from './modelOverrides.js'
 import { isProviderDisabled } from '../providers/disabledProviders.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import {
@@ -41,10 +41,10 @@ import {
   parseUserSpecifiedModel,
   parseUserSpecifiedModelRaw,
   renderModelName,
-} from '../../utils/model/model.js'
+} from './model.js'
 import { getModelStrings } from '../../utils/model/modelStrings.js'
 import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, mirrorTwinOf, parseFirstPartyGeneration, previousGenerationKeys } from '../../utils/model/configs.js'
-import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
+import { isModelAllowed } from './modelAllowlist.js'
 import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../../utils/auth.js'
 import { modelRefusalWords } from '../providers/anthropic/modelRefusal.js'
 import type { AnthropicLiveRow } from '../providers/anthropic/anthropicCatalogue.js'

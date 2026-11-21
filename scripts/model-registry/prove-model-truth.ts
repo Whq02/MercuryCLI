@@ -6,9 +6,9 @@ import {
   getDefaultOpusModel,
   isDefaultOpusNatively1M,
   parseUserSpecifiedModel,
-} from '../../src/utils/model/model.js'
+} from '../../src/services/model/model.js'
 import { getModelKnowledgeCutoff } from '../../src/utils/model/capabilities.js'
-import { gatherFrontierFacts } from '../../src/utils/model/frontierPolicy.js'
+import { gatherFrontierFacts } from '../../src/services/model/frontierPolicy.js'
 import { buildProviderSnapshot, classOfModel } from '../../src/services/providers/modelRegistry.js'
 import { SKILL_FILES as BUNDLED_PROVIDER_APIS_FILES } from '../../src/skills/bundled/provider-apisContent.js'
 

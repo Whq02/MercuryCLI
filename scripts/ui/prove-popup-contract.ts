@@ -826,7 +826,7 @@ for (const cols of [80, 120]) {
 setFocusedSessionConnector(originalConnector)
 
 
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const workbenchRecords = options.map(row => createUserMessage({ content: 'prompt-' + row.value }))
 setFocusedSessionConnector(new Proxy(originalConnector, { get(target, property) {
   if (property === 'records') return () => workbenchRecords

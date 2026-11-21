@@ -17,7 +17,7 @@ function section(t: string): void {
 
 const { roughTokenCountEstimation } = await import('../../src/services/tokenEstimation.ts')
 const { estimateMessageTokens, estimateContextTokens } = await import('../../src/services/compact/microCompact.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 
 console.log('the post-compact figure counts what the fold restored')
 

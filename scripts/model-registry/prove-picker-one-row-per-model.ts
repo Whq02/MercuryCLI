@@ -67,7 +67,7 @@ const {
   withContext1m,
 } = await import('../../src/services/model/modelOptions.ts')
 type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
 const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
 const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
 const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')

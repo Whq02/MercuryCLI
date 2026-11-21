@@ -48,7 +48,7 @@ const { KeybindingSetup } = await import('../../src/keybindings/KeybindingProvid
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = await import('../../src/services/engine-connector/focusedConnector.ts')
 const { call } = await import('../../src/commands/model/model.tsx')
-const { renderDefaultModelSetting, renderDefaultModelLabel } = await import('../../src/utils/model/model.ts')
+const { renderDefaultModelSetting, renderDefaultModelLabel } = await import('../../src/services/model/model.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const h = React.createElement
 

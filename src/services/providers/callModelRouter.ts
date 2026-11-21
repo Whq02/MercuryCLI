@@ -3,7 +3,7 @@ import type { CallModelParams, CallModelStream } from './callModelContract.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../api/errors.js'
 import { APIUserAbortError } from '../../utils/api/sdkErrors.js'
 import type { AssistantMessage } from '../../types/message.js'
-import { createAssistantAPIErrorMessage } from '../../utils/messages.js'
+import { createAssistantAPIErrorMessage } from '../messages.js'
 import { openaiCallModel } from './openai/openaiCallModel.js'
 import { zaiCallModel } from './zai/zaiCallModel.js'
 import { moonshotCallModel } from './moonshot/moonshotCallModel.js'
@@ -35,7 +35,7 @@ import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
 import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../model/computedDefault.js'
-import { rosterRefusal } from '../../utils/model/modelAllowlist.js'
+import { rosterRefusal } from '../model/modelAllowlist.js'
 
 export {
   classifyModelRoute,

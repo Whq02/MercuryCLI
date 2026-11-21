@@ -48,7 +48,7 @@ section('§1 the baked table in source: the row, its words and its place')
 section("§2 the core's exported table agrees with the owners the bake reads")
 {
   const { MODEL_NAMES } = (await import(CORE)) as { MODEL_NAMES: Record<string, string> }
-  const { getMarketingNameForModel, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { getMarketingNameForModel, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
   check(`the export names ${ID} "${NAME}"`, MODEL_NAMES[ID] === NAME, String(MODEL_NAMES[ID]))
   check('the export agrees with the marketing owner for the row', MODEL_NAMES[ID] === getMarketingNameForModel(ID), `${String(MODEL_NAMES[ID])} vs ${String(getMarketingNameForModel(ID))}`)
   check("the alias row is what a saved 'sonnet' boots", MODEL_NAMES.sonnet === getMarketingNameForModel(parseUserSpecifiedModel('sonnet')) && MODEL_NAMES.sonnet === NAME, `${String(MODEL_NAMES.sonnet)} vs ${String(getMarketingNameForModel(parseUserSpecifiedModel('sonnet')))}`)

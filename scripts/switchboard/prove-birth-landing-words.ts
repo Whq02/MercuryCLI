@@ -22,7 +22,7 @@ const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
 const { NoSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.js')
 const slot = await import('../../src/services/engine-connector/focusedConnector.js')
 const { permissionModeOf } = await import('../../src/services/engine-connector/daemonConnector.js')
-const { getEngineModel } = await import('../../src/utils/model/model.js')
+const { getEngineModel } = await import('../../src/services/model/model.js')
 const { bornEffortValueOf, focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.js')
 
 console.log('R1 the record: the landing words are armed by a door and settled when the landing ends')

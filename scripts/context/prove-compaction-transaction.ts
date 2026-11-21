@@ -46,7 +46,7 @@ section('policy — decideCompaction table + the breaker')
 const { compactConversation, ERROR_MESSAGE_NOT_ENOUGH_MESSAGES } = await import(
   '../../src/services/compact/compact.ts'
 )
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 function makeMessages(): unknown[] {

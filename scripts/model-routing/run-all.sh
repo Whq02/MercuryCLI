@@ -8,7 +8,7 @@
 # gate-watch: src/constants/*
 # gate-watch: src/tools/AgentTool/*
 # gate-watch: src/utils/*
-# gate-watch: src/utils/messages/attachmentText.ts
+# gate-watch: src/services/messages/attachmentText.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
 set -u

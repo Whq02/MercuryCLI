@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { usePublish } from '../effects.js'
 import { getIsRemoteMode } from '../../bootstrap/state.js'
 import { useNotifications } from '../../context/notifications.js'
-import { getSettingsWithAllErrors } from '../../utils/settings/allErrors.js'
+import { getSettingsWithAllErrors } from '../../services/settings/allErrors.js'
 import type { ValidationError } from '../../utils/settings/validation.js'
 import { useSettingsChange } from '../useSettingsChange.js'
 

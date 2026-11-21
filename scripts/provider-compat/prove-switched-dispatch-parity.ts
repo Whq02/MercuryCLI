@@ -86,7 +86,7 @@ const { queryEvents } = await import('../../src/query.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import(
-  '../../src/utils/messages.ts'
+  '../../src/services/messages.ts'
 )
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

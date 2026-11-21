@@ -1,5 +1,5 @@
 import { getModelOptions } from '../../../services/model/modelOptions.js'
-import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../../services/model/model.js'
 import { modelSupportsEffort, modelSupportsAdaptiveThinking } from '../../../utils/model/capabilities.js'
 import { resolveEffortTruth } from '../../../utils/effort.js'
 import type { BootMade, BootStep } from '../runnerPorts.js'

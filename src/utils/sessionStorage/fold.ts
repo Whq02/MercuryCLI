@@ -11,7 +11,7 @@ import type {
   TurnEnded,
 } from '../../types/logs.js'
 import type { StorageRowKind, StorageRowOf } from '../../rows/storage.js'
-import { isCompactBoundaryMessage } from '../messages.js'
+import { isCompactBoundaryMessage } from '../messages/systemMessages.js'
 import type { ContentReplacementRecord } from '../toolResultStorage.js'
 import { isPersistedProgressEntry } from './paths.js'
 import { createTranscriptRows, transcriptRows } from './rowGraph.js'

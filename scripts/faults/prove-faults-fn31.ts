@@ -440,8 +440,8 @@ console.log('\nauth.ts — routing failure does not default to anthropic and usa
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realModel = await import(SRC + '/utils/model/model.ts')
-    mock.module(SRC + '/utils/model/model.js', () => ({
+    const realModel = await import(SRC + '/services/model/model.ts')
+    mock.module(SRC + '/services/model/model.js', () => ({
       ...realModel,
       getUserSpecifiedModelSetting: () => 'broken',
       getEngineModel: () => { throw new Error('route read boom') },
@@ -569,8 +569,8 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realAllErrors = await import(SRC + '/utils/settings/allErrors.ts')
-    mock.module(SRC + '/utils/settings/allErrors.js', () => ({
+    const realAllErrors = await import(SRC + '/services/settings/allErrors.ts')
+    mock.module(SRC + '/services/settings/allErrors.js', () => ({
       ...realAllErrors,
       getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
     }))

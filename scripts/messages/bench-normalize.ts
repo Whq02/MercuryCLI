@@ -1,5 +1,5 @@
 
-import * as M from '../../src/utils/messages.ts';
+import * as M from '../../src/services/messages.ts';
 import type { Message } from '../../src/types/message.ts';
 
 const uuid = (n: number) =>

@@ -14,7 +14,7 @@ console.log('§1 the model rows live in the ratified owners')
       ALL_MODEL_CONFIGS.opus5?.firstParty === 'claude-opus-5',
   )
   const { getDefaultOpusModel, getDefaultSonnetModel, getCanonicalName, getMarketingNameForModel } =
-    await import('../../src/utils/model/model.js')
+    await import('../../src/services/model/model.js')
   for (const k of ['MERCURY_DEFAULT_OPUS_MODEL', 'MERCURY_DEFAULT_SONNET_MODEL']) delete process.env[k]
   check("getDefaultOpusModel() = 'claude-opus-5-5'", getDefaultOpusModel() === 'claude-opus-5-5', getDefaultOpusModel())
   check("getDefaultSonnetModel() = 'claude-sonnet-5-5'", getDefaultSonnetModel() === 'claude-sonnet-5-5', getDefaultSonnetModel())

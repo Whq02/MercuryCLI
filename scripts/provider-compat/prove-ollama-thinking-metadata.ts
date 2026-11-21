@@ -51,7 +51,7 @@ const discovery = await import('../../src/services/providers/local/localDiscover
 const { localRecordFor } = await import('../../src/services/providers/local/localCatalogue.ts')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const tool = { name: 'Read', inputSchema: z.object({ file_path: z.string() }), description: async () => 'Read a fixture', prompt: async () => 'Read a fixture', isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true, maxResultSizeChars: 10000 } as never
 let failures = 0

@@ -15,7 +15,7 @@ import {
   getFocusedSessionConnector,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
-import { type ModelName, renderModelChip } from '../utils/model/model.js'
+import { type ModelName, renderModelChip } from '../services/model/model.js'
 import { useDisplayedSessionModel, useFocusedContextFill } from '../hooks/useDisplayedSessionModel.js'
 import { publishContextUsage } from '../services/cockpit/contextUsageLive.js'
 import { LAYOUT_BREAKPOINTS, useLayoutTier } from '../hooks/useLayoutTier.js'

@@ -32,7 +32,7 @@ try {
   const { AppStateProvider } = await import('../../src/state/AppState.tsx')
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
   const { Message } = await import('../../src/components/Message.tsx')
-  const { EMPTY_LOOKUPS } = await import('../../src/utils/messages/lookups.ts')
+  const { EMPTY_LOOKUPS } = await import('../../src/services/messages/lookups.ts')
   const { createUserMessage } = await import('../../src/utils/messages/factories.ts')
   const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
   const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000154a24f5d0000000049454e44ae426082', 'hex').toString('base64')

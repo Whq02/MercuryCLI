@@ -27,7 +27,7 @@ import { notLoggedInGateDecision, walletEntries, type NotLoggedInGate } from '..
 import { sessionAccountFamily } from '../../services/accounts/sessionAccount.js'
 import { useSignInEpoch } from '../../utils/accounts/useSignInEpoch.js'
 import { useCatalogueEpoch } from '../../hooks/useCatalogueEpoch.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { formatDuration, formatNumber } from '../../utils/format.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useShortcutDisplay } from '../../keybindings/useShortcutDisplay.js'

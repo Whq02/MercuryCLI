@@ -23,7 +23,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/utils/worktree.ts')
+const { createAgentWorktree, createWorktreeForSession, keepWorktree, prepareWorktreeFiles, readWorktreeDelta } = await import('../../src/services/worktree.ts')
 const cloneModule = await import('../../src/utils/worktreeClone.ts').catch(() => null)
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 

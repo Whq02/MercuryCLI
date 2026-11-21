@@ -1,7 +1,7 @@
 import type { Message } from '../../types/message.js'
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js'
 import type { PermissionMode, PermissionUpdate } from '../../types/permissions.js'
-import type { ModelSetting } from '../../utils/model/model.js'
+import type { ModelSetting } from '../model/model.js'
 import type { PromptInputMode } from '../../types/textInputTypes.js'
 import type { PastedContent } from '../../utils/config/schema.js'
 import type { MCPServerConnection } from '../../utils/mcp/types.js'

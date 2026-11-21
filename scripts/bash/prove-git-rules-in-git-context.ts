@@ -41,7 +41,7 @@ const { getIsGit } = await import('../../src/utils/git.ts')
 const { getGitStatus, getSystemContext } = await import('../../src/context.ts')
 const gitRulesText = ((await import('../../src/utils/gitRules.ts').catch(() => null)) as { gitRulesText?: () => string } | null)?.gitRulesText ?? (() => 'no src/utils/gitRules.ts on this tree')
 const { getSimplePrompt } = await import('../../src/tools/BashTool/prompt.ts')
-const { appendSystemContext } = await import('../../src/utils/api.ts')
+const { appendSystemContext } = await import('../../src/services/messages/api.ts')
 
 const git = (cwd: string, args: string[]): void => {
   execFileSync('git', args, { cwd, stdio: 'pipe', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_SYSTEM: '/dev/null', GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@example.invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@example.invalid' } })

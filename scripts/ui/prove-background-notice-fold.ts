@@ -19,7 +19,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
 
 const fold = await import('../../src/utils/collapseBackgroundBashNotifications.ts')
 const { BACKGROUND_BASH_SUMMARY_PREFIX } = await import('../../src/tasks/LocalShellTask/LocalShellTask.tsx')
-const { extractTag } = await import('../../src/utils/messages.ts')
+const { extractTag } = await import('../../src/services/messages.ts')
 
 type Row = Record<string, unknown> & { type: string; uuid: string; timestamp: string; queued?: true }
 type Outcome = 'completed' | 'failed' | 'killed'

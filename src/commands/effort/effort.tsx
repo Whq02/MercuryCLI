@@ -26,8 +26,8 @@ import {
   type EffortLevel,
   type EffortValue,
 } from '../../utils/effort.js'
-import { createCommandInputMessage, createUserMessage } from '../../utils/messages.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { createCommandInputMessage, createUserMessage } from '../../services/messages.js'
+import { renderModelName } from '../../services/model/model.js'
 import { formatCommandLoadingMetadata } from '../../services/processUserInput/processSlashCommand.js'
 import { updateSettingsForSource } from '../../utils/settings/settings.js'
 import { CommandPopupLease } from '../../components/CommandPopupSlot.js'

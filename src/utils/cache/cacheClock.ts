@@ -3,7 +3,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, unlinkSync } from 'node
 import { join } from 'node:path'
 import { getIsNonInteractiveSession, getOriginalCwd, getSessionId } from '../../bootstrap/state.js'
 import { getProjectDir } from '../sessionStoragePortable.js'
-import { getCurrentWorktreeSession } from '../worktree.js'
+import { getCurrentWorktreeSession } from '../worktree/session.js'
 import { logError } from '../log.js'
 import { logForDebugging } from '../debug.js'
 import { registerCleanup } from '../cleanupRegistry.js'

@@ -51,7 +51,7 @@ const errorsMod = await import('../../src/services/api/errors.ts')
 const { APIError } = await import('../../src/utils/api/sdkErrors.js')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage, createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage } = await import('../../src/services/messages.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const sharp = (await import('sharp')).default
 

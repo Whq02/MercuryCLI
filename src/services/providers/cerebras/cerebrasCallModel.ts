@@ -1,5 +1,5 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
-import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { createAssistantAPIErrorMessage } from '../../messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { canonicalWireModelId } from '../routeLaw.js'

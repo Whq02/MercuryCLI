@@ -197,7 +197,7 @@ section('§0 the plan: a provider refusal (stop_reason: refusal) is shown to the
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   process.env.MERCURY_CREDENTIAL_STORE ??= 'file'
   process.env.MERCURY_LOCAL_PROBE_TARGETS ??= 'none'
-  const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+  const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
   const { createAssistantAPIErrorMessage, createUserMessage } = await import('../../src/utils/messages/factories.ts')
   const COCKPIT_WORDS = 'The model ended the response early (stop_reason: refusal). Use /rewind (or shift+up) to edit your last message, or start a new session. If refusals repeat, try /model claude-haiku-4-5-20251001.'
   const HEADLESS_WORDS = 'The model ended the response early (stop_reason: refusal). Try rephrasing the request or a different approach.'

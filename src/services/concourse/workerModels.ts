@@ -1,6 +1,6 @@
 
 import { logForDebugging } from '../../utils/debug.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../model/model.js'
 import { CHOOSE_A_MODEL_WORDS, NO_SIGN_IN_ROW, NO_USABLE_ROW, isChooseAModel, keylessReason, resetComputedDefaultMemo, type LaneRowVerdict } from '../model/computedDefault.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
@@ -173,7 +173,7 @@ function unrecognisedRefusalAction(): string {
   const plain = 'pick a listed row from the model picker'
   try {
     const { catalogueSpellingExamples } =
-      require('../../utils/model/modelSpellingFold.js') as typeof import('../../utils/model/modelSpellingFold.js')
+      require('../model/modelSpellingFold.js') as typeof import('../model/modelSpellingFold.js')
     const examples = catalogueSpellingExamples(3)
     if (examples.length > 0) {
       return `${plain} — spellings like ${examples.map(e => `'${e}'`).join(', ')} resolve, display names and ids both`
@@ -267,7 +267,7 @@ export async function composeWorkerModelRegistry(reads: WorkerRegistryReads = {}
   const seen = new Set<string>()
   let operatorDefaultId: string | undefined
   try {
-    const { getEngineModel } = await import('../../utils/model/model.js')
+    const { getEngineModel } = await import('../model/model.js')
     operatorDefaultId = await canonicalWorkerModelId(getEngineModel())
   } catch (error) {
     passedOver(error)
@@ -458,7 +458,7 @@ export async function validateWorkerModelChoice(
           action: unrecognisedRefusalAction(),
         }
       }
-      const { isModelAllowed } = await import('../../utils/model/modelAllowlist.js')
+      const { isModelAllowed } = await import('../model/modelAllowlist.js')
       if (!isModelAllowed(id)) {
         return {
           ok: false,

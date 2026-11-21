@@ -1,6 +1,6 @@
 import { canAnswerAsks } from '../../../bootstrap/state.js'
 import type { AssistantMessage } from '../../../types/message.js'
-import { getAssistantMessageText } from '../../../utils/messages.js'
+import { getAssistantMessageText } from '../../messages.js'
 import { API_ERROR_MESSAGE_PREFIX, PROMPT_TOO_LONG_ERROR_MESSAGE } from '../../api/errors.js'
 import { overflowSignalOf } from '../../api/overflowSignal.js'
 import { passedOver } from '../../../utils/passedOver.js'

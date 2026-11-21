@@ -18,7 +18,7 @@ const { killCapability, clearAllCapabilityKills } = await import(
   '../../src/utils/permissions/capabilityGate.ts'
 )
 const { AbortError } = await import('../../src/utils/errors.ts')
-const { CANCEL_MESSAGE } = await import('../../src/utils/messages.ts')
+const { CANCEL_MESSAGE } = await import('../../src/services/messages.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

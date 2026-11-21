@@ -14,7 +14,7 @@ const load = (file: string): Promise<any> => import(join(root, file))
 const { enableConfigs } = await load('src/utils/config.ts'); enableConfigs()
 const { openrouterLaneProfile } = await load('src/services/providers/openrouter/openrouterCallModel.ts')
 const { openrouterResponsesTransport } = await load('src/services/providers/openrouter/openrouterResponsesTransport.ts')
-const { createUserMessage } = await load('src/utils/messages.ts')
+const { createUserMessage } = await load('src/services/messages.ts')
 let failed=0
 const check=(label:string,yes:boolean):void=>{if(!yes)failed++;console.log(`[${yes?'PASS':'FAIL'}] ${label}`)}
 const captured:any[]=[]

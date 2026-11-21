@@ -692,7 +692,7 @@ section('native tool discovery preserves encrypted reasoning and earlier request
 {
   const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
   const { clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
-  const { createUserMessage, normalizeMessagesForAPI } = await import('../../src/utils/messages.js')
+  const { createUserMessage, normalizeMessagesForAPI } = await import('../../src/services/messages.js')
   const savedSearch = process.env.MERCURY_TOOL_SEARCH
   const savedDefer = process.env.MERCURY_TOOL_DEFER
   process.env.MERCURY_TOOL_SEARCH = 'on'

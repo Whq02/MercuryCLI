@@ -37,7 +37,7 @@ import { useFocusedWorkspaceBranch } from '../hooks/useFocusedWorkspaceBranch.js
 import { useSessionSignInGate } from '../hooks/useSessionSignInGate.js'
 import { signedOutStatusWords } from '../services/accounts/sessionSignIn.js'
 import { useCrewmateModel } from './tasks/useCrewmateModel.js'
-import { renderModelChip } from '../utils/model/model.js'
+import { renderModelChip } from '../services/model/model.js'
 import { focusedEffortLabelOf } from './mercury-ui/EffortChip.js'
 import { modelSupportsEffort } from '../utils/effort.js'
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js'

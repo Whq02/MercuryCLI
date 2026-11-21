@@ -53,7 +53,13 @@ if (entryTakesProofHome && singleRunRootMadeHere() !== '') {
   startAgainOnThisEnvironment()
 }
 
-if (entryTakesProofHome && !import.meta.main) {
+const isBuildEntry = typeof bunMain === 'string' && bunMain.endsWith('/build.ts')
+const isProductEntry = typeof bunMain === 'string' && (bunMain.includes('/src/entrypoints/') || bunMain.includes('/dist/'))
+if (!import.meta.main && !isBuildEntry && !isProductEntry) {
+  const preloadFlag = `"--preload=${resolve(import.meta.dir, 'proofHomePreload.ts').replaceAll('\\', '/')}"`
+  if (!(process.env.BUN_OPTIONS || '').includes(preloadFlag)) {
+    process.env.BUN_OPTIONS = process.env.BUN_OPTIONS ? `${process.env.BUN_OPTIONS} ${preloadFlag}` : preloadFlag
+  }
   const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
   registerBootDoors()
 }

@@ -34,7 +34,7 @@ enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { requestConversationPlan } = await import('../../src/utils/messages/apiPlan.ts')
+const { requestConversationPlan } = await import('../../src/services/messages/apiPlan.ts')
 const { createUserMessage, createAssistantMessage, createAssistantAPIErrorMessage } = await import('../../src/utils/messages/factories.ts')
 const tool = { name: 'fixture_tool', description: async () => 'fixture', inputSchema: z.object({}), isEnabled: async () => true, isReadOnly: () => true, prompt: async () => 'fixture', userFacingName: () => 'fixture' } as never
 async function call(messages: Message[]): Promise<AssistantMessage[]> {

@@ -156,7 +156,7 @@ export async function ensureWorkerWorktree(
 ): Promise<WorktreeEnsureResult> {
   const prepared = async (result: Extract<WorktreeEnsureResult, { ok: true }>): Promise<WorktreeEnsureResult> => {
     try {
-      const { prepareWorktreeFiles } = await import('../utils/worktree.js')
+      const { prepareWorktreeFiles } = await import('../services/worktree.js')
       await prepareWorktreeFiles(workspaceId, result.path, workspaceId, true, undefined, result.created)
       return result
     } catch (error) {

@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert'
 import { resolve } from 'node:path'
 
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
-const { stripToolReferenceBlocksFromUserMessage: strip, stripUnavailableToolReferencesFromUserMessage: available } = await import(`${root}/src/utils/messages/apiView.ts`)
+const { stripToolReferenceBlocksFromUserMessage: strip, stripUnavailableToolReferencesFromUserMessage: available } = await import(`${root}/src/services/messages/apiView.ts`)
 const { STRIPPED_ADMISSION_RECORD_TEXT } = await import(`${root}/src/constants/tools/toolSearch.ts`)
 const ref = (tool_name?: string) => ({ type: 'tool_reference', ...(tool_name === undefined ? {} : { tool_name }) })
 const result = (content: unknown, tool_use_id: string) => ({ type: 'tool_result', content, tool_use_id })
@@ -36,6 +36,6 @@ const string = user('plain')
 assert.equal(strip(string), string)
 assert.equal(available(string, new Set()), string)
 console.log('PASS selection keeps nameless and available references; untouched and string rows preserve identity')
-const { normalizeContentFromAPI } = await import(`${root}/src/utils/messages/apiView.ts`)
+const { normalizeContentFromAPI } = await import(`${root}/src/services/messages/apiView.ts`)
 for (const absent of [undefined, null, '', false, 0]) assert.deepEqual(normalizeContentFromAPI(absent, []), [])
 console.log('PASS every absent/falsy inbound content value retains the empty-list fallback')

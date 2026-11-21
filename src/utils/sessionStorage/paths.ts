@@ -1,6 +1,6 @@
-import { basename, dirname, join, resolve } from 'path'
+import { dirname, join } from 'path'
 import { readFile, readdir } from 'fs/promises'
-import { existsSync, watch, type Dirent, type FSWatcher } from 'fs'
+import type { Dirent } from 'fs'
 import type { UUID } from 'crypto'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { getOriginalCwd, getSessionId, getSessionProjectDir } from '../../bootstrap/state.js'
@@ -15,8 +15,6 @@ import { getMercuryHome } from '../envUtils.js'
 import { isFsInaccessible } from '../errors.js'
 import { logForDebugging } from '../debug.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
-import { subscribeUiClock } from '../cockpit/uiClock.js'
-import { resolveWatchRoot } from '../watchRoot.js'
 
 export const MAX_TRANSCRIPT_READ_BYTES = 50 * 1024 * 1024
 
@@ -85,136 +83,10 @@ export type AgentMetadata = {
 >>
 export type AgentMetadataRow = { agentId: AgentId; metadata: AgentMetadata }
 
-const STORAGE_WATCH_FALLBACK_MS = 2500
-
-type StorageFileWatch = {
-  listeners: Set<() => void>
-  stop: () => void
-}
-
-const storageFileWatchers = new Map<string, StorageFileWatch>()
-
-function nearestExistingDir(dir: string): string {
-  let current = dir
-  while (current !== dirname(current) && !existsSync(current)) current = dirname(current)
-  return current
-}
-
-function fanOutStorageFile(key: string): void {
-  const entry = storageFileWatchers.get(key)
-  if (!entry) return
-  for (const listener of [...entry.listeners]) {
-    try {
-      listener()
-    } catch (error) {
-      passedOver(error)
-    }
-  }
-}
-
-export function notifyStorageFile(filePath: string): void {
-  fanOutStorageFile(resolve(filePath))
-}
-
-export function subscribeStorageFile(filePath: string, listener: () => void): () => void {
-  const key = resolve(filePath)
-  let entry = storageFileWatchers.get(key)
-  if (!entry) {
-    const targetDir = dirname(key)
-    const base = basename(key)
-    const listeners = new Set<() => void>()
-    let watcher: FSWatcher | null = null
-    let watchedDir: string | null = null
-    let stopFallback: (() => void) | null = null
-    let disposed = false
-
-    const closeWatcher = (): void => {
-      if (watcher === null) return
-      const active = watcher
-      watcher = null
-      watchedDir = null
-      try {
-        active.close()
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-
-    const armFallback = (): void => {
-      if (disposed || stopFallback !== null) return
-      stopFallback = subscribeUiClock(STORAGE_WATCH_FALLBACK_MS, () => fanOutStorageFile(key))
-    }
-
-    const armWatcher = (): void => {
-      if (disposed) return
-      const nextDir = nearestExistingDir(targetDir)
-      if (watcher !== null && watchedDir === nextDir) return
-      closeWatcher()
-      const onTarget = nextDir === targetDir
-      try {
-        const next = watch(resolveWatchRoot(nextDir), { persistent: false }, (_event, filename) => {
-          if (disposed) return
-          if (!onTarget) {
-            const refreshed = nearestExistingDir(targetDir)
-            if (refreshed !== nextDir) {
-              armWatcher()
-              fanOutStorageFile(key)
-            }
-            return
-          }
-          const name = filename === null ? null : String(filename)
-          if (name === null || name === base || name.startsWith(`${base}.`)) {
-            fanOutStorageFile(key)
-          }
-        })
-        next.on('error', () => {
-          if (watcher === next) closeWatcher()
-          armFallback()
-        })
-        watcher = next
-        watchedDir = nextDir
-        if (!onTarget && nearestExistingDir(targetDir) !== nextDir) armWatcher()
-      } catch (error) {
-        passedOver(error)
-        armFallback()
-      }
-    }
-
-    entry = {
-      listeners,
-      stop: () => {
-        disposed = true
-        closeWatcher()
-        if (stopFallback !== null) {
-          stopFallback()
-          stopFallback = null
-        }
-      },
-    }
-    storageFileWatchers.set(key, entry)
-    armWatcher()
-  }
-  entry.listeners.add(listener)
-  return () => {
-    const current = storageFileWatchers.get(key)
-    if (!current) return
-    current.listeners.delete(listener)
-    if (current.listeners.size === 0) {
-      current.stop()
-      storageFileWatchers.delete(key)
-    }
-  }
-}
-
-export function subscribeAgentMetadataPath(path: string, listener: () => void): () => void {
-  return subscribeStorageFile(path, listener)
-}
-
 export async function writeAgentMetadata(agentId: AgentId, metadata: AgentMetadata): Promise<void> {
   const destination = getAgentMetadataPath(agentId)
   const bytes = JSON.stringify(metadata)
   await durableAtomicPublish(destination, bytes)
-  notifyStorageFile(destination)
 }
 
 export async function readAgentMetadata(agentId: AgentId): Promise<AgentMetadata | null> {

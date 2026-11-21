@@ -30,7 +30,7 @@ const {
   parseUserSpecifiedModel,
   renderModelChip,
   renderModelName,
-} = await import('../../src/utils/model/model.ts')
+} = await import('../../src/services/model/model.ts')
 const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
 
 let failures = 0
@@ -73,11 +73,11 @@ section('§1 the fold order and the names: claude-opus-5-5 is its own canonical,
 section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth")
 {
   const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/utils/model/model.ts')
+  const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
   const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
+  const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
   const { calculateUSDCost, getModelPricingString, resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const effort = await import('../../src/utils/effort.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
@@ -151,7 +151,7 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
   const { applyThinkingBinding, isSameModel, modelSwitchReceipt } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
-  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/utils/messages/apiFilters.ts')
+  const { stripThinkingFromOtherModels, thinkingFromOtherModels } = await import('../../src/services/messages/apiFilters.ts')
   const show = (v: unknown): string => JSON.stringify(v)
 
   check('thinking is always on for the row (the [1m] twin too); Opus 5 keeps its switch; a carrier row never joins', caps.modelThinkingAlwaysOn(ID) && caps.modelThinkingAlwaysOn(`${ID}[1m]`) && !caps.modelThinkingAlwaysOn(PREVIOUS) && !caps.modelThinkingAlwaysOn('openrouter/anthropic/claude-opus-5-5'))

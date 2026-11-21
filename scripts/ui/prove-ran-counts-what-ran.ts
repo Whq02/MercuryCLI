@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 // gate-watch: src/utils/messages/rejectionText* src/components/messages/CollapsedReadSearchContent*
-// gate-watch: src/components/messages/collapseReadSearch* src/utils/messages/lookups*
+// gate-watch: src/components/messages/collapseReadSearch* src/services/messages/lookups*
 // gate-watch: src/components/messages/* src/utils/messages/*
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'

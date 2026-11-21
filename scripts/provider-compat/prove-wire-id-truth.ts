@@ -116,7 +116,7 @@ const { focusedOptionSupports1m, withContext1m } = await import(
   '../../src/services/model/modelOptions.ts'
 )
 const { getCanonicalName, getEngineModel, parseUserSpecifiedModel } = await import(
-  '../../src/utils/model/model.ts'
+  '../../src/services/model/model.ts'
 )
 const { modelSupports1M, resolveContextWindow } = await import(
   '../../src/utils/model/capabilities.ts'

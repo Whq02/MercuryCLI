@@ -49,8 +49,8 @@ const { decodeOpenaiTurnRecord, loadedToolNamesOf } = await import('../../src/se
 const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.js')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { ToolSearchTool } = await import('../../src/tools/ToolSearchTool/ToolSearchTool.js')
-const { createUserMessage, createCompactBoundaryMessage } = await import('../../src/utils/messages.js')
-const { extractDiscoveredToolNames } = await import('../../src/utils/toolSearch.js')
+const { createUserMessage, createCompactBoundaryMessage } = await import('../../src/services/messages.js')
+const { extractDiscoveredToolNames } = await import('../../src/services/messages/toolSearch.js')
 const makeTool = (name: string, shouldDefer = false): Tool => ({ name, shouldDefer, prompt: async () => 'Fetch a fixture.', description: async () => 'Fetch a fixture.', inputSchema: z.object({ value: z.string() }), isEnabled: () => true, isReadOnly: () => true, isConcurrencySafe: () => true } as unknown as Tool)
 const tools = [makeTool('Read'), ToolSearchTool, makeTool('WebFetch', true), makeTool('Browser', true)] as Tool[]
 const permission = getEmptyToolPermissionContext()

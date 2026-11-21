@@ -18,7 +18,7 @@ import {
   getCurrentWorktreeSession,
   keepWorktree,
   type WorktreeSession,
-} from '../../utils/worktree.js'
+} from '../../services/worktree.js'
 import { EXIT_WORKTREE_TOOL_NAME } from './constants.js'
 import { getExitWorktreeToolPrompt } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'

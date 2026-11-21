@@ -2,7 +2,7 @@ import { queryUtility } from '../../services/providers/anthropic/streamCore.js'
 import type { Message } from '../../types/message.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { safeParseJSON } from '../../utils/json.js'
-import { extractTextContent } from '../../utils/messages.js'
+import { extractTextContent } from '../../services/messages.js'
 import { extractConversationText } from '../../services/concourse/sessionTitle.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 

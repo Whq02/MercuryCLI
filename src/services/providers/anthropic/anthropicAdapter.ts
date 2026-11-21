@@ -1,6 +1,6 @@
 import { getContextWindowForModel } from '../../../utils/context.js'
 import { modelSupportsMaxEffort, modelSupportsXHighEffort } from '../../../utils/model/capabilities.js'
-import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../../utils/model/model.js'
+import { getDefaultFableModel, getDefaultOpusModel, getDefaultSonnetModel, renderModelChip } from '../../model/model.js'
 import type {
   ProviderDescription,
   ProviderEffortLevel,

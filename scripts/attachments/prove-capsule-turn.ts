@@ -27,10 +27,10 @@ try {
   enableConfigs()
   const { getDefaultAppState } = await import('../../src/state/AppStateStore.js')
   const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.js')
-  const { getEngineModel } = await import('../../src/utils/model/model.js')
+  const { getEngineModel } = await import('../../src/services/model/model.js')
   const { SKILL_TOOL_NAME } = await import('../../src/constants/tools/skill.js')
   const { getAttachments } = await import('../../src/services/attachments/orchestrator.js')
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.js')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.js')
   let state = getDefaultAppState()
   const context = {
     abortController: new AbortController(),

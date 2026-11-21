@@ -154,6 +154,11 @@ async function main(): Promise<void> {
   }
 
   {
+    const { registerBootDoors } = await import('../services/boot/registerDoors.js')
+    registerBootDoors()
+  }
+
+  {
     const { setupGracefulShutdown, setRunPreflightSignalWriter } = await import('../utils/gracefulShutdown.js')
     setupGracefulShutdown()
     if (runArgs.command === 'run' && (runArgs.format === 'rows' || runArgs.format === 'json') && runArgs.input !== 'rows' && !runArgs.outputRequest) {
@@ -163,11 +168,6 @@ async function main(): Promise<void> {
         writeSync(1, `${JSON.stringify(refusedOutcome([`mercury run stopped before the turn (${signal})`], 'interrupt', 'interrupted'))}\n`)
       })
     }
-  }
-
-  {
-    const { registerBootDoors } = await import('../services/boot/registerDoors.js')
-    registerBootDoors()
   }
 
   {
@@ -251,7 +251,7 @@ async function main(): Promise<void> {
   ) {
     const { enableConfigs } = await import('../utils/config.js')
     enableConfigs()
-    const { execIntoTmuxWorktree } = await import('../utils/worktree.js')
+    const { execIntoTmuxWorktree } = await import('../services/worktree.js')
     const outcome = await execIntoTmuxWorktree(args)
     if (outcome.handled) return
     if (outcome.error) {

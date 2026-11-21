@@ -34,7 +34,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage, createAssistantMessage, createUserInterruptionMessage } = await import('../../src/services/messages.ts')
 const first = createAssistantMessage({ content: 'I have read the source.' })
 first.message.model = 'claude-opus-5-5'
 first.message.stop_reason = 'end_turn'

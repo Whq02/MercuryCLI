@@ -68,7 +68,7 @@ process.env.MERCURY_XAI_API_BASE = `http://127.0.0.1:${server.port}/v1`
 process.env.MERCURY_XAI_GROK_PROXY_BASE = `http://127.0.0.1:${server.port}/proxy/v1`
 const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
 const { refreshXaiCatalogue } = await import('../../src/services/providers/xai/xaiCatalogue.ts')
@@ -172,7 +172,7 @@ try {
   check('the subscription lists on the Grok proxy with its bearer, never on the API-key base', listPaths.slice(keyListPaths).length >= 1 && listPaths.slice(keyListPaths).every(row => row.path === '/proxy/v1/models' && row.bearer === 'Bearer fixture-subscription-access') && listPaths.slice(0, keyListPaths).every(row => row.path === '/v1/models'))
   check('subscription bearer rides the Grok proxy Responses road with the CLI identity headers OpenClaw sends', captures.at(-1)?.path === '/proxy/v1/responses' && captures.at(-1)?.bearer && captures.at(-1)?.headers['x-xai-token-auth'] === 'xai-grok-cli' && captures.at(-1)?.headers['x-grok-model-override'] === 'grok-4.7' && captures.at(-1)?.headers['x-grok-client-version'] === '2026.9.7')
   check('subscription uses flat function tools, typed input and stateless encrypted reasoning', subscriptionBody.tools[0].name === 'FixtureEcho' && !subscriptionBody.tools[0].function && !('defer_loading' in subscriptionBody.tools[0]) && subscriptionBody.tools.every((tool: any) => tool.type === 'function') && Array.isArray(subscriptionBody.input) && subscriptionBody.store === false && subscriptionBody.include.includes('reasoning.encrypted_content'))
-  const { foldSplitTurnsForWire } = await import('../../src/utils/messages/pairing.ts')
+  const { foldSplitTurnsForWire } = await import('../../src/services/messages/pairing.ts')
   check('wire normalization preserves the xAI replay record', foldSplitTurnsForWire(subscriptionTools).some(row => row.type === 'assistant' && row.xaiProviderTurn?.items.length === 2))
   check('subscription tool call settles with its own provider replay record', subscriptionTools.some(row => row.message.content.some(block => block.type === 'tool_use' && block.id === 'call_sub')) && subscriptionTools.at(-1)?.xaiProviderTurn?.items.length === 2)
   mode = 'text'

@@ -46,7 +46,7 @@ const { deriveFamilySlotGroups, executeSlotRemoval } = await import('../../src/s
 const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
 const readinessForRoute = (model: string) => resolvePrimaryAgentBackend(model)!.readiness()
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 type Message = import('../../src/types/message.ts').Message
 type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 

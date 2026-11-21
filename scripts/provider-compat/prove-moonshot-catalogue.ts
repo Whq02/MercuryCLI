@@ -221,7 +221,7 @@ if (catalogue) {
   const { readComputedDefaultCatalogue, mostRecentSignInFamily } = await import('../../src/services/model/computedDefault.ts')
   const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
   const { CATALOGUE_READ_BOUND_MS } = await import('../../src/services/providers/catalogueOnDemand.ts')
-  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/utils/model/model.ts')
+  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/services/model/model.ts')
   recordSignIn('moonshot', 'api-key')
   c.__resetMoonshotCatalogueForTest()
   process.env.MERCURY_MODEL = 'kimi-k2.6'
@@ -267,7 +267,7 @@ if (catalogue) {
   check('guard: the specialist alias follows the newest served row whatever its shape', (await resolveEngineDispatch('kimi'))?.model === 'moonshot-v2')
   await c.refreshMoonshotCatalogue({ force: true, fetchImpl: pageFetch() })
   console.log('two chats on one held refresh')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const chatParams = (signal: AbortSignal): Parameters<typeof moonshotCallModel>[0] => ({
     messages: [createUserMessage({ content: 'say hi' })],

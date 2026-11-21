@@ -17,9 +17,9 @@ const { CANCEL_MESSAGE, isDenialResultText, isInterruptedResultText, turnCutOf, 
 const { DeadlineExceededError } = await import('../../src/utils/deadline.ts')
 const STALL = new DeadlineExceededError('crewmate fixture (a0)', 3_000, 9_000, 2)
 const STALL_WORDS = `Cut off by a no-progress timeout (the provider went quiet): ${STALL.message}`
-const { buildMessageLookups } = await import('../../src/utils/messages/lookups.ts')
+const { buildMessageLookups } = await import('../../src/services/messages/lookups.ts')
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage } = await import('../../src/services/messages.ts')
 
 let checks = 0
 let failures = 0

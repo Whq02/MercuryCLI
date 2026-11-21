@@ -16,7 +16,7 @@ import {
 } from '../services/health/healthReport.js';
 import { formatAge, isFixable, sha7 } from '../utils/healthCertCore.js';
 import { applyRemedy, healthFixEnabled, type AppliedFix } from '../utils/healthFix.js';
-import { renderModelChip } from '../utils/model/model.js';
+import { renderModelChip } from '../services/model/model.js';
 import { InteractiveRow } from './mercury-ui/InteractiveRow.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';

@@ -6,8 +6,8 @@ import { getGitState, getGitWorktreeLanes, subscribeGitFacts } from '../../utils
 import {
   getAgentMetadataPath,
   readAgentMetadata,
-  subscribeAgentMetadataPath,
 } from '../../utils/sessionStorage/paths.js'
+import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/fileWatch.js'
 import { asAgentId } from '../../types/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
 import { listReviewArtifactHeadsSource } from '../artifacts/reviewStore.js'

@@ -56,7 +56,7 @@ try {
   ;(await import('../../src/utils/config.js')).enableConfigs()
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   const { countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.js')
-  const { getEngineModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
+  const { getEngineModel, normalizeModelStringForAPI } = await import('../../src/services/model/model.js')
   const { modelSupportsAdaptiveThinking } = await import('../../src/utils/thinking.js')
 
   const tools = [{ name: 'proof_tool', description: 'A count-only fixture tool.', input_schema: { type: 'object', properties: {} } }]
@@ -110,7 +110,7 @@ try {
   const { getAttributionHeader } = await import('../../src/constants/system.js')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.js')
   const { computeFingerprintFromMessages } = await import('../../src/utils/fingerprint.js')
-  const { createUserMessage } = await import('../../src/utils/messages.js')
+  const { createUserMessage } = await import('../../src/services/messages.js')
   const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.js')
   const attribution = getAttributionHeader(computeFingerprintFromMessages([createUserMessage({ content: 'Say OK.' })]))
   const session = asSystemPrompt(['# Session\nA session prompt for the count proof.', 'A second part.'])

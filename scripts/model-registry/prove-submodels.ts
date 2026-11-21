@@ -308,11 +308,11 @@ section('4 · persistence — env pin > saved pick > UNSET')
 section('6 · the frontier row — an ordinary tier row of the SHARED catalog (ruled)')
 {
   const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/services/model/modelOptions.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
   const real = getModelOptions()
   const fables = real.filter(o => typeof o.value === 'string' && /fable/i.test(o.value))
   const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getMarketingNameForModel } = await import('../../src/utils/model/model.ts')
+  const { getMarketingNameForModel } = await import('../../src/services/model/model.ts')
   const newestFable = ALL_MODEL_CONFIGS[FAMILY_GENERATIONS.fable[0]].firstParty
   const previousFables = previousGenerationKeys('fable').map(k => ALL_MODEL_CONFIGS[k].firstParty)
   const aliasRows = fables.filter(o => o.value === newestFable)

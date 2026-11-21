@@ -14,7 +14,7 @@ import type {
 import { getOauthAccountInfo, loginShadowWarning } from '../../utils/auth.js'
 import { loginSuccessReceipt } from '../../utils/accounts/loginReceipt.js'
 import { logError } from '../../utils/log.js'
-import { stripSignatureBlocks } from '../../utils/messages.js'
+import { stripSignatureBlocks } from '../../services/messages.js'
 import {
   checkAndDisableSovereignIfNeeded,
   resetSovereignCheck,

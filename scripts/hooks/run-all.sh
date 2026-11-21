@@ -13,7 +13,7 @@
 # gate-watch: src/rows/project.ts
 # gate-watch: src/utils/sessionStorage/rowGraph.ts src/utils/sessionStorage/transcriptReader.ts
 # gate-watch: src/components/Messages.tsx src/tools.ts
-# gate-watch: src/utils/settings/faultNotices.ts src/utils/settings/validation.ts
+# gate-watch: src/services/settings/faultNotices.ts src/utils/settings/validation.ts
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -44,7 +44,7 @@ const { openrouterResponsesTransport } = await import('../../src/services/provid
 const { streamOpenaiResponses } = await import('../../src/services/providers/openai/openaiClient.js')
 const { streamZaiChat } = await import('../../src/services/providers/zai/zaiClient.js')
 const { streamGeminiContent } = await import('../../src/services/providers/gemini/geminiClient.js')
-const { createUserMessage } = await import('../../src/utils/messages.ts')
+const { createUserMessage } = await import('../../src/services/messages.ts')
 
 type Fault = { kind: string; code: string; message: string; retryable?: boolean }
 type Played = { events: Array<{ type: string; fault?: Fault }>; elapsedMs: number; road: ReturnType<typeof fixture.roadFixture> }

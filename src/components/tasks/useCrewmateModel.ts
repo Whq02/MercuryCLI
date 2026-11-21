@@ -4,11 +4,11 @@ import { useTimer } from '../../hooks/effects.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
-import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../services/model/model.js'
 import { crewmateTranscriptFile } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/paths.js'
+import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/fileWatch.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }

@@ -18,9 +18,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { foldModelSpelling, resolveCatalogueSpelling, catalogueSpellingExamples } = await import(
-  '../../src/utils/model/modelSpellingFold.ts'
+  '../../src/services/model/modelSpellingFold.ts'
 )
-const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel, parseUserSpecifiedModelRaw } = await import('../../src/services/model/model.ts')
 import type { ModelOption } from '../../src/services/model/modelOptions.ts'
 const { GPT_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
 

@@ -1,10 +1,10 @@
 import type { CallModelRoute } from '../providers/routeLaw.js'
 import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from '../../utils/model/pins/gptPins.js'
-import { frontierOperatorDecision } from '../../utils/model/frontierPolicy.js'
+import { frontierOperatorDecision } from './frontierPolicy.js'
 import {
   getDefaultSonnetModel,
   getMarketingNameForModel,
-} from '../../utils/model/model.js'
+} from './model.js'
 import { keyLanePins } from './modelOptions.js'
 import { moonshotCatalogueSourceWords } from '../providers/moonshot/moonshotCatalogue.js'
 import { deepseekCatalogueSourceWords } from '../providers/deepseek/deepseekCatalogue.js'

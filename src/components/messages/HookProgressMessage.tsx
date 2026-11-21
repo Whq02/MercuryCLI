@@ -2,7 +2,7 @@ import React from 'react'
 import { Text } from '../../ink.js'
 import type { HookEvent } from '../../utils/hooks/contract.js'
 import { hookWaitLineOf } from '../../utils/hooks/wait.js'
-import type { MessageLookups } from '../../utils/messages/lookups.js'
+import type { MessageLookups } from '../../services/messages/lookups.js'
 import type { ProgressMessage } from '../../types/message.js'
 import { plural } from '../../utils/stringUtils.js'
 

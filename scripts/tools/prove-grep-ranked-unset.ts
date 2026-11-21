@@ -24,7 +24,7 @@ async function read(): Promise<Roads> {
   setIsInteractive(false)
   const { getAllBaseTools } = await import(`${SRC}/tools.ts`)
   const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
-  const { toolToAPISchema } = await import(`${SRC}/utils/api.ts`)
+  const { toolToAPISchema } = await import(`${SRC}/services/messages/api.ts`)
   const { PROVIDER_ID_SPACES, declaredRouteOf } = await import(`${SRC}/services/providers/routeLaw.ts`)
   const { zodToJsonSchema } = await import(`${SRC}/utils/zodToJsonSchema.ts`)
   const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)

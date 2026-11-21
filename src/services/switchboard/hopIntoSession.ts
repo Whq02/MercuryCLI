@@ -488,7 +488,7 @@ async function paintResumeRecap(sessionId: string, launchWon: Promise<LaunchWonV
             certAgeMs: cert.data.ageMs ?? undefined,
           }
     const won = await launchWon
-    const { renderModelName } = await import('../../utils/model/model.js')
+    const { renderModelName } = await import('../model/model.js')
     const enriched: AwayRecapMetadata = {
       endedOnError: recap.endedOnError,
       turns: recap.turns,
@@ -560,7 +560,7 @@ async function applyLaunchWordOnHop(sessionId: string, launch: LaunchWords, resu
     const seat = await import('../engine-connector/daemonConnector.js')
     const connector = seat.getDaemonSessionConnector(sessionId)
     if (connector === undefined) return
-    const { renderModelName } = await import('../../utils/model/model.js')
+    const { renderModelName } = await import('../model/model.js')
     const { daemonLastUnreachableAt } = await import('../../daemon/controlSocket.js')
     const dialledAt = Date.now()
     const daemonWentAway = (): boolean => resumeWithLaunchWords !== null && daemonLastUnreachableAt() >= dialledAt

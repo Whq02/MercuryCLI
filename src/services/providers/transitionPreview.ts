@@ -3,7 +3,7 @@ import { getSdkBetas } from '../../bootstrap/state.js'
 import type { Message } from '../../types/message.js'
 import { isConfigReadingAllowed } from '../../utils/config/globalConfig.js'
 import { resolveContextWindow } from '../../utils/model/capabilities.js'
-import { parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel, renderModelName } from '../model/model.js'
 import {
   confirmTransitionPlan,
   MEANINGFUL_LOSS_CLASSES,
@@ -14,7 +14,7 @@ import {
   type TransitionPlanItem,
   type TransitionWindowFact,
 } from '../model/modelTransition.js'
-import { isUnsignedThinkingBlock } from '../../utils/messages.js'
+import { isUnsignedThinkingBlock } from '../messages.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { contextFill, usageAnchorModel } from '../context/tokens.js'
 import { autoCompactWindowIsInputLimit, getBlockingLimit, resolveAutoCompactWindow } from '../compact/autoCompact.js'

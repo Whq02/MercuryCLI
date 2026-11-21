@@ -67,7 +67,7 @@ try {
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { compatResponsesTransport } = await import('../../src/services/providers/openaicompat/compatResponsesTransport.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { resolveBehaviourContract, stableBehaviourDigest } = await import('../../src/prompt/behaviourContract.ts')

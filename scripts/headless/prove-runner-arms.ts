@@ -112,7 +112,7 @@ const { sessionKitOf, setProcessSessionKit } = await import('../../src/services/
 const { answerSessionFacts } = await import('../../src/cli/headless/sessionFactsArm.ts')
 const { sessionFactsFromWire, sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 const { getOriginalCwd, getSessionId } = await import('../../src/bootstrap/state.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { claimSession } = await import('../../src/cli/headless/claimSession.ts')

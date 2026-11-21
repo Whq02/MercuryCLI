@@ -37,9 +37,9 @@ bootstrap.setIsInteractive(false)
 const mcp = await import('../../src/services/mcp/client.ts')
 const { runTools } = await import('../../src/services/tools/toolOrchestration.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
-const { createAssistantMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage } = await import('../../src/services/messages.ts')
 const { createFileStateCacheWithSizeLimit } = await import('../../src/utils/fileStateCache.ts')
-const { toolToAPISchema, getEmptyToolPermissionContext } = await import('../../src/utils/api.ts').then(async api => ({
+const { toolToAPISchema, getEmptyToolPermissionContext } = await import('../../src/services/messages/api.ts').then(async api => ({
   toolToAPISchema: api.toolToAPISchema,
   getEmptyToolPermissionContext: (await import('../../src/Tool.ts')).getEmptyToolPermissionContext,
 }))

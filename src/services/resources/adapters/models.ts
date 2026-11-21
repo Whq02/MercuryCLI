@@ -3,10 +3,10 @@ import { stampLocal } from '../../../mneme/entryPage.js'
 import { BARE_FAMILY_WORDS, bareFamilyWordOfRoute, type BareFamilyWordRow } from '../../model/bareFamilyWords.js'
 import { getModelOptions, isProviderActionRow, stripContext1m, type ModelOption } from '../../model/modelOptions.js'
 import { getContextWindowForModel, modelSupportsEffort } from '../../../utils/model/capabilities.js'
-import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from '../../model/modelOverrides.js'
 import { liveCount } from '../../../utils/model/modelPickerGroups.js'
 import { selectableEffortLevels } from '../../../utils/effort.js'
-import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../../model/model.js'
 import { contextWindowLabel } from '../../context/contextFill.js'
 import { isLocalModelId } from '../../providers/local/localCatalogue.js'
 import { declaredRouteOf, providerDisplayName } from '../../providers/routeLaw.js'
@@ -307,7 +307,7 @@ export function liveModelsReferenceText(reference: LiveModelsReference): string 
 export async function knownModelsReference(): Promise<KnownModelsReference> {
   const providers: KnownProviderPage[] = []
   const { ALL_MODEL_CONFIGS, FAMILY_GENERATIONS } = await import('../../../utils/model/configs.js')
-  const { getMarketingNameForModel } = await import('../../../utils/model/model.js')
+  const { getMarketingNameForModel } = await import('../../model/model.js')
   const anthropic: BareFamilyWordRow[] = []
   for (const keys of Object.values(FAMILY_GENERATIONS)) {
     for (const key of keys) {

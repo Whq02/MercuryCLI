@@ -79,7 +79,7 @@ section('§3 withholding — counted, bounded; bundled-only overflow exempt')
 
 section('§4 the render arm and the legacy shape')
 {
-  const { normalizeAttachmentForAPI } = await import('../../src/utils/messages/attachmentText.ts')
+  const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
   const noted = JSON.stringify(
     normalizeAttachmentForAPI({
       type: 'skill_listing',

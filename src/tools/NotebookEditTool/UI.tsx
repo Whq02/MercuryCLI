@@ -9,7 +9,7 @@ import { NotebookEditToolUseRejectedMessage } from '../../components/NotebookEdi
 import { Box, Text } from '../../ink.js'
 import type { ToolResultBlockParam } from '../../types/wire.js'
 import { getDisplayPath } from '../../utils/file.js'
-import { extractTag } from '../../utils/messages.js'
+import { extractTag } from '../../services/messages.js'
 import type { Output } from './NotebookEditTool.js'
 
 

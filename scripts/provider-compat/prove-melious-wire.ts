@@ -67,7 +67,7 @@ const check = (name: string, value: unknown): void => { assert.ok(value, name); 
 try {
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
-  const { createUserMessage } = await import('../../src/utils/messages.ts')
+  const { createUserMessage } = await import('../../src/services/messages.ts')
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { classifyModelRoute, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
   const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')

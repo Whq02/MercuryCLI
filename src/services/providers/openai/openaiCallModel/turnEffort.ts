@@ -11,8 +11,8 @@ import {
 } from '../openaiCatalogue.js'
 import { describeWireEffortProbeWindow } from '../qualificationStore.js'
 import { resolveEffortTruth, resolveWireRequestedEffort, type EffortAdjustedV1, type EffortValue } from '../../../../utils/effort.js'
-import { floorEffort } from '../../../../utils/model/utilityModel.js'
-import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
+import { floorEffort } from '../../../model/utilityModel.js'
+import { getPublicModelDisplayName } from '../../../model/model.js'
 
 export function resolveTurnEffort(modelId: string, candidate: GptCandidate | undefined, options: Options, auth: OpenaiRequestAuth) {
   const kept = candidate === undefined ? liveGptEffortCatalogue(modelId) : undefined

@@ -20,7 +20,7 @@ process.env.ANTHROPIC_BASE_URL = api.url
 const { FileReadTool } = await import(`${SRC}/tools/FileReadTool/FileReadTool.ts`)
 const { getEmptyToolPermissionContext } = await import(`${SRC}/Tool.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
-const { createUserMessage } = await import(`${SRC}/utils/messages.ts`)
+const { createUserMessage } = await import(`${SRC}/services/messages.ts`)
 const { setEngineModelOverride } = await import(`${SRC}/bootstrap/state.ts`)
 const { enableConfigs } = await import(`${SRC}/utils/config/globalConfig.ts`)
 enableConfigs()

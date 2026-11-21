@@ -1,7 +1,7 @@
 import type { CallModelParams, CallModelStream } from '../callModelContract.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { getProductUserAgent } from '../../../utils/http.js'
-import { createAssistantAPIErrorMessage } from '../../../utils/messages.js'
+import { createAssistantAPIErrorMessage } from '../../messages.js'
 import { API_ERROR_MESSAGE_PREFIX } from '../../api/errors.js'
 import { readCatalogueIfPending } from '../catalogueOnDemand.js'
 import { modelNotOfferedByCatalogue } from '../catalogueAdmission.js'

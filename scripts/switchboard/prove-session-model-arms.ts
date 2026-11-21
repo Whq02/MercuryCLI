@@ -219,7 +219,7 @@ section('§6b — the retained walk runs the ONE provenance law (FN-013 MODEL-01
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
   const { restoreConversationModelFromMessages } = await import('../../src/services/resume/sessionRestore.ts')
-  const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { getDefaultEngineModelSetting, parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
   const workspaceId = workers.canonicalWorkspaceId(work)
   const projDir = paths.getProjectDir(workspaceId)
   mkd(projDir, { recursive: true })

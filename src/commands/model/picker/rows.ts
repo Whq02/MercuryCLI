@@ -1,6 +1,6 @@
 import { fmtCtx as fmtCtxWindow, type ModelChoice } from '../../../components/MercuryModelPicker.js'
 import { getContextWindowForModel } from '../../../utils/context.js'
-import { normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../../utils/model/model.js'
+import { normalizeModelStringForAPI, parseUserSpecifiedModel, renderModelName } from '../../../services/model/model.js'
 import { providerFamilyOfSetting } from '../../../services/model/modelTransition.js'
 import { getFocusedSessionConnector, subscribeThroughFocused } from '../../../services/engine-connector/focusedConnector.js'
 import { ANTHROPIC_MODEL_GROUP, applyModelAllowlist, focusedOptionSupports1m, getModelOptions, isProviderActionRow, type ModelOption, OPENAI_MODEL_GROUP, parseKeyConnectValue, stripContext1m, withContext1m } from '../../../services/model/modelOptions.js'

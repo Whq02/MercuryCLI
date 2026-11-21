@@ -22,7 +22,7 @@ const { geminiFinishReason } = await import('../../src/services/providers/gemini
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { finalizeAgentTool, finalResponseOf, stoppedPartWay, PROMOTED_NARRATION_NOTE } = await import('../../src/tools/AgentTool/agentToolUtils.ts')
-const { createAssistantMessage, createUserMessage } = await import('../../src/utils/messages.ts')
+const { createAssistantMessage, createUserMessage } = await import('../../src/services/messages.ts')
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import type { CompatCallModelParams } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
 

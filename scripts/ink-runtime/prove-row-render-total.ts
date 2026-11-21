@@ -20,7 +20,7 @@ const { default: stripAnsi } = await import('strip-ansi')
 const AgentUI = await import('../../src/tools/AgentTool/UI.tsx')
 const EvalUI = await import('../../src/tools/EvalTool/UI.tsx')
 const SkillUI = await import('../../src/tools/SkillTool/UI.tsx')
-const { normalizeMessages } = await import('../../src/utils/messages.ts')
+const { normalizeMessages } = await import('../../src/services/messages.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
