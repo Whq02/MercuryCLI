@@ -20,7 +20,7 @@ try {
     const second = select({ env: {} }, join, () => scratch, mkdtempSync)
     assert.notEqual(first, second, `${file}: concurrent copies must not share the capture configuration or result path`)
     for (const dir of [first, second]) {
-      assert.ok(dir.startsWith(scratch + '/'))
+      assert.ok(dir.startsWith(scratch + '/'), `${file}: default CAPTURE_DIR must stay inside scratch tmpdir (${scratch}), got ${dir}`)
       mkdirSync(dir, { recursive: true })
       writeFileSync(join(dir, 'same-tag.grid.json'), JSON.stringify({ dir }))
       roots.push(dir)

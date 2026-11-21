@@ -73,8 +73,12 @@ try {
     if (state) assert.match(state, /^\d+ \(.+\) Z /, 'the sleeping child is dead')
     else assert.throws(() => process.kill(child, 0))
     for (const result of [output, cpu]) { assert.equal(result.rc, 0); assert.equal(result.hang, null) }
-    assert.ok(output.output.includes('alive'))
-    if (live) { assert.ok(idle.seconds >= 300 && idle.seconds <= 340); assert.ok(output.seconds >= duration); assert.ok(cpu.seconds >= duration) }
+    assert.ok(output.output.includes('alive'), `scripts/gate/run-suite.sh output suite stdout missing 'alive': ${output.output.slice(0, 120)}`)
+    if (live) {
+      assert.ok(idle.seconds >= 300 && idle.seconds <= 340, `live idle stall expected 300..340s in scripts/gate/run-suite.sh, got ${idle.seconds}s`)
+      assert.ok(output.seconds >= duration, `live output suite expected >=${duration}s in scripts/gate/run-suite.sh, got ${output.seconds}s`)
+      assert.ok(cpu.seconds >= duration, `live cpu suite expected >=${duration}s in scripts/gate/run-suite.sh, got ${cpu.seconds}s`)
+    }
     console.log(`PASS ${live ? 'real-time' : 'accelerated'} stall watcher kills only a silent, idle tree; output and descendant CPU each keep it alive`)
   }
 } finally {

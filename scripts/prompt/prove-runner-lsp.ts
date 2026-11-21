@@ -15,8 +15,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-check('the built product exists', existsSync(dist))
-if (!existsSync(dist)) process.exit(1)
+const distPresent = existsSync(dist)
+check('the built product exists', distPresent, distPresent ? '' : `${dist} — run: bun run build.ts`)
+if (!distPresent) process.exit(1)
 const scratch = mkdtempSync(join(tmpdir(), 'runner-lsp-'))
 const captured: any[] = []
 let activeCwd = ''
