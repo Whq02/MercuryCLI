@@ -29,6 +29,7 @@ import { GLYPH, displayWidth, truncateToWidth } from '../utils/glyphs.js'
 import { ValueGlow, CURSOR_NUDGE_MS, AttentionPulse, WorkingGlyph } from './mercury-ui/LiveGlyphs.js'
 import { RailPanel } from './mercury-ui/RailPanel.js'
 import { useCockpitActivity } from '../utils/cockpit/cockpitActivity.js'
+import { subscribeUiClock } from '../utils/cockpit/uiClock.js'
 import { useSessionAccent } from './mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js'
 import { useVitals } from '../state/vitalsBus.js'
@@ -349,9 +350,11 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
     }
     probe()
     const unsubscribe = subscribeConcourseWorkers(probe)
+    const stopFloor = subscribeUiClock(15_000, probe)
     return () => {
       alive = false
       unsubscribe()
+      stopFloor()
     }
   }, [])
   return wakeGlance
