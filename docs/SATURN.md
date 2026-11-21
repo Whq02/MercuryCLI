@@ -22,9 +22,8 @@ Saturn supports two schedule types, and the board shows both:
 
 ## The board
 
-`/saturn` opens the board inside the chat, in the chat's own frame; the home
-screen's **Saturn Scheduler** row opens the same board in place, with `Esc`
-returning to the home screen. Rows group under the session that owns them,
+`/saturn` opens the board inside the chat, in the chat's own frame, with `Esc`
+returning to the chat. Rows group under the session that owns them,
 with box schedules under their own `box (machine)` section. The legend lists
 the keys: `↑↓ move · a schedule birth… · x delete · n run-now · p
 pause/resume · r refresh · esc back`. A row's trail shows the time expression
@@ -34,8 +33,8 @@ with their reasons, and the fired-late or missed receipt tail. Press `a` in
 
 While a future fire stands, the session's row on the Session Concourse shows
 it in the NOW cell (`next fire in 2h · `) beside whatever the session is
-doing. The side rail's SATURN row and the home screen's Saturn Scheduler row
-show what stands across every session: `2 scheduled · in 4m` while a real fire
+doing. The side rail's SATURN row
+shows what stands across every session: `2 scheduled · in 4m` while a real fire
 is ahead, or `1 scheduled · 1 held` when a fire is banked and nothing is ahead
 (a held fire is never shown as due, and `due now` means a fire whose time has
 arrived and which the next tick runs).
@@ -47,7 +46,7 @@ Pressing `a` opens the new-session schedule form. Its rows:
 - **When**: the schedule time, compiled as below.
 - **Model**: the model the new session starts on (the full catalogue picker).
 - **Workspace**: the project folder it starts in, picked from your projects
-  (the same list the home screen's rows render), with a custom path option last.
+  (the same list Session Manager's `Ctrl+G` picker shows), with a custom path option last.
 - **Presence**: `headless — unattended` or `screen-present — Mercury open`. A
   screen-present schedule due while Mercury is closed waits for the next launch
   instead of firing unattended, then obeys the catch-up window from its due
