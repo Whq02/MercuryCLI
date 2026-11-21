@@ -87,7 +87,7 @@ for (const leg of ['plan', 'oauth'] as const) {
     await settle(150)
     if (leg === 'oauth') { await press(board, KEY.down); await press(board, KEY.down) }
     await press(board, KEY.enter)
-    assert(await waitFor(() => board.screen().includes('paste the redirected URL'), 2000))
+    assert(await waitFor(() => board.screen().includes('paste the redirected URL'), 2000), `src/components/GeminiConnect.tsx ${leg} browser connect did not paint 'paste the redirected URL': ${board.screen().slice(0, 140)}`)
     await press(board, 'fixture-authorization-code')
     assert(!board.screen().includes('fixture-authorization-code'), `${leg}: redirect code masked`)
     await press(board, KEY.enter)
