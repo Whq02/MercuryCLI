@@ -6,7 +6,7 @@ import { maybeResizeAndDownsampleImageBuffer } from '../../../utils/imageResizer
 import { createUserMessage } from '../../../utils/messages/factories.js'
 import { extractPDFPages, readPDF, removePDFPages } from '../../../utils/pdf.js'
 import { extractPdfText, renderPdfText } from '../../../utils/pdfText.js'
-import { recogniseImage, recognisePdfPage, renderOcr } from '../../../services/ocr.js'
+import { recognisePdfPage, renderOcr } from '../../../services/ocr.js'
 import { isPDFSupported, parsePDFPageRange } from '../../../utils/pdfUtils.js'
 import { resolveModelCapabilities } from '../../../utils/model/capabilities.js'
 import { readRegularFile } from '../../../utils/regularFile.js'
@@ -17,6 +17,7 @@ import { MAX_PDF_PAGES_PER_REQUEST } from '../../../constants/tools/fileRead.js'
 import { selectedPages, type Input, type Output, type LaneResult } from './schema.js'
 import { parseLineRangesList } from './target.js'
 import { readRichFormatLane } from './richFormatLane.js'
+import { recogniseImageCaption } from './image.js'
 import { passedOverAs } from '../../../utils/passedOver.js'
 
 export async function readPdfLane(
@@ -74,8 +75,8 @@ export async function readPdfLane(
       for (const name of entries) {
         const pageBuffer = (await import('node:fs')).readFileSync(`${outputDir}/${name}`)
         const resized = await maybeResizeAndDownsampleImageBuffer(pageBuffer, pageBuffer.length, 'jpeg')
-        const ocr = await recogniseImage(pageBuffer, context.abortController.signal)
-        if (ocr.ok && ocr.text.trim()) blocks.push({ type: 'text', text: `${resolvedPath}: ${name}\n${renderOcr(ocr)}` })
+        const ocr = await recogniseImageCaption(pageBuffer, context.abortController)
+        if (ocr !== null) blocks.push({ type: 'text', text: `${resolvedPath}: ${name}\n${ocr}` })
         blocks.push({
           type: 'image',
           source: {
