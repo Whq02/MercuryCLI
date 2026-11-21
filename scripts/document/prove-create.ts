@@ -23,7 +23,7 @@ try {
     const product = await createDocument(input, io)
     commitDocuments(product, targets, io.signal)
     const bytes = readFileSync(output)
-    assert.ok(bytes.length)
+    assert.ok(bytes.length, `src/tools/DocumentTool/create.ts wrote 0 bytes for format ${format}`)
     if (format === 'docx') {
       const zip = unzipSync(bytes)
       for (const name of ['word/document.xml', 'word/styles.xml', 'word/footnotes.xml', 'word/header1.xml', 'word/footer1.xml']) assert.ok(zip[name], name)
@@ -31,7 +31,7 @@ try {
       assert.match(xml, /w:tbl/)
       assert.match(xml, /w:footnoteReference/)
       assert.match(xml, /w:b/)
-      assert.ok(Object.keys(zip).some(k => k.startsWith('word/media/')))
+      assert.ok(Object.keys(zip).some(k => k.startsWith('word/media/')), `src/tools/DocumentTool/create.ts docx archive missing embedded word/media/ entry: entries=${Object.keys(zip).join(', ')}`)
       assert.match((await mammoth.extractRawText({ buffer: bytes })).value, /Evidence/)
     } else if (format === 'pdf') {
       assert.equal(product.road, 'pdf-lib plain layout')
@@ -48,13 +48,13 @@ try {
     } else if (format === 'pptx') {
       const zip = unzipSync(bytes)
       const slides = Object.keys(zip).filter(k => /^ppt\/slides\/slide\d+\.xml$/.test(k))
-      assert.ok(slides.length >= 3)
+      assert.ok(slides.length >= 3, `src/tools/DocumentTool/create.ts pptx expected >=3 slides, got ${slides.length} (${slides.join(', ')})`)
       assert.match(slides.map(s => strFromU8(zip[s]!)).join(''), /Evidence/)
     } else if (format === 'xlsx') {
       const book = new ExcelJS.Workbook()
       await book.xlsx.load(bytes as any)
       assert.equal(book.worksheets[0]!.getCell('B2').value, '42')
-      assert.ok(unzipSync(bytes)['xl/workbook.xml'])
+      assert.ok(unzipSync(bytes)['xl/workbook.xml'], 'src/tools/DocumentTool/create.ts xlsx archive missing xl/workbook.xml')
     } else {
       assert.match(bytes.toString(), /Evidence/)
       if (format === 'html') { assert.match(bytes.toString(), /<table>/); assert.match(bytes.toString(), /data:image\/png/); assert.match(bytes.toString(), /default-src 'none'/) }

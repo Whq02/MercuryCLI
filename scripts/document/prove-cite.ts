@@ -37,7 +37,7 @@ try {
     calls++
     assert.equal(String(url), 'https://api.crossref.org/works/10.1038%2Fnphys1170')
     assert.equal(options.redirect, 'error')
-    assert.ok(options.signal)
+    assert.ok(options.signal, `src/tools/DocumentTool/cite.ts Crossref fetch for ${String(url)} must pass an AbortSignal`)
     return Response.json({ message: { title: ['Measured measurement'], author: [{ given: 'Markus', family: 'Aspelmeyer' }], issued: { 'date-parts': [[2009, 1]] }, 'container-title': ['Nature Physics'], volume: '5', issue: '1', page: '11-12' } })
   }) as typeof fetch
   for (const style of ['apa', 'ieee', 'chicago', 'harvard'] as const) for (const ext of ['md', 'html', 'docx']) {
