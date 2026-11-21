@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import { layersOf, moveOf } from '../decision/commandAnalysis.js'
+import { type CommandReading, layersOf, moveOf } from '../decision/commandAnalysis.js'
 import { credentialStorePath } from './paths.js'
 import { OTHER_WRITERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, spelledTargetWord, unreadWords, verb, writeOperands, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
@@ -122,15 +122,7 @@ async function credentialWritePowerShell(command: string, cwd: string): Promise<
   return null
 }
 
-export async function readCredentialWrite(command: string, powershell: boolean, cwd: string): Promise<string | null> {
-  if (powershell) return credentialWritePowerShell(command, cwd)
-  const named = await credentialWriteWalked(command, false, cwd)
-  const read = await readForFloors(command, false, cwd)
-  if (named !== null) {
-    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
-    if (!placed || (await credentialWriteWalked(command, false, cwd, true)) !== null) return named
-  }
-  if (read === null) return null
+function credentialWriteFromRead(read: CommandReading, cwd: string): string | null {
   const anchored = (path: string): boolean => /^(?:[/~$%]|[A-Za-z]:)/.test(path)
   const checkPath = (path: string, after: { folders: string[]; lost: boolean }, argv?: readonly string[], written?: readonly string[]): string | null => {
     if (anchored(path)) {
@@ -199,6 +191,20 @@ export async function readCredentialWrite(command: string, powershell: boolean, 
       }
     }
   }
+  return null
+}
+
+export async function readCredentialWrite(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  if (powershell) return credentialWritePowerShell(command, cwd)
+  const named = await credentialWriteWalked(command, false, cwd)
+  const read = await readForFloors(command, false, cwd)
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await credentialWriteWalked(command, false, cwd, true)) !== null) return named
+  }
+  if (read === null) return null
+  const hit = credentialWriteFromRead(read, cwd)
+  if (hit !== null) return read.exact.kind === 'parse-unavailable' ? `${hit} (${UNREAD_ADVICE})` : hit
   const words = unreadWords(read, command, false)
   if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
     for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return `${word} (${UNREAD_ADVICE})`

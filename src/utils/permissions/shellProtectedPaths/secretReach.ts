@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import { type ReadCommand, type ShellRead, UNREAD_PART, layersOf, moveOf, wordKnown } from '../decision/commandAnalysis.js'
+import { type CommandReading, type ReadCommand, type ShellRead, UNREAD_PART, layersOf, moveOf, wordKnown } from '../decision/commandAnalysis.js'
 import { expandPath, hasNulByte } from '../../path.js'
 import { mercurySecretPath, spelling } from './paths.js'
 import { UNREAD_ADVICE, flaggedReadOperands, readOperands, unreadWords, verb } from './words.js'
@@ -66,18 +66,7 @@ async function namedMercurySecretPath(command: string, powershell: boolean, cwd:
   }, cwd, still)
 }
 
-export async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
-  if (powershell) {
-    const named = await namedMercurySecretPath(command, true, cwd)
-    if (named !== null) return named
-  }
-  const named = powershell ? null : await namedMercurySecretPath(command, false, cwd)
-  const read = await readForFloors(command, powershell, cwd)
-  if (named !== null) {
-    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
-    if (!placed || (await namedMercurySecretPath(command, false, cwd, true)) !== null) return named
-  }
-  if (read === null) return null
+function secretReachFromRead(read: CommandReading, powershell: boolean, cwd: string, homes: readonly string[]): string | null {
   if (!powershell) {
     for (let at = 0; at < read.commands.length; at++) {
       const simple = read.commands[at]!
@@ -90,7 +79,6 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
       }
     }
   }
-  const homes = mercuryHomes()
   const fed = new Set<number>()
   for (const reader of read.commands) for (const at of [...reader.inner.flat(), ...reader.inputInner]) fed.add(at)
   const handed = new Map<number, boolean>()
@@ -201,6 +189,24 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
       for (const home of homes) if (mercurySecretPath(word, home) !== null) return word
     }
   }
+  return null
+}
+
+export async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  if (powershell) {
+    const named = await namedMercurySecretPath(command, true, cwd)
+    if (named !== null) return named
+  }
+  const named = powershell ? null : await namedMercurySecretPath(command, false, cwd)
+  const read = await readForFloors(command, powershell, cwd)
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await namedMercurySecretPath(command, false, cwd, true)) !== null) return named
+  }
+  if (read === null) return null
+  const homes = mercuryHomes()
+  const hit = secretReachFromRead(read, powershell, cwd, homes)
+  if (hit !== null) return !powershell && read.exact.kind === 'parse-unavailable' ? `${hit} (${UNREAD_ADVICE})` : hit
   const words = unreadWords(read, command, powershell)
   if (words.length > 0) {
     const stands = namesMercuryHome('.', cwd, homes)
