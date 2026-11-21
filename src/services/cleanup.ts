@@ -1,3 +1,4 @@
+import { historyHead, sealedExtents } from './sessionStorage/historyParts.js'
 import { join } from 'node:path'
 
 import { CACHE_PATHS } from '../utils/cachePaths.js'
@@ -117,31 +118,34 @@ export async function collectReferencedBlobDirs(transcriptPath: string, cutoff: 
     const referenced = new Set<string>()
     const escapedSubdir = TOOL_RESULTS_SUBDIR.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     const pattern = new RegExp(`${escapedSubdir}[/\\\\]+([A-Za-z0-9_.-]+)`, 'g')
-    if (fs.readFileChunks === undefined) {
-      blobScanCensus.wholeReads++
-      const text = (await fs.readFileBytes(transcriptPath)).toString('latin1')
-      for (const match of text.matchAll(pattern)) {
+    const parts = [...sealedExtents(historyHead(transcriptPath)).map(part => part.path), transcriptPath]
+    for (const file of parts) {
+      if (fs.readFileChunks === undefined) {
+        blobScanCensus.wholeReads++
+        const text = (await fs.readFileBytes(file)).toString('latin1')
+        for (const match of text.matchAll(pattern)) {
+          referenced.add(match[1] as string)
+        }
+        continue
+      }
+      let carry = ''
+      await fs.readFileChunks(file, SCAN_CHUNK_BYTES, chunk => {
+        blobScanCensus.chunkReads++
+        blobScanCensus.maxChunkBytes = Math.max(blobScanCensus.maxChunkBytes, chunk.length)
+        const text = carry + chunk.toString('latin1')
+        for (const match of text.matchAll(pattern)) {
+          if ((match.index ?? 0) + match[0].length >= text.length) continue
+          referenced.add(match[1] as string)
+        }
+        carry = text.slice(-SCAN_CARRY_BYTES)
+      })
+      for (const match of carry.matchAll(pattern)) {
         referenced.add(match[1] as string)
       }
-      return referenced
-    }
-    let carry = ''
-    await fs.readFileChunks(transcriptPath, SCAN_CHUNK_BYTES, chunk => {
-      blobScanCensus.chunkReads++
-      blobScanCensus.maxChunkBytes = Math.max(blobScanCensus.maxChunkBytes, chunk.length)
-      const text = carry + chunk.toString('latin1')
-      for (const match of text.matchAll(pattern)) {
-        if ((match.index ?? 0) + match[0].length >= text.length) continue
-        referenced.add(match[1] as string)
-      }
-      carry = text.slice(-SCAN_CARRY_BYTES)
-    })
-    for (const match of carry.matchAll(pattern)) {
-      referenced.add(match[1] as string)
     }
     return referenced
   } catch (error) {
-    if (isENOENT(error)) return null
+    if (isENOENT(error) && !historyHead(transcriptPath).before) return null
     throw error
   }
 }

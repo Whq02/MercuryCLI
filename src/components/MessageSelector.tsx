@@ -30,7 +30,7 @@ import { isSyntheticMessage, isTurnCutText } from '../services/messages.js'
 import { stripDisplayTagsAllowEmpty } from '../utils/displayTags.js'
 import { isAdvisorOrigin, isSaturnOrigin, wrappedNoticeBlocks } from '../utils/messages/noticeRows.js'
 import { createBranchSession } from '../services/branches/branchManifest.js'
-import { readAllTranscriptEntries } from '../utils/sessionStorage/materialize.js'
+import { transcriptMessageIndex } from '../utils/sessionStorage/materialize.js'
 import { getCwd } from '../utils/cwd.js'
 import { formatRelativeTimeAgo } from '../utils/format.js'
 import {
@@ -344,10 +344,7 @@ export function MessageSelector({
         setErrorText('this session has no transcript file to branch from')
         return
       }
-      const transcriptEntries = await readAllTranscriptEntries(transcriptPath)
-      const ordinal = transcriptEntries.findIndex(
-        entry => (entry as { uuid?: string }).uuid === chosen.uuid,
-      )
+      const ordinal = transcriptMessageIndex(transcriptPath, chosen.uuid)
       if (ordinal === -1) {
         setErrorText('branch point not found in the committed transcript')
         return

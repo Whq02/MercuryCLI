@@ -1,3 +1,4 @@
+import { transcriptLinesInReverse } from './transcriptBytes.js'
 import { closeSync, fstatSync, openSync, readSync } from 'fs'
 import { getIsNonInteractiveSession, getSessionId } from '../../bootstrap/state.js'
 import { entryToRecord, type EncodeContext } from '../../fabric/entryCodec.js'
@@ -10,7 +11,6 @@ import { jsonStringify } from '../slowOperations.js'
 import { passedOver } from '../passedOver.js'
 import { setStoreHealth, transcriptStoreHealth } from './writer/storeHealth.js'
 
-const TAIL_BYTES = 256 * 1024
 
 type FileState = { nextValue: number; headerPending: boolean; unterminatedTail: boolean }
 
@@ -23,25 +23,16 @@ export function resetTranscriptFormatCacheForTesting(): void {
 }
 
 function recoverTailOrdinalFloor(fd: number, size: number): number {
-  for (let len = Math.min(size, TAIL_BYTES); ; len = Math.min(size, len * 4)) {
-    const buf = Buffer.allocUnsafe(len)
-    const read = readSync(fd, buf, 0, len, size - len)
-    const lines = buf.subarray(0, read).toString('utf8').split('\n')
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i]!.trim()
-      if (!line) continue
-      try {
-        const parsed = JSON.parse(line) as Record<string, unknown>
-        const ord = parsed.updateOrdinal ?? parsed.creationOrdinal
-        if (typeof ord === 'string' && ord.length > 0 && Number.isFinite(Number(ord))) {
-          return Math.floor(Number(ord))
-        }
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    if (len >= size) return 1
+  for (const bytes of transcriptLinesInReverse('', 0, size, fd)) {
+    const line = bytes.toString('utf8').trim()
+    if (!line) continue
+    try {
+      const parsed = JSON.parse(line) as Record<string, unknown>
+      const ord = parsed.updateOrdinal ?? parsed.creationOrdinal
+      if (typeof ord === 'string' && ord.length > 0 && Number.isFinite(Number(ord))) return Math.floor(Number(ord))
+    } catch (error) { passedOver(error) }
   }
+  return 1
 }
 
 function stateFor(fullPath: string): FileState {

@@ -1,3 +1,4 @@
+import { historyHead } from '../historyParts.js'
 import type { UUID } from 'crypto'
 import {
   closeSync,
@@ -59,6 +60,7 @@ export class RemovePart {
         if (this.project.sessionFile === null) return
         await this.needs._drainWriteQueueInner()
         try {
+          const header = historyHead(this.project.sessionFile)
           let fileSize = 0
           const fd = openSync(this.project.sessionFile, 'r+')
           try {
@@ -66,7 +68,7 @@ export class RemovePart {
             fileSize = size
             if (size === 0) return
 
-            const chunkLen = Math.min(size, LITE_READ_BUF_SIZE)
+            const chunkLen = Math.min(size - header.start, LITE_READ_BUF_SIZE)
             const tailStart = size - chunkLen
             const buf = Buffer.allocUnsafe(chunkLen)
             const bytesRead = readSync(fd, buf, 0, chunkLen, tailStart)
@@ -75,7 +77,7 @@ export class RemovePart {
             const needle = `"uuid":"${targetUuid}"`
             const matchIdx = tail.lastIndexOf(needle)
             const line = matchIdx >= 0 ? lineAround(tail, matchIdx, needle.length, bytesRead, tailStart === 0) : null
-            if (line) {
+            if (line && tailStart + line.start >= header.start) {
               const { start: lineStart, end: lineEnd } = line
               const absLineStart = tailStart + lineStart
               const afterLen = bytesRead - lineEnd
@@ -94,7 +96,8 @@ export class RemovePart {
             )
             return
           }
-          const content = readFileSync(this.project.sessionFile, { encoding: 'utf-8' })
+          const all = readFileSync(this.project.sessionFile)
+          const content = all.toString('utf8', header.start)
           const lines = content.split('\n').filter((line: string) => {
             if (!line.trim()) return true
             try {
@@ -104,7 +107,7 @@ export class RemovePart {
               return true
             }
           })
-          writeFileSync(this.project.sessionFile, lines.join('\n'), {
+          writeFileSync(this.project.sessionFile, all.toString('utf8', 0, header.start) + lines.join('\n'), {
             encoding: 'utf8',
           })
         } catch (error) {

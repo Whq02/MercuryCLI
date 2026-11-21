@@ -68,6 +68,7 @@ for (const k of ['MERCURY_HOME', 'MERCURY_CREW_DIR', 'MERCURY_DAEMON_OWNER_PID',
 
 type DisplayRow = { uuid: string; type?: string; subtype?: string; content?: unknown; turnId?: string; message?: { content?: unknown }; board?: DisplayRow[] }
 type Entry = DisplayRow & { type: string; parentUuid: string | null; timestamp: string; compactMetadata?: { preservedSegment?: { headUuid: string; anchorUuid: string; tailUuid: string }; work?: { idle?: Array<{ after: string; rows: DisplayRow[] }>; receipts?: Array<{ board?: DisplayRow[] }> } } }
+const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
 const vnext = await import(join(SRC, 'utils/sessionStorage/vnext.ts'))
 const reader = await import(join(SRC, 'utils/sessionStorage/transcriptReader.ts'))
 const decode = await import(join(SRC, 'fabric/transcriptDecode.ts'))
@@ -80,8 +81,9 @@ const CHAIN_TYPES = new Set(['user', 'assistant', 'system', 'attachment'])
 type RecordLine = { recordId: string; updates?: string; payload?: { kind?: string } }
 function recordLines(path: string): RecordLine[] {
   const out: RecordLine[] = []
-  for (const line of readFileSync(path, 'utf8').split('\n')) {
-    if (line === '') continue
+  for (const bytes of historyLines(path)) {
+    const line = bytes.toString('utf8')
+    if (!line.trim()) continue
     try {
       out.push(JSON.parse(line) as RecordLine)
     } catch {}
@@ -89,8 +91,12 @@ function recordLines(path: string): RecordLine[] {
   return out
 }
 function entriesOf(path: string): Entry[] {
-  const decoded = decode.decodeTranscriptBuffer(readFileSync(path)) as { entries: Entry[] }
-  return decoded.entries.filter(e => CHAIN_TYPES.has(e.type))
+  const entries: Entry[] = []
+  for (const line of historyLines(path)) {
+    const decoded = decode.decodeTranscriptBuffer(line) as { entries: Entry[] }
+    for (const entry of decoded.entries) if (CHAIN_TYPES.has(entry.type)) entries.push(entry)
+  }
+  return entries
 }
 function createdTwice(path: string): string[] {
   const seen = new Map<string, number>()

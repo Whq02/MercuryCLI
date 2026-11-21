@@ -1,3 +1,4 @@
+import { ownedHistoryParts } from '../../utils/sessionStorage/historyParts.js'
 import { getFsImplementation } from '../../utils/fsOperations.js'
 import { removePrefixRecord } from '../providers/anthropic/prefixRecordStore.js'
 import { receiptsPathBesideTranscript } from './sessionReceipts.js'
@@ -107,7 +108,12 @@ export async function operatorPruneTranscripts(offer: PruneOffer): Promise<Prune
   }
   for (const candidate of offer.candidates) {
     try {
+      const parts = ownedHistoryParts(candidate.transcriptPath)
       await fs.unlink(candidate.transcriptPath)
+      if (parts) {
+        for (const path of parts.files) await fs.unlink(path)
+        await fs.rmdir(parts.dir).catch(passedOver)
+      }
       receipt.deleted++
       receipt.bytesFreed += candidate.bytes
       receipt.deletedSessionIds.push(candidate.sessionId)

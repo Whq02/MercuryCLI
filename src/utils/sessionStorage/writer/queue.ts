@@ -1,3 +1,5 @@
+import type { MercuryRecord } from '../../../fabric/record.js'
+import { sealHistoryPart } from './sealPart.js'
 import { appendFile as fsAppendFile, mkdir } from 'fs/promises'
 import { basename, dirname } from 'path'
 import type { Entry } from '../../../types/logs.js'
@@ -13,7 +15,7 @@ export class QueuePart {
   private flushResolvers: Array<() => void> = []
   writeQueues = new Map<
     string,
-    Array<{ line: string; resolve: () => void }>
+    Array<{ line: string; resolve: () => void; boundary?: MercuryRecord }>
   >()
   private flushTimer: ReturnType<typeof setTimeout> | null = null
   private activeDrain: Promise<void> | null = null
@@ -64,16 +66,15 @@ export class QueuePart {
   }
 
   enqueueWrite(filePath: string, entry: Entry): Promise<void> {
-    return this.enqueueRawLine(
-      filePath,
-      encodeTranscriptLine(filePath, entry as Record<string, unknown>).line,
-    )
+    const { line, record } = encodeTranscriptLine(filePath, entry as Record<string, unknown>)
+    return this.enqueueRawLine(filePath, line, undefined, record)
   }
 
   enqueueRawLine(
     filePath: string,
     line: string,
     capture?: (item: { line: string; resolve: () => void }) => void,
+    record?: MercuryRecord,
   ): Promise<void> {
     return new Promise<void>(resolve => {
       let queue = this.writeQueues.get(filePath)
@@ -81,7 +82,7 @@ export class QueuePart {
         queue = []
         this.writeQueues.set(filePath, queue)
       }
-      const item = { line, resolve }
+      const item = { line, resolve, ...(record?.payload.kind === 'boundary' && record.payload.boundaryKind === 'compact' ? { boundary: record } : {}) }
       queue.push(item)
       capture?.(item)
       this.scheduleDrain()
@@ -159,8 +160,8 @@ export class QueuePart {
         let content = ''
         let pending = 0
 
-        for (const { line } of batch) {
-          if (content.length + line.length >= this.MAX_CHUNK_BYTES) {
+        for (const { line, boundary } of batch) {
+          if (pending > 0 && (boundary || content.length + line.length >= this.MAX_CHUNK_BYTES)) {
             await this.appendToFile(filePath, content)
             for (let i = landed; i < landed + pending; i++) {
               batch[i]!.resolve()
@@ -170,6 +171,10 @@ export class QueuePart {
             content = ''
           }
 
+          if (boundary && await sealHistoryPart(filePath, line, boundary)) {
+            batch[landed++]!.resolve()
+            continue
+          }
           content += line
           pending++
         }

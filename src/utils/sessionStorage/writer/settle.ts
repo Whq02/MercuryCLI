@@ -84,7 +84,7 @@ export class SettlePart {
       })
       this.openReply(file, entry.message).set(entry.uuid, state)
     } else {
-      void this.needs.enqueueRawLine(file, line)
+      void this.needs.enqueueRawLine(file, line, undefined, encoded.record)
     }
   }
 

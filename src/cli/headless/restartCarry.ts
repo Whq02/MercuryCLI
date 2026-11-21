@@ -27,7 +27,7 @@ import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { enqueue, enqueuePendingNotification } from '../../input-core/command-queue.js'
 import { emitTaskEnded } from '../../utils/sdkEventQueue.js'
 import { MAX_TRANSCRIPT_READ_BYTES, getTranscriptPath, readAgentMetadata } from '../../utils/sessionStorage/paths.js'
-import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptReader.js'
+import { historyTail } from '../../utils/sessionStorage/historyParts.js'
 import { notifyTasksUpdated } from '../../utils/tasks.js'
 
 type RestartCarryPorts = {
@@ -45,9 +45,7 @@ type RestartCarryOutcome = RestartCarryCounts & { requeued: number; recoveredCom
 
 function transcriptTailLines(path: string): string[] {
   try {
-    const size = statSync(path).size
-    const read = readTranscriptBytesAfter(path, { offset: Math.max(0, size - MAX_TRANSCRIPT_READ_BYTES), carry: '' })
-    return [...read.text.split('\n'), read.cursor.carry]
+    return historyTail(path, MAX_TRANSCRIPT_READ_BYTES).bytes.toString('utf8').split('\n')
   } catch (error) {
     if (isENOENT(error)) return []
     throw error
