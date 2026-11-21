@@ -24,3 +24,4 @@ prove-media-upscale.ts
 prove-media-user-models.ts
 prove-media-vendor-manifest.ts
 prove-media-workflow.ts
+prove-media-permission-card-answers.ts

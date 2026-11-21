@@ -1,0 +1,253 @@
+{
+  "first": [
+    {
+      "type": "user",
+      "uuid": "ask-1",
+      "message": {
+        "role": "user",
+        "content": "Keep the fixture whole."
+      }
+    },
+    {
+      "type": "assistant",
+      "uuid": "calls-1",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "read",
+            "name": "Read",
+            "input": {
+              "file_path": "one.ts"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "running",
+            "name": "Bash",
+            "input": {
+              "command": "bun test"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "late",
+            "name": "Read",
+            "input": {
+              "file_path": "two.ts"
+            }
+          },
+          {
+            "type": "tool_use",
+            "id": "denied",
+            "name": "Read",
+            "input": {
+              "file_path": "three.ts"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "user",
+      "uuid": "result-1",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "read",
+            "content": "one",
+            "is_error": false
+          }
+        ]
+      },
+      "toolUseResult": {
+        "file": {
+          "filePath": "one.ts",
+          "anchor": "fa:0123456789ab"
+        }
+      }
+    },
+    {
+      "type": "user",
+      "uuid": "result-2",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "running",
+            "content": "in progress",
+            "is_error": false
+          }
+        ]
+      },
+      "toolUseResult": {
+        "backgroundTaskId": "one"
+      }
+    },
+    {
+      "type": "user",
+      "uuid": "result-3",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "denied",
+            "content": "denied",
+            "is_error": true
+          }
+        ]
+      },
+      "toolUseResult": {}
+    }
+  ],
+  "ledger": {
+    "version": 1,
+    "epoch": 1,
+    "sourceRecordIds": [
+      "ask-1",
+      "calls-1",
+      "result-1",
+      "result-2",
+      "result-3"
+    ],
+    "priorRecords": 0,
+    "sourceDigest": "ee297afc7f61da58e701cf1f92a93041628c30556255e2e627d9e0089fc0c550",
+    "operator": [
+      {
+        "sourceId": "ask-1",
+        "epoch": 1,
+        "bytes": 23,
+        "sha256": "312091233addfffe6379c89d87478f745f7552d1a86c18423fe247ce40f3f347"
+      }
+    ],
+    "tools": [
+      {
+        "id": "read",
+        "sourceId": "calls-1",
+        "epoch": 1,
+        "name": "Read",
+        "argumentDigest": "8d4d4f4a175902c39af90473d3d3cf958b670f2c06969c0f6396f6373d20ba7c",
+        "file": "one.ts",
+        "resultId": "result-1",
+        "resultBytes": 3,
+        "outcome": "ok",
+        "rc": null
+      },
+      {
+        "id": "running",
+        "sourceId": "calls-1",
+        "epoch": 1,
+        "name": "Bash",
+        "argumentDigest": "a1003bc499a4a040e32912bd72353c912e89218987d97904c0b2e5fede66dbab",
+        "command": "bun test",
+        "resultId": "result-2",
+        "resultBytes": 11,
+        "outcome": "background",
+        "rc": null
+      },
+      {
+        "id": "late",
+        "sourceId": "calls-1",
+        "epoch": 1,
+        "name": "Read",
+        "argumentDigest": "352311e6900c68b6d364b9ca000d60c920f026729a6203c2bde8b023c3d57580",
+        "file": "two.ts",
+        "resultId": null,
+        "resultBytes": 0,
+        "outcome": "pending",
+        "rc": null
+      },
+      {
+        "id": "denied",
+        "sourceId": "calls-1",
+        "epoch": 1,
+        "name": "Read",
+        "argumentDigest": "e1c2541910f3376ca1784a43c53ad06d4e6aa6ab28c86ed909d4faf239e5db49",
+        "file": "three.ts",
+        "resultId": "result-3",
+        "resultBytes": 6,
+        "outcome": "error",
+        "rc": null
+      }
+    ],
+    "files": [
+      {
+        "sourceId": "result-1",
+        "epoch": 1,
+        "file": "one.ts",
+        "anchor": "fa:0123456789ab",
+        "startLine": null,
+        "lines": null,
+        "freshness": "observed-not-rechecked"
+      }
+    ],
+    "run": null
+  },
+  "tail": [
+    {
+      "type": "user",
+      "uuid": "ask-2",
+      "message": {
+        "role": "user",
+        "content": "Keep the next fixture whole."
+      }
+    },
+    {
+      "type": "user",
+      "uuid": "result-4",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "running",
+            "content": "done",
+            "is_error": false
+          }
+        ]
+      },
+      "toolUseResult": {
+        "code": 0
+      }
+    },
+    {
+      "type": "user",
+      "uuid": "result-5",
+      "message": {
+        "role": "user",
+        "content": [
+          {
+            "type": "tool_result",
+            "tool_use_id": "late",
+            "content": "denied",
+            "is_error": true
+          }
+        ]
+      },
+      "toolUseResult": {}
+    },
+    {
+      "type": "assistant",
+      "uuid": "calls-2",
+      "message": {
+        "role": "assistant",
+        "content": [
+          {
+            "type": "tool_use",
+            "id": "new",
+            "name": "Bash",
+            "input": {
+              "command": "bun check"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "golden": "## Fold ledger\nSource facts below are deterministic; generated summary text does not change them. This index covers the stretch folded now, its newest 40 tool receipts and file anchors whole and the older ones by count; the earlier folds' receipts are counted here. Each fold's receipts are carried whole in its own boundary record in the transcript. An observed file anchor is not permission to edit unread content. Missing command exit codes are unknown. Open operator asks are not marked complete by a summary.\n\n{\"version\":1,\"epoch\":2,\"stretch\":{\"records\":5,\"first\":\"boundary-1\",\"last\":\"calls-2\",\"sha256\":\"b9af1f528d34db90add39124d2724c9ed5364e93c14d5a6f213c78d9c0947a9a\",\"tools\":1,\"files\":0,\"byTool\":{\"Bash\":{\"calls\":1,\"failed\":0,\"unknownRc\":1}}},\"page\":{\"newestTools\":1,\"olderToolsOmitted\":0,\"newestFiles\":0,\"olderFilesOmitted\":0,\"carriedBy\":\"this epoch's boundary record, whole\"},\"earlierFolds\":{\"records\":5,\"operatorMessages\":1,\"tools\":4,\"files\":1,\"carriedBy\":\"their own boundary records, whole\"},\"operator\":{\"messages\":1,\"bytes\":28},\"tools\":[{\"id\":\"new\",\"sourceId\":\"calls-2\",\"name\":\"Bash\",\"command\":\"bun check\",\"resultId\":null,\"resultBytes\":0,\"outcome\":\"pending\",\"rc\":null}],\"files\":[],\"run\":null,\"witnessesInBoundary\":{\"sourceIds\":10,\"operatorHashes\":2,\"argumentHashes\":5,\"deniedFilePaths\":2}}"
+}

@@ -3,6 +3,7 @@ import { strict as assert } from 'node:assert'
 import type { Tools } from '../../src/Tool.ts'
 import type { CollapsedReadSearchGroup, NormalizedAssistantMessage, NormalizedUserMessage, RenderableMessage } from '../../src/types/message.ts'
 import { collapseReadSearchGroups, getSearchReadSummaryText, getToolUseIdsFromCollapsedGroup } from '../../src/components/messages/collapseReadSearch.ts'
+import { PowerShellTool } from '../../src/tools/PowerShellTool/PowerShellTool.tsx'
 import { applyGrouping } from '../../src/utils/groupToolUses.ts'
 
 process.env.MERCURY_FULLSCREEN = '1'
@@ -122,6 +123,41 @@ check('non-collapsible sibling groups keep their own renderer', () => {
   assert.deepEqual(collapseReadSearchGroups(live, groupedTools, new Set(['call-0', 'call-1'])), live)
   assert.deepEqual(collapseReadSearchGroups(settled, groupedTools), settled)
 })
+
+const psTools = [PowerShellTool] as unknown as Tools
+for (const command of [
+  'Get-Content a.txt',
+  'Get-Content a.txt 2>$null',
+]) {
+  check(`PowerShell read folds into Read 1 file (${command})`, () => {
+    const u = use(0, 'PowerShell', { command })
+    const r = result(0)
+    const live = oneGroup(collapseReadSearchGroups([u], psTools, new Set(['call-0'])))
+    const settled = oneGroup(collapseReadSearchGroups([u, r], psTools))
+    assert.equal(live.readCount, 1)
+    assert.equal(settled.readCount, 1)
+    assert.equal(summary(live), 'Read 1 file')
+    assert.equal(summary(settled), 'Read 1 file')
+  })
+}
+
+for (const command of [
+  'Get-Content (Remove-Item y.txt -PassThru)',
+  'Set-Content a.txt x',
+  'Get-Content a.txt > out.txt',
+  'Get-Content @(Remove-Item y.txt)',
+  'Get-Content a.txt & Remove-Item b.txt',
+  "Get-Content a.txt # don't\nRemove-Item b.txt # isn't",
+  'Get-Content.cmd a.txt',
+  'cat.exe a.txt',
+]) {
+  check(`PowerShell mutating or nested command stays an ordinary row (${command})`, () => {
+    const u = use(0, 'PowerShell', { command })
+    const r = result(0)
+    assert.deepEqual(collapseReadSearchGroups([u], psTools, new Set(['call-0'])), [u])
+    assert.deepEqual(collapseReadSearchGroups([u, r], psTools), [u, r])
+  })
+}
 
 console.log(`${checks} checks, ${failures} failures`)
 process.exit(failures === 0 ? 0 : 1)

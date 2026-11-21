@@ -10,7 +10,7 @@ import { startFixtureApi, type FixtureApi, type ScriptedTurn } from './fixtureAp
 import { nodeBinPath } from './nodeBin.ts'
 import { endProcessGroup, spawnInOwnGroup } from './processGroup.ts'
 import { removeScratch } from './removeScratch.ts'
-import { hostRunner, scratchHome, type HostedRunner } from './runnerHost.ts'
+import { featureTraceEnv, hostRunner, scratchHome, type HostedRunner } from './runnerHost.ts'
 
 const TREE = resolve(import.meta.dir, '..', '..')
 
@@ -53,7 +53,7 @@ function deadBases(): Env {
 
 function scratchEnv(scratch: Scratch, extra: Env = {}): Env {
   const kept = Object.fromEntries(Object.entries(process.env).filter(([name]) => KEPT.test(name)))
-  return { ...deadBases(), ...kept, ...scratch.env, MERCURY_CREDENTIAL_STORE: 'file', ...extra }
+  return { ...deadBases(), ...kept, ...featureTraceEnv(), ...scratch.env, MERCURY_CREDENTIAL_STORE: 'file', ...extra }
 }
 
 function cliEnv(scratch: Scratch, extra: Env = {}): NodeJS.ProcessEnv {

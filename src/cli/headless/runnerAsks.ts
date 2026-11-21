@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { Capabilities, ElicitationAnswer, ElicitationRequestParams, PermissionAnswer, PermissionRequestParams } from '../../runner/wire/methods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { Peer } from '../../runner/wire/peer.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
 import type { ElicitResult } from '../../utils/mcp/sdk.js'
@@ -253,7 +254,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
   let onSettled: (() => void) | undefined
 
   const askPermission = (params: PermissionRequestParams, opts: AskOptions): Promise<AskAnswer> => {
-    if (peer.closed) return Promise.reject(new PeerClosed('permission/request', 'the runner door is closed'))
+    if (peer.closed) return Promise.reject(new PeerClosed(SESSION_VERBS.answerAsk.runner.name, 'the runner door is closed'))
     if (opts.signal?.aborted) return Promise.reject(new AskAborted('the ask was aborted before it was sent'))
     return new Promise<AskAnswer>((resolve, reject) => {
       let settled = false
@@ -286,7 +287,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
         parked.delete(opts.key)
         onSettled?.()
       }
-      const sent = peer.send('permission/request', params, { deadlineMs: null, signal: opts.signal })
+      const sent = peer.send(SESSION_VERBS.answerAsk.runner.name, params, { deadlineMs: null, signal: opts.signal })
       entry.id = sent.id
       sent.answer
         .then(answer => {
@@ -325,7 +326,7 @@ export function createRunnerAsks(peer: Peer, capabilities: () => Capabilities): 
         ...(requestedSchema !== undefined ? { schema: requestedSchema } : {}),
       }
       try {
-        const answer: ElicitationAnswer = await peer.request('elicitation/request', params, { deadlineMs: null, signal })
+        const answer: ElicitationAnswer = await peer.request(SESSION_VERBS.elicitationRequest.runner.name, params, { deadlineMs: null, signal })
         return answer as ElicitResult
       } catch (error) {
         logForDebugging(`elicitation for ${serverName} failed; resolving as cancel: ${error instanceof Error ? error.message : String(error)}`)

@@ -3,6 +3,7 @@ import { noticeRow } from '../../rows/project.js'
 import { performMCPOAuthFlow } from '../../services/mcp/auth.js'
 import { errorMessage } from '../../utils/errors.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
+import type { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { RunnerPorts } from './runnerPorts.js'
 import { mcpToolsUnlistedAnswer, mcpToolsAnswerOf } from '../../services/mcp/toolsAnswer.js'
 import { getEngineModel } from '../../utils/model/model.js'
@@ -24,7 +25,7 @@ import { pruneSkillSessionHooks, liveSkillRootsOf } from '../../utils/hooks/sess
 import { getSessionId } from '../../bootstrap/state.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 
-export async function mcpAction(params: ParamsOf<'mcp/action'>, signal: AbortSignal, ports: RunnerPorts): Promise<ResultOf<'mcp/action'>> {
+export async function mcpAction(params: ParamsOf<typeof SESSION_VERBS.mcpAction.runner.name>, signal: AbortSignal, ports: RunnerPorts): Promise<ResultOf<typeof SESSION_VERBS.mcpAction.runner.name>> {
   const { enqueueRow, liveScope, mcpSignIns, permittedMcpConfig, reconnectLiveMcp, serializeMcpChange } = ports
   const { name, action } = params
   if (action === 'cancel-auth') {
@@ -62,7 +63,7 @@ export async function mcpAction(params: ParamsOf<'mcp/action'>, signal: AbortSig
   }
 }
 
-export async function mcpTools(params: ParamsOf<'mcp/tools'>, ports: RunnerPorts): Promise<ResultOf<'mcp/tools'>> {
+export async function mcpTools(params: ParamsOf<typeof SESSION_VERBS.mcpTools.runner.name>, ports: RunnerPorts): Promise<ResultOf<typeof SESSION_VERBS.mcpTools.runner.name>> {
   const { getAppState, live, messages } = ports
   const { name } = params
   const state = getAppState()
@@ -98,7 +99,7 @@ export async function mcpTools(params: ParamsOf<'mcp/tools'>, ports: RunnerPorts
   return mcpToolsAnswerOf(name, tools)
 }
 
-export function setSessionKit(params: ParamsOf<'session/set_kit'>, ports: RunnerPorts): Promise<ResultOf<'session/set_kit'>> {
+export function setSessionKit(params: ParamsOf<typeof SESSION_VERBS.setKit.runner.name>, ports: RunnerPorts): Promise<ResultOf<typeof SESSION_VERBS.setKit.runner.name>> {
   const { applyReconnectedClient, elicitationRegistered, getAppState, live, permittedMcpConfig, registerPerTurnHandlers, resolveServerConfigFromAllSources, serializeMcpChange, setAppState } = ports
   return serializeMcpChange(async () => {
     const verdict = validateSessionKit(sessionKitFromWire(params.kit))

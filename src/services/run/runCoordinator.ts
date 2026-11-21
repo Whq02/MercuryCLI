@@ -329,6 +329,7 @@ export async function reconcileOnResume(owner: OwnerKey, cwd: string): Promise<R
   const state = runs.get(owner)
   state.snapshot = reconcileCompletion(load.snapshot)
   if (isTerminalLifecycle(state.snapshot.lifecycle)) {
+    notify(owner)
     return { state: 'terminal', snapshot: state.snapshot }
   }
   const at = Date.now()

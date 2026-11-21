@@ -708,13 +708,16 @@ src/daemon/concourseWorkers/store.ts	workersSnapshotMemo	process	module	file sta
 src/daemon/concourseWorkers/storeLock.ts	daemonStoreLocksInFlight	call	module	synchronous re-entrant file lock map keyed by store path, always deleted in finally
 src/daemon/controlServer.ts	ADMIT_REFUSAL_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	ADMIT_WIRE_KEYS	process	module	Load-time list with no local writer
+src/daemon/controlServer.ts	BASE_ADVERTISED_CONTROL_ROWS	process	module	load-time data; no local writer
+src/daemon/controlServer.ts	BASE_UNADVERTISED_CONTROL_ACTIONS	process	module	load-time lookup; no local writer
 src/daemon/controlServer.ts	CONTROL_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	DISPATCH_REFUSAL_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	DISPATCH_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	PROMPT_WHILE_STARTING	process	module	Load-time lookup with no local writer
 src/daemon/controlServer.ts	RECONFIGURE_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	RELEASE_WIRE_KEYS	process	module	Load-time list with no local writer
-src/daemon/controlServer.ts	SESSION_OP_ALIASES	process	module	Load-time table with no local writer
+src/daemon/controlServer.ts	SESSION_CONTROL_ACTIONS	process	module	load-time lookup; no local writer
+src/daemon/controlServer.ts	UNKNOWN_CONTROL_ACTION_ERROR	process	module	Static diagnostic for the declared control actions
 src/daemon/controlServer.ts	WARM_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	WORKER_DISPATCH_WIRE_KEYS	process	module	Load-time list with no local writer
 src/daemon/controlServer.ts	answering	process	module	daemon-wide count of in-flight control-socket RPC handlers
@@ -777,6 +780,9 @@ src/daemon/sessionSeat/rows.ts	foldStartedAt	owner	module	Seat compaction start 
 src/daemon/sessionSeat/state.ts	seatGenerations	owner	module	Seat generation counters retained in the daemon
 src/daemon/sessionSeat/state.ts	seats	owner	module	session; daemon per-seat runtime state keyed by runner short id, deleted in onSeatSettled
 src/daemon/sessionSeat/stream.ts	clearSeatProgress	reset-export
+src/daemon/sessionSeat/verbs.ts	EMPTY_DETAIL_OLDER_DETAIL	process	module	load-time data; no local writer
+src/daemon/sessionSeat/verbs.ts	GENERIC_ZERO_ARG_SEAT_VERBS	process	module	load-time lookup; no local writer
+src/daemon/sessionSeat/verbs.ts	UNKNOWN_SESSION_REFUSAL	process	module	load-time data; no local writer
 src/daemon/sessionStateHooks.ts	askingSessions	owner	module	session; daemon per-session active asking flag keyed by sessionId, deleted when asking becomes false
 src/daemon/sessionStateHooks.ts	lastStates	owner	module	session; daemon per-session last observed board state keyed by sessionId for session.state hook edges; missing end — never pruned when session ends
 src/daemon/signInView.ts	lastLiveReadAt	process	module	daemon-wide 2s throttle timestamp for refreshing credential and model-default memos on sign-in view reads
@@ -940,6 +946,7 @@ src/hooks/usePromptSuggestion.ts	STAMP_ADMITS	process	module	Load-time table wit
 src/hooks/useSearchInput.ts	REJECTED_KEY_NAMES	process	module	Load-time lookup with no local writer
 src/hooks/useSessionSignInGate.ts	OK	process	module	Load-time table with no local writer
 src/hooks/useTextInput.ts	liveStateReaders	process	module	WeakMap mapping onChange callback instances to synchronous input state readers
+src/hooks/useTypeahead.tsx	subscribeFocusedWork	process	module	Subscription adapter for the focused work producer
 src/hooks/useVimInput.ts	REPLAYERS	process	module	Load-time table with no local writer
 src/ink/Ansi.tsx	Ansi	process	module	Load-time definition shared by all callers
 src/ink/Ansi.tsx	NAMED_TO_ANSI	process	module	Load-time table with no local writer
@@ -1225,6 +1232,7 @@ src/input-core/command-queue.ts	queueIdSeq	process	module	monotonic process-wide
 src/input-core/command-queue.ts	resetCommandQueue	reset-export
 src/input-core/command-queue.ts	snapshot	owner	module	session; frozen snapshot of active session's command queue; swapped on session switch
 src/input-core/command-queue.ts	takenUuids	owner	module	session; bounded (cap 256) ring of recently dequeued/removed command uuids; not isolated per session
+src/input-core/command-queue.ts	triedCompact	process	module	module definition evaluated once
 src/input-core/command-queue.ts	wordsWaitForTurnEnd	owner	module	session; session flag holding queued operator words until turn end; missing session end
 src/input-core/composer-document.ts	SHELF_ITEM_KINDS	process	module	Load-time list with no local writer
 src/input-core/interruptArity.ts	armedAt	process	module	single-TUI double-Esc gesture timestamp map keyed by UI scope (deleted on fire/unmount)
@@ -1479,6 +1487,8 @@ src/schemas/hooks.ts	hooksMapSchema	process	module	lazy one-time Zod schema memo
 src/screens/chat/chatBottomSlot.tsx	NO_MCP_CLIENTS	process	module	Load-time list with no local writer
 src/screens/chat/chatMessagesList.tsx	EMPTY_CONFIRM_QUEUE	process	module	Load-time list with no local writer
 src/screens/chat/chatMessagesList.tsx	NO_STREAMING_TOOL_USES	process	module	Load-time list with no local writer
+src/screens/chat/chatStore.ts	EMPTY_CONSENT_BATCH	process	module	load-time data; no local writer
+src/screens/chat/chatStore.ts	INITIAL_CHAT_SCREEN_STATE	process	module	load-time data; no local writer
 src/screens/chat/submit/screenCommand.ts	HELD_FOR_LANDING	process	module	Load-time lookup with no local writer
 src/screens/chat/submit/submitLine.ts	INERT_PROMPT_HELPERS	process	module	Load-time table with no local writer
 src/screens/chat/useChatAsks.tsx	subscribeFocusedAsks	process	module	Load-time definition shared by all callers
@@ -1715,8 +1725,8 @@ src/services/cockpit/mcpGauge.ts	listeners	process	module	foreground TUI subscri
 src/services/cockpit/mcpGauge.ts	resetMcpGaugeForTests	reset-export
 src/services/cockpit/mcpGauge.ts	version	process	module	foreground TUI version counter for MCP gauge
 src/services/cockpit/modelGauge.ts	EMPTY	process	module	Load-time table with no local writer
-src/services/compact/autoCompact.ts	advanceState	owner	store	agent/session-level auto-compact advance state in unregistered OwnerScopedStore (autocompact-advance, default cap 64, missing registerOwnerScopedStore)
-src/services/compact/autoCompact.ts	fixedMaterialSkipState	owner	store	agent/session-level auto-compact fixed-material skip latch in unregistered OwnerScopedStore (autocompact-fixed-material-skip, default cap 64, missing registerOwnerScopedStore)
+src/services/compact/autoCompact.ts	advanceState	owner	store	Owner compact progress released on full owner disposal or shutdown
+src/services/compact/autoCompact.ts	fixedMaterialSkipState	owner	store	Owner compact skip state released on full owner disposal or shutdown
 src/services/compact/compact/attachments.ts	POST_COMPACT_SHEDDABLE_ATTACHMENT_TYPES	process	module	Load-time list with no local writer
 src/services/compact/compact/foldBound.ts	foldBoundsOverride	test	module	test-only fold timeout bounds override (setFoldBoundsForTests)
 src/services/compact/compact/refusals.ts	PAIRING_COMPLAINTS	process	module	Load-time list with no local writer
@@ -1949,41 +1959,15 @@ src/services/engine-connector/noSessionConnector.ts	resting	process	module	lazy 
 src/services/engine-connector/seatLive.ts	IDLE_LIVE	process	module	Derived collection initialized at load
 src/services/engine-connector/seatLive.ts	IDLE_TURN_FACTS	process	module	Derived collection initialized at load
 src/services/engine-connector/seatProjections.ts	resetSeatProjections	reset-export
-src/services/engine-connector/seatWire.ts	ACTION	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	AGENT_PAUSE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	AGENT_WAIT	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	ANTHROPIC_WINDOW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	BAND	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	BIRTH	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	BOX	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	BOX_MEMORY	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	BOX_WAITER	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	CATALOGUE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	CONTEXT	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	FACTS	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	IDENTITY	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	JEV	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	KIT	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	KIT_DELTAS	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	LANE_WINDOW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	MISSION_CARD	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	MISSION_OUTCOME	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	MISSION_ROW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	MODEL_SPEND	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	NOTICE_ROW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	OPENAI_WINDOW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	REWIND	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	REWIND_CODE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	REWIND_CONVERSATION	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	SAMPLE_ROW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	SCHEDULE_EDIT	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	SCHEDULE_ROW	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	SUBMISSION	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	USAGE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	WHEN	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	WORKSPACE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	WORK_PULSE	process	module	Load-time table with no local writer
-src/services/engine-connector/seatWire.ts	WORK_ROW	process	module	Load-time table with no local writer
+src/services/engine-connector/seatWire.ts	BAND_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	CATALOGUE_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	FACTS_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	KIT_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	REWIND_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	SCHEDULE_EDIT_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	SCHEDULE_ROW_SPEC	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	SESSION_WIRE_CODECS	process	module	load-time data; no local writer
+src/services/engine-connector/seatWire.ts	WINDOW_SPEC	process	module	load-time data; no local writer
 src/services/engine-connector/sendNowLive.ts	subscribeFocusedSendNow	process	module	stateless subscriber wrapper delegating to focusedConnector
 src/services/engine-connector/shellRunning.ts	subscribeFocusedShell	process	module	stateless subscriber wrapper delegating to focusedConnector
 src/services/eval/evalBridge.ts	agentPayload	process	module	Load-time definition shared by all callers
@@ -3854,7 +3838,7 @@ src/tools/LSPTool/symbolContext.ts	TOKEN_PATTERN	process	module	shared global Re
 src/tools/LaunchTool/LaunchTool.ts	LaunchTool	process	module	Load-time definition shared by all callers
 src/tools/LaunchTool/LaunchTool.ts	OPS	process	module	Load-time list with no local writer
 src/tools/LaunchTool/LaunchTool.ts	inputSchema	process	module	Load-time definition shared by all callers
-src/tools/LaunchTool/LaunchTool.ts	lastActions	owner	module	agent (module); Map keyed by OwnerKey recording last launch action summary for status output; missing end (entries never evicted or disposed on owner end)
+src/tools/LaunchTool/LaunchTool.ts	lastActions	owner	store	Per-owner last action preserved across resume, released on full owner disposal or shutdown
 src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts	ListMcpResourcesTool	process	module	Load-time definition shared by all callers
 src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts	outputSchema	process	module	Load-time definition shared by all callers
@@ -4055,9 +4039,8 @@ src/tools/shared/gitOperationTracking.ts	MERGE_COMMAND	process	module	Load-time 
 src/tools/shared/gitOperationTracking.ts	PR_COMMANDS	process	module	Load-time list with no local writer
 src/tools/shared/gitOperationTracking.ts	PUSH_COMMAND	process	module	Load-time definition shared by all callers
 src/tools/shared/gitOperationTracking.ts	REBASE_COMMAND	process	module	Load-time definition shared by all callers
-src/tools/shared/sessionEnvNotice.ts	fullSessionEnvNoticeShown	owner	module	Agent state retained in this module
-src/tools/shared/sessionEnvNotice.ts	resetSessionEnvNoticeForTesting	reset-export
 src/tools/shared/sessionEnvNotice.ts	resetSessionEnvNoticeOnCompaction	reset-export
+src/tools/shared/sessionEnvNotice.ts	sessionEnvNoticeShown	owner	store	Conversation notice state preserved across resume, cleared on compaction or full owner disposal
 src/tools/testing/TestingPermissionTool.tsx	TestingPermissionTool	process	module	Load-time definition shared by all callers
 src/tools/testing/TestingPermissionTool.tsx	inputSchema	process	module	Load-time definition shared by all callers
 src/tools/toolTable.ts	toolTable	process	module	one-time load/bootstrap registration breaking circular import with src/tools.ts

@@ -73,13 +73,6 @@ export function useLayoutClaim(
   useLayoutEffect(claim, deps)
 }
 
-export function useLayoutDerivedState(
-  derive: EffectCallback,
-  deps?: DependencyList,
-): void {
-  useLayoutEffect(derive, deps)
-}
-
 export function useLayoutPublish(
   publish: EffectCallback,
   deps?: DependencyList,

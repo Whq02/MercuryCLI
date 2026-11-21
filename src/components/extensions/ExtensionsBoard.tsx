@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useRef, useState } from 'react'
-import { useDerivedState, useLoad, useMount } from '../../hooks/effects.js'
+import { useLoad, useMount } from '../../hooks/effects.js'
 import { basename } from 'node:path'
 import { Text, useInput } from '../../ink.js'
 import { useAppState, useSetAppState } from '../../state/AppState.js'
@@ -97,10 +97,8 @@ export function ExtensionsBoard({
   const { openCardForEntry, doInstall, doUpdate, cardApprove, cardKeep, doUninstallNow, openUninstallConfirm, cardUninstall, cardEsc } = installCardActions({ setSlot, setNote, setView, busyRef, entries, refresh, doReload, toBoard })
   const { toggleRow, toggleBlockEntry, toggleBlockSource, doRefreshSource, doRemoveSource, runAdd, runFetchProposal, doSwapPrevious, openOptions } = rowSourceActions({ setNote, setSlot, setView, busyRef, entries, refresh, doReload, openCardForEntry, doInstall })
 
-  useDerivedState(() => {
-    if (view.kind === 'ext' && !entries.some(e => e.id === view.id)) toBoard({ section: 'installed' })
-    if (view.kind === 'source' && !sources.some(s => s.label === view.label)) toBoard({ section: 'sources' })
-  }, [view, entries, sources])
+  if (view.kind === 'ext' && !entries.some(e => e.id === view.id)) toBoard({ section: 'installed' })
+  else if (view.kind === 'source' && !sources.some(s => s.label === view.label)) toBoard({ section: 'sources' })
 
   const routedRef = useRef(false)
   useLoad(() => {

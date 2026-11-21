@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { SESSION_VERBS } from '../../../runner/wire/sessionVerbs.js'
 import { BASH_INPUT_TAG } from '../../../constants/xml.js'
 import type { Message } from '../../../types/message.js'
 import type { ContentBlockParam } from '../../../types/wire.js'
@@ -8,6 +9,7 @@ import { submitTrace } from '../../../utils/submitTrace.js'
 import type { SendReceiptV1, SendWordsOptions, WithdrawReceiptV1 } from '../types.js'
 import { connectorTrace, REFUSED_EMPTY, type SeatSend } from './shared.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
+import { controlFrame } from './controlCarrier.js'
 
 const PENDING_WITHDRAW_WAIT_MS = 10_000
 
@@ -144,7 +146,7 @@ export class DeliveryPart {
         return settle(receipt.outcome === 'failed' ? 'held' : 'refused', receipt.detail)
       }
       const reply = await this.needs.rpc({
-        op: 'sessionDispatch',
+        op: SESSION_VERBS.sendWords.daemon.op,
         clientMessageId,
         prompt: expanded === '' ? '(attachment)' : expanded,
         workspaceDir: '',
@@ -201,7 +203,7 @@ export class DeliveryPart {
       return { withdrawn: false, reason: 'refused', detail }
     }
     try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'withdraw-send', sessionId: this.needs.sessionId(), by: 'operator', clientMessageId })
+      const reply = await this.needs.chainRpc(controlFrame('withdrawSend', this.needs.sessionId(), { clientMessageId }))
       if (reply.ok !== true) return refuse(String(reply.error ?? 'the daemon refused the withdraw'))
       if (reply.withdrawn === true) {
         this.needs.withdrawn(clientMessageId)

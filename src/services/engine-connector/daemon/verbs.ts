@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
+import { SESSION_VERBS } from '../../../runner/wire/sessionVerbs.js'
 import { submitTrace } from '../../../utils/submitTrace.js'
 import type {
   AgentControlReceiptV1,
   BoardPostReceiptV1,
   BoardPostRequestV1,
+  EmptyDetailControlVerbKey,
   LeaveReceiptV1,
   RewindReceiptV1,
   RewindRequestV1,
@@ -11,7 +13,7 @@ import type {
 } from '../types.js'
 import { REFUSED_EMPTY } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
-
+import { controlFrame, sendControlReceipt, sendEmptyDetailControl } from './controlCarrier.js'
 const LEAVE_RPC_TIMEOUT_MS = 135_000
 
 interface VerbsNeeds {
@@ -29,14 +31,14 @@ export class VerbsPart {
   async rewind(req: RewindRequestV1): Promise<RewindReceiptV1> {
     try {
       const reply = await this.needs.chainRpc(req.undo === true || req.filePath !== undefined ? {
-        op: 'sessionFileRestore',
+        op: SESSION_VERBS.fileRestore.daemon.op,
         sessionId: this.needs.record().sessionId,
         by: 'operator',
         userMessageId: req.userMessageId,
         ...(req.undo === true ? { action: 'undo' } : { action: 'restore', filePath: req.filePath! }),
         ...(req.dryRun === true ? { dryRun: true } : {}),
       } : {
-        op: 'sessionRewind',
+        op: SESSION_VERBS.rewind.daemon.op,
         sessionId: this.needs.record().sessionId,
         by: 'operator',
         mode: req.mode,
@@ -81,7 +83,7 @@ export class VerbsPart {
         return { state: 'refused', detail: 'the daemon that hosts sessions did not start — ↵ again starts it and retries' }
       }
       const reply = await this.needs.rpc({
-        op: 'sessionDispatch',
+        op: SESSION_VERBS.sendWords.daemon.op,
         clientMessageId,
         prompt: trimmed,
         workspaceDir: '',
@@ -98,48 +100,23 @@ export class VerbsPart {
     }
   }
 
-  async backgroundShell(): Promise<AgentControlReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'background-shell', sessionId: this.needs.record().sessionId, by: 'operator' })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
+  controlVerb(key: EmptyDetailControlVerbKey): Promise<AgentControlReceiptV1> {
+    return sendEmptyDetailControl(this.needs.chainRpc, this.needs.record().sessionId, key)
   }
 
-  async sendNow(): Promise<AgentControlReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'send-now', sessionId: this.needs.record().sessionId, by: 'operator' })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
-  }
-
-  async pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
-    try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'pause-gate', sessionId: this.needs.record().sessionId, by: 'operator', paused })
-      if (reply.ok !== true) return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') {
-        this.needs.readFacts()
-        return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
+  pauseGate(paused: boolean): Promise<AgentControlReceiptV1> {
+    return sendControlReceipt(
+      this.needs.chainRpc,
+      this.needs.record().sessionId,
+      'pauseGate',
+      { paused },
+      () => this.needs.readFacts(),
+    )
   }
 
   async postBoard(post: BoardPostRequestV1): Promise<BoardPostReceiptV1> {
     try {
-      const reply = await this.needs.chainRpc({ op: 'sessionControl', action: 'board-post', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: post.clientOpId, boardPost: post })
+      const reply = await this.needs.chainRpc(controlFrame('postBoard', this.needs.record().sessionId, { clientOpId: post.clientOpId, boardPost: post }))
       if (reply.ok !== true) return { ok: false, reason: String(reply.error ?? 'the daemon refused the post') }
       const detail = typeof reply.detail === 'string' ? reply.detail : ''
       if (!detail.startsWith('{')) return { ok: false, reason: detail || `unexpected outcome ${String(reply.outcome)}` }
@@ -155,7 +132,7 @@ export class VerbsPart {
     let interruptFailure: string | null = null
     const skip = (): void => {
       void this.needs
-        .rpc({ op: 'sessionControl', action: 'interrupt', sessionId: this.needs.record().sessionId, by: 'operator', clientOpId: randomUUID() })
+        .rpc(controlFrame('interrupt', this.needs.record().sessionId, { clientOpId: randomUUID() }))
         .then(
           reply => {
             if (reply.ok !== true || reply.outcome === 'refused') {
@@ -174,7 +151,7 @@ export class VerbsPart {
       await this.needs.verbChain()
       const { daemonControlRpc } = await import('../../../daemon/controlSocket.js')
       const reply = (await daemonControlRpc(
-        { op: 'sessionControl', action: 'leave', sessionId: this.needs.record().sessionId, by: 'operator' },
+        controlFrame('leave', this.needs.record().sessionId) as Parameters<typeof daemonControlRpc>[0],
         { timeoutMs: LEAVE_RPC_TIMEOUT_MS },
       )) as Record<string, unknown>
       const interruptDetail =
@@ -208,25 +185,18 @@ export class VerbsPart {
     }
   }
 
-  async agentVerb(action: 'stop-agent' | 'resume-agent', agentId: string, note?: string): Promise<AgentControlReceiptV1> {
+  async agentVerb(
+    action: typeof SESSION_VERBS.stopAgent.daemon.action | typeof SESSION_VERBS.resumeAgent.daemon.action,
+    agentId: string,
+    note?: string,
+  ): Promise<AgentControlReceiptV1> {
     if (agentId === '') return { outcome: 'refused', detail: `${action} needs a crewmate` }
-    try {
-      const reply = await this.needs.chainRpc({
-        op: 'sessionControl',
-        action,
-        sessionId: this.needs.record().sessionId,
-        by: 'operator',
-        agentId,
-        ...(note !== undefined ? { note } : {}),
-      })
-      if (reply.ok !== true) {
-        return { outcome: 'refused', detail: String(reply.error ?? 'the daemon refused the verb') }
-      }
-      const detail = typeof reply.detail === 'string' ? reply.detail : undefined
-      if (reply.outcome === 'applied') return { outcome: 'applied', ...(detail !== undefined ? { detail } : {}) }
-      return { outcome: 'refused', detail: detail ?? `unexpected outcome ${String(reply.outcome)}` }
-    } catch (e) {
-      return { outcome: 'refused', detail: `the daemon is not answering — ${e instanceof Error ? e.message : String(e)}` }
-    }
+    const key = action === SESSION_VERBS.stopAgent.daemon.action ? 'stopAgent' : 'resumeAgent'
+    return sendControlReceipt(
+      this.needs.chainRpc,
+      this.needs.record().sessionId,
+      key,
+      { agentId, ...(note !== undefined ? { note } : {}) },
+    )
   }
 }

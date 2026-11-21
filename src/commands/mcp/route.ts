@@ -1,4 +1,4 @@
-import type { KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../services/engine-connector/types.js'
+import type { EngineConnectorV1, KitDialReceiptV1, McpRosterEntryV1, McpRosterV1 } from '../../services/engine-connector/types.js'
 
 
 type McpRouteArm = 'facts' | 'panel'
@@ -32,6 +32,26 @@ function mcpRosterRow(entry: McpRosterEntryV1): string {
   return entry.error !== undefined && entry.error !== '' ? `${state} — ${entry.error}` : state
 }
 
+const EMPTY_MCP_CLIENTS: readonly McpRosterEntryV1[] = Object.freeze([])
+
+export function createMcpRosterStore(connector: Pick<EngineConnectorV1, 'mcpRoster' | 'subscribeModel'>) {
+  const read = (): readonly McpRosterEntryV1[] => {
+    const clients = connector.mcpRoster().clients
+    return clients.length === 0 ? EMPTY_MCP_CLIENTS : clients
+  }
+  let current = read()
+  return {
+    getSnapshot: () => current,
+    subscribe(listener: () => void) {
+      const stop = connector.subscribeModel(() => {
+        current = read()
+        listener()
+      })
+      current = read()
+      return stop
+    },
+  }
+}
 export function mcpRosterRowsFailedFirst(roster: McpRosterV1): McpRosterEntryV1[] {
   const failed = roster.clients.filter(entry => entry.type === 'failed')
   const rest = roster.clients.filter(entry => entry.type !== 'failed')

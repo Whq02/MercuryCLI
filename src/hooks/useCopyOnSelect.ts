@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { usePublish, useSubscription } from './effects.js'
+import { useClaim, usePublish } from './effects.js'
 import { useTheme } from '../components/design-system/ThemeProvider.js'
 import type { SelectionApi } from '../ink/hooks/use-selection.js'
 import { peekOwnInputSelection, subscribeOwnInputSelectionSettled } from '../utils/cockpit/inputSelectionBridge.js'
@@ -42,12 +42,12 @@ export function useCopyOnSelect(selection: SelectionApi, isActive: boolean, onCo
     if (text !== null) latestOnCopied.current?.(text)
   }
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!armed(isActive)) return
     return selection.subscribe(() => announce(copySettledDrag(selection, latch)))
   }, [selection, isActive])
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!armed(isActive)) return
     return subscribeOwnInputSelectionSettled(() => announce(copySettledOwnInput(selection)))
   }, [selection, isActive])

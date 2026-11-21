@@ -1,5 +1,6 @@
 
 import { useRef, useState } from 'react'
+import { usePublish } from './effects.js'
 import type { Key } from '../ink.js'
 import type { TextInputState, VimInputState } from '../types/textInputTypes.js'
 import { Cursor } from '../utils/Cursor.js'
@@ -29,6 +30,7 @@ export type VimMode = 'INSERT' | 'NORMAL'
 export type UseVimInputProps = UseTextInputProps & {
   onModeChange?: (mode: VimMode) => void
   onUndo?: () => void
+  initialMode?: VimMode
 }
 
 function isMotionExpectingState(state: CommandState): boolean {
@@ -70,13 +72,34 @@ function replay(change: RecordedChange, ctx: TransitionContext): void {
 }
 
 export function useVimInput(props: UseVimInputProps): VimInputState {
-  const { inputFilter, onModeChange, onUndo, ...baseProps } = props
+  const { inputFilter, onModeChange, onUndo, initialMode, ...baseProps } = props
   const [mode, setModeState] = useState<VimMode>('INSERT')
   const modeRef = useRef<VimMode>('INSERT')
   const insertedTextRef = useRef('')
   const commandStateRef = useRef<CommandState>({ type: 'idle' })
   const persistentRef = useRef<PersistentState>(getSessionVimPersistentState())
   const replayingRef = useRef(false)
+  const onModeChangeRef = useRef(onModeChange)
+  onModeChangeRef.current = onModeChange
+  const pendingFollowPublishRef = useRef<VimMode | null>(null)
+
+  if (initialMode !== undefined && initialMode !== mode) {
+    if (initialMode === 'INSERT') {
+      insertedTextRef.current = ''
+    } else {
+      commandStateRef.current = { type: 'idle' }
+    }
+    modeRef.current = initialMode
+    pendingFollowPublishRef.current = initialMode
+    setModeState(initialMode)
+  }
+
+  usePublish(() => {
+    const followed = pendingFollowPublishRef.current
+    if (followed === null) return
+    pendingFollowPublishRef.current = null
+    onModeChangeRef.current?.(followed)
+  }, [mode])
 
   const base: TextInputState = useTextInput(baseProps)
 

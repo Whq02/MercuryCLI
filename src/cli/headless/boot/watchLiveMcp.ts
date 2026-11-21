@@ -1,6 +1,6 @@
 import type { ScopedMcpServerConfig, MCPServerConnection } from '../../../utils/mcp/types.js'
 import { getMcpConfigByName, getMercuryMcpConfigs, filterMcpServersByPolicy } from '../../../services/mcp/config.js'
-import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache } from '../../../services/mcp/client.js'
+import { fetchToolsForClient, fetchCommandsForClient, fetchResourcesForClient, reconnectMcpServerImpl, clearServerCache, supplementaryToolsForMcpClient, pruneStaleMcpResourceTools } from '../../../services/mcp/client.js'
 import { getMcpPrefix } from '../../../utils/mcp/mcpStringUtils.js'
 import { requestDeliberateToolChange } from '../../../services/providers/lawfulPrefixChange.js'
 import { processMainOwner } from '../../../utils/run/resolveOwner.js'
@@ -30,33 +30,46 @@ function run(ports: RunnerPorts): BootMade<'resolveServerConfigFromAllSources' |
       fetchCommandsForClient(client),
       fetchResourcesForClient(client),
     ])
+    const allTools = [...tools, ...supplementaryToolsForMcpClient(client)]
     const prefix = getMcpPrefix(serverName)
-    if (tools.length > 0) requestDeliberateToolChange(String(processMainOwner()), tools, `the MCP server ${serverName} joined or reconnected`)
-    setAppState(previous => ({
-      ...previous,
-      mcp: {
-        ...previous.mcp,
-        clients: previous.mcp.clients.some(existing => existing.name === serverName)
-          ? previous.mcp.clients.map(existing =>
-              existing.name === serverName ? client : existing,
-            )
-          : [...previous.mcp.clients, client],
-        tools: [
+    if (allTools.length > 0) requestDeliberateToolChange(String(processMainOwner()), allTools, `the MCP server ${serverName} joined or reconnected`)
+    setAppState(previous => {
+      const nextClients = previous.mcp.clients.some(existing => existing.name === serverName)
+        ? previous.mcp.clients.map(existing =>
+            existing.name === serverName ? client : existing,
+          )
+        : [...previous.mcp.clients, client]
+      const seenTools = new Set<string>()
+      const nextTools = pruneStaleMcpResourceTools(
+        nextClients,
+        [
           ...previous.mcp.tools.filter(tool => !tool.name.startsWith(prefix)),
-          ...tools,
-        ],
-        commands: [
-          ...previous.mcp.commands.filter(existing => !existing.name.startsWith(prefix)),
-          ...commandsForServer,
-        ],
-        resources: {
-          ...Object.fromEntries(
-            Object.entries(previous.mcp.resources ?? {}).filter(([key]) => key !== serverName),
-          ),
-          ...(resources.length > 0 ? { [serverName]: resources } : {}),
+          ...allTools,
+        ].filter(tool => {
+          if (seenTools.has(tool.name)) return false
+          seenTools.add(tool.name)
+          return true
+        }),
+      )
+      return {
+        ...previous,
+        mcp: {
+          ...previous.mcp,
+          clients: nextClients,
+          tools: nextTools,
+          commands: [
+            ...previous.mcp.commands.filter(existing => !existing.name.startsWith(prefix)),
+            ...commandsForServer,
+          ],
+          resources: {
+            ...Object.fromEntries(
+              Object.entries(previous.mcp.resources ?? {}).filter(([key]) => key !== serverName),
+            ),
+            ...(resources.length > 0 ? { [serverName]: resources } : {}),
+          },
         },
-      },
-    }))
+      }
+    })
   }
 
   const mcpSignIns = new Map<string, { controller: AbortController; authorizationUrl?: string }>()

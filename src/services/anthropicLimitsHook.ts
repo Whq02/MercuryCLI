@@ -1,18 +1,21 @@
-import { useState } from 'react'
-import { useSubscription } from '../hooks/effects.js'
+import { useSyncExternalStore } from 'react'
 
 import { currentLimits, statusListeners, type AnthropicLimits } from './anthropicLimits.js'
 
+function getAnthropicLimits(): AnthropicLimits {
+  return currentLimits
+}
+
+function subscribeAnthropicLimits(listener: () => void): () => void {
+  const wrapped = (): void => {
+    listener()
+  }
+  statusListeners.add(wrapped)
+  return () => {
+    statusListeners.delete(wrapped)
+  }
+}
+
 export function useAnthropicLimits(): AnthropicLimits {
-  const [limits, setLimits] = useState<AnthropicLimits>({ ...currentLimits })
-  useSubscription(() => {
-    const listener = (next: AnthropicLimits): void => {
-      setLimits({ ...next })
-    }
-    statusListeners.add(listener)
-    return () => {
-      statusListeners.delete(listener)
-    }
-  }, [])
-  return limits
+  return useSyncExternalStore(subscribeAnthropicLimits, getAnthropicLimits, getAnthropicLimits)
 }

@@ -95,6 +95,7 @@ export type TurnDriver = {
   kick(): void
   phase(): DriverPhase
   isRunning(): boolean
+  onIdle(listener: () => void): () => void
   hasHeldResult(): boolean
   releaseHold(): void
   endOperatorWait(): void
@@ -111,6 +112,11 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
   let holdReleased = false
   let noticesAwaitOperator = false
   let wakeAgentWait: (() => void) | undefined
+  const idleListeners = new Set<() => void>()
+  const notifyIdle = (): void => {
+    if (phase !== 'idle') return
+    for (const listener of [...idleListeners]) listener()
+  }
 
   const { settledAt, now, queuedMainThread, takeQueued, isOperatorWords, wordsBefore, batchableAfter, runnableHead, settleQueued, flushSdkEvents } = driverQueue(ports)
   let holding = false
@@ -286,6 +292,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       ports.onAgentWait?.(count, ports.turnIdOf())
     }
 
+    let failed = false
     try {
       let waitingForAgents = false
       do {
@@ -332,6 +339,7 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
         heldBackResult = null
       }
     } catch (error) {
+      failed = true
       try {
         await ports.writeDirect(ports.onCycleError(error, ports.turnIdOf()))
       } catch (error) { passedOver(error) }
@@ -345,10 +353,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
       }
       phase = 'idle'
       ports.idleTimerStart()
+      if (failed) notifyIdle()
     }
 
     if (dueQueued()) {
       void kick()
+      notifyIdle()
       return
     }
     if (wallHeld) armWallRecheck()
@@ -358,15 +368,18 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     phase = 'idle'
     if (settled === 'reenter') {
       void kick()
+      notifyIdle()
       return
     }
     if (settled === 'close') {
+      notifyIdle()
       await closeOutputOnce()
       return
     }
     if (dueQueued()) {
       void kick()
     }
+    notifyIdle()
   }
 
   function kick(): void {
@@ -386,6 +399,12 @@ export function createTurnDriver(ports: TurnDriverPorts): TurnDriver {
     kick,
     phase: () => phase,
     isRunning: () => phase !== 'idle',
+    onIdle: listener => {
+      idleListeners.add(listener)
+      return () => {
+        idleListeners.delete(listener)
+      }
+    },
     hasHeldResult: () => heldBackResult !== null,
     releaseHold: () => {
       if (phase === 'idle') return

@@ -1,6 +1,6 @@
 
 import { useRef } from 'react'
-import { useLayoutClaim, useSubscription } from '../../hooks/effects.js'
+import { useClaim, useLayoutClaim } from '../../hooks/effects.js'
 import type { InputEvent, Key } from '../events/input-event.js'
 import useStdin from './use-stdin.js'
 
@@ -37,7 +37,7 @@ export default function useInput(handler: InputHandler, options: Options = {}): 
     }
   }
 
-  useSubscription(() => {
+  useClaim(() => {
     const wrapper = wrapperRef.current!
     internal_eventEmitter.on('input', wrapper)
     return () => {

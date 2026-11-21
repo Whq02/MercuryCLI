@@ -1,5 +1,5 @@
 import React, { useState, useSyncExternalStore } from 'react'
-import { useDerivedState, useLoad } from '../../../hooks/effects.js'
+import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
 import { isClaudeAISubscriber } from '../../../utils/auth.js'
@@ -211,10 +211,8 @@ export function UsageCompact({ openToken, width, rowBudget }: { openToken?: numb
   const [cursor, setCursor] = useState(0)
   const [offset, setOffset] = useState(0)
   const view = settingsPopupWindow(cursor, offset, lines.length, rows)
-  useDerivedState(() => {
-    if (view.cursor !== cursor) setCursor(view.cursor)
-    if (view.offset !== offset) setOffset(view.offset)
-  }, [view.cursor, view.offset, cursor, offset])
+  if (view.cursor !== cursor) setCursor(view.cursor)
+  if (view.offset !== offset) setOffset(view.offset)
   usePopupMarker(rows > 0 ? settingsPopupMarker(view.cursor + 1, lines.length) : null)
   usePopupListPaging(view.cursor, lines.length, rows, setCursor)
   useInput((_input, key, event) => {

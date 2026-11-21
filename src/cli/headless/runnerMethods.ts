@@ -1,4 +1,5 @@
 import { RUNNER_PROTOCOL, methodsFrom, type Capabilities, type FileCheckpointsFact, type HostNotificationName, type HostRequestName, type InitializeParams, type InitializeResult, type ParamsOf, type ResultOf } from '../../runner/wire/methods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { refused } from '../../runner/wire/errors.js'
 import type { Peer } from '../../runner/wire/peer.js'
 
@@ -7,23 +8,26 @@ type RequestRef = { id: number }
 type Arm<M extends HostRequestName> = (params: ParamsOf<M>, ref: RequestRef, signal: AbortSignal) => Promise<ResultOf<M>> | ResultOf<M>
 type NotificationArm<M extends HostNotificationName> = (params: ParamsOf<M>) => void | Promise<void>
 
-type RequestArms = { [M in Exclude<HostRequestName, 'initialize'>]: Arm<M> }
-type NotificationArms = { [M in Exclude<HostNotificationName, '$/cancel_request'>]: NotificationArm<M> }
+type InitializeName = typeof SESSION_VERBS.initialize.runner.name
+type CancelRequestName = typeof SESSION_VERBS.cancelRequest.runner.name
+
+type RequestArms = { [M in Exclude<HostRequestName, InitializeName>]: Arm<M> }
+type NotificationArms = { [M in Exclude<HostNotificationName, CancelRequestName>]: NotificationArm<M> }
 
 export type RunnerArms = RequestArms & NotificationArms
 
 export const RUNNER_REQUEST_METHODS = methodsFrom('host', 'request')
   .map(spec => spec.name)
-  .filter(name => name !== 'initialize') as Exclude<HostRequestName, 'initialize'>[]
+  .filter(name => name !== SESSION_VERBS.initialize.runner.name) as Exclude<HostRequestName, InitializeName>[]
 export const RUNNER_NOTIFICATION_METHODS = methodsFrom('host', 'notification')
   .map(spec => spec.name)
-  .filter(name => name !== '$/cancel_request') as Exclude<HostNotificationName, '$/cancel_request'>[]
+  .filter(name => name !== SESSION_VERBS.cancelRequest.runner.name) as Exclude<HostNotificationName, CancelRequestName>[]
 
-function bindRequest<M extends Exclude<HostRequestName, 'initialize'>>(peer: Peer, armsOf: () => RequestArms, name: M): void {
+function bindRequest<M extends Exclude<HostRequestName, InitializeName>>(peer: Peer, armsOf: () => RequestArms, name: M): void {
   peer.onRequest(name, (params, ctx) => armsOf()[name](params, { id: ctx.id }, ctx.signal))
 }
 
-function bindNotification<M extends Exclude<HostNotificationName, '$/cancel_request'>>(peer: Peer, armsOf: () => NotificationArms, name: M): void {
+function bindNotification<M extends Exclude<HostNotificationName, CancelRequestName>>(peer: Peer, armsOf: () => NotificationArms, name: M): void {
   peer.onNotification(name, params => armsOf()[name](params))
 }
 

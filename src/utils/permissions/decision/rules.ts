@@ -170,6 +170,20 @@ export function getDenyRuleForTool(
   return copyMatch(ruleTable(context).byBehavior.deny.find(rule => toolMatchesRule(tool, rule)))
 }
 
+export function mcpServerPermissionTarget(serverName: string): {
+  name: string
+  mcpInfo: { serverName: string; toolName: string }
+} {
+  return { name: getMcpPrefix(serverName), mcpInfo: { serverName, toolName: '' } }
+}
+
+export function getDenyRuleForMcpServer(
+  context: ToolPermissionContext,
+  serverName: string,
+): PermissionRule | null {
+  return getDenyRuleForTool(context, mcpServerPermissionTarget(serverName))
+}
+
 export function getAskRuleForTool(
   context: ToolPermissionContext,
   tool: Pick<Tool, 'name' | 'mcpInfo'>,
