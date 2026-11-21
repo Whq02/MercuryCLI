@@ -19,7 +19,7 @@ try {
   const { getAnthropicClient } = await import('../../src/services/api/client.ts')
   const client = await getAnthropicClient({ maxRetries: 0 })
   await client.messages.countTokens({ model: MODEL, messages: [{ role: 'user', content: 'count' }] })
-  assert.ok(world.requests.filter(row => row.key === KEY).every(row => row.workspace === WORKSPACE))
+  assert.ok(world.requests.filter(row => row.key === KEY).every(row => row.workspace === WORKSPACE), `src/services/api/client.ts organisation key requests missing workspace header ${WORKSPACE}`)
   const { storeAnthropicApiKeyLogin } = await import('../../src/services/providers/anthropic/anthropicLogin.ts')
   await world.auth.removeApiKey()
   const missing = await storeAnthropicApiKeyLogin(KEY)
@@ -32,7 +32,7 @@ try {
   assert.equal(workspaceError.isApiErrorMessage, true)
   const said = workspaceError.message.content.filter(block => block.type === 'text').map(block => block.text).join('')
   assert.match(said, /Open \/logins.*workspace ID/)
-  assert.ok(!said.includes('\n'))
+  assert.ok(!said.includes('\n'), `src/services/providers/anthropic/anthropicLogin.ts workspace refusal must be single-line: ${JSON.stringify(said.slice(0, 140))}`)
   const accepted = await storeAnthropicApiKeyLogin(KEY, { workspaceId: WORKSPACE })
   assert.equal(accepted.stored, true)
   process.env.ANTHROPIC_API_KEY = 'fixture-other-key'

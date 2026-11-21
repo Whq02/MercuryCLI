@@ -59,7 +59,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (url.pathname.startsWith('/api/v1/oauth2/')) { oauthCalls.push(url.pathname); return new Response('not found', { status: 404 }) }
   if (path !== '/chat/completions' || req.method !== 'POST') return new Response('not found', { status: 404 })
   const raw = await req.text()
-  for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key))
+  for (const key of Object.keys(ACCEPTS)) assert.ok(!raw.includes(key), 'Qwen chat request body in src/services/providers/qwen/ must never contain any API key')
   const body = JSON.parse(raw) as Record<string, any>
   captures.push({ endpoint: endpoint!, body, bearer })
   if (!accepted && endpoint === 'qwencloud-token-plan') return refuse(401, 'invalid_api_key', 'Invalid API-key provided.')

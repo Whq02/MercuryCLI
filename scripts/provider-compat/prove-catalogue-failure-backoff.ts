@@ -26,7 +26,7 @@ try {
     const refresh = (force = false) => road === 'compat' ? refreshCompatCatalogues({ name: 'east', fetchImpl, env, force }) : refreshZaiCatalogue({ fetchImpl, env, force, now: () => now })
     await refresh()
     const first = requests
-    assert.ok(first > 0)
+    assert.ok(first > 0, `initial ${road} catalogue refresh must issue at least one request (got ${first})`)
     now += 299_999
     await refresh()
     if (requests !== first) failures.push(`${road}: failed URL retried before 300 seconds`)
@@ -40,7 +40,7 @@ try {
   await refreshCompatCatalogues({ name: 'west', env, fetchImpl })
   assert.ok(requests > 0, 'another URL is not held behind the failed endpoint')
   const east = configuredCompatEndpoints(env).find(endpoint => endpoint.name === 'east')!
-  assert.ok(cachedCompatCatalogue(east, env)?.error?.includes('fixture offline'))
+  assert.ok(cachedCompatCatalogue(east, env)?.error?.includes('fixture offline'), `cachedCompatCatalogue(east) in src/services/providers/openaicompat/compatCatalogue.js must preserve "fixture offline" error`)
   assert.deepEqual(failures, [])
   console.log('catalogue failure backoff, URL isolation and force refresh: PASS')
 } finally { Date.now = realNow }

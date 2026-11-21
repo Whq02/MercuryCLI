@@ -33,7 +33,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.TOGETHER_API_KEY!))
+  assert.ok(!raw.includes(process.env.TOGETHER_API_KEY!), 'Together chat request body in src/services/providers/together/ must never contain TOGETHER_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer })
   if (body.model === 'openai/gpt-oss-120b' && body.reasoning_effort !== undefined && !['low', 'medium', 'high'].includes(body.reasoning_effort)) return Response.json({ error: { message: `reasoning_effort '${body.reasoning_effort}' is not supported for this model`, type: 'invalid_request_error' } }, { status: 400 })

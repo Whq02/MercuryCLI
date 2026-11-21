@@ -35,7 +35,7 @@ try {
   check('declarative manifest uses shared Node launcher without missing-app prerequisites', () => {
     assert.equal(manifest.name, 'photocraft'); assert.equal(manifest.contributes.servers.app.command, '${MERCURY_NODE}')
     assert.deepEqual(Object.keys(manifest.contributes).sort(), ['servers', 'skills'])
-    assert(!manifest.module && !manifest.install && !manifest.needs.binaries)
+    assert(!manifest.module && !manifest.install && !manifest.needs.binaries, `src/extensions/bundled/photocraft/mercury-extension.json must stay declarative without module/install/needs.binaries`)
   })
   check('release plans bind exact app version, URL, bytes and hash; one archive per platform carries app and CLI', () => {
     assert.equal(adapter.version, '0.23.1'); assert.deepEqual(adapter.pins.map((pin: any) => pin.name), ['photocraft'])
@@ -60,7 +60,7 @@ try {
     assert.throws(() => endpointParts('0.0.0.0:7878')); assert.throws(() => endpointParts('127.0.0.1:65536'))
   })
   const tokenFile = prepareControl(dataDir)
-  check('desktop creates the token, not discovery or the adapter', () => assert(!existsSync(tokenFile)))
+  check('desktop creates the token, not discovery or the adapter', () => assert(!existsSync(tokenFile), 'src/extensions/bundled/photocraft/server/install.mjs prepareControl must not create tokenFile'))
   const token = 'a'.repeat(64)
   writeFileSync(tokenFile, token, { mode: 0o600 })
   check('private credential validation does not change the token', () => assert.equal(readPrivateToken(tokenFile), token))
@@ -74,7 +74,8 @@ try {
   check('bridge argv carries only the credential file path, never its value', () => {
     const spec = upstream({ installation: { cli: 'photocraft-cli' }, endpoint: '127.0.0.1:7878', dataDir, input: { mode: 'attach' } })
     assert.deepEqual(spec.args, ['mcp', '--bridge', '127.0.0.1:7878', '--control-token-file', tokenFile])
-    assert(!JSON.stringify(spec).includes(token)); assert(!spec.args.includes('--control-token'))
+    assert(!JSON.stringify(spec).includes(token), 'src/extensions/bundled/photocraft/server/install.mjs upstream spec must never embed raw control token')
+    assert(!spec.args.includes('--control-token'), `src/extensions/bundled/photocraft/server/install.mjs upstream args must not pass --control-token: ${spec.args.join(' ')}`)
     assert.equal(spec.env.PHOTOCRAFT_CONTROL_TOKEN, undefined, 'An empty token environment variable conflicts with the token-file flag')
   })
   let authAccepted = true, omitResponse = false, calls: string[] = []
@@ -110,22 +111,22 @@ try {
   try {
     await request('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'photocraft-static', version: '1' } })
     const tools = await request('tools/list', {})
-    check('missing-app discovery exposes actionable tools and performs no installation', () => { assert.deepEqual(tools.result.tools.map((t: any) => t.name), ['craft_status', 'craft_install', 'craft_connect']); assert(!existsSync(clean)) })
-    await request('tools/call', { name: 'craft_status', arguments: {} }); assert(!existsSync(clean))
+    check('missing-app discovery exposes actionable tools and performs no installation', () => { assert.deepEqual(tools.result.tools.map((t: any) => t.name), ['craft_status', 'craft_install', 'craft_connect']); assert(!existsSync(clean), 'photocraft bridge tools/list must not create data dir') })
+    await request('tools/call', { name: 'craft_status', arguments: {} }); assert(!existsSync(clean), 'photocraft bridge craft_status must not create data dir')
     const denied = await request('tools/call', { name: 'craft_install', arguments: {} })
-    check('denied install writes nothing and has no hidden discovery retry', () => { assert.equal(denied.result.isError, true); assert(!existsSync(clean)) })
-    await request('tools/list', {}); assert(!existsSync(clean))
+    check('denied install writes nothing and has no hidden discovery retry', () => { assert.equal(denied.result.isError, true); assert(!existsSync(clean), 'photocraft bridge denied craft_install must not create data dir') })
+    await request('tools/list', {}); assert(!existsSync(clean), 'photocraft bridge second tools/list must not create data dir')
   } finally { child.stdin.end(); child.kill(); for (const waiter of waiters.values()) clearTimeout(waiter.timer) }
 
   process.env.MERCURY_CONFIG_DIR = join(scratch, 'mercury-config')
   const active = computeActiveSet({ cwd: scratch, sessionPaths: [delivered] }); publishActiveSet(active); clearExtensionCommandCaches()
   const skill = getExtensionSkills().find(s => s.name === 'photocraft:photocraft')
-  assert(skill && skill.type === 'prompt')
+  assert(skill && skill.type === 'prompt', `src/extensions/load/commands.ts missing prompt skill photocraft:photocraft, got ${skill?.type}`)
   const prompt = await skill.getPromptForCommand('Crop the open PhotoCraft image and export a PNG')
   check('real extension loader discovers the skill and expands supplied arguments', () => {
-    assert.equal(skill.source, 'extension'); assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Crop the open PhotoCraft image and export a PNG'))
+    assert.equal(skill.source, 'extension'); assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Crop the open PhotoCraft image and export a PNG'), `photocraft:photocraft prompt missing supplied arguments: ${JSON.stringify(prompt[0]).slice(0, 140)}`)
     assert.match(skill.description, /PhotoCraft image/); assert.match(skill.description, /Not for video editing/)
-    assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'))
+    assert(prompt[0]?.type === 'text' && prompt[0].text.includes('Trim the video timeline'), 'src/extensions/bundled/photocraft/skills/photocraft/SKILL.md missing video-trim exclusion example')
   })
   check('the skill keeps the hard boundaries and the live-discovery rule, without the onboarding the server instructions carry', () => {
     const text = readFileSync(join(delivered, 'skills/photocraft/SKILL.md'), 'utf8')

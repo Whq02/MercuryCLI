@@ -56,7 +56,7 @@ try {
   const entry = { url: instances[1]!.url, terms: 'https://example.invalid/terms', apiAllowed: true, checked: '2026-10-13' }
   for (const raw of ['not-json', '{}', JSON.stringify([{ ...entry, apiAllowed: false }]), JSON.stringify([{ ...entry, url: 'http://example.invalid/' }]), JSON.stringify([{ ...entry, url: 'https://user:secret@example.invalid/' }]), JSON.stringify([{ ...entry, url: 'https://example.invalid/?q=query' }]), JSON.stringify([{ ...entry, checked: '' }])]) {
     assert.equal(configuredSearxngInstances(raw).instances.length, 0)
-    assert.ok(configuredSearxngInstances(raw).error)
+    assert.ok(configuredSearxngInstances(raw).error, `configuredSearxngInstances in src/services/search/searxngInstances.js must reject malformed config input`)
   }
   assert.equal(configuredSearxngInstances(JSON.stringify([entry, entry])).instances.length, 1)
   resetSearchPacing(); resetSearxngSession()

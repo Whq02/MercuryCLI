@@ -32,7 +32,7 @@ try {
       const rows = await run()
       const assistants = rows.filter(row => row.type === 'assistant')
       assert.equal(engine.requests.length, 1, `${dialect}: a cut after a tool fragment is not retried`)
-      assert.ok(engine.requests.every(row => row.fault === undefined))
+      assert.ok(engine.requests.every(row => row.fault === undefined), `${dialect}: wire requests must conform to engine rules without fixture faults`)
       assert.equal(assistants.length, 1, `${dialect}: no synthetic successful assistant for an uncompleted tool`)
       assert.equal(assistants[0].isApiErrorMessage, true)
       assert.equal(assistants[0].error, 'server_error')
@@ -44,7 +44,7 @@ try {
       assert.deepEqual(stops.map(row => row.event.index), starts.map(row => row.event.index), `${dialect}: the painted fragment closes without executing`)
       const resumed = await run()
       assert.equal(engine.requests.length, 2)
-      assert.ok(resumed.some(row => row.type === 'assistant' && !row.isApiErrorMessage && row.message.stop_reason === 'end_turn'))
+      assert.ok(resumed.some(row => row.type === 'assistant' && !row.isApiErrorMessage && row.message.stop_reason === 'end_turn'), `${dialect}: explicit resume after cut tool fragment must complete with stop_reason=end_turn`)
       console.log(`PASS ${dialect}: cut tool fragment is a terminal fault, not completed content; explicit resume works`)
     } finally { await engine.close() }
   }

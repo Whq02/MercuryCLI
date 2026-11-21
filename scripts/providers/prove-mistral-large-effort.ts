@@ -46,38 +46,38 @@ try {
   for (const model of models) {
     for (const effort of ['low', 'medium', 'high']) {
       const view = effortVocabularyFor(model)
-      assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'low,medium,high')
+      assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'low,medium,high', `src/utils/model/capabilities.ts effortVocabularyFor(${model}) expected low,medium,high, got ${JSON.stringify(view)}`)
       assert.equal(resolveEffortTruth(model, effort as never, { thinkingEnabled: true }).wire, effort)
       const before = captures.length
       retry = true
       const first = await turn(model, effort, [createUserMessage({ content: 'First request' })])
-      assert.ok(first.length > 0 && first.every(item => !item.isApiErrorMessage))
+      assert.ok(first.length > 0 && first.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} first turn failed: len=${first.length}`)
       const continued = await turn(model, effort, [createUserMessage({ content: 'First request' }), ...first, createUserMessage({ content: 'Continue with the same effort' })])
-      assert.ok(continued.length > 0 && continued.every(item => !item.isApiErrorMessage))
+      assert.ok(continued.length > 0 && continued.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation turn failed: len=${continued.length}`)
       const sent = captures.slice(before)
       assert.equal(sent.length, 3)
       for (const request of sent) {
         assert.equal(request.authorization, `Bearer ${process.env.MISTRAL_API_KEY}`)
         assert.equal(request.body.model, model)
         assert.equal(request.body.reasoning_effort, effort)
-        assert.ok(request.body.tools.some((row: any) => row.function.name === 'FixtureRead'))
+        assert.ok(request.body.tools.some((row: any) => row.function.name === 'FixtureRead'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} request omitted FixtureRead tool`)
       }
       assert.deepEqual(sent[0]!.body, sent[1]!.body)
-      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('Continue with the same effort'))
-      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('answer'))
+      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('Continue with the same effort'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation missing second user message`)
+      assert.ok(JSON.stringify(sent[2]!.body.messages).includes('answer'), `src/services/providers/mistral/mistralCallModel.ts ${model} ${effort} continuation missing prior assistant reply`)
       console.log(`PASS ${model} ${effort}: selection, request, identical retry, continuation and tool roster`)
     }
     const off = await turn(model, 'high', [createUserMessage({ content: 'Thinking off' })], false)
-    assert.ok(off.length > 0 && off.every(item => !item.isApiErrorMessage))
+    assert.ok(off.length > 0 && off.every(item => !item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} thinking-off turn failed: len=${off.length}`)
     assert.equal(captures.at(-1)!.body.reasoning_effort, 'low')
     const unsupported = await turn(model, 'max', [createUserMessage({ content: 'Keep my effort' })])
     assert.equal(captures.at(-1)!.body.reasoning_effort, 'max')
-    assert.ok(unsupported.some(item => item.isApiErrorMessage))
+    assert.ok(unsupported.some(item => item.isApiErrorMessage), `src/services/providers/mistral/mistralCallModel.ts ${model} unsupported max effort did not return API error`)
     console.log(`PASS ${model}: off uses documented low; unsupported max is never downgraded`)
   }
   for (const model of ['mistral-small-2603', 'mistral-medium-3-5']) {
     const view = effortVocabularyFor(model)
-    assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'none,high')
+    assert.ok(view.kind === 'provider' && view.vocabulary.join(',') === 'none,high', `src/utils/model/capabilities.ts effortVocabularyFor(${model}) expected none,high, got ${JSON.stringify(view)}`)
     assert.equal(buildMistralExtras({ wireModel: model, effortValue: 'high', thinkingEnabled: false, maxOutputTokensOverride: undefined }).reasoning_effort, 'none')
   }
   assert.equal(buildMistralExtras({ wireModel: 'zai-glm-5-3', effortValue: 'max', thinkingEnabled: true, maxOutputTokensOverride: undefined }).reasoning_effort, 'max')

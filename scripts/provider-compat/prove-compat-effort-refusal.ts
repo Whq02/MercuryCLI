@@ -35,7 +35,7 @@ try {
       const sent = f.captures.at(-1)!.body
       assert.equal(sent.reasoning_effort ?? sent.chat_template_kwargs?.reasoning_effort, 'max')
       assert.equal(sent.max_tokens, 65536)
-      assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'))
+      assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'), `${dialect}/${mode}: request tools must retain FixtureEcho`)
       if (dialect === 'sglang') assert.equal(sent.chat_template_kwargs.clear_thinking, false)
       if (dialect !== 'chat-completions') assert.equal(validateEngineRequest(dialect, sent), undefined)
       checks++
@@ -45,10 +45,10 @@ try {
     const retried = await f.run(id, undefined, AbortSignal.timeout(10000), 'max')
     assert.equal(f.captures.length - before, 2, `${dialect}: a transient 408 still retries`)
     assert.deepEqual(f.captures[before]!.body, f.captures[before + 1]!.body, `${dialect}: retry keeps the entire request`)
-    assert.ok(retried.every(row => !row.isApiErrorMessage))
+    assert.ok(retried.every(row => !row.isApiErrorMessage), `${dialect}: retried compat turn after 408 must settle without API error`)
     assert.equal(retried.at(-1).effort.applied, 'max')
     const resumed = await f.run(id, undefined, AbortSignal.timeout(10000), 'max')
-    assert.ok(resumed.every(row => !row.isApiErrorMessage))
+    assert.ok(resumed.every(row => !row.isApiErrorMessage), `${dialect}: resumed compat turn must settle without API error`)
     assert.equal(resumed.at(-1).effort.applied, 'max')
     assert.equal(resolveEffortTruth(id, 'max').requested, 'max')
     checks += 2

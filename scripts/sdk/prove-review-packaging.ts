@@ -16,8 +16,8 @@ try {
   const before = readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8')
   run(BUN, [join(root, 'scripts/sdk/generate.ts'), '--out', join(scratch, 'generated')])
   assert.equal(readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/generated.py'), 'utf8'), before)
-  assert(readFileSync(join(scratch, 'generated/wire.ts'), 'utf8').includes('WIRE_GENERATED_FROM'))
-  assert(readFileSync(join(scratch, 'generated/python/generated.py'), 'utf8').includes('GENERATED_BY ='))
+  assert(readFileSync(join(scratch, 'generated/wire.ts'), 'utf8').includes('WIRE_GENERATED_FROM'), 'scripts/sdk/generate.ts omitted WIRE_GENERATED_FROM banner in generated/wire.ts')
+  assert(readFileSync(join(scratch, 'generated/python/generated.py'), 'utf8').includes('GENERATED_BY ='), 'scripts/sdk/generate.ts omitted GENERATED_BY banner in generated/python/generated.py')
   const excluded = (p: string) => /[\\/](dist|node_modules|__pycache__)([\\/]|$)/.test(p)
   assert(excluded('C:\\scratch\\sdk\\dist\\index.js') && excluded('C:\\scratch\\sdk\\dist') && excluded('/scratch/sdk/node_modules/x') && excluded('/scratch/sdk-py/src/__pycache__') && !excluded('/scratch/sdk/distant/x') && !excluded('C:\\scratch\\sdk\\src\\index.ts'), 'the copy filter excludes dist, node_modules and __pycache__ on both path separators')
   for (const dir of ['sdk', 'sdk-py']) cpSync(join(root, dir), join(scratch, dir), { recursive: true, filter: p => !excluded(p) })
@@ -74,7 +74,7 @@ urllib.request.urlopen = local
   writeFileSync(join(scratch, 'twine/__main__.py'), "print('twine fixture')\n")
   const env = { ...process.env, NODE_OPTIONS: `--import=${join(scratch, 'registry.mjs')}`, PYTHONPATH: scratch, npm_config_cache: join(scratch, 'npm-cache'), npm_config_update_notifier: 'false', npm_config_offline: 'true' }
   for (const name of ['pypi', 'npm']) run('bash', [join(scratch, `scripts/sdk/publish-${name}.sh`)], env)
-  for (const dir of ['sdk', 'sdk-py']) assert(!existsSync(join(scratch, dir, 'dist/stale.file')))
+  for (const dir of ['sdk', 'sdk-py']) assert(!existsSync(join(scratch, dir, 'dist/stale.file')), `publish script left stale.file inside ${dir}/dist in scripts/sdk/publish-*.sh`)
   console.log('PASS generator output isolation, banners, package links and publish dist cleanup with mocked registry checks; nothing uploaded')
   const previous = { status: 200, maintainers: [{ name: 'fixture-maintainer' }], versions: { '0.1.0': {} }, releases: { '0.1.0': [] } }
   writeFileSync(index, JSON.stringify(previous))
@@ -89,7 +89,7 @@ urllib.request.urlopen = local
     assert.equal(result.status, 1, result.stdout + result.stderr)
     if (name === 'pypi') assert.equal(result.stderr.trim(), `mercury-cli-sdk ${pkg.version} is already published on PyPI.`)
     else assert.match(result.stderr, /version already published/)
-    assert(!result.stdout.includes('DRY RUN: would publish'))
+    assert(!result.stdout.includes('DRY RUN: would publish'), `scripts/sdk/publish-${name}.sh printed DRY RUN for already-published version ${pkg.version}`)
   }
   console.log('PASS both publication scripts refuse an already-published version; PyPI names that version in one sentence')
   writeFileSync(index, JSON.stringify(previous))
@@ -99,6 +99,6 @@ urllib.request.urlopen = local
   const bare = spawnSync('bash', [join(scratch, 'scripts/sdk/publish-pypi.sh')], { cwd: join(scratch, 'no-twine'), env: { ...env, PYTHONPATH: [join(scratch, 'no-twine'), scratch].join(delimiter) }, encoding: 'utf8', timeout: 120000 })
   assert.equal(bare.status, 1, bare.stdout + bare.stderr)
   assert.match(bare.stderr, /has no twine module.*uv run --no-project --with twine/s)
-  assert(!bare.stdout.includes('DRY RUN: would publish') && existsSync(join(scratch, 'sdk-py/dist/kept.file')))
+  assert(!bare.stdout.includes('DRY RUN: would publish') && existsSync(join(scratch, 'sdk-py/dist/kept.file')), 'scripts/sdk/publish-pypi.sh built or wiped dist despite missing twine module')
   console.log('PASS the PyPI script stops before it builds when its python3 cannot run twine, and says how to run it')
 } finally { rmSync(scratch, { recursive: true, force: true }) }

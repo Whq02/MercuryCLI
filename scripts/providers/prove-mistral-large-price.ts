@@ -33,11 +33,11 @@ try {
       let settled = false
       for await (const event of routedCallModel({ messages: [createUserMessage({ content: 'Price fixture' })], systemPrompt: ['Fixture'], thinkingConfig: { type: 'disabled' }, tools: [], signal: new AbortController().signal, options: { model, querySource: 'main_thread', isNonInteractiveSession: true, getToolPermissionContext: async () => ({}), agents: [], hasAppendSystemPrompt: false, mcpTools: [] } } as never)) {
         if (event.type === 'assistant') {
-          assert.ok(!event.isApiErrorMessage)
+          assert.ok(!event.isApiErrorMessage, `src/services/providers/callModelRouter.ts ${model} price turn returned API error: ${String(event.error)}`)
           settled = true
         }
       }
-      assert.ok(settled)
+      assert.ok(settled, `src/services/providers/callModelRouter.ts ${model} price turn emitted no assistant event`)
       assert.equal(getTotalCost(), expected)
       console.log(`PASS ${model}: input=${input} cache=${cached} output=${output} ledger=$${expected}`)
     }

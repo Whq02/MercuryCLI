@@ -1,6 +1,6 @@
 
 import type { InputRow } from '../rows/vocabulary.js'
-import type { RunnerDoor } from './runnerConnection.js'
+import { PendingQueueAck, type RunnerDoor } from './runnerConnection.js'
 import { logForDebugging } from '../utils/debug.js'
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
 import { lastStderrLine, deriveWireSpec, type LongLivedRespawnConfig } from './longLivedRespawn.js'
@@ -175,19 +175,24 @@ export class TaskRoster {
         .then(sup => sup.markConcourseWorkerDelivery(short))
         .catch(passedOver)
     }
-    if (!(await door.deliver(row))) {
-      if (opensTurn && ll.turnEdges === edgesBefore) {
-        ll.turnActive = false
-        ll.turnStartedAt = undefined
-        if (worker) {
-          void import('./concourseWorkers.js')
-            .then(sup => sup.markConcourseWorkerTurnSettled(short))
-            .catch(passedOver)
-        }
+    const undoStart = (): void => {
+      if (!opensTurn || ll.connection !== door || ll.turnEdges !== edgesBefore) return
+      ll.turnActive = false
+      ll.turnStartedAt = undefined
+      if (worker) {
+        void import('./concourseWorkers.js')
+          .then(sup => sup.markConcourseWorkerTurnSettled(short))
+          .catch(passedOver)
       }
-      return false
     }
-    return true
+    try {
+      const accepted = await door.deliver(row)
+      if (!accepted) undoStart()
+      return accepted
+    } catch (error) {
+      if (error instanceof PendingQueueAck) void error.confirmed.then(accepted => { if (accepted !== true) undoStart() })
+      throw error
+    }
   }
 
   door(short: string): RunnerDoor | undefined {

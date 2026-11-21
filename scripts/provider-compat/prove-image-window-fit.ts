@@ -20,7 +20,7 @@ try {
   const kept = images(request)
   assert.equal(kept.length, 4, 'oldest five images degrade; the latest four fit')
   assert.deepEqual(kept.map(url => url.slice(-1)), ['5', '6', '7', '8'])
-  assert.ok(estimateRequestTokens(request, fixture.model) <= fixture.state.window)
+  assert.ok(estimateRequestTokens(request, fixture.model) <= fixture.state.window, `estimateRequestTokens in src/services/tokenEstimation.ts must fit within window ${fixture.state.window}`)
   for (let i = 0; i < 9; i++) assert.ok(JSON.stringify(request.messages).includes(`/captures/${i}.png`), 'every artifact path survives')
   assert.equal(JSON.stringify(fixture.messages), before, 'the full transcript is unchanged')
   fixture.state.window = 262144
@@ -32,7 +32,7 @@ try {
   const tooMuchText = [...fixture.messages, createUserMessage({ content: 'x'.repeat(20000) })]
   const refused = await drive(tooMuchText)
   assert.equal(fixture.requests.length, 2, 'text alone too large is refused without sending')
-  assert.ok(refused.some(row => row.type === 'assistant' && row.isApiErrorMessage))
+  assert.ok(refused.some(row => row.type === 'assistant' && row.isApiErrorMessage), 'oversized text-only request must return an assistant API error refusal')
   assert.equal(JSON.stringify(fixture.messages), before)
   console.log('Small-window order, latest images, all path lines, immutable transcript, wide window and text refusal passed')
 } finally {
