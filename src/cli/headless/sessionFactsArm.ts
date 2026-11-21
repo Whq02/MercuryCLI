@@ -8,7 +8,7 @@ import { openaiWindowFact } from '../../services/providers/openai/openaiWindowFa
 import { laneWindowFact } from '../../services/providers/laneWindowFact.js'
 import { openaiCatalogueFact } from '../../services/providers/openai/openaiCatalogue.js'
 import { type SessionFactsAnswerV1, effortSentOf } from '../../services/engine-connector/seatProjections.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { getEngineModelOverride, getTotalCostUSD, getTotalAPIDuration, getTotalDuration, getTotalLinesAdded, getTotalLinesRemoved, getTotalInputTokens, getTotalOutputTokens, getTotalCacheReadInputTokens, getTotalCacheCreationInputTokens, hasUnknownModelCost, getTotalUnpricedTurns, getOriginalCwd, getProjectRoot, getSessionId } from '../../bootstrap/state.js'
 import { sessionModelSpendRows } from '../../services/engine-connector/modelSpendFacts.js'
 import { contextFillView } from '../../services/context/contextFill.js'

@@ -3,7 +3,7 @@ import type { ApiToolUnion, ContentBlockParam, MessageParam, TextBlockParam } fr
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
 import { normalizeMessagesForAPI } from './messages.js'
-import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from '../utils/model/model.js'
+import { getDefaultSonnetModel, getEngineModel, normalizeModelStringForAPI } from './model/model.js'
 import { utilityCallFor } from './model/utilityModel.js'
 import { getModelBetas } from '../utils/betas.js'
 import { sideQuery } from './api/sideQuery.js'

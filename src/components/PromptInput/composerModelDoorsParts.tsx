@@ -13,7 +13,7 @@ import {
 import { usabilityForRoute } from '../../services/providers/providerUsability.js'
 import type { CallModelRoute } from '../../services/providers/callModelRouter.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { renderModelName } from '../../services/model/model.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
 import {
   noteCapOfferAnswered,

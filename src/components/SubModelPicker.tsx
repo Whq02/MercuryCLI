@@ -11,7 +11,7 @@ import { EffortStrip } from './mercury-ui/EffortStrip.js'
 import { applyNavMotion, decodeNavKey } from './mercury-ui/navSemantics.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js'
 import type { EffortLevel } from '../utils/effort.js'
-import { getEngineModel, renderModelName } from '../utils/model/model.js'
+import { getEngineModel, renderModelName } from '../services/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { shownIdentityWords } from '../services/providers/providerIdentityLine.js'
 import {

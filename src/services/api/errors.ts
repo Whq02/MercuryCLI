@@ -29,7 +29,7 @@ import {
 import { retryAfterHeaderMs, errorHeaders } from './retryAfter.js'
 import { providerWaitWords, stampProviderWait } from './recoveryBudget.js'
 import { ImageResizeError, statedManyImageLimit } from '../../utils/imageResizer.js'
-import { ImageSizeError } from '../../utils/imageValidation.js'
+import { ImageSizeError } from '../imageValidation.js'
 
 
 

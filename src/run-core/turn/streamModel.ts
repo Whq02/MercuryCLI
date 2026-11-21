@@ -25,7 +25,7 @@ import { boundPrefixRecordToEmit } from '../../services/providers/anthropic/boun
 import { logForDebugging } from '../../utils/debug.js'
 import { overflowLadderArmed } from '../../services/compact/overflowRecovery.js'
 import { overflowSignalOf } from '../../services/api/overflowSignal.js'
-import { ImageSizeError } from '../../utils/imageValidation.js'
+import { ImageSizeError } from '../../services/imageValidation.js'
 import { ImageResizeError, imagesLeftOutMarked, imagesLeftOutNoticeLine, takeImagesLeftOutReceipt } from '../../utils/imageResizer.js'
 import { describeInvalidArgTypeError } from '../../utils/errors.js'
 import { findToolByName } from '../../Tool.js'

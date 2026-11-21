@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs'
 import type { PermissionMode } from '../../../types/permissions.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../model/model.js'
 import type { SpawnSwitchFacts } from '../../switchboard/spawnSwitches.js'
 import { readSessionFacts, sessionFactsPath, type OpenaiCatalogueFactV1, type SessionFactsV1 } from '../seatProjections.js'
 import type { AdvisorFactsV1, EditOutcomeRowV1, McpRosterV1, ModelFactsV1, SeatIdentityV1, SkillsRosterV1, UsageFactsV1, WorkspaceFactsV1 } from '../types.js'

@@ -183,7 +183,7 @@ function runIsolated(code: string, extraEnv: Record<string, string> = {}): Recor
 
   const rDefault = runIsolated(`
     const { mock } = await import('bun:test')
-    mock.module(${JSON.stringify(join(SRC, 'utils/model/model.ts'))}, () => ({ getUserSpecifiedModelSetting: () => { throw new Error('routing boom') } }))
+    mock.module(${JSON.stringify(join(SRC, 'services/model/model.ts'))}, () => ({ getUserSpecifiedModelSetting: () => { throw new Error('routing boom') } }))
     const { unresolvedDefaultRow } = await import(${JSON.stringify(join(SRC, 'services/health/healthReport.ts'))})
     try {
       out.val = unresolvedDefaultRow()

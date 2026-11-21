@@ -674,9 +674,9 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
   const { getInitialSettings } =
     require('../utils/settings/settings.js') as typeof import('../utils/settings/settings.js')
   const { isModelAllowed } =
-    require('../utils/model/modelAllowlist.js') as typeof import('../utils/model/modelAllowlist.js')
+    require('./model/modelAllowlist.js') as typeof import('./model/modelAllowlist.js')
   const { newestPermittedGeneration } =
-    require('../utils/model/frontierPolicy.js') as typeof import('../utils/model/frontierPolicy.js')
+    require('./model/frontierPolicy.js') as typeof import('./model/frontierPolicy.js')
   const ledger = ((): Record<string, { at: number }> => {
     try {
       return readSignInLedger()

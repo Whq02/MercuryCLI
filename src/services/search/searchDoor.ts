@@ -1,7 +1,7 @@
 import type { ToolUseContext } from '../../Tool.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { AbortError } from '../../utils/errors.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import { braveSearch, resolveBraveSearchApiKey, type SearchKeySource } from './brave.js'
 import { keylessSearch } from './duckduckgo.js'

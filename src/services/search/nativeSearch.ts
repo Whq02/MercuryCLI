@@ -4,7 +4,7 @@ import type { WebSearchProgress } from '../../types/tools.js'
 import type { ContentBlock } from '../../types/wire.js'
 import { logError } from '../../utils/log.js'
 import { createUserMessage } from '../messages.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { asSystemPrompt } from '../../utils/systemPromptType.js'
 import type { NativeSearchFamily } from './nativeSearchRequest.js'
 import {

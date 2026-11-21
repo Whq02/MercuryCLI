@@ -15,7 +15,7 @@ import { normalizeContentFromAPI } from '../../../messages.js'
 import {
   getCanonicalName,
   normalizeModelStringForAPI,
-} from '../../../../utils/model/model.js'
+} from '../../../model/model.js'
 import { extractQuotaStatusFromError } from '../../../anthropicLimits.js'
 import {
   logAPIError,

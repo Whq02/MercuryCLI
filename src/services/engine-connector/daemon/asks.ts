@@ -9,7 +9,7 @@ import { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } from '.
 import { getAllBaseTools } from '../../../tools.js'
 import { MCPTool } from '../../../tools/MCPTool/MCPTool.js'
 import { mcpInfoFromString } from '../../../utils/mcp/mcpStringUtils.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../model/model.js'
 import { readSessionAsks, type SessionAskProjectionV1, type SessionFactsV1 } from '../seatProjections.js'
 import type { AskAnswerV1, AskReceiptV1, SendReceiptV1, SessionAskV1 } from '../types.js'
 import { emitAll, type Listeners } from './shared.js'

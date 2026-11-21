@@ -39,7 +39,7 @@ import { ISSUE_FORMS, composeIssueBody, healthPointer, fullIssueTitle, issueForm
 import { gatherHealthSection } from '../commands/feedback/healthSection.js'
 import { checkIssueAccess, fileIssue, issueRepoSlug, type IssueAccess } from '../services/repoHost/ghIssue.js'
 import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
-import { getEngineModel } from '../utils/model/model.js'
+import { getEngineModel } from '../services/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
 import { providerFamilyOfSetting } from '../services/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'

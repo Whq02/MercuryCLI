@@ -19,7 +19,7 @@ import { useLayoutChrome } from '../context/layoutChromeContext.js';
 import { useEngineModel } from '../hooks/useEngineModel.js';
 import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
-import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
+import { getUserSpecifiedModelSetting, renderModelChip } from '../services/model/model.js';
 import { computedDefault, readComputedDefaultCatalogue } from '../services/model/computedDefault.js';
 import { takeFaceUpdateNotice, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { deriveFamilySlotGroups } from '../services/providers/accountSlots.js';

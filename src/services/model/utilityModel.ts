@@ -4,7 +4,7 @@ import type { EffortValue } from '../../utils/effort.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../../utils/effortLadder.js'
 import type { ThinkingConfig } from '../../utils/thinking.js'
 import { effortVocabularyFor } from '../../utils/model/capabilities.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from './model.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export interface UtilityCall {

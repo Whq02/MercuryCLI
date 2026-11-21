@@ -21,7 +21,7 @@ const { injectTurnReceipts } = await import('../../src/utils/cockpit/turnReceipt
 const { normalizeMessages } = await import('../../src/utils/messages/normalize.ts')
 const { buildAwayRecap } = await import('../../src/utils/cockpit/awaySummary.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { readTranscriptChainSince } = await import('../../src/utils/sessionStorage/transcriptReader.ts')
 

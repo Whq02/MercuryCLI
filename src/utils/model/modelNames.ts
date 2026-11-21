@@ -8,7 +8,7 @@ import {
   type ModelConfig,
 } from './configs.js'
 import { getModelStrings, resolveOverriddenModel } from './modelStrings.js'
-import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
+import { providerCapabilities } from './capabilityRegistry.js'
 
 const CONTEXT_SUFFIX_RE = /\[(?:[0-9]+m|served)\]/gi
 
@@ -48,7 +48,7 @@ const DECLARED_CANONICALS = (Object.values(ALL_MODEL_CONFIGS) as ModelConfig[])
   .sort((a, b) => b.firstParty.length - a.firstParty.length)
 
 function canonicalMatch(id: string): string {
-  if (isCarrierShapedId(id)) return id
+  if (providerCapabilities().isCarrierShapedId(id)) return id
   const lowered = id.toLowerCase()
   const declared = DECLARED_CANONICALS.find(config => lowered.endsWith(config.firstParty))
   if (declared !== undefined) return declared.canonical ?? declared.firstParty

@@ -25,7 +25,7 @@ import {
   getDefaultOpusModel,
   getDefaultSonnetModel,
   normalizeModelStringForAPI,
-} from '../../../utils/model/model.js'
+} from '../../model/model.js'
 import { utilityCallFor } from '../../model/utilityModel.js'
 import { declaredRouteOf } from '../routeLaw.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'

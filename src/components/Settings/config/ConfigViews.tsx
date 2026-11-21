@@ -13,7 +13,7 @@ import { ExternalInstructionIncludesDialog } from '../../ExternalInstructionIncl
 import type { ExternalInstructionInclude } from '../../../services/instructions/engine.js'
 import type { subagentDefaultsOf } from '../../../utils/agentDefaults.js'
 import { MercuryModelChoicePicker, modelChoiceLabel, modelChoiceRow } from '../../../commands/model/mercuryModel.js'
-import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../../services/model/model.js'
 import { LOCAL_SERVER_APPLY_MENU, LocalServerApplyDialog, type LocalServerConfigState } from '../LocalServer.js'
 import { MediaConfigPicker, type useMediaConfig } from '../Media.js'
 import type { MercuryThemeTokens } from '../../../utils/mercuryTokens.js'

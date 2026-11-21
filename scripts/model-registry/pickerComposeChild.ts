@@ -14,8 +14,8 @@ const started = Date.now()
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { getModelOptions, focusedOptionSupports1m, resolvesToExistingOption } = await import('../../src/services/model/modelOptions.ts')
-const model = await import('../../src/utils/model/model.ts')
-const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
+const model = await import('../../src/services/model/model.ts')
+const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
 
 const rows = getModelOptions({ anthropicCredentialed: () => true })
 const answer = {

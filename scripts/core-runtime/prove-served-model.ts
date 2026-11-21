@@ -32,7 +32,7 @@ const { queryModelWithStreaming } = await import('../../src/services/providers/a
 const { createUserMessage } = await import('../../src/services/messages.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const ledger = await import('../../src/cost-tracker.ts')
-const { getCanonicalName } = await import('../../src/utils/model/model.ts')
+const { getCanonicalName } = await import('../../src/services/model/model.ts')
 
 const REQUESTED = 'claude-fable-5-1'
 const OTHER_FAMILY = 'claude-opus-5'

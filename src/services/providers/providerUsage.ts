@@ -8,7 +8,7 @@ import {
   isClaudeAISubscriber,
 } from '../../utils/auth.js'
 import { invalidateOnDiskChange } from '../auth/oauthLifecycle.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { buildProviderSnapshot, type ProviderSnapshot } from './modelRegistry.js'
 import type { ProviderFamilyId } from './providerAdapter.js'
 import { formatClock, formatCountdown, quotaWindows, type QuotaWindow } from '../cockpit/quota.js'

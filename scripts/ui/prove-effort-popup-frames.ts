@@ -50,7 +50,7 @@ const pending = await import('../../src/input-core/pending-input.ts')
 const { default: instances } = await import('../../src/ink/instances.ts')
 const effortCommand = await import('../../src/commands/effort/effort.tsx')
 const popup = await import('../../src/commands/effort/EffortPopup.tsx')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 const { MODEL_PICKER_CURRENT } = await import('../../src/utils/model/modelPickerGroups.ts')
 const h = React.createElement
 

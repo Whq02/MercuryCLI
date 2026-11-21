@@ -221,7 +221,7 @@ if (catalogue) {
   const { readComputedDefaultCatalogue, mostRecentSignInFamily } = await import('../../src/services/model/computedDefault.ts')
   const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
   const { CATALOGUE_READ_BOUND_MS } = await import('../../src/services/providers/catalogueOnDemand.ts')
-  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/utils/model/model.ts')
+  const { getUserSpecifiedModelSetting, normalizeModelStringForAPI } = await import('../../src/services/model/model.ts')
   recordSignIn('moonshot', 'api-key')
   c.__resetMoonshotCatalogueForTest()
   process.env.MERCURY_MODEL = 'kimi-k2.6'

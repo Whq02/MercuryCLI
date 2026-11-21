@@ -443,7 +443,7 @@ export function rowAsWireServes(live: OpenaiLiveModel, sourceKind: OpenaiAccount
     live = { ...live, supportedReasoningEfforts: [...pin.supportedReasoningEfforts], reasoningEffortsStated: true, effortWordsFromRow: true, defaultReasoningEffort: live.defaultReasoningEffort ?? pin.defaultReasoningEffort }
   }
   if (live.inputModalities === undefined && pin?.inputModalities !== undefined) live = { ...live, inputModalities: [...pin.inputModalities] }
-  const { operatorModelFacts, modelHasRecordedFacts } = require('../../../utils/model/modelOverrides.js') as typeof import('../../../utils/model/modelOverrides.js')
+  const { operatorModelFacts, modelHasRecordedFacts } = require('../../model/modelOverrides.js') as typeof import('../../model/modelOverrides.js')
   const facts = operatorModelFacts(live.id, {
     contextWindow: live.contextWindow,
     ...(live.reasoningEffortsStated ? { efforts: live.supportedReasoningEfforts } : {}),

@@ -3,7 +3,7 @@ import { getGlobalConfig } from '../../utils/config.js'
 import { logError } from '../../utils/log.js'
 import { logForDebugging } from '../../utils/debug.js'
 import type { Message } from '../../types/message.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { sideQuery } from '../api/sideQuery.js'
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH'

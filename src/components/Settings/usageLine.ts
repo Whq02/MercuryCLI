@@ -5,7 +5,7 @@ import { resolveMoonshotAccount } from '../../services/providers/moonshot/moonsh
 import { walletEntries } from '../../services/wallet/wallet.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
 import { resolveLocalAccount } from '../../services/providers/local/localAccounts.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 
 export function geminiPlanActiveQuotaWords(figures: readonly { key: string; label: string; value: string }[] | undefined, session: { model?: string; effort?: string; usedModels: readonly string[] }): string | undefined {
   const view = geminiPlanQuotaView(figures ?? [], session)

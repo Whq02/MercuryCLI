@@ -185,7 +185,7 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
       g54Served.activation.kind === 'none',
     `got ${JSON.stringify(g54Served)}`,
   )
-  const { normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
+  const { normalizeModelStringForAPI } = await import('../../src/services/model/model.js')
   const { parseGptModelId, hasGptServedWindowSuffix, withGptServedWindowSuffix, stripGptServedWindowSuffix } =
     await import('../../src/utils/model/pins/gptPins.js')
   check(

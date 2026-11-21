@@ -1,4 +1,4 @@
-import { SYNTHETIC_MODEL } from '../messages/factories.js'
+import { SYNTHETIC_MODEL } from '../../utils/messages/factories.js'
 import {
   getDefaultEngineModelSetting,
   normalizeModelStringForAPI,

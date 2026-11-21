@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useLoad } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../../services/model/model.js'
 import { openaiObservedWindowViews, metaMuseCodeUsage, providerSessionSpend, providerUsageView, usageForProvider, zaiAccountFacts, type UsageFigureView } from '../../../services/providers/providerUsage.js'
 import { useFocusedServedEffort, useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { geminiLaneModelsByLastUse, geminiPlanQuotaFoldWords, geminiPlanQuotaMeter, geminiPlanQuotaUnreportedWords, geminiPlanQuotaView } from '../../../services/providers/gemini/geminiPlanQuota.js'

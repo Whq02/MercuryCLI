@@ -43,7 +43,7 @@ export async function anthropicCatalogueRefusal(
     if (door === null) return null
     const catalogue = require('./anthropic/anthropicCatalogue.js') as typeof import('./anthropic/anthropicCatalogue.js')
     const cached = catalogue.getCachedAnthropicDoorCatalogue(door, env)
-    const { normalizeModelStringForAPI } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+    const { normalizeModelStringForAPI } = require('../model/model.js') as typeof import('../model/model.js')
     return anthropicCatalogueVerdict(normalizeModelStringForAPI(model), model, cached)
   } catch (error) {
     passedOver(error)

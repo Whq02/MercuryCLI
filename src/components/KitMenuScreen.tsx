@@ -31,7 +31,7 @@ import {
   type KitRowView,
   type KitStates,
 } from '../services/kitMenu/kitTypes.js';
-import { renderModelChip } from '../utils/model/model.js';
+import { renderModelChip } from '../services/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';

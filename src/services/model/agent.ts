@@ -1,8 +1,8 @@
 import { subagentDefaultModel } from '../../utils/agentDefaults.js'
 
 import { classifyModelRoute } from '../providers/idSpaces.js'
-import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from '../../utils/model/modelFamilies.js'
-import { getCanonicalName, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { FIRST_PARTY_FAMILY_WORDS, routeOfFamilyWord } from './modelFamilies.js'
+import { getCanonicalName, parseUserSpecifiedModel } from './model.js'
 
 const INHERIT = 'inherit'
 

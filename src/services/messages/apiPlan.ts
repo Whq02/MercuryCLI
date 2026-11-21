@@ -32,7 +32,7 @@ import { stripToolReferenceBlocksFromUserMessage, stripUnavailableToolReferences
 import { isToolSearchEnabledOptimistic } from './toolSearch.js'
 import { normalizeToolInputForAPI } from './api.js'
 import { toolMatchesName } from '../../Tool.js'
-import { validateImagesForAPI } from '../../utils/imageValidation.js'
+import { validateImagesForAPI } from '../imageValidation.js'
 import { LOCAL_COMMAND_CAVEAT_TAG } from '../../constants/xml.js'
 import { IMAGE_ELIDED_TEXT } from '../../utils/messages/imageRequestFit.js'
 const CAVEAT_MARK = `<${LOCAL_COMMAND_CAVEAT_TAG}>`

@@ -62,7 +62,7 @@ const { ANTHROPIC_MODEL_GROUP, ANTHROPIC_CONNECT_OPTION_VALUE, getModelOptions, 
 type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
 type LiveRow = import('../../src/services/providers/anthropic/anthropicCatalogue.ts').AnthropicLiveRow
 const { CANONICAL_MODEL_IDS, mirrorTwinOf } = await import('../../src/utils/model/configs.ts')
-const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
+const { parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
 const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
 
 let failures = 0

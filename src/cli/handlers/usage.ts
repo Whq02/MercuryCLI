@@ -19,7 +19,7 @@ import {
   type UsageWindowView,
 } from '../../services/providers/providerUsage.js'
 import { usageFreshness, usageSourceWords, type UsageFreshnessFacts } from '../../services/providers/usageFreshness.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import type { ProviderFamilyId } from '../../services/providers/providerAdapter.js'
 import { passedOverAs } from '../../utils/passedOver.js'
 

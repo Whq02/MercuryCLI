@@ -3,7 +3,7 @@ import { currentLimits, type AnthropicLimits } from '../anthropicLimits.js'
 import { rateLimitWindowName } from '../rateLimitMessages.js'
 import { providerDisplayName } from './routeLaw.js'
 import { activeSourceUsage, bindingWindowOf, usageCarryWords, type ActiveUsageReads, type UsageWindowView } from './providerUsage.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 
 import { FIRST_WARNING_PCT, SECOND_WARNING_PCT, usageWarningTier, type UsageWarningTier } from './usageTiers.js'
 import { passedOver } from '../../utils/passedOver.js'

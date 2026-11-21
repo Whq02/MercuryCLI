@@ -18,7 +18,7 @@ import { OPENROUTER_CONNECT_OPTION_VALUE } from '../../services/providers/openro
 import { HUGGINGFACE_CONNECT_OPTION_VALUE } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
 import { GEMINI_CONNECT_OPTION_VALUE } from '../../services/providers/gemini/geminiCatalogue.js'
 import { requestCommandDispatch } from '../../utils/cockpit/helmFocus.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { renderModelName } from '../../services/model/model.js'
 import {
   capFailoverLaneOf,
   capHandoffState,

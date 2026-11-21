@@ -6,7 +6,7 @@ import { getGlobalConfigCacheStamp, subscribeGlobalConfigCache } from '../../uti
 import { getEffectivePermissionMode } from '../../utils/config/derived.js'
 import type { GlobalConfig } from '../../utils/config.js'
 import { PERMISSION_MODES } from '../../utils/permissions/PermissionMode.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { useFocusedServedModel } from '../../hooks/useDisplayedSessionModel.js'
 import { useClaim, useLoad } from '../../hooks/effects.js'
 import { declaredRouteOf } from '../../services/providers/callModelRouter.js'

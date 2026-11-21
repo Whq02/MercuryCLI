@@ -99,6 +99,7 @@ const AREAS: Record<string, string> = {
   'src/utils/hooks/': 'mcp.ts',
   'src/utils/mcpValidation.ts': 'mcp.ts',
   'src/services/capacity/': 'model.ts',
+  'src/services/model/': 'model.ts',
   'src/utils/effort.ts': 'model.ts',
   'src/utils/model/': 'model.ts',
   'src/utils/thinking.ts': 'model.ts',

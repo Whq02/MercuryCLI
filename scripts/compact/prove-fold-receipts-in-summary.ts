@@ -19,7 +19,7 @@ const { compactConversation, partialCompactConversation } = await import('../../
 const prompts = (await import('../../src/services/compact/prompt.ts')) as { renderFoldedWork?: (work: CompactMetadata['work'] | undefined) => string | null }
 const renderFoldedWork = prompts.renderFoldedWork ?? (() => null)
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 let failures = 0
 let checks = 0

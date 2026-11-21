@@ -16,7 +16,7 @@ import {
   stripContext1m,
   withContext1m,
 } from '../services/model/modelOptions.js'
-import { getPublicModelDisplayName } from '../utils/model/model.js'
+import { getPublicModelDisplayName } from '../services/model/model.js'
 import {
   type EffortLevel,
   type EffortValue,

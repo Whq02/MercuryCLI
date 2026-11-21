@@ -33,7 +33,7 @@ import {
 } from '../../../services/providers/accountSlots.js'
 import { refreshProviderUsage } from '../../../services/providers/providerUsage.js'
 import { useAppState } from '../../../state/AppState.js'
-import { getEngineModel, renderModelName } from '../../../utils/model/model.js'
+import { getEngineModel, renderModelName } from '../../../services/model/model.js'
 import { useFocusedServedModel } from '../../../hooks/useDisplayedSessionModel.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useInteractiveList } from '../useInteractiveList.js'

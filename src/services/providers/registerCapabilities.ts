@@ -1,6 +1,7 @@
 import {
   isProviderCapabilitiesRegistered,
   registerProviderCapabilities,
+  type OperatorModelFacts,
   type ProviderCapabilities,
   type ProviderLocalEffortView,
   type ProviderLocalWindowView,
@@ -253,6 +254,18 @@ function createDefaultProviderCapabilities(): ProviderCapabilities {
     localVisionDeclared(model: string): boolean {
       const { localRecordFor } = require('./local/localCatalogue.js') as typeof import('./local/localCatalogue.js')
       return localRecordFor(model)?.visionDeclared === true
+    },
+    modelHasRecordedFacts(model: string): boolean {
+      const { modelHasRecordedFacts } = require('../model/modelOverrides.js') as typeof import('../model/modelOverrides.js')
+      return modelHasRecordedFacts(model)
+    },
+    operatorModelFacts(model: string, recorded?: OperatorModelFacts) {
+      const { operatorModelFacts } = require('../model/modelOverrides.js') as typeof import('../model/modelOverrides.js')
+      return operatorModelFacts(model, recorded)
+    },
+    getEngineModel(): string {
+      const { getEngineModel } = require('../model/model.js') as typeof import('../model/model.js')
+      return getEngineModel()
     },
   }
 }
