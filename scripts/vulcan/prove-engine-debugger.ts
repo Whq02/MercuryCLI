@@ -121,7 +121,7 @@ if (!executable.resolved) {
   git('commit', '-q', '-F', join(scratch, 'fixture-message.txt'))
   const service = new EngineJobService(project, { workers: 2, executable: executable.resolved })
   const tree = parseEngineTreeSpec('HEAD')
-  assert.ok(!('error' in tree))
+  assert.ok(!('error' in tree), `parseEngineTreeSpec('HEAD') failed: ${'error' in tree ? tree.error : ''}; check engine tree parser`)
   const args = { tour: inlineTour, source: 'engine', settleFrames: 30, sampleFrames: 180, quiet: 'flag', pair: { switch: 'feature', a: false, b: true } }
   const request = (values: Record<string, unknown>) => ({ suites: [], tree, native: false, capture: false, priority: 'profile' as const, budgetMs: 120_000, displayShared: false, keepTree: false, label: null, media: parseEngineMediaRequest('profile', values, project) })
   const run = async (values: Record<string, unknown>, owner = service) => {
@@ -152,7 +152,7 @@ if (!executable.resolved) {
     const tables = both.media!.evidence.find(e => e.source === 'project') as any
     check('auto chooses engine and preserves separately labelled project tables', both.media?.selectedSource === 'engine' && both.media.sources?.join(',') === 'project,engine debugger' && tables.phases.every((p: any) => p.scripts[0].script === 'res://tests/media_fixture.gd' && p.physics.fixtureTick.samples === 12), both)
     const starts = await Promise.all([service.submit(request({ ...args, pair: null, sampleFrames: 180 })), service.submit(request({ ...args, pair: null, sampleFrames: 180 }))])
-    assert.ok(starts.every(job => !('refused' in job)))
+    assert.ok(starts.every(job => !('refused' in job)), `simultaneous engine profile submission refused: ${JSON.stringify(starts).slice(0, 200)}; check EngineJobService.submit`)
     const jobs = starts as Array<Exclude<(typeof starts)[number], { refused: string }>>
     await Promise.all(jobs.map(job => service.wait(job.id, 120_000)))
     const pair = jobs.map(job => job.record!)
