@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react'
-import { useDerivedState, usePublish } from '../../hooks/effects.js'
+import { usePublish } from '../../hooks/effects.js'
 import { useAnimationValue, useInput } from '../../ink.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { isXtermJs } from '../../ink/session/capabilities.js'
@@ -154,21 +154,15 @@ export function SessionMirror({
   const [, bucket] = useAnimationValue(changePending ? WORK_TICK_MS : null, time =>
     Math.floor(time / WORK_TICK_MS),
   )
-  const armedBucketRef = useRef<number | null>(null)
-  useDerivedState(() => {
-    if (!changePending) {
-      armedBucketRef.current = null
-      return
-    }
-    if (armedBucketRef.current === null) {
-      armedBucketRef.current = bucket
-      return
-    }
-    if (bucket !== armedBucketRef.current) {
-      armedBucketRef.current = null
-      setBody({ sessionId, workspaceId })
-    }
-  }, [changePending, bucket, sessionId, workspaceId])
+  const [armedBucket, setArmedBucket] = useState<number | null>(null)
+  if (!changePending) {
+    if (armedBucket !== null) setArmedBucket(null)
+  } else if (armedBucket === null) {
+    setArmedBucket(bucket)
+  } else if (bucket !== armedBucket) {
+    setArmedBucket(null)
+    setBody({ sessionId, workspaceId })
+  }
 
   const { fold, readError: transcriptError } = useWorkerTranscriptFold(body.sessionId, body.workspaceId)
   usePublish(() => {
