@@ -100,3 +100,4 @@ prove-recorded-shell-gone.ts
 prove-engine-session-frame.ts
 prove-cd-lasts-the-session.ts
 prove-readers-recording.ts
+prove-tool-shell-starts-with-no-old-folder.ts

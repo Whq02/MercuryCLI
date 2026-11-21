@@ -1,5 +1,75 @@
 import { shellTextOutsideFileHeredocs } from '../../wards/wards.js'
-import { type ShellRead, layersOf, pinnedCommandAnalysis } from '../decision/commandAnalysis.js'
+import { type Layer, type ReadCommand, type ShellRead, layersOf, pinnedCommandAnalysis, wordsAsWritten } from '../decision/commandAnalysis.js'
+import { fileUrlPaths } from './homes.js'
+
+const PIPED_PRINTERS = new Set(['echo', 'printf', 'write-output'])
+const WRITTEN_USER_VAR = /^\$(?:USER|LOGNAME|USERNAME|UID|EUID)$/
+
+export function expandedLayerArgvs(layer: Layer): string[][] {
+  if (layer.findRoots === undefined || layer.program === 'find') return [layer.argv]
+  const roots = layer.findRoots.length > 0 ? layer.findRoots : ['.']
+  return roots.map(root => layer.argv.map(word => (word === '{}' ? root : word.replace(/\{\}/g, root))))
+}
+
+export function pipedPrinterOperands(feeders: readonly ReadCommand[]): string[] {
+  const out: string[] = []
+  for (const feeder of feeders) {
+    for (const fed of layersOf(feeder.argv)) {
+      if (!PIPED_PRINTERS.has(fed.program)) continue
+      for (const word of fed.argv.slice(1)) {
+        if (!word.startsWith('-') && !(fed.program === 'printf' && word.includes('%'))) out.push(word)
+      }
+    }
+  }
+  return out
+}
+
+function unquoteWritten(raw: string): string {
+  let out = ''
+  let quote = ''
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i]!
+    if (quote === "'") {
+      if (ch === "'") quote = ''
+      else out += ch
+    } else if (quote === '"') {
+      if (ch === '"') quote = ''
+      else if (ch === '\\' && i + 1 < raw.length && (raw[i + 1] === '"' || raw[i + 1] === '\\' || raw[i + 1] === '$' || raw[i + 1] === '`')) out += raw[++i]!
+      else out += ch
+    } else if (ch === "'" || ch === '"') {
+      quote = ch
+    } else if (ch === '\\' && i + 1 < raw.length) {
+      out += raw[++i]!
+    } else {
+      out += ch
+    }
+  }
+  return out.replace(/\$\{([A-Za-z_][\w:]*)\}/g, '$$$1')
+}
+
+export function writtenLayerArgv(simple: ReadCommand, layer: Layer): string[] | undefined {
+  const raw = wordsAsWritten(simple)
+  if (raw === undefined || raw.length !== simple.argv.length) return undefined
+  const offset = simple.argv.length - layer.argv.length
+  if (offset < 0) return undefined
+  for (let i = 0; i < layer.argv.length; i++) {
+    if (simple.argv[offset + i] !== layer.argv[i]) return undefined
+  }
+  return raw.slice(offset).map(unquoteWritten)
+}
+
+export function spelledUserArgv(argv: string[], written: readonly string[] | undefined): string[] {
+  if (written === undefined || written.length !== argv.length) return argv
+  return argv.map((word, index) => (WRITTEN_USER_VAR.test(written[index]!) ? written[index]! : word))
+}
+
+export function spelledTargetWord(value: string, argv: readonly string[], written: readonly string[] | undefined, matches: (candidate: string) => boolean): string {
+  if (written === undefined || written.length !== argv.length) return value
+  const index = argv.indexOf(value)
+  if (index < 0) return value
+  const candidate = written[index]!
+  return candidate !== value && matches(candidate) ? candidate : value
+}
 
 function words(text: string, powershell: boolean): Array<string | { op?: string }> {
   const prepared = powershell ? text.replace(/`\r?\n/g, '').replace(/`([^\r\n])/g, '$1').replace(/\\/g, '\\\\') : text
@@ -125,6 +195,83 @@ export function pathLike(word: string): boolean {
   return /[\\/]/.test(word) || /^[~$%.]/.test(word)
 }
 
+const CURL_UPLOAD_SHORT = /^-[sSfLkivn#46gNqaBGIjlOpR0]*T([\s\S]*)$/
+const CURL_OUTPUT_SHORT = /^-[sSfLkivn#46gNqaBGIjlOpR0]*o([\s\S]*)$/
+const CURL_REMOTE_NAME = /^-[sSfLkivn#46gNqaBGIjlOpR0]*O/
+
+function curlWriteTargets(args: readonly string[]): string[] {
+  const named: string[] = []
+  const urls: string[] = []
+  let hasUpload = false
+  let remoteName = false
+  let literal = false
+  for (let i = 0; i < args.length; i++) {
+    const word = args[i]!
+    if (literal) {
+      urls.push(word)
+      continue
+    }
+    if (word === '--') {
+      literal = true
+      continue
+    }
+    if (word === '-o' || word === '--output' || word === '--output-dir') {
+      if (args[i + 1] !== undefined) named.push(args[++i]!)
+      continue
+    }
+    if (word.startsWith('--output=') || word.startsWith('--output-dir=')) {
+      named.push(word.slice(word.indexOf('=') + 1))
+      continue
+    }
+    if (word === '-T' || word === '--upload-file') {
+      hasUpload = true
+      if (args[i + 1] !== undefined) i++
+      continue
+    }
+    if (word.startsWith('--upload-file=')) {
+      hasUpload = true
+      continue
+    }
+    if (word === '--url') {
+      if (args[i + 1] !== undefined) urls.push(args[++i]!)
+      continue
+    }
+    if (word.startsWith('--url=')) {
+      urls.push(word.slice('--url='.length))
+      continue
+    }
+    if (word === '--remote-name' || word === '--remote-name-all') {
+      remoteName = true
+      continue
+    }
+    if (!word.startsWith('--') && word.startsWith('-')) {
+      const upload = CURL_UPLOAD_SHORT.exec(word)
+      if (upload !== null) {
+        hasUpload = true
+        if (upload[1] === '' && args[i + 1] !== undefined) i++
+        continue
+      }
+      const output = CURL_OUTPUT_SHORT.exec(word)
+      if (output !== null) {
+        if (output[1] !== '') named.push(output[1]!)
+        else if (args[i + 1] !== undefined) named.push(args[++i]!)
+        continue
+      }
+      if (CURL_REMOTE_NAME.test(word)) {
+        remoteName = true
+        continue
+      }
+    }
+    if (!word.startsWith('-')) urls.push(word)
+  }
+  const out = [...named]
+  if (named.length === 0 && remoteName) out.push('.')
+  if (hasUpload) {
+    for (const url of urls) out.push(...fileUrlPaths(url))
+  }
+  return out
+}
+
 export function writeOperands(argv: string[], powershell = false): string[] {
   const out: string[] = []
   const command: string[] = []
@@ -154,6 +301,7 @@ export function writeOperands(argv: string[], powershell = false): string[] {
     if (/^(?:System\.)?IO\.(?:StreamWriter|FileStream)$/i.test(made[0] ?? '') && made[1] !== undefined && !made.slice(2).some(word => /^read$/i.test(word))) out.push(made[1])
     return out
   }
+  if (name === 'curl') return [...out, ...curlWriteTargets(args)]
   if (!writers.has(name)) return out
   const operands = args.filter(arg => !arg.startsWith('-') && !/^\/[sq]$/i.test(arg))
   if (powershell) operands.push(...args.flatMap(arg => /^-[A-Za-z]+:(.+)$/.exec(arg)?.[1] ?? []))
@@ -205,14 +353,19 @@ export function readOperands(argv: string[]): string[] {
       const operands = args.filter(arg => !arg.startsWith('-'))
       out.push(...(['cp', 'copy', 'copy-item', 'ci', 'cpi', 'mv', 'move', 'move-item', 'mi', 'rsync', 'install'].includes(name) ? operands.slice(0, -1) : operands))
       out.push(...args.filter(arg => /^--[a-z-]+=./.test(arg)).map(arg => arg.slice(arg.indexOf('=') + 1)))
-      const letters = READ_FILE_LETTERS[name]
-      if (letters !== undefined) out.push(...args.filter(arg => /^-[A-Za-z]./.test(arg) && letters.includes(arg[1]!)).map(arg => arg.slice(2)))
+      out.push(...flaggedReadOperands(name, args))
     }
   }
   return out
 }
 
 const READ_FILE_LETTERS: Record<string, string> = { xargs: 'a', grep: 'f', rg: 'f', diff: 'X', du: 'X', jq: 'fL', info: 'fd', man: 'lMC', date: 'rf', pyright: 'p', awk: 'f', sed: 'f' }
+
+export function flaggedReadOperands(program: string, args: readonly string[]): string[] {
+  const letters = READ_FILE_LETTERS[program]
+  if (letters === undefined) return []
+  return args.filter(arg => /^-[A-Za-z]./.test(arg) && letters.includes(arg[1]!)).map(arg => arg.slice(2))
+}
 
 export function runtimeOperands(argv: string[], powershell = false): Array<{ path: string; removesTree: boolean }> {
   const unwrapped = unwrapCommand(argv)

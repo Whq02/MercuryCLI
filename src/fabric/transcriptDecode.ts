@@ -2,13 +2,13 @@ import { parseJSONL } from '../utils/json.js'
 import { recordToEntry } from './entryCodec.js'
 import { bodyShapeIssue, validateRecord } from './validate.js'
 
-export type MalformedLine = { line: number; snippet: string }
-export type InvalidShape = { index: number; kind: string; reason: string }
+type MalformedLine = { line: number; snippet: string }
+type InvalidShape = { index: number; kind: string; reason: string }
 
 export const TRANSCRIPT_FORMAT_REFUSAL =
   'this session file uses a retired format and cannot be opened'
 
-export type DecodedTranscript<T> = {
+type DecodedTranscript<T> = {
   entries: T[]
   malformed: MalformedLine[]
   invalid: InvalidShape[]

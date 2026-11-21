@@ -1,5 +1,3 @@
-import type { AgentColorName } from 'src/tools/AgentTool/agentColorManager.js'
-
 export type InvokedSkillInfo = {
   skillName: string
   skillPath: string
@@ -13,9 +11,6 @@ type SkillCapture = [key: string, skill: InvokedSkillInfo]
 const captureKey = (agentId: string | null, skillName: string): string => `${agentId ?? ''}:${skillName}`
 
 export class CollectionsOwner {
-  agentColorMap: Map<string, AgentColorName> = new Map()
-  agentColorIndex = 0
-  sessionCreatedCrews: Set<string> = new Set()
   invokedSkills: Map<string, InvokedSkillInfo> = new Map()
 
   addInvokedSkill(skillName: string, skillPath: string, content: string, agentId: string | null = null): void {
@@ -33,11 +28,6 @@ export class CollectionsOwner {
   getInvokedSkillsForAgent(agentId: string | undefined | null): Map<string, InvokedSkillInfo> {
     const owner = agentId ?? null
     return new Map(this.captures(skill => skill.agentId === owner))
-  }
-
-  clearInvokedSkills(preservedAgentIds?: ReadonlySet<string>): void {
-    if (!preservedAgentIds?.size) this.invokedSkills.clear()
-    else this.forget(skill => skill.agentId === null || !preservedAgentIds.has(skill.agentId))
   }
 
   clearInvokedSkillsForAgent(agentId: string): void {

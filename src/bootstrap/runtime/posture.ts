@@ -18,7 +18,6 @@ export class PostureOwner {
   strictToolResultPairing = false
   sdkAgentProgressSummariesEnabled = false
   clientType = 'cli'
-  sessionSource: string | undefined = undefined
   questionPreviewFormat: 'markdown' | 'html' | undefined = undefined
   isRemoteMode = false
   sessionBypassPermissionsMode = false

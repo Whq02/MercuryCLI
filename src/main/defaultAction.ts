@@ -1,4 +1,4 @@
-import { getIsInteractive, setInitialEngineModel, setEngineModelOverride } from '../bootstrap/state.js'
+import { getIsInteractive, setEngineModelOverride } from '../bootstrap/state.js'
 import { getCommands } from '../commands.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { getSystemContext, getUserContext } from '../context.js'
@@ -120,7 +120,6 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
     userSpecifiedModel = mainThreadAgentDefinition.model
   }
   if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
-  setInitialEngineModel(userSpecifiedModel ?? null)
   if (runMode) {
     const { readComputedDefaultCatalogue } = await import('../services/model/computedDefault.js')
     await readComputedDefaultCatalogue()

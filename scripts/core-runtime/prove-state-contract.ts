@@ -79,7 +79,6 @@ const OBSERVABLES: Array<{
   read: () => unknown
 }> = [
   { key: 'sessionId', family: 'identity', scope: 'conversation', read: () => state.getSessionId() },
-  { key: 'parentSessionId', family: 'identity', scope: 'conversation', read: () => state.getParentSessionId() },
   { key: 'sessionProjectDir', family: 'identity', scope: 'conversation', read: () => state.getSessionProjectDir() },
   { key: 'planSlugCache', family: 'identity', scope: 'session', read: () => state.getPlanSlugCache() },
   { key: 'originalCwd', family: 'cwd', scope: 'process', read: () => state.getOriginalCwd() },
@@ -99,28 +98,18 @@ const OBSERVABLES: Array<{
   { key: 'totalCacheReadInputTokens', family: 'cost', scope: 'derived', read: () => state.getTotalCacheReadInputTokens() },
   { key: 'totalCacheCreationInputTokens', family: 'cost', scope: 'derived', read: () => state.getTotalCacheCreationInputTokens() },
   { key: 'totalWebSearchRequests', family: 'cost', scope: 'derived', read: () => state.getTotalWebSearchRequests() },
-  { key: 'turnHookDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnHookDurationMs() },
-  { key: 'turnHookCount', family: 'turn', scope: 'turn', read: () => state.getTurnHookCount() },
-  { key: 'turnToolDurationMs', family: 'turn', scope: 'turn', read: () => state.getTurnToolDurationMs() },
-  { key: 'turnToolCount', family: 'turn', scope: 'turn', read: () => state.getTurnToolCount() },
-  { key: 'turnOutputTokens', family: 'turn', scope: 'derived', read: () => state.getTurnOutputTokens() },
-  { key: 'currentTurnTokenBudget', family: 'turn', scope: 'turn', read: () => state.getCurrentTurnTokenBudget() },
-  { key: 'budgetContinuationCount', family: 'turn', scope: 'turn', read: () => state.getBudgetContinuationCount() },
   { key: 'lastInteractionTime', family: 'interaction', scope: 'process', read: () => state.getLastInteractionTime() },
   { key: 'engineModelOverride', family: 'model', scope: 'session', read: () => state.getEngineModelOverride() },
-  { key: 'initialEngineModel', family: 'model', scope: 'session', read: () => state.getInitialEngineModel() },
   { key: 'modelStrings', family: 'model', scope: 'session', read: () => (state.getModelStrings() === null ? null : 'set') },
   { key: 'sdkBetas', family: 'model', scope: 'session', read: () => state.getSdkBetas() },
   { key: 'statsStore', family: 'telemetry', scope: 'process', read: () => (state.getStatsStore() === null ? null : 'set') },
   { key: 'lastAPIRequest', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequest() },
-  { key: 'lastAPIRequestMessages', family: 'apiCapture', scope: 'conversation', read: () => state.getLastAPIRequestMessages() },
   { key: 'promptId', family: 'apiCapture', scope: 'conversation', read: () => state.getPromptId() },
   { key: 'lastMainRequestId', family: 'apiCapture', scope: 'conversation', read: () => state.getLastMainRequestId() },
   { key: 'lastApiCompletionTimestamp', family: 'apiCapture', scope: 'conversation', read: () => state.getLastApiCompletionTimestamp() },
   { key: 'promptCache1hEligible', family: 'latches', scope: 'session', read: () => state.getPromptCache1hEligible() },
   { key: 'cacheEditingHeaderLatched', family: 'latches', scope: 'conversation', read: () => state.getCacheEditingHeaderLatched() },
   { key: 'systemPromptSectionCache', family: 'caches', scope: 'session', read: () => state.getSystemPromptSectionCache() },
-  { key: 'lastEmittedDate', family: 'caches', scope: 'session', read: () => state.getLastEmittedDate() },
   { key: 'isInteractive', family: 'posture', scope: 'session', read: () => state.getIsInteractive() },
   { key: 'isNonInteractive', family: 'posture', scope: 'derived', read: () => state.getIsNonInteractiveSession() },
   { key: 'sessionKind', family: 'posture', scope: 'session', read: () => state.getSessionKind() },
@@ -129,8 +118,6 @@ const OBSERVABLES: Array<{
   { key: 'assistantAvailable', family: 'posture', scope: 'derived', read: () => state.isAssistantFamilyAvailable() },
   { key: 'strictToolResultPairing', family: 'posture', scope: 'session', read: () => state.getStrictToolResultPairing() },
   { key: 'sdkAgentProgressSummariesEnabled', family: 'posture', scope: 'session', read: () => state.getSdkAgentProgressSummariesEnabled() },
-  { key: 'clientType', family: 'posture', scope: 'session', read: () => state.getClientType() },
-  { key: 'sessionSource', family: 'posture', scope: 'session', read: () => state.getSessionSource() },
   { key: 'questionPreviewFormat', family: 'posture', scope: 'session', read: () => state.getQuestionPreviewFormat() },
   { key: 'isRemoteMode', family: 'posture', scope: 'session', read: () => state.getIsRemoteMode() },
   { key: 'sessionBypassPermissionsMode', family: 'posture', scope: 'session', read: () => state.getSessionSovereign() },
@@ -140,16 +127,11 @@ const OBSERVABLES: Array<{
   { key: 'flagSettingsPath', family: 'boot', scope: 'process', read: () => state.getFlagSettingsPath() },
   { key: 'flagSettingsInline', family: 'boot', scope: 'process', read: () => state.getFlagSettingsInline() },
   { key: 'allowedSettingSources', family: 'boot', scope: 'process', read: () => state.getAllowedSettingSources() },
-  { key: 'sessionIngressToken', family: 'boot', scope: 'process', read: () => state.getSessionIngressToken() },
-  { key: 'oauthTokenFromFd', family: 'boot', scope: 'process', read: () => state.getOauthTokenFromFd() },
-  { key: 'apiKeyFromFd', family: 'boot', scope: 'process', read: () => state.getApiKeyFromFd() },
   { key: 'sessionExtensions', family: 'boot', scope: 'process', read: () => state.getSessionExtensions() },
   { key: 'mainThreadAgentType', family: 'boot', scope: 'process', read: () => state.getMainThreadAgentType() },
   { key: 'directConnectServerUrl', family: 'boot', scope: 'process', read: () => state.getDirectConnectServerUrl() },
   { key: 'registeredHooks', family: 'hookRegistry', scope: 'session', read: () => state.getRegisteredHooks() },
-  { key: 'agentColorMap', family: 'collections', scope: 'session', read: () => state.getAgentColorMap() },
-  { key: 'sessionCreatedCrews', family: 'collections', scope: 'session', read: () => state.getSessionCreatedCrews() },
-  { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkills() },
+  { key: 'invokedSkills', family: 'collections', scope: 'session', read: () => state.getInvokedSkillsForAgent(null) },
 ]
 
 function snapshot(): Record<string, string> {
@@ -244,26 +226,26 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getSessionKind', 'setSessionKind',
     'addToTotalCostState', 'addToTotalDurationState', 'addToTotalLinesChanged',
     'addToWorkloadUsageState', 'getWorkloadUnpricedTurns', 'getWorkloadUsage', 'recordWorkloadUnpricedTurn',
-    'addToTurnHookDuration', 'canAnswerAsks', 'clearBetaHeaderLatches',
-    'clearInvokedSkills', 'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
+    'canAnswerAsks', 'clearBetaHeaderLatches',
+    'clearInvokedSkillsForAgent', 'clearRegisteredHooks',
     'clearRegisteredExtensionHooks', 'clearSystemPromptSectionState',
     'flushInteractionTime',
-    'getAgentColorMap', 'getAskChannel',
-    'getAllowedSettingSources', 'getApiKeyFromFd', 'getBudgetContinuationCount',
+    'getAskChannel',
+    'getAllowedSettingSources',
     'getCacheEditingHeaderLatched', 
-    'getClientType', 'getCurrentTurnTokenBudget', 'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
-    'getInitialEngineModel', 'getSessionExtensions',
-    'getInvokedSkills', 'getInvokedSkillsForAgent', 'getIsInteractive',
+    'getCwdState', 'getDirectConnectServerUrl', 'getFlagSettingsInline', 'getFlagSettingsPath',
+    'getSessionExtensions',
+    'getInvokedSkillsForAgent', 'getIsInteractive',
     'getIsNonInteractiveSession', 'getIsRemoteMode', 'getIsScrollDraining', 'getIsSessionOneShotHeadless', 'isAssistantFamilyAvailable', 'isRunInputClosed', 'setRunInputClosed',
-    'isAssistantSessionActive', 'getLastAPIRequest', 'getLastAPIRequestMessages',
-    'getLastApiCompletionTimestamp', 'getLastEmittedDate',
-    'getLastInteractionTime', 'getLastMainRequestId', 'getEngineModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOauthTokenFromFd', 'getOriginalCwd',
-    'getParentSessionId', 'getPlanSlugCache', 'getProjectRoot',
+    'isAssistantSessionActive', 'getLastAPIRequest',
+    'getLastApiCompletionTimestamp',
+    'getLastInteractionTime', 'getLastMainRequestId', 'getEngineModelOverride', 'getMainThreadAgentType', 'getModelStrings', 'getModelUsage', 'getOriginalCwd',
+    'getPlanSlugCache', 'getProjectRoot',
     'getPromptCache1hEligible', 'getPromptId',
     'getQuestionPreviewFormat', 'getRegisteredHooks',
     'getSdkAgentProgressSummariesEnabled', 'getSdkBetas', 'getSessionSovereign',
-    'getSessionCreatedCrews', 'getSessionId',
-    'getSessionIngressToken', 'getSessionProjectDir', 'getSessionSource',
+    'getSessionId',
+    'getSessionProjectDir',
     'getSessionTrustAccepted', 'getStatsStore', 'getSessionPermissionModeResolution',
     'getStrictToolResultPairing', 'getSystemPromptSectionCache',
     'getTotalAPIDuration',
@@ -271,35 +253,31 @@ section('LAW EXPORT-SURFACE — the frozen facade lock')
     'getTotalCacheReadInputTokens', 'getTotalCostUSD', 'getTotalDuration',
     'getTotalInputTokens', 'getTotalLinesAdded', 'getTotalLinesRemoved',
     'getTotalOutputTokens', 'getTotalToolDuration', 'getTotalUnpricedTurns', 'getTotalWebSearchRequests',
-    'getTurnHookCount', 'getTurnHookDurationMs', 'getTurnOutputTokens', 'getTurnToolCount',
-    'getTurnToolDurationMs', 'getUnpricedTurns', 'getUsageForModel',
+    'getUnpricedTurns', 'getUsageForModel',
     'hasUnknownModelCost',
-    'incrementBudgetContinuationCount', 'isSessionPersistenceDisabled',
+    'isSessionPersistenceDisabled',
     'markScrollActivity',
     'onSessionSwitch',
     'preferThirdPartyAuthentication', 'recordUnpricedTurn', 'regenerateSessionId', 'registerHookCallbacks',
-    'resetCostState', 'resetModelStringsForTestingOnly',
+    'resetCostState',
     'resetStateForTests',
-    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY', 
-    'resetTurnHookDuration', 'resetTurnToolDuration',
     'setAllowedSettingSources',
-    'setApiKeyFromFd', 'setAskChannel', 'setCacheEditingHeaderLatched', 
+    'setAskChannel',
     'setClientType', 'setCostStateForRestore', 'setCwdState',
-    'setDirectConnectServerUrl',
     'setFlagSettingsInline', 'setFlagSettingsPath',
     'setHasUnknownModelCost', 'setHeadlessOneShot',
-    'setInitialEngineModel', 'setSessionExtensions', 'setIsInteractive', 'setIsRemoteMode',
-    'setAssistantSessionActive', 'setLastAPIRequest', 'setLastAPIRequestMessages',
-    'setLastApiCompletionTimestamp', 'setLastEmittedDate',
+    'setSessionExtensions', 'setIsInteractive',
+    'setAssistantSessionActive', 'setLastAPIRequest',
+    'setLastApiCompletionTimestamp',
     'setLastMainRequestId',
     'setEngineModelOverride', 'setMainThreadAgentType', 'setModelStrings',
-    'setOauthTokenFromFd', 'setOriginalCwd', 'setProjectRoot',
-    'setPromptCache1hEligible', 'setPromptId', 'setQuestionPreviewFormat',
-    'setSdkAgentProgressSummariesEnabled', 'setSdkBetas',
-    'setSessionSovereign', 'setSessionIngressToken', 'setSessionPermissionModeResolution',
-    'setSessionPersistenceDisabled', 'setSessionSource', 'setSessionTrustAccepted',
+    'setOriginalCwd', 'setProjectRoot',
+    'setPromptCache1hEligible', 'setQuestionPreviewFormat',
+    'setSdkBetas',
+    'setSessionSovereign', 'setSessionPermissionModeResolution',
+    'setSessionPersistenceDisabled', 'setSessionTrustAccepted',
     'setStatsStore', 'setStrictToolResultPairing', 'setSystemPromptSectionCacheEntry',
-    'snapshotOutputTokensForTurn', 'subscribeCwdState', 'subscribeEngineModelOverride', 'switchSession',
+    'subscribeCwdState', 'subscribeEngineModelOverride', 'switchSession',
     'updateLastInteractionTime', 'waitForScrollIdle',
   ]
   const actual = Object.keys(state).sort()
@@ -379,17 +357,13 @@ section('LAW 1 SESSION-SWITCH — atomic pair · never-carries · signal law')
   state.switchSession(S2, '/tmp/t17-project-b')
   state.getPlanSlugCache().set(S2, 'slug-of-s2')
   const emissionsBeforeRegen = emissions
-  const regenerated = state.regenerateSessionId({ setCurrentAsParent: true })
+  const regenerated = state.regenerateSessionId()
   check('regenerate: does NOT emit the switch signal (characterized)', emissions === emissionsBeforeRegen)
   check('regenerate: returns the live sessionId', regenerated === state.getSessionId())
   check('regenerate: fresh id is uuid-shaped', UUID_RE.test(regenerated), regenerated)
   check('regenerate: fresh id differs', regenerated !== S2)
-  check('regenerate: old id becomes parent', state.getParentSessionId() === S2)
   check('regenerate: projectDir reset to null', state.getSessionProjectDir() === null)
   check('regenerate: outgoing slug evicted', !state.getPlanSlugCache().has(S2))
-  const parentBefore = state.getParentSessionId()
-  state.regenerateSessionId()
-  check('regenerate without option: parent unchanged', state.getParentSessionId() === parentBefore)
 
   unsub()
   const emissionsAtUnsub = emissions
@@ -539,7 +513,6 @@ section('LAW 2 COST-LEDGER — accumulate vs REPLACE · restore math')
     check('restore: lastDuration undefined leaves startTime alone', state.getTotalDuration() === 5000)
     check('restore: modelUsage undefined preserves the breakdown', state.getUsageForModel('model-restored') === D)
 
-    state.setPromptId('prompt-cost-law')
     state.resetCostState()
     check('resetCostState: cost zeroed', state.getTotalCostUSD() === 0)
     check('resetCostState: durations zeroed', state.getTotalAPIDuration() === 0 && state.getTotalAPIDurationWithoutRetries() === 0 && state.getTotalToolDuration() === 0)
@@ -551,66 +524,20 @@ section('LAW 2 COST-LEDGER — accumulate vs REPLACE · restore math')
   })
 }
 
-section('LAW 3 TURN-WINDOW — snapshot math · triples · totals survive')
+section('LAW 3 TOOL-DURATION — the total accumulates')
 {
-  state.resetCostState()
-  state.addToTotalCostState(0.1, usage(5), 'turn-m1')
-  check('pre-snapshot turn output equals total (no snapshot yet this state)', state.getTotalOutputTokens() === 10)
-
-  state.snapshotOutputTokensForTurn(500)
-  check('snapshot: turn output zeroed at the boundary', state.getTurnOutputTokens() === 0)
-  check('snapshot: budget latched', state.getCurrentTurnTokenBudget() === 500)
-  check('snapshot: continuation count zeroed', state.getBudgetContinuationCount() === 0)
-
-  state.addToTotalCostState(0.1, usage(15), 'turn-m2')
-  check('turn output = delta since snapshot', state.getTurnOutputTokens() === 30)
-  state.incrementBudgetContinuationCount()
-  state.incrementBudgetContinuationCount()
-  check('continuation count increments', state.getBudgetContinuationCount() === 2)
-
-  state.snapshotOutputTokensForTurn(null)
-  check('fresh snapshot: budget can be null', state.getCurrentTurnTokenBudget() === null)
-  check('fresh snapshot: continuation count re-zeroed', state.getBudgetContinuationCount() === 0)
-  check('fresh snapshot: turn output re-zeroed', state.getTurnOutputTokens() === 0)
-
-  state.resetTurnHookDuration()
-  state.addToTurnHookDuration(10)
-  state.addToTurnHookDuration(15)
-  check('hook triple: duration sums', state.getTurnHookDurationMs() === 25)
-  check('hook triple: count tracks calls', state.getTurnHookCount() === 2)
-  state.resetTurnHookDuration()
-  check('hook triple: reset zeroes both', state.getTurnHookDurationMs() === 0 && state.getTurnHookCount() === 0)
-
   const totalToolBefore = state.getTotalToolDuration()
-  state.resetTurnToolDuration()
   state.addToToolDuration(40)
-  check('tool add: turn duration + count', state.getTurnToolDurationMs() === 40 && state.getTurnToolCount() === 1)
   check('tool add: TOTAL accumulates in the same call', state.getTotalToolDuration() === totalToolBefore + 40)
-  state.resetTurnToolDuration()
-  check('tool triple: turn reset zeroes turn side', state.getTurnToolDurationMs() === 0 && state.getTurnToolCount() === 0)
-  check('tool triple: the TOTAL survives the turn reset (scope pin)', state.getTotalToolDuration() === totalToolBefore + 40)
 }
 
-section('LAW 5 LATCH — sticky beta headers · clear completeness · tripwire')
+section('LAW 5 LATCH — clear completeness')
 {
   state.clearBetaHeaderLatches()
   check('latches: null after clear', state.getCacheEditingHeaderLatched() === null)
 
-  state.setCacheEditingHeaderLatched(true)
   state.setPromptCache1hEligible(true)
-
-  state.addToTotalCostState(0.01, usage(1), 'latch-noise')
-  state.setIsInteractive(true)
-  state.switchSession('33333333-3333-4333-8333-333333333333' as SessionId)
-  check('latches: survive unrelated mutations incl. switchSession', state.getCacheEditingHeaderLatched() === true)
-  state.setIsInteractive(false)
-
-  state.setCacheEditingHeaderLatched(false)
-  check('latches: setter accepts false (stickiness is caller discipline — characterized)', state.getCacheEditingHeaderLatched() === false)
-  state.setCacheEditingHeaderLatched(true)
-
   state.clearBetaHeaderLatches()
-  check('clearBetaHeaderLatches: nulls the latch', state.getCacheEditingHeaderLatched() === null)
   check('clearBetaHeaderLatches: 1h eligibility NOT in the clear set (session-latched)', state.getPromptCache1hEligible() === true)
   state.setPromptCache1hEligible(null)
 
@@ -770,16 +697,15 @@ section('LAW 9 HOOK-REGISTRY — merge order · extensionRoot clear · empty ⇒
   check('clearRegisteredHooks: nulls the registry', state.getRegisteredHooks() === null)
 }
 
-section('LAW 10 SKILL-TRACKING — composite keys · filters · preservation')
+section('LAW 10 SKILL-TRACKING — composite keys · filters')
 {
   const T = 1_800_000_100_000
   withClock(() => T, () => {
-    state.clearInvokedSkills()
     state.addInvokedSkill('alpha', '/skills/alpha', 'content-main', null)
     state.addInvokedSkill('alpha', '/skills/alpha', 'content-agent1', 'agent1')
-    check('skills: composite keys prevent cross-agent overwrite', state.getInvokedSkills().size === 2)
-    check('skills: main-thread key shape `:name`', state.getInvokedSkills().get(':alpha')?.content === 'content-main')
-    check('skills: agent key shape `agent:name`', state.getInvokedSkills().get('agent1:alpha')?.content === 'content-agent1')
+    check('skills: composite keys prevent cross-agent overwrite', state.getInvokedSkillsForAgent(null).size + state.getInvokedSkillsForAgent('agent1').size === 2)
+    check('skills: main-thread key shape `:name`', state.getInvokedSkillsForAgent(null).get(':alpha')?.content === 'content-main')
+    check('skills: agent key shape `agent:name`', state.getInvokedSkillsForAgent('agent1').get('agent1:alpha')?.content === 'content-agent1')
 
     const forNull = state.getInvokedSkillsForAgent(null)
     check('skills: filter agentId=null returns only main-thread entries', forNull.size === 1 && forNull.has(':alpha'))
@@ -790,40 +716,18 @@ section('LAW 10 SKILL-TRACKING — composite keys · filters · preservation')
 
     state.addInvokedSkill('beta', '/skills/beta', 'c', 'agent2')
     state.clearInvokedSkillsForAgent('agent2')
-    check('skills: per-agent clear removes only that agent', state.getInvokedSkills().size === 2 && !state.getInvokedSkills().has('agent2:beta'))
-
-    state.addInvokedSkill('beta', '/skills/beta', 'c', 'agent2')
-    state.clearInvokedSkills(new Set(['agent1']))
-    check(
-      'skills: preserved-set clear drops agentId===null AND non-preserved agents, keeps preserved',
-      state.getInvokedSkills().size === 1 && state.getInvokedSkills().has('agent1:alpha'),
-      [...state.getInvokedSkills().keys()].join(','),
-    )
-    state.clearInvokedSkills()
-    check('skills: bare clear empties everything', state.getInvokedSkills().size === 0)
-    state.clearInvokedSkills(new Set())
-    check('skills: empty preserved set behaves as bare clear (no throw)', state.getInvokedSkills().size === 0)
+    check('skills: per-agent clear removes only that agent', state.getInvokedSkillsForAgent('agent2').size === 0 && state.getInvokedSkillsForAgent(null).size === 1 && state.getInvokedSkillsForAgent('agent1').size === 1)
+    state.clearInvokedSkillsForAgent('agent1')
   })
 }
 
 
 section('LAW 16 API-CAPTURE — reference semantics (the /share reality pin)')
 {
-  const msgs: Array<{ role: string; content: string }> = [{ role: 'user', content: 'hello' }]
-  state.setLastAPIRequestMessages(msgs as never)
-  check('capture: messages stored by REFERENCE, not clone (risk 9)', state.getLastAPIRequestMessages() === (msgs as never))
-  msgs.push({ role: 'assistant', content: 'reply' })
-  check('capture: post-capture mutations are visible through the getter', (state.getLastAPIRequestMessages() as never as unknown[]).length === 2)
-  state.setLastAPIRequestMessages(null)
-  check('capture: messages nullable', state.getLastAPIRequestMessages() === null)
-
   const req = { model: 'model-req', max_tokens: 1 }
   state.setLastAPIRequest(req as never)
   check('capture: request params stored by reference', state.getLastAPIRequest() === (req as never))
 
-  state.setPromptId('prompt-uuid-1')
-  check('capture: promptId round-trips', state.getPromptId() === 'prompt-uuid-1')
-  state.setPromptId(null)
   state.setLastMainRequestId('req_abc123')
   check('capture: lastMainRequestId round-trips', state.getLastMainRequestId() === 'req_abc123')
   state.setLastApiCompletionTimestamp(1_700_000_000_123)
@@ -831,25 +735,20 @@ section('LAW 16 API-CAPTURE — reference semantics (the /share reality pin)')
   state.setLastAPIRequest(null)
 }
 
-section('LAW 15 MODEL-CONFIG — override/initial/strings/betas round-trips')
+section('LAW 15 MODEL-CONFIG — override/strings/betas round-trips')
 {
   state.setEngineModelOverride('claude-opus-4-8' as never)
   check('model: override round-trips', state.getEngineModelOverride() === ('claude-opus-4-8' as never))
   state.setEngineModelOverride(undefined)
   check('model: override accepts undefined (cleared)', state.getEngineModelOverride() === undefined)
-  state.setInitialEngineModel('claude-sonnet-5' as never)
-  check('model: initial round-trips', state.getInitialEngineModel() === ('claude-sonnet-5' as never))
   const strings = { fromEnv: 'x' }
   state.setModelStrings(strings as never)
   check('model: modelStrings stored by reference', state.getModelStrings() === (strings as never))
-  state.resetModelStringsForTestingOnly()
-  check('model: test-only reset nulls modelStrings', state.getModelStrings() === null)
   const betas = ['context-1m-2025-08-07']
   state.setSdkBetas(betas)
   check('model: sdkBetas stored by reference', state.getSdkBetas() === betas)
   state.setSdkBetas(undefined)
   check('model: sdkBetas clearable', state.getSdkBetas() === undefined)
-  state.setInitialEngineModel(null)
 }
 
 section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
@@ -864,30 +763,20 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.getPlanSlugCache().set('slug-keeper', 'kept')
     state.addToTotalDurationState(100, 90)
     state.addToToolDuration(10)
-    state.addToTurnHookDuration(5)
     state.addToTotalCostState(0.5, usage(10), 'pop-m1')
     state.addToTotalCostState(0.7, usage(20), 'pop-m2')
-    state.snapshotOutputTokensForTurn(500)
-    state.incrementBudgetContinuationCount()
     state.addToTotalLinesChanged(3, 1)
     state.setHasUnknownModelCost()
     state.recordUnpricedTurn('pop-m1')
-    state.setPromptId('prompt-populate')
     state.setLastMainRequestId('req-populate')
     state.setLastApiCompletionTimestamp(123456)
     state.setLastAPIRequest({ model: 'pop' } as never)
-    state.setLastAPIRequestMessages([{ role: 'user', content: 'pop' }] as never)
-    state.setCacheEditingHeaderLatched(true)
     state.setPromptCache1hEligible(true)
     state.setSystemPromptSectionCacheEntry('section-a', 'value-a')
-    state.setLastEmittedDate('2026-07-16')
     state.setIsInteractive(true)
     state.setAssistantSessionActive(true)
     state.setStrictToolResultPairing(true)
-    state.setSdkAgentProgressSummariesEnabled(true)
-    state.setSessionSource('populate')
     state.setQuestionPreviewFormat('markdown')
-    state.setIsRemoteMode(true)
     state.setSessionSovereign(true)
     state.setSessionPermissionModeResolution({ mode: 'sovereign', source: 'launch-flag' })
     state.setSessionTrustAccepted(true)
@@ -895,19 +784,12 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     state.setFlagSettingsPath('/tmp/t17-flag-settings.json')
     state.setFlagSettingsInline({ k: 1 })
     state.setAllowedSettingSources(['userSettings'] as never)
-    state.setSessionIngressToken('ingress-token')
-    state.setOauthTokenFromFd('oauth-token')
-    state.setApiKeyFromFd('api-key')
     state.setSessionExtensions(['extension-a'])
     state.setMainThreadAgentType('main-agent')
-    state.setDirectConnectServerUrl('http://localhost:1')
     state.clearRegisteredHooks()
     state.registerHookCallbacks({ 'tool.before': [cbHook], 'turn.answer': [extHook] } as never)
-    state.getAgentColorMap().set('agent-a', 'blue' as never)
-    state.getSessionCreatedCrews().add('crew-populate')
     state.addInvokedSkill('pop-skill', '/skills/pop', 'content', null)
     state.setEngineModelOverride('claude-opus-4-8' as never)
-    state.setInitialEngineModel('claude-sonnet-5' as never)
     state.setModelStrings({ pop: true } as never)
     state.setSdkBetas(['pop-beta'])
     state.setStatsStore({ observe() {} })
@@ -924,21 +806,21 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
   }
 
   scopeLeg(
-    'resetCostState (/clear + login) resets EXACTLY the cost family + promptId',
+    'resetCostState (/clear + login) resets EXACTLY the cost family',
     () => state.resetCostState(),
     [
-      'hasUnknownModelCost', 'modelUsage', 'promptId',
+      'hasUnknownModelCost', 'modelUsage',
       'totalAPIDuration', 'totalAPIDurationWithoutRetries',
       'totalCacheCreationInputTokens', 'totalCacheReadInputTokens',
       'totalCostUSD', 'totalInputTokens', 'totalLinesAdded',
       'totalLinesRemoved', 'totalOutputTokens', 'totalToolDuration',
-      'totalWebSearchRequests', 'turnOutputTokens', 'unpricedTurns',
+      'totalWebSearchRequests', 'unpricedTurns',
     ],
   )
   scopeLeg(
-    'clearBetaHeaderLatches (/clear + /compact) touches ONLY the latch',
+    'clearBetaHeaderLatches (/clear + /compact) touches no other observable',
     () => state.clearBetaHeaderLatches(),
-    ['cacheEditingHeaderLatched'],
+    [],
   )
   scopeLeg(
     'clearRegisteredHooks touches ONLY the registry',
@@ -951,9 +833,9 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     ['planSlugCache', 'sessionId', 'sessionProjectDir'],
   )
   scopeLeg(
-    'regenerateSessionId({setCurrentAsParent}) adds ONLY the parent to the switch set',
-    () => state.regenerateSessionId({ setCurrentAsParent: true }),
-    ['parentSessionId', 'planSlugCache', 'sessionId', 'sessionProjectDir'],
+    'regenerateSessionId touches ONLY the switch set',
+    () => state.regenerateSessionId(),
+    ['planSlugCache', 'sessionId', 'sessionProjectDir'],
   )
   scopeLeg(
     'clearSystemPromptSectionState touches ONLY the section cache',
@@ -970,24 +852,10 @@ section('LAW SCOPE-DELTA — every reset entry point, exact field-by-field')
     () => state.clearRegisteredExtensionHooks(),
     ['registeredHooks'],
   )
-  scopeLeg(
-    'clearInvokedSkills touches ONLY invokedSkills',
-    () => state.clearInvokedSkills(),
-    ['invokedSkills'],
-  )
-  scopeLeg(
-    'resetTotalDurationStateAndCost_FOR_TESTS_ONLY: durations + cost only',
-    () => state.resetTotalDurationStateAndCost_FOR_TESTS_ONLY(),
-    ['totalAPIDuration', 'totalAPIDurationWithoutRetries', 'totalCostUSD'],
-  )
-  scopeLeg('resetTurnHookDuration: the hook pair only', () => state.resetTurnHookDuration(), ['turnHookCount', 'turnHookDurationMs'])
-  scopeLeg('resetTurnToolDuration: the tool pair only', () => state.resetTurnToolDuration(), ['turnToolCount', 'turnToolDurationMs'])
-  scopeLeg('resetModelStringsForTestingOnly: modelStrings only', () => state.resetModelStringsForTestingOnly(), ['modelStrings'])
 
   const sentinel = { settings: {}, errors: [] }
   setSessionSettingsCache(sentinel as never)
   state.setIsInteractive(true)
-  state.setIsRemoteMode(false)
   check('coupling: posture setters leave the settings cache alone', getSessionSettingsCache() === (sentinel as never))
 }
 
@@ -997,7 +865,7 @@ section('LAW PURITY — zero-arg getters do not mutate')
     .filter(([name, fn]) => /^(?:get|is|has|needs|prefer)[A-Za-z0-9_]*$/.test(name) && typeof fn === 'function' && fn.length === 0)
     .map(([name]) => name)
     .sort()
-  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 80, String(getterNames.length))
+  check(`purity: module sweep found a plausible getter population (${getterNames.length})`, getterNames.length >= 61, String(getterNames.length))
   withClock(() => 2_000_000_000_000, () => {
     const before = snapshot()
     const impure: string[] = []
@@ -1017,8 +885,6 @@ section('LAW PURITY — zero-arg getters do not mutate')
 section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
 {
 
-  state.snapshotOutputTokensForTurn(999)
-  state.incrementBudgetContinuationCount()
   state.updateLastInteractionTime()
 
   let ghostEmissions = 0
@@ -1049,9 +915,6 @@ section('LAW 13 RESET — resetStateForTests totality + the characterized gaps')
   check('reset: sessionId is FRESH (uuid-shaped, differs from pre-reset)', UUID_RE.test(freshId) && freshId !== preResetSessionId && freshId !== bootSessionId)
   check('reset: lastInteractionTime re-stamped to a live timestamp', state.getLastInteractionTime() > 0)
 
-  check('reset: turn-window snapshot vars zeroed (turnOutput 0 on empty usage)', state.getTurnOutputTokens() === 0)
-  check('reset: turn budget nulled', state.getCurrentTurnTokenBudget() === null)
-  check('reset: budget continuation zeroed', state.getBudgetContinuationCount() === 0)
   withClock(() => 2_100_000_000_000, () => {
     const t = state.getLastInteractionTime()
     state.flushInteractionTime()

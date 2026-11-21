@@ -21,7 +21,6 @@ const TELLS: Array<[string, RegExp]> = [
 ]
 
 const PLATFORM_HOME = /^src\/utils\/platform(?:\.ts$|\/)/
-const ROW_8 = /^src\/(?:utils\/(?:bash|wards|permissions\/shellProtectedPaths|permissions\/decision)\/|utils\/permissions\/flowLaw\.ts$|tools\/BashTool\/(?:denyRuleReach|bashPermissions)\.ts$)/
 
 const SINGLE: Array<[file: string, checks: number, reason: string]> = [
   ['src/components/TerminalProfileCard.tsx', 3, 'the Windows host inventory card exists on Windows only'],
@@ -159,13 +158,12 @@ for (const gone of baselineFiles) {
 }
 
 const grew: string[] = []
-const row8: string[] = []
 const classedSingle = new Map(SINGLE.map(([file, checks]) => [file, checks]))
 let shrank = 0
 for (const [key, n] of Object.entries(current)) {
   const held = baseline[key] ?? baseline[`${cameFrom.get(fileOf(key)) ?? ''} :: ${tellOf(key)}`] ?? 0
   const base = tellOf(key) === PLATFORM_CHECK ? Math.max(held, classedSingle.get(fileOf(key)) ?? 0) : held
-  if (n > base && heldTells.has(tellOf(key))) (tellOf(key) === PLATFORM_CHECK && ROW_8.test(fileOf(key)) ? row8 : grew).push(`${key}  ${base} → ${n}`)
+  if (n > base && heldTells.has(tellOf(key))) grew.push(`${key}  ${base} → ${n}`)
   else if (n < base) shrank++
 }
 for (const key of Object.keys(baseline)) {
@@ -199,7 +197,6 @@ if (grew.length > 0) {
 } else {
   console.log(`  [PASS] no file gained a POSIX tell or a platform check (${Object.keys(current).length} tracked)`)
 }
-if (row8.length > 0) console.log(`  [INFO] counted, not held, while row 8 re-shapes the command readers: ${row8.join(' · ')}`)
 if (shrank > 0) {
   console.log(`  [INFO] ${shrank} entr${shrank === 1 ? 'y' : 'ies'} improved or moved — relock to ratchet down:`)
   console.log('         ~/.bun/bin/bun run scripts/build/prove-win32-seam-ratchet.ts --relock')
@@ -216,11 +213,10 @@ const platformRows = Object.entries(current).filter(([key]) => tellOf(key) === P
 const platformFiles = platformRows.map(([file]) => file)
 const singleFiles = new Set(SINGLE.map(([file]) => file))
 const total = platformRows.reduce((sum, [, n]) => sum + n, 0)
-const inRow8 = platformRows.filter(([file]) => ROW_8.test(file)).reduce((sum, [, n]) => sum + n, 0)
 const single = SINGLE.reduce((sum, [, checks]) => sum + checks, 0)
 const stale = SINGLE.map(([file, checks]) => ({ file, checks, holds: current[`${movedTo(file, singleFiles, platformFiles) ?? file} :: ${PLATFORM_CHECK}`] ?? 0 })).filter(row => row.holds < row.checks)
 check('every single row names platform checks its file still holds', stale.length === 0, stale.map(row => `${row.file} holds ${row.holds}, its row says ${row.checks}: lower the row in SINGLE or remove it`).join(' · '))
-console.log(`  [INFO] platform checks outside src/utils/platform: ${total} in ${platformRows.length} files · row 8 ${inRow8} · single ${single} · to move ${total - inRow8 - single}`)
+console.log(`  [INFO] platform checks outside src/utils/platform: ${total} in ${platformRows.length} files · single ${single} · to move ${total - single}`)
 
 const flowAsk = await flowShellAsk('npx @scope/vercel deploy', '/tmp/proj')
 check('flowLaw splits scoped package names on slash grammar on every host', flowAsk?.item === 3 && flowAsk.subject === 'vercel deploy', JSON.stringify(flowAsk))

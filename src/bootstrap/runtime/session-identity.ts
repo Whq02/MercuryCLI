@@ -9,7 +9,6 @@ export class SessionIdentityOwner {
   projectRoot: string
   cwd: string
   sessionId: SessionId
-  parentSessionId: SessionId | undefined = undefined
   sessionProjectDir: string | null = null
   readonly planSlugCache: Map<string, string> = new Map()
   private readonly sessionSwitched = createSignal<[id: SessionId]>()
@@ -55,12 +54,7 @@ export class SessionIdentityOwner {
     this.sessionSwitched.emit(sessionId)
   }
 
-  regenerateSessionId(
-    options: { setCurrentAsParent?: boolean } = {},
-  ): SessionId {
-    if (options.setCurrentAsParent) {
-      this.parentSessionId = this.sessionId
-    }
+  regenerateSessionId(): SessionId {
     this.planSlugCache.delete(this.sessionId)
     this.sessionId = randomUUID() as SessionId
     this.sessionProjectDir = null

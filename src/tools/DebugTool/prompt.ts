@@ -1,6 +1,6 @@
 import { mercuryGodotEnabled } from '../../services/lsp/godotLane.js'
 
-export const DEBUG_TOOL_NAME = 'Debug' as const
+export { DEBUG_TOOL_NAME } from '../../constants/tools/debug.js'
 
 export const DEBUG_WIRE_DESCRIPTION =
   'Drive a DAP debugger in agent-owned named sessions (reaped at run end): launch, attach, breakpoints, stepping, stacks, scopes, variables, evaluate, memory and raw requests. Stops return reason, thread and top frames; waits past timeoutMs return with the debuggee running. launch, attach and customRequest ask permission.'

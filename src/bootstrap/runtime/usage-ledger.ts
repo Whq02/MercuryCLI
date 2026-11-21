@@ -122,12 +122,6 @@ export class UsageLedgerOwner {
     this.workloadUnpricedTurns = {}
   }
 
-  resetDurationsAndCostForTestsOnly(): void {
-    this.totalAPIDuration = 0
-    this.totalAPIDurationWithoutRetries = 0
-    this.totalCostUSD = 0
-  }
-
   setCostStateForRestore({
     totalCostUSD,
     totalAPIDuration,
