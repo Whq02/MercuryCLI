@@ -13,7 +13,7 @@ import { extractDiscoveredToolNames } from '../../../utils/toolSearch.js'
 import { APIUserAbortError } from '../../../utils/api/sdkErrors.js'
 import { releaseLspDocumentsForContext } from '../../lsp/manager.js'
 import { getContextEpoch } from '../../run/contextEpochs.js'
-import { buildFoldLedger, renderFoldLedger } from '../foldLedger.js'
+import { buildFoldLedger, renderFoldLedger, withKeptLedgerRows } from '../foldLedger.js'
 import { ownerFromToolUseContext, rosterOwnerFromToolUseContext } from '../../../utils/run/resolveOwner.js'
 import { estimateContextTokens } from '../microCompact.js'
 import { getCompactUserSummaryMessage, getPartialCompactPrompt, renderFoldedWork } from '../prompt.js'
@@ -110,7 +110,7 @@ export async function partialCompactConversation(
     if (discovered.size > 0) boundary.compactMetadata.preCompactDiscoveredTools = [...discovered].sort()
 
     const ledger = buildFoldLedger(allMessages, ownerFromToolUseContext(context), getContextEpoch(ownerFromToolUseContext(context)).epoch + 1)
-    boundary.compactMetadata.ledger = ledger
+    boundary.compactMetadata.ledger = withKeptLedgerRows(ledger, kept)
     const foldedWork = renderFoldedWork(foldedWorkOf(allMessages, kept, boundary.uuid))
     const summaryText = getCompactUserSummaryMessage(foldedWork === null ? rawSummary : `${rawSummary}\n\n${foldedWork}`, false, getTranscriptPath(), false) + `\n\n${renderFoldLedger(ledger)}`
     const summaryMessage =

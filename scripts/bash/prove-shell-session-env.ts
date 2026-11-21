@@ -143,13 +143,15 @@ check('…and the handle reports nothing scrubbed', inheritRun.scrubbed.length =
 check('…with the pin present too', inheritRun.env.get('MERCURY_MODEL_LANES') === '1')
 
 section('§3 the tools: the inherit input and the result notice')
-const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeForTesting, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
+const { scrubbedSessionEnvNotice, sessionEnvNoticeForResult, shortScrubbedSessionEnvNotice, resetSessionEnvNoticeOnCompaction } = await import('../../src/tools/shared/sessionEnvNotice.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const notice = scrubbedSessionEnvNotice(['MERCURY_ENTRYPOINT', 'MERCURY_SEATS'])
 check('the notice names the scrubbed variables and the inherit input', notice.includes('MERCURY_ENTRYPOINT, MERCURY_SEATS') && notice.includes('inherit_session_env'))
 check('no notice when nothing was scrubbed', scrubbedSessionEnvNotice([]) === '' && scrubbedSessionEnvNotice(undefined) === '')
 
 section('§3b once per session: the full note first, then nothing unless the command names a scrubbed stamp')
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 const scrubbedSet = ['MERCURY_ENTRYPOINT', 'MERCURY_MODEL', 'MERCURY_SEATS']
 const first = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls -la' })
 check('the first scrubbing result carries the full note with the inherit hint', first === scrubbedSessionEnvNotice(scrubbedSet) && first.includes('inherit_session_env'))
@@ -159,17 +161,26 @@ const third = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'e
 check('a later result whose command names a stamp carries only the short line for that stamp', third === shortScrubbedSessionEnvNotice(['MERCURY_MODEL']) && third === '[session env scrubbed: MERCURY_MODEL]' && !third.includes('inherit_session_env'))
 const fourth = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'printf %s "$MERCURY_SEATS-$MERCURY_ENTRYPOINT"' })
 check('the short line names every stamp the command referenced, in the scrubbed order', fourth === '[session env scrubbed: MERCURY_ENTRYPOINT, MERCURY_SEATS]')
-check('a call that scrubbed nothing carries nothing even as the first of a session', (resetSessionEnvNoticeForTesting(), sessionEnvNoticeForResult({ scrubbed: [], commandText: 'echo $MERCURY_MODEL' }) === '' && sessionEnvNoticeForResult({ scrubbed: undefined, commandText: 'x' }) === ''))
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
+check('a call that scrubbed nothing carries nothing even as the first of a session', sessionEnvNoticeForResult({ scrubbed: [], commandText: 'echo $MERCURY_MODEL' }) === '' && sessionEnvNoticeForResult({ scrubbed: undefined, commandText: 'x' }) === '')
+await disposeOwner(processMainOwner())
 sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
 const afterCompaction = (resetSessionEnvNoticeOnCompaction(), sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }))
 check('a compaction resets the latch, so the first result after the fold carries the full note again', afterCompaction === scrubbedSessionEnvNotice(scrubbedSet) && afterCompaction.includes('inherit_session_env'))
 const t = await import('../core-runtime/turnScenarios.ts')
 const noticeAfterARun = async (plan: Parameters<typeof t.runScripted>[0]): Promise<{ folded: boolean; notice: string }> => {
-  resetSessionEnvNoticeForTesting()
-  sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
-  const run = await t.runScripted(plan)
-  return { folded: run.events.some(event => event.kind === 'compaction_boundary'), notice: sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' }) }
+  let notice = ''
+  const run = await t.runScripted({
+    ...plan,
+    before: () => {
+      sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
+      return () => {
+        notice = sessionEnvNoticeForResult({ scrubbed: scrubbedSet, commandText: 'ls' })
+        void disposeOwner(processMainOwner())
+      }
+    },
+  })
+  return { folded: run.events.some(event => event.kind === 'compaction_boundary'), notice }
 }
 const acrossAFold = await noticeAfterARun({ seed: [t.fixtures.ask('hello there rig'), t.fixtures.fat('old fat turn', 700)], autocompact: [t.fixtures.folded()], script: [t.fixtures.yields(t.fixtures.says('the turn after the fold.'))] })
 const acrossNoFold = await noticeAfterARun({ script: [t.fixtures.yields(t.fixtures.says('a turn with no fold.'))] })
@@ -178,7 +189,7 @@ check(
   acrossAFold.folded && acrossAFold.notice === scrubbedSessionEnvNotice(scrubbedSet) && !acrossNoFold.folded && acrossNoFold.notice === '',
   `after a run in which a fold landed (boundary seen: ${acrossAFold.folded}) the next scrubbing result carried ${JSON.stringify(acrossAFold.notice)} (the full note is right); after a run with no fold (boundary seen: ${acrossNoFold.folded}) it carried ${JSON.stringify(acrossNoFold.notice)} (nothing is right) — makeRequest in src/run-core/turn/makeRequest.ts resets the once-per-session latch where it yields the compaction boundary`,
 )
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 const { normalizeToolInput } = await import('../../src/utils/api.ts')
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const normalized = normalizeToolInput(BashTool as never, { command: 'env', inherit_session_env: true }) as { inherit_session_env?: boolean }
@@ -214,7 +225,7 @@ const toolContext = {
   toolUseId: 'scrub-command',
 } as never
 let failureText = ''
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 const { formatError } = await import('../../src/utils/toolErrors.ts')
 let failureStderr = ''
 try { await BashTool.call({ command: 'exit 7' }, toolContext) } catch (error) { failureText = formatError(error); failureStderr = String((error as { stderr?: string }).stderr ?? '') }
@@ -227,12 +238,13 @@ await running?.shellCommand?.result
 const interruptedController = new AbortController()
 let interruptedText = ''
 let interruptionSent = false
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 try {
   const result = await BashTool.call({ command: 'while :; do printf "ready\\n"; sleep 0.2; done' }, { ...toolContext, abortController: interruptedController } as never, undefined, undefined, () => { interruptionSent = true; interruptedController.abort('proof-cancel') })
   interruptedText = JSON.stringify(BashTool.mapToolResultToToolResultBlockParam(result.data, 'interrupted'))
 } catch (error) { interruptedText = formatError(error) }
 check('an interrupted real Bash call preserves scrub attribution in what the model reads', interruptionSent && interruptedText.includes('MERCURY_ENTRYPOINT'), interruptedText)
+await disposeOwner(processMainOwner())
 rmSync(SCRATCH, { recursive: true, force: true })
 console.log('\n' + '─'.repeat(76))
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)
