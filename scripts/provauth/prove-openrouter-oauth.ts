@@ -11,6 +11,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix beginOpenrouterConnect (URL, exchange, listener), the key resolvers or disconnectOpenrouterOauthKey in src/services/providers/openrouter/openrouterAccounts.ts, or the stored key in src/utils/accounts/providerSecrets.ts')
 }
 
 console.log('============================================================')

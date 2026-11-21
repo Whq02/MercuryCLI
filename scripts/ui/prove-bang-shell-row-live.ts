@@ -13,9 +13,10 @@ process.chdir(ROOT)
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const bangRowFailHint = 'to fix, rebuild with bun run build.ts if dist/mercury.mjs is stale or missing, else change the live tail of a ! shell row in src/components/shell/ShellLiveTail.tsx; saved frames are named at the end of the run'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? `${detail ? ' · ' : ' — '}${bangRowFailHint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

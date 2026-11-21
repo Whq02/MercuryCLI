@@ -51,6 +51,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    to fix: card placement and the view.firstRunCards setting are in firstRunCardsCentred and setupFrameBodyRows in src/components/MercurySetupFrame.tsx, the sign-in roster fit and scroll tail in signInCardFit in src/components/ConsoleOAuthFlow.tsx, the roster rows in src/components/loginFamilyRows.ts; run with --frames <folder> to keep each frame as text')
 }
 
 const DEAD = 'http://127.0.0.1:9'

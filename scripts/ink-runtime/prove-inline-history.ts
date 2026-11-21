@@ -110,12 +110,16 @@ for (let si = 0; si < steps.length; si++) {
   const diff = optimize(rawDiff)
 
   const clearPatches = diff.filter(p => p.type === 'clearTerminal')
-  check(`step ${si}: no clearTerminal patch`, clearPatches.length === 0, `${clearPatches.length}`)
+  check(
+    `step ${si}: no clearTerminal patch`,
+    clearPatches.length === 0,
+    `${clearPatches.length} clearTerminal patches; the inline (non-alt-screen) path of FrameWriter.render in src/ink/frame-writer.ts must not emit clearTerminal`,
+  )
   const bytes = serialize(diff)
   check(
     `step ${si}: no ED bytes ([J/[2J/[3J)`,
     !/\x1b\[[0-3]?J/.test(bytes),
-    JSON.stringify(bytes.slice(0, 120)),
+    `${JSON.stringify(bytes.slice(0, 120))}; the bytes writeDiffToTerminal (src/ink/session/delivery.ts) wrote contain an erase-display escape, so an inline frame diff must not produce one`,
   )
 
   try {
@@ -124,12 +128,16 @@ for (let si = 0; si < steps.length; si++) {
     check(`step ${si}: replay parses`, false, String(e))
     break
   }
-  check(`step ${si}: emulator saw no ED`, emu.edClears === 0 && emu.scrollbackErased === 0)
+  check(
+    `step ${si}: emulator saw no ED`,
+    emu.edClears === 0 && emu.scrollbackErased === 0,
+    `edClears ${emu.edClears}, scrollbackErased ${emu.scrollbackErased}; an inline frame diff from FrameWriter.render (src/ink/frame-writer.ts) cleared the screen or scrollback`,
+  )
 
   check(
     `step ${si}: scrollback prefix stable (${frozenSnapshot.length} frozen rows)`,
     frozenSnapshot.every((row, i) => emu.scrollback[i] === row),
-    `frozen ${JSON.stringify(frozenSnapshot)} vs now ${JSON.stringify(emu.scrollback.slice(0, frozenSnapshot.length))}`,
+    `frozen ${JSON.stringify(frozenSnapshot)} vs now ${JSON.stringify(emu.scrollback.slice(0, frozenSnapshot.length))}; rows already ceded to scrollback were rewritten, so check how FrameWriter.render (src/ink/frame-writer.ts) repaints rows above the live region`,
   )
   frozenSnapshot = [...emu.scrollback]
   if (frame.screen.height > VIEWPORT) sawGrowthPastViewport = true
@@ -142,14 +150,22 @@ for (let si = 0; si < steps.length; si++) {
   check(
     `step ${si}: logical output ends with the frame's lines`,
     JSON.stringify(tail) === JSON.stringify(lines),
-    `tail ${JSON.stringify(tail)} vs frame ${JSON.stringify(lines)}`,
+    `tail ${JSON.stringify(tail)} vs frame ${JSON.stringify(lines)}; the replayed terminal no longer matches the composed frame, so check the diff FrameWriter.render (src/ink/frame-writer.ts) and optimizePatches (src/ink/patch-stream.ts) produce`,
   )
 
   prevFrame = frame
 }
 
-check('journey actually grew past the viewport', sawGrowthPastViewport)
-check('journey actually ceded rows to scrollback', frozenSnapshot.length > 0)
+check(
+  'journey actually grew past the viewport',
+  sawGrowthPastViewport,
+  'no composed frame was taller than the 10-row viewport; check the steps list and the contentHeight option passed to composeScene in this file',
+)
+check(
+  'journey actually ceded rows to scrollback',
+  frozenSnapshot.length > 0,
+  'the emulator scrollback stayed empty; the inline diff never scrolled rows out of the live region, so check writeDiffToTerminal in src/ink/session/delivery.ts',
+)
 
 if (failures > 0) {
   console.log(`\nbedrock inline history: RED (${failures} failure${failures === 1 ? '' : 's'})`)

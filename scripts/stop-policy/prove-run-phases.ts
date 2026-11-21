@@ -97,7 +97,7 @@ async function main(): Promise<void> {
   for (const leg of legs) {
     const mark = leg.pass ? '[PASS]' : '[FAIL]'
     if (!leg.pass) red++
-    console.log(`  ${mark} ${leg.label}${leg.detail && !leg.pass ? ` — ${leg.detail}` : ''}`)
+    console.log(`  ${mark} ${leg.label}${!leg.pass ? ` — change noteRunPhase or runPhaseReport in src/utils/runPhases.ts${leg.detail ? `: ${leg.detail}` : ''}` : ''}`)
   }
   console.log(
     `\n${legs.length} legs: ${legs.length - red} green, ${red} red — 3.5.3 print phases ${red === 0 ? 'HOLD' : 'BROKEN'}`,

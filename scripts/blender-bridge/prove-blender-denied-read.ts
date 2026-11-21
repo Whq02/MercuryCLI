@@ -50,6 +50,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const PERM_FIX = ' | change checkPermissions in src/tools/BlenderTool/BlenderTool.ts so it refuses every file that checkReadPermissionForTool denies and changes no other answer'
+const SHOW_FIX = ' | change the checkReadPermissionForTool calls in src/tools/BlenderTool/BlenderTool.ts so a picture named to show is read-checked before and after the operation'
 
 const deadPort = await new Promise<number>(resolve => {
   const server = net.createServer()
@@ -115,10 +117,10 @@ console.log('the control: with no rule the free reads open the file and answer f
     const used = await use(op, args, open)
     if (used.behavior !== 'allow' || used.starts !== 1 || !FROM_THE_FILE.test(used.answer)) wrong.push(`${label}: ${used.behavior} ${used.answer.slice(0, 80)}`)
   }
-  check('four read verbs by blend and one by path: each starts one Blender with no window and answers from the file', wrong.length === 0, wrong.join(' | '))
+  check('four read verbs by blend and one by path: each starts one Blender with no window and answers from the file', wrong.length === 0, wrong.join(' | ') + ' | the free read verbs must still open and answer with no rule; see checkPermissions in src/tools/BlenderTool/BlenderTool.ts')
   const asked: Array<Awaited<ReturnType<typeof use>>> = []
   for (const [, op, args] of CALLS.slice(5)) asked.push(await use(op, args, open))
-  check('opening it, rendering it and running Python on it ask first', asked.every(used => used.behavior === 'ask' && used.starts === 0), asked.map(used => used.behavior).join(' '))
+  check('opening it, rendering it and running Python on it ask first', asked.every(used => used.behavior === 'ask' && used.starts === 0), asked.map(used => used.behavior).join(' ') + ' | open, render and python_run must ask with no rule; see checkPermissions in src/tools/BlenderTool/BlenderTool.ts')
 }
 
 console.log('the law: a file whose direct Read is denied is not opened by the tool, on any verb, by either argument')
@@ -133,7 +135,7 @@ for (const [spelling, rule] of SPELLINGS) {
     if (!ok) red.push(`${spelling} · ${label}: ${used.behavior}${FROM_THE_FILE.test(used.answer) ? ', answered from the file' : ''}`)
     cells.push(`${label} ${ok ? 'ok' : used.behavior === 'allow' ? 'OPENS IT' : used.behavior === 'ask' ? 'ASKS' : 'WRONG'}`)
   }
-  check(`${spelling} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: ${cells.join(' · ')}`, cells.every(cell => cell.endsWith(' ok')) && read.behavior === 'deny', red.filter(cell => cell.startsWith(spelling)).join(' | '))
+  check(`${spelling} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: ${cells.join(' · ')}`, cells.every(cell => cell.endsWith(' ok')) && read.behavior === 'deny', red.filter(cell => cell.startsWith(spelling)).join(' | ') + PERM_FIX)
 }
 console.log(`  (${red.length} of ${SPELLINGS.length * CALLS.length} cells red)`)
 
@@ -141,11 +143,11 @@ console.log('the refusal is the rule\'s own sentence, the one a Read of the file
 {
   const permission = deny('Read(secret/**)')
   const refused = await verdict('objects_list', { blend: 'secret/unit.blend' }, permission)
-  check('it names the file by its full path and the rule that denies it', String(refused.message).startsWith(`Reading ${SECRET} is denied by the rule Read(secret/**) `) && refused.message === directRead(SECRET, permission).message, String(refused.message))
+  check('it names the file by its full path and the rule that denies it', String(refused.message).startsWith(`Reading ${SECRET} is denied by the rule Read(secret/**) `) && refused.message === directRead(SECRET, permission).message, String(refused.message) + PERM_FIX)
   const sovereign = inMode('sovereign', permission)
   const still: Array<Awaited<ReturnType<typeof use>>> = []
   for (const [, op, args] of CALLS) still.push(await use(op, args, sovereign))
-  check('under the posture that answers every question the rule still refuses all eight, and no Blender starts', still.every(used => used.behavior === 'deny' && used.starts === 0), still.map(used => used.behavior).join(' '))
+  check('under the posture that answers every question the rule still refuses all eight, and no Blender starts', still.every(used => used.behavior === 'deny' && used.starts === 0), still.map(used => used.behavior).join(' ') + PERM_FIX)
 }
 
 console.log('a script named to python_run is a file the tool opens: the same law')
@@ -159,13 +161,13 @@ console.log('a script named to python_run is a file the tool opens: the same law
     const used = await use('python_run', { script: 'secret/kit.py', argv: ['--unit', 'eques'] }, permission)
     if (!(used.behavior === 'deny' && used.message === directRead(secretScript, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}${used.answer.includes('SECRET_SCRIPT_RAN') ? ', ran it' : ''}`)
   }
-  check('a script under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  check('a script under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | ') + PERM_FIX)
   const elsewhere = await use('python_run', { script: 'open/kit.py' }, deny('Read(secret/**)'))
-  check('a script elsewhere asks first, as every python_run does', elsewhere.behavior === 'ask' && elsewhere.starts === 0, elsewhere.behavior)
+  check('a script elsewhere asks first, as every python_run does', elsewhere.behavior === 'ask' && elsewhere.starts === 0, elsewhere.behavior + PERM_FIX)
   const sovereign = await use('python_run', { script: 'secret/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
-  check('under the posture that answers every question the rule still refuses the script, and no Blender starts', sovereign.behavior === 'deny' && sovereign.starts === 0, `${sovereign.behavior} starts=${sovereign.starts}`)
+  check('under the posture that answers every question the rule still refuses the script, and no Blender starts', sovereign.behavior === 'deny' && sovereign.starts === 0, `${sovereign.behavior} starts=${sovereign.starts}` + PERM_FIX)
   const ranOpen = await use('python_run', { script: 'open/kit.py' }, inMode('sovereign', deny('Read(secret/**)')))
-  check('and under that posture the script elsewhere runs', ranOpen.behavior === 'allow' && ranOpen.starts === 1 && ranOpen.answer.includes('OPEN_SCRIPT_RAN'), `${ranOpen.behavior} ${ranOpen.answer.slice(0, 120)}`)
+  check('and under that posture the script elsewhere runs', ranOpen.behavior === 'allow' && ranOpen.starts === 1 && ranOpen.answer.includes('OPEN_SCRIPT_RAN'), `${ranOpen.behavior} ${ranOpen.answer.slice(0, 120)}` + PERM_FIX)
 }
 
 console.log('a picture named to show is a file the tool opens: the same law')
@@ -183,10 +185,10 @@ console.log('a picture named to show is a file the tool opens: the same law')
       if (!(used.behavior === 'deny' && used.message === directRead(secretPicture, permission).message && used.starts === 0)) wrong.push(`${spelling} ${JSON.stringify(show)}: ${used.behavior}`)
     }
   }
-  check('a picture under the denied folder, named alone, with a scale, or second, is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  check('a picture under the denied folder, named alone, with a scale, or second, is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | ') + SHOW_FIX)
   const sovereign = inMode('sovereign', deny('Read(secret/**)'))
   const refused = await use('python_run', { script: 'open/kit.py', show: ['secret/sheet.png'] }, sovereign)
-  check('under the posture that answers every question the rule still refuses it, and no Blender starts', refused.behavior === 'deny' && refused.starts === 0, `${refused.behavior} starts=${refused.starts}`)
+  check('under the posture that answers every question the rule still refuses it, and no Blender starts', refused.behavior === 'deny' && refused.starts === 0, `${refused.behavior} starts=${refused.starts}` + SHOW_FIX)
   const shownBy = async (show: unknown[]): Promise<{ behavior: string; starts: number; kinds: string; texts: string[] }> => {
     fixture.clearInvocations()
     const input = { op: 'python_run', args: { script: 'open/kit.py', show } }
@@ -198,12 +200,12 @@ console.log('a picture named to show is a file the tool opens: the same law')
     return { behavior: 'allow', starts: fixture.invocations().length, kinds: parts.map(part => part.type).join(','), texts: parts.flatMap(part => (typeof part.text === 'string' ? [part.text] : [])) }
   }
   const elsewhere = await shownBy(['open/sheet.png'])
-  check('and under that posture a picture elsewhere rides the answer of the script that ran', elsewhere.behavior === 'allow' && elsewhere.starts === 1 && elsewhere.kinds === 'text,text,image' && (elsewhere.texts[0] ?? '').includes('OPEN_SCRIPT_RAN'), `${elsewhere.behavior} ${elsewhere.kinds}`)
+  check('and under that posture a picture elsewhere rides the answer of the script that ran', elsewhere.behavior === 'allow' && elsewhere.starts === 1 && elsewhere.kinds === 'text,text,image' && (elsewhere.texts[0] ?? '').includes('OPEN_SCRIPT_RAN'), `${elsewhere.behavior} ${elsewhere.kinds}` + SHOW_FIX)
   const fifth = await shownBy(['open/sheet.png', 'open/sheet.png', 'open/sheet.png', 'open/sheet.png', 'secret/sheet.png'])
   check(
     'a fifth picture is never opened, so the rule on it refuses nothing: the call runs, four ride, and the fifth is listed by the path the call gave',
     fifth.behavior === 'allow' && fifth.starts === 1 && fifth.kinds.split(',').filter(kind => kind === 'image').length === 4 && fifth.texts.at(-1) === 'show: 4 pictures at most ride one answer; not shown: secret/sheet.png',
-    `${fifth.behavior} ${fifth.kinds} ${fifth.texts.at(-1) ?? ''}`,
+    `${fifth.behavior} ${fifth.kinds} ${fifth.texts.at(-1) ?? ''}` + SHOW_FIX,
   )
 }
 
@@ -216,14 +218,14 @@ console.log('a frame render_still is asked to show is a file the tool opens: the
     const used = await use('render_still', { blend: 'open/unit.blend', outputPath: 'secret/frame.png', show: true }, permission)
     if (!(used.behavior === 'deny' && used.message === directRead(secretFrame, permission).message && used.starts === 0)) wrong.push(`${spelling}: ${used.behavior}`)
   }
-  check('show: true on a frame under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | '))
+  check('show: true on a frame under the denied folder is refused in the sentence a Read of it gets, under all four spellings, and no Blender starts', wrong.length === 0, wrong.join(' | ') + SHOW_FIX)
   const moved: string[] = []
   for (const show of [undefined, false, 'yes']) {
     const args = { blend: 'open/unit.blend', outputPath: 'secret/frame.png', ...(show === undefined ? {} : { show }) }
     const ruled = await verdict('render_still', args, deny('Read(secret/**)'))
     if (ruled.behavior !== 'ask' || JSON.stringify(ruled) !== JSON.stringify(await verdict('render_still', args, null))) moved.push(`${String(show)}: ${ruled.behavior}`)
   }
-  check('with no show, show: false, or a show that is not true, the same render asks exactly as it does with no rules at hand', moved.length === 0, moved.join(' | '))
+  check('with no show, show: false, or a show that is not true, the same render asks exactly as it does with no rules at hand', moved.length === 0, moved.join(' | ') + SHOW_FIX)
 }
 
 console.log('a show path is checked again after the operation, when a new link may name a denied picture')
@@ -240,8 +242,8 @@ console.log('a show path is checked again after the operation, when a new link m
   settle()
   const after = directRead(linked, permission)
   const parts = partsOf(ran.data)
-  check('headless: the missing show path allows the call, the script finishes, and a direct Read of its new link is denied', before.behavior === 'allow' && ran.data.result.includes('SCRIPT_FINISHED') && after.behavior === 'deny', JSON.stringify({ before: before.behavior, after: after.behavior }))
-  check('headless: the rule\'s own denial replaces that picture, while the script answer and allowed picture beside it survive', parts.map(part => part.type).join(',') === 'text,text,text,image' && parts[0]?.text === ran.data.result && parts[1]?.text === after.message, JSON.stringify(parts.map(part => part.type)))
+  check('headless: the missing show path allows the call, the script finishes, and a direct Read of its new link is denied', before.behavior === 'allow' && ran.data.result.includes('SCRIPT_FINISHED') && after.behavior === 'deny', JSON.stringify({ before: before.behavior, after: after.behavior }) + SHOW_FIX)
+  check('headless: the rule\'s own denial replaces that picture, while the script answer and allowed picture beside it survive', parts.map(part => part.type).join(',') === 'text,text,text,image' && parts[0]?.text === ran.data.result && parts[1]?.text === after.message, JSON.stringify(parts.map(part => part.type)) + SHOW_FIX)
   rmSync(linked)
   settle()
 
@@ -276,8 +278,8 @@ console.log('a show path is checked again after the operation, when a new link m
     settle()
     const read = directRead(linked, permission)
     const shown = partsOf(reply.data)
-    check('bridge: the absent path allows the call, the bridge creates the link and answers, and no Blender starts', accepted.behavior === 'allow' && reply.data.result.includes('road: bridge') && reply.data.result.includes('BRIDGE_FINISHED') && fixture.invocations().length === 0 && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior }))
-    check('bridge: the same denial replaces the linked picture, not the answer or the allowed picture', shown.map(part => part.type).join(',') === 'text,text,text,image' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)))
+    check('bridge: the absent path allows the call, the bridge creates the link and answers, and no Blender starts', accepted.behavior === 'allow' && reply.data.result.includes('road: bridge') && reply.data.result.includes('BRIDGE_FINISHED') && fixture.invocations().length === 0 && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior }) + SHOW_FIX)
+    check('bridge: the same denial replaces the linked picture, not the answer or the allowed picture', shown.map(part => part.type).join(',') === 'text,text,text,image' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)) + SHOW_FIX)
   } finally {
     resetBlenderBridgeClientForTest()
     for (const socket of sockets) socket.destroy()
@@ -297,8 +299,8 @@ console.log('a show path is checked again after the operation, when a new link m
     settle()
     const read = directRead(linked, permission)
     const shown = partsOf(reply.data)
-    check('render: a path replaced after permission still renders and answers, and the final path is denied to Read', accepted.behavior === 'allow' && reply.data.result.includes('"finished": true') && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior, answer: reply.data.result }))
-    check('render: show returns the render answer and the rule\'s denial, never the denied frame', shown.map(part => part.type).join(',') === 'text,text' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)))
+    check('render: a path replaced after permission still renders and answers, and the final path is denied to Read', accepted.behavior === 'allow' && reply.data.result.includes('"finished": true') && read.behavior === 'deny', JSON.stringify({ accepted: accepted.behavior, read: read.behavior, answer: reply.data.result }) + SHOW_FIX)
+    check('render: show returns the render answer and the rule\'s denial, never the denied frame', shown.map(part => part.type).join(',') === 'text,text' && shown[0]?.text === reply.data.result && shown[1]?.text === read.message, JSON.stringify(shown.map(part => part.type)) + SHOW_FIX)
   } finally {
     delete process.env.FAKE_BLENDER_RENDER_PNG
     rmSync(linked, { force: true })
@@ -315,7 +317,7 @@ console.log('the neighbours are opened as before')
       if (used.behavior !== 'allow' || !used.answer.includes(name)) wrong.push(`${rule} ${file}: ${used.behavior}`)
     }
   }
-  check('a folder whose name starts the same, a file beside the folder and a file elsewhere: listed under all four spellings', wrong.length === 0, wrong.join(' | '))
+  check('a folder whose name starts the same, a file beside the folder and a file elsewhere: listed under all four spellings', wrong.length === 0, wrong.join(' | ') + PERM_FIX)
 }
 
 console.log('a link, .. and another letter case: the tool agrees with the direct Read')
@@ -327,7 +329,7 @@ console.log('a link, .. and another letter case: the tool agrees with the direct
   const spelled = ['alias.blend', 'door/unit.blend', 'open/../secret/unit.blend', ...(existsSync(join(project, 'SECRET', 'UNIT.BLEND')) ? ['SECRET/unit.blend'] : [])]
   const used: Array<Awaited<ReturnType<typeof use>>> = []
   for (const file of spelled) used.push(await use('objects_list', { blend: file }, permission))
-  check(`${spelled.join(', ')}: a direct Read of each is denied and none is opened`, used.every(one => one.behavior === 'deny' && one.starts === 0) && spelled.every(file => directRead(join(project, file), permission).behavior === 'deny'), used.map(one => one.behavior).join(' '))
+  check(`${spelled.join(', ')}: a direct Read of each is denied and none is opened`, used.every(one => one.behavior === 'deny' && one.starts === 0) && spelled.every(file => directRead(join(project, file), permission).behavior === 'deny'), used.map(one => one.behavior).join(' ') + PERM_FIX)
 }
 
 console.log('one decision: the tool refuses a file exactly when a direct Read of it is denied')
@@ -354,7 +356,7 @@ console.log('one decision: the tool refuses a file exactly when a direct Read of
       }
     }
   }
-  check(`${contexts.length} sets of rules, ${files.length} files, three ways of naming each: it answers deny exactly when the direct Read does`, apart.length === 0, apart.join(' | '))
+  check(`${contexts.length} sets of rules, ${files.length} files, three ways of naming each: it answers deny exactly when the direct Read does`, apart.length === 0, apart.join(' | ') + PERM_FIX)
   rmSync(join(project, 'alias.blend'))
   rmSync(join(project, 'door'))
   settle()
@@ -390,12 +392,12 @@ console.log('every other answer is the one the tool gave before')
       if (JSON.stringify(await verdict(op, args, permission)) !== before) moved.push(`${label} · ${op} ${JSON.stringify(args ?? {})}`)
     }
   }
-  check(`${contexts.length} sets of rules that deny no Read of the file, ${inputs.length} calls: the answer is byte for byte the one given with no rules at hand`, moved.length === 0, moved.join(' | '))
+  check(`${contexts.length} sets of rules that deny no Read of the file, ${inputs.length} calls: the answer is byte for byte the one given with no rules at hand`, moved.length === 0, moved.join(' | ') + PERM_FIX)
   const asked = withRules('alwaysAskRules', 'session', ['Read(secret/**)'])
   const read = await use('objects_list', { blend: 'secret/unit.blend' }, asked)
-  check('where a Read would only ask, the free read still answers with no question, as before', directRead(SECRET, asked).behavior === 'ask' && read.behavior === 'allow' && read.answer.includes('SecretRig'), `${read.behavior} ${read.answer.slice(0, 80)}`)
+  check('where a Read would only ask, the free read still answers with no question, as before', directRead(SECRET, asked).behavior === 'ask' && read.behavior === 'allow' && read.answer.includes('SecretRig'), `${read.behavior} ${read.answer.slice(0, 80)}` + PERM_FIX)
   const bare = await Promise.all([verdict('scene_info', { blend: 'secret/unit.blend' }, null), (BlenderTool as { checkPermissions: Function }).checkPermissions({ op: 'scene_info', args: { blend: 'secret/unit.blend' } })])
-  check('a caller that hands the tool no session decides as before: a read is allowed', bare.every(one => (one as Verdict).behavior === 'allow'), JSON.stringify(bare))
+  check('a caller that hands the tool no session decides as before: a read is allowed', bare.every(one => (one as Verdict).behavior === 'allow'), JSON.stringify(bare) + PERM_FIX)
 }
 
 rmSync(world, { recursive: true, force: true })

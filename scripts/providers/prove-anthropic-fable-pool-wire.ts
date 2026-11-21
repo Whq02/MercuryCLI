@@ -17,7 +17,7 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 500)} — ` : ''}fix the Fable pool reading: usage and header folding in src/services/anthropicLimits.ts, pool views, the rail and the binding window in src/services/providers/providerUsage.ts, the endpoint read in src/services/api/usage.ts, the refusal sentence in src/services/rateLimitMessages.ts; the recorded replies are under scripts/providers/fixtures` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

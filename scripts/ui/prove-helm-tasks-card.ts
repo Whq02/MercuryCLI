@@ -76,10 +76,10 @@ saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: 
 const h = React.createElement
 let failures = 0
 let checks = 0
-function check(label: string, good: boolean, detail = ''): void {
+function check(label: string, good: boolean, detail = '', hint = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!good && hint ? ` — to fix: ${hint}` : ''}`)
 }
 async function until(label: string, predicate: () => boolean, budgetMs = 5000): Promise<boolean> {
   let expired = false
@@ -108,7 +108,7 @@ class Input extends EventEmitter {
   get readableLength(): number { return this.chunks.reduce((n, value) => n + value.length, 0) }
   push(value: string): void { this.chunks.push(value); this.emit('readable') }
 }
-const hardLimit = setTimeout(() => { console.error('helm tasks-card proof exceeded its deadline'); process.exit(1) }, 150_000)
+const hardLimit = setTimeout(() => { console.error('helm tasks-card proof exceeded its deadline (150 s): a mount never reached its until() condition (composer, vitals ledger or frames); read the last FAIL line above and the mount() helper in scripts/ui/prove-helm-tasks-card.ts'); process.exit(1) }, 150_000)
 hardLimit.unref()
 const faults: string[] = []
 const originalError = console.error
@@ -223,15 +223,15 @@ function dumpRail(name: string, frame: string, since: number): void {
 }
 function railCard(name: string, frame: string): void {
   const rail = railText(frame)
-  check(`${name}: the rail paints no TASKS card`, !/TASKS/.test(rail) && !/no open tasks/.test(rail), railHits(frame, /TASKS|no open tasks/))
-  check(`${name}: the rail publishes no ledger rows of its own`, missionLabels().length === 0, missionLabels().join(', '))
+  check(`${name}: the rail paints no TASKS card`, !/TASKS/.test(rail) && !/no open tasks/.test(rail), railHits(frame, /TASKS|no open tasks/), 'the lanes rail must not paint a TASKS card; the ledger belongs to the working strip and the ctrl+t tree, so remove the card from the rail sections built in src/services/cockpit/helmLanesModel.ts')
+  check(`${name}: the rail publishes no ledger rows of its own`, missionLabels().length === 0, missionLabels().join(', '), 'getHelmRows(lanes) in src/utils/cockpit/helmFocus.ts must not list mission: rows; stop the lanes model from publishing the task ledger as rail rows')
 }
 function runsDoor(name: string, frame: string): void {
   const rail = railText(frame)
-  check(`${name}: RUNS counts the one live shell`, /RUNS · 1 live/.test(rail), railHits(frame, /RUNS/))
-  check(`${name}: the run row names the shell with its live elapsed verb`, new RegExp(`${SHELL_NAME} · shell 12m`).test(rail), railHits(frame, /shell/))
+  check(`${name}: RUNS counts the one live shell`, /RUNS · 1 live/.test(rail), railHits(frame, /RUNS/), 'the RUNS section (label RUNS, count live) is built in src/services/cockpit/helmLanesModel/sections.ts; it must count the one running shell row')
+  check(`${name}: the run row names the shell with its live elapsed verb`, new RegExp(`${SHELL_NAME} · shell 12m`).test(rail), railHits(frame, /shell/), 'the run row text comes from the RUNS section in src/services/cockpit/helmLanesModel/sections.ts; it must read name, then shell, then the elapsed minutes')
   const door = lanesRows().find(row => row.label === `run:${SHELL_ID}`)
-  check(`${name}: the run row opens its card on the /runs board`, door !== undefined && door.kind === 'command' && door.command === `/runs ${SHELL_ID}`, JSON.stringify(door ?? null))
+  check(`${name}: the run row opens its card on the /runs board`, door !== undefined && door.kind === 'command' && door.command === `/runs ${SHELL_ID}`, JSON.stringify(door ?? null), 'the RUNS section in src/services/cockpit/helmLanesModel/sections.ts must publish a row labelled run:<id> with kind command and command /runs <id>')
 }
 
 console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
@@ -241,7 +241,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const world = await mount('busy-empty', { rows: [shellRow()], mission: [] })
   const frame = world.frame()
   file('busy-empty-ledger-178x51.txt', frame)
-  check('the fixture owns the files door (the scratch project) and the rail paints no seat row', !/\(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/))
+  check('the fixture owns the files door (the scratch project) and the rail paints no seat row', !/\(you\)/.test(railText(frame)) && /FILES · fixture-project/.test(railText(frame)), railHits(frame, /\(you\)|FILES/), 'with no seats the lanes rail paints no (you) row and its FILES door names the project folder; check the sections in src/services/cockpit/helmLanesModel/sections.ts')
   runsDoor('busy-empty', frame)
   railCard('busy-empty', frame)
   dumpRail('busy-empty', frame, since)
@@ -255,9 +255,9 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   file('busy-ledger-178x51.txt', frame)
   runsDoor('busy-ledger', frame)
   railCard('busy-ledger', frame)
-  check('busy-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(railText(frame)), railHits(frame, /reef|tide|harb/))
-  check('busy-ledger: the working strip narrates the next pending task (the ledger reached the spinner)', frame.includes('next: Refit the tide gauges'))
-  check('busy-ledger: the ledger tree is closed until the operator opens it', !frame.includes('Stow the survey gear'))
+  check('busy-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(railText(frame)), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/services/cockpit/helmLanesModel.ts')
+  check('busy-ledger: the working strip narrates the next pending task (the ledger reached the spinner)', frame.includes('next: Refit the tide gauges'), '', 'the working strip in src/components/Spinner.tsx must print next: and the first pending task subject; check that the vitals bus tasks reach it')
+  check('busy-ledger: the ledger tree is closed until the operator opens it', !frame.includes('Stow the survey gear'), '', 'the completed row must show only in the ctrl+t ledger tree; a closed tree must not list it, so check the working strip and rail for a completed-task leak')
   dumpRail('busy-ledger', frame, since)
   const sinceTree = failures
   const before = world.frames()
@@ -265,7 +265,7 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const opened = await until('ctrl+t: the ledger tree opens inline in the cockpit (the completed row only the tree lists)', () => world.frame().includes('Stow the survey gear'))
   const tree = world.frame()
   file('ctrl-t-ledger-tree-178x51.txt', tree)
-  check('ctrl+t: the tree lists the in-progress and queued rows too', tree.includes('Chart the reef current') && tree.includes('Refit the tide gauges') && tree.includes('Sound the harbor depth'))
+  check('ctrl+t: the tree lists the in-progress and queued rows too', tree.includes('Chart the reef current') && tree.includes('Refit the tide gauges') && tree.includes('Sound the harbor depth'), '', 'the ctrl+t ledger tree must list every ledger row; check that ctrl+t reaches the cockpit key handler (GlobalKeybindingHandlers in src/hooks/useGlobalKeybindings.tsx) and opens the tree')
   railCard('ctrl+t', tree)
   runsDoor('ctrl+t', tree)
   if (opened) {
@@ -282,16 +282,16 @@ console.log(`helm tasks-card proof — product root ${ROOT} at ${COLS}x${ROWS}`)
   const frame = world.frame()
   file('solo-ledger-178x51.txt', frame)
   const rail = railText(frame)
-  check('solo-ledger: no RUNS section without a live process', !/RUNS/.test(rail))
+  check('solo-ledger: no RUNS section without a live process', !/RUNS/.test(rail), railHits(frame, /RUNS/), 'the RUNS section in src/services/cockpit/helmLanesModel/sections.ts must be omitted when the work roster has no live rows')
   railCard('solo-ledger', frame)
-  check('solo-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(rail), railHits(frame, /reef|tide|harb/))
-  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/health/.test(rail) && /\/memory/.test(rail), railHits(frame, /NEXT|\/health|\/memory/))
+  check('solo-ledger: the rail paints none of the ledger rows', !/Charting the reef|Refit the tide|Sound the harb/.test(rail), railHits(frame, /reef|tide|harb/), 'ledger subjects belong in the working strip and the ctrl+t tree only; remove them from the lanes rail in src/services/cockpit/helmLanesModel.ts')
+  check('solo-ledger: a ledger alone leaves the solo layout in place (the NEXT hints paint)', /NEXT/.test(rail) && /\/health/.test(rail) && /\/memory/.test(rail), railHits(frame, /NEXT|\/health|\/memory/), 'a ledger alone must not switch the rail off the solo layout; the NEXT section is built in src/services/cockpit/helmLanesModel/sections.ts')
   dumpRail('solo-ledger', frame, since)
   await world.close()
 }
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'), 'a component threw while rendering; the fault text above names it, so fix the hook order or render error in that component under src/components')
 console.log(`helm tasks-card: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

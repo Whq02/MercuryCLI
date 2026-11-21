@@ -191,18 +191,19 @@ const ownFile = (copy: string, rel: string): boolean => {
 }
 const leftBehind = (copy: string): string[] => DEPENDENCY_FILES.filter(rel => !ownFile(copy, rel))
 const skippedFor = (reason: string): string[] => FOLDERS.filter(name => logged.some(line => line.includes('worktree copy skipped') && line.includes(reason) && line.endsWith(`: ${name}`)))
+const holdBackHint = 'change prepareWorktreeFiles in src/services/worktree.ts, the copy it makes where a link is refused, so it leaves out what the Read rules name'
 const roadHolds = async (road: string, copy: string, rules: unknown): Promise<void> => {
-  check(`${road}: the dependency folder and the open pack are folders of the copy's own, where the link was refused`, kindOf(join(copy, 'node_modules')) === 'folder' && kindOf(join(copy, 'vendor', 'pack-open')) === 'folder', `${kindOf(join(copy, 'node_modules'))}, ${kindOf(join(copy, 'vendor', 'pack-open'))}`)
-  check(`${road}: no file a Read rule refuses is in the copy: the folder a rule names whole, a file a pattern names at two depths, a pack named whole`, present(copy, REFUSED).length === 0, present(copy, REFUSED).join(', '))
+  check(`${road}: the dependency folder and the open pack are folders of the copy's own, where the link was refused`, kindOf(join(copy, 'node_modules')) === 'folder' && kindOf(join(copy, 'vendor', 'pack-open')) === 'folder', `${kindOf(join(copy, 'node_modules'))}, ${kindOf(join(copy, 'vendor', 'pack-open'))} | ` + holdBackHint)
+  check(`${road}: no file a Read rule refuses is in the copy: the folder a rule names whole, a file a pattern names at two depths, a pack named whole`, present(copy, REFUSED).length === 0, present(copy, REFUSED).join(', ') + ' | ' + holdBackHint)
   const answers = await Promise.all(BY_PATH.map(async rel => [rel, await readAnswers(join(copy, rel), rules), await readAnswers(join(copy, dirname(rel), `never-was-there${extname(rel)}`), rules)] as const))
-  check(`${road}: a Read of each path the rules name by its place in the checkout answers, at its place in the copy, what a file that was never there answers`, answers.every(([, there, never]) => there === never && never.startsWith('error: ')), answers.filter(([, there, never]) => there !== never).map(([rel, there]) => `${rel}: ${there.slice(0, 60).replace(/\s+/g, ' ')}`).join(' | '))
-  if (folderLink) check(`${road}: a folder a rule names brings none of its files under the name of a link to it inside the dependency folder`, present(copy, ['node_modules/alias/key.txt', 'node_modules/alias/deep/more.txt']).length === 0, present(copy, ['node_modules/alias/key.txt', 'node_modules/alias/deep/more.txt']).join(', '))
-  if (fileLinks) check(`${road}: a link to a file a rule names is not copied as that file, and a link to a file no rule names is copied as the file`, kindOf(join(copy, 'node_modules', '.bin', 'key')) === 'absent' && kindOf(join(copy, 'node_modules', '.bin', 'tool')) === 'file' && read(join(copy, 'node_modules', '.bin', 'tool')) === OPEN['node_modules/open/index.js'], `${kindOf(join(copy, 'node_modules', '.bin', 'key'))}, ${kindOf(join(copy, 'node_modules', '.bin', 'tool'))}`)
-  check(`${road}: a folder that held one is copied without it`, kindOf(join(copy, 'node_modules', 'mixed')) === 'folder' && kindOf(join(copy, 'node_modules', 'mixed', 'inner')) === 'folder' && read(join(copy, 'node_modules', 'mixed', 'ok.js')) === OPEN['node_modules/mixed/ok.js'])
-  check(`${road}: an instruction file inside is in the copy, as it is behind a link`, Object.entries(INSTRUCTIONS).every(([rel, body]) => read(join(copy, rel)) === body), Object.keys(INSTRUCTIONS).filter(rel => read(join(copy, rel)) !== INSTRUCTIONS[rel]).join(', '))
-  check(`${road}: the credential file of a Mercury home inside is not in the copy, and what else that home holds is`, kindOf(join(copy, OWN_CREDENTIALS)) === 'absent' && read(join(copy, OWN_SESSION)) === '{}\n', `${kindOf(join(copy, OWN_CREDENTIALS))}, ${kindOf(join(copy, OWN_SESSION))}`)
-  check(`${road}: every file no rule names is copied as before, with its content`, Object.entries(OPEN).every(([rel, body]) => read(join(copy, rel)) === body), Object.keys(OPEN).filter(rel => read(join(copy, rel)) !== OPEN[rel]).join(', '))
-  check(`${road}: git sees nothing to commit in the copy`, git(copy, 'status', '--porcelain') === '', git(copy, 'status', '--porcelain').slice(0, 200))
+  check(`${road}: a Read of each path the rules name by its place in the checkout answers, at its place in the copy, what a file that was never there answers`, answers.every(([, there, never]) => there === never && never.startsWith('error: ')), answers.filter(([, there, never]) => there !== never).map(([rel, there]) => `${rel}: ${there.slice(0, 60).replace(/\s+/g, ' ')}`).join(' | ') + ' | ' + holdBackHint)
+  if (folderLink) check(`${road}: a folder a rule names brings none of its files under the name of a link to it inside the dependency folder`, present(copy, ['node_modules/alias/key.txt', 'node_modules/alias/deep/more.txt']).length === 0, present(copy, ['node_modules/alias/key.txt', 'node_modules/alias/deep/more.txt']).join(', ') + ' | ' + holdBackHint)
+  if (fileLinks) check(`${road}: a link to a file a rule names is not copied as that file, and a link to a file no rule names is copied as the file`, kindOf(join(copy, 'node_modules', '.bin', 'key')) === 'absent' && kindOf(join(copy, 'node_modules', '.bin', 'tool')) === 'file' && read(join(copy, 'node_modules', '.bin', 'tool')) === OPEN['node_modules/open/index.js'], `${kindOf(join(copy, 'node_modules', '.bin', 'key'))}, ${kindOf(join(copy, 'node_modules', '.bin', 'tool'))} | ` + holdBackHint)
+  check(`${road}: a folder that held one is copied without it`, kindOf(join(copy, 'node_modules', 'mixed')) === 'folder' && kindOf(join(copy, 'node_modules', 'mixed', 'inner')) === 'folder' && read(join(copy, 'node_modules', 'mixed', 'ok.js')) === OPEN['node_modules/mixed/ok.js'], holdBackHint)
+  check(`${road}: an instruction file inside is in the copy, as it is behind a link`, Object.entries(INSTRUCTIONS).every(([rel, body]) => read(join(copy, rel)) === body), Object.keys(INSTRUCTIONS).filter(rel => read(join(copy, rel)) !== INSTRUCTIONS[rel]).join(', ') + ' | ' + holdBackHint)
+  check(`${road}: the credential file of a Mercury home inside is not in the copy, and what else that home holds is`, kindOf(join(copy, OWN_CREDENTIALS)) === 'absent' && read(join(copy, OWN_SESSION)) === '{}\n', `${kindOf(join(copy, OWN_CREDENTIALS))}, ${kindOf(join(copy, OWN_SESSION))} | ` + holdBackHint)
+  check(`${road}: every file no rule names is copied as before, with its content`, Object.entries(OPEN).every(([rel, body]) => read(join(copy, rel)) === body), Object.keys(OPEN).filter(rel => read(join(copy, rel)) !== OPEN[rel]).join(', ') + ' | ' + holdBackHint)
+  check(`${road}: git sees nothing to commit in the copy`, git(copy, 'status', '--porcelain') === '', git(copy, 'status', '--porcelain').slice(0, 200) + ' | ' + holdBackHint)
 }
 
 try {
@@ -212,15 +213,15 @@ try {
   const rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
 
   section('the rules, where the files lie in the checkout')
-  check('the Read gate refuses each of the five files the rules name', REFUSED.every(rel => refused(rules, join(fixture, rel))), REFUSED.filter(rel => !refused(rules, join(fixture, rel))).join(', '))
-  check('…and none of the four they do not', Object.keys(OPEN).every(rel => !refused(rules, join(fixture, rel))))
+  check('the Read gate refuses each of the five files the rules name', REFUSED.every(rel => refused(rules, join(fixture, rel))), REFUSED.filter(rel => !refused(rules, join(fixture, rel))).join(', ') + ' | the deny rules come from .mercury/settings.json in the fixture; see checkReadPermissionForTool in src/utils/permissions/filesystem.ts')
+  check('…and none of the four they do not', Object.keys(OPEN).every(rel => !refused(rules, join(fixture, rel))), Object.keys(OPEN).filter(rel => refused(rules, join(fixture, rel))).join(', ') + ' | a Read rule refuses a file it should not; see checkReadPermissionForTool in src/utils/permissions/filesystem.ts')
 
   section('a crewmate\'s isolated copy, on an account that may not make a link')
   const crewmate = await make('agent-ac100001', { permission: rules })
   await crewmate.ready
-  check('the link was asked for and refused', refusals >= 2, String(refusals))
+  check('the link was asked for and refused', refusals >= 2, String(refusals) + ' | the copy should ask for a link before it falls back to copying; see prepareWorktreeFiles in src/services/worktree.ts')
   await roadHolds('a crewmate\'s copy', crewmate.worktreePath, rules)
-  check('the pack a rule names whole is left out, and the debug log names it', kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret')) === 'absent' && JSON.stringify(skippedFor('it stays behind')) === JSON.stringify(['vendor/pack-secret']), `${kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret'))} · ${logged.filter(line => line.includes('worktree copy')).join(' | ')}`)
+  check('the pack a rule names whole is left out, and the debug log names it', kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret')) === 'absent' && JSON.stringify(skippedFor('it stays behind')) === JSON.stringify(['vendor/pack-secret']), `${kindOf(join(crewmate.worktreePath, 'vendor', 'pack-secret'))} · ${logged.filter(line => line.includes('worktree copy')).join(' | ')} | ` + holdBackHint)
 
   section('a worktree a session enters (EnterWorktree, and --worktree at the start)')
   const session = await worktree.createWorktreeForSession(state.getSessionId(), 'copy-session', undefined, { gitRoot: fixture, permission: rules } as never)
@@ -237,8 +238,8 @@ try {
     process.env.MERCURY_WORKTREE_CLONE = 'off'
     refuse = true
     const [byClone, byCopy] = [leftBehind(cloned.worktreePath), leftBehind(crewmate.worktreePath)]
-    check('the clone holds back the five refused files and the home\'s credential file, each a link or under one', JSON.stringify(byClone) === JSON.stringify([...REFUSED, OWN_CREDENTIALS].sort()), byClone.join(', '))
-    check('the copy made where the link is refused leaves behind the same files as the clone, no more and no fewer', JSON.stringify(byCopy) === JSON.stringify(byClone), `clone: ${byClone.join(', ')} | copy: ${byCopy.join(', ')}`)
+    check('the clone holds back the five refused files and the home\'s credential file, each a link or under one', JSON.stringify(byClone) === JSON.stringify([...REFUSED, OWN_CREDENTIALS].sort()), byClone.join(', ') + ' | change the clone road in src/services/worktree.ts so it holds back the files the Read rules name')
+    check('the copy made where the link is refused leaves behind the same files as the clone, no more and no fewer', JSON.stringify(byCopy) === JSON.stringify(byClone), `clone: ${byClone.join(', ')} | copy: ${byCopy.join(', ')} | ` + holdBackHint)
   }
 
   section('where the rules cannot be read')
@@ -250,20 +251,20 @@ try {
     return tree
   }
   const blind = await lane('blind', 'unknown')
-  check('rules the command line gives and no session has read yet: nothing is copied, each folder is left out whole', FOLDERS.every(name => kindOf(join(blind, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(blind, ...name.split('/')))).join(', '))
-  check('…and the debug log names each folder and that the rules could not be read', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | '))
+  check('rules the command line gives and no session has read yet: nothing is copied, each folder is left out whole', FOLDERS.every(name => kindOf(join(blind, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(blind, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/services/worktree.ts must leave each folder out whole when the rules are unknown')
+  check('…and the debug log names each folder and that the rules could not be read', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/services/worktree.ts')
   const elsewhere = join(scratch, 'elsewhere')
   mkdirSync(elsewhere)
   enter(elsewhere)
   const worker = await lane('worker', undefined)
   enter(fixture)
-  check('a process that stands elsewhere, for a workspace whose own settings deny a read: nothing is copied either', FOLDERS.every(name => kindOf(join(worker, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(worker, ...name.split('/')))).join(', '))
-  check('…and the debug log says the same of each folder', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | '))
+  check('a process that stands elsewhere, for a workspace whose own settings deny a read: nothing is copied either', FOLDERS.every(name => kindOf(join(worker, ...name.split('/'))) === 'absent'), FOLDERS.map(name => kindOf(join(worker, ...name.split('/')))).join(', ') + ' | prepareWorktreeFiles in src/services/worktree.ts must leave each folder out whole when the rules cannot be read')
+  check('…and the debug log says the same of each folder', JSON.stringify(skippedFor('the Read rules could not be read')) === JSON.stringify(FOLDERS), logged.filter(line => line.includes('worktree copy')).join(' | ') + ' | the log line is written by prepareWorktreeFiles in src/services/worktree.ts')
 
   section('the checkout')
-  check('every file is where it was, the refused ones too', [...REFUSED, ...Object.keys(INSTRUCTIONS), OWN_CREDENTIALS, OWN_SESSION].every(rel => kindOf(join(fixture, rel)) === 'file') && Object.entries(OPEN).every(([rel, body]) => read(join(fixture, rel)) === body))
+  check('every file is where it was, the refused ones too', [...REFUSED, ...Object.keys(INSTRUCTIONS), OWN_CREDENTIALS, OWN_SESSION].every(rel => kindOf(join(fixture, rel)) === 'file') && Object.entries(OPEN).every(([rel, body]) => read(join(fixture, rel)) === body), 'the copy must never move or delete a file of the checkout; see prepareWorktreeFiles in src/services/worktree.ts')
   writeFileSync(join(crewmate.worktreePath, 'node_modules', 'open', 'index.js'), 'changed in the copy\n')
-  check('a write in the copy does not reach it', read(join(fixture, 'node_modules', 'open', 'index.js')) === OPEN['node_modules/open/index.js'])
+  check('a write in the copy does not reach it', read(join(fixture, 'node_modules', 'open', 'index.js')) === OPEN['node_modules/open/index.js'], 'a file in the copy must not be a link to the checkout file; see prepareWorktreeFiles in src/services/worktree.ts')
 } finally {
   Object.defineProperty(process, 'platform', platform)
   process.chdir(ROOT)

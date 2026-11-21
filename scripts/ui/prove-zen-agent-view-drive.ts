@@ -44,7 +44,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — the frames dumped below show what painted; change the screen code this proof watches (the gate-watch line at the top of this file: src/components/CrewmateTranscript.tsx, src/components/CompactIdentityBand.tsx, src/components/CrewmateCard.tsx, src/components/tasks/BackgroundTasksDialog.tsx, src/components/mercury-ui/screens/CrewView.tsx), or the sends in compactLeg and cockpitLeg when a frame never painted' : ''}`)
 }
 
 type Grid = Array<Array<{ c?: string } | string>>

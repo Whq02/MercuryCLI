@@ -31,10 +31,10 @@ console.log('entering a provider key has one home: /logins')
   console.log('\nthe flags and route-store retirement')
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
   for (const env of RETIRED_ENVS) {
-    check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env))
+    check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env), 'remove the retired flag row from the flag rows under src/substrate/flags/')
   }
   const homeStores = await import('../../src/utils/projectHomeStores.ts')
-  check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'))
+  check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'), 'remove the router store from PROJECT_HOME_STORES in src/utils/projectHomeStores.ts')
   const storeRepo = realpathSync(mkdtempSync(join(tmpdir(), 'retired-route-store-')))
   try {
     const git = (...args: string[]): string => execFileSync('git', args, { cwd: storeRepo, encoding: 'utf8' })
@@ -64,9 +64,9 @@ console.log('entering a provider key has one home: /logins')
 {
   console.log('\nthe key entry: every family the old board carried has its /logins row, key leg and slot switch')
   const { reconnectDoorFor } = await import('../../src/services/providers/credentialWall.ts')
-  check('the custom endpoint and the local server name their key variable (no sign-in leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY')
+  check('the custom endpoint and the local server name their key variable (no sign-in leg exists for them)', reconnectDoorFor('openai-compat') === 'MERCURY_COMPAT_API_KEY' && reconnectDoorFor('local') === 'MERCURY_LOCAL_API_KEY', 'fix reconnectDoorFor in src/services/providers/credentialWall.ts so openai-compat answers MERCURY_COMPAT_API_KEY and local answers MERCURY_LOCAL_API_KEY')
   const search = await import('../../src/services/search/searchContract.ts')
-  check('the web-search key door names the two variables', search.KEYED_DOOR_COMMANDS === 'BRAVE_API_KEY · TAVILY_API_KEY')
+  check('the web-search key door names the two variables', search.KEYED_DOOR_COMMANDS === 'BRAVE_API_KEY · TAVILY_API_KEY', 'set KEYED_DOOR_COMMANDS in src/services/search/searchContract.ts to BRAVE_API_KEY · TAVILY_API_KEY')
 }
 
 {
@@ -119,7 +119,7 @@ console.log('entering a provider key has one home: /logins')
       resolveBraveSearchApiKey({} as NodeJS.ProcessEnv)?.key === 'brave-stored-key-0014' &&
       resolveTavilyApiKey({} as NodeJS.ProcessEnv)?.key === 'tavily-stored-key-0015'
     const shaAfter = createHash('sha256').update(readFileSync(secretsFile)).digest('hex')
-    check('a key written in the base store format for every key-leg family and all four env-road FORK lanes is read byte for byte with sha256 unchanged', allMatch && shaBefore === shaAfter && (statSync(secretsFile).mode & 0o777) === 0o600)
+    check('a key written in the base store format for every key-leg family and all four env-road FORK lanes is read byte for byte with sha256 unchanged', allMatch && shaBefore === shaAfter && (statSync(secretsFile).mode & 0o777) === 0o600, 'fix the stored-key readers in src/utils/accounts/providerSecrets.ts (or the resolve*ApiKey readers under src/services/providers and src/services/search) so every seeded key reads back unchanged and the file is never rewritten')
     rmSync(secretsFile, { force: true })
 
     const registry = await import(movedRegistryPath)
@@ -207,16 +207,16 @@ console.log('entering a provider key has one home: /logins')
   const report = await import('../../src/services/health/healthReport.ts')
   const sectionIds = (cert: Awaited<ReturnType<typeof report.runHealthReport>>): string[] => cert.sections.map(s => s.id)
   const plain = await report.runHealthReport({ depth: 'fast' })
-  check('no section of the certificate is the route section', !sectionIds(plain).includes('router-fast') && !plain.sections.some(s => s.title === 'ROUTER'))
-  check('no check id begins with the retired word', !plain.sections.flatMap(s => s.checks).some(c => c.id.startsWith('router-')))
+  check('no section of the certificate is the route section', !sectionIds(plain).includes('router-fast') && !plain.sections.some(s => s.title === 'ROUTER'), 'remove the router section from runHealthReport in src/services/health/healthReport.ts')
+  check('no check id begins with the retired word', !plain.sections.flatMap(s => s.checks).some(c => c.id.startsWith('router-')), 'rename or remove the router- check in the health sections run by runHealthReport in src/services/health/healthReport.ts')
   const slots = plain.sections.flatMap(s => s.checks).find(c => c.id === 'provider-slots')
-  check('the provider honesty row lives on under AUTH', slots !== undefined && plain.sections.find(s => s.id === 'auth')?.checks.some(c => c.id === 'provider-slots') === true)
+  check('the provider honesty row lives on under AUTH', slots !== undefined && plain.sections.find(s => s.id === 'auth')?.checks.some(c => c.id === 'provider-slots') === true, 'restore the provider-slots check under the auth section built by runHealthReport in src/services/health/healthReport.ts')
   for (const env of RETIRED_ENVS) process.env[env] = env === 'MERCURY_ROUTER_POSTURE' ? RETIRED_POSTURES[1]! : env === 'MERCURY_MISSION_POLICY' ? 'specialist-sol' : '0'
   const pinned = await report.runHealthReport({ depth: 'fast' })
   for (const env of RETIRED_ENVS) delete process.env[env]
   check('a retired flag set in the environment is an unknown input: the certificate keeps its sections', sectionIds(pinned).join('|') === sectionIds(plain).join('|'), sectionIds(pinned).join('|'))
   const words = pinned.sections.flatMap(s => s.checks).map(c => `${c.evidence ?? ''} ${c.fix ?? ''}`).join('\n')
-  check('…and no row answers it with a refusal sentence or names it', !RETIRED_ENVS.some(env => words.includes(env)))
+  check('…and no row answers it with a refusal sentence or names it', !RETIRED_ENVS.some(env => words.includes(env)), 'drop every row that names a retired flag from the health sections run by runHealthReport in src/services/health/healthReport.ts')
 
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   const { getSettingsWithAllErrors } = await import('../../src/services/settings/allErrors.ts')

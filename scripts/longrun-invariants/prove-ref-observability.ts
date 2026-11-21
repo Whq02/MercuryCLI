@@ -66,7 +66,7 @@ const ctx: ResourceContext = {
   cwd: scratch,
   getAppState: () => ({ tasks }),
 }
-check('setup: registry serves the agent adapter', (await resourceAdapterKinds()).some(row => row.kind === 'agent'))
+check('setup: registry serves the agent adapter', (await resourceAdapterKinds()).some(row => row.kind === 'agent'), 'register the agent adapter (agentAdapter in src/services/resources/adapters/agent.ts) in src/services/resources/registry.ts')
 const resolveRef = (raw: string) => resolveResource(raw, ctx)
 
 console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical projection) ===')
@@ -75,40 +75,40 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
   writeAgentTranscript(doneFile, { finalText: 'All four spot-checked findings are genuinely closed in source. Final report.' })
   tasks['ag-done'] = { id: 'ag-done', type: 'agent', status: 'completed', description: 'verify docs', startTime: 1, endTime: 2, outputFile: doneFile }
   const done = await resolveRef('mercury://agent/ag-done?child=report')
-  check('completed report resolves ok', done.state === 'ok')
+  check('completed report resolves ok', done.state === 'ok', `state=${done.state}; agentAdapter.resolve in src/services/resources/adapters/agent.ts must answer ok for a ?child=report ref whose task has an outputFile transcript`)
   if (done.state === 'ok') {
-    check('…text IS the final report', done.resource.text?.startsWith('All four spot-checked findings') === true, done.resource.text?.slice(0, 60))
+    check('…text IS the final report', done.resource.text?.startsWith('All four spot-checked findings') === true, `${done.resource.text?.slice(0, 60)}; change reportText in src/services/resources/adapters/agent.ts so the text starts with view.finalText`)
     const s = done.resource.structured as { running?: boolean; hasFinalText?: boolean }
-    check('…structured says settled + hasFinalText', s.running === false && s.hasFinalText === true)
+    check('…structured says settled + hasFinalText', s.running === false && s.hasFinalText === true, `${JSON.stringify(s)}; change the structured block of the ?child=report branch in agentAdapter.resolve (src/services/resources/adapters/agent.ts)`)
   }
 
   const liveFile = join(scratch, 'agent-live.jsonl')
   writeAgentTranscript(liveFile, { finalText: 'interim thoughts…' })
   tasks['ag-live'] = { id: 'ag-live', type: 'agent', status: 'running', description: 'hunting', startTime: 1, outputFile: liveFile }
   const live = await resolveRef('mercury://agent/ag-live?child=report')
-  check('running report resolves ok', live.state === 'ok')
+  check('running report resolves ok', live.state === 'ok', `state=${live.state}; agentAdapter.resolve in src/services/resources/adapters/agent.ts must answer ok for a running task with a transcript`)
   if (live.state === 'ok') {
-    check('…summary carries REPORT NOT FINAL', live.resource.summary.includes('REPORT NOT FINAL'))
-    check('…text marks the running state', live.resource.text?.includes('RUNNING') === true)
+    check('…summary carries REPORT NOT FINAL', live.resource.summary.includes('REPORT NOT FINAL'), `${live.resource.summary}; the ?child=report summary in agentAdapter.resolve (src/services/resources/adapters/agent.ts) must add REPORT NOT FINAL while the task is running`)
+    check('…text marks the running state', live.resource.text?.includes('RUNNING') === true, `${live.resource.text?.slice(-120)}; reportText in src/services/resources/adapters/agent.ts must append the still RUNNING line when running`)
   }
 
   const quietFile = join(scratch, 'agent-quiet.jsonl')
   writeAgentTranscript(quietFile, {})
   tasks['ag-quiet'] = { id: 'ag-quiet', type: 'agent', status: 'running', description: 'starting', startTime: 1, outputFile: quietFile }
   const quiet = await resolveRef('mercury://agent/ag-quiet?child=report')
-  check('no-text-yet resolves ok with honest note', quiet.state === 'ok' && quiet.resource.text?.includes('no report yet') === true)
+  check('no-text-yet resolves ok with honest note', quiet.state === 'ok' && quiet.resource.text?.includes('no report yet') === true, `state=${quiet.state}; reportText in src/services/resources/adapters/agent.ts must say no report yet when a running transcript has no final text`)
 
   const absent = await resolveRef('mercury://agent/nope?child=report')
-  check('unknown agent answers absent (never an empty ok)', absent.state === 'absent')
+  check('unknown agent answers absent (never an empty ok)', absent.state === 'absent', `state=${absent.state}; agentAdapter.resolve in src/services/resources/adapters/agent.ts must return state absent when no task and no transcript exist`)
 
   const bigFile = join(scratch, 'agent-big.jsonl')
   writeAgentTranscript(bigFile, { finalText: 'R'.repeat(OUTCOME_CAP_CHARS + 500) })
   tasks['ag-big'] = { id: 'ag-big', type: 'agent', status: 'completed', description: 'long report', startTime: 1, endTime: 2, outputFile: bigFile }
   const big = await resolveRef('mercury://agent/ag-big?child=report')
-  check('over-cap report is MARKED truncated', big.state === 'ok' && big.resource.text?.includes('[report truncated') === true)
+  check('over-cap report is MARKED truncated', big.state === 'ok' && big.resource.text?.includes('[report truncated') === true, `state=${big.state}; reportText in src/services/resources/adapters/agent.ts must append the report truncated line when view.finalTextTruncated, which OUTCOME_CAP_CHARS in src/services/crew/agentTranscriptReader.ts sets`)
 
   const detail = await resolveRef('mercury://agent/ag-done')
-  check('detail view advertises ?child=report', detail.state === 'ok' && (detail.resource.children ?? []).some(c => c.ref.endsWith('?child=report')))
+  check('detail view advertises ?child=report', detail.state === 'ok' && (detail.resource.children ?? []).some(c => c.ref.endsWith('?child=report')), `state=${detail.state}; the detail branch of agentAdapter.resolve in src/services/resources/adapters/agent.ts must list the ?child=report child`)
 
   const env: AgentResultEnvelope = {
     version: 1,
@@ -123,7 +123,7 @@ console.log('\n=== items 3: mercury://agent/<id>?child=report (canonical project
     unresolved: [],
     fullOutputRef: 'mercury://agent/ag-done',
   } as unknown as AgentResultEnvelope
-  check('envelope advertises ?child=report', formatEnvelopeBlock(env).includes('mercury://agent/ag-done?child=report'))
+  check('envelope advertises ?child=report', formatEnvelopeBlock(env).includes('mercury://agent/ag-done?child=report'), 'formatEnvelopeBlock in src/services/agentResults/normalize.ts must print the fullOutputRef followed by ?child=report')
 }
 
 rmSync(scratch, { recursive: true, force: true })

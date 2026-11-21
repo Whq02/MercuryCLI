@@ -12,9 +12,11 @@ const { validateRecord } = await import('../../src/fabric/validate.js')
 const { buildCompass1k } = await import('../navigation/fixture1k.js')
 
 let failures = 0
+const fabricHint = 'fix the fabric module this check exercises: src/fabric/ordinal.ts, src/fabric/entryCodec.ts or src/fabric/validate.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail}; ${fabricHint}` : fabricHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

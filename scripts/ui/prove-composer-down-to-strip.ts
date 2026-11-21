@@ -79,7 +79,12 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ` | fix: ${failureHint(label)}`}`)
+}
+function failureHint(label: string): string {
+  if (/rail|full width|band rule|zen chip|composer is whole|status row/.test(label)) return 'the layout at this size comes from railPlan in src/utils/helmGeometry.ts and the zen state in src/utils/cockpit/zenMode.ts; change them, then check the frame this size paints'
+  if (/strip|\u2193|\u2191|typed letter|esc leaves|composer takes the keys/.test(label)) return 'the hand-off between the composer and the counts strip is driven by the compactFocus prop in src/components/PromptInput/PromptInput.tsx; its hint text is in src/components/mercury-ui/compactModeChip.ts'
+  return 'see the detail above and the component this section paints, src/components/PromptInput/PromptInput.tsx'
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -113,7 +118,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('composer-down-to-strip exceeded its deadline'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('composer-down-to-strip exceeded its 240 s deadline; a frame this proof waits for (the chat, the strip focus) never painted, so look at the last until() wait it printed and at src/components/PromptInput/PromptInput.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const save = (name: string, lines: string[]): void => {

@@ -47,9 +47,10 @@ const CTRL_W = '\x17'
 const BACKSPACE = '\x7f'
 
 let failures = 0
+const bangClearFailHint = 'to fix, change how a clear key leaves shell mode in the composer key handling of src/components/PromptInput/useComposerRawKeys.ts (the setMode(\'prompt\') branch) or the mode and text state in src/input-core/pending-input.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 400)} · ` : ''}${bangClearFailHint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

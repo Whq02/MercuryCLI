@@ -37,22 +37,22 @@ const catalogue = getAllBaseTools()
 const pool = getTools(permission)
 const census = buildToolCensus()
 
-check('A1 the file courier folder is absent', !existsSync(join(root, 'src/tools', `${name}Tool`)))
-check('A3 neither the catalogue nor either session posture resolves the name', findToolByName(catalogue, name) === undefined)
+check('A1 the file courier folder is absent', !existsSync(join(root, 'src/tools', `${name}Tool`)), `delete the src/tools/${name}Tool folder`)
+check('A3 neither the catalogue nor either session posture resolves the name', findToolByName(catalogue, name) === undefined, 'remove the courier tool from getAllBaseTools in src/tools.ts')
 for (const interactive of [false, true]) {
   setIsInteractive(interactive)
-  check(`A3 ${interactive ? 'interactive' : 'headless'} pool has no courier`, findToolByName(getTools(permission), name) === undefined)
+  check(`A3 ${interactive ? 'interactive' : 'headless'} pool has no courier`, findToolByName(getTools(permission), name) === undefined, 'remove the courier tool from getTools in src/tools.ts')
 }
 setIsInteractive(false)
-check('A4 neither the census nor its gap lines name the courier', !census.rows.some(row => row.name === name) && !json(censusGapLines(census)).includes(name))
-check('A5 a recorded courier uses the ordinary unknown family', toolFamilyFor(name) === toolFamilyFor(nonsense) && toolFamilyFor(name) === 'system')
+check('A4 neither the census nor its gap lines name the courier', !census.rows.some(row => row.name === name) && !json(censusGapLines(census)).includes(name), 'remove the courier name from buildToolCensus in src/services/capability/census.ts')
+check('A5 a recorded courier uses the ordinary unknown family', toolFamilyFor(name) === toolFamilyFor(nonsense) && toolFamilyFor(name) === 'system', 'drop any courier-specific family entry in toolFamilyFor in src/components/mercury-ui/toolGlyphs.ts')
 const agent = (toolName: string, tools = catalogue) => resolveAgentTools({ tools: ['Read', toolName], source: 'userSettings' }, tools)
 for (const [label, tools] of [['catalogue', catalogue], ['session', pool]] as const) {
   const result = agent(name, tools)
-  check(`A6 ${label} agent lists mark the courier unknown`, json(result.validTools) === json(['Read']) && json(result.invalidTools) === json([name]), json({ valid: result.validTools, invalid: result.invalidTools }))
+  check(`A6 ${label} agent lists mark the courier unknown`, json(result.validTools) === json(['Read']) && json(result.invalidTools) === json([name]), json({ valid: result.validTools, invalid: result.invalidTools }) + ' | resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must treat the courier name as unknown')
 }
 const denied = (toolName: string) => resolveAgentTools({ tools: ['*'], disallowedTools: [toolName], source: 'userSettings' }, catalogue).resolvedTools.map(tool => tool.name)
-check('agent disallowedTools takes the generic unknown-name road', json(denied(name)) === json(denied(nonsense)))
+check('agent disallowedTools takes the generic unknown-name road', json(denied(name)) === json(denied(nonsense)), 'resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must not special-case the courier name in disallowedTools')
 
 const app = { toolPermissionContext: permission, sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }
 const setAppState = (update: (state: typeof app) => typeof app) => update(app)
@@ -88,31 +88,31 @@ const ordinary = await call(nonsense)
 const normalize = (value: unknown, toolName: string): string => json(value).replaceAll(toolName, '<unknown>')
 for (const spelling of [name, FILE_TOOL_SPELLINGS[2], FILE_TOOL_SPELLINGS[3]]) {
   const blocks = await call(spelling)
-  check(`B1 ${spelling} returns one generic unknown-name error`, blocks.length === 1 && blocks[0]?.is_error === true && normalize(blocks, spelling) === normalize(ordinary, nonsense), json(blocks))
+  check(`B1 ${spelling} returns one generic unknown-name error`, blocks.length === 1 && blocks[0]?.is_error === true && normalize(blocks, spelling) === normalize(ordinary, nonsense), json(blocks) + ' | runToolUse in src/services/tools/toolExecution.ts must give this name the same unknown-tool error as any unknown name')
   const verdict = gateToolCall(pool, { id: 'call_courier', name: spelling, argumentsRaw: json(input), malformed: false })
   const generic = gateToolCall(pool, { id: 'call_courier', name: nonsense, argumentsRaw: json(input), malformed: false })
-  check(`B3 ${spelling} takes the ordinary provider unknown-name gate`, !verdict.ok && verdict.refusal.code === 'unknown-tool' && normalize(verdict, spelling) === normalize(generic, nonsense), json(verdict))
+  check(`B3 ${spelling} takes the ordinary provider unknown-name gate`, !verdict.ok && verdict.refusal.code === 'unknown-tool' && normalize(verdict, spelling) === normalize(generic, nonsense), json(verdict) + ' | gateToolCall in src/services/providers/toolCallGate.ts must refuse this name as unknown-tool like any unknown name')
   if (!verdict.ok && !generic.ok) {
-    for (const lane of ['openai', 'zai', 'openaicompat']) check(`B3 ${lane} ${spelling} has the generic refusal note`, normalize(toolCallRefusalNote(lane, verdict.refusal), spelling) === normalize(toolCallRefusalNote(lane, generic.refusal), nonsense))
+    for (const lane of ['openai', 'zai', 'openaicompat']) check(`B3 ${lane} ${spelling} has the generic refusal note`, normalize(toolCallRefusalNote(lane, verdict.refusal), spelling) === normalize(toolCallRefusalNote(lane, generic.refusal), nonsense), 'toolCallRefusalNote in src/services/providers/toolCallGate.ts must not special-case this name')
   }
 }
-check('B4 unknown calls never reach the tool guard nor fire tool.after', pre === 0 && !existsSync(failedMark), json({ pre, after: existsSync(failedMark) }))
+check('B4 unknown calls never reach the tool guard nor fire tool.after', pre === 0 && !existsSync(failedMark), json({ pre, after: existsSync(failedMark) }) + ' | runToolUse in src/services/tools/toolExecution.ts must return the unknown-tool error before the tool guard and tool.after hooks')
 
 for (const suffix of ['', '(*)', '(report.pdf)']) {
-  check(`saved rule ${suffix || '(bare)'} uses ordinary syntax validation`, json(validatePermissionRule(name + suffix)) === json(validatePermissionRule(nonsense + suffix)))
+  check(`saved rule ${suffix || '(bare)'} uses ordinary syntax validation`, json(validatePermissionRule(name + suffix)) === json(validatePermissionRule(nonsense + suffix)), 'validatePermissionRule in src/utils/settings/permissionValidation.ts must not special-case the courier name')
   const rules = { ...permission, alwaysAllowRules: { cliArg: [name + suffix] }, alwaysDenyRules: { cliArg: [name + suffix] }, alwaysAskRules: { cliArg: [name + suffix] } }
-  check(`saved rule ${suffix || '(bare)'} matches no live builtin`, catalogue.every(tool => toolAlwaysAllowedRule(rules, tool) === null && getDenyRuleForTool(rules, tool) === null && getAskRuleForTool(rules, tool) === null))
+  check(`saved rule ${suffix || '(bare)'} matches no live builtin`, catalogue.every(tool => toolAlwaysAllowedRule(rules, tool) === null && getDenyRuleForTool(rules, tool) === null && getAskRuleForTool(rules, tool) === null), 'a catalogue tool matches a saved courier rule; check src/utils/permissions/decision/rules.ts and remove the courier tool from the catalogue')
 }
 const cli = async (toolName: string) => initializeToolPermissionContext({ allowedToolsCli: [toolName], disallowedToolsCli: [toolName], permissionMode: 'default', allowDangerouslySkipPermissions: false })
-check('CLI allow and block lists keep the generic unknown-name effect and warnings', normalize(await cli(name), name) === normalize(await cli(nonsense), nonsense))
+check('CLI allow and block lists keep the generic unknown-name effect and warnings', normalize(await cli(name), name) === normalize(await cli(nonsense), nonsense), 'initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts must not special-case the courier name')
 for (const toolName of [name, nonsense]) {
   killCapability('*', toolName)
-  check(`${toolName} kill matches no builtin`, catalogue.every(tool => !isCapabilityKilled(tool.name)))
-  check(`${toolName} kill keeps ordinary MCP-server matching`, isCapabilityKilled(`mcp__${toolName}__read`))
+  check(`${toolName} kill matches no builtin`, catalogue.every(tool => !isCapabilityKilled(tool.name)), 'a builtin matched the kill; check killCapability in src/utils/permissions/capabilityGate.ts')
+  check(`${toolName} kill keeps ordinary MCP-server matching`, isCapabilityKilled(`mcp__${toolName}__read`), 'check isCapabilityKilled in src/utils/permissions/capabilityGate.ts')
   restoreCapability('*', toolName)
 }
 const search = async (toolName: string) => (await ToolSearchTool.call({ query: `select:${toolName}`, max_results: 5 }, context as never)).data
-check('ToolSearch select takes the same unknown-name road', normalize(await search(name), name) === normalize(await search(nonsense), nonsense))
+check('ToolSearch select takes the same unknown-name road', normalize(await search(name), name) === normalize(await search(nonsense), nonsense), 'ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts must not special-case the courier name')
 console.log(`census tools: ${census.summary.tools}`)
 console.log(failures === 0 ? 'file courier absence: ALL PASS' : `file courier absence: ${failures} FAILED`)
 rmSync(proofHome, { recursive: true, force: true })

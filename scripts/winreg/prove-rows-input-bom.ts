@@ -10,9 +10,10 @@ process.env.MERCURY_CONFIG_DIR = HOME
 const { StructuredIO } = await import('../../src/cli/structuredIO.ts')
 
 let failures = 0
+const BOM_FAIL_HINT = 'to fix: the line reader of StructuredIO in src/cli/structuredIO.ts must drop a leading byte order mark (stripBOM, from src/utils/jsonRead.ts) from the buffered line before it classifies the row, whichever chunk the mark arrives in'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${BOM_FAIL_HINT}` : ''}`)
 }
 
 type Run = { types: string[]; refused: string[]; exitCode: number | null }

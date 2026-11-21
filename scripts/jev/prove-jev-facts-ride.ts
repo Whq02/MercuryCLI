@@ -33,9 +33,10 @@ const PROOF_KEY = 'proof-key-jev-facts-ride-not-a-real-key-0003'
 const SNAKE = /^[a-z0-9]+(_[a-z0-9]+)*$/
 
 let failures = 0
+const FACTS_RIDE_HINT = 'the Jev facts row is built by jevFactsOf in src/services/jev/jevSessionFacts.ts, carried by sessionFactsToWire and sessionFactsFromWire in src/services/engine-connector/seatWire.ts, and painted by jevUsageRow in src/components/Settings/usage/compact.tsx and the popup in src/components/Settings/Jev.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 400)}; ` : ''}${FACTS_RIDE_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

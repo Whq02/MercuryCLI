@@ -14,8 +14,9 @@ const loading = await import(join(ROOT, 'src/utils/sessionStorage/loading.ts'))
 const chain = await import(join(ROOT, 'src/utils/sessionStorage/chain.ts'))
 
 let failures = 0
+const envelopeHint = 'change how recordTranscript in src/utils/sessionStorage/writer.ts chooses each row parent, or the chain read in src/utils/sessionStorage/loading.ts and chain.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${envelopeHint}` : ''}`)
   if (!ok) failures++
 }
 type Row = { uuid: string }

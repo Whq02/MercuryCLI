@@ -4,11 +4,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+let doorSource = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const doorHint = ok ? '' : 'change the effort check in ' + doorSource
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${doorHint ? ` — ${doorHint}` : ''}`)
 }
 const section = (t: string): void => {
+  doorSource = t.startsWith('§1') ? 'src/daemon/concourseWorkers/admit.ts (makeConcourseAdmitHandler)' : 'src/daemon/sessionSeat/effort.ts (setSessionEffort)'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

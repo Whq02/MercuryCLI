@@ -124,17 +124,17 @@ for (const road of roads) {
   const stamp = last?.busyRefusal
   const paused = last !== undefined && lane.overloadPauseOf([last as Message], road.model)
   console.log(`    ${road.name.padEnd(15)} requests=${count} typed=${String(last?.error ?? '')} stamp=${JSON.stringify(stamp)} row="${textOf(last).slice(0, 110)}"`)
-  check(`${road.name}: the spent row carries the busy stamp with the provider, six retries, the elapsed time and the wire's status`, stamp !== undefined && stamp.retries === 6 && stamp.elapsedMs >= 0 && stamp.status === road.status && typeof stamp.code === 'string' && stamp.provider.length > 0, JSON.stringify(stamp))
-  check(`${road.name}: the lane pauses as 'provider overloaded' with the stamped status in its words`, paused !== null && paused !== false && paused.pause.why === 'provider overloaded' && paused.status === road.status && paused.pause.words.includes(`is overloaded (HTTP ${road.status}) — Mercury probes it for up to`), JSON.stringify(paused))
-  check(`${road.name}: the ladder walked its six rungs (seven requests)`, count === 7, `${count} requests`)
+  check(`${road.name}: the spent row carries the busy stamp with the provider, six retries, the elapsed time and the wire's status`, stamp !== undefined && stamp.retries === 6 && stamp.elapsedMs >= 0 && stamp.status === road.status && typeof stamp.code === 'string' && stamp.provider.length > 0, `${JSON.stringify(stamp)} · busyRefusalFact in src/services/providers/busyRetry.ts must mint the stamp when the road's ladder is spent, and the ${road.name} call model must attach it to its final error row`)
+  check(`${road.name}: the lane pauses as 'provider overloaded' with the stamped status in its words`, paused !== null && paused !== false && paused.pause.why === 'provider overloaded' && paused.status === road.status && paused.pause.words.includes(`is overloaded (HTTP ${road.status}) — Mercury probes it for up to`), `${JSON.stringify(paused)} · overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx and overloadPauseWords in src/tasks/LocalAgentTask/agentOverload.ts must pause on the stamped row and carry its status`)
+  check(`${road.name}: the ladder walked its six rungs (seven requests)`, count === 7, `${count} requests · the busy retry ladder in src/services/providers/busyRetry.ts must walk six rungs (one request plus six retries) on the ${road.name} road`)
 }
 
 section("P2 Z.AI's 1305 is the provider overloaded, not a spent window")
 {
   const zai = spent.get('zai')
-  check('the 1305 row is typed rate_limit and stamped', zai?.error === 'rate_limit' && zai.busyRefusal !== undefined, JSON.stringify(zai?.busyRefusal))
-  check('usageWindowPauseOf declines it (a stamped row that asked for no wait is no window)', zai !== undefined && lane.usageWindowPauseOf([zai as Message], 'glm-5.2') === null)
-  check('overloadPauseOf takes it', zai !== undefined && lane.overloadPauseOf([zai as Message], 'glm-5.2') !== null)
+  check('the 1305 row is typed rate_limit and stamped', zai?.error === 'rate_limit' && zai.busyRefusal !== undefined, `${JSON.stringify(zai?.busyRefusal)} · isBusyRefusal in src/services/providers/busyRetry.ts must treat Z.AI code 1305 as busy, so the final row is rate_limit and stamped`)
+  check('usageWindowPauseOf declines it (a stamped row that asked for no wait is no window)', zai !== undefined && lane.usageWindowPauseOf([zai as Message], 'glm-5.2') === null, 'usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must return null for a stamped row that names no wait')
+  check('overloadPauseOf takes it', zai !== undefined && lane.overloadPauseOf([zai as Message], 'glm-5.2') !== null, 'overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must return a pause for the stamped Z.AI 1305 row')
 }
 
 section('P3 controls: what is NOT an overload keeps its road')
@@ -142,39 +142,39 @@ section('P3 controls: what is NOT an overload keeps its road')
   process.env.MERCURY_MAX_RETRIES = '1'
   const zaiRoad = roads.find(road => road.name === 'zai')!
   const { last: rate1302 } = await lastRow(zaiRoad, undefined, { status: 429, body: { error: { code: '1302', message: 'Too many requests, please slow down' } } })
-  check('Z.AI 1302 (a real rate limit): no stamp, the window road', rate1302 !== undefined && rate1302.busyRefusal === undefined && lane.usageWindowPauseOf([rate1302 as Message], 'glm-5.2') !== null && lane.overloadPauseOf([rate1302 as Message], 'glm-5.2') === null, JSON.stringify(rate1302?.busyRefusal))
+  check('Z.AI 1302 (a real rate limit): no stamp, the window road', rate1302 !== undefined && rate1302.busyRefusal === undefined && lane.usageWindowPauseOf([rate1302 as Message], 'glm-5.2') !== null && lane.overloadPauseOf([rate1302 as Message], 'glm-5.2') === null, `${JSON.stringify(rate1302?.busyRefusal)} · isBusyRefusal in src/services/providers/busyRetry.ts must not stamp Z.AI 1302, and usageWindowPauseOf and overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must send it to the window road`)
   const geminiRoad = roads.find(road => road.name === 'gemini')!
   const { last: exhausted } = await lastRow(geminiRoad, undefined, { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } } })
-  check('Gemini RESOURCE_EXHAUSTED: no stamp, no overload pause', exhausted !== undefined && exhausted.busyRefusal === undefined && lane.overloadPauseOf([exhausted as Message], 'gemini-3.5-flash') === null)
+  check('Gemini RESOURCE_EXHAUSTED: no stamp, no overload pause', exhausted !== undefined && exhausted.busyRefusal === undefined && lane.overloadPauseOf([exhausted as Message], 'gemini-3.5-flash') === null, 'isBusyRefusal in src/services/providers/busyRetry.ts must not stamp a Gemini RESOURCE_EXHAUSTED 429, and overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must decline it')
   const { last: askedRate } = await lastRow(geminiRoad, undefined, { status: 429, body: { error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: 'quota reached' } }, retryAfter: '1' })
-  check('a 429 that names a wait is not a busy provider: no stamp (isBusyRefusal keys the stamp)', askedRate !== undefined && askedRate.busyRefusal === undefined, JSON.stringify(askedRate?.busyRefusal))
+  check('a 429 that names a wait is not a busy provider: no stamp (isBusyRefusal keys the stamp)', askedRate !== undefined && askedRate.busyRefusal === undefined, `${JSON.stringify(askedRate?.busyRefusal)} · isBusyRefusal in src/services/providers/busyRetry.ts must not stamp a 429 that carries a retry-after`)
   delete process.env.MERCURY_MAX_RETRIES
   const anthropicRow = createAssistantAPIErrorMessage({ content: 'API Error: 529 {"type":"error","error":{"type":"overloaded_error","message":"Overloaded"},"request_id":"req_fixture"}', error: 'unknown' }) as Message
   const firstParty = lane.overloadPauseOf([anthropicRow], 'claude-fable-5-1')
-  check("the first-party 529 row still pauses by its words, status 529", firstParty !== null && firstParty.status === 529 && firstParty.pause.words.includes('(HTTP 529)'), JSON.stringify(firstParty))
+  check("the first-party 529 row still pauses by its words, status 529", firstParty !== null && firstParty.status === 529 && firstParty.pause.words.includes('(HTTP 529)'), `${JSON.stringify(firstParty)} · overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must still pause on the first-party 529 row by its words`)
   const handBuilt = createAssistantAPIErrorMessage({ content: 'API Error: the fixture endpoint stayed busy through 6 retries over 1 s — the fixture endpoint stream failed (http-503) — the endpoint is overloaded', error: 'server_error' }) as Message
-  check("a hand-built 'stayed busy through' row with no stamp does NOT pause (no string road)", lane.overloadPauseOf([handBuilt], 'compat/fixture-model') === null)
+  check("a hand-built 'stayed busy through' row with no stamp does NOT pause (no string road)", lane.overloadPauseOf([handBuilt], 'compat/fixture-model') === null, 'overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must not pause on error text alone when the row has no busyRefusal stamp')
   const asked = { ...(spent.get('gemini') as Row), providerWaitEndsAtMs: Date.now() + 60_000 } as unknown as Message
-  check('a stamped row that states its wait keeps the stated-wait road (the guard stays first)', lane.overloadPauseOf([asked], 'gemini-3.5-flash') === null && lane.usageWindowPauseOf([asked], 'gemini-3.5-flash') !== null)
+  check('a stamped row that states its wait keeps the stated-wait road (the guard stays first)', lane.overloadPauseOf([asked], 'gemini-3.5-flash') === null && lane.usageWindowPauseOf([asked], 'gemini-3.5-flash') !== null, 'overloadPauseOf and usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must check the stated wait (providerWaitEndsAtMs) first, so a stamped row with a wait stays on the window road')
   const fact = (busyRetry as { busyRefusalFact?: typeof busyRetry.busyRefusalFact }).busyRefusalFact
-  check('the stamp is minted by the busy answer alone', fact !== undefined && fact('X', busyRetry.openBusyRetryLadder(0), { code: 'http-429', status: 429, retryable: true }, 10) === null && fact('X', busyRetry.openBusyRetryLadder(0), { code: 'http-503', status: 503, retryable: true }, 10)?.status === 503)
+  check('the stamp is minted by the busy answer alone', fact !== undefined && fact('X', busyRetry.openBusyRetryLadder(0), { code: 'http-429', status: 429, retryable: true }, 10) === null && fact('X', busyRetry.openBusyRetryLadder(0), { code: 'http-503', status: 503, retryable: true }, 10)?.status === 503, 'busyRefusalFact in src/services/providers/busyRetry.ts must return null for a 429 and a fact carrying the status for a 503')
 }
 
 section('P4 the words: the stamped status rides the calm line; the first-party line is byte-identical')
 {
-  check('the first-party pause words are unchanged', overload.overloadPauseWords('Fable 5.1', 1) === 'Fable 5.1 is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the crewmate when it answers')
-  check('the first-party notice line is unchanged', overload.overloadNoticeWords('lane', 'Fable 5.1', 1) === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it')
-  check('a stamped 503 names 503', overload.overloadPauseWords('Gemini 3.5 Flash', 1, 503).startsWith('Gemini 3.5 Flash is overloaded (HTTP 503) — ') && overload.overloadNoticeWords('lane', 'Gemini 3.5 Flash', 1, 503).includes('is overloaded (HTTP 503);'))
-  check('a stamp without a status names none', overload.overloadPauseWords('Kimi', 1, null) === 'Kimi is overloaded — Mercury probes it for up to 1h and resumes the crewmate when it answers' && overload.overloadNoticeWords('lane', 'Kimi', 1, null).includes('Kimi is overloaded; its work'))
+  check('the first-party pause words are unchanged', overload.overloadPauseWords('Fable 5.1', 1) === 'Fable 5.1 is overloaded (HTTP 529) — Mercury probes it for up to 1h and resumes the crewmate when it answers', 'overloadPauseWords in src/tasks/LocalAgentTask/agentOverload.ts must keep its first-party wording byte for byte at status 529')
+  check('the first-party notice line is unchanged', overload.overloadNoticeWords('lane', 'Fable 5.1', 1) === 'Crewmate "lane" paused — Fable 5.1 is overloaded (HTTP 529); its work so far is kept and rides below; Mercury probes the provider for up to 1h and resumes the crewmate by itself when it answers — a message resumes it sooner; the crew view stops it', 'overloadNoticeWords in src/tasks/LocalAgentTask/agentOverload.ts must keep its first-party wording byte for byte at status 529')
+  check('a stamped 503 names 503', overload.overloadPauseWords('Gemini 3.5 Flash', 1, 503).startsWith('Gemini 3.5 Flash is overloaded (HTTP 503) — ') && overload.overloadNoticeWords('lane', 'Gemini 3.5 Flash', 1, 503).includes('is overloaded (HTTP 503);'), 'overloadPauseWords and overloadNoticeWords in src/tasks/LocalAgentTask/agentOverload.ts must put the stamped status in parentheses after is overloaded')
+  check('a stamp without a status names none', overload.overloadPauseWords('Kimi', 1, null) === 'Kimi is overloaded — Mercury probes it for up to 1h and resumes the crewmate when it answers' && overload.overloadNoticeWords('lane', 'Kimi', 1, null).includes('Kimi is overloaded; its work'), 'overloadPauseWords and overloadNoticeWords in src/tasks/LocalAgentTask/agentOverload.ts must name no status when the stamp has none (null)')
   const zai = spent.get('zai')
   const zaiPause = zai !== undefined ? lane.overloadPauseOf([zai as Message], 'glm-5.2') : null
-  check("Z.AI's line names the status the wire sent (429), never 529", zaiPause !== null && zaiPause.status === 429 && zaiPause.pause.words.includes('(HTTP 429)') && !zaiPause.pause.words.includes('529'), zaiPause?.pause.words)
+  check("Z.AI's line names the status the wire sent (429), never 529", zaiPause !== null && zaiPause.status === 429 && zaiPause.pause.words.includes('(HTTP 429)') && !zaiPause.pause.words.includes('529'), `${zaiPause?.pause.words} · overloadPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx must pass the stamped status (429) to overloadPauseWords, not the default 529`)
 }
 
 section('P5 an overload probe is one request per road (never a rung of the ladder)')
 for (const road of roads) {
   const { requests: count } = await lastRow(road, 'overload_probe')
-  check(`${road.name}: a probe-shaped call against the busy wire sends exactly one request`, count === 1, `${count} requests`)
+  check(`${road.name}: a probe-shaped call against the busy wire sends exactly one request`, count === 1, `${count} requests · the ${road.name} call model must skip the busy retry ladder (src/services/providers/busyRetry.ts) when querySource is overload_probe`)
 }
 
 console.log(failures === 0 ? '\nprove-overload-pause-every-family: ALL LAWS HOLD' : `\nprove-overload-pause-every-family: ${failures} FAILURE(S)`)

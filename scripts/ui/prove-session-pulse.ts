@@ -16,7 +16,7 @@ import { aggregateVelocity } from '../../src/utils/cockpit/traceSnapshot.js'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — to fix: aggregateVelocity in src/utils/cockpit/traceSnapshot.ts must bin calls into 14 one-minute slots, ignore future or invalid timestamps, and keep idleSec at the age of the newest valid call'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

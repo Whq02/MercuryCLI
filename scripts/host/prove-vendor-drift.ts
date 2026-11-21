@@ -16,7 +16,7 @@ let failures = 0
 const check = (name: string, value: unknown, detail: unknown = ''): void => {
   checks++
   if (!value) failures++
-  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail)))
+  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' — fix the vendor reader the check names: Runpod pods, logs and refusals in src/services/host/runpod.ts, spend in src/services/host/costs.ts, Lambda pages in src/services/host/vendors/lambda.ts, key help in src/services/host/vendors/vendor.ts, Hugging Face limit and offline words in src/services/host/hfRecipes.ts; if the vendor fixture (runpodFixture.mjs, lambdaFixture.mjs, hfFixture.mjs in scripts/host) no longer matches the vendor documents, change the fixture instead'))
 }
 const originalFetch = globalThis.fetch
 globalThis.fetch = Object.assign((input: RequestInfo | URL, init?: RequestInit) => {

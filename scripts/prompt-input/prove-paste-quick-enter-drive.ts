@@ -57,6 +57,9 @@ function check(label: string, ok: boolean, detail = ''): void {
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
 
+const ptyFix = ' — the paste or Enter reached the real dist/mercury.mjs through a PTY: rebuild with bun run build.ts if dist is stale, then read the leg jsonl in the scratch home and the Enter handling of a pasted draft in the composer'
+const inProcessFix = ' — the in-process composer joined or sent the paste differently than expected: check the burst-CR handling in src/ink/input/input-decoder.ts and the pasted draft handling in src/input-core/pending-input.ts'
+
 const { scenario, cleanupScenario, SID } = await import('../ui/renderScenarios.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
@@ -110,7 +113,7 @@ const daemonReady = await new Promise<boolean>(settleDaemon => {
     settleDaemon(false)
   })
 })
-check('isolated fixture daemon started', daemonReady, daemonLog.slice(-200))
+check('isolated fixture daemon started', daemonReady, daemonLog.slice(-200) + ' — the daemon started by node dist/mercury.mjs daemon run never printed control socket up: rebuild dist with bun run build.ts and read this log')
 
 async function runPty(
   name: string,
@@ -193,7 +196,7 @@ try {
     check(
       'bracketed paste + Enter in the same PTY write (0 ms) sends the whole paste on the first Enter',
       sentWhole,
-      `requests=${got.length} stderr=${run1.stderr.slice(-160)}`,
+      `requests=${got.length} stderr=${run1.stderr.slice(-160)}${ptyFix}`,
     )
   }
 
@@ -223,7 +226,7 @@ try {
     check(
       'bracketed paste + Enter ~40 ms later (< 100 ms) sends the whole paste on the first Enter',
       gapMs >= 10 && gapMs < 95 && sentWhole,
-      `gapMs=${gapMs} requests=${got.length}`,
+      `gapMs=${gapMs} requests=${got.length}${ptyFix}`,
     )
   }
 
@@ -255,7 +258,7 @@ try {
     check(
       'unbracketed burst + Enter ~40 ms later keeps the whole draft unsent across the quiet window, and a second Enter sends it once',
       gapMs >= 10 && gapMs < 95 && secondEnterFired && matching.length === 1 && !run3.stderr.includes('UNFIRED-SENDS'),
-      `gapMs=${gapMs} secondEnterFired=${secondEnterFired} matching=${matching.length} stderr=${run3.stderr.slice(-160)}`,
+      `gapMs=${gapMs} secondEnterFired=${secondEnterFired} matching=${matching.length} stderr=${run3.stderr.slice(-160)}${ptyFix}`,
     )
   }
 
@@ -271,7 +274,7 @@ try {
     check(
       'a multiline bracketed paste ending in CRLF with no following Enter stays a draft and never auto-submits',
       afterNoEnter.length === 0,
-      `requests=${afterNoEnter.length}`,
+      `requests=${afterNoEnter.length}${ptyFix}`,
     )
   }
 
@@ -296,7 +299,7 @@ try {
     check(
       '900-char bracketed paste + " then typed words" + Enter in one PTY write sends paste and typed words whole',
       ok,
-      `requests=${got.length} stderr=${runP1.stderr.slice(-160)}`,
+      `requests=${got.length} stderr=${runP1.stderr.slice(-160)}${ptyFix}`,
     )
   }
 
@@ -315,7 +318,7 @@ try {
     check(
       'small bracketed paste + "xyz" + Enter in one PTY write sends SMALL_PASTE_TOKENxyz',
       ok,
-      `requests=${got.length} stderr=${runP2.stderr.slice(-160)}`,
+      `requests=${got.length} stderr=${runP2.stderr.slice(-160)}${ptyFix}`,
     )
   }
 
@@ -336,7 +339,7 @@ try {
     check(
       'small bracketed paste + "xyz" in one PTY write, Enter 600 ms later sends LATER_PASTE_TOKENxyz',
       ok,
-      `requests=${got.length} stderr=${runP3.stderr.slice(-160)}`,
+      `requests=${got.length} stderr=${runP3.stderr.slice(-160)}${ptyFix}`,
     )
   }
 
@@ -370,7 +373,7 @@ try {
       check(
         'with an image in the fake clipboard, an unbracketed text burst over PTY never attaches the image unasked',
         matchingBurst.length === 1 && !runClipBurst.stderr.includes('UNFIRED-SENDS'),
-        `matching=${matchingBurst.length} total=${gotBurst.length} stderr=${runClipBurst.stderr.slice(-160)}`,
+        `matching=${matchingBurst.length} total=${gotBurst.length} stderr=${runClipBurst.stderr.slice(-160)}${ptyFix}`,
       )
 
       const beforeImg = api.messageRequests().length
@@ -393,7 +396,7 @@ try {
       check(
         'with an image in the fake clipboard, an empty bracketed paste over PTY attaches the fake image and sends the typed caption',
         matchingImg && !runClipImg.stderr.includes('UNFIRED-SENDS'),
-        `requests=${gotImg.length} stderr=${runClipImg.stderr.slice(-160)}`,
+        `requests=${gotImg.length} stderr=${runClipImg.stderr.slice(-160)}${ptyFix}`,
       )
     } finally {
       rmSync(fakeClipPng, { force: true })
@@ -491,7 +494,7 @@ try {
       check(
         'non-bracketed host: a chunk over threshold ending in CR followed by chunk B a few ms later joins into ONE paste with zero requests',
         onePaste,
-        `requests=${sentInProcess.length - before} pastes=${entries.length} draft=${JSON.stringify(pending.text())}`,
+        `requests=${sentInProcess.length - before} pastes=${entries.length} draft=${JSON.stringify(pending.text())}${inProcessFix}`,
       )
       pending.edit('')
       pending.setPastedContents({})
@@ -513,13 +516,13 @@ try {
       check(
         'non-bracketed host: a paste over threshold ending in a line end alone sends zero requests after 300 ms',
         safeDraft,
-        `requests=${sentInProcess.length - before} pastes=${entries.length} draft=${JSON.stringify(pending.text())}`,
+        `requests=${sentInProcess.length - before} pastes=${entries.length} draft=${JSON.stringify(pending.text())}${inProcessFix}`,
       )
     }
     check(
       'the real OS clipboard reader was never called across PTY and in-process legs',
       !existsSync(realClipLog),
-      existsSync(realClipLog) ? readFileSync(realClipLog, 'utf8').trim() : '',
+      existsSync(realClipLog) ? readFileSync(realClipLog, 'utf8').trim() + ' — the listed clipboard tools were run for real: a paste path reads the OS clipboard when it must use MERCURY_CLIPBOARD_IMAGE_FILE only' : '',
     )
   } finally {
     __setBurstCrHostForTest(null)

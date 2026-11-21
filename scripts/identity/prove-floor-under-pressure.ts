@@ -5,9 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const wireHint = 'fix the request path that routedCallModel in src/services/providers/callModelRouter.ts drives so the system prompt reaches the wire as this check expects, with MERCURY_CONSTITUTION from src/prompt/mercuryContract.ts leading it and nothing spliced before it'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail}; ${wireHint}` : wireHint
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

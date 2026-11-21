@@ -18,7 +18,7 @@ process.env.DEEPSEEK_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix the cap handoff: deriveCapFailoverCandidates, liveCapFailoverCandidates and liveCapFailoverTarget in src/services/capFailover.ts must skip a target the settings engine.roster excludes, and crossFamilyLaneRemedy in src/services/rateLimitMessages.ts must offer only a permitted lane` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

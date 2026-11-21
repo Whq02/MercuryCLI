@@ -7,9 +7,10 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 let failures = 0
+const enginesJourneyFailHint = 'to fix, change the /logins zai save in storeZaiApiKeyLogin (receipt text, models-list proof, key file) in src/services/providers/zai/zaiLogin.ts or the key prompt in src/components/ZaiConnect.tsx; rebuild with bun run build.ts if dist/mercury.mjs is stale'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${enginesJourneyFailHint}` : ''}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -71,7 +72,7 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
   type Payload = { grid: Grid; sendReceipts?: unknown[]; marks?: Array<{ label: string; grid: Grid }> }
   const refusal = await runVshot(cfgPath, env)
   if (refusal !== '') {
-    console.log(`  [FAIL] the capture settled — ${refusal.split('\n')[0]}`)
+    console.log(`  [FAIL] the capture settled — ${refusal.split('\n')[0]} · a send awaited text that never painted, so compare the frames printed below with the awaitText of the send in this file that was not delivered, and rebuild with bun run build.ts if dist/mercury.mjs is stale`)
     if (existsSync(outPath)) {
       const partial = JSON.parse(readFileSync(outPath, 'utf8')) as Payload
       for (const m of partial.marks ?? []) {

@@ -34,8 +34,9 @@ let checks = 0
 const check = (label: string, yes: boolean, detail = '') => {
   checks++
   if (!yes) failures++
-  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${!yes && detail ? ` — ${detail}` : ''}${yes ? '' : splitFixHint}`)
 }
+const splitFixHint = ' | fix: delivery, refusals and validation are call and validateInput in src/tools/SendMessageTool/SendMessageTool.ts (SendMessage) and src/tools/ResumeAgentTool/ResumeAgentTool.ts (ResumeCrewmate); the SendMessage prompt is getPrompt in src/tools/SendMessageTool/prompt.ts'
 let state = { ...getDefaultAppState(), toolPermissionContext: getEmptyToolPermissionContext() } as AppState
 const setState = (update: (prev: AppState) => AppState) => { state = update(state) }
 const context = (agentId?: string) => ({
@@ -77,7 +78,7 @@ const evict = (id: string) => {
   state = { ...state, tasks, agentNameRegistry: new Map([...state.agentNameRegistry].filter(([, value]) => String(value) !== id)) }
 }
 const stop = (id: string) => killAsyncAgent(id, setState as never)
-const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds'); process.exit(1) }, 120_000)
+const guard = setTimeout(() => { console.log('[FAIL] split proof exceeded 120 seconds; a SendMessage or ResumeCrewmate call (src/tools/SendMessageTool/SendMessageTool.ts, src/tools/ResumeAgentTool/ResumeAgentTool.ts) never settled, so look at the last line printed above'); process.exit(1) }, 120_000)
 guard.unref()
 
 check('ResumeCrewmate exists as a separate verb', ResumeAgentTool !== undefined)

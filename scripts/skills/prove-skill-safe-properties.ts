@@ -8,8 +8,9 @@ const { registerLoopSkill } = await import(join(SRC, 'skills/bundled/loop.ts'))
 const { getBundledSkills } = await import(join(SRC, 'skills/bundledSkills.ts'))
 
 let failures = 0
+const safePropertiesHint = 'a property that grants nothing belongs in SAFE_COMMAND_PROPERTIES and a granting one must not: fix skillHasOnlySafeProperties in src/tools/SkillTool/SkillTool.ts, or the command built by createSkillCommand in src/skills/loadSkillsDir.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${safePropertiesHint}` : ''}`)
   if (!ok) failures = 1
 }
 

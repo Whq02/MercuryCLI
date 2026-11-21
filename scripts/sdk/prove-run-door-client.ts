@@ -72,13 +72,13 @@ section('C1 a tool turn with partial rows through the package: every row parses,
     }
     const outcome = await withTimeout(run.outcome, 60_000, 'the outcome')
     const exit = await run.exit
-    check('the run completed with exit 0 and the outcome row says completed', exit.code === 0 && outcome.status === 'completed' && sdk.OUTCOME_EXIT_CODES[outcome.status] === exit.code, j({ exit, status: outcome.status }))
-    check('the iterator yielded every row the listeners saw, in the same order, and threw nothing', iterationError === undefined && iterated.join(',') === events.join(','), j({ iterationError: String(iterationError), iterated, events }))
-    check('every row the door emitted parsed through the package (no wire error)', run.error === null && run.rows.length === events.length, String(run.error))
+    check('the run completed with exit 0 and the outcome row says completed', exit.code === 0 && outcome.status === 'completed' && sdk.OUTCOME_EXIT_CODES[outcome.status] === exit.code, j({ exit, status: outcome.status }) + ' · the run through sdk/src (run, OUTCOME_EXIT_CODES) did not end completed with exit 0; read exit.stderr above and the fixture API turns in this proof')
+    check('the iterator yielded every row the listeners saw, in the same order, and threw nothing', iterationError === undefined && iterated.join(',') === events.join(','), j({ iterationError: String(iterationError), iterated, events }) + ' · the run iterator and the on(row) listener in sdk/src must see the same rows in the same order')
+    check('every row the door emitted parsed through the package (no wire error)', run.error === null && run.rows.length === events.length, String(run.error) + ' · a row the run door wrote failed to parse in sdk/src (parse.ts, rows.ts); compare it with the writer in src/rows/project.ts')
     const declared = new Set<string>([...sdk.ROW_TYPES, ...sdk.PARTIAL_ROW_TYPES])
-    check('every emitted row type is declared in the generated vocabulary', events.every(type => declared.has(type)), j(events.filter(type => !declared.has(type))))
+    check('every emitted row type is declared in the generated vocabulary', events.every(type => declared.has(type)), j(events.filter(type => !declared.has(type))) + ' · these row types are emitted but missing from ROW_TYPES or PARTIAL_ROW_TYPES in the sdk package (sdk/src/index.ts exports); regenerate the vocabulary')
     const core = ['session', 'turn', 'reasoning', 'text', 'tool_call', 'tool_result', 'step', 'outcome', 'block_start', 'text_delta', 'reasoning_delta', 'tool_input_delta']
-    check('the core rows of a tool turn with partial rows all arrived', core.every(type => events.includes(type)), j({ missing: core.filter(type => !events.includes(type)), events }))
+    check('the core rows of a tool turn with partial rows all arrived', core.every(type => events.includes(type)), j({ missing: core.filter(type => !events.includes(type)), events }) + ' · the run door did not write these rows for a tool turn with --partial; look at the row writers in src/rows/project.ts')
     check('the session row came first, the outcome last, seq contiguous from 1', run.rows[0]?.type === 'session' && run.rows.at(-1)?.type === 'outcome' && run.rows.every((row, i) => row.seq === i + 1))
     check('the resolved outcome is the last row of the stream (the same object)', run.rows.at(-1) === outcome)
     const session = await run.session
@@ -133,7 +133,7 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
     retracted: [project.retractedRow(scope, 'm-1')],
   }
   const everyType = [...sdk.ROW_TYPES, ...sdk.PARTIAL_ROW_TYPES]
-  check(`${everyType.length} declared row types, each with a schema in ROW_SCHEMAS and a projector arm here`, everyType.every(type => sdk.ROW_SCHEMAS[type] !== undefined && (projected[type]?.length ?? 0) > 0), everyType.filter(type => sdk.ROW_SCHEMAS[type] === undefined || (projected[type]?.length ?? 0) === 0).join(','))
+  check(`${everyType.length} declared row types, each with a schema in ROW_SCHEMAS and a projector arm here`, everyType.every(type => sdk.ROW_SCHEMAS[type] !== undefined && (projected[type]?.length ?? 0) > 0), everyType.filter(type => sdk.ROW_SCHEMAS[type] === undefined || (projected[type]?.length ?? 0) === 0).join(',') + ' · these types lack a schema in ROW_SCHEMAS (sdk/src) or a projector arm in the projected table of this proof; add the missing one')
   check('no projector arm names a type outside the generated vocabulary', Object.keys(projected).every(type => (everyType as readonly string[]).includes(type)))
   const pythonRows: unknown[] = []
   for (const type of everyType) {
@@ -141,13 +141,13 @@ section('C2 every declared row type has a parser: the product\'s own writers pro
       const stamped = stamper.stamp(draft as never) as Record<string, unknown>
       pythonRows.push(stamped)
       const read = sdk.rowOf(stamped)
-      check(`${type} row written by the product parses through the package's ${type} schema`, read.ok && read.row.type === type, read.ok ? '' : j({ reason: read.reason, issues: read.issues.slice(0, 3) }))
+      check(`${type} row written by the product parses through the package's ${type} schema`, read.ok && read.row.type === type, read.ok ? 'the row parsed as another type; compare its schema in sdk/src with the writer in src/rows/project.ts' : j({ reason: read.reason, issues: read.issues.slice(0, 3) }) + ' · the writer in src/rows/project.ts and the schema in sdk/src disagree on this row; update whichever is stale')
       const line = sdk.parseRow(JSON.stringify(stamped))
       check(`${type} row round-trips through parseRow`, line.ok && JSON.stringify(line.row) === JSON.stringify(stamped))
     }
   }
   const py = spawnSync(PYTHON, ['-c', 'import json,sys; from mercury_cli_sdk import parse_row; rows=json.load(sys.stdin); assert all(parse_row(json.dumps(r)).ok and parse_row(json.dumps(r)).row==r for r in rows); print(len(rows))'], { input: JSON.stringify(pythonRows), encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(ROOT, 'sdk-py/src') } })
-  check('every product-projected row round-trips in Python too', py.status === 0, py.stderr)
+  check('every product-projected row round-trips in Python too', py.status === 0, py.stderr + ' · parse_row in sdk-py/src/mercury_cli_sdk does not accept a row the product writes; update it with the row schema')
   const closeStored = sdk.rowOf(stamper.stamp(projected.close![0] as never))
   const closeNone = sdk.rowOf(stamper.stamp(projected.close![2] as never))
   check('the close row lands typed with the state, the note length and the folded usage the writer spelled; a close with nothing stored carries the state alone', closeStored.ok && closeStored.row.type === 'close' && closeStored.row.state === 'stored' && closeStored.row.note_chars === 142 && closeStored.row.usage?.input_tokens === 18 && closeStored.row.usage.cached_input_tokens === 5 && closeStored.row.usage.cache_write_input_tokens === 3 && closeStored.row.usage.output_tokens === 7 && closeStored.row.usage.reasoning_output_tokens === 2 && closeNone.ok && closeNone.row.type === 'close' && closeNone.row.state === 'none' && !('note_chars' in closeNone.row) && !('usage' in closeNone.row), j({ closeStored, closeNone }))
@@ -312,8 +312,8 @@ section('C5 the argv builder spells only options the door declares, with the val
     }
     while (args[i + 1] !== undefined && !args[i + 1]!.startsWith('-')) i++
   }
-  check('every flag the builder emits is a run-door option read from the tree', unknownFlags.length === 0, unknownFlags.join(','))
-  check('every valued flag carries a value, every choice flag a declared choice, every switch no value', badValues.length === 0, badValues.join('; '))
+  check('every flag the builder emits is a run-door option read from the tree', unknownFlags.length === 0, unknownFlags.join(',') + ' · argvOf in sdk/src spells a flag that is not in RUN_OPTIONS; fix the spelling there or regenerate the option table')
+  check('every valued flag carries a value, every choice flag a declared choice, every switch no value', badValues.length === 0, badValues.join('; ') + ' · argvOf in sdk/src spelled one of these flags with the wrong value shape; match it to RUN_OPTIONS')
   check(`the builder reaches ${used.length} of the door's ${sdk.RUN_OPTIONS.length} options (the rest are hidden, resume-only, or the caller's extraArgs)`, used.length >= 30, j(used))
   check('the run door exposes no interactive boot switch', ['--chat', '--concourse-off', '--concourse-on', '--multiplex', '--pr'].every(flag => !options.has(flag)))
   check('the generated option table knows --format rows, --input rows, --partial and the effort ladder', options.get('--format')?.choices?.includes('rows') === true && options.get('--input')?.choices?.includes('rows') === true && options.get('--partial')?.value === 'none' && j(options.get('--effort')?.choices) === j(sdk.EFFORT_LEVELS) && j(options.get('--mode')?.choices) === j(sdk.PERMISSION_MODES))
@@ -335,8 +335,8 @@ section('C6 a budget met by a reply that asks for a tool, through the package: t
     const resultAt = run.rows.findIndex(row => row.type === 'tool_result')
     const call = run.rows[callAt]
     const result = run.rows[resultAt]
-    check('the run ended budget_limit with the status\'s exit code, and every row parsed through the package', outcome.status === 'budget_limit' && exit.code === sdk.OUTCOME_EXIT_CODES[outcome.status] && run.error === null, j({ exit, status: outcome.status, error: String(run.error) }))
-    check('the unrun call has its typed tool_result row on the same call id — status aborted, "Cut off: " and the outcome\'s own sentence — between the call and the outcome, as a turn limit leaves it', call?.type === 'tool_call' && result?.type === 'tool_result' && result.call_id === call.call_id && result.status === 'aborted' && result.output === `Cut off: ${outcome.error?.message}` && resultAt > callAt && run.rows.at(-1) === outcome, j({ callAt, resultAt, result: result ?? null, error: outcome.error ?? null }))
+    check('the run ended budget_limit with the status\'s exit code, and every row parsed through the package', outcome.status === 'budget_limit' && exit.code === sdk.OUTCOME_EXIT_CODES[outcome.status] && run.error === null, j({ exit, status: outcome.status, error: String(run.error) }) + ' · the --budget-usd run must end budget_limit; read exit.stderr and the budget handling of the run door')
+    check('the unrun call has its typed tool_result row on the same call id — status aborted, "Cut off: " and the outcome\'s own sentence — between the call and the outcome, as a turn limit leaves it', call?.type === 'tool_call' && result?.type === 'tool_result' && result.call_id === call.call_id && result.status === 'aborted' && result.output === `Cut off: ${outcome.error?.message}` && resultAt > callAt && run.rows.at(-1) === outcome, j({ callAt, resultAt, result: result ?? null, error: outcome.error ?? null }) + ' · a tool call left unrun by the budget must get a tool_result row with status aborted before the outcome; compare the rows in order above')
     check('the command was never run: the file it would have written is not there', !existsSync(join(door.home, 'sdk-door-ran.txt')))
   } finally {
     await door.close()

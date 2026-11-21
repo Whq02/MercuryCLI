@@ -17,8 +17,9 @@ delete process.env.CI
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : writeTargetFixHint}`)
 }
+const writeTargetFixHint = ' | fix: the directory refusal is in validateInput in src/tools/FileWriteTool/FileWriteTool.ts (the isDirectory branch); the edit matcher in section 3 is findActualString in src/utils/fileEditUtils.ts'
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

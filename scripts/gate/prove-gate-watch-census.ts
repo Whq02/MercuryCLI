@@ -429,6 +429,7 @@ function selfTest(): boolean {
     console.log(`         law1: ${seenLaw1.join(' | ')}`)
     console.log(`         law2: ${seenLaw2.join(' | ')}`)
     console.log(`         table: ${JSON.stringify(text)} · header: ${afterHeader} · unseen: ${JSON.stringify(unseenFuture.perPath)}`)
+    console.log(`         change census, judge, cutsOf or applyCuts in ${SELF} (the planted estate is built in selfTest); the flags above show which part of the self-test drifted`)
   }
   return ok
 }
@@ -461,7 +462,7 @@ if (import.meta.main) {
   }
   const law1 = c.misses.filter(m => m.law === 1)
   if (law1.length === 0) console.log(`  [PASS] §1 every gate-watch glob names a tracked path and every gate-watch line is read (${globs} globs / ${c.suites.length} runners)`)
-  for (const m of law1) console.log(`  [FAIL] §1 ${m.text}`)
+  for (const m of law1) console.log(`  [FAIL] §1 ${m.text} — edit the # gate-watch lines in that runner header: correct the glob to a tracked path or remove it, and keep every line inside the header block`)
   failures += law1.length
   const law2 = c.misses.filter(m => m.law === 2)
   if (law2.length === 0) console.log(`  [PASS] §2 no duplicate or redundant gate-watch globs (0 duplicates · 0 redundant · ${future} wildcards kept for future paths)`)

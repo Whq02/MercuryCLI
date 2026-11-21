@@ -36,12 +36,23 @@ const keyPlan = await import('../../src/services/providers/zai/zaiKeyPlan.ts').c
 
 let failures = 0
 let count = 0
+const SECTION_FIX: Record<string, string> = {
+  '§1': 'change resolveZaiDispatch in src/services/providers/zai/zaiAccounts.ts and in src/services/providers/providerDiscovery.ts, zaiKeyPlanUnknownWord in src/services/providers/zai/zaiKeyPlan.ts or zaiApiBase in src/services/providers/zai/zaiClient.ts',
+  '§2': 'change refreshZaiCatalogue in src/services/providers/zai/zaiCatalogue.ts (the general-then-Coding-Plan models read and the plan it learns)',
+  '§3': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts, the plan learning in zaiCatalogue.ts and zaiAccounts.ts beside it, or the refusal record in src/services/providers/signInRefusal.ts',
+}
+let sectionKey = ''
 const check = (name: string, ok: unknown, detail = ''): void => {
   count++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail.slice(0, 600) : 'to fix: ' + fix + (detail ? ' | ' + detail.slice(0, 600) : '')
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && failureText ? ` — ${failureText}` : ''}`)
 }
-const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const section = (t: string): void => {
+  sectionKey = t.slice(0, 2)
+  console.log(`\n${'─'.repeat(76)}\n${t}`)
+}
 const j = (v: unknown): string => JSON.stringify(v)
 const CODING_KEY = 'zai-fixture-env-coding-plan-key'
 const GENERAL_KEY = 'zai-fixture-env-general-key'

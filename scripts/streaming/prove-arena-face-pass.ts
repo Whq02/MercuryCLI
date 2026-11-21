@@ -9,7 +9,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the arena's Boot-face pass (arenaBootFacePass, wired in runArtifactArena in scripts/streaming/artifactArena.ts)${detail ? `: ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 

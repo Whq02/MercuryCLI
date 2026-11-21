@@ -34,7 +34,7 @@ const KEY = 'proof-key-ci-gate-not-a-real-key'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the mini critter sprite in src/components/mercury-ui/MiniCritter.tsx or the layout that places it; rerun with --frames <dir> to write every captured grid as a .txt file and read the failing frame' : ''}`)
 }
 
 if (!existsSync(DIST)) {
@@ -398,7 +398,7 @@ try {
 } finally {
   pending.closeAllConnections()
   pending.close()
-  if (!mountsOnly) check('the working captures reached the local fixture', requests >= 3, `${requests} requests`)
+  if (!mountsOnly) check('the working captures reached the local fixture', requests >= 3, `${requests} requests; the busy captures send hello fixture to ANTHROPIC_BASE_URL (the local fixture server in this file), so see whether the busy captures reached their first byte`)
   if (failures === 0) rmSync(scratch, { recursive: true, force: true })
   else console.log(`  scratch kept for reading: ${scratch}`)
 }

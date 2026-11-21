@@ -136,20 +136,20 @@ section('§1 the comparators\' teeth (synthetic screens)')
   const P = ['default|default|0|0', 'ff0000|0000ff|0|0', '0000ff|ff0000|0|0', 'ff0000|default|0|0', 'default|ff0000|0|0']
   const base = S(['▀▀x ', ' ▀  '], ['#%!!', '!%!!'], P)
   const swapped = S(['▄▀x ', ' ▀  '], ['$%!!', '!%!!'], P)
-  check('a ▀ cell with a background becoming ▄ with the colours swapped is the lower-half rule, counted', compareToRecord(base, swapped).equal && compareToRecord(base, swapped).lowerHalf === 1)
+  check('a ▀ cell with a background becoming ▄ with the colours swapped is the lower-half rule, counted', compareToRecord(base, swapped).equal && compareToRecord(base, swapped).lowerHalf === 1, 'fix lowerHalfOf and compareToRecord in this file: a swapped lower-half cell must count as lower-half, not as a difference')
   const unswapped = S(['▄▀x ', ' ▀  '], ['#%!!', '!%!!'], P)
-  check('…the same glyph change without the swap is refused', !compareToRecord(base, unswapped).equal, compareToRecord(base, unswapped).detail)
+  check('…the same glyph change without the swap is refused', !compareToRecord(base, unswapped).equal, `${compareToRecord(base, unswapped).detail}; fix lowerHalfOf in this file to require swapped colours`)
   const topOnly = S(['▀▄x ', ' ▀  '], ['#%!!', '!%!!'], P)
-  check('a top-only ▀ (no background) becoming ▄ is refused', !compareToRecord(base, topOnly).equal, compareToRecord(base, topOnly).detail)
+  check('a top-only ▀ (no background) becoming ▄ is refused', !compareToRecord(base, topOnly).equal, `${compareToRecord(base, topOnly).detail}; fix lowerHalfOf in this file to require a background on the recorded cell`)
   const trail = S(['▀▀x ', ' ▀ ·'], ['#%!!', '!%!%'], P)
-  check('a trail glyph left on a blank cell is refused', !compareToRecord(base, trail).equal, compareToRecord(base, trail).detail)
+  check('a trail glyph left on a blank cell is refused', !compareToRecord(base, trail).equal, `${compareToRecord(base, trail).detail}; fix compareToRecord in this file so a glyph on a blank cell is a difference`)
   const recoloured = S(['▀▀x ', ' ▀  '], ['#%!!', '!&!!'], P)
-  check('a colour-only change is refused against the record', !compareToRecord(base, recoloured).equal)
-  check('…and allowed across tiers (colour-only across tiers)', compareGlyphsAcrossTiers(base, recoloured).equal && compareGlyphsAcrossTiers(base, recoloured).lowerHalf === 0)
+  check('a colour-only change is refused against the record', !compareToRecord(base, recoloured).equal, 'fix sameCell in this file so a colour change differs from the record')
+  check('…and allowed across tiers (colour-only across tiers)', compareGlyphsAcrossTiers(base, recoloured).equal && compareGlyphsAcrossTiers(base, recoloured).lowerHalf === 0, 'fix compareGlyphsAcrossTiers in this file to compare glyphs only, not colour')
   const plainTier = S(['▀▀x ', ' ▀  '], ['!!!!', '!!!!'], P)
-  check('across tiers: a truecolor ▄ with a background against the plain tier\'s ▀ is the lower-half rule, counted', compareGlyphsAcrossTiers(swapped, plainTier).equal && compareGlyphsAcrossTiers(swapped, plainTier).lowerHalf === 1)
+  check('across tiers: a truecolor ▄ with a background against the plain tier\'s ▀ is the lower-half rule, counted', compareGlyphsAcrossTiers(swapped, plainTier).equal && compareGlyphsAcrossTiers(swapped, plainTier).lowerHalf === 1, 'fix compareGlyphsAcrossTiers in this file to count a truecolor lower-half against a plain upper-half')
   const plainTrail = S(['▀▀x ', ' ▀ ·'], ['!!!!', '!!!!'], P)
-  check('across tiers: any other glyph difference is refused', !compareGlyphsAcrossTiers(swapped, plainTrail).equal)
+  check('across tiers: any other glyph difference is refused', !compareGlyphsAcrossTiers(swapped, plainTrail).equal, 'fix compareGlyphsAcrossTiers in this file so only the lower-half pair is excused')
 }
 
 if (!existsSync(FIXTURE)) {
@@ -158,7 +158,7 @@ if (!existsSync(FIXTURE)) {
   process.exit(1)
 }
 const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture
-check(`the record was taken for 1.0.12 (${fixture.recordedFrom}) with this probe and renderer`, fixture.recordedFrom === '1.0.12' && fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py')
+check(`the record was taken for 1.0.12 (${fixture.recordedFrom}) with this probe and renderer`, fixture.recordedFrom === '1.0.12' && fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py', `fixture says recordedFrom ${fixture.recordedFrom}, probe ${fixture.probe}, renderer ${fixture.renderer}; re-record ${FIXTURE} with --record against assets/splash`)
 
 const now = new Map<string, { raw: Buffer; screen: Screen }>()
 const dirAt = process.argv.indexOf('--splash-dir')
@@ -172,10 +172,10 @@ for (const mode of MODES) {
     for (const tier of TIERS) {
       const key = keyOf(cols, rows, tier, mode)
       const base = fixture.screens[key]
-      check(`${key}: recorded`, base !== undefined)
+      check(`${key}: recorded`, base !== undefined, `${FIXTURE} has no screen for this key; GEOMETRIES, TIERS and MODES in this file must match the recorded fixture`)
       if (base === undefined) continue
       const verdict = compareToRecord(base, now.get(key)!.screen)
-      check(`${key}: every cell equal to the 1.0.12 record`, verdict.equal && verdict.lowerHalf === 0, verdict.detail)
+      check(`${key}: every cell equal to the 1.0.12 record`, verdict.equal && verdict.lowerHalf === 0, `${verdict.detail}; the final screen changed: restore it in assets/splash/mercury-splash.mjs, or re-record ${FIXTURE} only if the change is approved`)
     }
   }
 }
@@ -187,28 +187,28 @@ for (const [cols, rows] of GEOMETRIES) {
     for (const tier of ['256', 'nocolor'] as const) {
       const other = now.get(keyOf(cols, rows, tier, mode))!
       const verdict = compareGlyphsAcrossTiers(tc.screen, other.screen)
-      check(`${mode} ${cols}x${rows}: ${tier} paints the same glyphs as truecolor, the lower half excepted (${verdict.lowerHalf} cells)`, verdict.equal, verdict.detail)
+      check(`${mode} ${cols}x${rows}: ${tier} paints the same glyphs as truecolor, the lower half excepted (${verdict.lowerHalf} cells)`, verdict.equal, `${verdict.detail}; the glyphs must not depend on the colour tier: fix the tier handling in assets/splash/mercury-splash.mjs`)
     }
     const plain = now.get(keyOf(cols, rows, 'nocolor', mode))!
-    check(`${mode} ${cols}x${rows}: NO_COLOR carries no colour on screen`, plain.screen.palette.every(p => p.startsWith('default|default|')), plain.screen.palette.join(' '))
+    check(`${mode} ${cols}x${rows}: NO_COLOR carries no colour on screen`, plain.screen.palette.every(p => p.startsWith('default|default|')), `${plain.screen.palette.join(' ')}; with NO_COLOR the splash in assets/splash/mercury-splash.mjs must paint no colour`)
     const plainSgrs = plain.raw.toString('latin1').match(/\x1b\[[0-9;]*m/g) ?? []
-    if (mode === 'oneshot') check(`${mode} ${cols}x${rows}: NO_COLOR puts no SGR on the wire`, plainSgrs.length === 0, plainSgrs.slice(0, 4).join(' '))
-    else check(`${mode} ${cols}x${rows}: NO_COLOR puts no SGR on the wire but the hold's park ink`, plainSgrs.every(sgr => sgr === '\x1b[30;40m' || sgr === '\x1b[8m'), [...new Set(plainSgrs)].slice(0, 6).join(' '))
+    if (mode === 'oneshot') check(`${mode} ${cols}x${rows}: NO_COLOR puts no SGR on the wire`, plainSgrs.length === 0, `${plainSgrs.slice(0, 4).join(' ')}; with NO_COLOR the oneshot in assets/splash/mercury-splash.mjs must write no SGR sequence`)
+    else check(`${mode} ${cols}x${rows}: NO_COLOR puts no SGR on the wire but the hold's park ink`, plainSgrs.every(sgr => sgr === '\x1b[30;40m' || sgr === '\x1b[8m'), `${[...new Set(plainSgrs)].slice(0, 6).join(' ')}; with NO_COLOR the cinematic in assets/splash/mercury-splash.mjs may write only the park ink`)
     const r256 = now.get(keyOf(cols, rows, '256', mode))!.raw.toString('latin1')
-    check(`${mode} ${cols}x${rows}: the 256 tier carries no 24-bit colour on the wire`, !r256.includes('[38;2;') && !r256.includes('[48;2;') && r256.includes('[38;5;'))
-    check(`${mode} ${cols}x${rows}: truecolor carries 24-bit colour on the wire`, tc.raw.toString('latin1').includes('[38;2;'))
+    check(`${mode} ${cols}x${rows}: the 256 tier carries no 24-bit colour on the wire`, !r256.includes('[38;2;') && !r256.includes('[48;2;') && r256.includes('[38;5;'), 'the 256 tier in assets/splash/mercury-splash.mjs must emit 38;5 colour and never 38;2 or 48;2')
+    check(`${mode} ${cols}x${rows}: truecolor carries 24-bit colour on the wire`, tc.raw.toString('latin1').includes('[38;2;'), 'the truecolor tier in assets/splash/mercury-splash.mjs must emit 38;2 colour')
   }
 }
 
 section('§5 the cinematic run ran its trace in truecolor only, and the screen is deterministic')
 for (const [cols, rows] of GEOMETRIES) {
   const brackets = (tier: Tier): number => now.get(keyOf(cols, rows, tier, 'cinematic'))!.raw.toString('latin1').split('\x1b[?2026h').length - 1
-  check(`${cols}x${rows}: the truecolor run painted the trace (${brackets('truecolor')} synchronised frames; the other tiers collapse straight to the hold: ${brackets('256')} / ${brackets('nocolor')})`, brackets('truecolor') >= 20 && brackets('256') <= 2 && brackets('nocolor') <= 2)
+  check(`${cols}x${rows}: the truecolor run painted the trace (${brackets('truecolor')} synchronised frames; the other tiers collapse straight to the hold: ${brackets('256')} / ${brackets('nocolor')})`, brackets('truecolor') >= 20 && brackets('256') <= 2 && brackets('nocolor') <= 2, 'the cinematic trace in assets/splash/mercury-splash.mjs must animate in truecolor only and jump to the hold in the other tiers')
 }
 {
   const again = capture(splashDir, 120, 44, 'truecolor', 'cinematic')
   const verdict = compareToRecord(now.get(keyOf(120, 44, 'truecolor', 'cinematic'))!.screen, again.screen)
-  check('a second cinematic run at 120x44 ends on the same screen, cell for cell', verdict.equal && verdict.lowerHalf === 0, verdict.detail)
+  check('a second cinematic run at 120x44 ends on the same screen, cell for cell', verdict.equal && verdict.lowerHalf === 0, `${verdict.detail}; the cinematic final screen must not vary between runs: remove the nondeterminism in assets/splash/mercury-splash.mjs`)
 }
 
 console.log(`\n${failures === 0 ? '✅ splash tiers GREEN' : `❌ splash tiers RED — ${failures} failure(s)`}`)

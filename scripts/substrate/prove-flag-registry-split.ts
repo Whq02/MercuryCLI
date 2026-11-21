@@ -176,11 +176,16 @@ type Reading = { faults: Fault[]; rows: number; files: [string, number][]; walke
 type Lister = (root: string) => string[] | null
 
 let failures = 0
+let inPlantedSection = false
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const misread = !cond && inPlantedSection ? ' — a planted tree was misread: change judge, rowImports or shapeOf in ' + SELF : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${misread}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => {
+  inPlantedSection = t.startsWith('§0')
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
 
 const isRows = (value: unknown): value is Row[] =>
   Array.isArray(value) && value.every(row => typeof row === 'object' && row !== null && typeof (row as Row).env === 'string' && typeof (row as Row).consumer === 'string')

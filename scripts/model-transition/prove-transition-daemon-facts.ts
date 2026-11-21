@@ -36,7 +36,8 @@ section("§1 the source stamp — the session's own truth, or an honest 'ambient
   check(
     "an admission record's modelKey answers effective='record' — the SESSION's fact",
     withRecord.effective === 'glm-5.3' && withRecord.effectiveSource === 'record',
-    JSON.stringify({ effective: withRecord.effective, source: withRecord.effectiveSource }),
+    JSON.stringify({ effective: withRecord.effective, source: withRecord.effectiveSource }) +
+      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so the admission record modelKey gives effective and effectiveSource=record',
   )
   const bare = seat.daemonSessionConnectorFor({
     sessionId: '00000000-aaaa-bbbb-cccc-00000000m202',
@@ -50,7 +51,8 @@ section("§1 the source stamp — the session's own truth, or an honest 'ambient
   check(
     "neither facts nor record resolving says so: effectiveSource='ambient' (the fallback is THIS process's state, not the session's)",
     ambient.effectiveSource === 'ambient',
-    JSON.stringify({ effective: ambient.effective, source: ambient.effectiveSource }),
+    JSON.stringify({ effective: ambient.effective, source: ambient.effectiveSource }) +
+      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so a session with no facts and no record reports ambient',
   )
 }
 
@@ -77,11 +79,16 @@ section('§2 the gate is sensitive to WHICH history feeds it')
   const screenHistory: never[] = []
   const overSession = preview.previewForSelection(sessionHistory, 'claude-sonnet-4-6', 'gpt-5.6-sol')
   const overScreen = preview.previewForSelection(screenHistory, 'claude-fable-5', 'gpt-5.6-sol')
-  check("the plan's from is the SESSION's model, not the screen's", overSession.from === 'claude-sonnet-4-6')
+  check(
+    "the plan's from is the SESSION's model, not the screen's",
+    overSession.from === 'claude-sonnet-4-6',
+    'change previewForSelection in src/services/providers/transitionPreview.ts so from is the model argument given for the history',
+  )
   check(
     'lossy over the session history, lossless over the empty screen history — the disagreement the old wiring collapsed',
     overSession.needsChoice === true && overScreen.needsChoice === false,
-    JSON.stringify({ session: overSession.needsChoice, screen: overScreen.needsChoice, counts: overSession.counts }),
+    JSON.stringify({ session: overSession.needsChoice, screen: overScreen.needsChoice, counts: overSession.counts }) +
+      ' — change previewForSelection in src/services/providers/transitionPreview.ts so needsChoice follows the history it is given',
   )
 }
 
@@ -96,7 +103,7 @@ section('§3 plan-digest determinism (the in-process parity acceptance)')
   ] as never[]
   const a = preview.previewForSelection(history, 'claude-sonnet-4-6', 'gpt-5.6-sol')
   const b = preview.previewForSelection(history, 'claude-sonnet-4-6', 'gpt-5.6-sol')
-  check('identical inputs build byte-identical plan digests', a.planDigest === b.planDigest, `${a.planDigest} vs ${b.planDigest}`)
+  check('identical inputs build byte-identical plan digests', a.planDigest === b.planDigest, `${a.planDigest} vs ${b.planDigest} — change the planDigest computation in src/services/providers/transitionPreview.ts so equal inputs hash equally`)
 }
 
 section('§4 the wiring, structural')
@@ -137,7 +144,8 @@ section('§4 the wiring, structural')
   check(
     'the connector stamps a cold seed as recorded and a runner answer as live beside the fallback chain',
     coldSeed === 'record' && sameSeed === 'record' && answered === 'live' && hosted.modelFacts().effectiveSource === 'live',
-    JSON.stringify({ coldSeed, sameSeed, answered, hosted: hosted.modelFacts().effectiveSource }),
+    JSON.stringify({ coldSeed, sameSeed, answered, hosted: hosted.modelFacts().effectiveSource }) +
+      ' — change modelFacts in src/services/engine-connector/daemon/facts.ts so a cold seed reads record and a runner answer reads live',
   )
 }
 

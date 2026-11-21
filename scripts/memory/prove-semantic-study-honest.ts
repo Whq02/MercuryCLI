@@ -27,8 +27,9 @@ const {
 const { openRecorder, recordSimilarities } = await import('../memory-study/record-semantic-similarities.js')
 
 let failures = 0
+const STUDY_FIX_HINT = 'the printed table must equal the computed one: fix the rig in scripts/memory-study/bench-semantic-recall.ts (computeModelRows, computeWordBaseline, evaluateSignalAblation, renderStudyReport) or the product ranking in src/mneme/mnemeLookup.ts (scoreCandidates, fuseRankings); stale similarities are re-recorded with scripts/memory-study/record-semantic-similarities.ts into scripts/memory-study/fixtures/study-corpus.json'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ` — to fix: ${STUDY_FIX_HINT}` : ''}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)

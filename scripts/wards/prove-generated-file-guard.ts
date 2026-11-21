@@ -2,9 +2,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const GENERATED_GUARD_FAIL_HINT = 'to fix: the no-hand-edit-generated-file rule (name rows, lockfiles, leading marker) is in BUILTIN_WARDS in src/utils/wards/wards.ts and its text comes from buildWardDenial there; a missing or wrong asset row is fixed in scripts/gate/generated-assets.tsv (parsed by src/guards/generatedAssets.ts); the head reader and path resolver of the armed hook are readTargetHead and makeTargetResolver in src/guards/wardsGuard.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${GENERATED_GUARD_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -76,9 +76,9 @@ section('R1 — flag typo: release first, error readable on the main screen')
   const bytes = await drivePty(['--definitely-not-a-flag'], 12)
   const rel = bytes.lastIndexOf('\x1b[?1049l')
   const err = bytes.indexOf('unknown option')
-  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)))
-  check('the commander error appears', err !== -1, JSON.stringify(bytes.slice(-300)))
-  check('the error prints AFTER the (last) release — on the main screen', rel !== -1 && err > rel, `rel=${rel} err=${err}`)
+  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — releaseLauncherAltHoldNow in src/ink/launcherAltHold.ts must write the alt-screen release (its exit hook runs it) when the process ends while MERCURY_ALT_HELD is set')
+  check('the commander error appears', err !== -1, JSON.stringify(bytes.slice(-300)) + ' — the unknown-option error never reached the terminal: check the drive output above, then the flag parsing in src/entrypoints/cli.tsx')
+  check('the error prints AFTER the (last) release — on the main screen', rel !== -1 && err > rel, `rel=${rel} err=${err} — the held alt screen must be released before the error is written: see src/ink/launcherAltHold.ts and src/entrypoints/cli.tsx`)
 }
 
 section('R2 — run: release precedes the result; the result lands on the main screen')
@@ -89,21 +89,21 @@ section('R2 — run: release precedes the result; the result lands on the main s
   await fx.close().catch(() => {})
   const rel = bytes.indexOf('\x1b[?1049l')
   const result = bytes.indexOf('PROOF-TR-RESULT.')
-  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)))
-  check('the run result appears', result !== -1, JSON.stringify(bytes.slice(-300)))
-  check('the release PRECEDES the result', rel !== -1 && result > rel, `rel=${rel} result=${result}`)
+  check('the release sequence appears', rel !== -1, JSON.stringify(bytes.slice(0, 200)) + ' — the run command must call releaseLauncherAltHoldNow (src/ink/launcherAltHold.ts) from the MERCURY_ALT_HELD block in src/entrypoints/cli.tsx')
+  check('the run result appears', result !== -1, JSON.stringify(bytes.slice(-300)) + ' — the run result never reached the terminal: check the drive output above and the fixture API wiring of mercury run')
+  check('the release PRECEDES the result', rel !== -1 && result > rel, `rel=${rel} result=${result} — the nonTakeover branch in the MERCURY_ALT_HELD block of src/entrypoints/cli.tsx must release before mercury run prints`)
 }
 
 section('R3 — launcher: splash/hold gated on takeover; OSC title gated on TTY')
 {
   const launcher = readFileSync(join(ROOT, 'scripts', 'ops', 'launcher-mercury.sh'), 'utf8')
-  check('MERCURY_TAKEOVER gate exists', launcher.includes('MERCURY_TAKEOVER=1') && launcher.includes('MERCURY_TAKEOVER=0'))
-  check('run and help args disable the takeover', /-h\|--help\|-v\|-V\|--version\)\s*MERCURY_TAKEOVER=0/.test(launcher) && /\|run\|.*MERCURY_TAKEOVER=0/.test(launcher))
-  check('subcommands disable the takeover', launcher.includes('daemon|health|error|export|install|join|join-kit|log|mcp|extensions|setup-token|task|up|update) MERCURY_TAKEOVER=0') || /case "\$\{1:-\}" in\n\s*[a-z|-]*daemon[a-z|-]*\) MERCURY_TAKEOVER=0/.test(launcher))
-  check('the splash block requires the takeover gate', launcher.includes('[ "$MERCURY_TAKEOVER" = "1" ] && [ "${MERCURY_NO_BANNER:-0}" != "1" ] && [ -t 1 ]'))
-  check('the OSC title is TTY-gated', launcher.includes(`[ -t 1 ] && printf '\\033]0;Mercury\\007'`))
+  check('MERCURY_TAKEOVER gate exists', launcher.includes('MERCURY_TAKEOVER=1') && launcher.includes('MERCURY_TAKEOVER=0'), 'scripts/ops/launcher-mercury.sh must set MERCURY_TAKEOVER=1 by default and MERCURY_TAKEOVER=0 for non-takeover arguments')
+  check('run and help args disable the takeover', /-h\|--help\|-v\|-V\|--version\)\s*MERCURY_TAKEOVER=0/.test(launcher) && /\|run\|.*MERCURY_TAKEOVER=0/.test(launcher), 'the case on the first argument in scripts/ops/launcher-mercury.sh must set MERCURY_TAKEOVER=0 for -h, --help, -v, -V, --version and for run')
+  check('subcommands disable the takeover', launcher.includes('daemon|health|error|export|install|join|join-kit|log|mcp|extensions|setup-token|task|up|update) MERCURY_TAKEOVER=0') || /case "\$\{1:-\}" in\n\s*[a-z|-]*daemon[a-z|-]*\) MERCURY_TAKEOVER=0/.test(launcher), 'the case on the first argument in scripts/ops/launcher-mercury.sh must set MERCURY_TAKEOVER=0 for the subcommands (daemon, health, error, export, install, join, join-kit, log, mcp, extensions, setup-token, task, up, update)')
+  check('the splash block requires the takeover gate', launcher.includes('[ "$MERCURY_TAKEOVER" = "1" ] && [ "${MERCURY_NO_BANNER:-0}" != "1" ] && [ -t 1 ]'), 'the splash block in scripts/ops/launcher-mercury.sh must run only when MERCURY_TAKEOVER is 1, MERCURY_NO_BANNER is not 1 and stdout is a terminal')
+  check('the OSC title is TTY-gated', launcher.includes(`[ -t 1 ] && printf '\\033]0;Mercury\\007'`), 'scripts/ops/launcher-mercury.sh must print the Mercury OSC title only behind a [ -t 1 ] test')
   const syn = spawnSync('bash', ['-n', join(ROOT, 'scripts', 'ops', 'launcher-mercury.sh')], { encoding: 'utf8' })
-  check('launcher syntax holds', syn.status === 0, syn.stderr ?? '')
+  check('launcher syntax holds', syn.status === 0, (syn.stderr ?? '') + ' — fix the shell syntax error in scripts/ops/launcher-mercury.sh (bash -n names the line)')
 }
 
 section('R4 — interactive boot: the hold is consumed by the takeover, never released early')
@@ -133,8 +133,8 @@ section('R4 — interactive boot: the hold is consumed by the takeover, never re
       } catch {
       }
     }
-    check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('lanes'), JSON.stringify(bytes.slice(0, 200)))
-    check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'))
+    check('the cockpit boots (rail chrome present)', visibleText(bytes).includes('lanes'), JSON.stringify(bytes.slice(0, 200)) + ' — the interactive boot drew no rail chrome within the window: boot it with MERCURY_ALT_HELD=1 under a pty and read the bytes above')
+    check('ZERO alt-screen exits during the live window', !bytes.includes('\x1b[?1049l'), 'an alt-screen exit was written while the held screen should be consumed by the interactive boot: check releaseLauncherAltHoldNow callers in src/entrypoints/cli.tsx and consumeLauncherAltHold in src/ink/launcherAltHold.ts')
   } finally {
     run.cleanup()
   }

@@ -32,9 +32,11 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
+const STRIP_FAIL_HINT = 'read the frame printed above this check; the strip stops come from src/context/surfaceRoute.ts, the face key-map row from NO_CHAT_HINT there, and the Shift-arrow actions app:surfaceLeft and app:surfaceRight from src/keybindings/actionGraph.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail} — ${STRIP_FAIL_HINT}` : STRIP_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()

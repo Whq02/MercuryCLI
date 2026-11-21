@@ -120,13 +120,13 @@ const describe = (rows: { file: string; line: number; text?: string; kind?: stri
 
 const files = sourceFiles()
 const { sentences, notices } = census(files)
-check('the census reads every surface and finds the sentences and the failure notices', files.length >= 30 && sentences.length >= 400 && notices.filter(row => FAILURE_KINDS.has(row.kind)).length >= 12, files.length + ' files · ' + sentences.length + ' sentences · ' + notices.length + ' notice sites')
+check('the census reads every surface and finds the sentences and the failure notices', files.length >= 30 && sentences.length >= 400 && notices.filter(row => FAILURE_KINDS.has(row.kind)).length >= 12, files.length + ' files · ' + sentences.length + ' sentences · ' + notices.length + ' notice sites · the census walks the SURFACES paths (src/services/host, src/commands/llmhost and the others listed at the top of this file) and reads hostNotice calls from src/services/host/notices.ts; a path that moved or a renamed hostNotice makes it find too little')
 const house = houseWordBreaks(sentences)
-check('§1 no sentence on the host surfaces carries a house word', house.length === 0, describe(house))
+check('§1 no sentence on the host surfaces carries a house word', house.length === 0, describe(house) + '\nreword each sentence listed above at its file and line so it avoids the house words in HOUSE_WORDS (door, road, seat, fold, lane, ladder, owner, law, pin, prover)')
 const dead = deadScreenBreaks(sentences)
-check('§2 every /llmhost pointer names a live screen and no sentence sends the user to the retired Fast-load screen', dead.length === 0, describe(dead))
+check('§2 every /llmhost pointer names a live screen and no sentence sends the user to the retired Fast-load screen', dead.length === 0, describe(dead) + '\nchange each sentence listed above at its file and line to point at a screen named in SCREENS and not at Fast-load')
 const silent = nextStepBreaks(notices)
-check('§3 every failed/stalled host notice names a next step the user can take', silent.length === 0, describe(silent))
+check('§3 every failed/stalled host notice names a next step the user can take', silent.length === 0, describe(silent) + '\nadd a next step from NEXT_STEPS (for example /llmhost, Bank, Resume, try again) to the words of each hostNotice call listed above at its file and line; the text shows <unresolved> when the words are built somewhere this check cannot read, so put the next step in a literal string at the call')
 
 const synthetic = (body: string): { sentences: Sentence[]; notices: NoticeSite[] } => {
   const source = ts.createSourceFile('planted.ts', body, ts.ScriptTarget.Latest, true)
@@ -144,9 +144,9 @@ const synthetic = (body: string): { sentences: Sentence[]; notices: NoticeSite[]
   return { sentences: sentencesFound, notices: noticesFound }
 }
 const plantedHouse = synthetic("const a = 'Choose a road. No GPU is rented.'; const b = 'The weights are pinned by revision.'")
-check('§5 a planted house word is caught and a pinned (not pin) sentence passes', houseWordBreaks(plantedHouse.sentences).map(row => row.text).join('|') === 'Choose a road. No GPU is rented.')
+check('§5 a planted house word is caught and a pinned (not pin) sentence passes', houseWordBreaks(plantedHouse.sentences).map(row => row.text).join('|') === 'Choose a road. No GPU is rented.', 'fix houseWordBreaks or HOUSE_WORDS in this file: the census must catch the planted house word and let pinned pass')
 const plantedScreen = synthetic("const a = 'open Fast-load before renting'; const b = '/llmhost → Fast-load to delete it'; const c = 'mirrored to a fast-load volume'; const d = '/llmhost → Bank → d deletes the disk'; const e = '/llmhost → Settings → keys'")
-check('§5 a retired screen and an unknown screen are caught; the volume term and a live screen pass', deadScreenBreaks(plantedScreen.sentences).map(row => row.text).join('|') === 'open Fast-load before renting|/llmhost → Fast-load to delete it|/llmhost → Settings → keys')
+check('§5 a retired screen and an unknown screen are caught; the volume term and a live screen pass', deadScreenBreaks(plantedScreen.sentences).map(row => row.text).join('|') === 'open Fast-load before renting|/llmhost → Fast-load to delete it|/llmhost → Settings → keys', 'fix deadScreenBreaks, RETIRED_SCREENS or SCREENS in this file: the planted retired and unknown screens must be caught and the volume term and a live screen must pass')
 const plantedNotice = synthetic(`function run(record: any, error: unknown) {
   const words = record.name + ' · banking failed: ' + String(error) + ' · b resumes'
   const bankWords = (detail: string): string => record.name + ' · ' + detail + ' · /llmhost → Bank to try again'
@@ -156,7 +156,7 @@ const plantedNotice = synthetic(`function run(record: any, error: unknown) {
   hostNotice(record, 'stalled', detailFromElsewhere)
   hostNotice(record, 'ended', 'watch ended · no pod was created')
 }`)
-check('§5 a failed notice without a next step and an unresolvable one are caught; resolved consts, helpers and non-failure kinds pass', nextStepBreaks(plantedNotice.notices).map(row => row.text ?? '<unresolved>').join('|') === ' · the process ended|<unresolved>')
+check('§5 a failed notice without a next step and an unresolvable one are caught; resolved consts, helpers and non-failure kinds pass', nextStepBreaks(plantedNotice.notices).map(row => row.text ?? '<unresolved>').join('|') === ' · the process ended|<unresolved>', 'fix nextStepBreaks, NEXT_STEPS or literalFragments in this file: the planted notice without a next step and the unresolvable one must be caught, resolved constants and helpers must pass')
 
 assert.equal(failures.length, 0, failures.length + ' of ' + checks + ' checks failed:\n' + failures.join('\n'))
 console.log('HOST WORDS TRUTH GREEN · ' + checks + ' checks · ' + files.length + ' files · ' + sentences.length + ' sentences · ' + notices.length + ' notice sites · static census, nothing rented')

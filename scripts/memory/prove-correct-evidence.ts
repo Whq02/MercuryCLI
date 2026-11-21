@@ -8,9 +8,10 @@ const scratch = mkdtempSync(join(tmpdir(), 'mercury-correct-evidence-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
+const EVIDENCE_FIX_HINT = 'change the code, not the check: the correction verbs, their refusal codes and hints, and the full-row read that evidence needs are in src/mneme/memoryVerbs.ts (correctMemory, readMemoryRecord, recallQuery, retainItems); the consolidation that lands the seed facts is src/mneme/mnemeConsolidate.ts (maybeConsolidate)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ` — to fix: ${EVIDENCE_FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

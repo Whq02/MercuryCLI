@@ -20,14 +20,14 @@ const spies = [
   spyOn(registry, 'clearAllLSPDiagnostics').mockImplementation(() => { events.push('clear'); pending = [] }),
 ]
 try {
-  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [] } } as never), [])
-  assert.deepEqual(events, [])
-  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [{ type: 'diagnostics', files: [], isNew: true }])
-  assert.deepEqual(events, ['refresh', 'read'])
+  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [] } } as never), [], 'getLSPDiagnosticAttachments in src/services/attachments/diagnostics.ts must return nothing when the Bash tool is not in the tool list')
+  assert.deepEqual(events, [], 'getLSPDiagnosticAttachments in src/services/attachments/diagnostics.ts must not refresh or read diagnostics before the Bash tool gate passes')
+  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [{ type: 'diagnostics', files: [], isNew: true }], 'getLSPDiagnosticAttachments in src/services/attachments/diagnostics.ts must still deliver the pending diagnostics row when the document refresh throws')
+  assert.deepEqual(events, ['refresh', 'read'], 'src/services/attachments/diagnostics.ts must refresh open documents first, then read, in that order')
   events.length = 0
-  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [])
-  assert.deepEqual(events, ['refresh', 'read'])
-  assert.equal(events.includes('clear'), false)
+  assert.deepEqual(await getLSPDiagnosticAttachments({ options: { tools: [{ name: BASH_TOOL_NAME }] } } as never), [], 'getLSPDiagnosticAttachments in src/services/attachments/diagnostics.ts must return nothing when a second call finds no pending diagnostics')
+  assert.deepEqual(events, ['refresh', 'read'], 'src/services/attachments/diagnostics.ts must refresh then read on every call')
+  assert.equal(events.includes('clear'), false, 'src/services/attachments/diagnostics.ts must not call clearAllLSPDiagnostics after a lane read')
   console.log('PASS diagnostics gate, refresh failure isolation, delivery order and no table-wide clear behind a lane read')
   let enabled = true
   let lists = 0
@@ -39,21 +39,21 @@ try {
   const turn = () => ({ type: 'assistant', message: { content: [{ type: 'text', text: 'turn' }] } })
   const history = Array.from({ length: 10 }, turn)
   enabled = false
-  assert.deepEqual(await getTaskReminderAttachments(history as never, {} as never), [])
+  assert.deepEqual(await getTaskReminderAttachments(history as never, {} as never), [], 'getTaskReminderAttachments in src/services/attachments/reminders.ts must return nothing when task tools are disabled')
   enabled = true
-  assert.deepEqual(await getTaskReminderAttachments(history as never, { options: { tools: [] } } as never), [])
-  assert.deepEqual(await getTaskReminderAttachments(undefined, context as never), [])
-  assert.deepEqual(await getTaskReminderAttachments(history.slice(1) as never, context as never), [])
-  assert.equal(lists, 0)
+  assert.deepEqual(await getTaskReminderAttachments(history as never, { options: { tools: [] } } as never), [], 'getTaskReminderAttachments in src/services/attachments/reminders.ts must return nothing without the TaskUpdate tool')
+  assert.deepEqual(await getTaskReminderAttachments(undefined, context as never), [], 'getTaskReminderAttachments in src/services/attachments/reminders.ts must return nothing without messages')
+  assert.deepEqual(await getTaskReminderAttachments(history.slice(1) as never, context as never), [], 'taskReminderDue in src/services/attachments/reminders.ts must not fire before the turn cadence is reached')
+  assert.equal(lists, 0, 'src/services/attachments/reminders.ts must not call listTasks until a reminder is due')
   const rows = await getTaskReminderAttachments(history as never, context as never)
-  assert.deepEqual(rows, [{ type: 'task_reminder', content, itemCount: 1 }])
-  assert.equal((rows[0] as any).content, content)
-  assert.equal(lists, 1)
+  assert.deepEqual(rows, [{ type: 'task_reminder', content, itemCount: 1 }], 'getTaskReminderAttachments in src/services/attachments/reminders.ts must return one task_reminder row with the listed tasks and itemCount')
+  assert.equal((rows[0] as any).content, content, 'src/services/attachments/reminders.ts must pass the listTasks result through by identity')
+  assert.equal(lists, 1, 'src/services/attachments/reminders.ts must call listTasks once per delivered reminder')
   const touch = { type: 'assistant', message: { content: [{ type: 'tool_use', name: TASK_UPDATE_TOOL_NAME, id: 'touch', input: {} }] } }
-  assert.deepEqual(await getTaskReminderAttachments([...history, touch] as never, context as never), [])
+  assert.deepEqual(await getTaskReminderAttachments([...history, touch] as never, context as never), [], 'a recent TaskUpdate call must reset the cadence in taskReminderDue in src/services/attachments/reminders.ts')
   const reminder = { type: 'attachment', attachment: { type: 'task_reminder', content: [], itemCount: 0 } }
-  assert.deepEqual(await getTaskReminderAttachments([...history, reminder] as never, context as never), [])
-  assert.equal(lists, 1)
+  assert.deepEqual(await getTaskReminderAttachments([...history, reminder] as never, context as never), [], 'a recent task_reminder attachment must reset the cadence in taskReminderDue in src/services/attachments/reminders.ts')
+  assert.equal(lists, 1, 'src/services/attachments/reminders.ts must not call listTasks again when a reset blocks the reminder')
   console.log('PASS task admission, inclusive cadence, list identity and independent resets')
 } finally {
   for (const spy of spies) spy.mockRestore()

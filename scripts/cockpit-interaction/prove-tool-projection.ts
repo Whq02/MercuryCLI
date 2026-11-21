@@ -72,19 +72,19 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check(
       'every family mark is exactly one cell under the canonical width model',
       marks.every(m => charWidth(m.glyph) === 1),
-      marks.map(m => `${m.glyph}=${charWidth(m.glyph)}`).join(' '),
+      marks.map(m => `${m.glyph}=${charWidth(m.glyph)}`).join(' ') + ' | change the glyph of the wide mark in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
     )
     const EMOJI = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{1F1E6}-\u{1F1FF}]/u
-    t.check('no emoji in the vocabulary', !marks.some(m => EMOJI.test(m.glyph)), 'cell-grid safe')
+    t.check('no emoji in the vocabulary', !marks.some(m => EMOJI.test(m.glyph)), 'cell-grid safe | replace the emoji glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts')
     t.check(
       'the families are visually DISTINCT — one glyph each',
       new Set(marks.map(m => m.glyph)).size === marks.length,
-      `${new Set(marks.map(m => m.glyph)).size}/${marks.length}`,
+      `${new Set(marks.map(m => m.glyph)).size}/${marks.length} | give each family its own glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts`,
     )
     t.check(
       'and their text fallbacks are distinct too — the family survives a glyphless profile',
       new Set(marks.map(m => m.fallback)).size === marks.length,
-      marks.map(m => m.fallback).join(','),
+      marks.map(m => m.fallback).join(',') + ' | give each family its own fallback in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
     )
     const statusSpine = new Set([
       GLYPH.ok, GLYPH.pending, GLYPH.inProgress, GLYPH.done, GLYPH.read,
@@ -95,12 +95,12 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
     t.check(
       'no family mark collides with the honest-state spine',
       collisions.length === 0,
-      collisions.map(m => m.glyph).join(' ') || 'two axes, two vocabularies',
+      collisions.map(m => m.glyph).join(' ') + ' | change the colliding glyph in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts, it matches a status glyph in src/utils/glyphs.ts',
     )
     t.check(
       'tone is a TOKEN ROLE, never a colour literal',
       marks.every(m => ['accent', 'info', 'textSecondary'].includes(m.tone)),
-      [...new Set(marks.map(m => m.tone))].join(','),
+      [...new Set(marks.map(m => m.tone))].join(',') + ' | use only accent, info or textSecondary as tone in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts',
     )
 
     t.check('Bash is shell', toolFamilyFor('Bash') === 'shell', toolFamilyFor('Bash'))
@@ -278,13 +278,13 @@ if (process.env.TOOLGLYPH_RENDER_CHILD) {
         lines = payload.grid.map(cells => cells.map(cell => cell.c).join(''))
       } catch {
       }
-      t.check('the vocabulary rendered', r.status === 0 && lines.length > 0, `exit=${r.status}`)
+      t.check('the vocabulary rendered', r.status === 0 && lines.length > 0, `exit=${r.status} | the TOOLGLYPH_RENDER_CHILD arm at the top of this file did not paint: run it under the capture driver from scripts/lib/captureDriver.ts and read its error`)
       for (const [family, mark] of Object.entries(TOOL_FAMILY_MARKS)) {
         const line = lines.find(l => l.includes(`|${family}`))
         t.check(
           `${family}: the mark paints, and its separator lands in column 2`,
           line !== undefined && line.startsWith(`${mark.glyph}|`),
-          line?.slice(0, 12).trim() ?? 'missing',
+          (line?.slice(0, 12).trim() ?? 'missing') + ' | fix the glyph of this family in TOOL_FAMILY_MARKS in src/components/mercury-ui/toolGlyphs.ts, it must paint as one cell then a pipe',
         )
       }
     }

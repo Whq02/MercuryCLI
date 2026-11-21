@@ -70,9 +70,10 @@ writeFileSync(process.argv[2]!, JSON.stringify(read))
 
 let passed = 0
 let failed = 0
+const excludeHint = 'change how matchesInstructionExcludes in src/services/instructions/discovery.ts resolves links in an exclude pattern per platform;'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${excludeHint} ${detail.slice(0, 700)}` : ''}`)
 }
 
 try {

@@ -13,11 +13,19 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-effort-vocab-
 process.env.MERCURY_OPENAI_API_BASE = 'http://127.0.0.1:9'
 
 let failures = 0
+const EFFORT_VOCAB_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'change resolveEffortTruth in src/utils/effort.ts, KIMI_EFFORTS in src/utils/model/pins/kimiPins.ts, or buildMoonshotExtras in src/services/providers/openaicompat/compatWire.ts so truth and wire agree',
+  '2': 'change resolveEffortTruth in src/utils/effort.ts, DEEPSEEK_EFFORTS in src/utils/model/pins/deepseekPins.ts, or buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts so truth and wire agree',
+  '3': 'change resolveEffortTruth in src/utils/effort.ts or glmEffortsFor and glmAcceptsEffort in src/utils/model/pins/glmPins.ts',
+  '4': 'change getDisplayedEffortLevel, resolveAppliedEffort, selectableEffortLevels or resolveWireRequestedEffort in src/utils/effort.ts so they read resolveEffortTruth',
+}
+let effortVocabFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${effortVocabFixHint}` : ''}`)
 }
 function section(t: string): void {
+  effortVocabFixHint = EFFORT_VOCAB_FIX_HINT_BY_SECTION[t.charAt(1)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

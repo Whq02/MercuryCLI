@@ -26,7 +26,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = ' — change isMercuryConfigSegment or checkPathSafetyForAutoEdit in src/utils/permissions/filesystem.ts (which .mercury/ paths count as sensitive), or the write ladder in src/utils/permissions/decision/engine.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
 }
 function context(mode: string) {
   const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { userSettings: ['Write', 'Edit'] }, alwaysDenyRules: {}, alwaysAskRules: {} }, tasks: {}, sessionHooks: new Map() }

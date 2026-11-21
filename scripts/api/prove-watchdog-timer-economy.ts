@@ -128,24 +128,24 @@ section('two drives — the watchdog timer count must not scale with events')
 {
   const small = await drive(5)
   const large = await drive(405)
-  check('the small drive consumed its stream', small.events >= 5, `events=${small.events}`)
-  check('the large drive consumed ~400 more events', large.events - small.events >= 380, `small=${small.events} large=${large.events}`)
+  check('the small drive consumed its stream', small.events >= 5, `events=${small.events} — the routed call produced too few stream_event items; check routedCallModel in src/services/providers/callModelRouter.ts`)
+  check('the large drive consumed ~400 more events', large.events - small.events >= 380, `small=${small.events} large=${large.events} — the large drive should serve 400 more deltas; check routedCallModel in src/services/providers/callModelRouter.ts`)
   const slopeDetail = `watchdog creates: small=${small.watchdog} large=${large.watchdog}; total setTimeout creates: small=${small.total} large=${large.total}`
   console.log(`  · ${slopeDetail}`)
   check(
     'watchdog timer creations are event-count independent (delta ≤ 2 across +400 events; the old shape added 2 per event ⇒ ~800)',
     large.watchdog - small.watchdog <= 2,
-    slopeDetail,
+    `${slopeDetail} — noteActivity must not create a timer per event; keep one timer and re-arm it from onStreamIdleDeadline in src/services/providers/streamIdleBudget.ts`,
   )
   check(
     'the watchdog armed at all (attribution is live, not vacuous)',
     small.watchdog >= 1 && large.watchdog >= 1,
-    slopeDetail,
+    `${slopeDetail} — no timer named onStreamIdleDeadline was created; the counter matches that function name in src/services/providers/streamIdleBudget.ts, so keep the name or update this proof`,
   )
   check(
     'whole-process timer creations do not scale per event either (delta < 100 across +400 events)',
     large.total - small.total < 100,
-    slopeDetail,
+    `${slopeDetail} — something on the stream path creates a setTimeout per event; find it among the stream readers under src/services/providers`,
   )
 }
 

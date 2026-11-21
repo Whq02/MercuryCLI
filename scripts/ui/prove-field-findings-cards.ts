@@ -8,6 +8,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error('      to fix: a typed capital letter is decoded by interpretKey in src/ink/input/interpreter.ts (it must set name and shift), and the binding match is matchesKeystroke in src/keybindings/match.ts with parseKeystroke in src/keybindings/parser.ts')
   }
 }
 

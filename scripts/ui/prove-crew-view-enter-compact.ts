@@ -84,6 +84,7 @@ function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  if (!good) console.log('    to fix: the /crewmates list and its keys are in src/utils/cockpit/crewView.ts (openCrewView, isCrewViewOpen), the activity screen and its rows in src/components/tasks/BackgroundTasksDialog.tsx, the compact controls in useCompactWorkControls in src/components/tasks/CompactWorkSummary.tsx, the band and modal layout in src/components/FullscreenLayout.tsx; run with --frames <folder> to keep frames as text')
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -117,7 +118,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('crew-view-enter-compact exceeded its deadline'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('crew-view-enter-compact exceeded its deadline of 240 s; a wait in this script never saw its screen text or state, so read the last check printed above and the view code it names (src/utils/cockpit/crewView.ts, src/components/tasks/BackgroundTasksDialog.tsx)'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const rosterRows = [

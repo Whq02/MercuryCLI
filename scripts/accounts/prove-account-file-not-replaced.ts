@@ -162,12 +162,12 @@ for (const family of FAMILIES) {
     `)
     const threw = r.threw as Threw
     const words = `The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check('the writer refuses', threw !== null, 'it returned as if it had written')
-    check('the file stands byte for byte, its tokens with it', r.same === true, 'the file was replaced: its stored tokens are gone')
-    check('the refusal says what could not be read, the code, that nothing was written and what to do', threw?.message === words, `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
-    check('the refusal carries the errno code', threw?.code === 'EACCES', `code ${threw?.code}`)
-    check('the refusal holds no token', threw !== null && !threw.message.includes(family.secret))
-    check('nothing is kept aside for a file that was never read', (r.asides as string[]).length === 0, JSON.stringify(r.asides))
+    check('the writer refuses', threw !== null, `it returned as if it had written · the ${family.label} writer in src/${family.mod} must throw when the auth file exists but cannot be read, never write over it`)
+    check('the file stands byte for byte, its tokens with it', r.same === true, `the file was replaced: its stored tokens are gone · the ${family.label} writer in src/${family.mod} must leave an unreadable file untouched`)
+    check('the refusal says what could not be read, the code, that nothing was written and what to do', threw?.message === words, `said: ${threw?.message ?? '(nothing)'} — wanted: ${words} · change the refusal text of the ${family.label} writer in src/${family.mod} (or the store-read helper it calls) to match`)
+    check('the refusal carries the errno code', threw?.code === 'EACCES', `code ${threw?.code} · the refusal thrown by the ${family.label} writer in src/${family.mod} must keep the errno code EACCES`)
+    check('the refusal holds no token', threw !== null && !threw.message.includes(family.secret), `the refusal thrown by the ${family.label} writer in src/${family.mod} must not include file contents`)
+    check('nothing is kept aside for a file that was never read', (r.asides as string[]).length === 0, `${JSON.stringify(r.asides)} · the ${family.label} writer in src/${family.mod} must keep a copy aside only for a file it read and found not valid`)
   }
 
   console.log(`${family.label} — an auth file that is not valid JSON is kept aside before the new one is written`)
@@ -189,13 +189,13 @@ for (const family of FAMILIES) {
       out.floorOfTheFile = await floorOf(file)
     `)
     const asides = r.asides as string[]
-    check('the write lands', r.threw === null && r.wrote === true, JSON.stringify(r.threw))
-    check('exactly one copy is kept beside the file, under a name that ends in -auth.json', asides.length === 1 && family.aside.test(asides[0]!), `found ${JSON.stringify(asides)} — the old bytes are gone`)
-    check('the copy holds the old bytes verbatim', r.asideHoldsTheBytes === true)
-    if (POSIX_MODES) check('the copy is mode 0600', r.asideMode === 0o600, `mode ${(r.asideMode as number | null)?.toString(8)}`)
+    check('the write lands', r.threw === null && r.wrote === true, `${JSON.stringify(r.threw)} · the ${family.label} writer in src/${family.mod} must keep the torn file aside and then write the new one`)
+    check('exactly one copy is kept beside the file, under a name that ends in -auth.json', asides.length === 1 && family.aside.test(asides[0]!), `found ${JSON.stringify(asides)} — the old bytes are gone · the keep-aside step of the ${family.label} writer in src/${family.mod} (see src/substrate/storeRecovery.ts) must leave exactly one copy named like .${family.id}.corrupt.<time>-auth.json`)
+    check('the copy holds the old bytes verbatim', r.asideHoldsTheBytes === true, `the keep-aside step of the ${family.label} writer in src/${family.mod} must copy the old file byte for byte`)
+    if (POSIX_MODES) check('the copy is mode 0600', r.asideMode === 0o600, `mode ${(r.asideMode as number | null)?.toString(8)} · the kept-aside copy of the ${family.label} writer in src/${family.mod} must be created with mode 0600`)
     const events = r.events as Array<{ store?: string; kind?: string; quarantinePath?: string | null; reason?: string }>
     const last = events.at(-1)
-    check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === family.store && last.reason === 'not valid JSON' && last.quarantinePath === r.aside && (last.kind ?? 'quarantine') === 'quarantine', JSON.stringify(last ?? null))
+    check('the recovery ledger, which the Health Check prints, names the store, the reason and where the copy is', last !== undefined && last.store === family.store && last.reason === 'not valid JSON' && last.quarantinePath === r.aside && (last.kind ?? 'quarantine') === 'quarantine', `${JSON.stringify(last ?? null)} · the keep-aside step of the ${family.label} writer in src/${family.mod} must record an event in src/substrate/storeRecovery.ts with store ${family.store}, reason not valid JSON and the copy path`)
     const floor = r.floor as Record<string, { read: string; cat: string }> | null
     const fileFloor = r.floorOfTheFile as Record<string, { read: string; cat: string }>
     for (const mode of ['default', 'sovereign']) {
@@ -222,7 +222,7 @@ for (const family of FAMILIES) {
       out.wrote = wrote()
       out.keys = Object.keys(parsed(file) ?? {})
     `)
-    check('with the clock held at one millisecond the three writes land and the three old files are kept, each under its own name', r.first === null && r.second === null && r.third === null && r.wrote === true && (r.asides as string[]).length === 3 && (r.asides as string[]).every(name => family.aside.test(name)) && JSON.stringify(r.held) === JSON.stringify(['"a bare string"', '[1, 2]', 'first torn bytes {']), `${JSON.stringify(r.asides)} holding ${JSON.stringify(r.held)}`)
+    check('with the clock held at one millisecond the three writes land and the three old files are kept, each under its own name', r.first === null && r.second === null && r.third === null && r.wrote === true && (r.asides as string[]).length === 3 && (r.asides as string[]).every(name => family.aside.test(name)) && JSON.stringify(r.held) === JSON.stringify(['"a bare string"', '[1, 2]', 'first torn bytes {']), `${JSON.stringify(r.asides)} holding ${JSON.stringify(r.held)} · the keep-aside step of the ${family.label} writer in src/${family.mod} must give each copy its own name even within one millisecond`)
     check('the ledger says why each was not used', JSON.stringify(r.reasons) === JSON.stringify(['not valid JSON', 'not a JSON object', 'not a JSON object']), JSON.stringify(r.reasons))
     check('no item of the list that stood in the file is carried into the new one', !(r.keys as string[]).some(key => /^\d+$/.test(key)), JSON.stringify(r.keys))
   }
@@ -240,8 +240,8 @@ for (const family of FAMILIES) {
     `)
     const threw = r.threw as Threw
     const words = `The ${family.label} auth file at ${String(r.file)} is not valid JSON and could not be kept aside (EACCES); nothing was written. Move it away, then try again.`
-    check('the writer refuses and the file stands', threw !== null && r.same === true, JSON.stringify(threw))
-    check('the refusal says why nothing was written and what to do', threw?.message === words, `said: ${threw?.message ?? '(nothing)'} — wanted: ${words}`)
+    check('the writer refuses and the file stands', threw !== null && r.same === true, `${JSON.stringify(threw)} · the ${family.label} writer in src/${family.mod} must refuse and leave the file as it is when the copy cannot be kept aside`)
+    check('the refusal says why nothing was written and what to do', threw?.message === words, `said: ${threw?.message ?? '(nothing)'} — wanted: ${words} · change the could-not-be-kept-aside refusal text of the ${family.label} writer in src/${family.mod} to match`)
   }
 
   console.log(`${family.label} — controls: a file that is not there is a first write, and a file that reads keeps its other fields`)
@@ -256,8 +256,8 @@ for (const family of FAMILIES) {
       out.asides = asides()
       out.mode = mode(file)
     `)
-    check('with no file the first write lands', r.absent === null && r.wroteAbsent === true, JSON.stringify(r.absent))
-    check('with a file that reads the write lands and the stored tokens stay', r.valid === null && r.wroteValid === true && r.kept === true, JSON.stringify(r.valid))
+    check('with no file the first write lands', r.absent === null && r.wroteAbsent === true, `${JSON.stringify(r.absent)} · the ${family.label} writer in src/${family.mod} must write a new file when none exists`)
+    check('with a file that reads the write lands and the stored tokens stay', r.valid === null && r.wroteValid === true && r.kept === true, `${JSON.stringify(r.valid)} · the ${family.label} writer in src/${family.mod} must keep the stored tokens when it rewrites a file that reads`)
     check('neither keeps anything aside', (r.asides as string[]).length === 0, JSON.stringify(r.asides))
     if (POSIX_MODES) check('the file is mode 0600', r.mode === 0o600, `mode ${(r.mode as number | null)?.toString(8)}`)
   }
@@ -278,14 +278,14 @@ else {
     `)
     const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
     const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
+    check(`${family.label}: the sign-out answers a note that says why, changes nothing and says it was refused`, r.outcome === null && answered?.note === words && answered.mutated === false && answered.refused === true && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must turn the store refusal into a refused note and change nothing`)
   }
   const gemini = FAMILIES[0]!
   const fault = runIn(gemini, `
     const removal = await import(${JSON.stringify(join(SRC, 'services/providers/accountSlots/removal.ts'))})
     out.threw = attempt(() => removal.executeSlotRemoval({ id: 'fixture-slot', family: 'gemini', kind: 'oauth', removal: { route: 'gemini-oauth' } }, { disconnectGeminiOauth: () => { throw new TypeError('a fault of the code, not a refusal') } }))
   `)
-  check('a throw that is not a refusal of the store still leaves the sign-out as a throw, as before', (fault.threw as Threw)?.message === 'a fault of the code, not a refusal', JSON.stringify(fault.threw))
+  check('a throw that is not a refusal of the store still leaves the sign-out as a throw, as before', (fault.threw as Threw)?.message === 'a fault of the code, not a refusal', `${JSON.stringify(fault.threw)} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must turn only store refusals into notes and rethrow any other error`)
   const r = runIn(gemini, `
     const login = await import(${JSON.stringify(join(SRC, 'services/providers/gemini/geminiLogin.ts'))})
     fs.mkdirSync(dir, { recursive: true })
@@ -296,7 +296,7 @@ else {
     out.same = raw(file) === FULL
   `)
   const answered = r.answered as { ok?: boolean; receipt?: string } | undefined
-  check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'}`)
+  check('Gemini: making a source active answers a receipt that says why and is not ok', r.outcome === null && answered?.ok === false && answered.receipt === `Could not make it the active source: The Gemini auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.` && r.same === true, `${JSON.stringify(r.outcome ?? answered)} · file ${r.same === true ? 'kept' : 'replaced'} · activateGeminiSource in src/services/providers/gemini/geminiLogin.ts must answer ok false with the refusal as its receipt and leave the file alone`)
 }
 
 console.log('\nan auth file that reads and takes no write — the sign-out says which file could not be written, on each road, and nothing is thrown')
@@ -321,9 +321,9 @@ else {
     const words = `Could not sign out: The ${family.label} auth file at ${String(r.file)} could not be written (EPERM); nothing was written. Close what holds the file, then try again.`
     const answered = r.answered as { note?: string; mutated?: boolean; refused?: boolean } | undefined
     const said = r.said as { out: string; err: string; exit: number | null }
-    check(`${family.label}: the sign-out of the slot answers the note, refused, and throws nothing`, r.slot === null && answered?.note === words && answered.mutated === false && answered.refused === true, JSON.stringify(r.slot ?? answered))
-    check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, JSON.stringify({ threw: r.verbThrew, said }))
-    check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'}`)
+    check(`${family.label}: the sign-out of the slot answers the note, refused, and throws nothing`, r.slot === null && answered?.note === words && answered.mutated === false && answered.refused === true, `${JSON.stringify(r.slot ?? answered)} · executeSlotRemoval in src/services/providers/accountSlots/removal.ts must answer a refused note when the file cannot be written`)
+    check(`${family.label}: the sign-out of the family says it on the error stream and exits 1`, r.verbThrew === null && said.err === `${words}\n` && said.out === '' && said.exit === 1, `${JSON.stringify({ threw: r.verbThrew, said })} · providerAuthLogout in src/cli/handlers/providerAuth.ts must write the refusal to the error stream and exit 1`)
+    check(`${family.label}: the sign-out of every provider answers it once, and the file stands byte for byte`, r.every === null && JSON.stringify(r.everyAnswered) === JSON.stringify([words]) && r.same === true, `${JSON.stringify(r.every ?? r.everyAnswered)} · file ${r.same === true ? 'kept' : 'changed'} · signOutEveryEngineCredential in src/services/providers/accountSlots/removal.ts must answer the refusal once and leave the file alone`)
   }
   const marked = runIn(FAMILIES[4]!, `
     const child = await import('node:child_process')
@@ -334,7 +334,7 @@ else {
     child.spawnSync('/usr/bin/chflags', ['nouchg', file])
     out.same = raw(file) === FULL
   `)
-  check('OpenRouter: the mark of a refused key throws nothing when its file takes no write, so a turn still shows OpenRouter\'s own refusal', marked.threw === null && marked.same === true, JSON.stringify(marked.threw))
+  check('OpenRouter: the mark of a refused key throws nothing when its file takes no write, so a turn still shows OpenRouter\'s own refusal', marked.threw === null && marked.same === true, `${JSON.stringify(marked.threw)} · markOpenrouterKeyRefused in src/services/providers/openrouter/openrouterAccounts.ts must catch a write failure instead of throwing`)
 }
 
 console.log('\nthe terminal sign-out of one family — a file that cannot be read is named with exit 1, and a file that is not valid JSON is kept aside')
@@ -358,12 +358,12 @@ else {
     const unread = signOut(`fs.writeFileSync(file, FULL, { mode: 0o600 }); fs.chmodSync(file, 0o200)`)
     const said = unread.said as { out: string; err: string; exit: number | null }
     const words = `Could not sign out: The ${family.label} auth file at ${String(unread.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check(`${family.label}: the sign-out of the family names the file it could not read on the error stream and exits 1, and the file stands`, said.err === `${words}\n` && said.out === '' && said.exit === 1 && unread.now === full, `${JSON.stringify(said)} · file ${unread.now === full ? 'kept' : 'replaced'}`)
+    check(`${family.label}: the sign-out of the family names the file it could not read on the error stream and exits 1, and the file stands`, said.err === `${words}\n` && said.out === '' && said.exit === 1 && unread.now === full, `${JSON.stringify(said)} · file ${unread.now === full ? 'kept' : 'replaced'} · providerAuthLogout in src/cli/handlers/providerAuth.ts must print the refusal on the error stream, exit 1 and leave the file alone`)
     const unusable = signOut(`fs.writeFileSync(file, ${JSON.stringify(broken)}, { mode: 0o600 })`)
     const kept = unusable.kept as unknown[]
-    check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)}`)
+    check(`${family.label}: a file that is not valid JSON is kept aside by the sign-out of the family, every byte`, kept.length === 1 && kept[0] === broken && typeof unusable.now === 'string' && !unusable.now.includes(family.secret), `${kept.length} kept aside · ${JSON.stringify(unusable.said)} · providerAuthLogout in src/cli/handlers/providerAuth.ts must keep the invalid file aside byte for byte and then remove the credential`)
     const told = unusable.said as { out: string; err: string; exit: number | null }
-    check(`${family.label}: …and the sign-out says so with exit 0: what the file was, where the copy is, and that no credential could be read from it`, told.out === `The ${family.label} auth file at ${String(unusable.file)} was not valid JSON and is kept aside at ${String((unusable.copies as string[])[0])}; no credential could be read from it.\n` && told.err === '' && told.exit === 0, JSON.stringify(told))
+    check(`${family.label}: …and the sign-out says so with exit 0: what the file was, where the copy is, and that no credential could be read from it`, told.out === `The ${family.label} auth file at ${String(unusable.file)} was not valid JSON and is kept aside at ${String((unusable.copies as string[])[0])}; no credential could be read from it.\n` && told.err === '' && told.exit === 0, `${JSON.stringify(told)} · change the kept-aside message printed by providerAuthLogout in src/cli/handlers/providerAuth.ts to match`)
   }
 }
 
@@ -389,8 +389,8 @@ else {
     `)
     const outcome = r.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
     const words = `${said}The ${family.label} auth file at ${String(r.file)} exists but could not be read (EACCES); nothing was written. Make it readable, or move it away to start a new one, then try again.`
-    check(`${family.label}: the sign-in is refused in the receipt's words, and the auth file stands`, outcome?.ok === false && outcome.stored === false && outcome.receipt === words && r.same === true, JSON.stringify(outcome))
-    check(`${family.label}: the key is not in the secrets store and the sign-in ledger records no sign-in`, r.storedKey === null && (r.ledger as string[]).length === 0, `the secrets store holds the key (${JSON.stringify(r.storedKey)}) and the ledger records ${JSON.stringify(r.ledger)}: "nothing was written" is not true`)
+    check(`${family.label}: the sign-in is refused in the receipt's words, and the auth file stands`, outcome?.ok === false && outcome.stored === false && outcome.receipt === words && r.same === true, `${JSON.stringify(outcome)} · the key sign-in in src/${module} must return ok false, stored false and the refusal as its receipt, and leave the auth file alone`)
+    check(`${family.label}: the key is not in the secrets store and the sign-in ledger records no sign-in`, r.storedKey === null && (r.ledger as string[]).length === 0, `the secrets store holds the key (${JSON.stringify(r.storedKey)}) and the ledger records ${JSON.stringify(r.ledger)}: "nothing was written" is not true · the key sign-in in src/${module} must write the key and the ledger entry only after the auth file write succeeds, or undo them`)
     const other = runIn(family, `
       const login = await import(${JSON.stringify(join(SRC, module))})
       fs.mkdirSync(dir, { recursive: true })
@@ -414,9 +414,9 @@ else {
       out.madeAFile = fs.existsSync(file)
     `)
     const refusedBySecrets = other.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
-    check(`${family.label}: refused by the secrets store instead, the sign-in leaves the auth file's fields as they were and records nothing`, refusedBySecrets?.ok === false && refusedBySecrets.stored === false && (refusedBySecrets.receipt ?? '').startsWith(`${said}The provider secrets store at `) && other.secretsSame === true && JSON.stringify(other.after) === JSON.stringify(other.before) && (other.ledger as string[]).length === 0, JSON.stringify({ outcome: refusedBySecrets, after: other.after, ledger: other.ledger }))
-    check(`${family.label}: …the auth file is byte for byte what it was, the identity kept for another token with it`, other.byteSame === true, JSON.stringify(other.after))
-    check(`${family.label}: …and where there was no auth file, the refused sign-in leaves none`, (other.again as { ok?: boolean } | undefined)?.ok === false && other.madeAFile === false, `a refused sign-in left an auth file where there was none (${JSON.stringify(other.again)})`)
+    check(`${family.label}: refused by the secrets store instead, the sign-in leaves the auth file's fields as they were and records nothing`, refusedBySecrets?.ok === false && refusedBySecrets.stored === false && (refusedBySecrets.receipt ?? '').startsWith(`${said}The provider secrets store at `) && other.secretsSame === true && JSON.stringify(other.after) === JSON.stringify(other.before) && (other.ledger as string[]).length === 0, `${JSON.stringify({ outcome: refusedBySecrets, after: other.after, ledger: other.ledger })} · the key sign-in in src/${module} must refuse and restore the auth file fields when the secrets store cannot be written`)
+    check(`${family.label}: …the auth file is byte for byte what it was, the identity kept for another token with it`, other.byteSame === true, `${JSON.stringify(other.after)} · the key sign-in in src/${module} must restore the auth file byte for byte when the secrets store refuses`)
+    check(`${family.label}: …and where there was no auth file, the refused sign-in leaves none`, (other.again as { ok?: boolean } | undefined)?.ok === false && other.madeAFile === false, `a refused sign-in left an auth file where there was none (${JSON.stringify(other.again)}) · the key sign-in in src/${module} must remove the auth file it created when the secrets store refuses`)
   }
 }
 
@@ -430,7 +430,7 @@ console.log('\na Gemini key that Google refuses — nothing of it stays: no key,
     out.madeAFile = fs.existsSync(file)
   `)
   const outcome = r.outcome as { ok?: boolean; stored?: boolean; receipt?: string } | undefined
-  check('the sign-in answers that Google refused the key, stores no key and leaves no sign-in of it in the ledger', outcome?.ok === false && outcome.stored === false && (outcome.receipt ?? '').startsWith('Google refused this key') && r.storedKey === null && (r.ledger as string[]).length === 0, JSON.stringify({ outcome, ledger: r.ledger, storedKey: r.storedKey }))
+  check('the sign-in answers that Google refused the key, stores no key and leaves no sign-in of it in the ledger', outcome?.ok === false && outcome.stored === false && (outcome.receipt ?? '').startsWith('Google refused this key') && r.storedKey === null && (r.ledger as string[]).length === 0, `${JSON.stringify({ outcome, ledger: r.ledger, storedKey: r.storedKey })} · storeGeminiApiKeyLogin in src/services/providers/gemini/geminiLogin.ts must store nothing and record no sign-in when Google refuses the key`)
   check('…and where there was no auth file, the refused key leaves none', r.madeAFile === false, 'an auth file was left where there was none')
   if (process.platform !== 'darwin' || !POSIX_MODES) skip('the restore that cannot be written', 'a file that takes no rename is made here with the immutable flag of macOS')
   else {
@@ -444,7 +444,7 @@ console.log('\na Gemini key that Google refuses — nothing of it stays: no key,
       out.threw = attempt(restore)
       child.spawnSync('/usr/bin/chflags', ['nouchg', file])
     `)
-    check('a restore of the auth file that cannot be written throws nothing, so the sign-in answers its own refusal', held.threw === null, JSON.stringify(held.threw))
+    check('a restore of the auth file that cannot be written throws nothing, so the sign-in answers its own refusal', held.threw === null, `${JSON.stringify(held.threw)} · credentialFileRestorer in src/utils/accounts/providerSecrets.ts must catch a failed restore instead of throwing`)
   }
 }
 

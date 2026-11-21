@@ -22,7 +22,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const borderHint = ok ? '' : ' — change the border colour in ConcourseComposer in src/components/concourse/ConcourseStrips.tsx (it takes the theme role from composerBorderRole in src/components/mercury-ui/composerFloor.ts; the 16-colour case also reads src/ink/colorize.ts)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${borderHint}`)
 }
 
 async function borderFgOf(node: React.ReactNode): Promise<{ fg: string; ch: string } | null> {

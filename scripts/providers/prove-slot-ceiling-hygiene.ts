@@ -13,12 +13,21 @@ delete process.env.ANTHROPIC_API_KEY
 
 let failures = 0
 let checks = 0
+const SECTION_FIX: Record<string, string> = {
+  '§A': 'change signinCeilingRefusal in src/services/providers/accountSlots.ts',
+  '§B': 'change scanAccountScopes in src/utils/accounts/scopeScan.ts, or the OAuth token save (saveOAuthTokensIfNeeded) in src/utils/auth.ts or src/services/auth/oauthLifecycle.ts so a second save replaces the stored slot',
+  '§D': 'change deriveFamilySlotGroups or maskedKeyTail in src/services/providers/accountSlots.ts so a slot field never carries more than the last four characters of a key',
+}
+let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail : (detail ? detail + ' | ' : '') + 'to fix: ' + fix
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failureText ? ` — ${failureText}` : ''}`)
 }
 const section = (t: string): void => {
+  sectionKey = t.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

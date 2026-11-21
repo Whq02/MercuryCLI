@@ -16,8 +16,9 @@ let failures = 0
 const check = (label: string, pass: boolean, detail = ''): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? `: ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? `: ${detail}` : ''}${pass ? '' : editorFixHint}`)
 }
+const editorFixHint = ' | fix: splitting an editor setting into executable and arguments is resolveExternalEditor in src/utils/editor.ts; the quoted launch line is editorCommandLine in src/utils/promptEditor.ts'
 try {
   const executable = process.platform === 'win32' ? join(scratch, 'Program Files', 'Editor', 'editor.exe') : String.raw`C:\Program Files\Editor\editor.exe`
   const nppForward =

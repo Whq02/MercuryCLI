@@ -140,14 +140,15 @@ if (process.argv[2] === '--serve') {
 } else {
   let failures = 0
   let checks = 0
+  let refusalHint = 'the built bundle did not run this section as expected; the fixture is the --serve half of scripts/api/prove-image-refusal-drive.ts'
   const check = (label: string, ok: boolean, detail = ''): void => {
     checks++
     if (!ok) failures++
-    console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${ok ? '' : ` | ${refusalHint}`}`)
   }
   const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
   if (!existsSync(DIST)) {
-    console.log(`❌ no bundle at ${DIST}`)
+    console.log(`❌ no bundle at ${DIST}; run bun run build.ts first or pass --dist`)
     process.exit(1)
   }
   console.log(`bundle: ${DIST}\nnode: ${NODE}`)
@@ -187,7 +188,7 @@ if (process.argv[2] === '--serve') {
     writeFileSync(scriptFile, j(turns))
     const child = spawn(BUN, ['run', import.meta.path, '--serve', captureFile, scriptFile], { stdio: ['ignore', 'pipe', 'pipe'] })
     const port = await new Promise<number>((resolvePort, reject) => {
-      const killer = setTimeout(() => reject(new Error('fixture never printed its port')), 20_000)
+      const killer = setTimeout(() => reject(new Error('fixture never printed its port; run this script with --serve by hand to see why')), 20_000)
       child.stdout!.on('data', (chunk: Buffer) => {
         const m = /PORT (\d+)/.exec(chunk.toString('utf8'))
         if (m) {
@@ -311,6 +312,7 @@ if (process.argv[2] === '--serve') {
 
   section('A · the pre-send rule on the built product: a 6000x6000 file attachment on a GPT session')
   {
+    refusalHint = 'the image must be shrunk before it is sent; the refusal handling lives in src/utils/api/mediaRefusal.ts, and the pre-send rule in the image ingestion of the Responses road'
     const fixture = await startFixture('a', [{ text: 'I see a flat image.' }])
     const run = runProduct(fixture.port, { prompt: `describe @${BIG}` })
     const captured = fixture.capture()
@@ -329,6 +331,7 @@ if (process.argv[2] === '--serve') {
 
   section('B · the refused image leaves every later request on the built product, a resume included')
   {
+    refusalHint = 'a refused image must leave later requests and resumes; see providerRefusedImage and mediaRefusalOf in src/utils/api/mediaRefusal.ts'
     const fixture = await startFixture('b', [REFUSAL, { text: 'the answer after the refusal' }, { text: 'the answer after the resume' }])
     const sessionId = randomUUID()
     const first = runProduct(fixture.port, { prompt: `describe @${SMALL}`, sessionId })

@@ -30,6 +30,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const TAIL_HINT = ' | change windowsBatchTail in src/utils/shell/windowsBatchLine.ts'
+const PLAN_HINT = ' | change planWindowsBatchInvocation in src/utils/shell/windowsBatchInvocation.ts'
+const EXEC_HINT = ' | change the Windows batch branch of exec in src/utils/Shell.ts (planWindowsBatchInvocation and runWindowsBatchCommand in src/utils/shell/windowsBatchInvocation.ts)'
 
 console.log('============================================================')
 console.log(' Windows batch invocation — .cmd/.bat by bare name, literal args')
@@ -45,7 +48,7 @@ try {
 
 section('§1 the module exists and its wiring is in the exec path')
 {
-  check('src/utils/shell/windowsBatchInvocation.ts exports the planner and the composer', batch !== null && typeof batch.planWindowsBatchInvocation === 'function' && typeof batch.windowsBatchTail === 'function')
+  check('src/utils/shell/windowsBatchInvocation.ts exports the planner and the composer', batch !== null && typeof batch.planWindowsBatchInvocation === 'function' && typeof batch.windowsBatchTail === 'function', 'export both from src/utils/shell/windowsBatchInvocation.ts, or fix the import error printed above')
 }
 
 const CRLF = '\r\n'
@@ -69,10 +72,10 @@ section('§2 the composer emits the cmd.exe line that carries every byte literal
   const wrapped = (inner: string): string => `"${inner}"`
   const eq = (label: string, words: string[], want: string | null): void => {
     const got = tail === null ? null : tail(words)
-    check(label, got === want, `got ${JSON.stringify(got)} want ${JSON.stringify(want)}`)
+    check(label, got === want, `got ${JSON.stringify(got)} want ${JSON.stringify(want)}${TAIL_HINT}`)
   }
   if (tail === null) {
-    check('the composer is importable', false, 'module absent')
+    check('the composer is importable', false, 'module absent | src/utils/shell/windowsBatchInvocation.ts must import and export windowsBatchTail')
   }
   eq('plain word is quoted, whole line wrapped once', ['C:\\bin\\tool.cmd', '--version'], wrapped('"C:\\bin\\tool.cmd" "--version"'))
   eq('empty word stays a quoted empty argument', ['p', ''], wrapped('"p" ""'))
@@ -108,11 +111,11 @@ section('§3 the planner takes only a lone simple command onto a found .cmd/.bat
   const isBatch = async (command: string, wantInner: string | null, options?: { path?: string; cwd?: string }): Promise<void> => {
     const got = await plan(command, options)
     if (wantInner === null) {
-      check(`${command} stays on the ordinary shell`, got.kind === 'ordinary', JSON.stringify(got).slice(0, 120))
+      check(`${command} stays on the ordinary shell`, got.kind === 'ordinary', JSON.stringify(got).slice(0, 120) + PLAN_HINT)
       return
     }
     const ok = got.kind === 'batch' && got.commandLine === `"${wantInner}"`
-    check(`${command} resolves onto ${JSON.stringify(`"${wantInner}"`)}`, ok, got.kind === 'batch' ? `line ${JSON.stringify(got.commandLine)}` : got.kind)
+    check(`${command} resolves onto ${JSON.stringify(`"${wantInner}"`)}`, ok, got.kind === 'batch' ? `line ${JSON.stringify(got.commandLine)}${PLAN_HINT}` : got.kind + PLAN_HINT)
   }
 
   await isBatch('tool.cmd --version', `"${join(BIN, 'tool.cmd')}" "--version"`)
@@ -143,7 +146,7 @@ section('§3 the planner takes only a lone simple command onto a found .cmd/.bat
   await isBatch('~/tool.cmd x', null)
   await isBatch('./missing.cmd x', null, { cwd: BIN })
   const spaced = await plan('spaced.cmd --x "a b"', { path: BIN_SPACED })
-  check('a batch under a directory with spaces resolves quoted', spaced.kind === 'batch' && spaced.commandLine === `""${join(BIN_SPACED, 'spaced.cmd')}" "--x" "a b""`, JSON.stringify(spaced).slice(0, 160))
+  check('a batch under a directory with spaces resolves quoted', spaced.kind === 'batch' && spaced.commandLine === `""${join(BIN_SPACED, 'spaced.cmd')}" "--x" "a b""`, JSON.stringify(spaced).slice(0, 160) + PLAN_HINT)
 }
 
 section('§4 the live seam: a PATH-found batch receives its arguments byte-for-byte')
@@ -203,7 +206,7 @@ if (process.platform !== 'win32') {
     const r = await run(command)
     const got = readDump()
     const ok = r.code === 0 && JSON.stringify(got) === JSON.stringify(want)
-    check(label, ok, `code ${r.code} argv ${JSON.stringify(got).slice(0, 160)}${r.err ? ` err ${JSON.stringify(r.err.slice(0, 80))}` : ''}`)
+    check(label, ok, `code ${r.code} argv ${JSON.stringify(got).slice(0, 160)}${r.err ? ` err ${JSON.stringify(r.err.slice(0, 80))}` : ''}${EXEC_HINT}`)
   }
 
   {
@@ -217,7 +220,7 @@ if (process.platform !== 'win32') {
         const handle = await exec(name, new AbortController().signal, 'bash', { cwd: local, timeout: 20_000, shouldAutoBackground: false })
         const result = await handle.result
         handle.cleanup()
-        check(`${name} runs from the explicit working directory with current-directory executable lookup disabled`, result.code === 23 && result.stdout.includes('LOCAL-BATCH'), JSON.stringify(result))
+        check(`${name} runs from the explicit working directory with current-directory executable lookup disabled`, result.code === 23 && result.stdout.includes('LOCAL-BATCH'), JSON.stringify(result) + EXEC_HINT)
       }
     } finally {
       if (previous === undefined) delete process.env.NoDefaultCurrentDirectoryInExePath
@@ -234,18 +237,18 @@ if (process.platform !== 'win32') {
   {
     writeFileSync(dumpPath, 'stale')
     const r = await run('echoargs.cmd hi | tr a-z A-Z')
-    check('a pipeline still runs through the shell (the batch bridge never takes it)', r.code === 0, `code ${r.code} out ${JSON.stringify(r.out.trim().slice(0, 60))}`)
-    check('…and the piped row ran the batch through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['hi']), JSON.stringify(readDump()).slice(0, 80))
+    check('a pipeline still runs through the shell (the batch bridge never takes it)', r.code === 0, `code ${r.code} out ${JSON.stringify(r.out.trim().slice(0, 60))}${EXEC_HINT}`)
+    check('…and the piped row ran the batch through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['hi']), JSON.stringify(readDump()).slice(0, 80) + EXEC_HINT)
   }
   {
     const r = await run('code42.cmd')
-    check('the batch exit code reaches the tool result', r.code === 42, `code ${r.code}`)
+    check('the batch exit code reaches the tool result', r.code === 42, `code ${r.code}${EXEC_HINT}`)
   }
   {
     writeFileSync(dumpPath, 'stale')
     const r = await run('! echoargs.cmd x')
-    check('a negated batch stays on the shell and its inversion holds', r.code === 1, `code ${r.code}`)
-    check('…and the negated row ran through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['x']), JSON.stringify(readDump()).slice(0, 80))
+    check('a negated batch stays on the shell and its inversion holds', r.code === 1, `code ${r.code}${PLAN_HINT} (a negated command must stay ordinary)`)
+    check('…and the negated row ran through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['x']), JSON.stringify(readDump()).slice(0, 80) + PLAN_HINT)
   }
   {
     writeFileSync(dumpPath, 'stale')
@@ -256,12 +259,12 @@ if (process.platform !== 'win32') {
     } catch {
       redirected = null
     }
-    check('a redirected batch stays on the shell and the redirect lands', r.code === 0 && redirected !== null, `code ${r.code} file ${JSON.stringify(redirected)}`)
-    check('…and the redirected row ran through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['hi']), JSON.stringify(readDump()).slice(0, 80))
+    check('a redirected batch stays on the shell and the redirect lands', r.code === 0 && redirected !== null, `code ${r.code} file ${JSON.stringify(redirected)}${PLAN_HINT}`)
+    check('…and the redirected row ran through the shell, not the bridge', JSON.stringify(readDump()) === JSON.stringify(['hi']), JSON.stringify(readDump()).slice(0, 80) + PLAN_HINT)
   }
   {
     const r = await run('node -e "process.stdout.write(String(6*7))"')
-    check('a non-batch program is untouched by the bridge', r.code === 0 && r.out.trim() === '42', `code ${r.code} out ${JSON.stringify(r.out.trim().slice(0, 40))}`)
+    check('a non-batch program is untouched by the bridge', r.code === 0 && r.out.trim() === '42', `code ${r.code} out ${JSON.stringify(r.out.trim().slice(0, 40))}${PLAN_HINT}`)
   }
 
   {
@@ -292,8 +295,8 @@ if (process.platform !== 'win32') {
     const result = await handle.result
     TaskOutput.stopPolling(handle.taskOutput.taskId)
     handle.cleanup()
-    check('a batch that prints reaches the live tail file while it still runs', seenStaged, 'no staged line in the tail within 10s')
-    check('…and the same batch settles 0 once its gate opens', result.code === 0, `code ${result.code}`)
+    check('a batch that prints reaches the live tail file while it still runs', seenStaged, 'no staged line in the tail within 10s' + EXEC_HINT)
+    check('…and the same batch settles 0 once its gate opens', result.code === 0, `code ${result.code}${EXEC_HINT}`)
   }
 
   {
@@ -304,7 +307,7 @@ if (process.platform !== 'win32') {
     const card = texts.find(text => text.startsWith('<bash-stdout>'))
     const dump = readDump()
     const bangOk = card !== undefined && extractTag(card, 'bash-exit-code') === '0' && JSON.stringify(dump) === JSON.stringify(['from-bang', '%BATCHPROOFVAR%'])
-    check('a bang command that names a batch keeps the literal contract through the same seam', bangOk, `card ${JSON.stringify(card ?? '').slice(0, 80)} dump ${JSON.stringify(dump)}`)
+    check('a bang command that names a batch keeps the literal contract through the same seam', bangOk, `card ${JSON.stringify(card ?? '').slice(0, 80)} dump ${JSON.stringify(dump)}${EXEC_HINT} (the bang path is processBashCommand in src/services/processUserInput/processBashCommand.tsx)`)
   }
 
   process.env.PATH = was

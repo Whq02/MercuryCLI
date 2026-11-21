@@ -8,12 +8,24 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
+const SECTION_FIX: Record<string, string> = {
+  '§1': 'change modelReceivesImageBlocks in src/utils/model/capabilities.ts, glmTakesImages in src/utils/model/pins/glmPins.ts or imagesSupportedForCompatModel in src/services/providers/openaicompat/compatChatCallModel.ts',
+  '§2': 'change buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts (how a tool-result image is sent or turned into words)',
+  '§3': 'change providerRefusedImage or classifyImageRefusalFault in src/utils/api/mediaRefusal.ts, or imageRefusalWords in src/services/providers/zai/zaiCodec.ts',
+  '§4': 'change stripImagesRefusedByStamp in src/services/messages/apiPlan.ts or the mediaRefusal stamp built by createAssistantAPIErrorMessage in src/utils/messages/factories.ts',
+}
+let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail.slice(0, 400) : 'to fix: ' + fix + (detail ? ' | ' + detail.slice(0, 400) : '')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failureText ? ` — ${failureText}` : ''}`)
 }
-const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const section = (t: string): void => {
+  sectionKey = t.slice(0, 2)
+  console.log(`\n${'─'.repeat(76)}\n${t}`)
+}
 
 const { modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
 const { glmTakesImages } = await import('../../src/utils/model/pins/glmPins.ts')

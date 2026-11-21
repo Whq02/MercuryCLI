@@ -92,6 +92,7 @@ function shard(w: World): Promise<{ code: number | null; text: string }> {
     child.on('close', code => done({ code, text }))
   })
 }
+const secondLookWhere = 'the second look is in scripts/gate/ci-shard.sh (the retry block) and the skip of a green member is in drive_members in scripts/lib/drive-members.sh'
 const runsOf = (w: World): Run[] => readFileSync(w.ledger, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Run)
 const times = (w: World, name: string, word?: string): number => runsOf(w).filter(run => run.member === name && (word === undefined || run.words?.[0] === word)).length
 const rowOf = (w: World, name: string): string => {
@@ -124,36 +125,36 @@ try {
   const [first, second] = await Promise.all([shard(a), shard(b)])
 
   section('§1 a group whose tests join by its list: two rows red once, four green')
-  check('the group was red, had its second look and came back green', /^listed\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'listed')), rowOf(a, 'listed') || first.text.slice(-400))
-  check('the red test ran twice', times(a, 'listed/prove-red-once.ts') === 2, String(times(a, 'listed/prove-red-once.ts')))
+  check('the group was red, had its second look and came back green', /^listed\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'listed')), `${rowOf(a, 'listed') || first.text.slice(-400)} — ${secondLookWhere}`)
+  check('the red test ran twice', times(a, 'listed/prove-red-once.ts') === 2, `${String(times(a, 'listed/prove-red-once.ts'))} — the second look must run the red member again; ${secondLookWhere}`)
   for (const [file, kind] of [['prove-green-one.ts', 'bun'], ['prove-green-shell.sh', 'shell'], ['prove-green-python.py', 'Python']] as const) {
-    check(`a green ${kind} test ran once, in the first attempt only`, times(a, `listed/${file}`) === 1, String(times(a, `listed/${file}`)))
+    check(`a green ${kind} test ran once, in the first attempt only`, times(a, `listed/${file}`) === 1, `${String(times(a, `listed/${file}`))} — a member green in the first attempt must not run again; drive_members in scripts/lib/drive-members.sh skips it when MERCURY_SUITE_LEAVE_OUT names it`)
   }
-  check("of a file's two rows the green one ran once and the red one twice", times(a, 'listed/prove-told.ts', 'green') === 1 && times(a, 'listed/prove-told.ts', 'red') === 2, `${times(a, 'listed/prove-told.ts', 'green')} ${times(a, 'listed/prove-told.ts', 'red')}`)
-  check('the second look says which tests it did not run again', ['prove-green-one.ts', 'prove-green-shell.sh', 'prove-green-python.py'].every(file => logOf(a, 'listed', true).includes(`second look: scripts/listed/${file} was green in the first attempt and is not run again`)), logOf(a, 'listed', true).slice(0, 600))
+  check("of a file's two rows the green one ran once and the red one twice", times(a, 'listed/prove-told.ts', 'green') === 1 && times(a, 'listed/prove-told.ts', 'red') === 2, `${times(a, 'listed/prove-told.ts', 'green')} ${times(a, 'listed/prove-told.ts', 'red')} — each row of a file is judged on its own; drive_members in scripts/lib/drive-members.sh`)
+  check('the second look says which tests it did not run again', ['prove-green-one.ts', 'prove-green-shell.sh', 'prove-green-python.py'].every(file => logOf(a, 'listed', true).includes(`second look: scripts/listed/${file} was green in the first attempt and is not run again`)), `${logOf(a, 'listed', true).slice(0, 600)} — drive_members in scripts/lib/drive-members.sh prints the second look line`)
   const saw = existsSync(runnerSaw) ? readFileSync(runnerSaw, 'utf8').split('\n').filter(Boolean) : []
-  check('the runner saw the same PATH and BUN in both attempts', saw.length === 2 && saw[0] === saw[1] && saw[0]!.endsWith(`\t${process.execPath}`), JSON.stringify(saw.map(line => line.slice(0, 120))))
+  check('the runner saw the same PATH and BUN in both attempts', saw.length === 2 && saw[0] === saw[1] && saw[0]!.endsWith(`\t${process.execPath}`), `${JSON.stringify(saw.map(line => line.slice(0, 120)))} — the retry block of scripts/gate/ci-shard.sh must hand the second attempt the same PATH and BUN`)
   const reds = runsOf(a).filter(run => run.member === 'listed/prove-red-once.ts')
-  check('the red test saw the same PATH and BUN in both attempts, and the list of what to leave out was not handed to it', reds.length === 2 && reds[0]!.path === reds[1]!.path && reds[0]!.bun === reds[1]!.bun && reds[0]!.bun === process.execPath && reds.every(run => run.leaveOut === null), JSON.stringify(reds.map(run => [run.bun, run.leaveOut, run.path.slice(0, 80)])))
+  check('the red test saw the same PATH and BUN in both attempts, and the list of what to leave out was not handed to it', reds.length === 2 && reds[0]!.path === reds[1]!.path && reds[0]!.bun === reds[1]!.bun && reds[0]!.bun === process.execPath && reds.every(run => run.leaveOut === null), `${JSON.stringify(reds.map(run => [run.bun, run.leaveOut, run.path.slice(0, 80)]))} — the retry block of scripts/gate/ci-shard.sh and drive_members in scripts/lib/drive-members.sh must keep PATH and BUN and not pass MERCURY_SUITE_LEAVE_OUT to a member`)
 
   section('§2 a group started as `bun run`: one test always red')
-  check('the group stayed red on its second look', /^stays\tpure\t1\t\d+\t1\t\d+$/.test(rowOf(a, 'stays')), rowOf(a, 'stays'))
-  check('the red test ran twice', times(a, 'stays/prove-red-always.ts') === 2, String(times(a, 'stays/prove-red-always.ts')))
-  check('the green test ran once', times(a, 'stays/prove-green-two.ts') === 1, String(times(a, 'stays/prove-green-two.ts')))
-  check('the shard is red and names the group', first.code === 1 && first.text.includes('re-run still RED — genuine'), `rc ${first.code}`)
+  check('the group stayed red on its second look', /^stays\tpure\t1\t\d+\t1\t\d+$/.test(rowOf(a, 'stays')), `${rowOf(a, 'stays')} — ${secondLookWhere}`)
+  check('the red test ran twice', times(a, 'stays/prove-red-always.ts') === 2, `${String(times(a, 'stays/prove-red-always.ts'))} — ${secondLookWhere}`)
+  check('the green test ran once', times(a, 'stays/prove-green-two.ts') === 1, `${String(times(a, 'stays/prove-green-two.ts'))} — ${secondLookWhere}`)
+  check('the shard is red and names the group', first.code === 1 && first.text.includes('re-run still RED — genuine'), `rc ${first.code} — scripts/gate/ci-shard.sh must exit 1 and print re-run still RED when a group stays red on its second look`)
 
   section('§3 a runner that ended before its second list')
-  check('the group came back green on its second look', /^cut-short\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'cut-short')), rowOf(a, 'cut-short'))
-  check('the test the first attempt never reached is run in the second look', times(a, 'cut-short/prove-late.ts') === 1, String(times(a, 'cut-short/prove-late.ts')))
-  check('the green test ran once, the red test twice', times(a, 'cut-short/prove-green-three.ts') === 1 && times(a, 'cut-short/prove-red-once.ts') === 2, `${times(a, 'cut-short/prove-green-three.ts')} ${times(a, 'cut-short/prove-red-once.ts')}`)
+  check('the group came back green on its second look', /^cut-short\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'cut-short')), `${rowOf(a, 'cut-short')} — ${secondLookWhere}`)
+  check('the test the first attempt never reached is run in the second look', times(a, 'cut-short/prove-late.ts') === 1, `${String(times(a, 'cut-short/prove-late.ts'))} — a member the first attempt never reached must run in the second look; ${secondLookWhere}`)
+  check('the green test ran once, the red test twice', times(a, 'cut-short/prove-green-three.ts') === 1 && times(a, 'cut-short/prove-red-once.ts') === 2, `${times(a, 'cut-short/prove-green-three.ts')} ${times(a, 'cut-short/prove-red-once.ts')} — ${secondLookWhere}`)
 
   section('§4 a red group whose output names no test is run again whole')
-  check('the group came back green on its second look', /^unmarked\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'unmarked')), rowOf(a, 'unmarked'))
-  check('every test of it ran twice', times(a, 'unmarked/prove-green-six.ts') === 2 && times(a, 'unmarked/prove-red-once.ts') === 2, `${times(a, 'unmarked/prove-green-six.ts')} ${times(a, 'unmarked/prove-red-once.ts')}`)
+  check('the group came back green on its second look', /^unmarked\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(a, 'unmarked')), `${rowOf(a, 'unmarked')} — ${secondLookWhere}`)
+  check('every test of it ran twice', times(a, 'unmarked/prove-green-six.ts') === 2 && times(a, 'unmarked/prove-red-once.ts') === 2, `${times(a, 'unmarked/prove-green-six.ts')} ${times(a, 'unmarked/prove-red-once.ts')} — a group whose members are not marked must be run whole; ${secondLookWhere}`)
 
   section('§5 the line above which a red group gets no second look measures what the second look runs')
-  check('a group longer than the line has its red test run again when that test fits under it', /^long\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(b, 'long')), rowOf(b, 'long') || second.text.slice(-400))
-  check('the slow green test ran once, the red test twice', times(b, 'long/prove-green-slow.ts') === 1 && times(b, 'long/prove-red-once.ts') === 2, `${times(b, 'long/prove-green-slow.ts')} ${times(b, 'long/prove-red-once.ts')}`)
+  check('a group longer than the line has its red test run again when that test fits under it', /^long\tpure\t1\t\d+\t0\t\d+$/.test(rowOf(b, 'long')), `${rowOf(b, 'long') || second.text.slice(-400)} — the retry budget MERCURY_CI_RETRY_MAX_SECS (RETRY_MAX) is checked in scripts/gate/ci-shard.sh and must measure what the second look runs`)
+  check('the slow green test ran once, the red test twice', times(b, 'long/prove-green-slow.ts') === 1 && times(b, 'long/prove-red-once.ts') === 2, `${times(b, 'long/prove-green-slow.ts')} ${times(b, 'long/prove-red-once.ts')} — ${secondLookWhere}`)
 } finally {
   rmSync(work, { recursive: true, force: true })
 }

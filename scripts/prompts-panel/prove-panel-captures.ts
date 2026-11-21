@@ -51,6 +51,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(`         change the panel in src/components/prompts-panel/PromptsPanel.tsx (or CrewChatPanel.tsx for the crew tab) and the /workbench command in src/commands/workbench/workbench.tsx; the capture text is saved as ${CAPTURE_DIR}/<tag>-<cols>x<rows>.txt, so open the file named by the L-number in the label`)
 }
 
 mkdirSync(CAPTURE_DIR, { recursive: true })

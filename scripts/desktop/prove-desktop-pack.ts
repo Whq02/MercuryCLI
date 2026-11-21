@@ -21,6 +21,11 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
   if (!cond) failures++
 }
+const BUILD_HINT = 'fix scripts/vendor/build-desktop.ts, or run bun run scripts/vendor/build-desktop.ts and read its output'
+const PACK_HINT = 'fix src/services/desktop/pack.ts or rebuild the pack with scripts/vendor/build-desktop.ts'
+const SOURCE_HINT = 'fix the Rust sources under native/desktop/src (export list: DESKTOP_ADDON_EXPORTS in src/services/desktop/pack.ts)'
+const DRIVER_HINT = 'fix src/services/desktop/nativeDriver.ts or the addon under native/desktop/src'
+const HEALTH_HINT = 'fix describeDesktopDriver in src/services/desktop/nativeDriver.ts or the iface-computer-use row in src/services/health/sections/interface.ts'
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)
 const finish = (note: string): never => {
   rmSync(SCRATCH, { recursive: true, force: true })
@@ -56,74 +61,74 @@ async function healthRow(): Promise<{ evidence: string; status: string; section:
 
 console.log('\n[1] the vendor build')
 const setupChain = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts.setup
-check('the build is chained into `bun run setup`', setupChain.includes('bun run scripts/vendor/build-desktop.ts'))
+check('the build is chained into `bun run setup`', setupChain.includes('bun run scripts/vendor/build-desktop.ts'), 'add bun run scripts/vendor/build-desktop.ts to the setup script in package.json')
 const build = spawnSync(BUN, ['run', 'scripts/vendor/build-desktop.ts'], { cwd: ROOT, encoding: 'utf8', env: process.env, timeout: 540_000, maxBuffer: 64 * 1024 * 1024 })
 const buildOut = `${build.stdout ?? ''}\n${build.stderr ?? ''}`
 
 if (!hasCargo) {
-  check('no cargo ⇒ the build skips LOUDLY: exit 0 and the remedy named', build.status === 0 && /SKIPPED/.test(buildOut) && /rustup/.test(buildOut), buildOut.slice(-400))
+  check('no cargo ⇒ the build skips LOUDLY: exit 0 and the remedy named', build.status === 0 && /SKIPPED/.test(buildOut) && /rustup/.test(buildOut), `${BUILD_HINT} (without cargo it must exit 0, print SKIPPED and name rustup); ${buildOut.slice(-250)}`)
   const resolution = pack.resolveDesktopPackDir()
-  check('no pack ⇒ the pack owner answers unavailable, naming the platform', resolution.state === 'unavailable' && resolution.note.includes(PLATFORM), JSON.stringify(resolution))
+  check('no pack ⇒ the pack owner answers unavailable, naming the platform', resolution.state === 'unavailable' && resolution.note.includes(PLATFORM), `${PACK_HINT} (resolveDesktopPackDir); ${JSON.stringify(resolution)}`)
   const row = await healthRow()
-  check('…and the health row says the pack is absent', row !== null && row.evidence.startsWith('pack: absent') && row.status === 'info', JSON.stringify(row))
+  check('…and the health row says the pack is absent', row !== null && row.evidence.startsWith('pack: absent') && row.status === 'info', `${HEALTH_HINT}; ${JSON.stringify(row)}`)
   finish('no cargo — the loud skip')
 }
 
 if (build.status !== 0) {
-  check('cargo builds the addon on this host', false, buildOut.slice(-800))
+  check('cargo builds the addon on this host', false, `${BUILD_HINT}; ${buildOut.slice(-800)}`)
   finish('')
 }
-check('the vendor build ends green (a valid pack is installed or already valid)', /DONE|already valid/.test(buildOut), buildOut.slice(-300))
+check('the vendor build ends green (a valid pack is installed or already valid)', /DONE|already valid/.test(buildOut), `${BUILD_HINT}; ${buildOut.slice(-250)}`)
 
 console.log('\n[2] the pack on disk')
 const checkRun = spawnSync(BUN, ['run', 'scripts/vendor/build-desktop.ts', '--check'], { cwd: ROOT, encoding: 'utf8', env: process.env, timeout: 120_000 })
-check('--check certifies the pack without cargo (exit 0, OK)', checkRun.status === 0 && /--check: OK/.test(checkRun.stdout ?? ''), `${checkRun.status}: ${(checkRun.stdout ?? '') + (checkRun.stderr ?? '')}`.slice(0, 300))
+check('--check certifies the pack without cargo (exit 0, OK)', checkRun.status === 0 && /--check: OK/.test(checkRun.stdout ?? ''), `${BUILD_HINT} (the --check mode); ${checkRun.status}: ${(checkRun.stdout ?? '') + (checkRun.stderr ?? '')}`.slice(0, 380))
 const manifest = pack.readDesktopPackManifest(PACK_DIR)
-check('the manifest is whole: name · version · platform · addon · crates', manifest !== null && manifest.name === pack.DESKTOP_PACK_NAME && manifest.platform === PLATFORM && manifest.addon === pack.DESKTOP_ADDON_FILE && manifest.crates.length > 0, JSON.stringify(manifest))
+check('the manifest is whole: name · version · platform · addon · crates', manifest !== null && manifest.name === pack.DESKTOP_PACK_NAME && manifest.platform === PLATFORM && manifest.addon === pack.DESKTOP_ADDON_FILE && manifest.crates.length > 0, `${PACK_HINT} (readDesktopPackManifest); ${JSON.stringify(manifest)}`)
 const onDisk = pack.checkDesktopPackDir(PACK_DIR, { digest: true })
-check('the addon bytes match the manifest digest', onDisk.state === 'ok', onDisk.state === 'ok' ? '' : onDisk.note)
-check('the manifest records the Rust sources the addon was built from', manifest !== null && manifest.sourceTreeDigest === pack.desktopSourceTreeDigest(NATIVE_DIR))
+check('the addon bytes match the manifest digest', onDisk.state === 'ok', onDisk.state === 'ok' ? '' : `${PACK_HINT} (checkDesktopPackDir); ${onDisk.note}`)
+check('the manifest records the Rust sources the addon was built from', manifest !== null && manifest.sourceTreeDigest === pack.desktopSourceTreeDigest(NATIVE_DIR), `the Rust sources changed since the pack was built: rebuild with ${BUILD_HINT}`)
 const licenses = existsSync(join(PACK_DIR, 'licenses')) ? readdirSync(join(PACK_DIR, 'licenses')) : []
 const platformCrate = process.platform === 'linux' ? 'x11rb-' : process.platform === 'win32' ? 'windows-' : 'objc2-'
-check(`the licence records ride beside the addon: png, napi and ${platformCrate} among them`, licenses.some(l => l.startsWith('png-')) && licenses.some(l => l.startsWith('napi-')) && licenses.some(l => l.startsWith(platformCrate)), licenses.join(','))
+check(`the licence records ride beside the addon: png, napi and ${platformCrate} among them`, licenses.some(l => l.startsWith('png-')) && licenses.some(l => l.startsWith('napi-')) && licenses.some(l => l.startsWith(platformCrate)), `${BUILD_HINT} (licence records copied into the pack); found ${licenses.join(',')}`)
 const notices = existsSync(join(PACK_DIR, 'NOTICES.json')) ? (JSON.parse(readFileSync(join(PACK_DIR, 'NOTICES.json'), 'utf8')) as { crates?: Array<{ name: string; license: string }> }) : null
-check('NOTICES.json inventories every crate with its licence', notices !== null && (notices.crates ?? []).length === (manifest?.crates.length ?? -1) && (notices.crates ?? []).some(c => c.name === 'png' && /MIT|Apache/.test(c.license)), JSON.stringify(notices?.crates?.slice(0, 3)))
-check('a pack of another platform reads as a mismatch, never ok', pack.checkDesktopPackDir(PACK_DIR, { platform: 'fixture-os-fixture-arch' }).state === 'mismatch')
+check('NOTICES.json inventories every crate with its licence', notices !== null && (notices.crates ?? []).length === (manifest?.crates.length ?? -1) && (notices.crates ?? []).some(c => c.name === 'png' && /MIT|Apache/.test(c.license)), `${BUILD_HINT} (NOTICES.json written into the pack); ${JSON.stringify(notices?.crates?.slice(0, 3))}`)
+check('a pack of another platform reads as a mismatch, never ok', pack.checkDesktopPackDir(PACK_DIR, { platform: 'fixture-os-fixture-arch' }).state === 'mismatch', 'fix checkDesktopPackDir in src/services/desktop/pack.ts to return mismatch when the manifest platform differs')
 
 console.log('\n[2b] the source pins')
 const sourceFiles = readdirSync(join(NATIVE_DIR, 'src')).filter(f => f.endsWith('.rs'))
 const sources = new Map(sourceFiles.map(f => [f, readFileSync(join(NATIVE_DIR, 'src', f), 'utf8')]))
 const allSource = [...sources.values()].join('\n')
-check('the addon never writes to the terminal (no println!, eprintln! or dbg!)', !/\b(println|eprintln|dbg)!/.test(allSource))
+check('the addon never writes to the terminal (no println!, eprintln! or dbg!)', !/\b(println|eprintln|dbg)!/.test(allSource), 'remove println!, eprintln! and dbg! from the Rust sources under native/desktop/src')
 const lib = sources.get('lib.rs') ?? ''
-check('the held-input state and its release exist', /static HELD/.test(lib) && /pub fn release_all\(/.test(lib))
-check('capture is an AsyncTask export; the frontmost read is not', /pub fn capture\([^)]*\)\s*->\s*Result<AsyncTask</.test(lib) && /pub fn frontmost_application\(\)\s*->\s*ApplicationAnswer/.test(lib))
-check('the export list carries twenty-four names', pack.DESKTOP_ADDON_EXPORTS.length === 24, String(pack.DESKTOP_ADDON_EXPORTS.length))
+check('the held-input state and its release exist', /static HELD/.test(lib) && /pub fn release_all\(/.test(lib), `${SOURCE_HINT}: lib.rs needs static HELD and pub fn release_all`)
+check('capture is an AsyncTask export; the frontmost read is not', /pub fn capture\([^)]*\)\s*->\s*Result<AsyncTask</.test(lib) && /pub fn frontmost_application\(\)\s*->\s*ApplicationAnswer/.test(lib), `${SOURCE_HINT}: lib.rs capture must return Result<AsyncTask<..>> and frontmost_application must return ApplicationAnswer`)
+check('the export list carries twenty-four names', pack.DESKTOP_ADDON_EXPORTS.length === 24, `change DESKTOP_ADDON_EXPORTS in src/services/desktop/pack.ts (or this expected count) so they agree; now ${pack.DESKTOP_ADDON_EXPORTS.length}`)
 const snake = (name: string): string => name.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`)
 const missingExports = pack.DESKTOP_ADDON_EXPORTS.filter(name => !new RegExp(`#\\[napi[^\\n]*\\]\\s*\\n\\s*pub fn ${snake(name)}\\(`).test(lib))
-check('every listed export is a #[napi] function in the source', missingExports.length === 0, missingExports.join(','))
+check('every listed export is a #[napi] function in the source', missingExports.length === 0, `${SOURCE_HINT}; missing a #[napi] pub fn for ${missingExports.join(',')}`)
 
 console.log('\n[3] the addon loads and answers')
 const load = pack.loadDesktopAddon()
-check('the pack owner resolves the checkout pack and loads the addon', load.state === 'ok' && load.source === 'workspace', load.state === 'ok' ? load.dir : load.note)
+check('the pack owner resolves the checkout pack and loads the addon', load.state === 'ok' && load.source === 'workspace', load.state === 'ok' ? load.dir : `${PACK_HINT} (loadDesktopAddon); ${load.note}`)
 let liveReason = LIVE === '' ? 'MERCURY_SUITE_DESKTOP_LIVE is unset' : LIVE !== '1' && LIVE !== 'acts' ? `MERCURY_SUITE_DESKTOP_LIVE is ${LIVE}, not 1 or acts` : ''
 if (load.state === 'ok') {
-  check('packVersion() is the manifest version', load.addon.packVersion() === load.manifest.version, `${load.addon.packVersion()} vs ${load.manifest.version}`)
+  check('packVersion() is the manifest version', load.addon.packVersion() === load.manifest.version, `${PACK_HINT} (the addon packVersion and the manifest version must agree); ${load.addon.packVersion()} vs ${load.manifest.version}`)
   const permissions = load.addon.permissions()
-  check('permissions() answers a session in the closed set and two grants in theirs', SESSION_KINDS.includes(permissions.session) && GRANTS.includes(permissions.screenCapture) && GRANTS.includes(permissions.input), JSON.stringify(permissions))
+  check('permissions() answers a session in the closed set and two grants in theirs', SESSION_KINDS.includes(permissions.session) && GRANTS.includes(permissions.screenCapture) && GRANTS.includes(permissions.input), `${SOURCE_HINT} (permissions export); ${JSON.stringify(permissions)}`)
   console.log(`  · permissions: ${JSON.stringify(permissions)}`)
   const displays = load.addon.displays()
-  check('displays() answers a list (empty with a reason on a headless host)', Array.isArray(displays.displays) && (displays.displays.length > 0 || typeof displays.reason === 'string'), JSON.stringify(displays))
+  check('displays() answers a list (empty with a reason on a headless host)', Array.isArray(displays.displays) && (displays.displays.length > 0 || typeof displays.reason === 'string'), `${SOURCE_HINT} (displays export); ${JSON.stringify(displays)}`)
   console.log(`  · displays: ${displays.displays.length}${displays.reason ? ` (${displays.reason})` : ''}`)
   const held = load.addon.held()
-  check('held() answers two empty arrays', Array.isArray(held.buttons) && held.buttons.length === 0 && Array.isArray(held.keys) && held.keys.length === 0, JSON.stringify(held))
+  check('held() answers two empty arrays', Array.isArray(held.buttons) && held.buttons.length === 0 && Array.isArray(held.keys) && held.keys.length === 0, `${SOURCE_HINT} (held export); ${JSON.stringify(held)}`)
   const resolved = native.resolveNativeDesktopDriver()
-  check('the native driver resolves over the addon and describes itself as native', resolved.state === 'ok' && resolved.driver.describe().kind === 'native' && resolved.driver.describe().source === 'workspace', resolved.state === 'ok' ? '' : resolved.note)
+  check('the native driver resolves over the addon and describes itself as native', resolved.state === 'ok' && resolved.driver.describe().kind === 'native' && resolved.driver.describe().source === 'workspace', resolved.state === 'ok' ? `${DRIVER_HINT} (resolveNativeDesktopDriver describe)` : `${DRIVER_HINT} (resolveNativeDesktopDriver); ${resolved.note}`)
   const facts = await native.describeDesktopDriver()
-  check('/health facts begin with the pack version and platform', facts.line.startsWith(`pack: ${load.manifest.version} ${PLATFORM}`), facts.line)
+  check('/health facts begin with the pack version and platform', facts.line.startsWith(`pack: ${load.manifest.version} ${PLATFORM}`), `${HEALTH_HINT}; ${facts.line}`)
   console.log(`  · health: ${facts.line}`)
   const row = await healthRow()
-  check('the health row sits in the INTERFACE section with the same line', row !== null && row.section === 'INTERFACE' && row.evidence === facts.line, JSON.stringify(row))
+  check('the health row sits in the INTERFACE section with the same line', row !== null && row.section === 'INTERFACE' && row.evidence === facts.line, `${HEALTH_HINT}; ${JSON.stringify(row)}`)
   if (liveReason === '' && (permissions.session !== 'desktop' || !['granted', 'not-required'].includes(permissions.screenCapture) || !['granted', 'not-required'].includes(permissions.input))) {
     liveReason = `session ${permissions.session}, screen ${permissions.screenCapture}, input ${permissions.input}${permissions.reason ? ` — ${permissions.reason}` : ''}`
   }
@@ -221,10 +226,10 @@ if (load.state === 'ok') {
     }
     const res = spawnSync(exe, ['-e', loader, addonPath], { encoding: 'utf8', env: process.env, timeout: 30_000 })
     const line = `${res.stdout ?? ''}${res.stderr ?? ''}`.trim().split('\n').slice(-1)[0] ?? ''
-    check(`${label} loads the addon and answers its whole surface`, res.status === 0 && /^LOADED v\d+/.test(line), `${exe}: ${String(res.status)} ${line}`)
+    check(`${label} loads the addon and answers its whole surface`, res.status === 0 && /^LOADED v\d+/.test(line), `${SOURCE_HINT}; ${exe}: ${String(res.status)} ${line}`)
     console.log(`  · ${label}: ${line}`)
   }
-  check('the isDesktopKey table and the addon agree on a named key and refuse a nonsense one', driverContract.isDesktopKey('enter') && !driverContract.isDesktopKey('hyperspace'))
+  check('the isDesktopKey table and the addon agree on a named key and refuse a nonsense one', driverContract.isDesktopKey('enter') && !driverContract.isDesktopKey('hyperspace'), 'fix isDesktopKey in src/services/desktop/driver.ts so it accepts enter and refuses hyperspace')
 }
 
 finish(liveReason === '' ? 'live' : `live legs skipped: ${liveReason}`)

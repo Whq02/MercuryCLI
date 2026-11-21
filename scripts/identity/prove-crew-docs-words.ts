@@ -97,8 +97,8 @@ console.log('— §0 the scanner bites (poison control) —')
     'A team of agents working one project.',
   ].join('\n')
   const lines = proseLines(poison).filter(l => saysCrew(l.text)).map(l => l.line)
-  check('the sentences are caught (1,7,10)', [1, 7, 10].every(l => lines.includes(l)), lines.join(','))
-  check('a code span, a fenced block, the plan name, the verb and a link target never count', lines.every(l => [1, 7, 10].includes(l)), lines.filter(l => ![1, 7, 10].includes(l)).join(','))
+  check('the sentences are caught (1,7,10)', [1, 7, 10].every(l => lines.includes(l)), lines.join(',') + '; fix WORD, DOOR or saysCrew in scripts/identity/prove-crew-docs-words.ts so these poison lines are caught')
+  check('a code span, a fenced block, the plan name, the verb and a link target never count', lines.every(l => [1, 7, 10].includes(l)), lines.filter(l => ![1, 7, 10].includes(l)).join(',') + '; fix proseLines or saysCrew in scripts/identity/prove-crew-docs-words.ts so code spans, fences, link targets and NOT_THE_CREW phrases are skipped')
 }
 
 console.log('— §1 the census —')
@@ -121,7 +121,7 @@ console.log(`  scanned ${scanned} pages; ${hits.length} lines say the word, ${al
 check(
   'no doc line says team or teammate outside the named reasons',
   unallowed.length === 0,
-  `${unallowed.length} found:` + unallowed.slice(0, 60).map(h => `\n      ${h.rel}:${h.line} ${h.text.slice(0, 110)}`).join('') + (unallowed.length > 60 ? `\n      … and ${unallowed.length - 60} more` : ''),
+  `${unallowed.length} found (reword each listed line in its doc to say crew or crewmate instead of team or teammate, or add a row with a reason to ALLOW in scripts/identity/prove-crew-docs-words.ts):` + unallowed.slice(0, 60).map(h => `\n      ${h.rel}:${h.line} ${h.text.slice(0, 110)}`).join('') + (unallowed.length > 60 ? `\n      … and ${unallowed.length - 60} more` : ''),
 )
 if (REPORT) {
   for (const row of ALLOW) {
@@ -130,7 +130,7 @@ if (REPORT) {
     for (const h of under) console.log(`      ${h.rel}:${h.line} ${h.text.slice(0, 120)}`)
   }
 }
-check('every allow row carries its reason', ALLOW.every(r => r.why.trim().length > 0))
+check('every allow row carries its reason', ALLOW.every(r => r.why.trim().length > 0), 'give each ALLOW row in scripts/identity/prove-crew-docs-words.ts a non-empty why')
 
 console.log(failures === 0 ? '\nprove-crew-docs-words: green' : `\nprove-crew-docs-words: ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

@@ -17,11 +17,20 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const NEUTRAL_DOORS_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'change getAgentModel in src/services/model/agent.ts',
+  '2': 'change isModelAllowed in src/services/model/modelAllowlist.ts, or the family words in src/services/model/modelFamilies.ts and src/utils/model/aliases.ts',
+  '3': 'remove the substitution or floor text it names: src/utils/cockpit/runtimePosture.ts, src/services/cockpit/substrateSnapshot.ts, src/services/concourse/workerModels.ts, src/utils/model/seatSlots.ts or src/services/providers/modelRegistry.ts',
+  '4': 'change the Crewmate tool model field in src/tools/AgentTool/AgentTool.tsx, AGENT_DISPATCH_MODELS in src/utils/model/aliases.ts, or unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts',
+  '5': 'change the model picker door in src/commands/model/mercuryModel.tsx, parseUserSpecifiedModel in src/services/model/model.ts, or subagentDefaultsOf in src/utils/agentDefaults.ts',
+}
+let neutralDoorsFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[neutralDoorsFixHint, detail.slice(0, 300)].filter(part => part !== '').join(' — ')}`.replace(/ — $/, '') : ''}`)
 }
 function section(t: string): void {
+  neutralDoorsFixHint = NEUTRAL_DOORS_FIX_HINT_BY_SECTION[t.charAt(1)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

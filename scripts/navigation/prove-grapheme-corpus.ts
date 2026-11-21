@@ -34,7 +34,7 @@ console.log('UI-087 — the shared grapheme/cell corpus (the ONE width owner)')
 console.log('─'.repeat(76))
 for (const [name, text, cells] of CORPUS) {
   const got = stringWidth(text)
-  check(`${name} = ${cells} cell(s)`, got === cells, `got ${got}`)
+  check(`${name} = ${cells} cell(s)`, got === cells, `got ${got} — change stringWidth in src/ink/stringWidth.ts so this text measures ${cells} cells`)
 }
 
 console.log('\n' + '─'.repeat(76))
@@ -48,11 +48,12 @@ for (const cols of [60, 80, 120]) {
   check(
     `wrap @${cols}: no produced line exceeds the column budget (widest ${widest})`,
     widest <= cols,
-    `widest=${widest} of ${lines.length} lines`,
+    `widest=${widest} of ${lines.length} lines — change wrapText in src/ink/wrap-text.ts (or widestLine in src/ink/widest-line.ts) so no line exceeds ${cols} columns`,
   )
   check(
     `wrap @${cols}: nothing vanished (joined content width is preserved through the pipeline)`,
     stringWidth(lines.join('')) >= stringWidth(HOSTILE_LINE) * 4 - lines.length * 2,
+    `joined width ${stringWidth(lines.join(''))} of ${lines.length} lines — change wrapText in src/ink/wrap-text.ts so wrapping drops no content`,
   )
 }
 
@@ -67,9 +68,9 @@ console.log('─'.repeat(76))
   const serialized = lines.map(l => JSON.stringify(l)).join('\n') + '\n'
   const utf8 = Buffer.byteLength(serialized, 'utf8')
   const units = serialized.length
-  check(`stats.bytes equals the serialized JSONL byte length (${utf8})`, stats.bytes === utf8, `stats.bytes=${stats.bytes} utf8=${utf8}`)
-  check('the fixture carries multi-byte text, so code units undercount the bytes', units < utf8, `units=${units} utf8=${utf8}`)
-  check('stats.lines counts every serialized record', stats.lines === lines.length && stats.lines === serialized.split('\n').length - 1)
+  check(`stats.bytes equals the serialized JSONL byte length (${utf8})`, stats.bytes === utf8, `stats.bytes=${stats.bytes} utf8=${utf8} — change buildCompass1k in scripts/navigation/fixture1k.ts so stats.bytes sums the UTF-8 byte length of each JSON line plus a newline`)
+  check('the fixture carries multi-byte text, so code units undercount the bytes', units < utf8, `units=${units} utf8=${utf8} — change buildCompass1k in scripts/navigation/fixture1k.ts so the fixture keeps multi-byte text`)
+  check('stats.lines counts every serialized record', stats.lines === lines.length && stats.lines === serialized.split('\n').length - 1, `stats.lines=${stats.lines} lines=${lines.length} — change buildCompass1k in scripts/navigation/fixture1k.ts so stats.lines equals the number of records`)
 }
 
 console.log(`\n${failures === 0 ? 'ALL GRAPHEME-CORPUS PROOFS PASS' : failures + ' PROOF(S) FAILED'}`)

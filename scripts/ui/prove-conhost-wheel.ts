@@ -71,7 +71,12 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 2000)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 2000)}` : ''}${ok ? '' : ` | fix: ${wheelHint(label)}`}`)
+}
+function wheelHint(label: string): string {
+  if (/routes plain arrows|keeps keyboard history arrows|never wheel|alternate-scroll road/.test(label)) return 'change resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts, which decides from the terminal state whether a plain arrow becomes a wheel step'
+  if (/notch|resize|draft|SGR wheel|empty composer scrolls|tracking/.test(label)) return 'a plain arrow or wheel report on a scrollable transcript must scroll three rows and leave the draft and mode alone; the arrow-to-wheel decision is resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts and the mouse tracking state is on the Ink instance this proof taps'
+  return 'the key or report this check sends did not do what the label says; start from resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts and the screen or text printed above'
 }
 let mounted: Mounted | undefined
 let ink: React.ContextType<typeof InkInstanceContext>

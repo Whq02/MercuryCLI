@@ -53,7 +53,7 @@ const api = await startFixtureApi([
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — live battery exceeded 300s')
+  console.log('\n❌ TIMEOUT — live battery exceeded 300s; the scratch daemon.log under the concourse-live temp folder shows the check that was still waiting')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
@@ -108,6 +108,7 @@ const daemonExited = new Promise<void>(r => daemon.once('exit', () => r()))
 check(
   'the daemon answers ping on its control socket',
   await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000),
+  'the daemon started by node dist/mercury.mjs daemon run never answered ping on its control socket; rebuild with bun run build.ts and read the scratch daemon.log',
 )
 
 const { WARM_BOOT_ALLOWANCE_MS } = await import('../../src/daemon/warmRunner.ts')
@@ -150,7 +151,7 @@ for (let i = 0; i < 4; i++) {
   if (r.ok && r.workerId && r.sessionId && r.pid !== undefined) {
     admitted.push({ workerId: r.workerId, sessionId: r.sessionId, pid: r.pid })
   } else {
-    check(`admission ${i + 1} succeeded`, false, JSON.stringify(r))
+    check(`admission ${i + 1} succeeded`, false, JSON.stringify(r) + ' | the concourseAdmit op in src/daemon/controlServer.ts refused or timed out; the reply error and the scratch daemon.log name the reason')
   }
 }
 {
@@ -161,11 +162,12 @@ for (let i = 0; i < 4; i++) {
   check(
     'the two isolated sessions carved DISTINCT live worktrees in the one repository',
     recs.length === 2 && new Set(recs.map(r => r.worktreePath)).size === 2 && recs.every(r => r.workspaceId === recs[0]!.workspaceId),
-    JSON.stringify(recs.map(r => r.worktreePath)),
+    JSON.stringify(recs.map(r => r.worktreePath)) + ' | a worktree-isolated admission must record its own live worktreePath in the session-worker records (src/daemon/concourseWorkers.ts)',
   )
   check(
     '…each a REAL linked worktree on disk',
     recs.every(r => existsSync(join(r.worktreePath!, '.git')) && existsSync(join(r.worktreePath!, 'seed.txt'))),
+    'a recorded worktreePath must be a real git worktree checkout of the shared repository',
   )
 }
 const aliasPath = join(SCRATCH, 'ws-1-alias')
@@ -174,7 +176,7 @@ const aliased = await admit(aliasPath)
 check(
   'a symlink-aliased workspace COLLIDES through the alias (RR-01 live) — the git offer answers it',
   aliased.ok === false && aliased.refusal === 'no-repository' && /git offer/.test(aliased.error ?? ''),
-  JSON.stringify(aliased),
+  JSON.stringify(aliased) + ' | admitting a symlink alias of an occupied workspace must refuse with refusal no-repository and the git offer in the error; see src/daemon/concourseWorkers/admission.ts',
 )
 type DispatchReply = AdmitReply & { state?: string; clientMessageId?: string }
 const dispatched = (await daemonControlRpc({
@@ -186,16 +188,16 @@ const dispatched = (await daemonControlRpc({
 check(
   'the fifth session enters via concourseDispatch (prompt-to-session)',
   dispatched.ok === true && dispatched.state === 'working' && !!dispatched.workerId,
-  JSON.stringify(dispatched),
+  JSON.stringify(dispatched) + ' | the concourseDispatch op (src/daemon/concourseDispatch.ts) must start a worker and answer state working',
 )
 check(
   'five workers are simultaneously LIVE on the daemon summary',
   await untilAsync(async () => (await listed()).length === 5, 60_000),
-  JSON.stringify(await listed()),
+  JSON.stringify(await listed()) + ' | the concourseList roster must show five workers; earlier admission failures above say which one is missing',
 )
 const rows = await listed()
 const pids = rows.map(r => r.pid).filter((p): p is number => p !== undefined)
-check('five distinct real processes', new Set(pids).size === 5 && pids.every(alive), JSON.stringify(pids))
+check('five distinct real processes', new Set(pids).size === 5 && pids.every(alive), JSON.stringify(pids) + ' | each roster row needs its own live pid; read the scratch daemon.log for a worker that exited')
 check(
   'every worker is headless — no controlling terminal',
   pids.every(p => {
@@ -207,7 +209,7 @@ check(
 check(
   'five distinct minted session identities',
   new Set(rows.map(r => r.sessionId)).size === 5,
-  JSON.stringify(rows.map(r => r.sessionId)),
+  JSON.stringify(rows.map(r => r.sessionId)) + ' | each admitted worker must be given its own freshly minted session id',
 )
 
 console.log('\n§2 — refusals at the real socket')
@@ -215,15 +217,15 @@ const sixth = await admit(workspaces[5]!)
 check(
   'the SIXTH request refuses (runtime-ceiling) before any worker use',
   sixth.ok === false && sixth.refusal === 'runtime-ceiling' && /every seat is taken/.test(sixth.error ?? ''),
-  JSON.stringify(sixth),
+  JSON.stringify(sixth) + ' | a sixth admission must refuse with refusal runtime-ceiling and the every-seat-is-taken error; see src/daemon/concourseWorkers/admission.ts',
 )
-check('refusals spawned nothing (still five)', (await listed()).length === 5)
+check('refusals spawned nothing (still five)', (await listed()).length === 5, 'a refused admission must not start a worker; see src/daemon/concourseWorkers/admission.ts')
 
 console.log('\n§3 — the dispatched prompt reaches the provider boundary')
 check(
   'the worker processed the turn against the fixture provider',
   await untilAsync(() => api.messageRequests().length >= 1, 90_000),
-  `messageRequests=${api.messageRequests().length}`,
+  `messageRequests=${api.messageRequests().length} | the dispatched worker never called the fixture provider; read the scratch daemon.log`,
 )
 
 console.log('\n§4 — crash convergence: SIGKILL → respawn RESUMES the same session')
@@ -250,60 +252,65 @@ check(
     const back = now.find(r => r.workerId === victim.workerId)
     return !!back && back.pid !== undefined && back.pid !== victim.pid && alive(back.pid)
   }, 90_000),
+  'a worker killed with SIGKILL must be respawned by the daemon with a new pid; read the scratch daemon.log',
 )
 const after = await listed()
 const back = after.find(r => r.workerId === victim.workerId)
 check(
   'the respawned worker carries the SAME durable session id (--resume, not a re-mint)',
   back?.sessionId === victim.sessionId,
-  JSON.stringify({ was: victim.sessionId, now: back?.sessionId }),
+  JSON.stringify({ was: victim.sessionId, now: back?.sessionId }) + ' | a respawn must resume the recorded session id and not mint a new one',
 )
 check(
   "the other workers' pids were untouched by the crash",
   survivors.every(s => after.find(r => r.workerId === s.workerId)?.pid === s.pid),
-  JSON.stringify({ survivors, after }),
+  JSON.stringify({ survivors, after }) + ' | a crash respawn must touch only the crashed worker',
 )
 
 console.log('\n§5 — release + shutdown leave nothing behind')
 type ReleaseReply = { ok: boolean; settled?: boolean; killed?: boolean }
 const released = (await daemonControlRpc({ op: 'concourseRelease', workerId: victim.workerId } as never)) as ReleaseReply
-check('concourseRelease kills + settles exactly one record', released.ok === true && released.settled === true && released.killed === true, JSON.stringify(released))
+check('concourseRelease kills + settles exactly one record', released.ok === true && released.settled === true && released.killed === true, JSON.stringify(released) + ' | the concourseRelease op in the daemon must kill the worker and settle its record')
 check(
   'the summary drops the released worker (four remain)',
   await untilAsync(async () => (await listed()).length === 4, 30_000),
+  'a released worker must leave the concourseList roster',
 )
 const releasedPid = back?.pid
 check(
   'the released worker process is gone (intentional stop — no respawn)',
   await untilAsync(() => (releasedPid === undefined ? true : !alive(releasedPid)), 30_000),
+  'a released worker must stay stopped; the daemon must not respawn it',
 )
 {
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const isoLive = Object.values(readSessionWorkers(daemonDir)).find(
     r => r.endedAt === undefined && r.worktreePath !== undefined,
   )
-  check('an isolated worker is still live for the reap leg', isoLive !== undefined)
+  check('an isolated worker is still live for the reap leg', isoLive !== undefined, 'a worktree-isolated worker must still be live with an unended record in src/daemon/concourseWorkers.ts')
   if (isoLive) {
     const wtPath = isoLive.worktreePath!
     const rel2 = (await daemonControlRpc({ op: 'concourseRelease', runnerId: isoLive.runnerId } as never)) as ReleaseReply
-    check('the isolated worker releases + settles', rel2.ok === true && rel2.settled === true, JSON.stringify(rel2))
+    check('the isolated worker releases + settles', rel2.ok === true && rel2.settled === true, JSON.stringify(rel2) + ' | concourseRelease by runnerId must settle the isolated worker')
     check(
       'its CLEAN worktree was REAPED with the settle (live)',
       await untilAsync(() => !existsSync(wtPath), 30_000),
-      wtPath,
+      wtPath + ' | settling an isolated worker with a clean worktree must remove that worktree',
     )
     check(
       '…and the repository registration was pruned',
       !execFileSync('git', ['-C', sharedRepo, 'worktree', 'list'], { encoding: 'utf8', env: { ...process.env } }).includes(wtPath),
+      'removing the worktree must also prune its git worktree registration in the shared repository',
     )
   }
 }
 await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)
-check('the daemon exits on shutdown', await untilAsync(() => daemon.exitCode !== null, 30_000))
+check('the daemon exits on shutdown', await untilAsync(() => daemon.exitCode !== null, 30_000), 'the daemon must exit after a shutdown op; read the scratch daemon.log')
 await daemonExited
 check(
   'every worker process is reaped',
   await untilAsync(() => pids.every(p => !alive(p)) && (back?.pid === undefined || !alive(back.pid)), 30_000),
+  'shutdown with reapWorkers true must stop every worker process; the live pids are the ones left',
 )
 const strays = (() => {
   try {

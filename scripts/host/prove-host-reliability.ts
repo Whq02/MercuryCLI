@@ -37,7 +37,7 @@ const vast = await vastFixture()
 const runpod = await runpodFixture()
 const lambda = await lambdaFixture()
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? '\n' + detail : '')); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? '\n' + detail : '') + '\nwhat to change: the behaviour this check names, in src/services/host/reliability.ts (hostMachineOf, noteHostLink, hostMachineTrouble, the hostLink*Words) for sections 1 to 4; in src/services/host/worker.ts, src/services/host/door.ts or src/services/host/ssh.ts (sshArguments, localKeyPath) for sections 5 and 6'); checks++; console.log('PASS ' + name) }
 const signal = new AbortController().signal
 const closers: (() => void | Promise<unknown>)[] = []
 try {

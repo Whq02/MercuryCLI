@@ -59,7 +59,12 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ` | fix: ${failureHint(label)}`}`)
+}
+function failureHint(label: string): string {
+  if (/durable/.test(label)) return 'the on-disk draft is read by readDraftSync in src/utils/promptDraft.ts; the view move must leave that entry in place'
+  if (/draft|composer|POCKET|pocket|words|typed/.test(label)) return 'the open or close road named in this label must not clear or replace the composer text held by src/input-core/pending-input.ts (edit, text, stashedPrompt); find the call on that road that empties it'
+  return 'the surface this label opens or closes did not follow the key or command the proof sent; look at the component named in the label and at the road in the section heading'
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

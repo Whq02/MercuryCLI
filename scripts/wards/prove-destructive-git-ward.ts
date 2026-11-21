@@ -8,10 +8,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const GIT_WARD_FAIL_HINT = 'to fix: the no-destructive-git-unattended entries of AUTONOMOUS_WARDS in src/utils/wards/wards.ts decide which commands are refused; which sessions they arm for (spawned, unattended, asksAnswerable) is decided in src/guards/wardsGuard.ts; the permission-card warning is getDestructiveCommandWarning in src/utils/shell/destructiveCommandWarning.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${GIT_WARD_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

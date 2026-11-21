@@ -71,23 +71,23 @@ const fixtureToday = '2000-03-01'
 const laterRelease = releaseFixture(VERSION, afterDate)
 const sameDayRelease = releaseFixture(VERSION, fixtureDate)
 const stale = assess(laterRelease, VERSION, CONTRACT, fixtureDate, fixtureToday)
-check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === `the release day ${afterDate} passed the client-contract constant's date ${fixtureDate} without a check: read the vendor CLI's version and stamp ANTHROPIC_CLIENT_CONTRACT_AS_OF`, stale.findings.join(' | '))
-check('a release on the check date passes', assess(sameDayRelease, VERSION, CONTRACT, fixtureDate, fixtureToday).findings.length === 0)
-check('a check after the release date passes', assess(sameDayRelease, VERSION, CONTRACT, afterDate, fixtureToday).findings.length === 0)
-check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, CONTRACT, undefined, fixtureToday).findings.some(f => f.includes('ANTHROPIC_CLIENT_CONTRACT_AS_OF must be')))
+check('a release after the check date reports the exact remedy', stale.findings.length === 1 && stale.findings[0] === `the release day ${afterDate} passed the client-contract constant's date ${fixtureDate} without a check: read the vendor CLI's version and stamp ANTHROPIC_CLIENT_CONTRACT_AS_OF`, stale.findings.join(' | ') + ' | assess in this file must return exactly the staleDate remedy for a release dated after the check date')
+check('a release on the check date passes', assess(sameDayRelease, VERSION, CONTRACT, fixtureDate, fixtureToday).findings.length === 0, 'assess in this file must return no findings when the release day equals the check date')
+check('a check after the release date passes', assess(sameDayRelease, VERSION, CONTRACT, afterDate, fixtureToday).findings.length === 0, 'assess in this file must return no findings when the check date is after the release day')
+check('a missing check date fails as it does on the undated constant', assess(sameDayRelease, VERSION, CONTRACT, undefined, fixtureToday).findings.some(f => f.includes('ANTHROPIC_CLIENT_CONTRACT_AS_OF must be')), 'assess in this file must report a missing ANTHROPIC_CLIENT_CONTRACT_AS_OF')
 for (const invalid of ['2001-02-29', '2000-02-30', '2000-2-28', '', 'latest']) {
-  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, CONTRACT, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')))
+  check(`an invalid check date is refused (${JSON.stringify(invalid)})`, assess(sameDayRelease, VERSION, CONTRACT, invalid, fixtureToday).findings.some(f => f.includes('must be a real ISO date')), 'assess in this file must refuse this value as ANTHROPIC_CLIENT_CONTRACT_AS_OF')
 }
-check('a future check date is refused', assess(sameDayRelease, VERSION, CONTRACT, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')))
+check('a future check date is refused', assess(sameDayRelease, VERSION, CONTRACT, '2000-03-02', fixtureToday).findings.some(f => f.includes('is after today')), 'assess in this file must refuse a check date later than today')
 for (const invalid of ['2.1', '2.1.280-beta.1', '', undefined]) {
-  check(`a non-three-part contract is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part version')))
+  check(`a non-three-part contract is refused (${String(invalid)})`, assess(sameDayRelease, VERSION, invalid, fixtureDate, fixtureToday).findings.some(f => f.includes('must be a three-part version')), 'assess in this file must refuse this value as ANTHROPIC_CLIENT_CONTRACT_VERSION')
 }
 const between = assess(releaseFixture('1.0.0-beta.9', afterDate), '1.0.0-beta.10', CONTRACT, fixtureDate, fixtureToday)
-check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info)
-check('a release note newer than the package is not mistaken for a working tree', assess(releaseFixture('1.0.0-beta.10', afterDate), '1.0.0-beta.9', CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('not older than')))
-check('a missing release-note heading cannot bypass the clock', assess('', VERSION, CONTRACT, fixtureDate, fixtureToday).findings.length === 2)
-check('an invalid publication date is refused by the shared date grammar', assess(releaseFixture(VERSION, '2000-02-30'), VERSION, CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('real publication date')))
-check('an invalid package version cannot bypass the clock', assess(sameDayRelease, 'next', CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('package.json must carry')))
+check('an older release note is informational between releases, using version order rather than string order', between.findings.length === 0 && between.info.includes('2 days since'), between.info + ' | assess in this file must compare versions with semver lt and report the days since the check as info, not as a finding')
+check('a release note newer than the package is not mistaken for a working tree', assess(releaseFixture('1.0.0-beta.10', afterDate), '1.0.0-beta.9', CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('not older than')), 'assess in this file must report a release note newer than package.json')
+check('a missing release-note heading cannot bypass the clock', assess('', VERSION, CONTRACT, fixtureDate, fixtureToday).findings.length === 2, 'assess in this file must report both the missing release date and the missing release version for an empty note')
+check('an invalid publication date is refused by the shared date grammar', assess(releaseFixture(VERSION, '2000-02-30'), VERSION, CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('real publication date')), 'assess in this file must refuse an impossible publication date through parseIsoDate in scripts/release/notesFromChangelog.mjs')
+check('an invalid package version cannot bypass the clock', assess(sameDayRelease, 'next', CONTRACT, fixtureDate, fixtureToday).findings.some(f => f.includes('package.json must carry')), 'assess in this file must report a package version that semver does not accept')
 
 const noteRoot = mkdtempSync(join(tmpdir(), 'release-note-clock-'))
 try {
@@ -112,14 +112,14 @@ try {
   writeFileSync(extractor, readFileSync(join(ROOT, 'scripts/release/notesFromChangelog.mjs')))
   writeFileSync(join(notes, '1.0.0.md'), '# 1.0.0 — published 2026-10-29\n\n## What changed\n\n- Released\n')
   const extracted = spawnSync('node', [extractor, '1.0.0'], { encoding: 'utf8', timeout: 10_000 })
-  check('release-note extraction still runs in a checkout without installed dependencies', extracted.status === 0 && extracted.stdout === '# Mercury 1.0.0\n\n- Released\n', extracted.stderr)
+  check('release-note extraction still runs in a checkout without installed dependencies', extracted.status === 0 && extracted.stdout === '# Mercury 1.0.0\n\n- Released\n', extracted.stderr + ' | scripts/release/notesFromChangelog.mjs must run with node alone and print the note as a Mercury release body')
 } finally {
   rmSync(noteRoot, { recursive: true, force: true })
 }
 
-check('the describer carries the constant check date', isDate(AS_OF) && oauth.describeAnthropicClientContract().asOf === AS_OF)
+check('the describer carries the constant check date', isDate(AS_OF) && oauth.describeAnthropicClientContract().asOf === AS_OF, 'set a real ISO ANTHROPIC_CLIENT_CONTRACT_AS_OF in src/constants/oauth.ts, and describeAnthropicClientContract there must report it')
 const tree = assess(NOTE, VERSION, CONTRACT, AS_OF, TODAY)
-check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | '))
+check('the tree has a checked contract for its release day', tree.findings.length === 0, tree.findings.join(' | ') + ' | stamp ANTHROPIC_CLIENT_CONTRACT_AS_OF in src/constants/oauth.ts after reading the vendor CLI version')
 if (tree.info) console.log(tree.info)
 
 console.log('Client-contract clock: a learned number presents with its own date; the constant stays the baseline the clock checks')
@@ -142,11 +142,11 @@ function describeWithLearned(version: string): ReturnType<typeof oauth.describeA
 const learnedOverride = process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 delete process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT
 const learned = describeWithLearned(patchOf(9))
-check('a learned number newer than the constant presents as learned, dated by its own learning', learned.presented === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned))
-check('the constant and its check date are untouched while a learned number presents', oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION === CONTRACT && (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF === AS_OF)
-check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CONTRACT, (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '))
+check('a learned number newer than the constant presents as learned, dated by its own learning', learned.presented === patchOf(9) && learned.source === 'learned' && learned.asOf === '2000-03-01', JSON.stringify(learned) + ' | describeAnthropicClientContract in src/constants/oauth.ts must present a learned number newer than the constant, dated by learnedAtMs')
+check('the constant and its check date are untouched while a learned number presents', oauth.ANTHROPIC_CLIENT_CONTRACT_VERSION === CONTRACT && (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF === AS_OF, 'presenting a learned number in src/constants/oauth.ts must not rewrite the exported constant version or its AS_OF date')
+check("the clock reads the constant's own check date, never the learned date the door presents", learned.asOf !== AS_OF && assess(NOTE, VERSION, CONTRACT, (oauth as Record<string, unknown>).ANTHROPIC_CLIENT_CONTRACT_AS_OF, TODAY).findings.join(' | ') === tree.findings.join(' | '), 'the clock must read the exported ANTHROPIC_CLIENT_CONTRACT_AS_OF, not the learned date that describeAnthropicClientContract returns')
 const staleLearned = describeWithLearned(patchOf(-1))
-check('a learned number older than the constant never presents: the constant and its date do', staleLearned.presented === CONTRACT && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned))
+check('a learned number older than the constant never presents: the constant and its date do', staleLearned.presented === CONTRACT && staleLearned.source === 'constant' && staleLearned.asOf === AS_OF, JSON.stringify(staleLearned) + ' | describeAnthropicClientContract in src/constants/oauth.ts must fall back to the constant number and date when the learned number is older')
 if (learnedOverride !== undefined) process.env.MERCURY_ANTHROPIC_CLIENT_CONTRACT = learnedOverride
 for (const home of learnedHomes) rmSync(home, { recursive: true, force: true })
 console.log(failures === 0 ? 'client-contract clock: green' : `client-contract clock: ${failures} failure(s)`)

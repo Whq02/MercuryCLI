@@ -39,7 +39,7 @@ const ownerFilesSeen = new Set(census.sites.filter(s => s.cls === 'owner-interna
 check(
   `§C the owner-internal family stays bounded (${ownerFilesSeen.size} file(s))`,
   ownerFilesSeen.size <= 10,
-  [...ownerFilesSeen].join(', '),
+  `more than 10 files carry owner-internal rows; move the extra basename sites behind the owner files or reclassify them in RULES in scripts/consistency-census/gen-basename-census.ts: ${[...ownerFilesSeen].join(', ')}`,
 )
 void strayOwners
 

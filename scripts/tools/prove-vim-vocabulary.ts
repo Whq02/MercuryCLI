@@ -4,9 +4,10 @@
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : vimFixHint}`)
   if (!ok) failures++
 }
+const vimFixHint = ' | fix: the key tables, key guards and session registers are in src/vim/types.ts; the parser states come from transition in src/vim/transitions.ts'
 const j = (v: unknown): string => JSON.stringify(v)
 
 const vim = await import('../../src/vim/types.ts')

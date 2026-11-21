@@ -52,7 +52,7 @@ for (const [tag, words, tempAsHanded] of [
   ['slash', 'a temp root that ends in a slash, as macOS hands TMPDIR', (temp: string) => `${temp}/`],
 ] as const) {
   const seen = runShard(tag, tempAsHanded)
-  check(`${words}: the shard ran green and its suite stood in a config home the runner made`, seen.status === 0 && seen.homeStood, `rc ${seen.status} ${seen.log}`)
+  check(`${words}: the shard ran green and its suite stood in a config home the runner made`, seen.status === 0 && seen.homeStood, `scripts/gate/ci-shard.sh must exit 0 and export a MERCURY_CONFIG_DIR folder that exists when the suite runs (see where shard_temp and ambient_home are set); rc ${seen.status} ${seen.log}`)
   check(`${words}: the config home holds no doubled slash and equals its own resolved spelling`, seen.home !== '' && !seen.home.includes('//') && seen.home === resolve(seen.home), `${JSON.stringify(seen.home)} — ${mend}`)
   check(`${words}: the compile cache holds no doubled slash and equals its own resolved spelling`, seen.cache !== '' && !seen.cache.includes('//') && seen.cache === resolve(seen.cache), `${JSON.stringify(seen.cache)} — ${mend}`)
 }

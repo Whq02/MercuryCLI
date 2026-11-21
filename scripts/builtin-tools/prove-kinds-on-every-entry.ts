@@ -228,7 +228,7 @@ async function pooled<T, R>(items: T[], work: (item: T) => Promise<R>): Promise<
 section(`(1) the kinds — what the resolver lists in a process that has loaded the tool list and every file of ${FOLDER}`)
 const folder = files.filter(file => file.startsWith(FOLDER))
 const fullest = await run('resolveResource', null, folder, [TOOL_LIST])
-check('the fullest process answered', fullest.asked !== null, [fullest.why])
+check('the fullest process answered', fullest.asked !== null, [fullest.why, `the child process of the --child arm in ${SELF} died before writing its answer: load ${TOOL_LIST} and the files of ${FOLDER} in one process and read the error it prints`])
 const kinds = [...(fullest.asked?.listed ?? [])].sort()
 const fileOf = (kind: string): string => `${FOLDER}${kind}.ts`
 {
@@ -263,7 +263,7 @@ listed.forEach((entry, at) => {
   const { asked, why } = answered[at]!
   const own = reach(entry.file)
   const where = `${entry.file} (${entry.words}; its imports reach ${own.size} file(s), ${own.has(RESOLVER) ? 'the resolver among them' : 'the resolver loaded after them'}${own.has(TOOL_LIST) ? ', and the tool list' : ''})`
-  if (asked === null) return check(`${where}: the resolver knows every kind`, false, [why])
+  if (asked === null) return check(`${where}: the resolver knows every kind`, false, [why, `the child process of the --child arm in ${SELF} died after importing what ${entry.file} imports: fix the error above in the file it names`])
   const unknown = unknownIn(asked)
   check(`${where}: the resolver knows each of the ${kinds.length} kinds`, kinds.length > 0 && unknown.length === 0, unknown.map(kind => `in a process that has loaded what ${entry.file} imports, mercury://${kind} is a kind the resolver does not know — ${remedy(kind)}`))
 })
@@ -272,7 +272,7 @@ section(`(3) the doors — ${RESOLVER} loaded by itself, each of its ${DOORS.len
 const alone = await pooled([...DOORS], door => run(door, kinds, [], []))
 DOORS.forEach((door, at) => {
   const { asked, why } = alone[at]!
-  if (asked === null) return check(`${door} asked first: the resolver knows every kind`, false, [why])
+  if (asked === null) return check(`${door} asked first: the resolver knows every kind`, false, [why, `the child process of the --child arm in ${SELF} died with only ${RESOLVER} loaded: fix the error above in the file it names`])
   const unknown = unknownIn(asked)
   check(`${door} asked first: the resolver knows each of the ${kinds.length} kinds`, kinds.length > 0 && unknown.length === 0, unknown.map(kind => `with ${RESOLVER} loaded by itself and ${door} asked first, mercury://${kind} is a kind the resolver does not know — ${remedy(kind)}`))
 })

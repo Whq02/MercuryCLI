@@ -13,7 +13,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` | fix: change computeSliceStart in src/components/messagesList/transcript.ts (the fold boundary and anchor rules), or readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts for the section 3 chain checks`}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)

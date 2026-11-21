@@ -7,7 +7,7 @@ const BUN = process.execPath
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : `${detail ? ` — ${detail}` : ''} — change the terminal-ground owner in src/utils/cockpit/oasisBg.ts (syncOasisBgToTheme, noteOriginalGroundReply, exitOasisBg), or for the C5c and C7 splash rows assets/splash/mercury-splash.mjs`}`)
   if (!ok) failures++
 }
 

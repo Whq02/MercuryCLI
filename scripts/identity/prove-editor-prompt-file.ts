@@ -7,10 +7,12 @@ import { basename, dirname } from 'node:path'
 
 let failures = 0
 let checks = 0
+const promptFileHint = 'fix generateTempFilePath in src/utils/tempfile.ts (the editor prompt file name and directory)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail}; ${promptFileHint}` : promptFileHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 
 console.log('the external editor opens a mercury-prompt file')

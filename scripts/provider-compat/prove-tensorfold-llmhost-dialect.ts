@@ -21,7 +21,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} — dialect detection and the model list are read in inspectCompatServer (src/services/providers/openaicompat/compatProbe.ts, the detected dialect rule), effort levels in hostModelEfforts (compatEffort.ts) and buildHostedExtras (compatWire.ts) in the same folder`}`)
 }
 
 type StandIn = { baseUrl: string; asked: string[]; close(): void }

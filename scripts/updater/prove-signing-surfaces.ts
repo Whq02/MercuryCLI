@@ -15,8 +15,9 @@ import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
 import { readCompatFloor, releaseLayoutSection, topAllowlist } from '../release/payloadContract.mjs'
 
 let failures = 0
+const SIGNING_FIX_HINT = 'to fix, change the launcher text in scripts/release/launcherTemplates.mjs, the /health row in artifactSignatureCheck (src/services/privateChannel/artifactVerify.ts), or the shipped verifier src/services/privateChannel/verifyArtifactStandalone.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${SIGNING_FIX_HINT}`}`)
   if (!ok) failures++
 }
 

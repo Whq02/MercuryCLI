@@ -24,6 +24,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix stream parsing and mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, usage and fault typing in compatChatCallModel.ts beside it, the Z.AI lane in src/services/providers/zai/ (zaiClient.ts, zaiCodec.ts, zaiCallModel.ts), or the OpenAI lane in src/services/providers/openai/openaiWire.ts and openaiCallModel.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

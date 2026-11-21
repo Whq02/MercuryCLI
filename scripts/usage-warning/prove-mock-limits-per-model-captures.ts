@@ -29,9 +29,10 @@ await new Promise<void>(resolveListen => usageWire.listen(0, '127.0.0.1', () => 
 const USAGE_BASE = `http://127.0.0.1:${(usageWire.address() as { port: number }).port}`
 
 let failures = 0
+const POOL_FIX_HINT = 'to fix, change the per-model pool words in providerLimitWarningFacts (src/services/providers/limitWarning.ts) or the pool read from the usage wire in src/services/providers/providerUsage.ts, and build dist/mercury.mjs again with bun run build.ts before rerunning'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${POOL_FIX_HINT}`}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')

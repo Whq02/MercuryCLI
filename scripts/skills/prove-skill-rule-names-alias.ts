@@ -32,8 +32,9 @@ registerBundledSkill({
 const commands = await getSkillToolCommands(project)
 
 let failures = 0
+const aliasFailureHint = 'a Skill rule must name the skill under its canonical name and every alias, deny before allow: fix the names list and ruleMatchesSkill in checkPermissions in src/tools/SkillTool/SkillTool.ts (alias registration is in src/skills/bundledSkills.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${aliasFailureHint}` : ''}`)
   if (!ok) failures++
 }
 type Rules = { allow?: string[]; deny?: string[] }

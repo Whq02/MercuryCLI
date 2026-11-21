@@ -289,6 +289,7 @@ function dump(label: string, frame: string | undefined): void {
 }
 
 const flat = (s: string): string => s.replace(/\s+/g, ' ')
+const engineDriveWhere = ' · the shell engine road is in src/utils/shell/engineSession.ts (runEngineCommand, spawnSession); run this proof with DRIVE_KEEP=1 to print every frame'
 
 async function leg(engine: Engine, port: number): Promise<void> {
   const contract: Engine = engine === 'brush' && lane.state === 'wired' ? 'brush' : 'system'
@@ -322,31 +323,31 @@ async function leg(engine: Engine, port: number): Promise<void> {
   const { marks } = cap
   const keep = process.env.DRIVE_KEEP === '1'
   if (keep) for (const [label, frame] of Object.entries(marks)) dump(`${engine} · ${label}`, frame)
-  check(`${engine}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  check(`${engine}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} · a frame a send waited on never painted: read the frames dumped below, and check dist/mercury.mjs is built from the current source`)
   const results = fixture.results
-  check(`${engine}: the model saw six tool results on the wire`, results.length === 6, `${results.length}: ${results.map(r => JSON.stringify(r.text.slice(0, 40))).join(' ')}`)
+  check(`${engine}: the model saw six tool results on the wire`, results.length === 6, `${results.length}: ${results.map(r => JSON.stringify(r.text.slice(0, 40))).join(' ')} · the model must get one result per Bash call the fixture sent; read the frames dumped below for the call that stopped`)
   const r = (n: number): ToolResultSeen => results[n - 1] ?? { index: n, text: '', isError: false }
   note(`${engine}: result 2 = ${JSON.stringify(r(2).text.trim())}`)
   if (contract === 'brush') {
-    check(`${engine}: call 2 reads the variable, the function, and the directory from call 1`, r(2).text.includes('[persisted]') && r(2).text.includes('fn-x') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)))
+    check(`${engine}: call 2 reads the variable, the function, and the directory from call 1`, r(2).text.includes('[persisted]') && r(2).text.includes('fn-x') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)) + engineDriveWhere)
   } else {
-    check(`${engine}: call 2 reads the honest reset — no variable, no function, the directory kept`, r(2).text.includes('[none]') && r(2).text.includes('fn-missing') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)))
+    check(`${engine}: call 2 reads the honest reset — no variable, no function, the directory kept`, r(2).text.includes('[none]') && r(2).text.includes('fn-missing') && r(2).text.includes(sub), JSON.stringify(r(2).text.slice(0, 160)) + engineDriveWhere)
   }
-  check(`${engine}: the pipeline's rows reach the model`, /1:AlphA\s+2:betA\s+3:gAmmA/.test(flat(r(3).text)), JSON.stringify(r(3).text.slice(0, 120)))
-  check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))}`)
-  check(`${engine}: the timed-out command tells the model it timed out`, /timed out/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 200)))
+  check(`${engine}: the pipeline's rows reach the model`, /1:AlphA\s+2:betA\s+3:gAmmA/.test(flat(r(3).text)), JSON.stringify(r(3).text.slice(0, 120)) + engineDriveWhere)
+  check(`${engine}: the exit-1 command is an error result carrying its stderr text`, r(4).isError && /No such file/.test(r(4).text), `isError ${r(4).isError} ${JSON.stringify(r(4).text.slice(0, 160))} · a command that exits non-zero must come back to the model as an error result with its stderr: see mapResultToBlock in src/tools/BashTool/resultBlock.ts`)
+  check(`${engine}: the timed-out command tells the model it timed out`, /timed out/i.test(r(5).text), JSON.stringify(r(5).text.slice(0, 200)) + engineDriveWhere)
   note(`${engine}: result 5 = ${JSON.stringify(r(5).text.trim().slice(0, 240))}`)
   const bgTurnMs = (fixture.stamps[6] ?? 0) - (fixture.stamps[5] ?? 0)
   note(`${engine}: result 6 = ${JSON.stringify(r(6).text.trim().slice(0, 160))}; the background turn took ${bgTurnMs}ms (the command sleeps 15s)`)
-  check(`${engine}: the run_in_background call returns the task receipt at once — the turn is not blocked by the sleeping command`, fixture.stamps[6] !== undefined && bgTurnMs > 0 && bgTurnMs < 8_000, `${bgTurnMs}ms`)
-  check(`${engine}: the receipt names the background task`, /background/i.test(r(6).text), JSON.stringify(r(6).text.slice(0, 160)))
+  check(`${engine}: the run_in_background call returns the task receipt at once — the turn is not blocked by the sleeping command`, fixture.stamps[6] !== undefined && bgTurnMs > 0 && bgTurnMs < 8_000, `${bgTurnMs}ms · a run_in_background call must hand back its receipt without waiting for the command (it sleeps 15s)`)
+  check(`${engine}: the receipt names the background task`, /background/i.test(r(6).text), JSON.stringify(r(6).text.slice(0, 160)) + ' · the receipt text of a background Bash call must name the background task')
   const description = fixture.descriptions[0] ?? ''
   note(`${engine}: the tool's word — ${JSON.stringify((description.match(/[^.]*(persist|reset)[^.]*\./i) ?? [''])[0].trim())}`)
   if (contract === 'brush') {
-    check(`${engine}: the tool's description says state persists across calls`, /persist/i.test(description) && !/resets between calls/i.test(description), description.slice(0, 200))
-    check(`${engine}: the tool's description says a run_in_background call runs in its own shell`, /run_in_background.*own shell/i.test(description), description.slice(0, 200))
+    check(`${engine}: the tool's description says state persists across calls`, /persist/i.test(description) && !/resets between calls/i.test(description), description.slice(0, 200) + ' · the Bash tool description the model reads must say that state persists across calls on the wired engine')
+    check(`${engine}: the tool's description says a run_in_background call runs in its own shell`, /run_in_background.*own shell/i.test(description), description.slice(0, 200) + ' · the Bash tool description the model reads must say that a run_in_background call runs in its own shell')
   } else {
-    check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists between calls/i.test(description) && /variables, functions and options never do/i.test(description), description.slice(0, 200))
+    check(`${engine}: the tool's description says the directory persists and everything else resets`, /working directory persists between calls/i.test(description) && /variables, functions and options never do/i.test(description), description.slice(0, 200) + ' · the Bash tool description the model reads must say that only the working directory persists between calls')
   }
   check(`${engine}: the transcript painted the model's turn text`, /setting state/.test(marks['text'] ?? cap.text))
   check(`${engine}: the transcript collapsed the turn's bash calls into one group`, /Ran \d+ bash commands/.test(marks['tools'] ?? cap.text), JSON.stringify((flat(marks['tools'] ?? cap.text).match(/Ran \d+ bash commands/) ?? ['no group'])[0]))

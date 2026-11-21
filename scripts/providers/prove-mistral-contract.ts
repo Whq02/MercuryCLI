@@ -24,7 +24,7 @@ const { credentialEnvNames } = await import('../../src/utils/accounts/providerSe
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { __resetMistralUsageForTest, mistralObservedUsage } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, name + ' | change the Mistral code this check reads: src/services/providers/mistral/ (mistralUsageState.ts, mistralCallModel.ts), src/utils/model/pins/mistralPins.ts, src/services/providers/providerUsage.ts, providerUsability.ts, providerDiscovery.ts or accountSlots.ts, then see the check line of this name in scripts/providers/prove-mistral-contract.ts'); count++; console.log(`[PASS] ${name}`) }
 const fixture = mistralFixture()
 try {
   check('Mistral is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'mistral') && usageForProvider('mistral').sourceKind === 'none' && !resolveProviderUsability().mistral.usable)

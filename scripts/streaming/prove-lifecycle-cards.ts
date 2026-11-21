@@ -9,7 +9,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — change the shipped tool-card rendering so the card follows its lifecycle (queued on the ask, then denied with the lead, then the idle composer); the screens come from scripts/streaming/screengrab.py over the arena run in scripts/streaming/artifactArena.ts${detail ? `: ${detail}` : ''}`}`)
   if (!ok) failures++
 }
 

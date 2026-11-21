@@ -12,6 +12,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix the capability answer in src/utils/model/capabilities.ts or src/utils/effort.ts, the wire body in src/services/providers/openaicompat/compatWire.ts, or the row decode in src/services/providers/openrouter/openrouterCatalogue.ts or src/services/providers/gemini/geminiCatalogue.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -10,8 +10,9 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const tier1wFixHint = ' | fix: a command that reads stdin and the shell timeout are exec in src/utils/Shell.ts; exit-code verdicts for where, fc, comp, diff, cmp and findstr are interpretCommandResult in src/tools/PowerShellTool/commandSemantics.ts; the UTF-8 prelude and its order are UTF8_OUTPUT_PRELUDE and createPowerShellProvider in src/utils/shell/powershellProvider.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : tier1wFixHint}`)
   if (!ok) failures = 1
 }
 

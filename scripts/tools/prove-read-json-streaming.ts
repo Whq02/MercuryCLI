@@ -27,7 +27,8 @@ if (!given) {
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
   const { runJsonQuery } = await import(`${src}/tools/FileReadTool/jsonQueryRuntime.ts`)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 1000)}`}`) }
+  const streamFixHint = ' | fix: the source-lines bracket and the page answer are built in src/tools/FileReadTool/readJson.ts (readJson); the streaming engine run, byte counts and memory bound are runJsonQuery in src/tools/FileReadTool/jsonQueryRuntime.ts'
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 1000)}${streamFixHint}`}`) }
   const context = () => ({ messages: [], readFileState: createFileStateCacheWithSizeLimit(100), abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext() }) })
   const read = async (file_path: string, maxTokens?: number) => {
     const ctx = { ...context(), ...(maxTokens === undefined ? {} : { fileReadingLimits: { maxTokens, maxSizeBytes: 4 * 1024 * 1024 * 1024 } }) }

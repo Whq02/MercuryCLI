@@ -7,7 +7,9 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = 'change the compaction-trace functions in src/utils/observability/invocationTrace.ts or parseTraceLines, aggregateCompaction and traceSnapshot in src/utils/cockpit/traceSnapshot.ts'
+  const shown = cond ? detail : detail ? detail + ' — ' + failHint : failHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -8,16 +8,17 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
+const turnFixHint = 'change the turn road in src/cli/headless/printTurn.ts (runPrintTurn, assembleTurnTools, registerPerTurnHandlers, registerElicitationHandlersForClient) until the label reads true'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${turnFixHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (value: unknown): string => JSON.stringify(value)
 const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes')
+  console.log('  [FAIL] the proof ended within its two minutes — a turn never settled; look at the last section printed above and at runPrintTurn in src/cli/headless/printTurn.ts')
   process.exit(1)
 }, 120_000).unref()
 

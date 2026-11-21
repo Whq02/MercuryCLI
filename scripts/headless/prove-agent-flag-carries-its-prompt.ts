@@ -16,6 +16,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail}`}`); if (!ok) failures++ }
 const head = (text: string): string => JSON.stringify(text.slice(0, 160))
+const agentWhere = 'the --agent and --brief flags are declared in src/main/rootOptions.ts; the agent prompt must reach the system prompt of the first request'
 
 const AGENT_BRIEF = 'AGENT_BRIEF_MARKER: answer as the fixture agent and name the file you would open first.'
 const OTHER_BRIEF = 'OPERATOR_BRIEF_MARKER: answer in one line.'
@@ -62,35 +63,35 @@ try {
   console.log('§1 what a run rides without an agent: the default brief, and an operator brief in its place')
   const plain = await run(['PLAIN_PROMPT'])
   const briefed = await run(['--brief', OTHER_BRIEF, 'BRIEFED_PROMPT'])
-  check('the scene: both runs complete and each asks the model once', plain.code === 0 && briefed.code === 0 && plain.status === 'completed' && briefed.status === 'completed' && plain.requests === 1 && briefed.requests === 1, `plain rc ${plain.code} ${plain.status} · briefed rc ${briefed.code} ${briefed.status} · ${plain.err.slice(0, 200)}`)
-  check('the operator brief rides the system prompt and the default brief does not', briefed.system.includes(OTHER_BRIEF) && !plain.system.includes(OTHER_BRIEF) && briefed.system !== plain.system, head(briefed.system))
+  check('the scene: both runs complete and each asks the model once', plain.code === 0 && briefed.code === 0 && plain.status === 'completed' && briefed.status === 'completed' && plain.requests === 1 && briefed.requests === 1, `plain rc ${plain.code} ${plain.status} · briefed rc ${briefed.code} ${briefed.status} · ${plain.err.slice(0, 200)} — both runs must exit 0 with status completed; read the stderr here`)
+  check('the operator brief rides the system prompt and the default brief does not', briefed.system.includes(OTHER_BRIEF) && !plain.system.includes(OTHER_BRIEF) && briefed.system !== plain.system, `${head(briefed.system)} — ${agentWhere}`)
 
   console.log('\n§2 --agent: the agent the operator chose brings its prompt on the first run')
   const session = randomUUID()
   const chosen = await run(['--agent-defs', definitions(), '--agent', 'fixture', '--session-id', session, 'AGENT_PROMPT'])
-  check('the run completes', chosen.code === 0 && chosen.status === 'completed' && chosen.requests === 1, `rc ${chosen.code} ${chosen.status} · ${chosen.err.slice(0, 300)}`)
-  check("the request's system prompt carries the agent's prompt", chosen.system.includes(AGENT_BRIEF), head(chosen.system))
-  check('it rides where an operator brief rides: the same system prompt with the one text for the other', chosen.system.split(AGENT_BRIEF).join(OTHER_BRIEF) === briefed.system, `agent ${chosen.system.length} chars ${head(chosen.system)} · brief ${briefed.system.length} chars ${head(briefed.system)}`)
-  check('the default brief is not sent beside it', chosen.system !== plain.system && chosen.system.length < plain.system.length + AGENT_BRIEF.length, `${chosen.system.length} against the default's ${plain.system.length}`)
+  check('the run completes', chosen.code === 0 && chosen.status === 'completed' && chosen.requests === 1, `rc ${chosen.code} ${chosen.status} · ${chosen.err.slice(0, 300)} — the run with --agent must complete with one model request`)
+  check("the request's system prompt carries the agent's prompt", chosen.system.includes(AGENT_BRIEF), `${head(chosen.system)} — ${agentWhere}`)
+  check('it rides where an operator brief rides: the same system prompt with the one text for the other', chosen.system.split(AGENT_BRIEF).join(OTHER_BRIEF) === briefed.system, `agent ${chosen.system.length} chars ${head(chosen.system)} · brief ${briefed.system.length} chars ${head(briefed.system)} — ${agentWhere}`)
+  check('the default brief is not sent beside it', chosen.system !== plain.system && chosen.system.length < plain.system.length + AGENT_BRIEF.length, `${chosen.system.length} against the default's ${plain.system.length} — ${agentWhere}`)
 
   console.log('\n§3 the same session resumed without the flag keeps the same prompt')
   const resumed = await run(['--agent-defs', definitions(), '--resume', session, 'RESUMED_PROMPT'])
-  check('the resumed run completes and its system prompt carries the agent prompt', resumed.code === 0 && resumed.status === 'completed' && resumed.system.includes(AGENT_BRIEF), `rc ${resumed.code} ${resumed.status} · ${head(resumed.system)} · ${resumed.err.slice(0, 200)}`)
-  check('the first run and the resumed run ride one system prompt', resumed.system === chosen.system, `first ${chosen.system.length} chars · resumed ${resumed.system.length} chars`)
+  check('the resumed run completes and its system prompt carries the agent prompt', resumed.code === 0 && resumed.status === 'completed' && resumed.system.includes(AGENT_BRIEF), `rc ${resumed.code} ${resumed.status} · ${head(resumed.system)} · ${resumed.err.slice(0, 200)} — ${agentWhere}`)
+  check('the first run and the resumed run ride one system prompt', resumed.system === chosen.system, `first ${chosen.system.length} chars · resumed ${resumed.system.length} chars — a resumed session must keep the agent prompt; ${agentWhere}`)
 
   console.log("\n§4 an operator brief beside --agent is the operator's: the brief rides, the agent's prompt does not")
   const both = await run(['--agent-defs', definitions(), '--agent', 'fixture', '--brief', OTHER_BRIEF, 'BOTH_PROMPT'])
-  check('the brief is sent and the agent prompt is not', both.code === 0 && both.system.includes(OTHER_BRIEF) && !both.system.includes(AGENT_BRIEF), `rc ${both.code} · ${head(both.system)}`)
+  check('the brief is sent and the agent prompt is not', both.code === 0 && both.system.includes(OTHER_BRIEF) && !both.system.includes(AGENT_BRIEF), `rc ${both.code} · ${head(both.system)} — --brief must win over the agent prompt; ${agentWhere}`)
 
   console.log("\n§5 an agent's opening prompt still opens the run, under the agent's own prompt")
   const opened = await run(['--agent-defs', definitions({ initialPrompt: AGENT_OPENING }), '--agent', 'fixture'])
-  check('with no prompt given the opening prompt is what the model is asked', opened.code === 0 && opened.said.includes(AGENT_OPENING), `rc ${opened.code} · ${opened.err.slice(0, 200)}`)
-  check("…and the system prompt carries the agent's prompt", opened.system.includes(AGENT_BRIEF), head(opened.system))
+  check('with no prompt given the opening prompt is what the model is asked', opened.code === 0 && opened.said.includes(AGENT_OPENING), `rc ${opened.code} · ${opened.err.slice(0, 200)} — the agent initialPrompt must be what the model is asked when no prompt is given`)
+  check("…and the system prompt carries the agent's prompt", opened.system.includes(AGENT_BRIEF), `${head(opened.system)} — ${agentWhere}`)
 
   console.log('\n§6 the agent named by settings.engine.agent brings its prompt the same way')
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ engine: { agent: 'fixture' } }))
   const settled = await run(['--agent-defs', definitions(), 'SETTINGS_PROMPT'])
-  check('the run completes and its system prompt carries the agent prompt', settled.code === 0 && settled.status === 'completed' && settled.system.includes(AGENT_BRIEF), `rc ${settled.code} ${settled.status} · ${head(settled.system)} · ${settled.err.slice(0, 200)}`)
+  check('the run completes and its system prompt carries the agent prompt', settled.code === 0 && settled.status === 'completed' && settled.system.includes(AGENT_BRIEF), `rc ${settled.code} ${settled.status} · ${head(settled.system)} · ${settled.err.slice(0, 200)} — settings.engine.agent must select the agent as --agent does; ${agentWhere}`)
 
   console.log("\n§7 the runner door, which a window's session runs behind, takes the same flag the same way")
   const node = Bun.which('node')
@@ -104,7 +105,7 @@ try {
     const outcome = await host.waitFor('the first outcome', row => row.type === 'outcome', 90_000) as { status?: string }
     const asked = api.requests.filter(request => request.path.includes('/v1/messages') && !request.path.includes('count_tokens') && !isHandoffRequest(request))
     const system = ((asked[0]?.body ?? {}) as { system?: Array<{ text?: string }> }).system?.map(block => block.text ?? '').at(-1) ?? ''
-    check("the turn completes and its request's system prompt carries the agent's prompt", outcome.status === 'completed' && system.includes(AGENT_BRIEF), `${outcome.status} · ${head(system)}`)
+    check("the turn completes and its request's system prompt carries the agent's prompt", outcome.status === 'completed' && system.includes(AGENT_BRIEF), `${outcome.status} · ${head(system)} — the runner door must take --agent the same way; ${agentWhere}`)
   } finally {
     await host.stop()
     await api.close()

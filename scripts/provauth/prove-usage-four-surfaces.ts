@@ -10,6 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix the meters in src/services/providers/providerUsage.ts (activeSourceUsage and the window view builders), the strip warning in src/services/providers/limitWarning.ts, or the Anthropic header and endpoint fold in src/services/anthropicLimits.ts')
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

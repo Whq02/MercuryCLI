@@ -36,24 +36,25 @@ function restore(): void {
 
 try {
   delete process.env.MERCURY_LSP
-  check('unset ⇒ bridge ON', mercuryLspEnabled() === true)
-  check('unset ⇒ catalog ON', isLspToolCatalogEnabled() === true)
-  check('unset ⇒ write ops ON', mercuryLspWriteOpsEnabled() === true)
+  check('unset ⇒ bridge ON', mercuryLspEnabled() === true, 'mercuryLspEnabled in src/services/lsp/mercuryLsp.ts must read the MERCURY_LSP flag as on when unset')
+  check('unset ⇒ catalog ON', isLspToolCatalogEnabled() === true, 'isLspToolCatalogEnabled in src/services/lsp/mercuryLsp.ts must be on when MERCURY_LSP is unset')
+  check('unset ⇒ write ops ON', mercuryLspWriteOpsEnabled() === true, 'mercuryLspWriteOpsEnabled in src/services/lsp/mercuryLsp.ts must be on when MERCURY_LSP is unset')
 
   process.env.MERCURY_LSP = '0'
-  check("'0' ⇒ bridge OFF (live re-read)", mercuryLspEnabled() === false)
-  check("'0' ⇒ catalog OFF (no compat env)", isLspToolCatalogEnabled() === false)
-  check("'0' ⇒ write ops OFF", mercuryLspWriteOpsEnabled() === false)
-  check("'0' ⇒ servers env suppressed", mercuryLspServersEnv() === undefined)
+  check("'0' ⇒ bridge OFF (live re-read)", mercuryLspEnabled() === false, 'mercuryLspEnabled in src/services/lsp/mercuryLsp.ts must re-read MERCURY_LSP on every call, not cache it')
+  check("'0' ⇒ catalog OFF (no compat env)", isLspToolCatalogEnabled() === false, 'isLspToolCatalogEnabled in src/services/lsp/mercuryLsp.ts must follow MERCURY_LSP=0 alone')
+  check("'0' ⇒ write ops OFF", mercuryLspWriteOpsEnabled() === false, 'mercuryLspWriteOpsEnabled in src/services/lsp/mercuryLsp.ts must be off when MERCURY_LSP=0')
+  check("'0' ⇒ servers env suppressed", mercuryLspServersEnv() === undefined, 'mercuryLspServersEnv in src/services/lsp/mercuryLsp.ts must return undefined when MERCURY_LSP=0')
   {
     const sources = getMercuryLspServerSources()
     check(
       "'0' ⇒ zero server sources",
       Object.keys(sources.env).length === 0 && Object.keys(sources.builtin).length === 0,
+      'getMercuryLspServerSources in src/services/lsp/builtinServers.ts must return empty env and builtin maps when MERCURY_LSP=0',
     )
   }
 
-  check("'0' ⇒ catalog OFF, no second switch", isLspToolCatalogEnabled() === false)
+  check("'0' ⇒ catalog OFF, no second switch", isLspToolCatalogEnabled() === false, 'isLspToolCatalogEnabled in src/services/lsp/mercuryLsp.ts must not depend on any switch besides MERCURY_LSP')
 
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP_SIDECAR_ENTRY
@@ -64,12 +65,13 @@ try {
       probe.available === false &&
         !!probe.typescriptPath &&
         (probe.reason ?? '').includes('not a Mercury entry'),
-      probe.reason,
+      `${probe.reason ?? ''} (probeBuiltinTsServer in src/services/lsp/builtinServers.ts must refuse an argv[1] that is not a Mercury entry, with that reason, and still report typescriptPath)`,
     )
     const sources = getMercuryLspServerSources()
     check(
       'respawn safety: no builtin offered without a trustable entry',
       !(MERCURY_TS_SERVER_NAME in sources.builtin),
+      'getMercuryLspServerSources in src/services/lsp/builtinServers.ts must leave mercury-ts out of builtin when probeBuiltinTsServer is unavailable',
     )
   }
   const sidecarEntry = path.resolve(import.meta.dir, '../../src/services/lsp/tsSidecar/entry.ts')
@@ -79,7 +81,7 @@ try {
     check(
       'probe: override arms the builtin (typescript + direct entry)',
       probe.available === true && !!probe.typescriptPath && probe.directEntry === true,
-      probe.reason,
+      `${probe.reason ?? ''} (probeBuiltinTsServer in src/services/lsp/builtinServers.ts must accept the MERCURY_LSP_SIDECAR_ENTRY override as a direct entry)`,
     )
     const sources = getMercuryLspServerSources()
     const ts = sources.builtin[MERCURY_TS_SERVER_NAME]
@@ -91,10 +93,12 @@ try {
         typeof (ts.initializationOptions as { typescriptPath?: string })?.typescriptPath ===
           'string' &&
         ts.source === 'mercury-builtin',
+      'getMercuryLspServerSources in src/services/lsp/builtinServers.ts must offer mercury-ts with the sidecar entry as its only arg, initializationOptions.typescriptPath and source mercury-builtin',
     )
     check(
       'builtin: extension map claims .ts/.tsx/.js',
       !!ts && ['.ts', '.tsx', '.js'].every(e => e in ts.extensionToLanguage),
+      'the mercury-ts entry built in src/services/lsp/builtinServers.ts must list .ts, .tsx and .js in extensionToLanguage',
     )
   }
   delete process.env.MERCURY_LSP_SIDECAR_ENTRY
@@ -114,13 +118,13 @@ try {
       names.length === 1 &&
         names[0] === 'env:good' &&
         sources.env['env:good']!.source === 'mercury-env',
-      names.join(','),
+      `${names.join(',')} (getMercuryLspServerSources in src/services/lsp/builtinServers.ts must scope MERCURY_LSP_SERVERS entries as env:<name> and skip entries without extensionToLanguage)`,
     )
   }
   process.env.MERCURY_LSP_SERVERS = 'not json'
   {
     const sources = getMercuryLspServerSources()
-    check('env servers: malformed JSON ⇒ ignored, never throws', Object.keys(sources.env).length === 0)
+    check('env servers: malformed JSON ⇒ ignored, never throws', Object.keys(sources.env).length === 0, 'getMercuryLspServerSources in src/services/lsp/builtinServers.ts must return no env servers when MERCURY_LSP_SERVERS is not valid JSON')
   }
   delete process.env.MERCURY_LSP_SERVERS
 
@@ -129,13 +133,14 @@ try {
   check(
     "registry: MERCURY_LSP is default-on/behavioral with evidence",
     !!lspRow && lspRow.kind === 'default-on' && lspRow.tier === 'behavioral' && !!lspRow.evidence,
+    'the MERCURY_LSP row in FLAG_REGISTRY (src/substrate/flagRegistry.ts) needs kind default-on, tier behavioral and an evidence path',
   )
   check(
     'registry: evidence artifact exists on disk',
     !!lspRow?.evidence && existsSync(path.resolve(import.meta.dir, '../..', lspRow.evidence)),
-    lspRow?.evidence,
+    `${lspRow?.evidence ?? 'no evidence'} (the evidence path of the MERCURY_LSP row in src/substrate/flagRegistry.ts must name a file that exists in the repo)`,
   )
-  check("registry: MERCURY_LSP_SERVERS is a value knob", !!serversRow && serversRow.kind === 'value')
+  check("registry: MERCURY_LSP_SERVERS is a value knob", !!serversRow && serversRow.kind === 'value', 'FLAG_REGISTRY in src/substrate/flagRegistry.ts needs a MERCURY_LSP_SERVERS row with kind value')
 } finally {
   restore()
 }

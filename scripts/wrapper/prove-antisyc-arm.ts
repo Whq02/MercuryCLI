@@ -11,9 +11,10 @@ function setStamp(on: boolean): void {
 }
 
 let fail = 0
+const ANTISYC_FAIL_HINT = 'to fix: getAntiSycophancyAlwaysOnSection in src/utils/antiSycophancy.ts (it must return [] unless the version stamp is set and MERCURY_ANTISYC_ALWAYS_ON is exactly 1, re-read on every call, and otherwise return one honesty-discipline clause with the wording checked here); the weakener lint is lintWeakeners in src/prompt/behaviourContract.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) fail++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + ANTISYC_FAIL_HINT : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

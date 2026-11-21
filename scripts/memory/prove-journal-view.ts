@@ -9,9 +9,10 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-journal-view')
 
 let failures = 0
+const JOURNAL_VIEW_FIX_HINT = 'change the code, not the check: the row cells, heading and wrapping are in src/components/memory/memoryCentreLayout.ts (journalRow, journalHeading, humanStamp, wrapText); the list and page are in src/components/memory/MemoryCentreView.tsx (journalRowLabel, journalPage); the popup is src/commands/memory/memory.tsx (memoryPopupRequest); the entries are src/mneme/journal.ts (appendJournalEntry, readJournal) and the memory.journal setting'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${!ok ? ` — to fix: ${JOURNAL_VIEW_FIX_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

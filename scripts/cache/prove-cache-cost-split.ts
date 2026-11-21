@@ -5,7 +5,7 @@ const { calculateUSDCost } = await import('../../src/services/usage/modelCost.ts
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — got ${detail} | fix the cache-write pricing in calculateUSDCost in src/services/usage/modelCost.ts` : ''}`)
 }
 const MODEL = 'claude-opus-4-5'
 const M = 1_000_000

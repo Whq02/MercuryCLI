@@ -11,9 +11,11 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const headlessHint = 'rebuild with bun run build.ts, then run node dist/mercury.mjs run "say the sentinel" --format rows --mode implement against a fixture API and fix the rows the headless run prints (session row mode, text row message id) and the transcript it stores'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail}; ${headlessHint}` : headlessHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -58,6 +58,7 @@ function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  if (!good) console.log('    to fix: the crew rail rows and the view swap are in src/components/tasks/CompactWorkSummary.tsx (useCompactWorkControls) and TranscriptSwap in src/components/CrewmateTranscript.tsx, the status row in FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx, the pill and borders in src/components/FullscreenLayout.tsx, the pop-ups in src/commands/crewmates/crewmates.tsx; run with --frames <folder> to keep every frame as text')
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -100,7 +101,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('crew-look-frames exceeded its deadline'); process.exit(1) }, 300_000)
+const hardLimit = setTimeout(() => { console.error('crew-look-frames exceeded its deadline of 300 s; a wait in this script never reached its screen text, so run with --sizes 120x40 --frames <folder> and read the last saved frame to see which step stalled'); process.exit(1) }, 300_000)
 hardLimit.unref()
 
 const NOW = Date.now()

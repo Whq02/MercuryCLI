@@ -55,7 +55,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_GROQ_API_BASE = `http://127.0.0.1:${server.port}/openai/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, name + ' - fix the Groq wire body or reply decode in src/services/providers/groq/groqCallModel.ts, the model rows in src/services/providers/groq/groqCatalogue.ts, rate meters in src/services/providers/groq/groqUsageState.ts, or the key login in src/services/providers/groq/groqLogin.ts; the fixture server in this script shows what each mode sends'); count++; console.log(`[PASS] ${name}`) }
 try {
   const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
   check('Groq qualified ids are declared before any inference request', classifyModelRoute('groq/openai/gpt-oss-120b').route === 'groq')

@@ -15,7 +15,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const failHint = ' — the run goes through the built bundle, so rebuild with bun run build.ts after a change; change checkPermissions in src/tools/MonitorTool/MonitorTool.ts (it calls shellCommandHasPermission) or the Bash rules in src/tools/BashTool/bashPermissions.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : failHint}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

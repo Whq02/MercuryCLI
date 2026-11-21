@@ -28,12 +28,22 @@ const STORED_PARENT_STOP = '[Request cut off: the workflow that ran this crewmat
 
 let checks = 0
 let failures = 0
+const INTERRUPT_FIX_HINT_BY_SECTION: Record<string, string> = {
+  A: 'change turnCutResultText for the operator cut in src/utils/messages/turnCut.ts',
+  B: 'change turnCutResultText, turnCutLine or turnCutOfText in src/utils/messages/turnCut.ts, or createUserInterruptionMessage in src/utils/messages/factories.ts',
+  C: 'change isDenialResultText or unwrapToolUseError in src/utils/messages/rejectionText.ts, turnCutOfText or isTurnCutText in src/utils/messages/turnCut.ts, isNotEmptyMessage in src/utils/messages/text.ts, or buildMessageLookups in src/services/messages/lookups.ts',
+  D: 'change readAgentTranscript in src/services/crew/agentTranscriptReader.ts, or the cut-line functions in src/utils/messages/turnCut.ts',
+  E: '',
+}
+let interruptFixHint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}`)
+  const hint = ok ? '' : interruptFixHint
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${[detail, hint].filter(part => part !== '').join(' — ')}`.replace(/ — $/, '')}`)
   if (!ok) failures++
 }
 function section(title: string): void {
+  interruptFixHint = INTERRUPT_FIX_HINT_BY_SECTION[title.charAt(0)] ?? ''
   console.log('─'.repeat(76) + '\n' + title)
 }
 

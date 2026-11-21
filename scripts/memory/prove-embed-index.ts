@@ -11,8 +11,9 @@ process.env.NODE_ENV = 'test'
 process.chdir(ROOT)
 
 let failures = 0
+const EMBED_INDEX_FIX_HINT = 'change the code, not the check: the derived embedding file, its rebuild, freshness, search, append and idle unload are in src/mneme/mnemeIndex.ts (rebuildEmbedIndex, ensureEmbedIndex, embedIndexFreshness, searchEmbedIndex, appendFactToEmbedIndex, embedIndexEngineStatus); the pack and model seeding are src/mneme/embedPack.ts and src/mneme/embedModels.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond ? ` — to fix: ${EMBED_INDEX_FIX_HINT}` : ''}`)
   if (!cond) failures++
 }
 const finish = (): never => {

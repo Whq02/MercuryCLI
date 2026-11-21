@@ -9,8 +9,13 @@ import {
 
 let fail = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`${ok ? '  ✓' : '  ✗'} ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? '  ✓' : '  ✗'} ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` | fix: ${domainHint(name)}`}`)
   if (!ok) fail = 1
+}
+function domainHint(name: string): string {
+  if (/ship in dist/.test(name)) return 'run bun run build.ts so dist/mercury.mjs carries the labels from src/components/HelpV2/commandDomains.ts'
+  if (/catalogue|memory|curated|flagship/.test(name)) return 'edit the names lists in COMMAND_DOMAINS in src/components/HelpV2/commandDomains.ts so each name is a command or bundled skill the catalogue still has (dead names listed above)'
+  return 'fix COMMAND_DOMAINS or groupCommandsByDomain in src/components/HelpV2/commandDomains.ts'
 }
 
 {

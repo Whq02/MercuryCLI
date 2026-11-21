@@ -19,14 +19,14 @@ const flagDoor = builtCli(['run', '--effort', 'banana', 'hi'])
 
 console.log('§P2 — -V prints the same banner as its siblings')
 {
-  check('the -V listener writes `Mercury ${MERCURY_VERSION}`', viaListener.status === 0 && viaListener.stdout === banner)
-  check('the slow path prints the same `Mercury <version>`', viaAction.status === 0 && viaAction.stdout === banner)
+  check('the -V listener writes `Mercury ${MERCURY_VERSION}`', viaListener.status === 0 && viaListener.stdout === banner, `got status ${viaListener.status} stdout ${JSON.stringify(viaListener.stdout)}; make the -V listener in src/main/rootOptions.ts (exitWithVersionLine) print exactly ${JSON.stringify(banner)}`)
+  check('the slow path prints the same `Mercury <version>`', viaAction.status === 0 && viaAction.stdout === banner, `got status ${viaAction.status} stdout ${JSON.stringify(viaAction.stdout)}; make the version branch in src/entrypoints/cli.tsx print exactly ${JSON.stringify(banner)}`)
 }
 
 console.log('§P3 — --effort refuses honestly and names its values')
 {
-  check('the --help description names the ladder from its owner', builtHelp().includes(`--effort <level> Reasoning effort level (${EFFORT_LEVELS.join(', ')})`))
-  check('the refusal names the values without claiming it ignored them', flagDoor.status !== 0 && flagDoor.stderr.includes(`Unrecognised effort level "banana". Valid values: ${EFFORT_LEVELS.join(', ')}.`))
+  check('the --help description names the ladder from its owner', builtHelp().includes(`--effort <level> Reasoning effort level (${EFFORT_LEVELS.join(', ')})`), 'make the --effort option description in src/main/rootOptions.ts list EFFORT_LEVELS from src/utils/effortLadder.ts')
+  check('the refusal names the values without claiming it ignored them', flagDoor.status !== 0 && flagDoor.stderr.includes(`Unrecognised effort level "banana". Valid values: ${EFFORT_LEVELS.join(', ')}.`), `got status ${flagDoor.status} stderr ${JSON.stringify(flagDoor.stderr)}; make the --effort parser in src/main/rootOptions.ts throw the Unrecognised effort level message`)
 }
 
 console.log('§P7 — the eager settings scan stops at `--` and takes the last occurrence')

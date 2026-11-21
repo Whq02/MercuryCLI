@@ -16,10 +16,11 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 
 let failures = 0
 let checks = 0
+const EVIDENCE_SHAPES_HINT = 'file and table expansion and its refusals live in src/tools/JevEvalTool/jevEvalEvidence.ts, the evidence schema and its wire text in src/tools/JevEvalTool/jevEvalSchema.ts, the permission check in checkPermissions of src/tools/JevEvalTool/JevEvalTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${EVIDENCE_SHAPES_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

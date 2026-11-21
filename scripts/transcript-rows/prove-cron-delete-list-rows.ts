@@ -20,7 +20,8 @@ const ui = await import('../../src/tools/ScheduleCronTool/UI.tsx')
 const { CronDeleteTool } = await import('../../src/tools/ScheduleCronTool/CronDeleteTool.ts')
 const bridge = await import('../../src/services/saturn/sessionScheduleBridge.ts')
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`) }
+const cronRowsFailHint = 'to fix, change the render functions in src/tools/ScheduleCronTool/UI.tsx or the validation and result text in src/tools/ScheduleCronTool/CronDeleteTool.ts'
+const check = (label: string, ok: boolean, detail = ''): void => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' · ' : ''}${cronRowsFailHint}` : ''}`) }
 const j = (v: unknown): string => JSON.stringify(v)
 
 const paint = async (node: React.ReactNode, columns = 80): Promise<string> => {

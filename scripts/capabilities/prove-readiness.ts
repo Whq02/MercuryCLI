@@ -6,7 +6,10 @@ import { join } from 'node:path'
 let failures = 0
 const check = (ok: boolean, label: string): void => {
   console.log(`${ok ? '✓' : '✗'} ${label}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('  change collectReadiness in src/services/health/readiness.ts so this row reads as the label says (mcp rows come from publishMcpConnections in src/services/cockpit/mcpGauge.ts)')
+  }
 }
 
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')

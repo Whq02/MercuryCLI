@@ -7,10 +7,11 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
+const CACHE_KEY_FAIL_HINT = 'the prompt_cache_key is minted by mintCacheDomainKey in src/utils/cache/cacheDomain.ts (provider scope, served model, project path, behavior contract digest, tool schema digest) and sent by src/services/providers/openrouter/openrouterResponsesTransport.ts; change what feeds that mint so only a real compatibility change moves the key'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${CACHE_KEY_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

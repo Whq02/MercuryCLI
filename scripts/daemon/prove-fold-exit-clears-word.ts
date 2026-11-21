@@ -20,7 +20,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the fold status a seat publishes and a cockpit reads, withFoldStatus in src/services/compact/compact.ts, foldRowVisible and FOLD_EXIT_LINGER_MS in src/services/compact/foldStatus.ts, and the live phase and fold read of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts' : ''}`)
 }
 function fence(label: string, detail: string): void {
   console.log(`  [FENCE] ${label} — ${detail}`)
@@ -40,7 +40,7 @@ const until = async (cond: () => boolean, ms = 3000): Promise<boolean> => {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the fold-exit word proof exceeded 90s')
+  console.log('\n❌ TIMEOUT — the fold-exit word proof exceeded 90s; the last section printed above is the step that did not finish, read its until() wait and the seat row handling of onSeatRow in src/daemon/sessionSeat.ts')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

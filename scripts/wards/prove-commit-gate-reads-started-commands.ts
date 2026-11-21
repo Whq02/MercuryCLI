@@ -6,10 +6,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const GATE_FAIL_HINT = 'to fix: a tool that starts a command must declare it in its shellCommandOf (src/tools/ServiceTool, JourneyTool, MonitorTool), which commandOfCall in src/guards/commitGate.ts reads; a refused or passed verdict that differs comes from evaluateCommitGate in the same file'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${GATE_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

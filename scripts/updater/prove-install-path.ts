@@ -89,8 +89,9 @@ const NODE_POLICY = parseEnginesNode(pkg.engines?.node)
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
+const FIX_WHERE_HINT = 'to fix, change the PATH decision in src/services/privateChannel/installPath.ts (ensureBinDirOnPath, removeBinDirFromPath), the printed lines in src/cli/installVerb.ts (describePathOutcome, describePathRemoval), or the launchers in scripts/release/launcherTemplates.mjs, whichever this check names'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${FIX_WHERE_HINT}`}`)
   if (!cond) failures++
 }
 const section = (title: string): void => console.log(`\n── ${title} ──`)

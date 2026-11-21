@@ -19,7 +19,8 @@ type Ctx = import('../../src/utils/permissions/permissions.ts').ToolPermissionCo
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = ' — change checkPathConstraints in src/tools/BashTool/pathValidation.ts (the minted suggestion and its destination) or persistPermissionUpdate and createEditRuleSuggestion in src/utils/permissions/PermissionUpdate.ts (the rule written to .mercury/settings.local.json)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : failHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

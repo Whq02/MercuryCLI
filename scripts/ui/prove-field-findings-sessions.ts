@@ -8,6 +8,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error('      to fix: the quoting of the resume argument is resumeHintArgument in src/utils/shutdownRestoration.ts, which calls quoteResumeTitleForShell in src/utils/platform/words.ts')
   }
 }
 

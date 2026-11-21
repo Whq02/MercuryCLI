@@ -9,8 +9,9 @@ process.env.MERCURY_TMPDIR = join(home, 'tmp')
 process.env.MERCURY_BARE = '1'
 mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
+const remoteJsonFixHint = ' | fix: the JSON query read is readJson in src/tools/FileReadTool/readJson.ts (its private json-queries folder), the remote read and its private remote-files copy are in src/services/remoteFiles/bridge.ts, and the read target and validation are in src/tools/FileReadTool/read/'
 let passed = 0, failed = 0
-const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 800)}`}`) }
+const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 800)}${remoteJsonFixHint}`}`) }
 const unavailable = localTransportUnavailable()
 if (unavailable) console.log(`SKIP fake remote POSIX transport: ${unavailable}; the local query engine is covered separately on this platform`)
 else {

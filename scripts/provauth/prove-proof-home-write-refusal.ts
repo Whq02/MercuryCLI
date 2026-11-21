@@ -11,7 +11,7 @@ const scratch = mkdtempSync(join(tmpdir(), 'proof-home-wall-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
 let checks = 0
 const check = (label: string, ok: unknown, detail = ''): void => {
-  assert(ok, `${label}${detail ? ` — ${detail}` : ''}`)
+  assert(ok, `${label}${detail ? ` — ${detail}` : ''} — fix the proof-home refusal in src/utils/proofHomeGuard.ts, or the credential writer that must call it (src/utils/accounts/providerSecrets.ts or the provider accounts file named by the check)`)
   checks++
   console.log(`PASS ${label}`)
 }

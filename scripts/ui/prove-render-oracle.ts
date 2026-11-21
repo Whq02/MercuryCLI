@@ -22,19 +22,19 @@ function grid(lines: string[], cols = 80, rows = 24): CapturedGrid {
 }
 
 const blank = evaluateCapture(grid(['❯ hi']))
-t('near-blank capture rejected', !blank.ok && blank.reason.includes('blank'), blank.reason)
+t('near-blank capture rejected', !blank.ok && blank.reason.includes('blank'), `${blank.reason}; evaluateCapture in scripts/ui/renderOracle.ts must reject a capture with too few painted cells and say blank`)
 
 const err = evaluateCapture(grid([
   `No conversation found for session id 00000000-aaaa-bbbb-cccc-${(process.pid % 0xffffff).toString(16).padStart(12, '0')}`,
   'run with --resume <id> or --continue to pick the latest conversation instead',
 ]))
-t('boot-error screen rejected despite painted>=40', !err.ok && err.reason.includes('boot-error'), err.reason)
+t('boot-error screen rejected despite painted>=40', !err.ok && err.reason.includes('boot-error'), `${err.reason}; evaluateCapture in scripts/ui/renderOracle.ts must reject a capture showing a boot-error signature and say boot-error`)
 
 const noChrome = evaluateCapture(grid([
   'the quick brown fox jumps over the lazy dog and keeps on running far away',
   'another line of plain output text that is definitely not the mercury chrome',
 ]))
-t('chrome-less capture rejected', !noChrome.ok && noChrome.reason.includes('chrome'), noChrome.reason)
+t('chrome-less capture rejected', !noChrome.ok && noChrome.reason.includes('chrome'), `${noChrome.reason}; evaluateCapture in scripts/ui/renderOracle.ts must reject a capture with no expected chrome marker and say chrome`)
 
 const good = evaluateCapture(grid([
   '╭──────────────────────────────────────────╮',
@@ -43,7 +43,7 @@ const good = evaluateCapture(grid([
   '╰──────────────────────────────────────────╯',
   '❯ ',
 ]))
-t('healthy capture accepted', good.ok, good.reason)
+t('healthy capture accepted', good.ok, `${good.reason}; evaluateCapture in scripts/ui/renderOracle.ts must accept a capture with enough painted cells and a chrome marker`)
 
 const tmp = mkdtempSync(join(tmpdir(), 'mercury-oracle-'))
 const res = spawnSync(process.execPath, ['-e',
@@ -53,7 +53,7 @@ const staged = (res.stdout ?? '').trim().split('\n').pop() ?? ''
 t('scenario() stages in the product-resolved store under MERCURY_CONFIG_DIR/projects',
   res.status === 0 && staged.startsWith(join(tmp, 'projects') + sep) &&
     basename(staged).startsWith('00000000-aaaa-') && existsSync(staged),
-  res.status !== 0 ? (res.stderr || '').trim().slice(0, 160) : staged)
+  `${res.status !== 0 ? (res.stderr || '').trim().slice(0, 160) : staged}; scenario in scripts/ui/renderScenarios.ts must write the resume session file under MERCURY_CONFIG_DIR/projects in the directory getProjectDir returns (src/utils/sessionStoragePortable.ts)`)
 rmSync(tmp, { recursive: true, force: true })
 
 console.log(fail ? '❌ RENDER-ORACLE RED' : '✅ RENDER-ORACLE GREEN')

@@ -14,14 +14,14 @@ const PINNED_DEBUGPY = '1.8.22'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: adapter and interpreter choice in src/services/dap/debugpyResolver.ts (resolvePythonDebugAdapter, bundledPythonInterpreter), the journey steps in src/tools/DebugTool/DebugTool.ts, the readiness row lane:dap:python in src/services/health/readiness.ts; a missing dist/vendor tree needs bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 600s')
+  console.log('\n❌ TIMEOUT — proof exceeded 600s; the last section header above names the step that never returned; look in src/tools/DebugTool/DebugTool.ts and src/services/dap/dapClient.ts')
   process.exit(1)
 }, 600_000)
 guard.unref?.()

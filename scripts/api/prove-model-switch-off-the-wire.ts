@@ -45,6 +45,7 @@ const textsOf = (content: unknown): string[] => {
 }
 const wireTexts = (messages: ReadonlyArray<{ message: { content: unknown } }>): string[] => messages.flatMap(m => textsOf(m.message.content))
 const has = (texts: string[], needle: string): boolean => texts.some(text => text.includes(needle))
+const planHint = 'change requestConversationPlan or withoutOrphanCaveats in src/services/messages/apiPlan.ts, or the rows made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts'
 
 section('§1 the wire plan — the /model rows are the operator\'s record, never the model\'s view; a caveat with no rows under it never leaves')
 {
@@ -54,13 +55,13 @@ section('§1 the wire plan — the /model rows are the operator\'s record, never
   const prompt = (text: string) => createUserMessage({ content: text, permissionMode: 'default' })
   const reply = (id: string, text: string) => ({ type: 'assistant' as const, uuid: id, timestamp: '2026-10-11T00:00:00.000Z', message: { id, model: FABLE, role: 'assistant' as const, type: 'message' as const, content: [{ type: 'text' as const, text, citations: [] }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 } } })
   const rows = createModelSwitchBreadcrumbs(OPUS, 'Opus 5')
-  check('the three /model rows are born as the transcript\'s own (isVirtual) — the caveat, the command row and the stdout row', rows.length === 3 && rows.every(row => row.isVirtual === true), j(rows.map(row => [row.isVirtual, String(row.message.content).slice(0, 40)])))
-  check('the rows still read as the /model record for the operator (the command row and the stdout row carry their words)', String(rows[1]!.message.content).includes(MODEL_COMMAND_MARK) && String(rows[2]!.message.content).includes(`${STDOUT_MARK} Opus 5`), j(rows.map(row => row.message.content)))
+  check('the three /model rows are born as the transcript\'s own (isVirtual) — the caveat, the command row and the stdout row', rows.length === 3 && rows.every(row => row.isVirtual === true), j(rows.map(row => [row.isVirtual, String(row.message.content).slice(0, 40)])) + ' | change createModelSwitchBreadcrumbs in src/utils/messages/factories.ts so each row is isVirtual')
+  check('the rows still read as the /model record for the operator (the command row and the stdout row carry their words)', String(rows[1]!.message.content).includes(MODEL_COMMAND_MARK) && String(rows[2]!.message.content).includes(`${STDOUT_MARK} Opus 5`), j(rows.map(row => row.message.content)) + ' | change createModelSwitchBreadcrumbs in src/utils/messages/factories.ts')
   for (const geometry of ['anthropic', 'family'] as const) {
     const conversation = [prompt('first'), reply('a1', 'one'), ...rows, prompt('second')] as never[]
     const sent = wireTexts(requestConversationPlan(conversation, [], geometry).messages)
-    check(`${geometry}: the request after a switch carries no caveat, no /model command row and no "Model now:" (RED on the base: all three rode)`, !sent.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(sent))
-    check(`${geometry}: the operator's words are untouched around the gap`, has(sent, 'first') && has(sent, 'second'), j(sent))
+    check(`${geometry}: the request after a switch carries no caveat, no /model command row and no "Model now:" (RED on the base: all three rode)`, !sent.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(sent) + ' | ' + planHint)
+    check(`${geometry}: the operator's words are untouched around the gap`, has(sent, 'first') && has(sent, 'second'), j(sent) + ' | ' + planHint)
   }
   const caveat = () => createSyntheticUserCaveatMessage()
   const helpRow = createUserMessage({ content: formatCommandInputTags('help', '') })
@@ -68,29 +69,29 @@ section('§1 the wire plan — the /model rows are the operator\'s record, never
   for (const geometry of ['anthropic', 'family'] as const) {
     const orphan = [prompt('first'), reply('a1', 'one'), caveat(), prompt('what are you?')] as never[]
     const orphanSent = wireTexts(requestConversationPlan(orphan, [], geometry).messages)
-    check(`${geometry}: a caveat followed by the operator's next prompt (the rows under it rewound away) leaves the view (RED on the base: it stood over the question)`, !has(orphanSent, CAVEAT_MARK) && has(orphanSent, 'what are you?'), j(orphanSent))
+    check(`${geometry}: a caveat followed by the operator's next prompt (the rows under it rewound away) leaves the view (RED on the base: it stood over the question)`, !has(orphanSent, CAVEAT_MARK) && has(orphanSent, 'what are you?'), j(orphanSent) + ' | ' + planHint)
     const kept = [prompt('first'), reply('a1', 'one'), caveat(), helpRow, helpOut, prompt('next')] as never[]
     const keptSent = wireTexts(requestConversationPlan(kept, [], geometry).messages)
-    check(`${geometry}: a caveat with its command rows under it stands as before, the rows with it`, keptSent.filter(text => text.includes(CAVEAT_MARK)).length === 1 && has(keptSent, '<command-name>/help</command-name>') && has(keptSent, 'the help text'), j(keptSent))
+    check(`${geometry}: a caveat with its command rows under it stands as before, the rows with it`, keptSent.filter(text => text.includes(CAVEAT_MARK)).length === 1 && has(keptSent, '<command-name>/help</command-name>') && has(keptSent, 'the help text'), j(keptSent) + ' | ' + planHint)
     const refusal = [prompt('first'), reply('a1', 'one'), caveat(), createUserMessage({ content: 'Unknown skill: foo' }), prompt('next')] as never[]
     const refusalSent = wireTexts(requestConversationPlan(refusal, [], geometry).messages)
-    check(`${geometry}: a caveat over a command refusal line stands (the line is a record too)`, refusalSent.filter(text => text.includes(CAVEAT_MARK)).length === 1 && has(refusalSent, 'Unknown skill: foo'), j(refusalSent))
+    check(`${geometry}: a caveat over a command refusal line stands (the line is a record too)`, refusalSent.filter(text => text.includes(CAVEAT_MARK)).length === 1 && has(refusalSent, 'Unknown skill: foo'), j(refusalSent) + ' | ' + planHint)
     const tail = [prompt('first'), reply('a1', 'one'), caveat()] as never[]
-    check(`${geometry}: a caveat as the last row has nothing under it and leaves`, !wireTexts(requestConversationPlan(tail, [], geometry).messages).some(text => text.includes(CAVEAT_MARK)))
+    check(`${geometry}: a caveat as the last row has nothing under it and leaves`, !wireTexts(requestConversationPlan(tail, [], geometry).messages).some(text => text.includes(CAVEAT_MARK)), planHint)
     const beforeAnswer = [prompt('first'), caveat(), reply('a1', 'one'), prompt('next')] as never[]
-    check(`${geometry}: a caveat followed by an answer has nothing under it and leaves`, !wireTexts(requestConversationPlan(beforeAnswer, [], geometry).messages).some(text => text.includes(CAVEAT_MARK)))
+    check(`${geometry}: a caveat followed by an answer has nothing under it and leaves`, !wireTexts(requestConversationPlan(beforeAnswer, [], geometry).messages).some(text => text.includes(CAVEAT_MARK)), planHint)
     const doubled = [prompt('first'), reply('a1', 'one'), caveat(), caveat(), helpRow, helpOut, prompt('next')] as never[]
-    check(`${geometry}: of two caveats in a row only the one over the rows stands`, wireTexts(requestConversationPlan(doubled, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1)
+    check(`${geometry}: of two caveats in a row only the one over the rows stands`, wireTexts(requestConversationPlan(doubled, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1, planHint)
     const notice = createAttachmentMessage({ type: 'queued_command', prompt: '<task-notification>a crewmate landed</task-notification>', commandMode: 'task-notification' } as never)
     const pastNotice = [prompt('first'), reply('a1', 'one'), caveat(), notice, prompt('what are you?')] as never[]
     const pastNoticeSent = wireTexts(requestConversationPlan(pastNotice, [], geometry).messages)
-    check(`${geometry}: an attachment between the orphaned caveat and the prompt is not "the rows below" — the caveat still leaves and the attachment rides`, !has(pastNoticeSent, CAVEAT_MARK) && has(pastNoticeSent, 'a crewmate landed') && has(pastNoticeSent, 'what are you?'), j(pastNoticeSent))
+    check(`${geometry}: an attachment between the orphaned caveat and the prompt is not "the rows below" — the caveat still leaves and the attachment rides`, !has(pastNoticeSent, CAVEAT_MARK) && has(pastNoticeSent, 'a crewmate landed') && has(pastNoticeSent, 'what are you?'), j(pastNoticeSent) + ' | ' + planHint)
     const noticeThenRows = [prompt('first'), reply('a1', 'one'), caveat(), notice, helpRow, helpOut, prompt('next')] as never[]
-    check(`${geometry}: a caveat whose rows follow an attachment stands`, wireTexts(requestConversationPlan(noticeThenRows, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1)
+    check(`${geometry}: a caveat whose rows follow an attachment stands`, wireTexts(requestConversationPlan(noticeThenRows, [], geometry).messages).filter(text => text.includes(CAVEAT_MARK)).length === 1, planHint)
   }
   const untouched = [prompt('first'), reply('a1', 'one'), caveat(), helpRow, helpOut, prompt('next')] as never[]
   const plan = (await import('../../src/services/messages/apiPlan.ts')) as { withoutOrphanCaveats?: (rows: unknown[]) => unknown[] }
-  check('a view with no orphan comes back as the same array (render layers bail on identity)', typeof plan.withoutOrphanCaveats === 'function' && plan.withoutOrphanCaveats(untouched) === untouched)
+  check('a view with no orphan comes back as the same array (render layers bail on identity)', typeof plan.withoutOrphanCaveats === 'function' && plan.withoutOrphanCaveats(untouched) === untouched, 'withoutOrphanCaveats in src/services/messages/apiPlan.ts must be exported and return its input array when no caveat is orphaned')
 }
 
 const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
@@ -99,7 +100,7 @@ if (!existsSync(DIST)) {
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'put node on PATH for this proof; it starts the built runner')
   } else {
     section('§2 the session runner — /model through session/set_model: the next request carries none of the three rows; the session file keeps them for the operator')
     const turns: ScriptedTurn[] = [
@@ -141,15 +142,15 @@ if (!existsSync(DIST)) {
     } catch (error) {
       seatError = error instanceof Error ? error.message : String(error)
     }
-    check('the two turns settled and the switch verb answered', seatError === '' && switchAnswer !== null && (switchAnswer as { model?: string }).model === OPUS, seatError || j(switchAnswer))
+    check('the two turns settled and the switch verb answered', seatError === '' && switchAnswer !== null && (switchAnswer as { model?: string }).model === OPUS, (seatError || j(switchAnswer)) + ' | the runner verb session/set_model is declared in src/runner/wire/sessionVerbs.ts')
     const requests = fixture.messageRequests()
     const second = requests[1]?.body as { model?: string; messages?: Array<{ role?: string; content?: unknown }> } | undefined
     const secondTexts = (second?.messages ?? []).flatMap(m => textsOf(m.content))
-    check('the request after the switch dispatches on the new model', second?.model === OPUS, j(second?.model))
-    check('that request carries no local-command caveat, no /model command row and no "Model now:" (RED on the base: the three rows rode in it)', !secondTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(secondTexts))
-    check('the operator\'s question rides whole', secondTexts.some(text => text.includes('what are you running on now?')), j(secondTexts))
+    check('the request after the switch dispatches on the new model', second?.model === OPUS, j(second?.model) + ' | the request after session/set_model must dispatch on the new model; the verb is declared in src/runner/wire/sessionVerbs.ts')
+    check('that request carries no local-command caveat, no /model command row and no "Model now:" (RED on the base: the three rows rode in it)', !secondTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(secondTexts) + ' | ' + planHint)
+    check('the operator\'s question rides whole', secondTexts.some(text => text.includes('what are you running on now?')), j(secondTexts) + ' | ' + planHint)
     const commandRows = host.rows.filter(row => row.type === 'command_output' && typeof row.text === 'string' && row.text.includes(STDOUT_MARK))
-    check('the host still receives the /model receipt as a command-output row (the operator sees the switch)', commandRows.length === 1, j(commandRows.map(row => row.text)))
+    check('the host still receives the /model receipt as a command-output row (the operator sees the switch)', commandRows.length === 1, j(commandRows.map(row => row.text)) + ' | the host should still receive one command_output row with the Model now: receipt')
     const walk = (dir: string): string[] => {
       const out: string[] = []
       if (!existsSync(dir)) return out
@@ -165,8 +166,8 @@ if (!existsSync(DIST)) {
     const recordedCommand = recorded.filter(line => line.includes(MODEL_COMMAND_MARK))
     const recordedStdout = recorded.filter(line => line.includes(STDOUT_MARK))
     const recordedCaveat = recorded.filter(line => line.includes(CAVEAT_MARK))
-    check('the session file keeps the three rows as the operator\'s record', files.length === 1 && recordedCommand.length === 1 && recordedStdout.length === 1 && recordedCaveat.length === 1, j({ files, command: recordedCommand.length, stdout: recordedStdout.length, caveat: recordedCaveat.length }))
-    check('each recorded row is marked as the transcript\'s own (isVirtual) so a resume keeps it off the wire too', [...recordedCommand, ...recordedStdout, ...recordedCaveat].every(line => /"isVirtual":\s*true/.test(line)), recordedCommand[0]?.slice(0, 400))
+    check('the session file keeps the three rows as the operator\'s record', files.length === 1 && recordedCommand.length === 1 && recordedStdout.length === 1 && recordedCaveat.length === 1, j({ files, command: recordedCommand.length, stdout: recordedStdout.length, caveat: recordedCaveat.length }) + ' | the session file must keep all three rows; they are made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts')
+    check('each recorded row is marked as the transcript\'s own (isVirtual) so a resume keeps it off the wire too', [...recordedCommand, ...recordedStdout, ...recordedCaveat].every(line => /"isVirtual":\s*true/.test(line)), recordedCommand[0]?.slice(0, 400) + ' | each row made by createModelSwitchBreadcrumbs in src/utils/messages/factories.ts must be isVirtual')
     clearTimeout(killer)
     await host.stop(5_000).catch(() => null)
 
@@ -181,12 +182,12 @@ if (!existsSync(DIST)) {
     } catch (error) {
       resumeError = error instanceof Error ? error.message : String(error)
     }
-    check('the resumed runner took a turn', resumeError === '', resumeError)
+    check('the resumed runner took a turn', resumeError === '', resumeError + ' | the resumed runner did not answer MS-O2 within 60 s')
     const requestsAfterResume = fixture.messageRequests()
-    check('the closing ask carries its mark once, between the first process and the resume', j(requestsAfterResume.map(isHandoffRequest)) === j([false, false, true, false]), j(requestsAfterResume.map(isHandoffRequest)))
+    check('the closing ask carries its mark once, between the first process and the resume', j(requestsAfterResume.map(isHandoffRequest)) === j([false, false, true, false]), j(requestsAfterResume.map(isHandoffRequest)) + ' | expected [false,false,true,false]; the fixture saw a different number or order of closing asks')
     const third = requestsAfterResume.filter(q => !isHandoffRequest(q))[2]?.body as { messages?: Array<{ content?: unknown }> } | undefined
     const thirdTexts = (third?.messages ?? []).flatMap(m => textsOf(m.content))
-    check('the resumed session\'s request carries the earlier turns but none of the three /model rows (RED on the base: the record dropped the mark and the rows rode again)', has(thirdTexts, 'first on fable') && has(thirdTexts, 'and after the resume?') && !thirdTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(thirdTexts.map(text => text.slice(0, 80))))
+    check('the resumed session\'s request carries the earlier turns but none of the three /model rows (RED on the base: the record dropped the mark and the rows rode again)', has(thirdTexts, 'first on fable') && has(thirdTexts, 'and after the resume?') && !thirdTexts.some(text => text.includes(CAVEAT_MARK) || text.includes(MODEL_COMMAND_MARK) || text.includes(STDOUT_MARK)), j(thirdTexts.map(text => text.slice(0, 80))) + ' | ' + planHint)
     clearTimeout(resumeKiller)
     await resumed.stop(5_000).catch(() => null)
     await fixture.close()

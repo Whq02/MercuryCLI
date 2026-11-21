@@ -31,8 +31,8 @@ const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts
 type Tool = import('../../src/Tool.ts').Tool
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}${!ok && hint ? ' | to fix: ' + hint : ''}`)
   if (!ok) failures++
 }
 
@@ -117,14 +117,14 @@ for (const kind of kinds) {
   if (kind.mountLsp) {
     lspManager.initializeLspServerManager()
     await lspManager.waitForInitialization()
-    check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted())
+    check(`${kind.label}: LSP is globally mounted`, lspManager.isLspToolMounted(), '', 'isLspToolMounted in src/services/lsp/manager.ts must read true after initializeLspServerManager and waitForInitialization')
   }
   let pool: Tool[] = getTools(permissionContext) as Tool[]
   if (kind.agent !== undefined) pool = filterToolsForAgent({ tools: pool, isBuiltIn: kind.agent.isBuiltIn }) as Tool[]
   if (kind.disallowedTools) pool = resolveAgentTools({ source: 'projectSettings', tools: ['*'], disallowedTools: kind.disallowedTools }, pool).resolvedTools as Tool[]
   const offered = new Set(pool.map(tool => tool.name))
-  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','))
-  check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length))
+  if (kind.mountLsp) check(`${kind.label}: the actual pool honors its LSP restriction`, LSP_NAMES.every(name => offered.has(name) === !kind.disallowedTools?.includes('LSP')), LSP_NAMES.filter(name => offered.has(name)).join(','), 'filterToolsForAgent and resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must drop every Lsp tool when the agent disallows LSP')
+  check(`${kind.label}: a pool was built`, pool.length >= 10, String(pool.length), 'getTools in src/tools.ts returned too few tools for this session kind')
   const descriptions = new Map<string, string>()
   const pairs: string[] = []
   for (const tool of pool) {
@@ -141,15 +141,15 @@ for (const kind of kinds) {
       const summary = await tool.description(undefined, { tools: pool })
       const empty = await tool.call({ op: 'read' } as never, { options: { tools: pool } } as never, (() => {}) as never, {} as never)
       for (const [surface, text] of [['description', summary], ['empty read', JSON.stringify(empty.data)]]) {
-        check(`${kind.label}: CrewBoard ${surface} (operator text, a call-time hint) names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!))
+        check(`${kind.label}: CrewBoard ${surface} (operator text, a call-time hint) names only the available launch road`, canLaunch ? text!.includes('ToolSearch select:Crewmate') : text!.includes('The lead launches seats.') && !/\bCrewmate\b/.test(text!), '', 'launchWords in src/services/crewBoard/implementation.ts must name the Crewmate launch road only when the pool offers Crewmate')
       }
-      check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description))
-      check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''))
+      check(`${kind.label}: the CrewBoard prompt names no launch road and no launcher, whatever the pool offers`, !description.includes('ToolSearch select:Crewmate') && !description.includes('The lead launches seats.') && !/\bCrewmate\b/.test(description), '', 'the CrewBoard prompt must not mention the launch road; launch wording belongs only in launchWords in src/services/crewBoard/implementation.ts')
+      check(`${kind.label}: the board roster hint names no unavailable launcher`, canLaunch || !/\bCrewmate\b/.test(tool.searchHint ?? ''), '', 'remove Crewmate from the CrewBoard searchHint in src/services/crewBoard/implementation.ts')
     }
     const resumedChildContract = 'a crewmate launched with an output schema keeps its StructuredOutput tool for the resumed turn.'
-    if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract))
+    if (tool.name === 'ResumeCrewmate') check(`${kind.label}: the resumed-child tool promise is stated exactly`, description.endsWith(resumedChildContract), '', 'the ResumeCrewmate description must end with the resumed-child sentence; see src/tools/ResumeAgentTool/prompt.ts')
     const manual = tool.wireDescription === undefined ? '' : await tool.prompt({ getToolPermissionContext: async () => permissionContext, tools: pool, agents: [], model: 'claude-opus-4-8' })
-    if (tool.wireDescription !== undefined) check(`${kind.label}: ${tool.name} keeps its full manual behind the short wire contract`, description === tool.wireDescription(manual) && manual.length > description.length)
+    if (tool.wireDescription !== undefined) check(`${kind.label}: ${tool.name} keeps its full manual behind the short wire contract`, description === tool.wireDescription(manual) && manual.length > description.length, '', 'wireDescription of this tool must return the short contract while prompt returns the longer manual; see the tool file under src/tools')
     const callerDescription = tool.name === 'ResumeCrewmate' ? description.replace(resumedChildContract, '') : description + '\n' + manual
     for (const name of mentionedToolNames(callerDescription)) {
       if (!offered.has(name) && !withheld.has(name)) pairs.push(`${tool.name} → ${name}`)
@@ -158,15 +158,15 @@ for (const kind of kinds) {
   rendered.set(kind.label, descriptions)
   if (kind.mountLsp) {
     const steered = ['Grep', 'Edit', 'Structure'].filter(name => /\bLsp(?:Read|Rename)\b/.test(descriptions.get(name) ?? ''))
-    check(`${kind.label}: no tool steers to the language-service tools, whatever the pool offers; Grep and Edit name no other tool at all`, steered.length === 0 && !/\b(Lsp\w+|AstSearch|AstEdit|Structure)\b/.test(descriptions.get('Grep') ?? '') && !/\b(Lsp\w+|AstEdit|Structure)\b/.test(descriptions.get('Edit') ?? ''), steered.join(','))
+    check(`${kind.label}: no tool steers to the language-service tools, whatever the pool offers; Grep and Edit name no other tool at all`, steered.length === 0 && !/\b(Lsp\w+|AstSearch|AstEdit|Structure)\b/.test(descriptions.get('Grep') ?? '') && !/\b(Lsp\w+|AstEdit|Structure)\b/.test(descriptions.get('Edit') ?? ''), steered.join(','), 'remove Lsp tool names from the Grep, Edit and Structure prompts under src/tools')
   }
-  check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '))
+  check(`${kind.label}: no offered description names a tool the session does not offer (${offered.size} offered)`, pairs.length === 0, pairs.join('; '), 'each pair is tool then the tool it names; remove that name from the first tool prompt under src/tools, or gate it on the offered pool')
 }
 
 const interactive = rendered.get('interactive')!
 const headless = rendered.get('headless')!
 const differing = [...headless.keys()].filter(name => interactive.has(name) && interactive.get(name) !== headless.get(name))
-check('a description differs between session kinds only where the pool differs', differing.every(name => mentionedToolNames(interactive.get(name)!).join() !== mentionedToolNames(headless.get(name)!).join() || /task|crew|board/i.test(interactive.get(name)!)), differing.join(','))
+check('a description differs between session kinds only where the pool differs', differing.every(name => mentionedToolNames(interactive.get(name)!).join() !== mentionedToolNames(headless.get(name)!).join() || /task|crew|board/i.test(interactive.get(name)!)), differing.join(','), 'a tool description changed between interactive and headless with the same tool mentions; make it depend only on which tools the pool offers')
 
 rmSync(scratch, { recursive: true, force: true })
 console.log(failures === 0 ? '\nDESCRIPTION OFFER PARITY HOLDS' : `\n${failures} DESCRIPTION OFFER PARITY CHECK(S) FAILED`)

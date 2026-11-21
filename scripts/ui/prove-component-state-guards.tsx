@@ -8,8 +8,8 @@ import { KEY, mountOffscreen, pinScratchHome, pinSourceRef, releaseScratchHome, 
 pinSourceRef()
 const home = pinScratchHome('component-state-guards')
 let failures = 0
-const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+const check = (label: string, ok: boolean, hint = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && hint ? ` — ${hint}` : ''}`)
   if (!ok) failures++
 }
 
@@ -62,14 +62,14 @@ const mount = (element: React.ReactNode) => mountOffscreen(<AppStateProvider><Th
 try {
   const property = '__mercury_validation_fixture__'
   const prototype = Object.prototype as Record<string, unknown>
-  check('prototype fixture starts absent', !Object.hasOwn(prototype, property))
+  check('prototype fixture starts absent', !Object.hasOwn(prototype, property), 'Object.prototype already carries the fixture key before the component mounts; an earlier import or test polluted it, so find what writes it')
   const validation = await mount(<ValidationErrorsList errors={[
     { path: `__proto__.${property}`, message: 'validation fixture' },
     { path: 'view.__proto__.nested', message: 'nested fixture' },
   ]} />)
   const painted = await waitFor(() => validation.screen().includes('validation fixture') && validation.screen().includes('nested fixture'), 3000)
-  check('validation paths cannot write Object.prototype', !Object.hasOwn(prototype, property) && !Object.hasOwn(prototype, 'nested'))
-  check('prototype-named paths still render their own errors', painted)
+  check('validation paths cannot write Object.prototype', !Object.hasOwn(prototype, property) && !Object.hasOwn(prototype, 'nested'), 'the path tree in src/components/ValidationErrorsList.tsx must not assign through a __proto__ segment; keep the nodes prototype-free (Object.create(null)) and skip or own-key that segment')
+  check('prototype-named paths still render their own errors', painted, 'src/components/ValidationErrorsList.tsx must still paint the message of an error whose path has a __proto__ segment, not drop the row')
   validation.unmount()
   await settle(50)
   delete prototype[property]
@@ -90,15 +90,15 @@ try {
     checkedDirectories.length = 0
     const view = await mount(<WorktreeExitDialog onDone={() => {}} />)
     await waitFor(() => scenario.expected === 0 ? view.screen().includes('Keep worktree') : removed === 1, 3000)
-    check(`${scenario.name}: probes the session worktree, not process.cwd()`, checkedDirectories.length === 2 && checkedDirectories.every(path => path === session.worktreePath))
-    check(`${scenario.name}: only proven empty work is silently removed`, removed === scenario.expected)
+    check(`${scenario.name}: probes the session worktree, not process.cwd()`, checkedDirectories.length === 2 && checkedDirectories.every(path => path === session.worktreePath), `git status and the commit count must run with cwd set to the session worktreePath, two calls in all; saw ${JSON.stringify(checkedDirectories)}; fix the calls in src/components/WorktreeExitDialog.tsx`)
+    check(`${scenario.name}: only proven empty work is silently removed`, removed === scenario.expected, `cleanupWorktree ran ${removed} time(s), expected ${scenario.expected}; WorktreeExitDialog.tsx may remove silently only when git status succeeded clean and the commit count parsed as 0, otherwise it must show the Keep worktree choice`)
     const outAt = process.argv.indexOf('--out')
     if (outAt >= 0) {
       const output = process.argv[outAt + 1]!
       mkdirSync(output, { recursive: true })
       writeFileSync(join(output, `${scenario.name.replaceAll(' ', '-')}.txt`), view.screen())
     }
-    if (scenario.expected === 0) check(`${scenario.name}: keeps the choice available`, view.screen().includes('Keep worktree'))
+    if (scenario.expected === 0) check(`${scenario.name}: keeps the choice available`, view.screen().includes('Keep worktree'), 'the Keep worktree option is missing from the dialog screen; fix the render in src/components/WorktreeExitDialog.tsx')
     view.unmount()
     await settle(50)
   }
@@ -135,21 +135,21 @@ try {
     let reported = 0
     const view = await mount(<WorktreeExitDialog onDone={message => { result = message; reported++ }} />)
     if (scenario === 'file held open') {
-      check('a held file presents the existing remove choice', await waitFor(() => view.screen().includes('Remove worktree'), 3000))
+      check('a held file presents the existing remove choice', await waitFor(() => view.screen().includes('Remove worktree'), 3000), 'no Remove worktree choice painted within 3s; fix the dialog options in src/components/WorktreeExitDialog.tsx')
       view.push(KEY.down)
       await settle(80)
       view.push(KEY.enter)
     }
     await waitFor(() => result !== undefined, 4000)
     if (expectedFailure) {
-      check(`${scenario}: the failure row carries the OS reason, not Removed`, result !== undefined && !result.startsWith('Removed') && /Permission denied|Device or resource busy/.test(result))
-      check(`${scenario}: the row names the tree and a retry action`, result !== undefined && result.includes(path) && /retry|try again/i.test(result))
-      check(`${scenario}: the tree and session record stay`, existsSync(path) && realCurrent()?.worktreePath === path && getCurrentProjectConfig().activeWorktreeSession?.worktreePath === path)
-      check(`${scenario}: session history is not cleared`, exitsRecorded === 0)
-      if (scenario === 'file held open') check('the held file is untouched', readFileSync(join(path, 'held.txt'), 'utf8') === 'keep this file')
+      check(`${scenario}: the failure row carries the OS reason, not Removed`, result !== undefined && !result.startsWith('Removed') && /Permission denied|Device or resource busy/.test(result), `the failure message must carry the git error text; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/components/WorktreeExitDialog.tsx`)
+      check(`${scenario}: the row names the tree and a retry action`, result !== undefined && result.includes(path) && /retry|try again/i.test(result), `the failure message must name the worktree path and say to retry; got ${JSON.stringify(result)}; see the catch around cleanupWorktree in src/components/WorktreeExitDialog.tsx`)
+      check(`${scenario}: the tree and session record stay`, existsSync(path) && realCurrent()?.worktreePath === path && getCurrentProjectConfig().activeWorktreeSession?.worktreePath === path, 'after a failed removal the worktree directory, the in-memory worktree session and the saved activeWorktreeSession must all remain; cleanupWorktree must not clear them on error')
+      check(`${scenario}: session history is not cleared`, exitsRecorded === 0, `saveWorktreeState ran ${exitsRecorded} time(s) after a failed removal; it may run only after a successful one`)
+      if (scenario === 'file held open') check('the held file is untouched', readFileSync(join(path, 'held.txt'), 'utf8') === 'keep this file', 'the held file was changed or deleted by a failed removal; the dialog must not delete files itself')
     } else {
-      check('successful removal reports Removed once', result?.startsWith('Removed') === true && reported === 1)
-      check('successful removal clears the tree and both records', !existsSync(path) && realCurrent() === null && getCurrentProjectConfig().activeWorktreeSession === undefined && exitsRecorded === 1)
+      check('successful removal reports Removed once', result?.startsWith('Removed') === true && reported === 1, `onDone must be called once with a message starting Removed; got ${JSON.stringify(result)} after ${reported} call(s); see WorktreeExitDialog.tsx`)
+      check('successful removal clears the tree and both records', !existsSync(path) && realCurrent() === null && getCurrentProjectConfig().activeWorktreeSession === undefined && exitsRecorded === 1, `a successful removal must delete the directory, clear the worktree session and the saved activeWorktreeSession, and record the exit once; exits recorded ${exitsRecorded}`)
     }
     view.unmount()
     if (process.platform !== 'win32') chmodSync(parent, 0o755)

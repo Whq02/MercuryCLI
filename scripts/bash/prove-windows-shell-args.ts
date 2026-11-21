@@ -12,11 +12,14 @@ const CYGWIN = 'cygwin/cygwin cygwin-3.6.9 @ daabea98682f3f4bef0044829a8d2422613
 const RUST = 'rust-lang/rust 1.98.1 @ 48a229ceaefd4985c50990b14116b6d856af0985'
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => {
+const check = (label: string, ok: boolean, detail = '', hint = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` | ${hint}` : ''}`)
 }
 const show = (value: unknown) => JSON.stringify(value)
+const PATCH_FIX = `change fn posix_runtime_arg and its routing in ${PATCH}, and keep the posixArg port in this file the same as it`
+const TABLE_FIX = `make the TABLE row in this file and the posix_runtime_words_are_written_for_that_runtime test in ${PATCH} agree`
+const MODEL_FIX = 'the readers modelled in this file (buildArgv, msArgv, stdArg) disagree with the reading the row records; compare them with the DLL sources named in the readers line above'
 const same = (a: string[], b: string[]) => a.length === b.length && a.every((value, i) => value === b[i])
 
 type Flavor = 'msys-2.0.dll' | 'cygwin1.dll'
@@ -513,16 +516,17 @@ console.log(`readers: winsup/cygwin/dcrt0.cc (build_argv, quoted, globify, inser
 console.log(`writers: append_arg and make_command_line of that standard library, and what ${PATCH} hands a program of the POSIX runtime: ${engine === posixArg ? 'posix_runtime_arg' : 'the standard arguments, it has no writer of its own'}`)
 
 console.log('the writer in the patch')
-check('the patch hands a program of the POSIX runtime arguments written by posix_runtime_arg', engine === posixArg)
+check('the patch hands a program of the POSIX runtime arguments written by posix_runtime_arg', engine === posixArg, '', `${PATCH_FIX}; the patch must define fn posix_runtime_arg and hand it each word through cmd.raw_arg(posix_runtime_arg(word))`)
 if (rustWriter !== null) {
   check(
     'a word is left as it stands exactly when the runtime takes it as it stands: no separator (winsup.h 137, issep " \\t\\n\\r"), none of globify\'s ?*["\'(){} (dcrt0.cc 209), no leading ~ (209) and no leading @ (351), as those files stand at the commit named above',
     sameSet(rustChars('contains'), [...SEPARATORS, ...GLOB_TRIGGERS]) && sameSet(rustChars('starts_with'), [...LEADING_TRIGGERS]),
     `contains ${show(rustChars('contains'))} starts_with ${show(rustChars('starts_with'))}`,
+    `${PATCH_FIX}; its contains list must be SEPARATORS plus GLOB_TRIGGERS and its starts_with list LEADING_TRIGGERS, as defined in this file`,
   )
-  check(`the patch's own Rust test holds this table, ${TABLE.length} rows word for word`, rustTable.length === TABLE.length && TABLE.every((row, i) => rustTable[i]!.word === row.word && rustTable[i]!.written === row.written), `${rustTable.length} rows in the patch`)
+  check(`the patch's own Rust test holds this table, ${TABLE.length} rows word for word`, rustTable.length === TABLE.length && TABLE.every((row, i) => rustTable[i]!.word === row.word && rustTable[i]!.written === row.written), `${rustTable.length} rows in the patch`, TABLE_FIX)
   const unlike = TABLE.find(row => posixArg(row.word) !== row.written)
-  check('the port of the writer writes every row as the table holds it', unlike === undefined, unlike === undefined ? '' : `${show(unlike.word)} is written ${show(posixArg(unlike.word))}`)
+  check('the port of the writer writes every row as the table holds it', unlike === undefined, unlike === undefined ? '' : `${show(unlike.word)} is written ${show(posixArg(unlike.word))}`, `${PATCH_FIX}, or correct that TABLE row`)
   const rustc = [join(homedir(), '.cargo/bin', process.platform === 'win32' ? 'rustc.exe' : 'rustc'), 'rustc'].find(bin => spawnSync(bin, ['--version'], { encoding: 'utf8' }).status === 0)
   if (!rustc) console.log('[SKIP] the Rust text of the writer is not compiled here (no rustc): the port stands on the table the patch holds')
   else {
@@ -548,14 +552,14 @@ fn main() {
 }
 `)
       const compile = spawnSync(rustc, ['--edition', '2024', source, '-o', exe], { cwd: scratch, encoding: 'utf8' })
-      check('the Rust text of the writer, taken from the patch, compiles on this host', compile.status === 0, `${compile.stdout}${compile.stderr}`.trim())
+      check('the Rust text of the writer, taken from the patch, compiles on this host', compile.status === 0, `${compile.stdout}${compile.stderr}`.trim(), `fix the Rust text of fn posix_runtime_arg in ${PATCH} so it compiles on its own (rustc --edition 2024)`)
       if (compile.status === 0) {
         const all = [...TABLE.map(row => row.word), ...CORPUS]
         const hex = (text: string) => Buffer.from(text, 'utf8').toString('hex')
         const run = spawnSync(exe, [], { cwd: scratch, input: all.map(word => `=${hex(word)}\n`).join(''), encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
         const lines = run.stdout.split('\n').filter(Boolean)
         const differs = all.findIndex((word, i) => lines[i] !== `=${hex(posixArg(word))}`)
-        check(`the Rust text writes all ${all.length} words, the table and the corpus, as the port does`, run.status === 0 && lines.length === all.length && differs === -1, differs === -1 ? `rc=${run.status}` : `${show(all[differs])}: Rust ${show(Buffer.from((lines[differs] ?? '=').slice(1), 'hex').toString('utf8'))}, the port ${show(posixArg(all[differs]!))}`)
+        check(`the Rust text writes all ${all.length} words, the table and the corpus, as the port does`, run.status === 0 && lines.length === all.length && differs === -1, differs === -1 ? `rc=${run.status}` : `${show(all[differs])}: Rust ${show(Buffer.from((lines[differs] ?? '=').slice(1), 'hex').toString('utf8'))}, the port ${show(posixArg(all[differs]!))}`, `${PATCH_FIX}, so the Rust text and the port write every word alike`)
       }
     } finally {
       rmSync(scratch, { recursive: true, force: true })
@@ -566,7 +570,7 @@ fn main() {
 console.log('the six lines the Windows box read by hand (FRC2W-U-93), from the standard arguments as msys-2.0.dll reads them')
 const box = (label: string, words: string[], seen: string[]) => {
   const read = attempt(() => msys(lineOf(stdArg, words)))
-  check(label, same(read, seen), show(read))
+  check(label, same(read, seen), show(read), MODEL_FIX)
 }
 box('1: echo.exe receives: \\description":"effort-probe"', ['echo.exe receives:', '"description":"effort-probe"'], ['echo.exe receives:', '\\description":"effort-probe"'])
 box('2: A: a.ts b.ts', ['A:', '*.ts'], ['A:', 'a.ts', 'b.ts'])
@@ -581,18 +585,18 @@ console.log("Microsoft's runtime: the standard arguments, which the patch leaves
 doubledQuotes = 0
 for (const row of TABLE) {
   const read = attempt(() => microsoft(lineOf(stdArg, wanted(row))))
-  check(`a program of Microsoft's runtime receives ${show(row.word)}`, same(read, wanted(row)), `written ${show(stdArg(row.word))}${same(read, wanted(row)) ? '' : `, read ${show(read)}`}`)
+  check(`a program of Microsoft's runtime receives ${show(row.word)}`, same(read, wanted(row)), `written ${show(stdArg(row.word))}${same(read, wanted(row)) ? '' : `, read ${show(read)}`}`, 'stdArg and msArgv in this file model the standard arguments writer and the Microsoft reader; make the two agree')
 }
 const msChanged = CORPUS.filter(word => !same(attempt(() => microsoft(lineOf(stdArg, [word, 'end']))), [word, 'end']))
-check(`Microsoft's reader reads all ${CORPUS.length} words of the corpus as given`, msChanged.length === 0, msChanged.length === 0 ? '' : `${msChanged.length} changed, the first ${show(msChanged[0])}`)
-check('no line written made that reader apply its rule for two quotes inside quotes, the one place where CommandLineToArgvW and the C runtime before 2008 are known to read otherwise', doubledQuotes === 0, `${doubledQuotes} times`)
+check(`Microsoft's reader reads all ${CORPUS.length} words of the corpus as given`, msChanged.length === 0, msChanged.length === 0 ? '' : `${msChanged.length} changed, the first ${show(msChanged[0])}`, 'stdArg and msArgv in this file model the standard arguments writer and the Microsoft reader; make the two agree')
+check('no line written made that reader apply its rule for two quotes inside quotes, the one place where CommandLineToArgvW and the C runtime before 2008 are known to read otherwise', doubledQuotes === 0, `${doubledQuotes} times`, 'the word that made msArgv take its doubled-quote branch must be written differently by stdArg, or drop it from the corpus or TABLE')
 
 console.log('the POSIX runtime: what the patch hands such a program, as msys-2.0.dll and cygwin1.dll read it')
 for (const row of TABLE) {
   const line = lineOf(engine, wanted(row))
   const [m, c] = [attempt(() => msys(line)), attempt(() => cygwin(line))]
   const ok = same(m, wanted(row)) && same(c, wanted(row))
-  check(`a program of the POSIX runtime receives ${show(row.word)}`, ok, `written ${show(engine(row.word))}, msys-2.0.dll reads ${show(m)}, cygwin1.dll reads ${show(c)}`)
+  check(`a program of the POSIX runtime receives ${show(row.word)}`, ok, `written ${show(engine(row.word))}, msys-2.0.dll reads ${show(m)}, cygwin1.dll reads ${show(c)}`, PATCH_FIX)
 }
 const readers: Array<[string, Reading]> = [
   ['msys-2.0.dll', { flavor: 'msys-2.0.dll', glob: true, world: CORPUS_WORLD }],
@@ -601,7 +605,7 @@ const readers: Array<[string, Reading]> = [
 ]
 for (const [name, reading] of readers) {
   const changed = CORPUS.filter(word => !same(attempt(() => buildArgv(lineOf(engine, [word, 'end']), reading).slice(1)), [word, 'end']))
-  check(`${name} reads all ${CORPUS.length} words of the corpus as given`, changed.length === 0, changed.length === 0 ? '' : `${changed.length} changed, the first ${show(changed[0])}`)
+  check(`${name} reads all ${CORPUS.length} words of the corpus as given`, changed.length === 0, changed.length === 0 ? '' : `${changed.length} changed, the first ${show(changed[0])}`, PATCH_FIX)
 }
 
 console.log('before the patch such a program was handed the standard arguments: what the two DLLs make of them')
@@ -611,20 +615,20 @@ for (const row of TABLE) {
   const [m, c] = [attempt(() => msys(line)), attempt(() => cygwin(line))]
   const [wantM, wantC] = [row.today ?? wanted(row), row.cygwin ?? row.today ?? wanted(row)]
   if (row.today === undefined && row.cygwin === undefined && same(m, wantM) && same(c, wantC)) unchanged++
-  else check(`the standard arguments for ${show(row.word)}: msys-2.0.dll reads ${show(wantM)}, cygwin1.dll reads ${show(wantC)}`, same(m, wantM) && same(c, wantC), same(m, wantM) && same(c, wantC) ? '' : `the port: msys-2.0.dll ${show(m)}, cygwin1.dll ${show(c)}`)
+  else check(`the standard arguments for ${show(row.word)}: msys-2.0.dll reads ${show(wantM)}, cygwin1.dll reads ${show(wantC)}`, same(m, wantM) && same(c, wantC), same(m, wantM) && same(c, wantC) ? '' : `the port: msys-2.0.dll ${show(m)}, cygwin1.dll ${show(c)}`, 'correct the today or cygwin field of that TABLE row, or the buildArgv model in this file')
 }
 const changedRows = TABLE.filter(row => row.today !== undefined || row.cygwin !== undefined).length
-check(`the other ${TABLE.length - changedRows} rows arrive as given under the standard arguments too`, unchanged === TABLE.length - changedRows, `${unchanged}`)
+check(`the other ${TABLE.length - changedRows} rows arrive as given under the standard arguments too`, unchanged === TABLE.length - changedRows, `${unchanged}`, 'a row without a today or cygwin field changed under the standard arguments: add that field to its TABLE row, or correct the buildArgv model in this file')
 
 console.log('what the readers themselves limit')
 const KEPT = MAXPATHLEN - MB_CUR_MAX
 const plainLong = 'x'.repeat(9000)
 const enclosedLong = `x y${'x'.repeat(8997)}`
-check('a word of 9,000 characters with no trigger arrives whole, by the standard arguments and by the patch: it never reaches glob', [stdArg, engine].every(write => same(msys(lineOf(write, [plainLong, 'end'])), [plainLong, 'end']) && same(cygwin(lineOf(write, [plainLong, 'end'])), [plainLong, 'end'])))
-check(`an enclosed word of 9,000 characters arrives cut after ${KEPT}, by the standard arguments and by the patch alike: glob's own buffer (glob.cc 102 MAXPATHLEN 8192; 242 and 257, the copy stops MB_CUR_MAX short of its end)`, [stdArg, engine].every(write => same(msys(lineOf(write, [enclosedLong, 'end'])), [enclosedLong.slice(0, KEPT), 'end'])))
+check('a word of 9,000 characters with no trigger arrives whole, by the standard arguments and by the patch: it never reaches glob', [stdArg, engine].every(write => same(msys(lineOf(write, [plainLong, 'end'])), [plainLong, 'end']) && same(cygwin(lineOf(write, [plainLong, 'end'])), [plainLong, 'end'])), '', 'buildArgv in this file models the DLLs globify; it must not send a word without a trigger through glob')
+check(`an enclosed word of 9,000 characters arrives cut after ${KEPT}, by the standard arguments and by the patch alike: glob's own buffer (glob.cc 102 MAXPATHLEN 8192; 242 and 257, the copy stops MB_CUR_MAX short of its end)`, [stdArg, engine].every(write => same(msys(lineOf(write, [enclosedLong, 'end'])), [enclosedLong.slice(0, KEPT), 'end'])), '', 'the glob buffer limit (MAXPATHLEN, MB_CUR_MAX) in glob and globify of this file must cut the enclosed word after KEPT characters')
 const noglob = (write: (word: string) => string, word: string) => attempt(() => buildArgv(lineOf(write, [word, 'end']), { flavor: 'msys-2.0.dll', glob: false, world: BOX }).slice(1))
-check('with MSYS=noglob the runtime strips quotes and knows no escape (dcrt0.cc 162): a quote inside an enclosed word cannot be given, by the standard arguments or by this rule', same(noglob(stdArg, 'p q"r'), ['p q\\r end']) && same(noglob(posixArg, 'p q"r'), ['p q\\r end']), `${show(noglob(stdArg, 'p q"r'))} ${show(noglob(posixArg, 'p q"r'))}`)
-check('with MSYS=noglob a run this rule doubled stays doubled: a b\\\\c arrives with four backslashes where the standard arguments gave two; a single backslash and a word left as it stands arrive as given', same(noglob(posixArg, 'a b\\\\c'), ['a b\\\\\\\\c', 'end']) && same(noglob(stdArg, 'a b\\\\c'), ['a b\\\\c', 'end']) && same(noglob(posixArg, 'C:\\my dir\\x'), ['C:\\my dir\\x', 'end']) && same(noglob(posixArg, 'C:\\\\x'), ['C:\\\\x', 'end']), `${show(noglob(posixArg, 'a b\\\\c'))} ${show(noglob(posixArg, 'C:\\my dir\\x'))}`)
+check('with MSYS=noglob the runtime strips quotes and knows no escape (dcrt0.cc 162): a quote inside an enclosed word cannot be given, by the standard arguments or by this rule', same(noglob(stdArg, 'p q"r'), ['p q\\r end']) && same(noglob(posixArg, 'p q"r'), ['p q\\r end']), `${show(noglob(stdArg, 'p q"r'))} ${show(noglob(posixArg, 'p q"r'))}`, 'the glob: false branch of quoted in this file models dcrt0.cc; it must strip quotes and know no escape')
+check('with MSYS=noglob a run this rule doubled stays doubled: a b\\\\c arrives with four backslashes where the standard arguments gave two; a single backslash and a word left as it stands arrive as given', same(noglob(posixArg, 'a b\\\\c'), ['a b\\\\\\\\c', 'end']) && same(noglob(stdArg, 'a b\\\\c'), ['a b\\\\c', 'end']) && same(noglob(posixArg, 'C:\\my dir\\x'), ['C:\\my dir\\x', 'end']) && same(noglob(posixArg, 'C:\\\\x'), ['C:\\\\x', 'end']), `${show(noglob(posixArg, 'a b\\\\c'))} ${show(noglob(posixArg, 'C:\\my dir\\x'))}`, `${PATCH_FIX}; the glob: false branch of quoted in this file must keep a doubled run doubled`)
 
 console.log(failures === 0 ? 'PASS Windows shell arguments reach both runtimes as the shell words' : `FAIL Windows shell arguments (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

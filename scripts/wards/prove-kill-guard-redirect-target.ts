@@ -32,10 +32,11 @@ const reason = (command: string): Promise<string | null> => shellSelfProtectionR
 
 let failures = 0
 let checks = 0
+const KILL_GUARD_FAIL_HINT = 'to fix: shellSelfProtectionReason in src/utils/permissions/shellProtectedPaths.ts decides; the kill and pkill rules (which words are operands, which are a redirect target, and the image refusal text) are runtimeProcessRefusal and operandsBeforeRedirect in src/utils/permissions/runtimeProtection.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks += 1
   if (!ok) failures += 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 400)}` : ''} — ${KILL_GUARD_FAIL_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}`)

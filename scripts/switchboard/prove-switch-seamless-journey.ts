@@ -28,9 +28,11 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
+const SEAMLESS_FAIL_HINT = 'rerun with SWITCH_KEEP=1 to print every grabbed frame and keep the scratch folder with its daemon.log; the daemon ping and concourseDispatch ops go through daemonControlRpc in src/daemon/controlSocket.ts, and the lane string above lists what each grab painted (board, alpha, beta or other)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail} — ${SEAMLESS_FAIL_HINT}` : SEAMLESS_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

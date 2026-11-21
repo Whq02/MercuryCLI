@@ -22,7 +22,8 @@ const { decideToolPermissionWithModes } = await import('../../src/utils/permissi
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail}`)
+  const failHint = ' — change flowShellAsk or flowAskSentence in src/utils/permissions/flowLaw.ts (which shell commands Flow asks about) or decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail + failHint}`)
   if (!ok) failures++
 }
 const tool = { name: 'Bash', inputSchema: z.object({ command: z.string() }), checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never) } as never

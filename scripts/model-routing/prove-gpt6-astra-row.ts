@@ -37,11 +37,18 @@ const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js'
 import type { OpenaiStreamEvent } from '../../src/services/providers/openai/openaiWire.ts'
 
 let failures = 0
+const ASTRA_ROW_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'fix the gpt-6-astra row in GPT_DISPLAY_PINS in src/utils/model/pins/gptPins.ts (or the 5.6 and 6 rows it names); the price, output, window, name and frontier checks read it through src/services/usage/modelCost.ts, src/utils/model/capabilities.ts, src/services/model/model.ts and src/services/model/providerFrontier.ts',
+  '2': 'fix the live-list handling in src/services/providers/openai/openaiCatalogue.ts (evaluateGptCandidate, resolveGptReasoningProfile), the effort words in src/utils/effort.ts and src/utils/model/capabilities.ts, the row in getModelOptions in src/services/model/modelOptions.ts, or computedDefault in src/services/model/computedDefault.ts',
+  '3': 'fix ResponsesStreamFold in src/services/providers/openai/openaiWire.ts or streamOneOpenaiAttempt in src/services/providers/openai/openaiCallModel/attempt.ts, or the price in calculateUSDCost in src/services/usage/modelCost.ts',
+}
+let astraRowFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${astraRowFixHint}` : ''}`)
 }
 function section(t: string): void {
+  astraRowFixHint = ASTRA_ROW_FIX_HINT_BY_SECTION[t.charAt(1)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

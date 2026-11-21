@@ -22,6 +22,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const walkFix = ' — fix walkMarkdownEstate and its ESTATE_WALK_MAX_ENTRIES / ESTATE_WALK_MAX_DEPTH caps in src/utils/markdownConfigLoader.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 section('§1 a small estate is complete, case-folded, sorted, through a symlinked directory')
@@ -38,11 +39,11 @@ section('§1 a small estate is complete, case-folded, sorted, through a symlinke
   symlinkSync(aside, join(estate, 'linked'))
   const walk = await walkMarkdownEstate(estate)
   const names = walk.files.map(f => relativeSlashed(estate, f))
-  check('the walk is complete with no reason', walk.complete && walk.reason === undefined, JSON.stringify(walk))
-  check('both spellings, the nested file and the linked file are found', JSON.stringify(names) === JSON.stringify(['A.MD', 'b.md', 'linked/d.md', 'nested/c.md']), names.join(', '))
-  check('the entries examined are counted (five at the root, one nested, one through the link)', walk.entries === 7, String(walk.entries))
+  check('the walk is complete with no reason', walk.complete && walk.reason === undefined, JSON.stringify(walk) + walkFix)
+  check('both spellings, the nested file and the linked file are found', JSON.stringify(names) === JSON.stringify(['A.MD', 'b.md', 'linked/d.md', 'nested/c.md']), names.join(', ') + walkFix)
+  check('the entries examined are counted (five at the root, one nested, one through the link)', walk.entries === 7, String(walk.entries) + walkFix)
   const missing = await walkMarkdownEstate(join(SCRATCH, 'absent'))
-  check('a missing directory is an empty, complete estate', missing.complete && missing.files.length === 0 && missing.entries === 0, JSON.stringify(missing))
+  check('a missing directory is an empty, complete estate', missing.complete && missing.files.length === 0 && missing.entries === 0, JSON.stringify(missing) + walkFix)
 }
 
 section('§2 a symlink loop ends')
@@ -53,8 +54,8 @@ section('§2 a symlink loop ends')
   symlinkSync(estate, join(estate, 'inner', 'back'))
   const t0 = Date.now()
   const walk = await walkMarkdownEstate(estate)
-  check('the loop is complete (the cycle guard) within a second', walk.complete && Date.now() - t0 < 1_000, JSON.stringify(walk))
-  check('the looped file is listed once', walk.files.length === 1 && relativeSlashed(estate, walk.files[0]!) === 'inner/x.md', walk.files.join(', '))
+  check('the loop is complete (the cycle guard) within a second', walk.complete && Date.now() - t0 < 1_000, JSON.stringify(walk) + walkFix)
+  check('the looped file is listed once', walk.files.length === 1 && relativeSlashed(estate, walk.files[0]!) === 'inner/x.md', walk.files.join(', ') + walkFix)
 }
 
 section('§3 an estate of 50,000 entries stops at the entry cap and says so')
@@ -70,12 +71,12 @@ let bigKept = 0
   const t0 = Date.now()
   const walk = await walkMarkdownEstate(BIG)
   const took = Date.now() - t0
-  check('the walk stopped (complete: false)', walk.complete === false, JSON.stringify({ complete: walk.complete, reason: walk.reason }))
-  check('the reason names the entry cap', (walk.reason ?? '').includes(`${ESTATE_WALK_MAX_ENTRIES} entries`), walk.reason)
-  check('the entries examined stop at the cap', walk.entries === ESTATE_WALK_MAX_ENTRIES + 1, String(walk.entries))
-  check('the files kept never exceed the cap', walk.files.length > 0 && walk.files.length <= ESTATE_WALK_MAX_ENTRIES, String(walk.files.length))
+  check('the walk stopped (complete: false)', walk.complete === false, JSON.stringify({ complete: walk.complete, reason: walk.reason }) + walkFix)
+  check('the reason names the entry cap', (walk.reason ?? '').includes(`${ESTATE_WALK_MAX_ENTRIES} entries`), `${walk.reason}${walkFix}`)
+  check('the entries examined stop at the cap', walk.entries === ESTATE_WALK_MAX_ENTRIES + 1, String(walk.entries) + walkFix)
+  check('the files kept never exceed the cap', walk.files.length > 0 && walk.files.length <= ESTATE_WALK_MAX_ENTRIES, String(walk.files.length) + walkFix)
   bigKept = walk.files.length
-  check('the stopped walk took under three seconds', took < 3_000, `${took} ms`)
+  check('the stopped walk took under three seconds', took < 3_000, `${took} ms${walkFix}`)
 }
 
 section('§4 a chain deeper than the depth cap stops at the depth cap')
@@ -90,8 +91,8 @@ section('§4 a chain deeper than the depth cap stops at the depth cap')
     if (i === ESTATE_WALK_MAX_DEPTH + 6) writeFileSync(join(dir, 'buried.md'), '')
   }
   const walk = await walkMarkdownEstate(estate)
-  check('the walk stopped at the depth cap and says so', walk.complete === false && (walk.reason ?? '').includes(`depth ${ESTATE_WALK_MAX_DEPTH}`), walk.reason)
-  check('the file above the cap is kept, the buried one is not', walk.files.some(f => f.endsWith('shallow.md')) && !walk.files.some(f => f.endsWith('buried.md')), walk.files.join(', '))
+  check('the walk stopped at the depth cap and says so', walk.complete === false && (walk.reason ?? '').includes(`depth ${ESTATE_WALK_MAX_DEPTH}`), `${walk.reason}${walkFix}`)
+  check('the file above the cap is kept, the buried one is not', walk.files.some(f => f.endsWith('shallow.md')) && !walk.files.some(f => f.endsWith('buried.md')), walk.files.join(', ') + walkFix)
 }
 
 section('§5 through the loader: the partial roster loads AND a boot note names the walk')
@@ -99,11 +100,11 @@ section('§5 through the loader: the partial roster loads AND a boot note names 
   _resetBootNotesForTesting()
   const files = await loadMarkdownFilesForSubdir('skills', join(SCRATCH, 'big-project'))
   const project = files.filter(f => f.source === 'projectSettings')
-  check('the partial roster is served (never hidden)', project.length > 0 && project.length <= ESTATE_WALK_MAX_ENTRIES, String(project.length))
-  check('every kept file loads (the bounded read pool drops none)', project.length === bigKept, `${project.length} of ${bigKept}`)
+  check('the partial roster is served (never hidden)', project.length > 0 && project.length <= ESTATE_WALK_MAX_ENTRIES, String(project.length) + ' — fix loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts')
+  check('every kept file loads (the bounded read pool drops none)', project.length === bigKept, `${project.length} of ${bigKept} — fix loadMarkdownFilesForSubdir in src/utils/markdownConfigLoader.ts`)
   const notes = bootNotes()
   const note = notes.find(n => n.text.includes('configuration walk') && n.text.includes('stopped early'))
-  check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes))
+  check('a warn boot note names the stopped walk', note !== undefined && note.kind === 'warn', JSON.stringify(notes) + ' — the boot note is raised where walkMarkdownEstate stops early in src/utils/markdownConfigLoader.ts')
 }
 
 

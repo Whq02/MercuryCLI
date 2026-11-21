@@ -15,10 +15,11 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 let checks = 0
+const DEFERRAL_FAIL_HINT = 'which tools load in full on the local route is decided by isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts, the wire form by deferralWireFormFor in src/services/providers/deferralWire.ts, the name row by getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts, and the request body by routedCallModel in src/services/providers/callModelRouter.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${DEFERRAL_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

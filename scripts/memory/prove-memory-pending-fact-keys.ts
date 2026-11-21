@@ -21,10 +21,11 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+const PENDING_KEYS_FIX_HINT = 'change the code, not the check: the pending-row pin, correct and retire roads are in src/mneme/mnemeCorrect.ts (pinPendingRow, replacePendingRow, strikePendingRow); the pending store is src/mneme/mnemeBuffer.ts (pendingRows); the popup is opened by src/commands/memory/memory.tsx and its fact view, keys, footer and notes are drawn in src/components/memory/MemoryCentreView.tsx and src/components/memory/centre/views.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${!ok ? ` — to fix: ${PENDING_KEYS_FIX_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

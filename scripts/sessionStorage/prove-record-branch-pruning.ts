@@ -16,9 +16,10 @@ const { loadTranscriptFile, pruneRecordBranchesBeforeParse } = await import(
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
 
 let failures = 0
+const pruningHint = 'change pruneRecordBranchesBeforeParse in src/utils/sessionStorage/branchSelection.ts or the fold in loadTranscriptFile in src/utils/sessionStorage/loading.ts (or the fixture in scripts/sessionStorage/forkedFixture.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${pruningHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

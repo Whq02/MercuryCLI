@@ -8,11 +8,25 @@ import { join } from 'node:path'
 
 
 let failures = 0
+const SECTION_FIX: Record<string, string> = {
+  '§1': 'change getEngineModel in src/services/model/model.ts, declaredRouteOf in src/services/providers/routeLaw.ts or utilityCallFor in src/services/model/utilityModel.ts',
+  '§2': 'change the token counters in src/services/tokenEstimation.ts so they answer null without a request when the session is not on the first-party route',
+  '§3': 'change src/services/tokenEstimation.ts so an Anthropic-route session still posts to the count_tokens endpoint',
+  '§4': 'change src/services/providers/idSpaces.ts (recognizeModelId, unrecognisedModelIdReason), src/services/providers/homeLaneAdmission.ts (homeLaneAdmissionRefusal) or src/services/providers/validateModel.ts',
+  '§5': 'change homeLaneAdmissionRefusal in src/services/providers/homeLaneAdmission.ts or routedCallModel in src/services/providers/callModelRouter.ts',
+  '§6': 'change src/services/model/computedDefault.ts (evaluateComputedDefault, orderCredentials) or getEngineModel and getDefaultEngineModel in src/services/model/model.ts',
+  '§7': 'change src/components/loginFamilyRows.ts, nonAnthropicBootNotice in src/services/providers/providerUsability.ts or notLoggedInGateDecision in src/services/wallet/wallet.ts',
+  '§8': 'change src/services/concourse/workerModels.ts, src/services/switchboard/bootBirthFacts.ts or operatorFacingBirthReason in src/services/switchboard/bornSession.ts',
+}
+let sectionKey = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail : (detail ? detail + ' | ' : '') + 'to fix: ' + fix
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ` — ${failureText}` : ''}`)
 }
 function section(title: string): void {
+  sectionKey = title.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 

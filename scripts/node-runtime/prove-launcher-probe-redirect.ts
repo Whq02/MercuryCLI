@@ -9,7 +9,7 @@ const check = (name: string, cond: boolean, detail?: string): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''} — change cmdLauncher in scripts/release/launcherTemplates.mjs so the probe line binds stdout capture and stderr sink before the user argv`)
   }
 }
 

@@ -7,9 +7,10 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-compact-window-row')
 
 let failures = 0
+const compactRowHint = 'the Auto-compact window row in src/components/Settings/Config.tsx must show and step the autoCompactWindow rung in the global config, and resolveAutoCompactWindow in src/services/compact/autoCompact.ts must read the same setting'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${compactRowHint}`}`)
 }
 
 const React = await import('react')

@@ -7,9 +7,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'effort-gauge-'))
 delete process.env.MERCURY_EFFORT_LEVEL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+const GAUGE_FIX =
+  'make the chip, the slider and the readout resolve one tier: getDisplayedEffortLabel and getDisplayedEffortLevel in src/utils/effort.ts, effortPopupOpeningRow in src/commands/effort/EffortPopup, showCurrentEffort in src/commands/effort/effort, focusedEffortLabelOf in src/components/mercury-ui/EffortChip'
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${GAUGE_FIX}`}`)
   if (!ok) failures = 1
 }
 

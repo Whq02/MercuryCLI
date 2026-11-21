@@ -8,7 +8,8 @@ import { removeScratch } from '../lib/removeScratch.ts'
 const fence = resolve(import.meta.dir, 'loopbackOnly.ts')
 const scratch = mkdtempSync(join(tmpdir(), 'loopback-only-'))
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
+const failureHint = ' · fix the fetch fence in scripts/host/loopbackOnly.ts (its fetch wrapper refuses a non-loopback host and endsRed makes the member exit 1; its exit handler prints the FAIL line)'
+const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '') + failureHint); checks++; console.log('PASS ' + name) }
 
 type Ask = { url: string; method?: string }
 type Seen = { status: number | null; sent: string[]; answers: string[]; lines: string[]; all: string }

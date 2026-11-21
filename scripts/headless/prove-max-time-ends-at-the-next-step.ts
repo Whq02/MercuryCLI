@@ -15,6 +15,7 @@ if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); proce
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 400) ?? ''
+const maxTimeWhere = 'the flag is declared in src/main/rootOptions.ts (--max-time) and the deadline ends the turn in src/cli/headless/printDriver.ts'
 
 type Run = { code: number | null; out: string; err: string }
 type Outcome = { status?: string; steps?: number; answer?: string; wall_ms?: number; error?: { message?: string; class?: string } }
@@ -59,13 +60,13 @@ const timeLimitSentence = (ms: number): string => OUTCOME_SENTENCES.time_limit({
 console.log('§1 the vocabulary carries the time limit')
 check('time_limit is an outcome status', (OUTCOME_STATUSES as readonly string[]).includes('time_limit'))
 check('time_limit is an error class', (ERROR_CLASSES as readonly string[]).includes('time_limit'))
-check('the sentence names the limit in the span grammar', timeLimitSentence(600_000) === 'Reached the maximum run time (10m)' && timeLimitSentence(90_000) === 'Reached the maximum run time (1m30s)', timeLimitSentence(600_000))
+check('the sentence names the limit in the span grammar', timeLimitSentence(600_000) === 'Reached the maximum run time (10m)' && timeLimitSentence(90_000) === 'Reached the maximum run time (1m30s)', `${timeLimitSentence(600_000)} — change OUTCOME_SENTENCES.time_limit in src/rows/vocabulary.ts (or formatLimit in src/utils/deadline.ts)`)
 
 console.log('§2 the span grammar: a bare number is seconds, units s m h, junk refused')
 for (const [raw, ms] of [['600', 600_000], ['90s', 90_000], ['10m', 600_000], ['1h', 3_600_000], ['1h30m', 5_400_000], ['1.5h', 5_400_000], ['2M', 120_000], ['45 s', 45_000]] as const) {
-  check(`${raw} reads as ${ms} ms`, timeSpanMsOf(raw) === ms, String(timeSpanMsOf(raw)))
+  check(`${raw} reads as ${ms} ms`, timeSpanMsOf(raw) === ms, `${String(timeSpanMsOf(raw))} — change timeSpanMsOf in src/utils/deadline.ts`)
 }
-for (const raw of ['0', '-5', 'abc', '10x', '100ms', '', '1h-30m', 'm']) check(`'${raw}' is refused`, timeSpanMsOf(raw) === null, String(timeSpanMsOf(raw)))
+for (const raw of ['0', '-5', 'abc', '10x', '100ms', '', '1h-30m', 'm']) check(`'${raw}' is refused`, timeSpanMsOf(raw) === null, `${String(timeSpanMsOf(raw))} — timeSpanMsOf in src/utils/deadline.ts must return null for this`)
 
 console.log('§3 the door: --max-time is in the run grammar and junk is a usage error')
 {
@@ -73,11 +74,11 @@ console.log('§3 the door: --max-time is in the run grammar and junk is a usage 
   const env = { HOME: home, PATH: process.env.PATH ?? '', TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home, MERCURY_HOME: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon') }
   try {
     const help = await spawnDist(['run', '--help'], home, env, 60_000)
-    check('--max-time appears in run --help', help.code === 0 && /^\s*--max-time <time>/m.test(help.out), help.out.slice(0, 200))
+    check('--max-time appears in run --help', help.code === 0 && /^\s*--max-time <time>/m.test(help.out), `${help.out.slice(0, 200)} — the option is declared in src/main/rootOptions.ts`)
     const junk = await spawnDist(['run', '--max-time', 'soon', 'hello'], home, env, 60_000)
-    check('a junk span exits 2 and names the flag and the grammar', junk.code === 2 && junk.err.includes('--max-time must be a span of time') && junk.err.includes("got 'soon'"), j(junk))
+    check('a junk span exits 2 and names the flag and the grammar', junk.code === 2 && junk.err.includes('--max-time must be a span of time') && junk.err.includes("got 'soon'"), `${j(junk)} — the message is built in src/main/rootOptions.ts where --max-time is declared`)
     const zero = await spawnDist(['run', '--max-time', '0', 'hello'], home, env, 60_000)
-    check('a zero span is refused the same way', zero.code === 2 && zero.err.includes('--max-time must be a span of time'), j(zero))
+    check('a zero span is refused the same way', zero.code === 2 && zero.err.includes('--max-time must be a span of time'), `${j(zero)} — timeSpanMsOf in src/utils/deadline.ts must return null for 0 and src/main/rootOptions.ts must refuse it`)
   } finally {
     rmSync(home, { recursive: true, force: true })
   }
@@ -86,39 +87,39 @@ console.log('§3 the door: --max-time is in the run grammar and junk is a usage 
 console.log('§4 the limit cuts a reply streaming past the deadline: the stream ends at the deadline, the tool call it was composing never arrives, no tool runs')
 {
   const run = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
-  check('the outcome is time_limit', run.outcome?.status === 'time_limit', j(run.outcome))
-  check('the error class is time_limit and the message states the limit', run.outcome?.error?.class === 'time_limit' && run.outcome?.error?.message === timeLimitSentence(1_000), j(run.outcome?.error))
-  check('one step was taken', run.outcome?.steps === 1, j(run.outcome?.steps))
-  check('the stream was cut before the tool call arrived: no tool_call row, no tool_result row', !run.rows.some(row => row.type === 'tool_call') && !run.rows.some(row => row.type === 'tool_result'), j(run.rows.map(row => row.type)))
-  check('no second model call was made', run.modelCalls === 1, String(run.modelCalls))
-  check('the run exits 1', run.code === 1, String(run.code))
+  check('the outcome is time_limit', run.outcome?.status === 'time_limit', `${j(run.outcome)} — ${maxTimeWhere}`)
+  check('the error class is time_limit and the message states the limit', run.outcome?.error?.class === 'time_limit' && run.outcome?.error?.message === timeLimitSentence(1_000), `${j(run.outcome?.error)} — ${maxTimeWhere}`)
+  check('one step was taken', run.outcome?.steps === 1, `${j(run.outcome?.steps)} — ${maxTimeWhere}`)
+  check('the stream was cut before the tool call arrived: no tool_call row, no tool_result row', !run.rows.some(row => row.type === 'tool_call') && !run.rows.some(row => row.type === 'tool_result'), `${j(run.rows.map(row => row.type))} — the deadline must end the stream before the tool call is emitted; ${maxTimeWhere}`)
+  check('no second model call was made', run.modelCalls === 1, `${String(run.modelCalls)} — the turn must end at the deadline; ${maxTimeWhere}`)
+  check('the run exits 1', run.code === 1, `${String(run.code)} — a time_limit outcome must exit 1; ${maxTimeWhere}`)
 }
 
 console.log('§5 the limit cuts a tool running past the deadline: the shell is stopped at the deadline, its result row is the cut, no second model call')
 {
   const run = await mercuryRun(['wait two seconds', '--format', 'rows', '--max-time', '1s', '--allowed-tools', 'Bash(sleep *)'], [sleepTwo, answer, handoffTurn()])
-  check('the outcome is time_limit', run.outcome?.status === 'time_limit', j(run.outcome))
-  check('the message states the limit', run.outcome?.error?.message === timeLimitSentence(1_000), j(run.outcome?.error))
+  check('the outcome is time_limit', run.outcome?.status === 'time_limit', `${j(run.outcome)} — ${maxTimeWhere}`)
+  check('the message states the limit', run.outcome?.error?.message === timeLimitSentence(1_000), `${j(run.outcome?.error)} — ${maxTimeWhere}`)
   const result = run.rows.find(row => row.type === 'tool_result') as { status?: string; output?: string } | undefined
-  check('the tool was stopped at the deadline: its result row is an error, the two-second sleep never finished (the turn ended under two seconds)', result?.status === 'error' && typeof run.outcome?.wall_ms === 'number' && (run.outcome.wall_ms as number) < 2_000, j({ result, wall: run.outcome?.wall_ms }))
-  check('no second model call was made', run.modelCalls === 1, String(run.modelCalls))
-  check('the run exits 1', run.code === 1, String(run.code))
+  check('the tool was stopped at the deadline: its result row is an error, the two-second sleep never finished (the turn ended under two seconds)', result?.status === 'error' && typeof run.outcome?.wall_ms === 'number' && (run.outcome.wall_ms as number) < 2_000, `${j({ result, wall: run.outcome?.wall_ms })} — the deadline must stop the running shell; ${maxTimeWhere}`)
+  check('no second model call was made', run.modelCalls === 1, `${String(run.modelCalls)} — the turn must end at the deadline; ${maxTimeWhere}`)
+  check('the run exits 1', run.code === 1, `${String(run.code)} — a time_limit outcome must exit 1; ${maxTimeWhere}`)
 }
 
 console.log('§6 the text format says the reason on stderr')
 {
   const run = await mercuryRun(['read note.txt', '--format', 'text', '--max-time', '1s', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
-  check('stderr carries the sentence', run.err.includes(timeLimitSentence(1_000)), j(run.err))
-  check('stdout carries no answer', run.out.trim() === '', j(run.out))
-  check('the run exits 1', run.code === 1, String(run.code))
+  check('stderr carries the sentence', run.err.includes(timeLimitSentence(1_000)), `${j(run.err)} — the text format must print the time_limit message on stderr; see src/cli/headless/printRunEnd.ts`)
+  check('stdout carries no answer', run.out.trim() === '', `${j(run.out)} — a time_limit run must print no answer; see src/cli/headless/printRunEnd.ts`)
+  check('the run exits 1', run.code === 1, `${String(run.code)} — a time_limit outcome must exit 1; ${maxTimeWhere}`)
 }
 
 console.log('§7 the control: a limit that is not reached changes nothing')
 {
   const run = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '10m', '--allowed-tools', 'Read'], [readNote, answer, handoffTurn()])
-  check('the outcome is completed with the answer', run.outcome?.status === 'completed' && run.outcome?.answer === 'The note says hello.', j(run.outcome))
-  check('both model calls were made', run.modelCalls === 2, String(run.modelCalls))
-  check('the run exits 0', run.code === 0, String(run.code))
+  check('the outcome is completed with the answer', run.outcome?.status === 'completed' && run.outcome?.answer === 'The note says hello.', `${j(run.outcome)} — a limit not reached must change nothing; ${maxTimeWhere}`)
+  check('both model calls were made', run.modelCalls === 2, `${String(run.modelCalls)} — a limit not reached must not end the turn; ${maxTimeWhere}`)
+  check('the run exits 0', run.code === 0, `${String(run.code)} — a completed run must exit 0; ${maxTimeWhere}`)
 }
 
 console.log('refusals: the limit never reaches the model, it holds in every permission mode, and a value that is no span is refused at the door')
@@ -132,24 +133,24 @@ console.log('refusals: the limit never reaches the model, it holds in every perm
         .split(run.home.slice(run.home.lastIndexOf('/') + 1)).join('<HOME-NAME>')
         .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/g, '<ID>')
     const differenceAt = (a: string, b: string): string => { let i = 0; while (i < a.length && a[i] === b[i]) i++; return `${a.length} vs ${b.length} bytes, first difference at ${i}: ${JSON.stringify(a.slice(Math.max(0, i - 80), i + 120))}` }
-    check('the first request\'s system prompt, tools and messages are byte-identical with and without the flag (the scratch home\'s name and the session id aside)', withLimit.firstRequest !== undefined && prompt(withLimit) === prompt(without), differenceAt(prompt(withLimit), prompt(without)))
+    check('the first request\'s system prompt, tools and messages are byte-identical with and without the flag (the scratch home\'s name and the session id aside)', withLimit.firstRequest !== undefined && prompt(withLimit) === prompt(without), `${differenceAt(prompt(withLimit), prompt(without))} — the limit must not enter the prompt, tools or messages; see where src/main/runLaunch.ts passes maxTimeMs`)
     const whole = JSON.stringify(withLimit.firstRequest).split(withLimit.home).join('<HOME>')
     const needle = ['--max-time', 'time_limit'].find(word => whole.includes(word))
-    check('the limit never appears in the request', needle === undefined, needle === undefined ? '' : JSON.stringify(whole.slice(Math.max(0, whole.indexOf(needle) - 200), whole.indexOf(needle) + 100)))
+    check('the limit never appears in the request', needle === undefined, needle === undefined ? '' : `${JSON.stringify(whole.slice(Math.max(0, whole.indexOf(needle) - 200), whole.indexOf(needle) + 100))} — the limit must stay out of the model request; see where src/main/runLaunch.ts passes maxTimeMs`)
   }
   const sovereign = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--mode', 'sovereign'], [readNote, answer, handoffTurn()])
-  check('the limit holds in sovereign mode (no ask, no exemption): time_limit, one model call, exit 1', sovereign.outcome?.status === 'time_limit' && sovereign.modelCalls === 1 && sovereign.code === 1, j(sovereign.outcome))
+  check('the limit holds in sovereign mode (no ask, no exemption): time_limit, one model call, exit 1', sovereign.outcome?.status === 'time_limit' && sovereign.modelCalls === 1 && sovereign.code === 1, `${j(sovereign.outcome)} — ${maxTimeWhere}`)
   const implement = await mercuryRun(['read note.txt', '--format', 'rows', '--max-time', '1s', '--mode', 'implement'], [readNote, answer, handoffTurn()])
-  check('and in implement mode', implement.outcome?.status === 'time_limit' && implement.code === 1, j(implement.outcome))
+  check('and in implement mode', implement.outcome?.status === 'time_limit' && implement.code === 1, `${j(implement.outcome)} — ${maxTimeWhere}`)
   const home2 = realpathSync(mkdtempSync(join(tmpdir(), 'max-time-door-2-')))
   const env2 = { HOME: home2, PATH: process.env.PATH ?? '', TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home2, MERCURY_HOME: home2, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home2, 'daemon') }
   try {
     for (const bad of ['-5', '1e3', 'Infinity', '100ms', '10 minutes', '1h-30m', '']) {
       const refused = await spawnDist(['run', '--max-time', bad, 'hello'], home2, env2, 60_000)
-      check(`'${bad}' is refused at the door with exit 2 and no run`, refused.code === 2 && refused.err.includes('--max-time must be a span of time') && refused.out === '', j(refused))
+      check(`'${bad}' is refused at the door with exit 2 and no run`, refused.code === 2 && refused.err.includes('--max-time must be a span of time') && refused.out === '', `${j(refused)} — src/main/rootOptions.ts must refuse this value of --max-time with exit 2 before any run starts`)
     }
     const rowsDoor = await spawnDist(['run', '--format', 'rows', '--max-time', 'soon', 'hello'], home2, env2, 60_000)
-    check('on the rows road the refusal is one refused outcome row', rowsDoor.code === 2 && rowsDoor.out.includes('"status":"refused"') && rowsDoor.out.includes('--max-time must be a span of time'), j(rowsDoor))
+    check('on the rows road the refusal is one refused outcome row', rowsDoor.code === 2 && rowsDoor.out.includes('"status":"refused"') && rowsDoor.out.includes('--max-time must be a span of time'), `${j(rowsDoor)} — the refusal on the rows format is raised from src/main/rootOptions.ts where --max-time is declared`)
   } finally {
     rmSync(home2, { recursive: true, force: true })
   }

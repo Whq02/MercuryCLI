@@ -26,7 +26,7 @@ const fixture = await startFixtureApi([
 ])
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok ? ` — change the /verify command (verifierPrompt and getPromptForCommand in src/commands/verify.ts) so its expansion and Crewmate brief reach the model${detail ? `: ${detail}` : ''}` : ''}`)
   if (!ok) failures++
 }
 try {

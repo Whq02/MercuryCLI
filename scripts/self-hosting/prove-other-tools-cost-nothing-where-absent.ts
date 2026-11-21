@@ -46,9 +46,10 @@ type Drive = { names: string[]; log: string[]; atStart: number; files: string[];
 
 let passed = 0
 let failed = 0
+const otherToolsHint = 'change the lookups of other tools files in getInstructionFiles (src/services/instructions/engine.ts) and getNestedMemoryAttachmentsForFile (src/services/attachments/nestedMemory.ts), or the conventions from conventionsForProfile (src/services/instructions/compositionOrder.ts);'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${otherToolsHint} ${detail.slice(0, 900)}` : ''}`)
 }
 
 let worlds = 0

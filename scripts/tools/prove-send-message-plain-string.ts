@@ -18,11 +18,12 @@ let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${cond ? '' : plainFixHint}`)
 }
+const plainFixHint = ' | fix: validation and delivery are validateInput and call in src/tools/SendMessageTool/SendMessageTool.ts; the wording is DESCRIPTION and getPrompt in src/tools/SendMessageTool/prompt.ts (and getPrompt in src/tools/ResumeAgentTool/prompt.ts for the resume line)'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the plain-string SendMessage proof exceeded 120s')
+  console.log('\nTIMEOUT — the plain-string SendMessage proof exceeded 120s; a call into SendMessageTool (src/tools/SendMessageTool/SendMessageTool.ts) or a task registration never settled, so look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

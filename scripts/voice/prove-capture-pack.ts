@@ -14,8 +14,9 @@ for (const key of ['MERCURY_VOICE_BACKEND', 'MERCURY_VOICE_FIXTURE_WAV', 'MERCUR
 process.chdir(ROOT)
 
 let failures = 0
+const VOICE_FIX_HINT = 'to fix, change the vendor build scripts/vendor/build-voice.ts, the addon sources in native/voice, the pack owner src/utils/voice/voicePack.ts, or the capture owner src/services/voice/capture.ts (wav shape in src/services/voice/wav.ts), whichever this check names'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}${VOICE_FIX_HINT}`}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)

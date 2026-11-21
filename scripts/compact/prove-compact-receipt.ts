@@ -38,8 +38,11 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const receiptHint = ' | fix manualCompactDisplayText in src/services/compact/manualReceipt.ts'
+const cardHint = ' | fix enrichSummaryForLiveDisplay and shouldEnrichForLiveDisplay in src/commands/compact/compact.ts and src/services/compact/manualReceipt.ts'
+
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — compact receipt prover exceeded 120s')
+  console.log('\nTIMEOUT — compact receipt prover exceeded 120s; look for a hung compact call in src/commands/compact/compact.ts or the fixture in scripts/lib/crossfamilyConcourseFixture.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -129,32 +132,32 @@ process.env.MERCURY_CONCOURSE_WORKER = '1'
   const result = (await call('', makeCommandContext('claude-opus-4-8') as never)) as CompactCallResult
   const text = result.displayText ?? ''
   const plain = text.replace(/\x1b\[[0-9;]*m/g, '')
-  check('the command answered a compact result', result.type === 'compact')
-  check('R1 the receipt names the folded count', /folded \d+ messages? into the summary/.test(plain), plain)
-  check('R1 the receipt carries the weight arrow (before → after tokens)', /context \S+ → \S+ tokens/.test(plain), plain)
-  check('R1 the receipt names the verbatim tail survival', /last \d+ messages? kept verbatim/.test(plain), plain)
-  check('R1 the receipt names where the retained summary is readable', /reads the full summary — what the agent retains/.test(plain), plain)
-  check('R1 the bare word alone is gone', plain.trim() !== 'Compacted', plain)
+  check('the command answered a compact result', result.type === 'compact', 'type=' + result.type + ' | the call in src/commands/compact/compact.ts must return type compact')
+  check('R1 the receipt names the folded count', /folded \d+ messages? into the summary/.test(plain), plain + receiptHint)
+  check('R1 the receipt carries the weight arrow (before → after tokens)', /context \S+ → \S+ tokens/.test(plain), plain + receiptHint)
+  check('R1 the receipt names the verbatim tail survival', /last \d+ messages? kept verbatim/.test(plain), plain + receiptHint)
+  check('R1 the receipt names where the retained summary is readable', /reads the full summary — what the agent retains/.test(plain), plain + receiptHint + ' (the transcript hint prints when shouldEnrichForLiveDisplay is true and verbose is off)')
+  check('R1 the bare word alone is gone', plain.trim() !== 'Compacted', plain + receiptHint)
 
   const summaries = result.compactionResult?.summaryMessages ?? []
   const summary = summaries[0]
-  check('R2 the summary row exists', summary !== undefined)
+  check('R2 the summary row exists', summary !== undefined, 'no summary message in compactionResult.summaryMessages | check the result built by call in src/commands/compact/compact.ts')
   check(
     'R2 hosted seat: the summary row is UN-hidden (the cockpit paints the card)',
     summary !== undefined && summary.isVisibleInTranscriptOnly !== true,
-    JSON.stringify({ hidden: summary?.isVisibleInTranscriptOnly }),
+    JSON.stringify({ hidden: summary?.isVisibleInTranscriptOnly }) + cardHint,
   )
   const meta = summary?.summarizeMetadata
-  check('R2 the card metadata carries the folded count', typeof meta?.messagesSummarized === 'number' && meta.messagesSummarized > 0, JSON.stringify(meta))
-  check('R2 the card metadata carries the real reclaim pct', typeof meta?.contextReclaimedPct === 'number', JSON.stringify(meta))
+  check('R2 the card metadata carries the folded count', typeof meta?.messagesSummarized === 'number' && meta.messagesSummarized > 0, JSON.stringify(meta) + cardHint)
+  check('R2 the card metadata carries the real reclaim pct', typeof meta?.contextReclaimedPct === 'number', JSON.stringify(meta) + cardHint)
   check(
     'R2 the card metadata carries the weights (before/after)',
     typeof meta?.tokensBefore === 'number' && typeof meta?.tokensAfter === 'number',
-    JSON.stringify(meta),
+    JSON.stringify(meta) + cardHint,
   )
   const kept = result.compactionResult?.messagesToKeep?.length ?? 0
-  check('R2 the verbatim tail rode the fold (kept > 0 — the fixture has ten rounds)', kept > 0, `kept=${kept}`)
-  check('R2 the card metadata names the kept count', meta?.keptMessages === kept, JSON.stringify({ meta, kept }))
+  check('R2 the verbatim tail rode the fold (kept > 0 — the fixture has ten rounds)', kept > 0, `kept=${kept}` + cardHint)
+  check('R2 the card metadata names the kept count', meta?.keptMessages === kept, JSON.stringify({ meta, kept }) + cardHint)
 }
 
 section('R3 the plain run world — the transcript-only summary stands (SDK contract)')
@@ -162,15 +165,15 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 {
   const result = (await call('', makeCommandContext('claude-opus-4-8') as never)) as CompactCallResult
   const summary = (result.compactionResult?.summaryMessages ?? [])[0]
-  check('the command answered a compact result', result.type === 'compact')
+  check('the command answered a compact result', result.type === 'compact', 'type=' + result.type + ' | the call in src/commands/compact/compact.ts must return type compact')
   check(
     'R3 plain headless: the summary row STAYS transcript-only',
     summary !== undefined && summary.isVisibleInTranscriptOnly === true,
-    JSON.stringify({ hidden: summary?.isVisibleInTranscriptOnly }),
+    JSON.stringify({ hidden: summary?.isVisibleInTranscriptOnly }) + cardHint,
   )
   const plain = (result.displayText ?? '').replace(/\x1b\[[0-9;]*m/g, '')
-  check('R3 …and the receipt line still speaks the numbers (scrollback truth)', /context \S+ → \S+ tokens/.test(plain), plain)
-  check('R3 headless receipt never advertises an interactive transcript key', !plain.includes('reads the full summary') && !plain.includes('ctrl+o'), plain)
+  check('R3 …and the receipt line still speaks the numbers (scrollback truth)', /context \S+ → \S+ tokens/.test(plain), plain + receiptHint)
+  check('R3 headless receipt never advertises an interactive transcript key', !plain.includes('reads the full summary') && !plain.includes('ctrl+o'), plain + receiptHint)
 }
 
 

@@ -30,9 +30,10 @@ const PING_S = 30
 const ESTIMATE_S = 60
 
 let failures = 0
+const WAIT_ROW_FAIL_HINT = 'the status row text during a long prompt read is built in src/services/providers/streamIdleBudget.ts, so change that wording there; the rows read at each moment are printed above, and the engine and llama.cpp fixture log is in the kept scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${WAIT_ROW_FAIL_HINT}${detail ? ` — ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

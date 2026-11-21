@@ -18,7 +18,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — subagent switch adversary prover exceeded 240s')
+  console.log('\nTIMEOUT — subagent switch adversary prover exceeded 240s; it was waiting on a turn driven through queryEvents in src/query.ts or on the slow background sub, so look at the last section header printed above')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -299,22 +299,22 @@ const t1 = await driveTurn(history, slice.engineModel!, () => {
   parked = settled.kind
   if (settled.kind === 'queued') slice = { ...slice, ...settled.patch }
 })
-check('T1 settled clean', t1.threw === undefined && t1.terminal.reason === 'completed', `threw=${String(t1.threw)} terminal=${JSON.stringify(t1.terminal)}`)
-check('the pick PARKED at the Agent permission gate (before the sub ran)', parked === 'queued')
+check('T1 settled clean', t1.threw === undefined && t1.terminal.reason === 'completed', `threw=${String(t1.threw)} terminal=${JSON.stringify(t1.terminal)} — the T1 turn did not complete; read the thrown error and fix the turn loop in src/query.ts or the Crewmate spawn in src/tools/AgentTool/runAgent.ts`)
+check('the pick PARKED at the Agent permission gate (before the sub ran)', parked === 'queued', `settleModelSelection returned kind=${parked || 'never called'} — a pick made while turnActive is true must return queued (src/services/model/modelTransition.ts settleModelSelection), and the Crewmate permission gate must be reached`)
 const subA = t1.requests.filter(c => isSub(c, 'SUBTASK-A'))
 const parentT1 = t1.requests.filter(c => !isSub(c, 'SUBTASK-A'))
-check('sub A dispatched and rode claude — the spawn snapshot ignores the parked pick', subA.length >= 1 && subA.every(c => modelOf(c) === 'claude-sonnet-5' && c.path.endsWith('/v1/messages')), subA.map(c => `${c.path}:${modelOf(c)}`).join(' '))
-check('every parent T1 round stayed on claude', parentT1.length >= 2 && parentT1.every(c => modelOf(c) === 'claude-sonnet-5'), parentT1.map(modelOf).join(' '))
-check("sub A's result returned into the parent's follow-up round", parentT1.some(c => JSON.stringify(c.body).includes('sub-probe-done')))
+check('sub A dispatched and rode claude — the spawn snapshot ignores the parked pick', subA.length >= 1 && subA.every(c => modelOf(c) === 'claude-sonnet-5' && c.path.endsWith('/v1/messages')), subA.map(c => `${c.path}:${modelOf(c)}`).join(' ') + ' — the sub must take the model of its spawn snapshot (getAgentModel over toolUseContext.options.engineModel in src/tools/AgentTool/runAgent.ts), not the parked pick')
+check('every parent T1 round stayed on claude', parentT1.length >= 2 && parentT1.every(c => modelOf(c) === 'claude-sonnet-5'), parentT1.map(modelOf).join(' ') + ' — a parked pick must not change the parent model before the boundary (src/services/model/modelTransition.ts settleModelSelection)')
+check("sub A's result returned into the parent's follow-up round", parentT1.some(c => JSON.stringify(c.body).includes('sub-probe-done')), 'no parent request carried the sub result sub-probe-done; the Crewmate tool result must flow back into the next parent round (src/tools/AgentTool/AgentTool.tsx and src/query.ts)')
 
 const b1 = settlePendingAtBoundary(slice)
-check('the boundary applies the parked gpt pick', b1 !== null && b1.receipt.applied === 'gpt-5.6-sol' && b1.receipt.crossProvider === true)
+check('the boundary applies the parked gpt pick', b1 !== null && b1.receipt.applied === 'gpt-5.6-sol' && b1.receipt.crossProvider === true, `boundary result=${JSON.stringify(b1)} — settlePendingAtBoundary in src/services/model/modelTransition.ts must apply the parked gpt-5.6-sol pick and mark it crossProvider`)
 if (b1) slice = { ...slice, ...b1.patch } as Slice
 
 section('T2 · parent gpt — the post-boundary spawn inherits the NEW model')
 history = [...history, ...t1.settled, createUserMessage({ content: 'T2 spawn the second probe agent' }) as Message]
 const t2 = await driveTurn(history, slice.engineModel!, undefined)
-check('T2 settled clean', t2.threw === undefined && t2.terminal.reason === 'completed', `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)}`)
+check('T2 settled clean', t2.threw === undefined && t2.terminal.reason === 'completed', `threw=${String(t2.threw)} terminal=${JSON.stringify(t2.terminal)} — the T2 turn on the gpt Responses wire did not complete; read the thrown error and fix src/query.ts or the Crewmate spawn in src/tools/AgentTool/runAgent.ts`)
 const subB = t2.requests.filter(c => isSub(c, 'SUBTASK-B'))
 const parentT2 = t2.requests.filter(c => !isSub(c, 'SUBTASK-B'))
 for (const c of t2.requests) {
@@ -327,9 +327,9 @@ for (const c of t2.requests) {
     note(`  sub input items: ${inputItems.map(i => `${String(i.type)}/${String(i.role ?? '')}`).join(',')}`)
   }
 }
-check('sub B rode gpt (inherits the applied model) on the Responses wire', subB.length >= 1 && subB.every(c => modelOf(c) === 'gpt-5.6-sol' && c.path.endsWith('/responses')), subB.map(c => `${c.path}:${modelOf(c)}`).join(' '))
-check('every parent T2 round rode gpt', parentT2.length >= 2 && parentT2.every(c => modelOf(c) === 'gpt-5.6-sol'), parentT2.map(modelOf).join(' '))
-check("sub B's result returned into the parent's follow-up round", parentT2.some(c => JSON.stringify(c.body).includes('sub-probe-done')))
+check('sub B rode gpt (inherits the applied model) on the Responses wire', subB.length >= 1 && subB.every(c => modelOf(c) === 'gpt-5.6-sol' && c.path.endsWith('/responses')), subB.map(c => `${c.path}:${modelOf(c)}`).join(' ') + ' — a sub spawned after the boundary must inherit the applied engineModel (getAgentModel in src/tools/AgentTool/runAgent.ts) and go out on the /responses wire')
+check('every parent T2 round rode gpt', parentT2.length >= 2 && parentT2.every(c => modelOf(c) === 'gpt-5.6-sol'), parentT2.map(modelOf).join(' ') + ' — after settlePendingAtBoundary the parent must use the applied engineModel (src/services/model/modelTransition.ts)')
+check("sub B's result returned into the parent's follow-up round", parentT2.some(c => JSON.stringify(c.body).includes('sub-probe-done')), 'no parent request carried the sub result sub-probe-done on the Responses wire; the Crewmate tool result must flow back into the next parent round (src/tools/AgentTool/AgentTool.tsx and src/query.ts)')
 
 section('BG · a background subagent in flight across an applied switch keeps its spawn model')
 {
@@ -337,11 +337,11 @@ section('BG · a background subagent in flight across an applied switch keeps it
   const bgHistory: Message[] = [createUserMessage({ content: 'T3 spawn the slow background probe' }) as Message]
   const t3 = await driveTurn(bgHistory, slice.engineModel!, undefined)
   const launched = t3.threw === undefined && t3.terminal.reason === 'completed'
-  check('the background-launch turn settled while the sub still runs', launched, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)}`)
+  check('the background-launch turn settled while the sub still runs', launched, `threw=${String(t3.threw)} terminal=${JSON.stringify(t3.terminal)} — the T3 turn with run_in_background did not complete; read the thrown error and fix src/query.ts or the Crewmate spawn in src/tools/AgentTool/AgentTool.tsx`)
   if (launched) {
     const idle = settleModelSelection(slice, 'gpt-5.6-sol', { turnActive: false })
     const appliedAt = Date.now()
-    check('the idle pick applied during the sub flight', idle.kind === 'applied')
+    check('the idle pick applied during the sub flight', idle.kind === 'applied', `settleModelSelection returned kind=${idle.kind} — an idle pick (turnActive false) must apply at once (src/services/model/modelTransition.ts settleModelSelection)`)
     if (idle.kind === 'applied') slice = { ...slice, ...idle.patch } as Slice
     const deadline = Date.now() + 12_000
     let late: Captured[] = []
@@ -352,9 +352,9 @@ section('BG · a background subagent in flight across an applied switch keeps it
     }
     if (late.length === 0) {
       note('background sub produced no post-apply rounds in-process — the async task lane may not run under the synthetic ctx; the foreground snapshot laws above stand, naming this leg for the PTY journey')
-      check('background overlap leg observed (soft: at least the launch round rode claude)', captured.filter(c => isSub(c, 'SUBTASK-SLOW')).every(c => modelOf(c) === 'claude-sonnet-5'), captured.filter(c => isSub(c, 'SUBTASK-SLOW')).map(modelOf).join(' '))
+      check('background overlap leg observed (soft: at least the launch round rode claude)', captured.filter(c => isSub(c, 'SUBTASK-SLOW')).every(c => modelOf(c) === 'claude-sonnet-5'), captured.filter(c => isSub(c, 'SUBTASK-SLOW')).map(modelOf).join(' ') + ' — a background sub must keep its spawn model (getAgentModel in src/tools/AgentTool/runAgent.ts)')
     } else {
-      check(`the in-flight sub's POST-APPLY rounds (${late.length}) still ride claude — snapshot beats the applied switch`, late.every(c => modelOf(c) === 'claude-sonnet-5' && c.path.endsWith('/v1/messages')), late.map(c => `${c.path}:${modelOf(c)}@${c.at - appliedAt}ms`).join(' '))
+      check(`the in-flight sub's POST-APPLY rounds (${late.length}) still ride claude — snapshot beats the applied switch`, late.every(c => modelOf(c) === 'claude-sonnet-5' && c.path.endsWith('/v1/messages')), late.map(c => `${c.path}:${modelOf(c)}@${c.at - appliedAt}ms`).join(' ') + ' — a running sub must keep its spawn snapshot, not read the applied engineModel again (src/tools/AgentTool/runAgent.ts)')
     }
   }
 }

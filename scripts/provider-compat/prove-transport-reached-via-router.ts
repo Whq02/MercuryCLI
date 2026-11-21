@@ -110,7 +110,7 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
   check(
     'queryUtility rides queryWithModel through routedCallModel',
     streamCalls.length === 1 && reply.message.content[0]?.type === 'text' && reply.message.content[0].text === 'utility-answer',
-    JSON.stringify({ calls: streamCalls.length, content: reply.message.content }),
+    JSON.stringify({ calls: streamCalls.length, content: reply.message.content }) + ' — queryUtility in src/services/providers/anthropic/streamCore.ts must send its one call through routedCallModel (src/services/providers/callModelRouter.ts), not a direct client'
   )
   check(
     "queryUtility's model and floor are the helper's (utilityCallFor), the floor pinned",
@@ -120,7 +120,7 @@ section('§2 the routed helpers stay routed — queryWithModel / queryUtility')
       call.options.effortPinned === true &&
       call.options.ridesSessionEffort === false &&
       call.thinkingConfig.type === expected.thinkingConfig.type,
-    JSON.stringify({ got: call?.options, expected }),
+    JSON.stringify({ got: call?.options, expected }) + ' — queryUtility in src/services/providers/anthropic/streamCore.ts must take model, effort and thinking from utilityCallFor (src/services/model/utilityModel.ts) and pin the effort'
   )
 }
 
@@ -139,7 +139,7 @@ section('§3 the rewritten sites reach the wire through the router')
       searchCall.options.model === 'gpt-5.4' &&
       searchCall.options.querySource === 'web_search_tool' &&
       searchCall.options.nativeWebSearch?.maxUses === 8,
-    JSON.stringify({ ok: searchOutcome.ok, calls: streamCalls.length, model: searchCall?.options.model, nativeWebSearch: searchCall?.options.nativeWebSearch }),
+    JSON.stringify({ ok: searchOutcome.ok, calls: streamCalls.length, model: searchCall?.options.model, nativeWebSearch: searchCall?.options.nativeWebSearch }) + ' — nativeSearch in src/services/search/nativeSearch.ts must call routedCallModel once with the main model, querySource web_search_tool and nativeWebSearch.maxUses 8'
   )
 
   const anthropicPlan = resolveSearchDoorPlan({ mainModel: 'claude-sonnet-5', keylessAllowed: false })
@@ -156,7 +156,7 @@ section('§3 the rewritten sites reach the wire through the router')
       openaiPlan.doors[0]?.kind === 'native' &&
       openaiPlan.doors[0].family === 'openai' &&
       !deepseekPlan.doors.some(door => door.kind === 'native'),
-    JSON.stringify({ anthropic: anthropicPlan.doors, openai: openaiPlan.doors, deepseek: deepseekPlan.doors }),
+    JSON.stringify({ anthropic: anthropicPlan.doors, openai: openaiPlan.doors, deepseek: deepseekPlan.doors }) + ' — nativeSearchFamilyOf and resolveSearchDoorPlan in src/services/search/searchDoor.ts must open the native door only for the main model own family'
   )
 
   settledCalls.length = 0
@@ -181,7 +181,7 @@ section('§3 the rewritten sites reach the wire through the router')
       hookDefaultCall.options.effortValue === expectedHookDefault.effortValue &&
       hookDefaultCall.options.effortPinned === true &&
       hookDefaultCall.options.querySource === 'hook_prompt',
-    JSON.stringify({ end: hookDefaultEnd, calls: settledCalls.length, got: hookDefaultCall?.options, expected: expectedHookDefault }),
+    JSON.stringify({ end: hookDefaultEnd, calls: settledCalls.length, got: hookDefaultCall?.options, expected: expectedHookDefault }) + ' — runQuestionHook in src/services/hooks/questionRunner.ts must call routedCallModelSettled once with the utilityCallFor() model and pinned effort, querySource hook_prompt'
   )
 
   settledCalls.length = 0
@@ -206,7 +206,7 @@ section('§3 the rewritten sites reach the wire through the router')
       hookNamedCall.options.model === expectedHookNamed.model &&
       hookNamedCall.options.effortValue === expectedHookNamed.effortValue &&
       hookNamedCall.options.effortPinned === true,
-    JSON.stringify({ end: hookNamedEnd, calls: settledCalls.length, got: hookNamedCall?.options, expected: expectedHookNamed }),
+    JSON.stringify({ end: hookNamedEnd, calls: settledCalls.length, got: hookNamedCall?.options, expected: expectedHookNamed }) + ' — runQuestionHook in src/services/hooks/questionRunner.ts must route a hook model through utilityCallFor(model, { named: true }) with a pinned effort'
   )
 
   settledCalls.length = 0
@@ -220,7 +220,7 @@ section('§3 the rewritten sites reach the wire through the router')
       agentCall.options.model === 'gpt-5.4' &&
       agentCall.options.querySource === 'agent_creation' &&
       draft.identifier === 'router-agent',
-    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }),
+    JSON.stringify({ calls: settledCalls.length, model: agentCall?.options.model, draft }) + ' — generateAgent in src/components/agents/generateAgent.ts must call routedCallModelSettled once with the requested model and querySource agent_creation'
   )
 }
 

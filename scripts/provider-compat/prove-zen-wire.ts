@@ -40,7 +40,7 @@ async function run(p: CompatCallModelParams): Promise<AssistantMessage[]> {
 }
 const text = (rows: AssistantMessage[]): string => rows.flatMap(row => row.message.content).map(block => block.type === 'text' ? block.text : '').join('')
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix the Zen road: request shape and effort in src/services/providers/zen/zenCallModel.ts, live id list in zen/zenCatalogue.ts, served shapes in src/utils/model/pins/zenPins.ts, routing in src/services/providers/callModelRouter.ts; the fixture is scripts/providers/lib/zen-fixture.ts`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('zen/<id> is a declared qualified namespace that strips to the vendor id', classifyModelRoute('zen/glm-5.3').kind === 'route' && (classifyModelRoute('zen/glm-5.3') as { route: string }).route === 'zen' && canonicalWireModelId('zen/glm-5.3').ok && (canonicalWireModelId('zen/glm-5.3') as { wireId: string }).wireId === 'glm-5.3')
   check('a bare gateway id keeps its native family: glm-5.3 is Z.AI, gpt-5.5 is OpenAI', (classifyModelRoute('glm-5.3') as { route: string }).route === 'zai' && (classifyModelRoute('gpt-5.5') as { route: string }).route === 'openai')

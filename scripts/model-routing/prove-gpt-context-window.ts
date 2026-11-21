@@ -7,11 +7,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const GPT_WINDOW_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'change the catalogue decoder (refreshOpenaiCatalogue) in src/services/providers/openai/openaiCatalogue.ts so both context_window and max_context_window are kept',
+  '2': 'change liveGptContextWindow or liveGptContextCeiling in src/services/providers/openai/openaiCatalogue.ts',
+  '3': 'change resolveContextWindow in src/utils/model/capabilities.ts, which getContextWindowForModel reads',
+  '4': 'change gptDisplayPin in src/utils/model/pins/gptPins.ts or resolveContextWindow in src/utils/model/capabilities.ts for the unfetched fallback',
+  '7': 'change resolveContextWindow in src/utils/model/capabilities.ts, the [served] helpers in src/utils/model/pins/gptPins.ts, or normalizeModelStringForAPI in src/utils/model/modelNames.ts',
+  '9': 'change the GPT group rows in getModelOptions in src/services/model/modelOptions.ts',
+}
+let gptWindowFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${gptWindowFixHint}` : ''}`)
 }
 function section(t: string): void {
+  gptWindowFixHint = GPT_WINDOW_FIX_HINT_BY_SECTION[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

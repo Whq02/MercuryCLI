@@ -13,7 +13,8 @@ delete process.env.MERCURY_HOME
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 pinSourceRef()
 let checks = 0
-const check = (name: string, value: unknown) => { assert.ok(value, name); checks++; console.log('PASS ' + name) }
+const failureHint = ' · fix the code the check names: GGUF header and shard checks live in src/services/host/ggufHeader.ts (parseGgufHeader, compareGgufWithEngine, checkGgufAgainstEngine); table, pin, image stamp and registry checks live in scripts/host/export-llamacpp-engine.ts (engineProblems, imageStampProblems, readRegistryImage) with the pins in src/services/host/recipes.ts; run bun scripts/host/export-llamacpp-engine.ts --check to see the drift'
+const check = (name: string, value: unknown) => { assert.ok(value, name + failureHint); checks++; console.log('PASS ' + name) }
 const root = resolve(import.meta.dir, '../..')
 const sha256 = (text: string): string => 'sha256:' + createHash('sha256').update(text).digest('hex')
 

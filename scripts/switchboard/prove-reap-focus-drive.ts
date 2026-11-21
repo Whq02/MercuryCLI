@@ -34,9 +34,9 @@ const OUT_DIR = process.env.CONCFLOW_CAPTURE_DIR ?? join(tmpdir(), `reap-drive-c
 mkdirSync(OUT_DIR, { recursive: true })
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
@@ -144,7 +144,7 @@ const enterSelected = (title: string): Send[] => [
 try {
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const sup = await import('../../src/daemon/concourseWorkers.ts')
-  check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the scratch daemon did not answer ping within 60 s; read daemon.log in the scratch folder named by the reap-drive- directory under the temp dir, and rebuild with bun run build.ts if dist/mercury.mjs is stale')
   const admit = async (title: string, work: string, cmid: string, modelKey: string): Promise<string> => {
     const d = (await daemonControlRpc({
       op: 'concourseDispatch',
@@ -155,7 +155,7 @@ try {
       model: modelKey,
       effort: 'high',
     } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; error?: string; detail?: string }
-    check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d))
+    check(`${title} dispatched under the requested model`, d.ok === true && d.sessionId !== undefined && d.modelId === modelKey, JSON.stringify(d), 'the concourseDispatch op of the daemon (served through src/daemon/controlSocket.ts) must start a session under the requested model; the answer is printed above')
     return d.sessionId ?? ''
   }
   const sidA = await admit('alpha probe', ground, 'reap-drive-alpha', DEFAULT_OPUS)
@@ -164,13 +164,13 @@ try {
     Object.values(sup.readSessionWorkers(daemonDir))
       .filter(r => r.endedAt === undefined)
       .map(r => r.sessionId)
-  check('both sessions live on the roster', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','))
+  check('both sessions live on the roster', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','), 'a dispatched session never reached the live roster; read readSessionWorkers in src/daemon/concourseWorkers.ts and daemon.log in the scratch folder')
   const obligations = await import('../../src/services/crew/obligations.ts')
   const askOpen = (sid: string) => async (): Promise<boolean> =>
     (await obligations.openObligations({ scope: 'switchboard' })).some(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:'))
   const alphaAskOpen = askOpen(sidA)
-  check('alpha parked a REAL permission ask (its card lives in the parked Chat)', await untilAsync(alphaAskOpen, 40_000))
-  check('beta parked one of its own (a mid-turn session drains at the quit, never parks — it stays a live row)', await untilAsync(askOpen(sidB), 40_000))
+  check('alpha parked a REAL permission ask (its card lives in the parked Chat)', await untilAsync(alphaAskOpen, 40_000), '', 'alpha never recorded an open permission obligation in the switchboard scope; read src/services/crew/obligations.ts and the fixture API requests')
+  check('beta parked one of its own (a mid-turn session drains at the quit, never parks — it stays a live row)', await untilAsync(askOpen(sidB), 40_000), '', 'beta never recorded an open permission obligation in the switchboard scope; read src/services/crew/obligations.ts and the fixture API requests')
   await untilAsync(() => api.requests.length >= 2, 40_000)
   await new Promise(r => setTimeout(r, 2500))
 
@@ -195,9 +195,9 @@ try {
   )
   const r4Answered = markOf('leak-both-cards', 'after-first-2')
   const noteLine = [...r4Answered, ...r4].find(l => /refused|unknown|already-answered|denied/.test(l)) ?? ''
-  check('R4 the pane card ANSWERED (its receipt painted on the strip)', noteLine !== '', r4Answered.filter(l => l.includes('│')).slice(-8).map(l => l.trim().slice(0, 70)).join(' | '))
-  check('R4 alpha\'s parked ask is STILL parked (the covered Chat card answered nothing)', await alphaAskOpen())
-  check('R4 neither probe\'s Bash ran (no tool result)', !existsSync(join(SCRATCH, 'nothing-here')) && !existsSync(join(SCRATCH, 'nothing-here-beta')) && !r4.some(l => l.includes('Tidied')))
+  check('R4 the pane card ANSWERED (its receipt painted on the strip)', noteLine !== '', r4Answered.filter(l => l.includes('│')).slice(-8).map(l => l.trim().slice(0, 70)).join(' | '), 'answering the in-pane card with 2 must paint a receipt (refused, unknown, already-answered or denied) on the strip; see the captures directory printed at the end of the run')
+  check('R4 alpha\'s parked ask is STILL parked (the covered Chat card answered nothing)', await alphaAskOpen(), '', 'the parked Chat card must stay dead while the Concourse is open, so the in-pane answer must not resolve alpha ask; see the captures directory printed at the end of the run')
+  check('R4 neither probe\'s Bash ran (no tool result)', !existsSync(join(SCRATCH, 'nothing-here')) && !existsSync(join(SCRATCH, 'nothing-here-beta')) && !r4.some(l => l.includes('Tidied')), '', 'a Bash tool ran although no permission was granted; the in-pane card answer must not allow it')
   for (const o of await obligations.openObligations({ scope: 'switchboard' })) {
     if (o.ref === 'permission:git-init:deadbeef0001') await obligations.resolveObligation(o.obligationId, { kind: 'withdrawn', by: 'prover', scope: 'switchboard' } as never)
   }
@@ -208,7 +208,7 @@ try {
   const listCell = (l: string): string => l.split('│').find(c => c.includes('alpha probe') || c.includes('beta probe'))?.trim() ?? ''
   const rowA = listRows.findIndex(l => listCell(l).includes('alpha probe'))
   const rowB = listRows.findIndex(l => listCell(l).includes('beta probe'))
-  check('the live board lists both sessions under STATUS & TITLE', listHeader >= 0 && rowA >= 0 && rowB >= 0, `header=${listHeader} alpha=${rowA} beta=${rowB}`)
+  check('the live board lists both sessions under STATUS & TITLE', listHeader >= 0 && rowA >= 0 && rowB >= 0, `header=${listHeader} alpha=${rowA} beta=${rowB}`, 'the live board must list both sessions under STATUS & TITLE; open the reap-board capture in the captures directory printed at the end')
   const selectedCell = listRows.map(listCell).find(c => c.startsWith('▸')) ?? listRows.map(listCell).find(c => c !== '') ?? ''
   const firstTitle = selectedCell.includes('beta probe') ? 'beta probe' : 'alpha probe'
   const otherTitle = firstTitle === 'alpha probe' ? 'beta probe' : 'alpha probe'
@@ -227,13 +227,13 @@ try {
     { text: [TAG, otherTitle], settle: 45 },
   )
   const tag1 = tagLine(r1)
-  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '))
+  check('R1 the focused chat opened onto a live session (tag bar present)', tag1 !== undefined, r1.filter(l => l.trim()).slice(0, 6).join(' | '), 'entering the selected row must open a live chat with the tag bar; open the reap-survivor capture in the captures directory printed at the end')
   const rail1 = r1.map(line => line.includes('│') ? line.slice(0, line.indexOf('│')) : '')
   const chat1 = r1.map(line => line.includes('│') ? line.slice(line.indexOf('│') + 1) : line)
-  check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(chat1, otherTitle) && !has(chat1, firstTitle) && (!has(rail1, firstTitle) || has(rail1, 'RECENT')), r1.filter(l => l.includes('probe')).join(' | '))
-  check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','))
+  check(`R1 …and it is the SURVIVOR (${otherTitle}) — its own words on the chat, never the reaped ${firstTitle}`, has(chat1, otherTitle) && !has(chat1, firstTitle) && (!has(rail1, firstTitle) || has(rail1, 'RECENT')), r1.filter(l => l.includes('probe')).join(' | '), 'reaping the focused session must leave the other chat in view; open the reap-survivor capture in the captures directory printed at the end')
+  check('R1 the reaped session left the roster', await untilAsync(() => liveIds().length === 1, 15_000), liveIds().join(','), 'the reap chord (three presses of ctrl-x) must remove the focused session from the roster; see readSessionWorkers in src/daemon/concourseWorkers.ts')
   const survivorId = liveIds()[0] ?? ''
-  check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA))
+  check('R1 the roster survivor is the other session', survivorId === (firstTitle === 'alpha probe' ? sidB : sidA), '', 'the reap removed the wrong session; the focused chat must be the one reaped')
 
   console.log('R2 reap the last session — the board stays the frame')
   const r2 = drive(
@@ -250,19 +250,19 @@ try {
   )
   const r2Landing = markOf('reap-last', 'landing')
   const r2AfterRight = markOf('reap-last', 'after-right')
-  check('R2 the last release keeps the BOARD as the frame — no ghost chat, no root composer, no bounce to the menu', isBoard(r2Landing) && tagLine(r2Landing) === undefined && !isFace(r2Landing), r2Landing.filter(l => l.trim()).slice(0, 8).join(' | '))
+  check('R2 the last release keeps the BOARD as the frame — no ghost chat, no root composer, no bounce to the menu', isBoard(r2Landing) && tagLine(r2Landing) === undefined && !isFace(r2Landing), r2Landing.filter(l => l.trim()).slice(0, 8).join(' | '), 'reaping the last session must leave the board as the frame; open the reap-last landing mark capture in the captures directory printed at the end')
   check('R2 no session tag bar on the landing (no chat is open)', tagLine(r2Landing) === undefined, tagLine(r2Landing) ?? '')
   check('R2 ⇧→ from the board is NO MOVEMENT (no chat stop exists after the last reap): still the board', isBoard(r2AfterRight) && tagLine(r2AfterRight) === undefined && !isFace(r2AfterRight), r2AfterRight.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and again: the final frame is still the board — never the dead chat, never a bounce back to the menu', isBoard(r2) && tagLine(r2) === undefined && !isFace(r2), r2.filter(l => l.trim()).slice(0, 3).join(' | '))
   check('R2 …and no dead session title anywhere on it', !has(r2, otherTitle) || has(r2, 'SESSIONS'), r2.filter(l => l.includes(otherTitle)).join(' | '))
-  check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','))
+  check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','), 'the last reap must empty the roster; see readSessionWorkers in src/daemon/concourseWorkers.ts')
 
   console.log('R3 the honesty leg — ⇧← from the board')
   const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['New Session'], settle: 5 })
   const r3Face = isFace(r3) ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
   console.log(`  [INFO] ⇧← from the board lands on: ${r3Face} — first rows: ${r3.filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')}`)
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)
-  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', isFace(r3) && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '))
+  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', isFace(r3) && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '), 'shift-left from the board must land the Boot face; open the board-shift-left capture in the captures directory printed at the end')
 } finally {
   clientBeat.stop()
   try {

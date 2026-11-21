@@ -30,7 +30,7 @@ if (!nodeBin) {
   process.exit(1)
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — exit-cliff census exceeded 600s')
+  console.log('\n❌ TIMEOUT — exit-cliff census exceeded 600s; a run in this file never reached exit, so look at the drain owner in src/utils/exitCliffDrain.ts and at the child run output')
   process.exit(1)
 }, 600_000)
 guard.unref?.()
@@ -196,21 +196,21 @@ for (const run of drainRuns) {
         return false
       }
     })
-    check(`${tag} the server was spawned exactly twice: the probed process and its respawn under the kill owner`, spawnsOf(run.spawnLog) === 2, `${spawnsOf(run.spawnLog)} spawns`)
-    check(`${tag} neither spawn outlives the run`, alive.length === 0, `alive: ${alive.join(',')}`)
-    check(`${tag} the server's failure never reached stderr (it connected on its respawn)`, !run.stderr.includes(PROBE_EXIT_SERVER), run.stderr.slice(-300))
+    check(`${tag} the server was spawned exactly twice: the probed process and its respawn under the kill owner`, spawnsOf(run.spawnLog) === 2, `${spawnsOf(run.spawnLog)} spawns; the probe-exit server must be started once by the probe and once more when it respawns, so look at the MCP stdio connect path that spawns it, which this check does not name`)
+    check(`${tag} neither spawn outlives the run`, alive.length === 0, `alive: ${alive.join(',')}; a spawned MCP fixture pid survived the run, so the exit path must close MCP stdio children before it exits`)
+    check(`${tag} the server's failure never reached stderr (it connected on its respawn)`, !run.stderr.includes(PROBE_EXIT_SERVER), `the probe-exit failure must stay off stderr because the respawn connects; stderr tail: ${run.stderr.slice(-300)}`)
   }
   if (denied) {
     check(
       `${tag} the run ends blocked: exit 1, the settled text on stdout, the one blocked line on stderr naming the tool nobody could answer for`,
       run.rc === 1 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT) && run.stderr.trim().startsWith('Blocked on the operator: Bash asked for an answer nobody could give') && !run.stderr.trim().includes('\n'),
-      `rc=${run.rc} signal=${run.signal} stdout=${run.stdout.slice(-120)} stderr=${run.stderr.slice(-300)}`,
+      `a run whose Bash ask nobody can answer must exit 1 with one Blocked on the operator line, which parts.push in src/services/run/unansweredAsk.ts builds; rc=${run.rc} signal=${run.signal} stdout=${run.stdout.slice(-120)} stderr=${run.stderr.slice(-300)}`,
     )
   } else {
-    check(`${tag} the run exits 0 with the settled text (the run itself is unchanged)`, run.rc === 0 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${run.rc} signal=${run.signal} stderr=${run.stderr.slice(-300)}`)
+    check(`${tag} the run exits 0 with the settled text (the run itself is unchanged)`, run.rc === 0 && run.stdout.includes(ONE_TOOL_SETTLED_TEXT), `the scripted run itself must still finish with exit 0 and its settled text, so read stderr for the failure; rc=${run.rc} signal=${run.signal} stderr=${run.stderr.slice(-300)}`)
   }
-  check(`${tag} the census was taken at the reallyExit cliff`, run.census?.where === 'reallyExit', j(run.census?.where))
-  check(`${tag} the BEFORE dump was taken the moment the drain owner was about to run (the channel spoke)`, run.beforeDrain?.where === 'before-drain' && run.beforeDrain.drainSkipped === false, j(run.beforeDrain?.where))
+  check(`${tag} the census was taken at the reallyExit cliff`, run.census?.where === 'reallyExit', `no reallyExit dump was written, so the run died or hung before process.reallyExit, or scripts/exit-handle/census-preload.mjs did not load; where=${j(run.census?.where)}`)
+  check(`${tag} the BEFORE dump was taken the moment the drain owner was about to run (the channel spoke)`, run.beforeDrain?.where === 'before-drain' && run.beforeDrain.drainSkipped === false, `the drain owner in src/utils/exitCliffDrain.ts must publish on the mercury:exit-cliff-drain channel with the flag on; where=${j(run.beforeDrain?.where)}`)
   if (!run.census) continue
   const listed = productListed(run.census)
   const listedBefore = run.beforeDrain ? productListed(run.beforeDrain) : []
@@ -219,12 +219,12 @@ for (const run of drainRuns) {
   check(
     `${tag} THE DELTA: whatever of the product's was still listed BEFORE the drain is gone AT the cliff (${listedBefore.length} listed before; a run whose last write already landed lists none)`,
     listed.length <= listedBefore.length,
-    j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
+    `the drain must not add product requests; the exit drain in src/utils/exitCliffDrain.ts is what should empty them. before-drain requests: ${j(run.beforeDrain?.requests.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`))}`,
   )
   check(
     `${tag} …and ZERO requests of the product's listed at the cliff after it — drained by the loop turns, not raced`,
     listed.length === 0,
-    j(listed.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`)),
+    `the product frames below are still pending at the cliff, so the drain in src/utils/exitCliffDrain.ts must settle the writer behind them before exit: ${j(listed.map(r => `${r.kind}:${r.pending}:${(r.stack ?? []).slice(0, 6).join('|')}`))}`,
   )
   check(
     `${tag} the drain owner's own report at the cliff: the transcript-writer seam settled, none failed, none abandoned`,
@@ -232,20 +232,21 @@ for (const run of drainRuns) {
       run.census.drainReport.settled.includes('transcript-writer') &&
       run.census.drainReport.failed.length === 0 &&
       run.census.drainReport.abandoned.length === 0,
-    j(run.census.drainReport),
+    `the report from src/utils/exitCliffDrain.ts must list transcript-writer, registered in src/utils/sessionStorage/writer.ts, as settled with nothing failed or abandoned: ${j(run.census.drainReport)}`,
   )
   const ownHandles = run.census.handles.filter(h => h.closed !== true && !(h.kind === 'Socket' && typeof h.fd === 'number' && h.fd <= 2))
   check(
     `${tag} no ref'd handle of the run's own keeps the cliff (no child, socket, or watcher — the stdio pipes are the spawner's)`,
     ownHandles.length === 0,
-    j(ownHandles),
+    `a handle the run opened is still ref'd at the cliff, so close it before exit or unref it where it is created: ${j(ownHandles)}`,
   )
-  check(`${tag} the session transcript on disk carries the settled text`, readTranscript(run.home).includes(ONE_TOOL_SETTLED_TEXT))
+  check(`${tag} the session transcript on disk carries the settled text`, readTranscript(run.home).includes(ONE_TOOL_SETTLED_TEXT), 'the settled text never reached the jsonl under projects/ in the config home, so the transcript writer in src/utils/sessionStorage/writer.ts was not flushed before exit')
   if (run.script !== ANSWER_TEXT_SCRIPT) {
     const transcript = readTranscript(run.home)
     check(
       `${tag} …and the tool round (the tool-use record + its tool-result record) is on disk`,
       /"kind":"tool-use"/.test(transcript) && /"kind":"tool-result"/.test(transcript),
+      'the transcript lacks a tool-use or tool-result record, so the tool round was not flushed to disk before exit; see src/utils/sessionStorage/writer.ts',
     )
     if (run.script === 'tool-bash-write') {
       const witness = existsSync(join(run.fix, ONE_TOOL_WRITE_WITNESS))
@@ -253,10 +254,10 @@ for (const run of drainRuns) {
         check(
           `${tag} the denied call never ran (its side-effect witness is ABSENT) and its result is the denial (an error tool-result) — dispatched, not executed: the box's checkpoint-8 shape`,
           !witness && /"kind":"tool-result"[^\n]*"isError":true/.test(transcript),
-          `witness=${witness} ${transcript.slice(-400)}`,
+          `a DENIED Bash write must not run and must record an error tool-result; witness=${witness} ${transcript.slice(-400)}`,
         )
       } else {
-        check(`${tag} the allowed write ran (its side-effect witness EXISTS) — the same script, the other side of the permission layer`, witness)
+        check(`${tag} the allowed write ran (its side-effect witness EXISTS) — the same script, the other side of the permission layer`, witness, 'the allowed Bash write did not run, so read stdout and stderr of the run for the tool failure')
       }
     }
   }
@@ -266,11 +267,11 @@ section('§2 — the POISON arm (MERCURY_EXIT_CLIFF_DRAIN=0): the pre-fix cut, s
 {
   cleanups.push(poison.home, poison.fix)
   const ptag = `[poison ${poison.script}]`
-  check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `rc=${poison.rc}`)
-  check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport }))
+  check(`${ptag} the run still exits 0 with the settled text (the poison only skips the drain)`, poison.rc === 0 && poison.stdout.includes(ONE_TOOL_SETTLED_TEXT), `with MERCURY_EXIT_CLIFF_DRAIN=0 the run must still exit 0 with the settled text; rc=${poison.rc} stderr=${poison.stderr.slice(-300)}`)
+  check(`${ptag} the channel still speaks at the same moment — the BEFORE dump says the drain was skipped`, poison.beforeDrain?.where === 'before-drain' && poison.beforeDrain.drainSkipped === true && poison.census?.drainReport?.skipped === true, `the flag check in src/utils/exitCliffDrain.ts must report skipped when MERCURY_EXIT_CLIFF_DRAIN=0 and still publish on the channel: ${j({ before: poison.beforeDrain?.where, skipped: poison.beforeDrain?.drainSkipped, report: poison.census?.drainReport })}`)
   console.log(`    poison cliff requests (${poison.census?.requests.length ?? 0}): ${describeRequests(poison.census?.requests ?? []).join(' ‖ ') || '(none)'}`)
   console.log(`    poison cliff handles: ${j((poison.census?.handles ?? []).map(h => h.kind))}`)
-  check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT))
+  check(`${ptag} the JSONL transcript still carries the settled text (the cleanup flush lands it in both arms — the JSONL law is unchanged)`, readTranscript(poison.home).includes(ONE_TOOL_SETTLED_TEXT), 'the cleanup flush must land the settled text in the jsonl even when the drain is skipped; see src/utils/sessionStorage/writer.ts')
 }
 
 for (const dir of cleanups) {

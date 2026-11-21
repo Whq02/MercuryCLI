@@ -37,6 +37,7 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
+const censusHint = ' | fix compactConversation in src/services/compact/compact.ts or the family road it calls for this model'
 
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — fold families census exceeded 180s')
@@ -133,9 +134,9 @@ const KEYLESS_LEGS: Array<{ family: string; model: string; needle: RegExp }> = [
 for (const leg of KEYLESS_LEGS) {
   const run = await runFold(leg.model)
   const message = run.error?.message ?? ''
-  check(`${leg.family}: the keyless fold REFUSES (no result)`, run.result === undefined && run.error !== undefined)
-  check(`${leg.family}: the refusal names the family's own door`, leg.needle.test(message), message.slice(0, 180))
-  check(`${leg.family}: the conversation stands untouched`, run.readFileStateSize === 1, `readFileState.size=${run.readFileStateSize}`)
+  check(`${leg.family}: the keyless fold REFUSES (no result)`, run.result === undefined && run.error !== undefined, 'a fold with no credential must throw a typed refusal' + censusHint)
+  check(`${leg.family}: the refusal names the family's own door`, leg.needle.test(message), message.slice(0, 180) + censusHint + ' (the refusal must name the family door: ' + leg.needle.source + ')')
+  check(`${leg.family}: the conversation stands untouched`, run.readFileStateSize === 1, `readFileState.size=${run.readFileStateSize}` + censusHint + ' (a refused fold must not clear the read state)')
 }
 note('anthropic (home): keyless is NOT asserted — the home credential resolution reaches outside the env (stored sign-ins), so the leg would pin the box, not the law; the credentialed leg below covers the family.')
 
@@ -171,20 +172,20 @@ for (const leg of CENSUS_LEGS) {
   const before = census.captured.length
   const run = await runFold(leg.model)
   const hits = census.captured.slice(before).filter(h => h.path.endsWith('/chat/completions') || h.path.endsWith(':streamGenerateContent'))
-  check(`${leg.family}: the fold resolves`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 200))
-  check(`${leg.family}: the wire saw the fold on its own lane`, hits.length >= 1 && hits.every(h => h.lane === leg.lane), hits.map(h => `${h.lane} ${h.path}`).join(' | '))
+  check(`${leg.family}: the fold resolves`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 200) + censusHint)
+  check(`${leg.family}: the wire saw the fold on its own lane`, hits.length >= 1 && hits.every(h => h.lane === leg.lane), hits.map(h => `${h.lane} ${h.path}`).join(' | ') + censusHint)
   check(
     `${leg.family}: the summary was installed (the dialect's own answer)`,
     j(run.result?.summaryMessages ?? []).includes(`${leg.lane}-census body.`),
-    j(run.result?.summaryMessages ?? []).slice(0, 160),
+    j(run.result?.summaryMessages ?? []).slice(0, 160) + censusHint + ' (the dialect reply must reach summaryMessages)',
   )
   const words = hits.flatMap(h => effortWordsOf(h.body))
   check(
     `${leg.family}: the session tier rides every served effort dial`,
     leg.family === 'local' ? words.length > 0 && words.every(word => SESSION_TIERS.has(word.toLowerCase())) : words.length === 0,
-    j(words),
+    j(words) + censusHint + ' (the session effort tier rides only the local family dial)',
   )
-  check(`${leg.family}: the read state cleared (the fold landed)`, run.readFileStateSize === 0, `size=${run.readFileStateSize}`)
+  check(`${leg.family}: the read state cleared (the fold landed)`, run.readFileStateSize === 0, `size=${run.readFileStateSize}` + censusHint + ' (a landed fold clears the read state)')
 }
 
 const SHARED_LEGS: Array<{ family: string; model: string; lane: string }> = [
@@ -198,12 +199,12 @@ for (const leg of SHARED_LEGS) {
   const before = shared.captured.length
   const run = await runFold(leg.model)
   const hits = shared.captured.slice(before)
-  check(`${leg.family}: the fold resolves`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 200))
-  check(`${leg.family}: the wire saw the fold on its own lane`, hits.length >= 1 && hits.every(h => h.lane === leg.lane), hits.map(h => h.lane).join(', '))
-  check(`${leg.family}: the read state cleared (the fold landed)`, run.readFileStateSize === 0, `size=${run.readFileStateSize}`)
+  check(`${leg.family}: the fold resolves`, run.result !== undefined && run.error === undefined, (run.error?.message ?? '').slice(0, 200) + censusHint)
+  check(`${leg.family}: the wire saw the fold on its own lane`, hits.length >= 1 && hits.every(h => h.lane === leg.lane), hits.map(h => h.lane).join(', ') + censusHint)
+  check(`${leg.family}: the read state cleared (the fold landed)`, run.readFileStateSize === 0, `size=${run.readFileStateSize}` + censusHint)
 }
 
-check('the census fixture saw no stray lane', census.captured.every(h => h.lane !== 'other'), j(census.captured.filter(h => h.lane === 'other').map(h => h.path)))
+check('the census fixture saw no stray lane', census.captured.every(h => h.lane !== 'other'), j(census.captured.filter(h => h.lane === 'other').map(h => h.path)) + ' | a fold request reached a path the census fixture does not know; fix the road that sent it')
 
 
 await census.close()

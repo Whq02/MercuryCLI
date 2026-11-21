@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 
 let failures = 0
+let hintFor = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${!ok && hintFor ? ` | to fix: ${hintFor}` : ''}`)
   if (!ok) failures = 1
 }
 
@@ -17,6 +18,7 @@ const ctx = {
   alwaysDenyRules: {},
 } as never
 
+hintFor = 'checkReadPermissionForTool in src/utils/permissions/filesystem.ts must ask for UNC and extended-length Windows paths with the reason that matches each shape'
 const uncDecision = checkReadPermissionForTool(fakeTool('\\\\server\\share\\x') as never, {}, ctx) as {
   behavior?: string
   message?: string
@@ -50,6 +52,7 @@ t(
 getPlatform.cache.delete(undefined)
 
 const { isDangerousRemovalPath } = await import('../../src/utils/permissions/pathValidation.ts')
+hintFor = 'isDangerousRemovalPath in src/utils/permissions/pathValidation.ts must keep treating drive roots and their direct children as dangerous, extended-length spelling included'
 t('\\\\?\\C:\\ is still a drive root', isDangerousRemovalPath('\\\\?\\C:\\') === true)
 t(
   '\\\\?\\C:\\Windows is still a drive-root direct child',
@@ -64,6 +67,7 @@ const mentionContext = {
   options: {},
   abortController: new AbortController(),
 } as never
+hintFor = 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must skip UNC-shaped mentions before any filesystem call and still resolve plain absolute paths'
 const uncAttachments = await processAtMentionedFiles('look at @//tmp please', mentionContext)
 t('a UNC-shaped mention produces no attachment (zero fs calls)', uncAttachments.length === 0)
 const plainAttachments = await processAtMentionedFiles('look at @/tmp please', mentionContext)
@@ -72,6 +76,7 @@ t('a plain absolute mention still resolves', plainAttachments.length > 0)
 const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.ts')
 const provider = createPowerShellProvider('/usr/local/bin/pwsh')
 
+hintFor = 'buildExecCommand and getEnvironmentOverrides in createPowerShellProvider in src/utils/shell/powershellProvider.ts own the plain-text rendering pin, its 5.1 guard, the exit trailer and the win32-only Python override'
 const plain = await provider.buildExecCommand('Write-Output hi', { id: 7 })
 const prelude = "$PSStyle.OutputRendering = 'PlainText'"
 const preludeAt = plain.commandString.indexOf(prelude)

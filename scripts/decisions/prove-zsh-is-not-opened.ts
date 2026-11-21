@@ -25,6 +25,8 @@ const { extractShellCScript, parseForSecurity, shellCCommands } = await import('
 
 let failures = 0
 let checks = 0
+const READER_HINT = 'fix extractShellCScript in src/utils/permissions/decision/commandAnalysis.ts (opens only sh and bash with -c or -lc, never zsh)'
+const DECISION_HINT = 'fix the zsh handling in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts) or decideToolPermissionWithModes (src/utils/permissions/decision/wrapper.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
@@ -59,7 +61,7 @@ section('(1) the reader opens sh and bash, and does not open zsh: a script zsh w
 const NOT_OPENED = ["zsh -c 'echo hi'", "zsh -lc 'echo hi'", "/bin/zsh -c 'echo hi'", "/usr/bin/zsh -c 'echo hi'", "zsh -c 'echo =ls'", "zsh -c 'zmodload zsh/files; zf_rm -rf build'"]
 for (const command of NOT_OPENED) {
   const read = await opened(command)
-  check(`${JSON.stringify(command)} is not opened`, read.script === null && read.inner.length === 0, JSON.stringify(read))
+  check(`${JSON.stringify(command)} is not opened`, read.script === null && read.inner.length === 0, `${READER_HINT}; got ${JSON.stringify(read)}`)
 }
 const OPENED: Array<[string, string]> = [
   ["sh -c 'echo hi'", 'echo hi'],
@@ -70,30 +72,30 @@ const OPENED: Array<[string, string]> = [
 ]
 for (const [command, script] of OPENED) {
   const read = await opened(command)
-  check(`${JSON.stringify(command)} is opened and its script read`, read.script === script && read.inner.join('|') === script, JSON.stringify(read))
+  check(`${JSON.stringify(command)} is opened and its script read`, read.script === script && read.inner.join('|') === script, `${READER_HINT}; got ${JSON.stringify(read)}`)
 }
 
 section('(2) the decision: a command that starts zsh is asked about, whatever its script holds')
 const ASKED = ["zsh -c 'echo =ls'", "zsh -c 'echo hi'", "zsh -lc 'echo hi'", "/bin/zsh -c 'echo ~[x]'", "zsh -c 'cat =ls'", "zsh -c 'zmodload zsh/files'"]
 for (const command of ASKED) {
   const decision = await decide(command)
-  check(`default mode asks about ${JSON.stringify(command)}`, decision.behavior === 'ask', said(decision))
+  check(`default mode asks about ${JSON.stringify(command)}`, decision.behavior === 'ask', `${DECISION_HINT}; got ${said(decision)}`)
 }
 const zshLine = await decide("zsh -c 'echo =ls'")
-check('the question names zsh as the program it cannot read, not a word inside the script', /zsh/.test(zshLine.message ?? ''), said(zshLine))
+check('the question names zsh as the program it cannot read, not a word inside the script', /zsh/.test(zshLine.message ?? ''), `${DECISION_HINT}; got ${said(zshLine)}`)
 
 section('(3) what stays: a script sh or bash will run is read as before')
 for (const command of ["bash -c 'echo hi'", "sh -c 'echo hi'", 'echo =ls', 'echo hi']) {
   const decision = await decide(command)
-  check(`default mode allows ${JSON.stringify(command)} with no rule`, decision.behavior === 'allow', said(decision))
+  check(`default mode allows ${JSON.stringify(command)} with no rule`, decision.behavior === 'allow', `${DECISION_HINT}; got ${said(decision)}`)
 }
 for (const command of ["bash -c 'rm -rf build'", "sh -c 'rm -rf build'"]) {
   const decision = await decide(command)
-  check(`default mode asks about ${JSON.stringify(command)}: the script inside is read`, decision.behavior === 'ask', said(decision))
+  check(`default mode asks about ${JSON.stringify(command)}: the script inside is read`, decision.behavior === 'ask', `${DECISION_HINT}; got ${said(decision)}`)
 }
 for (const command of ["zsh -c 'rm -rf build'", "bash -c 'zsh -c \"rm -rf build\"'"]) {
   const decision = await decide(command)
-  check(`default mode asks about ${JSON.stringify(command)}, as it did when the script was read`, decision.behavior === 'ask', said(decision))
+  check(`default mode asks about ${JSON.stringify(command)}, as it did when the script was read`, decision.behavior === 'ask', `${DECISION_HINT}; got ${said(decision)}`)
 }
 
 console.log('\n  [NOTE] every row is a decision through decideToolPermissionWithModes or a reading through the command-analysis door; no command is run')

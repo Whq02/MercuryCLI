@@ -8,7 +8,8 @@ const root = resolve(process.env.PROOF_SUBJECT_ROOT ?? join(import.meta.dir, '..
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  const fixAt = 'change the proof run root choice (header line, TMPDIR fit test and /tmp fallback) in scripts/gate/run-suite.sh, or controlSockPath in src/daemon/controlSocket.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${fixAt}`}`)
 }
 
 console.log('============================================================')

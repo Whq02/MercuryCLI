@@ -16,7 +16,8 @@ process.chdir(PROJ)
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  const failHint = ' — change applyPermissionRulesToPermissionContext, syncPermissionRulesFromDisk or deletePermissionRule in src/utils/permissions/permissions.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

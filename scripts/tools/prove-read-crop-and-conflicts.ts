@@ -24,8 +24,9 @@ enableConfigs()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}${cond ? '' : checkFixHint}`)
 }
+const checkFixHint = ' | fix: crop and scale handling is in src/tools/FileReadTool/read/image.ts (refusals and captions), the crop and scale parameters in read/schema.ts, the crop-ignored note in read/call.ts, the conflict-block count line in read/serialize.ts (unresolvedConflictBlocks); the JavaScript road is extract and resize in src/utils/imageProcessor/imageProcessorJs.ts'
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }

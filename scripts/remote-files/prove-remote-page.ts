@@ -35,12 +35,22 @@ setCwdState(project)
 
 let failures = 0
 let checks = 0
+const SECTION_FIX: Record<string, string> = {
+  'every path': 'either change parseRemotePath in src/utils/remoteFiles/target.ts, or correct the ssh:// example the failing check names in docs/REMOTE-FILES.md',
+  'the rules ': 'either change the permission check of the tool the failing check calls (checkPermissions in src/tools/FileReadTool/FileReadTool.ts or src/tools/FileEditTool/FileEditTool.ts, call in src/tools/GrepTool/GrepTool.ts), or correct the rules example in docs/REMOTE-FILES.md',
+}
+let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail.slice(0, 700) : 'to fix: ' + fix + (detail ? ' | ' + detail.slice(0, 700) : '')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failureText ? ` — ${failureText}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
+const section = (title: string): void => {
+  sectionKey = title.slice(0, 10)
+  console.log(`\n${'─'.repeat(76)}\n${title}`)
+}
 
 const pagePath = join(ROOT, 'docs', 'REMOTE-FILES.md')
 const page = existsSync(pagePath) ? readFileSync(pagePath, 'utf8') : ''

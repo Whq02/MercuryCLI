@@ -72,7 +72,7 @@ try {
   )
   const switched =
     after.includes('apply the manifest edit') || after.includes('API Error')
-  t('after /sessions <id>: fixture B transcript is on screen', switched)
+  t('after /sessions <id>: fixture B transcript is on screen', switched, 'the /sessions command in src/commands/sessions/index.ts must switch to the session id given as its argument; the sendReceipts and grid rows printed below show how far the capture got')
   if (!switched) {
     console.log(`  … sendReceipts: ${JSON.stringify(lastReceipts)}`)
     console.log('  … final grid rows 0-24 (first 80 cols):')
@@ -84,6 +84,7 @@ try {
   t(
     'the mid-turn refusal notification did NOT fire on an idle switch',
     !after.includes('Run in flight'),
+    'an idle switch must not raise the mid-turn refusal notification (Run in flight); the switch is made by the /sessions command in src/commands/sessions/index.ts',
   )
 } finally {
   cleanupScenario('resume-2turn')

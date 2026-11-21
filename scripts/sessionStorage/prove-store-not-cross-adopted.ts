@@ -15,8 +15,9 @@ const { canonicalizePath, findProjectDir, getProjectDir, MAX_SANITIZED_LENGTH, p
 const { getMercuryHome } = await import(join(ROOT, 'src/utils/envUtils.ts'))
 
 let failures = 0
+const crossAdoptHint = 'two projects must never share a store: fix getProjectDir, findProjectDir and projectSlug in src/utils/sessionStoragePortable.ts so a hash-less or other-hash directory is not adopted'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + crossAdoptHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

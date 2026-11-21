@@ -35,6 +35,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 const ESC = '\u001b'
 const escapes = (text: string): number => (text.match(/\u001b\[[0-9;]*[A-Za-z]/g) ?? []).length
+const plainBlockWhere = ' · the model-facing text is built by mapResultToBlock in src/tools/BashTool/resultBlock.ts, which must strip the escape sequences from stdout and stderr'
+const toolShellWhere = ' · the tool shell environment comes from TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts (NO_COLOR=1, FORCE_COLOR=0)'
 
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
@@ -64,9 +66,9 @@ try {
   const fixtureOut = { stdout: vitest, stderr: `${ESC}[33mwarning${ESC}[39m: a coloured warning\n`, interrupted: false }
   const plain = mapped(fixtureOut)
   check(`the fixture carried ${escapes(vitest)} escape sequences`, escapes(vitest) > 20)
-  check('the model-facing content carries zero escape bytes', !plain.includes(ESC), JSON.stringify(plain.slice(0, 80)))
-  check('the words survive the strip: the run line, both files, the two totals', plain.includes('RUN  v3.2.4 /private/tmp/defu') && plain.includes('✓ test/utils.test.ts (2 tests) 3ms') && plain.includes('Test Files  2 passed (2)') && plain.includes('Tests  23 passed (23)'), plain)
-  check('stderr reaches the model plain too', plain.includes('warning: a coloured warning') && !plain.includes(`${ESC}[33m`))
+  check('the model-facing content carries zero escape bytes', !plain.includes(ESC), JSON.stringify(plain.slice(0, 80)) + plainBlockWhere)
+  check('the words survive the strip: the run line, both files, the two totals', plain.includes('RUN  v3.2.4 /private/tmp/defu') && plain.includes('✓ test/utils.test.ts (2 tests) 3ms') && plain.includes('Test Files  2 passed (2)') && plain.includes('Tests  23 passed (23)'), plain + plainBlockWhere + ', and keep the words')
+  check('stderr reaches the model plain too', plain.includes('warning: a coloured warning') && !plain.includes(`${ESC}[33m`), JSON.stringify(plain) + plainBlockWhere)
   check('the result record itself keeps the raw bytes (the on-screen card paints what the process wrote)', fixtureOut.stdout.includes(ESC) && fixtureOut.stderr.includes(ESC))
 
   section('§2 the real tool: a command that prints colour')
@@ -74,9 +76,9 @@ try {
   await BashTool.prepare?.(input as never)
   const result = await (BashTool as unknown as Caller).call(input as never, toolContext)
   const out = result.data as Out
-  check('the process wrote the escape bytes and the tool records them (the two streams merged, as the tool promises)', out.stdout.includes(`${ESC}[31m`) && out.stdout.includes(`${ESC}[1m`), JSON.stringify(out))
+  check('the process wrote the escape bytes and the tool records them (the two streams merged, as the tool promises)', out.stdout.includes(`${ESC}[31m`) && out.stdout.includes(`${ESC}[1m`), JSON.stringify(out) + ' · the BashTool call in src/tools/BashTool/BashTool.tsx must record the process bytes unchanged in stdout')
   const content = mapped(out)
-  check('the model reads "red plain" and "err" with no escape byte', content.includes('red plain') && content.includes('err') && !content.includes(ESC), JSON.stringify(content))
+  check('the model reads "red plain" and "err" with no escape byte', content.includes('red plain') && content.includes('err') && !content.includes(ESC), JSON.stringify(content) + plainBlockWhere)
 
 
   section('§4 colour stops at the source: the tool shell stamps NO_COLOR=1 and FORCE_COLOR=0')
@@ -85,12 +87,12 @@ try {
   check('the child colours under a bare environment (the convention: colour unless NO_COLOR, FORCE_COLOR first)', bare.status === 0 && bare.stdout === `${ESC}[31mred${ESC}[0m\n`, JSON.stringify(bare.stdout))
   const nodeBin = JSON.stringify(process.execPath)
   const quiet = (await (BashTool as unknown as Caller).call({ command: `${nodeBin} -e ${JSON.stringify(colourer)}` } as never, toolContext)).data as Out
-  check('under the tool shell the same child prints no colour: the record carries plain "red"', quiet.stdout.trimEnd() === 'red', JSON.stringify(quiet.stdout))
+  check('under the tool shell the same child prints no colour: the record carries plain "red"', quiet.stdout.trimEnd() === 'red', JSON.stringify(quiet.stdout) + toolShellWhere)
   const stamps = (await (BashTool as unknown as Caller).call({ command: 'echo "[$NO_COLOR][$FORCE_COLOR]"' } as never, toolContext)).data as Out
-  check('the child sees NO_COLOR=1 and FORCE_COLOR=0', stamps.stdout.trim() === '[1][0]', JSON.stringify(stamps.stdout))
+  check('the child sees NO_COLOR=1 and FORCE_COLOR=0', stamps.stdout.trim() === '[1][0]', JSON.stringify(stamps.stdout) + toolShellWhere)
   const forced = (await (BashTool as unknown as Caller).call({ command: `FORCE_COLOR=1 ${nodeBin} -e ${JSON.stringify(colourer)}` } as never, toolContext)).data as Out
-  check('a command that sets FORCE_COLOR=1 itself keeps its colour: the record carries the escape bytes (the card paints what the process wrote)', forced.stdout.trimEnd() === `${ESC}[31mred${ESC}[0m`, JSON.stringify(forced.stdout))
-  check('and the model still reads it plain', mapped(forced).includes('red') && !mapped(forced).includes(ESC))
+  check('a command that sets FORCE_COLOR=1 itself keeps its colour: the record carries the escape bytes (the card paints what the process wrote)', forced.stdout.trimEnd() === `${ESC}[31mred${ESC}[0m`, JSON.stringify(forced.stdout) + toolShellWhere + ', which a command may override on its own line')
+  check('and the model still reads it plain', mapped(forced).includes('red') && !mapped(forced).includes(ESC), JSON.stringify(mapped(forced)) + plainBlockWhere)
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

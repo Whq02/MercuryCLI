@@ -56,11 +56,20 @@ const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 
 let failures = 0
+const CURRENT_MARK_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'change parseUserSpecifiedModel or getEngineModel in src/services/model/model.ts, getModelOptions in src/services/model/modelOptions.ts, or getDefaultEffortForModel in src/utils/effort.ts',
+  '2': 'change the row painting or current mark in src/components/MercuryModelPicker.tsx, or the row order from getModelOptions in src/services/model/modelOptions.ts',
+  '3': 'change the current mark in src/components/MercuryModelPicker.tsx',
+  '4': 'change the reason footer in src/components/MercuryModelPicker.tsx',
+  '5': 'change parseUserSpecifiedModel or getEngineModel in src/services/model/model.ts for the family word, or the current mark in src/components/MercuryModelPicker.tsx',
+}
+let currentMarkFixHint = ''
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${currentMarkFixHint}` : ''}`)
 }
 function section(title: string): void {
+  currentMarkFixHint = CURRENT_MARK_FIX_HINT_BY_SECTION[title.charAt(1)] ?? ''
   console.log(`\n${title}`)
 }
 

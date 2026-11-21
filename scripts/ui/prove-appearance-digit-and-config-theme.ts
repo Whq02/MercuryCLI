@@ -55,10 +55,11 @@ if (write) mkdirSync(stills, { recursive: true })
 
 let checks = 0
 let failures = 0
+const appearanceFailHint = 'to fix, change the theme rows and digit keys in src/commands/appearance/appearance.tsx and src/components/ThemePicker.tsx, or the Theme sub-list and its save in src/commands/config/config.tsx and src/components/Settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 700)} · ` : ''}${appearanceFailHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -68,7 +69,7 @@ const save = (name: string, lines: string[]): void => {
   if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), frame)
   if (write) writeFileSync(join(stills, `${name}.txt`), frame)
   else if (!frameDir && sourceRef === undefined && process.platform === 'darwin' && existsSync(join(stills, `${name}.txt`))) {
-    check(`${name}: the stored frame matches the source render`, readFileSync(join(stills, `${name}.txt`), 'utf8') === frame)
+    check(`${name}: the stored frame matches the source render`, readFileSync(join(stills, `${name}.txt`), 'utf8') === frame, `if the new render is intended, regenerate the stored frames with ${ASSET.generator}; otherwise the panel render changed`)
   }
 }
 

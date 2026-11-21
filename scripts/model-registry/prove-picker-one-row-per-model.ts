@@ -76,11 +76,19 @@ const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/
 const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 
 let failures = 0
+const ONE_ROW_FIX_HINT_BY_SECTION: Record<string, string> = {
+  '1': 'change getModelOptions in src/services/model/modelOptions.ts or getAgentModelPickerRows in src/services/model/agentModelPicker.ts so each model is one row with no [1m] id',
+  '2': 'change focusedOptionSupports1m or withContext1m in src/services/model/modelOptions.ts, or the window and name for the [1m] id in src/utils/model/capabilities.ts and src/services/model/model.ts',
+  '3': 'change getModelOptions in src/services/model/modelOptions.ts so the Max subscription lists each model once',
+  '4': 'change composeSubModelRegistry in src/services/model/subModelSlots.ts or getModelOptions in src/services/model/modelOptions.ts',
+}
+let oneRowFixHint = ''
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${oneRowFixHint}` : ''}`)
 }
 function section(title: string): void {
+  oneRowFixHint = ONE_ROW_FIX_HINT_BY_SECTION[title.charAt(1)] ?? ''
   console.log(`\n${title}`)
 }
 

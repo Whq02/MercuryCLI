@@ -67,7 +67,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — make the wheel act on this surface as the check says; scrolled bodies take their wheel step in src/components/ScrollKeybindingHandler.tsx, and a selection list handles the wheel in the component named in the label' : ''}`)
 }
 let mounted: Mounted | undefined
 let scene = 0

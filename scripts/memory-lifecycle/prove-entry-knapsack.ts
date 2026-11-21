@@ -16,10 +16,11 @@ delete process.env.MERCURY_BARE
 
 let failures = 0
 let checks = 0
+const FIX_HINT = 'change the code, not the check: the start allowance and its setting are in src/mneme/mnemeUsage.ts (startTextLimit), the greedy composer and the status words in src/mneme/entryKnapsack.ts (composeStartPage, memoryAtStartRowWords), the facts through src/mneme/memoryVerbs.ts and src/mneme/mnemeConsolidate.ts, the prompt order in src/constants/prompts.ts (getSystemPrompt); the pinned table is scripts/memory-lifecycle/fixtures/entry-knapsack/states.json (ENTRY_KNAPSACK_RECORD=1 reprints it)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — to fix: ${FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

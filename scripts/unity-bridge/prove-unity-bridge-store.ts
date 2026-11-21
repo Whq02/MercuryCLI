@@ -7,7 +7,7 @@ import * as path from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — sections 1 and 2 exercise unityRunToRecord in src/services/ide/unityTests.ts and persistTestRun in src/services/ide/pythonTests.ts; section 3 runs the unity tool in src/tools/UnityTool/UnityTool.ts, so fix the one the section names' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

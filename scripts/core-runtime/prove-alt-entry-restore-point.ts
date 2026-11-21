@@ -26,7 +26,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  [PASS] ${label}`)
   else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — change how the alternate screen is entered and left in src/ink/components/AlternateScreen.tsx, src/ink/launcherAltHold.ts and src/ink/ink.tsx so the label holds`)
   }
 }
 function skip(label: string, why: string): void {

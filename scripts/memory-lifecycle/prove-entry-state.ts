@@ -17,10 +17,11 @@ delete process.env.MERCURY_BARE
 
 let failures = 0
 let checks = 0
+const STATE_FIX_HINT = 'change the code, not the check: the state words, the query chunks, the status paths and the state read from git and the ledger are in src/mneme/entryState.ts (branchWords, fileWords, stateUnits, stateQueryChunks, stateQuery, readProjectState, parseStatusPaths); the stems and scores are in src/mneme/mnemeLookup.ts (lookupTokens, lookupTerms, scoreCandidates); the notes and files per session are in src/mneme/ledger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — to fix: ${STATE_FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

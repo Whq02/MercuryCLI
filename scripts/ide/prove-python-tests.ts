@@ -13,14 +13,14 @@ const SYS_PY = debugFixturePython(ROOT) ?? '/usr/bin/python3'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix: discover, run and rerun checks live in src/services/ide/pythonTests.ts (discoverPythonTests, runPythonTests, rerunFailedTests, buildDebugTestShim); the Test tool checks in src/tools/TestTool/TestTool.ts; the mercury://test resources in src/services/resources/registry.ts; the breakpoint leg also needs dist/vendor/debugpy (bun run scripts/vendor/fetch-debugpy.ts && bun run build.ts)'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 300s')
+  console.log('\n❌ TIMEOUT — proof exceeded 300s; the last section header above names the step that never returned; look in src/services/ide/pythonTests.ts (run and debug legs) and src/services/dap/dapClient.ts (waitForStopOutcome)')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

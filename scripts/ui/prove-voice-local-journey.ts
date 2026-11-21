@@ -250,7 +250,7 @@ const seededHome = (name: string, withModel = true): string => {
   mkdirSync(dir, { recursive: true })
   copyFileSync(MODEL_SOURCE, join(dir, MODEL.file))
   const read = checkWhisperModel(MODEL_PIN, { home })
-  check(`${name}: ${MODEL.file} copied from ${MODEL_SOURCE} into ${dir} reads as present before the boot`, read.state === 'present', read.state === 'present' ? '' : read.note)
+  check(`${name}: ${MODEL.file} copied from ${MODEL_SOURCE} into ${dir} reads as present before the boot`, read.state === 'present', read.state === 'present' ? '' : 'the seeded model failed checkWhisperModel in src/services/voice/whisperModels.ts; refetch it with bun run scripts/vendor/fetch-whisper-models.ts — ' + read.note)
   return home
 }
 
@@ -316,7 +316,7 @@ console.log('[0] poison control — the tripwire trips on a non-loopback fetch')
   } catch {
     tripped = true
   }
-  check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '))
+  check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), 'the tripwire preload written near the top of this file did not trip or log a non-loopback fetch; fix its fetch patch, or the proof cannot see a leak — netlog: ' + netlines(netlog).join(' · '))
 }
 
 console.log('[A] no key at all — /voice on names the on-device road; a hold, its release; the words land; nothing leaves')
@@ -335,16 +335,16 @@ console.log('[A] no key at all — /voice on names the on-device road; a hold, i
     170,
     {},
   )
-  check('the drive delivered every send (a real boot)', res.status === 0, stuckWords(res))
-  check('/voice on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), gridLines(res.marks.on ?? '', 'transcriber'))
-  check('the hold past the threshold: the footer paints ● recording · release space to stop · esc cancels', (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), gridLines(res.marks.recording ?? '', 'recording'))
-  check('the fixture\'s words land in the composer, decoded on this machine', SPOKEN.test(res.marks.landed ?? ''), gridLines(res.marks.landed ?? '', '❯'))
-  check('the cursor sat at the END: a typed character lands after the words', /breakfast\.? z/.test(res.marks['typed-after'] ?? ''), gridLines(res.marks['typed-after'] ?? '', '❯'))
-  check('the receipt says transcribed on this machine, naming the model', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes(`transcribed on this machine (${MODEL.name})`), gridLines(res.marks['typed-after'] ?? '', 'transcribed'))
+  check('the drive delivered every send (a real boot)', res.status === 0, 'a send never reached its awaited text, so the screen it waits for did not paint; read the saw= and grid files under the scratch dir named at the end — ' + stuckWords(res))
+  check('/voice on names the on-device transcriber, the engine, the model and the pack', (res.marks.on ?? '').includes(`transcriber: on-device — whisper.cpp ${MODEL.name} (pack `) && (res.marks.on ?? '').includes('beside the'), 'the status text built by transcriberWords in src/services/voice/voiceSession.ts must read transcriber: on-device — whisper.cpp <model> (pack ... beside the ...) — ' + gridLines(res.marks.on ?? '', 'transcriber'))
+  check('the hold past the threshold: the footer paints ● recording · release space to stop · esc cancels', (res.marks.recording ?? '').includes(`● ${RECORDING_LINE}`), 'the held space did not open a take that paints RECORDING_FOOTER from src/services/voice/voiceSession.ts; check the hold timing in src/services/voice/holdToTalk.ts — ' + gridLines(res.marks.recording ?? '', 'recording'))
+  check('the fixture\'s words land in the composer, decoded on this machine', SPOKEN.test(res.marks.landed ?? ''), 'the on-device transcript of scripts/voice/fixtures/on-device-take.wav (seven ships) did not reach the composer; check the take path in src/services/voice/voiceSession.ts — ' + gridLines(res.marks.landed ?? '', '❯'))
+  check('the cursor sat at the END: a typed character lands after the words', /breakfast\.? z/.test(res.marks['typed-after'] ?? ''), 'the transcript landed but the cursor was not left at the end of the composer text; check where src/services/voice/voiceSession.ts inserts the words — ' + gridLines(res.marks['typed-after'] ?? '', '❯'))
+  check('the receipt says transcribed on this machine, naming the model', (res.marks['typed-after'] ?? res.marks.landed ?? '').includes(`transcribed on this machine (${MODEL.name})`), 'the receipt must read transcribed on this machine (<model name>) as built in src/services/voice/voiceSession.ts — ' + gridLines(res.marks['typed-after'] ?? '', 'transcribed'))
   const lines = netlines(netlog)
-  check('no voice wire left the child at all, loopback included', voiceWires(lines).length === 0, voiceWires(lines).join(' · '))
-  check('nothing left loopback', nonLoopback(lines).length === 0, nonLoopback(lines).join(' · '))
-  check('the child made no HTTP request of any kind', !lines.some(l => l.startsWith('fetch')), lines.filter(l => l.startsWith('fetch')).join(' · '))
+  check('no voice wire left the child at all, loopback included', voiceWires(lines).length === 0, 'the on-device road must send no audio or transcription request, even to loopback; stop the call that opened the wire named here — ' + voiceWires(lines).join(' · '))
+  check('nothing left loopback', nonLoopback(lines).length === 0, 'the on-device journey opened a non-loopback connection; remove that call from the voice path — ' + nonLoopback(lines).join(' · '))
+  check('the child made no HTTP request of any kind', !lines.some(l => l.startsWith('fetch')), 'the on-device journey made an HTTP request; remove that call from the voice path — ' + lines.filter(l => l.startsWith('fetch')).join(' · '))
 }
 
 console.log('[B] an OpenAI key AND the pack — the order law on the bundle: still zero requests')
@@ -365,13 +365,13 @@ console.log('[B] an OpenAI key AND the pack — the order law on the bundle: sti
     { OPENAI_API_KEY: 'sk-fixture-voice-000000000000000000000000', MERCURY_OPENAI_API_BASE: `http://127.0.0.1:${fx.port}/v1` },
   )
   fx.child.kill('SIGTERM')
-  check('the drive delivered', res.status === 0, stuckWords(res))
-  check('/voice on still names the on-device transcriber beside the signed-in key', (res.marks.on ?? '').includes('transcriber: on-device — whisper.cpp'), gridLines(res.marks.on ?? '', 'transcriber'))
-  check('the words land on this machine', SPOKEN.test(res.marks.landed ?? '') && (res.marks.landed ?? '').includes('transcribed on this machine'), gridLines(res.marks.landed ?? '', '❯'))
-  check('the loopback transcriber served NOTHING', ledgerPosts(fx.ledger).length === 0, ledgerPosts(fx.ledger).join(' | '))
+  check('the drive delivered', res.status === 0, 'a send never reached its awaited text, so the screen it waits for did not paint; read the saw= and grid files under the scratch dir named at the end — ' + stuckWords(res))
+  check('/voice on still names the on-device transcriber beside the signed-in key', (res.marks.on ?? '').includes('transcriber: on-device — whisper.cpp'), 'with a key and the pack both present, transcriberWords in src/services/voice/voiceSession.ts must still choose the on-device road — ' + gridLines(res.marks.on ?? '', 'transcriber'))
+  check('the words land on this machine', SPOKEN.test(res.marks.landed ?? '') && (res.marks.landed ?? '').includes('transcribed on this machine'), 'with a key present the take must still be transcribed on-device and receipted as such; check the transcriber choice in src/services/voice/voiceSession.ts — ' + gridLines(res.marks.landed ?? '', '❯'))
+  check('the loopback transcriber served NOTHING', ledgerPosts(fx.ledger).length === 0, 'the cloud transcriber fixture received a POST although the pack is present; the on-device road must win over a key — ' + ledgerPosts(fx.ledger).join(' | '))
   const lines = netlines(netlog)
-  check('no voice wire left the child, loopback included', voiceWires(lines).length === 0, voiceWires(lines).join(' · '))
-  check('nothing left loopback', nonLoopback(lines).length === 0, nonLoopback(lines).join(' · '))
+  check('no voice wire left the child, loopback included', voiceWires(lines).length === 0, 'with a key and the pack, no audio or transcription request may leave; stop the call that opened the wire named here — ' + voiceWires(lines).join(' · '))
+  check('nothing left loopback', nonLoopback(lines).length === 0, 'the keyed on-device journey opened a non-loopback connection; remove that call from the voice path — ' + nonLoopback(lines).join(' · '))
 }
 
 console.log('[C] first on downloads once, the bare command captures, off persists across restart')
@@ -388,11 +388,11 @@ console.log('[C] first on downloads once, the bare command captures, off persist
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'voice input OFF — space is a space', awaitStableTicks: 2, mark: 'off', data: '' },
   ], 200, { PROOF_MODEL_URL: MODEL.url, PROOF_MODEL_FILE: MODEL_SOURCE })
-  check('first boot delivered', first.status === 0, stuckWords(first))
-  check('first on names the downloaded model, size and verification', paneFlow(first.marks.downloaded ?? '').includes(`${MODEL.file} (60 MB, sha256 verified)`), paneFlow(first.marks.downloaded ?? ''))
-  check('the downloaded bytes match the lock', checkWhisperModel(MODEL_PIN, { home, digest: true }).state === 'present')
-  check('a bare voice take transcribes on-device', SPOKEN.test(first.marks.landed ?? '') && (first.marks.landed ?? '').includes('transcribed on this machine'))
-  check('one fixture model request, no voice upload', netlines(netlog).filter(l => l.startsWith('model-fixture')).length === 1 && voiceWires(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0 && nonLoopback(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0)
+  check('first boot delivered', first.status === 0, 'a send never reached its awaited text, so the screen it waits for did not paint; read the saw= and grid files under the scratch dir named at the end — ' + stuckWords(first))
+  check('first on names the downloaded model, size and verification', paneFlow(first.marks.downloaded ?? '').includes(`${MODEL.file} (60 MB, sha256 verified)`), 'the first /voice on must print downloaded <file> (60 MB, sha256 verified) as built in src/commands/voice/voice.ts — ' + paneFlow(first.marks.downloaded ?? ''))
+  check('the downloaded bytes match the lock', checkWhisperModel(MODEL_PIN, { home, digest: true }).state === 'present', 'the model written into the scratch home does not match the lock in src/services/voice/whisperModels.ts; check how the download is written and verified')
+  check('a bare voice take transcribes on-device', SPOKEN.test(first.marks.landed ?? '') && (first.marks.landed ?? '').includes('transcribed on this machine'), 'after the download a bare /voice take must transcribe on-device and receipt it; check src/services/voice/voiceSession.ts — ' + gridLines(first.marks.landed ?? '', '❯'))
+  check('one fixture model request, no voice upload', netlines(netlog).filter(l => l.startsWith('model-fixture')).length === 1 && voiceWires(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0 && nonLoopback(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0, 'the first on must fetch the model exactly once and send no audio and nothing off loopback; the net log follows — ' + netlines(netlog).join(' · '))
   const secondNet = join(scratch, 'restart-net.log')
   const second = drive('restart', home, secondNet, [
     { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
@@ -402,9 +402,9 @@ console.log('[C] first on downloads once, the bare command captures, off persist
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'voice input ON', awaitStableTicks: 2, mark: 'on', data: '' },
   ], 130, {})
-  check('restart delivered; off persisted and on reused the model', second.status === 0 && (second.marks.off ?? '').includes('voice input is off') && (second.marks.on ?? '').includes('voice input ON'), stuckWords(second))
-  check('restart has no download or upload', !netlines(secondNet).some(l => l.startsWith('fetch')) && voiceWires(netlines(secondNet)).length === 0)
-  for (const screen of [first.marks.downloaded, first.marks.off, second.marks.off, second.marks.on]) check('voice screen has no cloud door', voiceWords(screen ?? '').includes('/voice') && !/API key|\/logins|openai|gemini/i.test(voiceWords(screen ?? '')))
+  check('restart delivered; off persisted and on reused the model', second.status === 0 && (second.marks.off ?? '').includes('voice input is off') && (second.marks.on ?? '').includes('voice input ON'), 'after a restart /voice must report off, and /voice on must reuse the stored model; check the off state saved by src/commands/voice/voice.ts and read by src/services/voice/voiceSession.ts — ' + stuckWords(second))
+  check('restart has no download or upload', !netlines(secondNet).some(l => l.startsWith('fetch')) && voiceWires(netlines(secondNet)).length === 0, 'the restart must reuse the stored model with no fetch and no voice request; the net log follows — ' + netlines(secondNet).join(' · '))
+  for (const screen of [first.marks.downloaded, first.marks.off, second.marks.off, second.marks.on]) check('voice screen has no cloud door', voiceWords(screen ?? '').includes('/voice') && !/API key|\/logins|openai|gemini/i.test(voiceWords(screen ?? '')), 'the on-device /voice screen must not mention an API key, /logins, openai or gemini; remove that wording from src/commands/voice/voice.ts or src/services/voice/voiceSession.ts — ' + voiceWords(screen ?? ''))
 }
 
 if (failures > 0) {

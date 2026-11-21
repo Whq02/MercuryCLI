@@ -34,18 +34,28 @@ const focused = await import('../../src/services/engine-connector/focusedConnect
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 180 seconds')
+  console.log('  [FAIL] the proof did not finish within 180 seconds; the last section header printed above is the step that hung, and the rewind screen it renders is MessageSelector in src/components/MessageSelector.tsx')
   process.exit(1)
 }, 180_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const SECTION_FIX: Record<string, string> = {
+  'what the s': 'change writtenElsewhereLine in src/components/messageSelector/stats.ts (which tool results count as a file written on another machine, and how the line names them)',
+  'the rewind': 'change the rewind screen in src/components/MessageSelector.tsx, where the writtenElsewhereLine row is placed under the Restores line and hidden on the conversation-only choice',
+}
+let sectionKey = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail.slice(0, 900) : 'to fix: ' + fix + (detail ? ' | ' + detail.slice(0, 900) : '')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failureText ? ` — ${failureText}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
+const section = (title: string): void => {
+  sectionKey = title.slice(0, 10)
+  console.log(`\n${'─'.repeat(76)}\n${title}`)
+}
 
 const CONFIG = 'ssh://web1/srv/app/config.yml'
 const lineOf = (messages: unknown[], from: string): string | null => {

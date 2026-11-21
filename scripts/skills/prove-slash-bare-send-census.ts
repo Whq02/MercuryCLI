@@ -38,11 +38,11 @@ let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — for a bare-send or hint failure change requiresArgument or bareUsageLine in src/skills/argumentHint.ts, or the bare-send branch in src/services/processUserInput/processSlashCommand.tsx; for a roster failure change the skill's SKILL.md under mercury-skills${detail ? `: ${detail.slice(0, 300)}` : ''}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the bare-send census exceeded 120s')
+  console.log('\nTIMEOUT — the bare-send census exceeded 120s; look for a hang in the Bun.build of the generated skill wrappers or in processSlashCommand (src/services/processUserInput/processSlashCommand.tsx)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

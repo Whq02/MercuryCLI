@@ -55,8 +55,9 @@ try {
   const implementation = createHostRoad({ sessionId: 'private-recipes-proof', runner: { run: async () => { throw new Error('No process is needed') }, tunnel: () => { throw new Error('No tunnel is needed') } }, startJob: () => { throw new Error('No rental is allowed') } })
   const road: LlmHostRoad = (ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, emit, signal)
   const screen = () => mounted?.screen() ?? ''
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + screen()); checks++; console.log('PASS ' + name) }
-  const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 10000), name + '\n' + screen())
+  const popupHint = ' · change the private recipes file choice in src/services/host/recipesFile.ts (rememberPrivateHostRecipesFile, currentPrivateHostRecipes, currentHostRecipes) or its popup steps in src/commands/llmhost/llmhost.tsx (llmHostPopupRequest)'
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + popupHint + '\n' + screen()); checks++; console.log('PASS ' + name) }
+  const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 24)), 10000), 'the popup never reached step ' + name + popupHint + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   let tracked: { plan: LlmHostQuestion; at: number | null } | undefined
   const select = async (value: string) => {

@@ -5,7 +5,8 @@ process.env.NODE_ENV = 'test'
 import { extractFirstPromptFromChunk } from '../../src/utils/sessionStorage/logs.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+const extractorHint = 'change extractFirstPromptFromChunk in src/utils/sessionStorage/logs.ts so this input gives the expected title'
+function check(label: string, cond: boolean, detail = extractorHint): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }

@@ -9,7 +9,7 @@ import { fakeCommand } from '../dap/fakeCommand.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix the Blender owner in src/utils/blender/blenderProject.ts (mercuryBlenderEnabled, discoverBlendFiles, locateBlender, probeBlenderVersion, blenderLaneReadinessRecords, BLENDER_INSTALL_REMEDY) for the section named above'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

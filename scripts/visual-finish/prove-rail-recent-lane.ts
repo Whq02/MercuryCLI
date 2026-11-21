@@ -13,9 +13,10 @@ const frameDir = framesAt < 0 ? undefined : process.argv[framesAt + 1]
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const RAIL_FIX_HINT = 'to fix, change recentSection (the RECENT lane) in src/services/cockpit/helmLanesModel/sections.ts, or the /sessions picker list in src/components/mercury-ui/screens/sessionManager/views.tsx, so the conversation open in the view is left out'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${RAIL_FIX_HINT}`}`)
 }
 
 type Cell = { c: string }

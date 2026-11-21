@@ -31,6 +31,7 @@ const doorWith = (caps: { readTextFile: boolean; writeTextFile: boolean; termina
   terminalRelease: async () => ({}),
 })
 
+const PROMPT_HINT = 'fix getSimplePrompt in src/tools/BashTool/prompt.ts (the Editor terminal paragraph appears only when ideTerminalAvailable in src/services/acp/ideToolBridge.ts says the editor offers a terminal)'
 const PARAGRAPH = /\n\nEditor terminal: [^\n]*/
 
 try {
@@ -47,24 +48,24 @@ try {
     const withTerminal = getSimplePrompt(offered)
     bridge.registerIdeToolDoor(null)
 
-    check(`${label}: with no editor the description has no editor terminal paragraph`, !plain.includes('Editor terminal:'))
-    check(`${label}: an editor that offers files but no terminal leaves the description byte for byte as it was`, filesOnly === plain)
+    check(`${label}: with no editor the description has no editor terminal paragraph`, !plain.includes('Editor terminal:'), `${PROMPT_HINT}; the plain description carries the paragraph`)
+    check(`${label}: an editor that offers files but no terminal leaves the description byte for byte as it was`, filesOnly === plain, `${PROMPT_HINT}; a files-only editor changed the description`)
     check(
       `${label}: an editor that offers a terminal adds one paragraph`,
       PARAGRAPH.test(withTerminal) && withTerminal.split('Editor terminal:').length === 2,
-      withTerminal.slice(-400),
+      `${PROMPT_HINT}; ${withTerminal.slice(-400)}`,
     )
     const paragraph = PARAGRAPH.exec(withTerminal)?.[0] ?? ''
-    check(`${label}: taking that paragraph out gives the plain description back byte for byte`, withTerminal.replace(PARAGRAPH, '') === plain)
+    check(`${label}: taking that paragraph out gives the plain description back byte for byte`, withTerminal.replace(PARAGRAPH, '') === plain, `${PROMPT_HINT}; the terminal editor changed more than the one paragraph`)
     check(
       `${label}: the paragraph says the folder and the shell variables do not carry to the next call and shows the same-call form`,
       /working directory and shell variables do not carry to the next call/.test(paragraph) && paragraph.includes('`cd dir && …`'),
-      paragraph,
+      `${PROMPT_HINT}; paragraph: ${paragraph}`,
     )
     check(
       `${label}: the paragraph names the two commands that still run in the local shell`,
       paragraph.includes('`run_in_background`') && paragraph.includes("crewmate's command") && !/sandbox/.test(paragraph),
-      paragraph,
+      `${PROMPT_HINT}; paragraph: ${paragraph}`,
     )
   }
 } finally {

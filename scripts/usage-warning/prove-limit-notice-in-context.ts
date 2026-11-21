@@ -101,9 +101,10 @@ process.env.MERCURY_CONFIG_DIR = subscriberHome
 enableConfigs()
 
 let failures = 0
+const NOTICE_FIX_HINT = 'to fix, change the notice attachment in src/services/attachments/sessionContext.ts (it reads engine.usageNotice and records usage_limit_notice) or the notice text and tiers in src/services/providers/limitWarning.ts, and build dist/mercury.mjs again with bun run build.ts before rerunning'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${NOTICE_FIX_HINT}`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)

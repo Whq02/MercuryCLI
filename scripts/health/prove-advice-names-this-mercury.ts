@@ -9,8 +9,9 @@ import { DIST, NODE } from '../daemon/dupline-world.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let adviceFixHint = 'change ownCommandWord or thisMercuryCommand in src/services/privateChannel/installPath.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${adviceFixHint}` : ''}`)
   if (!cond) failures++
 }
 
@@ -35,6 +36,7 @@ check('the live resolver answers a non-empty command, the same on every read', l
 
 console.log("§2 the built product's health advice names THIS install (a source build with no `mercury` on PATH)")
 {
+  adviceFixHint = 'the daemon row of the health certificate must name this build by its own node and bundle invocation (the word comes from thisMercuryCommand in src/services/privateChannel/installPath.ts); rebuild dist/mercury.mjs with bun run build.ts'
   type Row = { id: string; status: string; evidence?: string; fix?: string }
   const rows = (value: unknown, out: Row[] = []): Row[] => {
     if (Array.isArray(value)) for (const item of value) rows(item, out)

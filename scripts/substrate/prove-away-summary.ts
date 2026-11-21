@@ -8,7 +8,9 @@ const { isAwaySummaryEnabled, buildAwaySummary, buildAwayRecap } = await import(
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) fail++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = 'change isAwaySummaryEnabled, buildAwayRecap or buildAwaySummary in src/utils/cockpit/awaySummary.ts'
+  const shown = cond ? detail : detail ? detail + ' — ' + failHint : failHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

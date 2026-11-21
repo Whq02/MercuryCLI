@@ -18,9 +18,12 @@ const OUT_DIR = process.env.CONCFLOW_CAPTURE_DIR ?? join(tmpdir(), `concflow-cap
 mkdirSync(OUT_DIR, { recursive: true })
 
 let failures = 0
+let legSource = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = cond ? '' : 'change the screen code in ' + legSource + '; the captured frame is the .txt for this leg under ' + OUT_DIR
+  const shown = cond ? detail : detail ? detail + ' — ' + where : where
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -104,6 +107,7 @@ const runLeg = (name: string): boolean => ONLY === undefined || ONLY === '' || O
 
 console.log('C1 the git offer card (items 1–3)')
 if (runLeg('git-offer')) {
+  legSource = 'src/components/concourse/GitOfferCard.tsx (the card) or src/components/concourse/ConcourseScreen.tsx (where it overlays)'
   const folder = '/Users/op/play/parser-lab'
   const scratch = newScratch('git-offer')
   const fixture = referenceFixtureSnapshot()
@@ -181,6 +185,7 @@ if (ONLY === 'diag') {
 
 console.log('ARROWS the plain board browses on ↓')
 if (runLeg('arrows')) {
+  legSource = 'src/components/concourse (the session list and its selection)'
   const scratch = newScratch('arrows')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch
@@ -203,6 +208,7 @@ if (runLeg('arrows')) {
 
 console.log('C2/C3 the queued row (item 5)')
 if (runLeg('queued')) {
+  legSource = 'src/components/concourse/ConcourseScreen.tsx, src/components/concourse/screen/useConcourseFaces.tsx or src/components/concourse/SessionWaitingRoom.tsx'
   const scratch = newScratch('queued')
   const fixture = referenceFixtureSnapshot()
   for (const g of fixture.groups) for (const r of g.rows) r.workspaceDir = scratch

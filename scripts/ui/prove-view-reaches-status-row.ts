@@ -48,7 +48,7 @@ try {
     })
     let payload: Capture | undefined
     try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
-    check(`${tag}: the product painted the cockpit`, result.status === 0 && payload !== undefined, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}`)
+    check(`${tag}: the product painted the cockpit`, result.status === 0 && payload !== undefined, `the vshot capture of the resume-2turn scenario failed or wrote no grid; read its stderr — rc ${result.status} ${(result.stderr ?? '').slice(-300)}`)
     if (payload === undefined) continue
     const lines = rowsOf(payload.grid)
     if (frameDir !== undefined) writeFileSync(join(frameDir, `${tag}.txt`), lines.join('\n') + '\n')
@@ -57,15 +57,15 @@ try {
     const rightEdge = top < 0 ? -1 : lines[top]!.lastIndexOf('╮')
     const bottom = top < 0 ? -1 : lines.findIndex((line, index) => index > top && line[left] === '╰' && line[rightEdge] === '╯')
     const status = lines.findIndex(line => line.includes(BACK))
-    check(`${tag}: the pane opens on its top border at row 0 beside the lanes label`, top === 0, `top ${top}`)
-    check(`${tag}: no row reads ✶ VIEW (no title row above the view)`, !lines.some(line => line.includes('✶ VIEW')), lines.find(line => line.includes('VIEW')) ?? '')
-    check(`${tag}: no sessions box under the view`, !lines.some(line => line.includes('⊞ SESSIONS') || line.includes('▣ this session')), lines.find(line => line.includes('SESSIONS')) ?? '')
-    check(`${tag}: the pane's first interior row is the berth card's top edge, never a title`, top >= 0 && /^\s*╭/.test((lines[top + 1] ?? '').slice(left + 1, rightEdge)), lines[top + 1] ?? '')
-    check(`${tag}: the view's bottom border sits directly above the status row`, bottom > top && status === bottom + 1, `pane bottom ${bottom}, status row ${status}`)
+    check(`${tag}: the pane opens on its top border at row 0 beside the lanes label`, top === 0, `the view pane must start on row 0 with the lanes label; change the view layout so no row paints above it — top ${top}`)
+    check(`${tag}: no row reads ✶ VIEW (no title row above the view)`, !lines.some(line => line.includes('✶ VIEW')), `remove the VIEW title row from the view pane — ` + (lines.find(line => line.includes('VIEW')) ?? ''))
+    check(`${tag}: no sessions box under the view`, !lines.some(line => line.includes('⊞ SESSIONS') || line.includes('▣ this session')), `remove the sessions box painted under the view — ` + (lines.find(line => line.includes('SESSIONS')) ?? ''))
+    check(`${tag}: the pane's first interior row is the berth card's top edge, never a title`, top >= 0 && /^\s*╭/.test((lines[top + 1] ?? '').slice(left + 1, rightEdge)), `the row under the pane's top border must be the berth card's top edge, not a title — ` + (lines[top + 1] ?? ''))
+    check(`${tag}: the view's bottom border sits directly above the status row`, bottom > top && status === bottom + 1, `the view's bottom border must be the row just above the status row that carries the back hint; remove any row painted between them — pane bottom ${bottom}, status row ${status}`)
     const statusRow = lines[status] ?? ''
-    check(`${tag}: the status row rests on the state words · the model · the effort (ready · the model · its effort; or, on a keyless capture, not signed in · /logins · choose a model, which carries no effort) and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready · [^·]+ · [^·]+|not signed in · /logins · choose a model) {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), statusRow)
+    check(`${tag}: the status row rests on the state words · the model · the effort (ready · the model · its effort; or, on a keyless capture, not signed in · /logins · choose a model, which carries no effort) and ends with the folder, the branch and the way back`, new RegExp(`^ (?:ready · [^·]+ · [^·]+|not signed in · /logins · choose a model) {2,}${escaped(right)} {2}${escaped(BACK)}$`).test(statusRow), `the status row must be state words · model · effort, then the folder, the branch and the back hint; change statusRowPlan, statusLine or escBackHint in src/components/SwitchboardTagBar.tsx — ` + statusRow)
     const below = lines.slice(bottom + 1).filter(line => (/[│╭╮╰╯]/.test(line.slice(0, left)) || /[│╭╮╰╯]/.test(line.slice(rightEdge + 1))) && !(line.length === cols && /^[╭│╰].*[╮│╯]$/.test(line)))
-    check(`${tag}: nothing of the rails paints below the pane's bottom border (the rails end where the view ends)`, below.length === 0, below[0] ?? '')
+    check(`${tag}: nothing of the rails paints below the pane's bottom border (the rails end where the view ends)`, below.length === 0, `the rails must end on the row of the view's bottom border; stop painting rail rows below it — ` + (below[0] ?? ''))
   }
 } finally {
   cleanupScenario('resume-2turn')

@@ -71,10 +71,11 @@ saveCurrentProjectConfig(config => ({ ...config, hasCompletedProjectOnboarding: 
 const h = React.createElement
 let checks = 0
 let failures = 0
+const toolRowFailHint = 'to fix, a tool row that keeps counting or stays open is decided by liveTurnStateOf in src/services/resume/conversationRecovery.ts, openToolUseIDsOf in src/utils/messages/openToolUses.ts, buildMessageLookups in src/services/messages/lookups.ts, toolStateMoved in src/components/MessageRow.tsx and RunningToolElapsed in src/components/messages/AssistantToolUseMessage.tsx'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} · ` : ''}${toolRowFailHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -90,7 +91,7 @@ async function until(pred: () => boolean, ms = 6000): Promise<boolean> {
   return pred()
 }
 const hardLimit = setTimeout(() => {
-  console.error('prove-toolrow-settles-with-its-result exceeded its deadline')
+  console.error('prove-toolrow-settles-with-its-result exceeded its deadline of 120 s; a wait in until() never held or the connector attach hung, so find the last section printed above and the frame it printed')
   process.exit(1)
 }, 120_000)
 hardLimit.unref()

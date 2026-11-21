@@ -13,8 +13,9 @@ const { collectMemoryRefs, renderMemoryRefLine } = await import('../../src/mneme
 const { lookupTokens } = await import('../../src/mneme/mnemeLookup.ts')
 
 let failures = 0
+const REFS_FIX_HINT = 'change the code, not the check: ref selection, ranking, freshness and the render line are in src/mneme/memoryRefs.ts (collectMemoryRefs, renderMemoryRefLine); the query tokens and filler words are in src/mneme/mnemeLookup.ts (lookupTokens)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — to fix: ' + REFS_FIX_HINT : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

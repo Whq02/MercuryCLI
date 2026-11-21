@@ -15,8 +15,9 @@ import {
 } from '../lib/signedRipgrepPayload.ts'
 
 let failures = 0
+const REPAIR_FIX_HINT = 'to fix, change prepareSignedCopy in src/utils/ripgrep.ts so the re-signed rg is a copy outside the payload, or verifyPayloadDir in src/services/privateChannel/artifactVerify.ts for a wrong verdict'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail.slice(0, 500)}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : ` — ${REPAIR_FIX_HINT}${detail ? ` — ${detail.slice(0, 500)}` : ''}`}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

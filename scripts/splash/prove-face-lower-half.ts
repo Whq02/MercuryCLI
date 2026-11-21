@@ -5,7 +5,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change rasterHard in assets/splash/splash-core.mjs so a two-colour cell is a lower-half glyph on the truecolor tier and an upper-half glyph on the other tiers'}`)
   if (!cond) failures++
 }
 

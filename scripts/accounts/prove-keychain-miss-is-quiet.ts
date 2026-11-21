@@ -41,10 +41,10 @@ if (process.platform !== 'darwin') {
   ].join('\n')
   const child = spawnSync(process.execPath, ['-e', script], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000 })
   const reached = existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : []
-  check('the child ran the managed-key read to completion', child.status === 0, `status ${child.status} · stderr ${JSON.stringify((child.stderr ?? '').slice(0, 200))}`)
-  check('the lookup reached the keychain tool (the miss was real, not skipped)', reached.some(l => /find-generic-password/.test(l)), reached.join(' | '))
-  check('the read answered config (no key)', /"key":null/.test(child.stdout ?? ''), (child.stdout ?? '').slice(0, 120))
-  check("the child's stderr is EMPTY — the tool's miss line never reached the process's stderr", (child.stderr ?? '').trim() === '', JSON.stringify((child.stderr ?? '').slice(0, 200)))
+  check('the child ran the managed-key read to completion', child.status === 0, `status ${child.status} · stderr ${JSON.stringify((child.stderr ?? '').slice(0, 200))} · fix getApiKeyFromConfigOrMacOSKeychain in src/utils/auth.ts so the read finishes without throwing on a keychain miss`)
+  check('the lookup reached the keychain tool (the miss was real, not skipped)', reached.some(l => /find-generic-password/.test(l)), `${reached.join(' | ')} · the managed-key read must call readKeychainServiceSync in src/utils/secureStorage/macOsKeychainStorage.ts, which runs security find-generic-password`)
+  check('the read answered config (no key)', /"key":null/.test(child.stdout ?? ''), `${(child.stdout ?? '').slice(0, 120)} · readManagedKey in src/utils/auth.ts must return null after a keychain miss when config holds no key`)
+  check("the child's stderr is EMPTY — the tool's miss line never reached the process's stderr", (child.stderr ?? '').trim() === '', `${JSON.stringify((child.stderr ?? '').slice(0, 200))} · the security call in src/utils/secureStorage/macOsKeychainStorage.ts (runSecurity) must not let the tool's stderr through on exit 44`)
 
   section('§3 a keychain write that fails is reported as failed, so the key lands in config instead of nowhere (darwin)')
   writeFileSync(join(bin, 'security'), `#!/bin/sh\nprintf '%s\\n' "$*" >> '${log}'\nif [ "$1" = "-i" ]; then cat >/dev/null; fi\nexit 1\n`)
@@ -57,9 +57,9 @@ if (process.platform !== 'darwin') {
     'console.log(JSON.stringify({ primaryApiKey: getGlobalConfig().primaryApiKey ?? null }))',
   ].join('\n')
   const saved = spawnSync(process.execPath, ['-e', saveScript], { cwd: ROOT, env, encoding: 'utf8', timeout: 120_000 })
-  check('the save ran to completion', saved.status === 0, `status ${saved.status} · stderr ${JSON.stringify((saved.stderr ?? '').slice(0, 200))}`)
-  check('the write reached the keychain tool through its stdin road', (existsSync(log) ? readFileSync(log, 'utf8') : '').split('\n').some(l => l.trim() === '-i'), readFileSync(log, 'utf8'))
-  check('a refused keychain write leaves the key in config (base: the write reported success and the key went nowhere)', /"primaryApiKey":"fixture-key-shim-refused"/.test(saved.stdout ?? ''), (saved.stdout ?? '').slice(0, 160))
+  check('the save ran to completion', saved.status === 0, `status ${saved.status} · stderr ${JSON.stringify((saved.stderr ?? '').slice(0, 200))} · saveApiKey in src/utils/auth.ts must not throw when the keychain write is refused`)
+  check('the write reached the keychain tool through its stdin road', (existsSync(log) ? readFileSync(log, 'utf8') : '').split('\n').some(l => l.trim() === '-i'), `${readFileSync(log, 'utf8')} · saveApiKey in src/utils/auth.ts must write through writeKeychainHexStdin, which runs security -i with the command on stdin`)
+  check('a refused keychain write leaves the key in config (base: the write reported success and the key went nowhere)', /"primaryApiKey":"fixture-key-shim-refused"/.test(saved.stdout ?? ''), `${(saved.stdout ?? '').slice(0, 160)} · saveApiKey in src/utils/auth.ts must keep primaryApiKey in config when writeKeychainHexStdin returns false`)
 }
 
 section('§4 a blank credential file-descriptor variable is refused, never read as fd 0')
@@ -74,8 +74,8 @@ section('§4 a blank credential file-descriptor variable is refused, never read 
     'console.log(JSON.stringify({ key, stdin }))',
   ].join('\n')
   const child = spawnSync(process.execPath, ['-e', script], { cwd: ROOT, env, encoding: 'utf8', input: 'STDIN-PROMPT-TEXT', timeout: 120_000 })
-  check('the child ran', child.status === 0, `status ${child.status} · stderr ${JSON.stringify((child.stderr ?? '').slice(0, 200))}`)
-  check('a blank variable yields no key and stdin is still whole for the prompt (base: stdin became the credential)', /"key":null,"stdin":"STDIN-PROMPT-TEXT"/.test(child.stdout ?? ''), (child.stdout ?? '').slice(0, 160))
+  check('the child ran', child.status === 0, `status ${child.status} · stderr ${JSON.stringify((child.stderr ?? '').slice(0, 200))} · getApiKeyFromFileDescriptor in src/utils/authFileDescriptor.ts must not throw on a blank variable`)
+  check('a blank variable yields no key and stdin is still whole for the prompt (base: stdin became the credential)', /"key":null,"stdin":"STDIN-PROMPT-TEXT"/.test(child.stdout ?? ''), `${(child.stdout ?? '').slice(0, 160)} · getApiKeyFromFileDescriptor in src/utils/authFileDescriptor.ts must return null for a blank MERCURY_API_KEY_FILE_DESCRIPTOR and leave stdin unread`)
 }
 
 console.log(failures === 0 ? '\n✅ prove-keychain-miss-is-quiet — all checks pass' : `\n❌ prove-keychain-miss-is-quiet — ${failures} check(s) failed`)

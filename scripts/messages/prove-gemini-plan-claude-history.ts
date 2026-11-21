@@ -10,10 +10,11 @@ const { buildGeminiRequest, geminiThoughtKindOf, GEMINI_SKIP_SIGNATURE_VALIDATIO
 
 let passes = 0
 let failures = 0
+const GEMINI_HISTORY_FIX_HINT = 'fix buildGeminiRequest (call and response ids, thought-part filtering, replay of Gemini records) or geminiThoughtKindOf in src/services/providers/gemini/geminiCodec.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${GEMINI_HISTORY_FIX_HINT}` : ''}`)
 }
 
 const CLAUDE = 'claude-opus-5-5-high'

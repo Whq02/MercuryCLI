@@ -20,22 +20,23 @@ const PROBE_KEY = 'proof-key-ci-gate-not-a-real-key'
 const FIXTURE = join(HERE, 'streamCutFixture.mjs')
 const j = (v: unknown): string => JSON.stringify(v)
 
+const cutHint = 'the reissue after a cut stream is built in src/services/providers/anthropic/streamCore/reissueRows.ts; the wire plan is in scripts/api/streamCutFixture.mjs and the debug log is the --log-file the run wrote'
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` | ${cutHint}`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the stream-cut drive exceeded 300s')
+  console.log('\nTIMEOUT — the stream-cut drive exceeded 300s; a run or the fixture (scripts/api/streamCutFixture.mjs) did not finish')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
 
 if (!existsSync(DIST)) {
-  console.log(`❌ no bundle at ${DIST}`)
+  console.log(`❌ no bundle at ${DIST}; run bun run build.ts first or pass --dist`)
   process.exit(1)
 }
 const SCRATCH = join(realpathSync(process.env.MERCURY_CONFIG_DIR ?? tmpdir()), `stream-cut-drive-${randomUUID().slice(0, 8)}`)
@@ -58,7 +59,7 @@ async function startFixture(name: string, plan: string): Promise<Fixture> {
   writeFileSync(join(dir, 'seen.jsonl'), '')
   const child = spawn(NODE, [FIXTURE, '--dir', dir, '--plan', plan, '--handoff-mark', HANDOFF_ASK_MARK, ...(TLS ? ['--tls'] : [])], { stdio: ['ignore', 'pipe', 'pipe'] })
   const port = await new Promise<number>((resolvePort, reject) => {
-    const killer = setTimeout(() => reject(new Error('fixture never printed its port')), 20_000)
+    const killer = setTimeout(() => reject(new Error('fixture never printed its port; run scripts/api/streamCutFixture.mjs by hand to see why')), 20_000)
     child.stdout!.on('data', (chunk: Buffer) => {
       const m = /PORT (\d+)/.exec(chunk.toString('utf8'))
       if (m) {

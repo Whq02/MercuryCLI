@@ -50,7 +50,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = ' — the permission engine gave the wrong verdict here; change runtimeWritePath or runtimeProcessRefusal in src/utils/permissions/runtimeProtection.ts (write paths, kill and delete commands) or the shell checks in src/utils/permissions/shellProtectedPaths/selfProtection.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : failHint}`)
 }
 function context(mode: string, rules: { allow?: string[]; deny?: string[]; ask?: string[] } = {}) {
   const state = { toolPermissionContext: {

@@ -19,6 +19,11 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
+function withVerbHint(ok: boolean, detail: string, fix: string): string {
+  return ok ? detail : `${detail} — ${fix}`
+}
+const HELD_FIX = 'the verb process must exit by itself within the bound; find what keeps it alive (an open socket to the API origin or a pending timer) on the path from the verb in src/extensions/cli.ts'
+
 const BOUND_MS = 5_000
 const SCRATCH = mkdtempSync(join(tmpdir(), 'mercury-cli-verbs-exit-'))
 const HOME = join(SCRATCH, 'home')
@@ -90,27 +95,27 @@ const shape = (o: Outcome): string => `${o.exited ? `exit ${o.code}` : 'HELD pas
 try {
   console.log('V1 add <folder> ends with its receipt')
   const v1 = await verb(['add', SRC])
-  check('add exits 0 within the bound', v1.exited && v1.code === 0, shape(v1))
-  check('…with the source receipt', v1.out.includes('added fixture-source (folder)'), v1.out.trim().split('\n')[0] ?? '')
+  check('add exits 0 within the bound', v1.exited && v1.code === 0, withVerbHint(v1.exited && v1.code === 0, shape(v1), `${HELD_FIX}; stderr: ${v1.err.trim().slice(-200)}; see addVerb`))
+  check('…with the source receipt', v1.out.includes('added fixture-source (folder)'), withVerbHint(v1.out.includes('added fixture-source (folder)'), v1.out.trim().split('\n')[0] ?? '', 'addVerb in src/extensions/cli.ts must print the added receipt line'))
 
   console.log('V2 install --yes ends with its receipt')
   const v2 = await verb(['install', 'kitchen-sink', '--yes'])
-  check('install --yes exits 0 within the bound', v2.exited && v2.code === 0, shape(v2))
-  check('…approved and on', v2.out.includes('approved and on'), v2.out.trim().split('\n').pop() ?? '')
+  check('install --yes exits 0 within the bound', v2.exited && v2.code === 0, withVerbHint(v2.exited && v2.code === 0, shape(v2), `${HELD_FIX}; stderr: ${v2.err.trim().slice(-200)}; see installVerb`))
+  check('…approved and on', v2.out.includes('approved and on'), withVerbHint(v2.out.includes('approved and on'), v2.out.trim().split('\n').pop() ?? '', 'installVerb in src/extensions/cli.ts must print the approved and on receipt'))
 
   console.log('V3 approve without --yes on a TTY-less run refuses and ends')
   const v3 = await verb(['trust', 'kitchen-sink@fixture-source'])
-  check('approve exits 1 within the bound', v3.exited && v3.code === 1, shape(v3))
-  check('…naming the scripted-approval remedy', v3.err.includes('re-run with --yes'), v3.err.trim().split('\n').pop() ?? '')
+  check('approve exits 1 within the bound', v3.exited && v3.code === 1, withVerbHint(v3.exited && v3.code === 1, shape(v3), `${HELD_FIX}; without a terminal the verb must refuse with exit 1; see approveVerb`))
+  check('…naming the scripted-approval remedy', v3.err.includes('re-run with --yes'), withVerbHint(v3.err.includes('re-run with --yes'), v3.err.trim().split('\n').pop() ?? '', 'the refusal in src/extensions/cli.ts must say re-run with --yes'))
 
   console.log('V4 uninstall --yes ends with its receipt')
   const v4 = await verb(['uninstall', 'kitchen-sink@fixture-source', '--yes'])
-  check('uninstall --yes exits 0 within the bound', v4.exited && v4.code === 0, shape(v4))
-  check('…uninstalled', v4.out.includes('uninstalled'), v4.out.trim().split('\n').pop() ?? '')
+  check('uninstall --yes exits 0 within the bound', v4.exited && v4.code === 0, withVerbHint(v4.exited && v4.code === 0, shape(v4), `${HELD_FIX}; stderr: ${v4.err.trim().slice(-200)}; see uninstallVerb`))
+  check('…uninstalled', v4.out.includes('uninstalled'), withVerbHint(v4.out.includes('uninstalled'), v4.out.trim().split('\n').pop() ?? '', 'uninstallVerb in src/extensions/cli.ts must print the uninstalled receipt'))
 
   console.log('V5 list --json ends with the parseable roster')
   const v5 = await verb(['list', '--json'])
-  check('list --json exits 0 within the bound', v5.exited && v5.code === 0, shape(v5))
+  check('list --json exits 0 within the bound', v5.exited && v5.code === 0, withVerbHint(v5.exited && v5.code === 0, shape(v5), `${HELD_FIX}; see listVerb`))
   check(
     '…with a parseable record',
     (() => {
@@ -121,11 +126,22 @@ try {
         return false
       }
     })(),
-    v5.out.trim().slice(0, 60),
+    withVerbHint(
+      (() => {
+        try {
+          JSON.parse(v5.out)
+          return true
+        } catch {
+          return false
+        }
+      })(),
+      v5.out.trim().slice(0, 60),
+      'listVerb in src/extensions/cli.ts must print only one JSON document on stdout with --json',
+    ),
   )
 
   console.log('V6 no verb touched the API origin')
-  check('the black-hole origin accepted no connection across the five verbs', accepts() === 0, `accepts=${accepts()}`)
+  check('the black-hole origin accepted no connection across the five verbs', accepts() === 0, withVerbHint(accepts() === 0, `accepts=${accepts()}`, 'an extensions verb opened a connection to ANTHROPIC_BASE_URL; find the warm-up or network call on the verb path from src/extensions/cli.ts and keep it off the extensions verbs'))
 
   console.log('V7 list --json inside a git checkout, stdin open, still ends')
   const REPO_CWD = join(SCRATCH, 'checkout')
@@ -158,8 +174,8 @@ try {
         resolvePromise({ exited: true, code, ms: Date.now() - started, out, err })
       })
     })
-    check('list --json from a git checkout with stdin open exits 0 within the bound', v7.exited && v7.code === 0, shape(v7))
-    check('…and answered the roster before ending', v7.out.includes('"extensions"'), v7.out.trim().slice(0, 60))
+    check('list --json from a git checkout with stdin open exits 0 within the bound', v7.exited && v7.code === 0, withVerbHint(v7.exited && v7.code === 0, shape(v7), `${HELD_FIX}; this leg runs inside a git repo with stdin open, so look for a git or stdin reader that stays alive; see listVerb`))
+    check('…and answered the roster before ending', v7.out.includes('"extensions"'), withVerbHint(v7.out.includes('"extensions"'), v7.out.trim().slice(0, 60), 'listVerb in src/extensions/cli.ts must print the extensions roster as JSON'))
   }
 
   console.log('P1 poison: the bound detector trips on a child that holds a socket open')
@@ -168,16 +184,16 @@ try {
     verbEnv,
     '',
   ).catch(() => null)
-  check('a socket-holding child is reported HELD past the bound', holder !== null && !holder.exited && holder.ms >= BOUND_MS, holder ? shape(holder) : 'no outcome')
-  check('…and the origin saw its connection (the detector observed a real socket)', accepts() === 1, `accepts=${accepts()}`)
+  check('a socket-holding child is reported HELD past the bound', holder !== null && !holder.exited && holder.ms >= BOUND_MS, withVerbHint(holder !== null && !holder.exited && holder.ms >= BOUND_MS, holder ? shape(holder) : 'no outcome', 'the poison child in this file must hold a socket past BOUND_MS; check the bounded helper in this file and that node is on PATH'))
+  check('…and the origin saw its connection (the detector observed a real socket)', accepts() === 1, withVerbHint(accepts() === 1, `accepts=${accepts()}`, 'the black-hole server in this file did not log exactly one accept; an earlier leg connected to the origin or the poison child never did'))
 
   console.log('P2 poison: a pre-fix bundle runs past the bound (MERCURY_BASE_DIST)')
   const baseDist = process.env.MERCURY_BASE_DIST
   if (baseDist && existsSync(join(baseDist, 'mercury.mjs'))) {
     const before = accepts()
     const p2 = await verb(['add', SRC], join(baseDist, 'mercury.mjs'))
-    check('the pre-fix bundle is HELD past the bound by its warm-up socket', !p2.exited, shape(p2))
-    check('…and it is the one that connected to the origin', accepts() === before + 1, `accepts=${accepts()}`)
+    check('the pre-fix bundle is HELD past the bound by its warm-up socket', !p2.exited, withVerbHint(!p2.exited, shape(p2), 'MERCURY_BASE_DIST must point at a dist built before the fix, so rebuild the base commit there'))
+    check('…and it is the one that connected to the origin', accepts() === before + 1, withVerbHint(accepts() === before + 1, `accepts=${accepts()}`, 'the base bundle held past the bound without connecting to the origin, so MERCURY_BASE_DIST is not the warm-up bundle this poison expects'))
   } else {
     console.log('  [SKIP] MERCURY_BASE_DIST unset — the base dist shape measured 11 s over http, 31 s over https')
   }

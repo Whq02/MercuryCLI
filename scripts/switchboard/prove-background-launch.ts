@@ -12,9 +12,11 @@ delete process.env.MERCURY_CONCOURSE_WORKER
 delete process.env.NODE_ENV
 
 let failures = 0
+let lawSource = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const lawHint = cond ? '' : ' — change ' + lawSource
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${lawHint}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const ROOT = join(import.meta.dirname, '../..')
@@ -63,6 +65,7 @@ const refusalRoads = (reason: string): boolean =>
 
 console.log('LAW 1 — the truth table: switch × role × focus × tag × setting')
 {
+  lawSource = 'evaluateLaunchAuthority in src/services/switchboard/launchAuthority.ts, or the focus, grant and revoke functions behind src/daemon/concourseWorkers.ts'
   for (const kind of KINDS) {
     const off = evaluateLaunchAuthority(kind, { roleEnvOn: true, dir: recDir, sessionId: sidA, settingOn: true, spawnSwitch: { on: false, source: 'in-session' } } as never)
     check(`${kind}: the session's own switch off refuses with the switch receipt whatever the setting says`, !off.allowed && off.cause === 'session-switch' && off.reason === spawnSwitchOffReceipt(kind), j(off))
@@ -108,6 +111,7 @@ console.log('LAW 1 — the truth table: switch × role × focus × tag × settin
 
 console.log('LAW 2 — the one leaf: off by default, read live, absent when off')
 {
+  lawSource = 'src/services/switchboard/backgroundLaunch.ts (the setting module), the backgroundSessionsLaunchCrewmates key in src/utils/config/schema.ts and src/utils/config/globalConfig.ts'
   const { enableConfigs, getGlobalConfig } = await import('../../src/utils/config.js')
   const schema = await import('../../src/utils/config/schema.js')
   enableConfigs()
@@ -139,6 +143,7 @@ console.log('LAW 2 — the one leaf: off by default, read live, absent when off'
 
 console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn")
 {
+  lawSource = 'buildConcourseWorkerSpec behind src/daemon/concourseWorkers.ts, the system prompt it appends'
   const { buildConcourseWorkerSpec } = await import('../../src/daemon/concourseWorkers.js')
   const specOf = () => buildConcourseWorkerSpec({ runnerId: 'concourse-w9', sessionId: sidA, workspaceId, modelKey: 'claude-fable-5', cwd: join(workspaceId, '.wt', 'concourse-w9') })
   const off = specOf().appendSystemPrompt ?? ''
@@ -153,6 +158,7 @@ console.log("LAW 4 — the worker's prompt sentence follows the setting at spawn
 
 console.log('LAW 5 — the /health status row says why backgrounded sessions may launch (dist)')
 {
+  lawSource = 'the spawn-switches row that node dist/mercury.mjs health --json --only spawn-switches prints (build dist first with bun run build.ts if it is missing)'
   const { existsSync, mkdirSync } = await import('node:fs')
   const { dirname } = await import('node:path')
   const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -206,6 +212,7 @@ console.log('LAW 5 — the /health status row says why backgrounded sessions may
 
 console.log('LAW 3 — the source pins')
 {
+  lawSource = 'BACKGROUND_LAUNCH_MENU_ROW in src/services/switchboard/backgroundLaunch.ts'
   const row = setting?.BACKGROUND_LAUNCH_MENU_ROW
   check("the boot-menu row descriptor: the agents group, a live toggle, off by default, keyed by the leaf", row !== undefined && row.group === 'agents' && row.kind === 'toggle' && row.defaultLabel === 'off' && row.applicationClass === 'live' && row.env === 'backgroundSessionsLaunchCrewmates' && row.label === LABEL, j(row))
 }

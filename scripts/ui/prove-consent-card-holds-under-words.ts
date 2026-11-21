@@ -15,6 +15,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  if (!cond) console.log('    to fix: the words under the card and the hint row come from src/components/permissions/CardQueuedWords.tsx, the hint text from queuedWordsHint in src/utils/cockpit/composerSeed.ts; set MERCURY_CARD_HOLD_CAPTURE_DIR to a folder to keep each frame as text')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -2,7 +2,8 @@ import { modelSupportsTemperature } from '../../src/utils/betas.ts'
 
 let failures = 0
 const check = (ok: boolean, label: string): void => {
-  console.log(`${ok ? '✓' : '✗'} ${label}`)
+  const failHint = ' — the model id should give the opposite answer; change modelSupportsTemperature in src/utils/betas.ts'
+  console.log(`${ok ? '✓' : '✗'} ${label}${ok ? '' : failHint}`)
   if (!ok) failures++
 }
 

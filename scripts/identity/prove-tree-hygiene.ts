@@ -7,11 +7,18 @@ import { basename, join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const SELF = 'scripts/identity/prove-tree-hygiene.ts'
 let failures = 0
+const hygieneHints: Record<string, string> = {
+  '§1': 'replace the machine path or account name in each listed tracked file with a placeholder such as /Users/example; for a self-test line, fix machinePathHits in scripts/identity/prove-tree-hygiene.ts',
+  '§2': 'remove or rename the listed repository reference in each tracked file so it names only a published repository, or set package.json repository.url to a github.com/owner/repo URL; for a self-test line, fix privateRepoHits in scripts/identity/prove-tree-hygiene.ts',
+  '§3': 'untrack the listed generated inventory with git rm --cached and keep it out of the tree; for a self-test line, fix inventoryHitsOf in scripts/identity/prove-tree-hygiene.ts',
+}
 const check = (name: string, cond: boolean, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''}`)
+    const hint = hygieneHints[name.slice(0, 2)]
+    const shown = hint ? (detail ? `${detail}; ${hint}` : hint) : detail
+    console.log(`  [FAIL] ${name}${shown ? ` — ${shown}` : ''}`)
   }
 }
 

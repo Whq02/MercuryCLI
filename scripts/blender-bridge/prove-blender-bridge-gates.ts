@@ -5,10 +5,15 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` | ${hint}` : ''}`)
 }
+const ARMED_FIX = 'change blenderBridgeEnabled in src/utils/blender/bridgeGates.ts'
+const CATALOG_FIX = 'change blenderBridgeToolCatalogEnabled in src/utils/blender/bridgeGates.ts'
+const PORT_FIX = 'change blenderBridgePort in src/utils/blender/bridgeGates.ts'
+const OVERRIDE_FIX = 'change blenderBridgeTokenOverride or blenderBridgeAddonDirOverride in src/utils/blender/bridgeGates.ts'
+const ROW_FIX = 'change the MERCURY_BLENDER* rows in src/substrate/flags/ide.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -45,11 +50,11 @@ writeFileSync(pinnedBlender, '#!/bin/sh\n')
 section('1. the master polarity — the bridge rides MERCURY_BLENDER (the ruling)')
 {
   resetEnv()
-  check('flag unset ⇒ disarmed', gates.blenderBridgeEnabled() === false)
+  check('flag unset ⇒ disarmed', gates.blenderBridgeEnabled() === false, '', ARMED_FIX)
   process.env.MERCURY_BLENDER = '1'
-  check('MERCURY_BLENDER=1 ⇒ armed (no second switch exists)', gates.blenderBridgeEnabled() === true)
+  check('MERCURY_BLENDER=1 ⇒ armed (no second switch exists)', gates.blenderBridgeEnabled() === true, '', ARMED_FIX)
   process.env.MERCURY_BLENDER = '0'
-  check("'0' is not the opt-in spelling ⇒ disarmed", gates.blenderBridgeEnabled() === false)
+  check("'0' is not the opt-in spelling ⇒ disarmed", gates.blenderBridgeEnabled() === false, '', ARMED_FIX)
 }
 
 section('2. the catalog gate — armed AND (a .blend context OR a located Blender), each cached')
@@ -58,17 +63,17 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
   process.env.MERCURY_BLENDER_BIN = pinnedBlender
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
-    check('OFF beside a .blend with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false)
+    check('OFF beside a .blend with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false, '', CATALOG_FIX)
   })
   process.env.MERCURY_BLENDER = '1'
   process.env.MERCURY_BLENDER_BIN = noBlender
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
-    check('armed beside a .blend, no Blender located ⇒ tool registers', gates.blenderBridgeToolCatalogEnabled() === true)
+    check('armed beside a .blend, no Blender located ⇒ tool registers', gates.blenderBridgeToolCatalogEnabled() === true, '', CATALOG_FIX)
   })
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(bare, async () => {
-    check('armed in a blend-less dir, no Blender located ⇒ no ghost tool', gates.blenderBridgeToolCatalogEnabled() === false)
+    check('armed in a blend-less dir, no Blender located ⇒ no ghost tool', gates.blenderBridgeToolCatalogEnabled() === false, '', CATALOG_FIX)
   })
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(proj, async () => {
@@ -78,6 +83,8 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
     check(
       'the context cache is cwd-keyed (a .blend hit never leaks to a bare dir)',
       gates.blenderBridgeToolCatalogEnabled() === false,
+      '',
+      CATALOG_FIX,
     )
   })
   process.env.MERCURY_BLENDER_BIN = pinnedBlender
@@ -86,6 +93,8 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
     check(
       'armed in a blend-less dir with a Blender located ⇒ tool registers (the first .blend can be made)',
       gates.blenderBridgeToolCatalogEnabled() === true,
+      '',
+      CATALOG_FIX,
     )
   })
   process.env.MERCURY_BLENDER_BIN = noBlender
@@ -93,6 +102,8 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
     check(
       'the located answer is held for its 30 s (a catalogue read does not walk the census again)',
       gates.blenderBridgeToolCatalogEnabled() === true,
+      '',
+      CATALOG_FIX,
     )
   })
   const realNow = Date.now
@@ -102,6 +113,8 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
       check(
         'past its 30 s the located answer is read again (a Blender that went away is seen)',
         gates.blenderBridgeToolCatalogEnabled() === false,
+        '',
+        CATALOG_FIX,
       )
     })
     process.env.MERCURY_BLENDER_BIN = pinnedBlender
@@ -110,6 +123,8 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
       check(
         'a Blender located mid-session joins at the next read past the 30 s',
         gates.blenderBridgeToolCatalogEnabled() === true,
+        '',
+        CATALOG_FIX,
       )
     })
   } finally {
@@ -118,7 +133,7 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
   delete process.env.MERCURY_BLENDER
   gates._resetBlenderBridgeContextCacheForTesting()
   await runWithCwdOverride(bare, async () => {
-    check('OFF in a blend-less dir with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false)
+    check('OFF in a blend-less dir with a Blender located ⇒ no tool', gates.blenderBridgeToolCatalogEnabled() === false, '', CATALOG_FIX)
   })
   resetEnv()
   gates._resetBlenderBridgeContextCacheForTesting()
@@ -127,12 +142,12 @@ section('2. the catalog gate — armed AND (a .blend context OR a located Blende
 section('3. the port law — the vulcanPort grammar')
 {
   resetEnv()
-  check(`default ${BLENDER_BRIDGE_DEFAULT_PORT}`, gates.blenderBridgePort() === BLENDER_BRIDGE_DEFAULT_PORT)
+  check(`default ${BLENDER_BRIDGE_DEFAULT_PORT}`, gates.blenderBridgePort() === BLENDER_BRIDGE_DEFAULT_PORT, '', PORT_FIX)
   process.env.MERCURY_BLENDER_BRIDGE_PORT = '7124'
-  check('a lawful override wins', gates.blenderBridgePort() === 7124)
+  check('a lawful override wins', gates.blenderBridgePort() === 7124, '', PORT_FIX)
   for (const bad of ['0', '65536', '-5', 'abc', '60.5', ' ']) {
     process.env.MERCURY_BLENDER_BRIDGE_PORT = bad
-    check(`invalid '${bad}' falls back to the default`, gates.blenderBridgePort() === BLENDER_BRIDGE_DEFAULT_PORT)
+    check(`invalid '${bad}' falls back to the default`, gates.blenderBridgePort() === BLENDER_BRIDGE_DEFAULT_PORT, '', PORT_FIX)
   }
   resetEnv()
 }
@@ -140,14 +155,14 @@ section('3. the port law — the vulcanPort grammar')
 section('4. the override seams — token + addon-dir')
 {
   resetEnv()
-  check('token unset ⇒ undefined (the per-install file road)', gates.blenderBridgeTokenOverride() === undefined)
+  check('token unset ⇒ undefined (the per-install file road)', gates.blenderBridgeTokenOverride() === undefined, '', OVERRIDE_FIX)
   process.env.MERCURY_BLENDER_BRIDGE_TOKEN = '   '
-  check('token whitespace ⇒ undefined', gates.blenderBridgeTokenOverride() === undefined)
+  check('token whitespace ⇒ undefined', gates.blenderBridgeTokenOverride() === undefined, '', OVERRIDE_FIX)
   process.env.MERCURY_BLENDER_BRIDGE_TOKEN = ' tok-override '
-  check('a token value wins, trimmed', gates.blenderBridgeTokenOverride() === 'tok-override')
-  check('addon-dir unset ⇒ undefined (the ladder road)', gates.blenderBridgeAddonDirOverride() === undefined)
+  check('a token value wins, trimmed', gates.blenderBridgeTokenOverride() === 'tok-override', '', OVERRIDE_FIX)
+  check('addon-dir unset ⇒ undefined (the ladder road)', gates.blenderBridgeAddonDirOverride() === undefined, '', OVERRIDE_FIX)
   process.env.MERCURY_BLENDER_BRIDGE_ADDON_DIR = ' /pin/addons '
-  check('an addon-dir pin wins, trimmed', gates.blenderBridgeAddonDirOverride() === '/pin/addons')
+  check('an addon-dir pin wins, trimmed', gates.blenderBridgeAddonDirOverride() === '/pin/addons', '', OVERRIDE_FIX)
   resetEnv()
 }
 
@@ -157,6 +172,8 @@ section('5. registry census — the rows + the ruling’s premise')
   check(
     'PORT row: value-kind, gates-module consumer, default named',
     port?.kind === 'value' && port.consumer === 'src/utils/blender/bridgeGates.ts' && port.off === '6012',
+    '',
+    ROW_FIX,
   )
   const token = getFlagSpec('MERCURY_BLENDER_BRIDGE_TOKEN')
   check(
@@ -165,6 +182,8 @@ section('5. registry census — the rows + the ruling’s premise')
       token.consumer === 'src/utils/blender/bridgeGates.ts' &&
       /never logged/.test(token.summary) &&
       /per-INSTALL/.test(token.summary),
+    '',
+    ROW_FIX,
   )
   const addonDir = getFlagSpec('MERCURY_BLENDER_BRIDGE_ADDON_DIR')
   check(
@@ -173,6 +192,8 @@ section('5. registry census — the rows + the ruling’s premise')
       addonDir.consumer === 'src/utils/blender/bridgeGates.ts' &&
       /BLENDER_USER_SCRIPTS/.test(addonDir.off ?? '') &&
       /BLENDER_USER_RESOURCES/.test(addonDir.off ?? ''),
+    '',
+    ROW_FIX,
   )
   const master = getFlagSpec('MERCURY_BLENDER')
   const policySentence =
@@ -181,12 +202,14 @@ section('5. registry census — the rows + the ruling’s premise')
     "the ruling's premise pinned: MERCURY_BLENDER stays opt-in ADDITIVE (a tier flip must re-argue the one-switch ruling)",
     master?.kind === 'opt-in' && master.tier === 'additive',
     `kind=${master?.kind} tier=${master?.tier}`,
+    ROW_FIX + ', or re-argue the one-switch ruling before changing its kind or tier',
   )
   check(
     'MERCURY_BLENDER flag summary carries the windowless policy sentence',
     (master?.summary ?? '').includes(policySentence) &&
       !(master?.summary ?? '').includes('never installs, launches, or enables'),
     master?.summary ?? '',
+    ROW_FIX + ' (the MERCURY_BLENDER summary must hold the windowless policy sentence)',
   )
   const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.js')
   const menuRow = STARTUP_MENU.find(r => r.env === 'MERCURY_BLENDER')
@@ -195,6 +218,8 @@ section('5. registry census — the rows + the ruling’s premise')
     (menuRow?.detail?.on ?? []).some(l =>
       l.startsWith('the `Blender` tool joins the catalog beside .blend files, or anywhere Blender is located — '),
     ),
+    '',
+    'change the MERCURY_BLENDER row in STARTUP_MENU in src/substrate/startupMenu.ts so one detail line starts with the catalog-gate sentence',
   )
 }
 

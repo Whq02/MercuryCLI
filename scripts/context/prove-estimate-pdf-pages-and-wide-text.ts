@@ -13,7 +13,7 @@ const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — change estimateContentTokens in src/services/roughTokenEstimation.ts (PDF page, CJK and emoji estimates), or for the last check detectFixedPrefixOverflow in src/services/compact/autoCompact.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

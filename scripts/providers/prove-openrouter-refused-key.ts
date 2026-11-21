@@ -23,16 +23,29 @@ for (const name of ['ANTHROPIC_BASE_URL', 'MERCURY_OPENAI_AUTH_BASE', 'MERCURY_O
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const SECTION_FIX: Record<string, string> = {
+  '§0': 'change resolveProviderUsability in src/services/providers/providerUsability.ts, deriveFamilySlotGroups in src/services/providers/accountSlots.ts or getOpenrouterAvailability in src/services/providers/openrouter/openrouterCatalogue.ts',
+  '§1': 'change compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts, openrouterLaneProfile in src/services/providers/openrouter/openrouterCallModel.ts or the refusal record in src/services/providers/openrouter/openrouterAccounts.ts',
+  '§2': 'change the surface that read the refusal wrongly: providerUsability.ts, accountSlots.ts, openrouter/openrouterCatalogue.ts or providerUsage.ts under src/services/providers/, or loginsFamilyCounts in src/components/BootLoginsScreen.tsx',
+  '§3': 'change how the stored refusal is matched to the key fingerprint in src/services/providers/openrouter/openrouterAccounts.ts and src/utils/accounts/providerSecrets.ts (writeStoredOpenrouterApiKey)',
+  '§4': 'change onResponseHeaders in openrouterLaneProfile (src/services/providers/openrouter/openrouterCallModel.ts) or refreshOpenrouterKeyUsage in src/services/providers/openrouter/openrouterUsageState.ts',
+  '§4b': 'change extraHeaders and streamTransport in openrouterLaneProfile (src/services/providers/openrouter/openrouterCallModel.ts), src/services/providers/openrouter/openrouterResponsesTransport.ts or src/services/providers/openaicompat/compatChatClient.ts',
+  '§5': 'change storeOpenrouterApiKeyLogin in src/services/providers/openrouter/openrouterLogin.ts',
+}
+let sectionKey = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fix = SECTION_FIX[sectionKey]
+  const failureText = fix === undefined ? detail : (detail ? detail + ' | ' : '') + 'to fix: ' + fix
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ` — ${failureText}` : ''}`)
 }
 function section(t: string): void {
+  sectionKey = t.split(' ')[0] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the OpenRouter refused-key proof exceeded 180s')
+  console.log('\n❌ TIMEOUT — the OpenRouter refused-key proof exceeded 180s; the last section header printed above is the step that hung, and the loopback fixture is the Bun.serve block in scripts/providers/prove-openrouter-refused-key.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

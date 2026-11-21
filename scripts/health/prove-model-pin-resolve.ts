@@ -10,8 +10,8 @@ delete process.env.MERCURY_MODEL
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', failHint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && failHint ? ' — ' + failHint : ''}`)
   if (!cond) failures++
 }
 
@@ -31,6 +31,7 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'so
     "an alias pin the session resolves from reads OK ('= settings pin')",
     row.status === 'ok' && row.evidence.includes('= settings pin'),
     `${row.status}: ${row.evidence}`,
+    'change modelCheck in src/services/health/sections/settings/model.ts so a pin that resolves (parseUserSpecifiedModel) to the session model reads ok with = settings pin',
   )
 }
 
@@ -42,11 +43,13 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ engine: { model: 'so
     'a real drift still reads as drift (the override outruns the pin)',
     row.status === 'info' && row.evidence.includes('overrides the pin'),
     `${row.status}: ${row.evidence}`,
+    'change modelCheck in src/services/health/sections/settings/model.ts so a session model that differs from the resolved pin reads info with the overrides-the-pin evidence',
   )
   check(
     "… and the drift line names the pin's resolution",
     row.evidence.includes('resolves to'),
     row.evidence,
+    'change the info evidence in modelCheck (src/services/health/sections/settings/model.ts) to include (resolves to <model>) when the pin is an alias',
   )
   setEngineModelOverride(null)
 }
