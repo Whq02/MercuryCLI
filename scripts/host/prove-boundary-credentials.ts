@@ -53,7 +53,7 @@ if (childAt !== -1) {
   const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
   const record = (id: string) => ({ id, name: 'Credential boundary', recipe: HOST_RECIPES[0]!.id, recipeRow: HOST_RECIPES[0]!, price: 0, status: 'QUEUED', startedAt: new Date().toISOString(), bankFolder: join(home, 'bank'), sessionId: 'credential-session' })
   const child = async (id: string, cwd = home) => {
-    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', id], { cwd, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' }, stdio: ['ignore', 'pipe', 'pipe'] })
+    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', id], { cwd, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, stdio: ['ignore', 'pipe', 'pipe'] })
     let out = ''; let err = ''
     worker.stdout.on('data', c => { out += c }); worker.stderr.on('data', c => { err += c })
     const timer = setTimeout(() => worker.kill('SIGTERM'), 15000)
