@@ -22,7 +22,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const secrets = await import('../../src/services/providers/providerSecrets.ts')
+  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
   const { hostDirectory, hostRecords, writeHostRecord } = await import('../../src/services/host/store.ts')
   const { runModelDoor } = await import('../../src/services/host/door.ts')
   secrets.writeStoredRunpodApiKey(rp.key)

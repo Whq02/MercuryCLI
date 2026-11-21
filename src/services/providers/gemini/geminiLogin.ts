@@ -1,6 +1,6 @@
 import { KEY_PAGES } from '../../../components/loginFamilyRows.js'
 import { errorMessageWithCause, getErrnoCode } from '../../../utils/errors.js'
-import { credentialFileRestorer, dropCredentialFileLeftEmpty, probeCredentialJson, readStoredGeminiApiKey, signInRecordRestorer, writeStoredGeminiApiKey } from '../providerSecrets.js'
+import { credentialFileRestorer, dropCredentialFileLeftEmpty, probeCredentialJson, readStoredGeminiApiKey, signInRecordRestorer, writeStoredGeminiApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { geminiAuthPathForDisplay, geminiOauthConnected, geminiPlanConnected, geminiPlanFacts, readPreferredGeminiSource, resolveGeminiAccount, resolveGeminiApiKey, writePreferredGeminiSource, type GeminiSourceKind } from './geminiAccounts.js'
 import { geminiPlanTierWords } from './geminiPlanAccess.js'
 import { geminiGenerateModels, refreshGeminiCatalogue, type GeminiCatalogueSnapshot } from './geminiCatalogue.js'

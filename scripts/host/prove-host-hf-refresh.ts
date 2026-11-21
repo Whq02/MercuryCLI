@@ -27,7 +27,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 try {
   const { writeHuggingfaceTokens, huggingfaceStoredTokens, refreshHuggingfaceTokens } = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
   const { vendorClient } = await import('../../src/services/host/vendors/client.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   writeHuggingfaceTokens({ accessToken: 'fixture-expired', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() - 1 })
   assert.deepEqual(await vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).pods(), [])
   assert.equal(refreshes, 1)

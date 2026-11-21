@@ -18,7 +18,7 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
 const { setAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
-const auth = await import(join(SRC, 'utils/auth.ts'))
+const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
 const redaction = await import(join(SRC, 'utils/redactSecrets.ts'))
 
 let total = 0

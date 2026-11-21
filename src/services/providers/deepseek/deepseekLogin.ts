@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredDeepseekApiKey } from '../providerSecrets.js'
+import { writeStoredDeepseekApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { fetchDeepseekBalance } from './deepseekUsageState.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

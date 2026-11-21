@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredLocalApiKey } from '../providerSecrets.js'
+import { readStoredLocalApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { tensorFoldHostKey, tensorFoldHostRoot } from './tensorfoldHosts.js'
 import { passedOver } from '../../../utils/passedOver.js'

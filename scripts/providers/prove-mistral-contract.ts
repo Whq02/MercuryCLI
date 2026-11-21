@@ -20,7 +20,7 @@ const { MISTRAL_DISPLAY_PINS, mistralDisplayPin, isMistralChatModelId, isMistral
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { effortVocabularyFor } = await import('../../src/utils/model/capabilities.ts')
 const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
-const { credentialEnvNames } = await import('../../src/services/providers/providerSecrets.ts')
+const { credentialEnvNames } = await import('../../src/utils/accounts/providerSecrets.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 const { __resetMistralUsageForTest, mistralObservedUsage } = await import('../../src/services/providers/mistral/mistralUsageState.ts')
 let count = 0

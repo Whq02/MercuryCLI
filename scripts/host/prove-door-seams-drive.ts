@@ -198,7 +198,7 @@ try {
   }
   if (!only || only === 'manual-endpoint') {
     const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-    const { writeStoredCompatApiKey, readStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+    const { writeStoredCompatApiKey, readStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
     const { call: modelCall } = await import('../../src/commands/model/mercuryModel.tsx')
     for (const columns of [120, 80]) {
       const name = 'manual-offline'

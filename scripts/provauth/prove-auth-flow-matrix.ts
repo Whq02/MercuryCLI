@@ -70,9 +70,8 @@ const { compatFaultToTypedError } = await import(
 const { loginFamilyRows, loginFamilyFocusFor, loginFamilyInitialFocus } = await import(
   '../../src/components/loginFamilyRows.js'
 )
-const { isAnthropicOAuthSignInExpired, clearOAuthTokenCache } = await import(
-  '../../src/utils/auth.js'
-)
+const { isAnthropicOAuthSignInExpired } = await import('../../src/utils/auth.js')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
 const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')
 const openaiAcc = await import('../../src/services/providers/openai/openaiAccounts.js')
 const moonshot = await import('../../src/services/providers/moonshot/moonshotAccounts.js')
@@ -80,7 +79,7 @@ const huggingface = await import(
   '../../src/services/providers/huggingface/huggingfaceAccounts.js'
 )
 const { writeStoredZaiApiKey, readStoredZaiApiKey } = await import(
-  '../../src/services/providers/providerSecrets.js'
+  '../../src/utils/accounts/providerSecrets.js'
 )
 
 const SEAT_ABSENT_REASON = 'no OpenAI account — /logins openai connects one'
@@ -1797,7 +1796,7 @@ section('§11 the keyed search tier: Brave · Tavily — doors, refusals, quota,
   const { braveSearch, resolveBraveSearchApiKey } = await import('../../src/services/search/brave.js')
   const { tavilySearch, resolveTavilyApiKey } = await import('../../src/services/search/tavily.js')
   const { writeStoredBraveSearchApiKey, writeStoredTavilyApiKey } = await import(
-    '../../src/services/providers/providerSecrets.js'
+    '../../src/utils/accounts/providerSecrets.js'
   )
   const request = { query: 'matrix fixture' } as never
 

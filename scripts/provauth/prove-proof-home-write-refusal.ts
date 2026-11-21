@@ -29,7 +29,7 @@ type Outcome = {
 }
 
 const childSource = `
-const secrets = await import(${JSON.stringify(join(ROOT, 'src/services/providers/providerSecrets.ts'))})
+const secrets = await import(${JSON.stringify(join(ROOT, 'src/utils/accounts/providerSecrets.ts'))})
 const { storeHuggingfaceTokenLogin } = await import(${JSON.stringify(join(ROOT, 'src/services/providers/huggingface/huggingfaceLogin.ts'))})
 let proofProcessName = () => undefined
 try { ({ proofProcessName } = await import(${JSON.stringify(join(ROOT, 'src/utils/proofHomeGuard.ts'))})) } catch {}

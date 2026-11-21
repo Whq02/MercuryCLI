@@ -76,7 +76,7 @@ globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
 const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
 enableConfigs()
 const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
-const secrets = await import(`${root}/src/services/providers/providerSecrets.ts`)
+const secrets = await import(`${root}/src/utils/accounts/providerSecrets.ts`)
 const providerAuth = existsSync(`${root}/src/cli/handlers/providerAuth.ts`)
   ? await import(`${root}/src/cli/handlers/providerAuth.ts`)
   : undefined

@@ -24,7 +24,7 @@ try {
   const { pinnedWeightManifest } = await import('../../src/services/host/keptWeights.ts')
   const { RunpodClient } = await import('../../src/services/host/runpod.ts')
   const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { keptVolumes } = await import('../../src/services/host/volumes.ts')
   writeStoredRunpodApiKey(rp.key)
   const shipped = currentHostRecipes().filter((row: any) => row.engine === 'tensorfold')

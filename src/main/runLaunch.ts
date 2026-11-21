@@ -22,7 +22,7 @@ import { doesEnterpriseMcpConfigExist, getMcpServerSignature, getMercuryMcpConfi
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getTools } from '../tools.js'
 import type { AgentDefinition } from '../types/agent.js'
-import { validateForceLoginOrg } from '../utils/auth.js'
+import { validateForceLoginOrg } from '../services/auth/oauthLifecycle.js'
 import { startBackgroundHousekeeping } from '../services/backgroundHousekeeping.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'

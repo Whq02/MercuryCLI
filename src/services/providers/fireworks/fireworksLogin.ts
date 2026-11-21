@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredFireworksApiKey } from '../providerSecrets.js'
+import { writeStoredFireworksApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { fireworksApiBase, fireworksEnvKey } from './fireworksAccounts.js'
 import { fetchFireworksLiveModels, FireworksCatalogueHttpError } from './fireworksCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

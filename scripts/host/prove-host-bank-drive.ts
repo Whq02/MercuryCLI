@@ -73,7 +73,7 @@ try {
   const { hostRunner } = await import('../../src/services/host/ssh.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { currentHostRecipes } = await import('../../src/services/host/recipesFile.ts')
   const bank = await import('../../src/services/host/bank.ts')
   const volumes = await import('../../src/services/host/volumes.ts')

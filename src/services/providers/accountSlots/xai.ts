@@ -1,5 +1,5 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
-import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../providerSecrets.js'
+import { readStoredXaiApiKey, readStoredXaiManagementApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { keyLaneSlots } from './keyLane.js'
 import { xaiStoredTokens, readPreferredXaiSource } from '../xai/xaiOauth.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

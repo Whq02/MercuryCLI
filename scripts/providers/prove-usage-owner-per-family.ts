@@ -361,7 +361,7 @@ section('§8 the first-party subscription: the extra-usage figure rides the one 
     join(scratch, '.credentials.json'),
     JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access-live', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference', 'user:profile'], subscriptionType: 'max' } }),
   )
-  const { dropCredentialMemos } = await import('../../src/utils/auth.js')
+  const { dropCredentialMemos } = await import('../../src/services/auth/oauthLifecycle.js')
   const { resetWalletEntriesMemo } = await import('../../src/services/wallet/wallet.js')
   const limits = await import('../../src/services/anthropicLimits.ts')
   const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')

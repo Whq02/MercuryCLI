@@ -26,7 +26,7 @@ const section = (t: string): void => {
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { getSecureStorage } = await import('../../src/utils/secureStorage/index.ts')
 getSecureStorage().update({
   claudeAiOauth: {

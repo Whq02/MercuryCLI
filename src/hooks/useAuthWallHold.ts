@@ -5,7 +5,7 @@ import { credentialWallLineForModel } from '../services/providers/credentialWall
 import { useSetAppStateMaybe } from '../state/AppState.js'
 import type { Message } from '../types/message.js'
 import { signInLedgerEpoch } from '../utils/accounts/signInLedger.js'
-import { invalidateOnDiskChange } from '../utils/auth.js'
+import { invalidateOnDiskChange } from '../services/auth/oauthLifecycle.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage } from '../utils/errors.js'
 import { promptBehindAuthWall, type AuthWallHold } from '../utils/messages/authWallHold.js'

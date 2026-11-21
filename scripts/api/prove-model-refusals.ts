@@ -103,7 +103,7 @@ check('a model-specific 403 is not called a sign-in failure', getAssistantMessag
 check('a key-scoped model 403 paints the model refusal rather than asking for sign-in', textOf(getAssistantMessageFromError(errorFor(403, 'permission_error', `This API key is not allowed to use ${MODEL}`), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (403): Opus 5.5 is not served on Anthropic API key (the endpoint answered 403) — pick a listed model with /model.`)
 check('revoked credentials keep their exact row', textOf(getAssistantMessageFromError(errorFor(401, 'authentication_error', 'OAuth access token has been revoked'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX}: Anthropic sign-in expired — switch providers (/model) or reconnect (/logins anthropic)`)
 check('tool pairing keeps its exact row', textOf(getAssistantMessageFromError(errorFor(400, 'invalid_request_error', '`tool_use` ids were found without `tool_result` blocks immediately after'), MODEL)) === `${API_ERROR_MESSAGE_PREFIX} (400): a tool-use concurrency problem left a tool use without its result. Run /rewind to recover from an earlier point.`)
-const auth = await import('../../src/utils/auth.js')
+const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
 delete process.env.ANTHROPIC_API_KEY
 writeFileSync(join(home, '.credentials.json'), JSON.stringify({ claudeAiOauth: { accessToken: 'fixture-access', refreshToken: 'fixture-refresh', expiresAt: Date.now() + 3_600_000, scopes: ['user:inference'], subscriptionType: 'max', rateLimitTier: null } }))
 auth.clearOAuthTokenCache()

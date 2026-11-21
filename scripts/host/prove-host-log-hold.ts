@@ -18,7 +18,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 let mounted: Awaited<ReturnType<typeof mountOffscreen>> | undefined
 try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { writeHostRecord } = await import('../../src/services/host/store.ts')
   const React = await import('react')
   const { LlmHostDialog } = await import('../../src/components/LlmHostDialog.tsx')

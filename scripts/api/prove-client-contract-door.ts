@@ -156,7 +156,7 @@ process.env.NODE_ENV = 'test'
 }
 
 {
-  const auth = await import('../../src/utils/auth.js')
+  const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
   const { SUBSCRIPTION_OAUTH_SCOPES } = await import('../../src/constants/oauth.js')
   auth.saveOAuthTokensIfNeeded({
     accessToken: 'at-fixture', refreshToken: 'rt-fixture', expiresAt: Date.now() + 3_600_000,

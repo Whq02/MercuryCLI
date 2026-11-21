@@ -1,5 +1,5 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
-import { writeStoredMeliousApiKey } from '../providerSecrets.js'
+import { writeStoredMeliousApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { meliousApiBase, meliousEnvKey } from './meliousAccounts.js'
 import { fetchMeliousLiveModels, MeliousCatalogueHttpError, refreshMeliousCatalogue } from './meliousCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

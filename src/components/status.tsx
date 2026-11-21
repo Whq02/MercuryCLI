@@ -2,7 +2,7 @@ import React from 'react'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { Text } from '../ink.js'
-import { getAccountInformation } from '../utils/auth.js'
+import { getAccountInformation } from '../services/auth/oauthLifecycle.js'
 
 import { getMTLSConfig, getMTLSReadErrors, mtlsReadFailureSentence } from '../utils/mtls.js'
 import { extraCaCertsStatusLine } from '../utils/caCerts.js'

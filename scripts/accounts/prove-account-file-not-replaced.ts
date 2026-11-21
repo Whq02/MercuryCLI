@@ -435,7 +435,7 @@ console.log('\na Gemini key that Google refuses — nothing of it stays: no key,
   if (process.platform !== 'darwin' || !POSIX_MODES) skip('the restore that cannot be written', 'a file that takes no rename is made here with the immutable flag of macOS')
   else {
     const held = runIn(FAMILIES[0]!, `
-      const ps = await import(${JSON.stringify(join(SRC, 'services/providers/providerSecrets.ts'))})
+      const ps = await import(${JSON.stringify(join(SRC, 'utils/accounts/providerSecrets.ts'))})
       const child = await import('node:child_process')
       fs.mkdirSync(dir, { recursive: true })
       fs.writeFileSync(file, FULL, { mode: 0o600 })

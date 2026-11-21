@@ -50,7 +50,7 @@ let checks = 0
 function check(name: string, truth: unknown) { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
 try {
   const accounts = await import('../../src/services/providers/huggingface/huggingfaceAccounts.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const start = await accounts.startHuggingfaceDeviceAuth()
   const wanted = 'openid profile inference-api write-endpoints'
   check('fresh registration requests exactly identity, inference-api and write-endpoints', requests.find(row => row.path === '/oauth/register')?.scope === wanted)

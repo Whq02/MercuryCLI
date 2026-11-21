@@ -31,7 +31,7 @@ const REAL = 'AIzaSyA0000000000000000000000000000000'
 
 const { guardLoginDriverWrite, configHomeIsReal, defaultConfigHome } = await import('../lib/loginDriverGuard.ts')
 const { looksLikeProofFixtureKey, deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
-const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredGeminiApiKey, readStoredGeminiApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 
 {
   const { homedir } = await import('node:os')

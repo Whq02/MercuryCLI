@@ -70,7 +70,7 @@ function readAuth(): AuthFile {
 function writeAuth(file: AuthFile): void {
   refuseProofWriteIntoAccountStore(getAuthConfigHomeDir(), 'the auth file .nous-auth.json')
   mkdirSync(getAuthConfigHomeDir(), { recursive: true })
-  const { credentialFileUnwritten, credentialJsonToWriteOver } = require('../providerSecrets.js') as typeof import('../providerSecrets.js')
+  const { credentialFileUnwritten, credentialJsonToWriteOver } = require('../../../utils/accounts/providerSecrets.js') as typeof import('../../../utils/accounts/providerSecrets.js')
   const path = nousAuthPathForDisplay()
   credentialJsonToWriteOver('The Nous auth file', 'nous-auth', path)
   try {

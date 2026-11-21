@@ -381,7 +381,7 @@ if (POSIX_MODES) {
     const { PassThrough } = await import('node:stream')
     const { createElement } = await import('react')
     process.env.NODE_ENV = 'test'
-    const authPath = ${JSON.stringify(join(SRC, 'utils/auth.ts'))}
+    const authPath = ${JSON.stringify(join(SRC, 'services/auth/oauthLifecycle.ts'))}
     const realAuth = await import(authPath)
     mock.module(authPath, () => ({
       ...realAuth,

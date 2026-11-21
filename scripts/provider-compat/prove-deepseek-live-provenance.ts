@@ -47,7 +47,7 @@ const catalogue = await import('../../src/services/providers/deepseek/deepseekCa
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
 const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
 
 type LiveIds = (env?: NodeJS.ProcessEnv) => ReadonlySet<string>

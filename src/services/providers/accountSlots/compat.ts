@@ -1,7 +1,7 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { keyLaneSlots } from './keyLane.js'
-import { readStoredCompatApiKey } from '../providerSecrets.js'
+import { readStoredCompatApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 
 export function compatSlots(reads: AccountSlotReads): AccountSlot[] {
