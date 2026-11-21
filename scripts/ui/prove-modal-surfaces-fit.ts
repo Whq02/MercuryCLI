@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -92,7 +93,7 @@ if (driver.kind !== 'posix-pty') {
 
   {
     const r = capture('logins', [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/logins', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, mark: 'top', data: '' },
@@ -108,7 +109,7 @@ if (driver.kind !== 'posix-pty') {
   }
   {
     const r = capture('logins-wrap', [
-      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 2, data: '/logins' },
       { requireAwait: true, awaitText: '❯ /logins', awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · logins', awaitStableTicks: 3, data: '' },
@@ -124,7 +125,7 @@ if (driver.kind !== 'posix-pty') {
   }
   {
     const r = capture('help', [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/help', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Shortcuts', awaitStableTicks: 3, mark: 'open', data: '' },

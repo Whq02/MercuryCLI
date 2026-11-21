@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { homedir, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = resolve(import.meta.dir, '..', '..')
 process.chdir(REPO)
@@ -358,7 +359,7 @@ if (!existsSync(BIN)) {
     'bug',
     HOME_BUG,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/bug the composer ate my second /model', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, mark: 'words', data: '\r' },
@@ -428,7 +429,7 @@ if (!existsSync(BIN)) {
     'esc',
     HOME_ESC,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/bug it froze on the second model switch', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },
@@ -454,7 +455,7 @@ if (!existsSync(BIN)) {
     'pick',
     HOME_PICK,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/feedback', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { atTick: 150, requireAwait: true, awaitText: 'Provider or model report', awaitStableTicks: 3, mark: 'chooser', data: '\u001b' },
@@ -479,7 +480,7 @@ if (!existsSync(BIN)) {
     'road',
     HOME_ROAD,
     [
-      { atTick: 60, awaitText: '↑↓ choose', minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: WARM_TICKS, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, data: '/bug the jump pill never paints after PgUp', awaitText: 'Type a prompt', minTick: 5 },
       { afterPrevTicks: 4, data: '\r' },
       { atTick: 150, requireAwait: true, awaitText: 'Steps to reproduce', awaitStableTicks: 3, awaitSettleTicks: 2, data: '\r' },

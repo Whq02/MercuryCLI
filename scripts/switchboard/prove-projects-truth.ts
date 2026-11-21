@@ -125,8 +125,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   rmSync(transcript)
   check('T6 a sidecar alone offers no Continue session', scanBootCardFacts(project).cwdProject === null && projectIdentity(project).newestChat === null && parkedSessionsOf(project).length === 0 && projectChatCount(project) === 0)
   const workers = await import('../../src/daemon/concourseWorkers.ts')
+  const realWorkers = { ...workers }
   let lookups = 0
-  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...workers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
+  mock.module('../../src/daemon/concourseWorkers.ts', () => ({ ...realWorkers, sessionOwnedByLiveWorker: () => { lookups++; throw new Error('invalid resume reached the worker registry') } }))
   const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
   for (const id of [`${sessionId}.receipts`, 'not-a-session', '']) {
     try {
@@ -137,7 +138,99 @@ function check(label: string, cond: boolean, detail = ''): void {
     }
   }
   check('T6 an invalid resume never consults or launches a runner', lookups === 0)
+  mock.module('../../src/daemon/concourseWorkers.ts', () => realWorkers)
   mock.restore()
+}
+
+{
+  const { mock } = await import('bun:test')
+  const { mkdirSync, readFileSync, realpathSync } = await import('node:fs')
+  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const state = await import('../../src/bootstrap/state.ts')
+  const slot = await import('../../src/services/engine-connector/focusedConnector.ts')
+  const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
+  const ensure = await import('../../src/services/switchboard/ensureDaemon.ts')
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'projects-truth-folded-')))
+  const sessionFolder = join(root, 'folded-target-project')
+  const processFolder = join(root, 'other-process-folder')
+  mkdirSync(sessionFolder, { recursive: true })
+  mkdirSync(processFolder, { recursive: true })
+  state.setCwdState(processFolder)
+  const store = getProjectDir(sessionFolder)
+  mkdirSync(store, { recursive: true })
+  const foldedSid = '77777777-2222-4333-8444-555555555555'
+  const foldedFile = join(store, `${foldedSid}.jsonl`)
+  const queue = new QueuePart()
+  const land = async (entry: Record<string, unknown>): Promise<void> => {
+    const done = queue.enqueueWrite(foldedFile, entry as never)
+    await queue.flush()
+    await done
+  }
+  const ts = new Date().toISOString()
+  await land({ type: 'user', uuid: 'h-u1', parentUuid: null, sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'opening prompt in target folder' } })
+  await land({ type: 'assistant', uuid: 'h-a1', parentUuid: 'h-u1', sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'first reply' }] } })
+  for (let i = 0; i < 6; i++) {
+    await land({ type: 'file-history-snapshot', messageId: `snap-${i}`, snapshot: { messageId: `snap-${i}`, trackedFileBackups: { [`file-${i}.ts`]: { backupFileName: `b-${i}`, version: 1, backupTime: ts, pad: 'x'.repeat(2000) } }, timestamp: ts }, isSnapshotUpdate: false })
+  }
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'h-cb1', parentUuid: null, sessionId: foldedSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000, preservedSegment: { headUuid: 'h-u1', tailUuid: 'h-a1', anchorUuid: 'h-cb1' } } })
+  await land({ type: 'user', uuid: 'h-u2', parentUuid: 'h-cb1', sessionId: foldedSid, cwd: sessionFolder, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'second stretch prompt' } })
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'h-cb2', parentUuid: null, sessionId: foldedSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 12000, preservedSegment: { headUuid: 'h-u2', tailUuid: 'h-u2', anchorUuid: 'h-cb2' } } })
+  const sealed = historyHead(foldedFile)
+  const rawHead8k = readFileSync(foldedFile, 'utf8').slice(0, 8192)
+  check('T7 fixture: folded twice and carried snapshots push cwd past the first 8 KB of the live head', sealed.before > 0 && !/"cwd"\s*:/.test(rawHead8k), JSON.stringify({ before: sealed.before, firstCwdAt: readFileSync(foldedFile, 'utf8').indexOf('"cwd"') }))
+  let capturedWorkspace = ''
+  const realEnsure = { ...ensure }
+  const realSeat = { ...seat }
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...realEnsure, ensureOwnedDaemon: async () => false }))
+  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => ({
+    ...realSeat,
+    daemonSessionConnectorFor: (spec: { workspaceId: string }) => {
+      capturedWorkspace = spec.workspaceId
+      return realSeat.daemonSessionConnectorFor(spec as never)
+    },
+  }))
+  const { focusResumedSession } = await import('../../src/services/switchboard/hopIntoSession.ts')
+  const resumed = await focusResumedSession(foldedSid, foldedFile)
+  await resumed.refusal
+  slot.releaseFocusedSessionConnector()
+  mock.module('../../src/services/switchboard/ensureDaemon.ts', () => realEnsure)
+  mock.module('../../src/services/engine-connector/daemonConnector.ts', () => realSeat)
+  mock.restore()
+  check('T7 hopping into a folded session lands in the session folder, not the process folder', resumed.ok && capturedWorkspace === sessionFolder && resumed.title === 'opening prompt in target folder', JSON.stringify({ ok: resumed.ok, title: resumed.ok ? resumed.title : resumed.reason, capturedWorkspace, sessionFolder, processFolder }))
+}
+
+{
+  const { mkdirSync, realpathSync, statSync } = await import('node:fs')
+  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
+  const { isAuthFailureHusk, scanBootCardFacts } = await import('../../src/utils/bootCardFacts.ts')
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'projects-truth-husk-')))
+  const projFolded = join(root, 'folded-auth-fail')
+  mkdirSync(projFolded, { recursive: true })
+  const store = getProjectDir(projFolded)
+  mkdirSync(store, { recursive: true })
+  const foldedAuthSid = '88888888-2222-4333-8444-555555555555'
+  const foldedAuthFile = join(store, `${foldedAuthSid}.jsonl`)
+  const queue = new QueuePart()
+  const land = async (entry: Record<string, unknown>): Promise<void> => {
+    const done = queue.enqueueWrite(foldedAuthFile, entry as never)
+    await queue.flush()
+    await done
+  }
+  const ts = new Date().toISOString()
+  await land({ type: 'user', uuid: 'ha-u1', parentUuid: null, sessionId: foldedAuthSid, cwd: projFolded, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'real work before fold' } })
+  await land({ type: 'assistant', uuid: 'ha-a1', parentUuid: 'ha-u1', sessionId: foldedAuthSid, cwd: projFolded, timestamp: ts, isSidechain: false, message: { id: 'msg_before', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'real answer before fold' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 10, output_tokens: 10 } } })
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'ha-cb1', parentUuid: null, sessionId: foldedAuthSid, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000 } })
+  await land({ type: 'user', uuid: 'ha-u2', parentUuid: 'ha-cb1', sessionId: foldedAuthSid, cwd: projFolded, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'follow-up after token expiry' } })
+  await land({ type: 'assistant', uuid: 'ha-a2', parentUuid: 'ha-u2', sessionId: foldedAuthSid, cwd: projFolded, timestamp: ts, isSidechain: false, error: 'authentication_failed', isApiErrorMessage: true, message: { id: 'msg_after_auth', type: 'message', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'OAuth token has expired.' }], stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 0, output_tokens: 0 } } })
+  const sealed = historyHead(foldedAuthFile)
+  const liveSize = statSync(foldedAuthFile).size
+  const husk = isAuthFailureHusk(foldedAuthFile, liveSize)
+  const facts = scanBootCardFacts(projFolded)
+  check('T8 a folded session whose live head ends in authentication_failed is never hidden as a husk', sealed.before > 0 && liveSize <= 64 * 1024 && !husk && facts.cwdProject?.sessionId === foldedAuthSid, JSON.stringify({ before: sealed.before, liveSize, husk, cwdSession: facts.cwdProject?.sessionId }))
 }
 
 if (failures > 0) {

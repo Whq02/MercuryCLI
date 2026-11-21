@@ -8,6 +8,7 @@ import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => {
@@ -161,7 +162,7 @@ try {
     const cfg = join(dest, 'cfg.json')
     const grid = join(dest, 'grid.json')
     const sends: Record<string, unknown>[] = [
-      { awaitText: '↑↓ choose', requireAwait: true, awaitSettleTicks: 3, data: '\r' },
+      { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, awaitSettleTicks: 3, data: '\r' },
       { awaitText: 'ready ·', targetText: '← back', requireAwait: true, awaitSettleTicks: 5, data: ASK },
       { afterPrevTicks: 2, data: '\r' },
     ]

@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const driver = resolveCaptureDriver()
@@ -394,7 +395,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: 'ring-drive: alpha\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: 'ring-drive: scout\r', awaitText: ALPHA_DONE, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'alpha' },
         { data: '', awaitText: `${(contextOf(USAGE.seatTwo) / 1000).toFixed(1)}k context`, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'scout-live' },

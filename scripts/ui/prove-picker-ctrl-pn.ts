@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -41,7 +42,7 @@ writeFileSync(
   JSON.stringify({
     argv: ['node', DIST, '--chat'],
     sends: [
-      { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 20, awaitSettleTicks: 2, requireAwait: true, data: ENTER },
       { atTick: 110, awaitText: 'Type a prompt', minTick: 50, awaitSettleTicks: 4, requireAwait: true, data: '/model' + ENTER },
       { atTick: 160, awaitText: 'Mercury · model', minTick: 100, awaitSettleTicks: 3, requireAwait: true, mark: 'open', data: CTRL_N },
       { afterPrevTicks: 4, mark: 'after-ctrl-n', data: CTRL_P },

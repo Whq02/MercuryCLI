@@ -7,6 +7,7 @@ import { dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { FAKE_BIN, FIXTURES, fakeWorld } from './fixtures/world.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -145,7 +146,7 @@ const textOf = (grid: Grid): string[] => grid.map(row => row.map(cell => cell.c 
 const READINGS = HOLD_S >= 200 ? [22, 40, 50, 70, 95, 125, 155, 185, 200] : [22, 40, 50, 70, 92]
 const ticks = (seconds: number): number => Math.round(seconds * 5)
 const sends: Array<Record<string, unknown>> = [
-  { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 2, mark: 'session', data: PROMPT },
   { requireAwait: true, awaitText: 'five words about rain', awaitSettleTicks: 1, mark: 'asked', data: '\r' },
   ...READINGS.map((at, n) => ({ afterPrevTicks: ticks((at - (READINGS[n - 1] ?? 0)) / scale), awaitPattern: `local/${NAME_2B}[^\\n]*(?:first byte|ingest|so far)`, mark: `reading-${n + 1}`, data: '' })),

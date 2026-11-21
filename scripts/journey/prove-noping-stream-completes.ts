@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -88,7 +89,7 @@ const cfg = {
   argv: ['node', DIST],
   cwd: FIXTURE_CWD,
   sends: [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', data: 'stream the plan\r' },
   ],
   readyText: ['re-arm it instantly'],

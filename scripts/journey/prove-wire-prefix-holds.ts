@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import {
   comparePrefix,
   conversationRows,
@@ -435,7 +436,7 @@ if (process.argv[2] === '--serve') {
 }
 
 
-type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; requireAwait?: boolean; awaitSettleTicks?: number; data: string; mark?: string }
+type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitPattern?: string; requireAwait?: boolean; awaitSettleTicks?: number; data: string; mark?: string }
 type Grid = Array<Array<{ c: string }>>
 type Payload = { grid: Grid; sendReceipts?: Array<{ atTick?: number }>; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
 type Leg = {
@@ -636,7 +637,7 @@ async function drive(): Promise<void> {
   console.log('============================================================')
 
   const sends1: Send[] = [
-    { atTick: 180, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
+    { atTick: 180, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { atTick: 520, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'wire-prefix turn 1: find a deferred tool\r', mark: 'chat' },
     { atTick: 700, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 2: run the echo\r', mark: 't1' },
     { atTick: 820, minTick: 10, awaitText: 'TURN-2-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 3: find another deferred tool\r', mark: 't2' },
@@ -668,7 +669,7 @@ async function drive(): Promise<void> {
   const word1 = productWord(leg1)
 
   const sends2: Send[] = [
-    { atTick: 180, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
+    { atTick: 180, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { atTick: 520, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'wire-prefix turn 1: find a deferred tool\r', mark: 'chat' },
     { atTick: 700, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'wire-prefix turn 3: find another deferred tool\r', mark: 't1' },
     { atTick: 880, minTick: 10, awaitText: 'TURN-3-DONE', awaitSettleTicks: 4, data: `/model ${OTHER_MODEL}\r`, mark: 't3' },

@@ -66,7 +66,7 @@ if (childAt !== -1) {
   let dialect = ''
   const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`) }
   const child = async (mode: string) => {
-    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode, dialect], { cwd: f.home, env: { PATH: process.env.PATH, HOME: f.home, TMPDIR: f.home, MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_LOCAL_PROBE_TARGETS: 'none' }, stdio: ['ignore', 'pipe', 'pipe'] })
+    const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode, dialect], { cwd: f.home, env: { PATH: process.env.PATH, HOME: f.home, TMPDIR: f.home, MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_LOCAL_PROBE_TARGETS: 'none', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''
     let errors = ''
     worker.stdout.on('data', chunk => { output += chunk })

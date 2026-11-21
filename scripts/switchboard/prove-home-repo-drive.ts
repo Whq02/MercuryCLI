@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { untilAsync } from '../lib/untilAsync.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -39,7 +40,7 @@ if (driver.kind !== 'posix-pty') {
 }
 const userSite = spawnSync(driver.python, ['-c', 'import site; print(site.getusersitepackages())'], { encoding: 'utf8' }).stdout.trim()
 
-const READY_LINE = '↵ start  ·  m menu  ·  ↑↓ choose'
+const READY_NEEDLE = '↑↓'
 const COMPOSER = 'Type a prompt'
 const OFFER_TITLE = 'Start a git repository'
 const RECEIPT = 'no git offer for'
@@ -202,7 +203,7 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   process.env.MERCURY_DAEMON_DIR = join(e.cfg, 'daemon')
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
   const shown = capture(e, 'd1-refused-at-home', e.home, [
-    { atTick: 150, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
+    { atTick: 150, awaitText: READY_NEEDLE, awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
     { afterPrevTicks: 100, awaitText: COMPOSER, awaitSettleTicks: 4, data: 'hello', mark: 'chat' },
     { afterPrevTicks: 3, data: '\r', mark: 'sent' },
@@ -265,7 +266,7 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
   const top = spawnSync(REAL_GIT, ['-C', e.proj, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', env: { ...process.env, HOME: e.home } }).stdout.trim()
   check('D2 the nested Documents folder resolves to the home root today (git says so)', realpathSync(top) === realpathSync(e.home), top)
   const c = await capture(e, 'd2-nested-boot', e.proj, [
-    { atTick: 150, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
+    { atTick: 150, awaitText: READY_NEEDLE, awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
     { afterPrevTicks: 100, awaitText: COMPOSER, awaitSettleTicks: 4, data: 'hello', mark: 'chat' },
     { afterPrevTicks: 3, data: '\r', mark: 'sent' },

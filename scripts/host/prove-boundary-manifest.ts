@@ -52,7 +52,7 @@ if (childMode) {
   const child = async () => {
     const processChild = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child'], {
       cwd: home,
-      env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' },
+      env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     let stdout = ''

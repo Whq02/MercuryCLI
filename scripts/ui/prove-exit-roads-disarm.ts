@@ -53,7 +53,7 @@ for (const road of roads) {
     steps: [
       { wait: 'host$', timeout: 15 },
       { launch: true },
-      { wait: 'Health Check', timeout: 45 },
+      { wait: 'New Session', timeout: 45 },
       { sleep: 1.5 },
       ...(road.toCockpit
         ? [{ send: '\r' }, { wait: 'Type a prompt', timeout: 30 }, { sleep: 1.5 }]

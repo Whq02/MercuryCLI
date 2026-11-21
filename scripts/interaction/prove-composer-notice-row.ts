@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-prover' }
 
@@ -277,7 +278,7 @@ globalThis.fetch = (input, init) => {
   const MOVE = '\x1b[<32;{X};{Y}M'
   const RELEASE = '\x1b[<0;{X};{Y}m'
   const opening = (text: string): Record<string, unknown>[] => [
-    { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
+    { atTick: 80, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 160, awaitText: 'Type a prompt', minTick: 5, awaitStableTicks: 2, requireAwait: true, data: text },
   ]
   const mark = (label: string, ticks = 5): Record<string, unknown> => ({ afterPrevTicks: ticks, data: '', mark: label })

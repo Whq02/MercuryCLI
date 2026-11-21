@@ -8,6 +8,7 @@ import { findOnPath, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureD
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { inputLine, parseFrame, promptRow } from '../lib/rows.ts'
 import { hostRunner } from '../lib/runnerHost.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -492,7 +493,7 @@ const COLS = 160
 const ROWS = 44
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-  { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 4, mark: 'typed' },
   { data: '\r', afterPrevTicks: 4, mark: 'sent' },
 ]

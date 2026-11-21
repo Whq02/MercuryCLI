@@ -10,6 +10,7 @@ import { encodeSeedTranscript } from '../lib/seedTranscript.ts'
 import { getProjectDir } from '../../src/utils/sessionStoragePortable.ts'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const BIN = 'dist/mercury.mjs'
@@ -89,7 +90,7 @@ t.section('§1 — composer echo: a control-sequence paste renders printables on
     argv: ['node', BIN],
     cwd: process.cwd(),
     sends: [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, data: PASTE },
     ],
     readySettleTicks: 6,

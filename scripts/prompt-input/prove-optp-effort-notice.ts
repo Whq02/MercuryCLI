@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -124,7 +125,7 @@ if (driver.kind !== 'posix-pty') {
     ...extra,
   })
   const sends: Record<string, unknown>[] = [
-    { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
+    { atTick: 80, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     on(PROMPT, '', { awaitPattern: READY_ROW.source, awaitSettleTicks: 3, mark: 'idle' }),
     on(PROMPT, `${ESC}p`, { awaitSettleTicks: 1 }),
     on(PICKER, `${ESC}[B`, { awaitSettleTicks: 1 }),

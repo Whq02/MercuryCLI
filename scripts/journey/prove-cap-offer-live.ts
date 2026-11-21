@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const distArg = process.argv.indexOf('--dist')
@@ -121,6 +122,7 @@ type Send = {
   afterPrevTicks?: number
   requireAwait?: boolean
   awaitText?: string
+  awaitPattern?: string
   awaitSettleTicks?: number
   data: string
   mark?: string
@@ -229,7 +231,7 @@ const PROBE_GAP = 60
 const legSettle = drive(
   'settle',
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello sol\r' },
     { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
     { requireAwait: true, awaitText: 'failover lane', minTick: 2, awaitSettleTicks: 2, data: '', mark: 'line-t0' },
@@ -310,7 +312,7 @@ const legSettle = drive(
 const legEsc = drive(
   'esc',
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello sol\r' },
     { requireAwait: true, awaitText: OFFER_TITLE, minTick: 10, awaitSettleTicks: 3, data: '\x1b', mark: 'esc' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 8, awaitSettleTicks: 2, data: 'again please\r', mark: 'again' },

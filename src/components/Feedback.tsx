@@ -32,6 +32,7 @@ import {
   getTranscriptPathForSession,
   loadAllSubagentTranscriptsFromDisk,
 } from '../utils/sessionStorage.js'
+import { historyHead, historyRange } from '../utils/sessionStorage/historyParts.js'
 import { getSessionId } from '../bootstrap/state.js'
 import { openBrowser } from '../utils/browser.js'
 import { logForDebugging } from '../utils/debug.js'
@@ -261,12 +262,14 @@ export async function gatherReport(
   let rawTranscript: string | undefined
   try {
     const path = getTranscriptPathForSession(getSessionId())
-    const { statSync, readFileSync } = await import('fs')
-    const stat = statSync(path)
-    if (stat.size <= MAX_TRANSCRIPT_READ_BYTES) {
-      rawTranscript = readFileSync(path, 'utf8')
-    } else {
-      logForDebugging(`feedback: transcript over the read cap (${stat.size} bytes), skipped`)
+    const head = historyHead(path)
+    if (head.ino !== undefined) {
+      const size = head.before + head.end - head.start
+      if (size <= MAX_TRANSCRIPT_READ_BYTES) {
+        rawTranscript = historyRange(head, 0, size).toString('utf8')
+      } else {
+        logForDebugging(`feedback: transcript over the read cap (${size} bytes), skipped`)
+      }
     }
   } catch (transcriptError) {
     rawTranscript = undefined

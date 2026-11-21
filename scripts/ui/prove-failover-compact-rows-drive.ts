@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { stringWidth } from '../../src/ink/stringWidth.ts'
 
 const REPO = path.resolve(import.meta.dir, '..', '..')
@@ -124,7 +125,7 @@ type Payload = { grid: Grid; sendReceipts?: Array<{ atTick?: number }>; marks?: 
 const rowsOf = (grid: Grid): string[] => grid.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, ''))
 
 const sends = [
-  { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'boot' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r', mark: 'boot' },
   { afterPrevTicks: 1, data: '', mark: 'landing-1' },
   { afterPrevTicks: 1, data: 'hello sol\r', mark: 'landing-send' },
   { afterPrevTicks: 1, data: '', mark: 'landing-2' },

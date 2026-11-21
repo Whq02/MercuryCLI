@@ -76,5 +76,29 @@ for (const withPrompt of [false, true]) {
   check('the live view-header title follows the same cleanup', deriver(rec) === expected, String(deriver(rec)))
 }
 
+{
+  const { QueuePart } = await import('../../src/utils/sessionStorage/writer/queue.ts')
+  const { historyHead } = await import('../../src/utils/sessionStorage/historyParts.ts')
+  const foldedId = 'aaaaaaaa-1111-4222-8333-777777777777'
+  const foldedPath = join(paths.getProjectDir(workspace), `${foldedId}.jsonl`)
+  const queue = new QueuePart()
+  const land = async (entry: Record<string, unknown>): Promise<void> => {
+    const done = queue.enqueueWrite(foldedPath, entry as never)
+    await queue.flush()
+    await done
+  }
+  const ts = new Date().toISOString()
+  await land({ type: 'user', uuid: 'bf-u1', parentUuid: null, sessionId: foldedId, cwd: workspace, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'first opening prompt before fold' } })
+  await land({ type: 'assistant', uuid: 'bf-a1', parentUuid: 'bf-u1', sessionId: foldedId, cwd: workspace, timestamp: ts, isSidechain: false, message: { role: 'assistant', content: [{ type: 'text', text: 'first reply before fold' }] } })
+  await land({ type: 'system', subtype: 'compact_boundary', uuid: 'bf-cb1', parentUuid: null, sessionId: foldedId, timestamp: ts, content: 'Conversation compacted', compactMetadata: { trigger: 'manual', preTokens: 10000 } })
+  await land({ type: 'user', uuid: 'bf-sum', parentUuid: 'bf-cb1', sessionId: foldedId, cwd: workspace, timestamp: ts, isSidechain: false, isCompactSummary: true, message: { role: 'user', content: 'The context window turned over' } })
+  await land({ type: 'user', uuid: 'bf-u2', parentUuid: 'bf-sum', sessionId: foldedId, cwd: workspace, timestamp: ts, isSidechain: false, message: { role: 'user', content: 'later follow-up prompt after fold' } })
+  const foldedRec = { ...record, sessionId: foldedId, runnerId: 'folded-1' }
+  const sealed = historyHead(foldedPath)
+  const brief = headBriefLabel(foldedRec, 48)
+  check('a folded session seals its first prompt and headBriefLabel still reads the opening prompt', sealed.before > 0 && brief === 'first opening prompt before fold', JSON.stringify({ before: sealed.before, brief }))
+  check('the live view-header title of an untitled folded session keeps the opening prompt', deriver(foldedRec) === 'first opening prompt before fold', String(deriver(foldedRec)))
+}
+
 console.log(failures === 0 ? '\nprove-chat-tag-live-title: ALL LAWS HOLD' : `\nprove-chat-tag-live-title: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

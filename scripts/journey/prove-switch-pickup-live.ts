@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -98,7 +99,7 @@ const cfg = {
   argv: ['node', DIST, '--model', 'gpt-5.6-sol'],
   cwd: FIXTURE_CWD,
   sends: [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 20, awaitText: '? for shortcuts', data: 'hello sol\r' },
     { requireAwait: true, minTick: 10, awaitText: GPT_REPLY, data: '/model claude-opus-5\r', mark: 'switch-sent' },
     { requireAwait: true, minTick: 8, awaitText: 'Model switch preview', awaitSettleTicks: 2, data: '\r', mark: 'switch-confirmed' },

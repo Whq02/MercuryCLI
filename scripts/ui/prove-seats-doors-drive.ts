@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-seats-doors-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -187,7 +188,8 @@ const BACKSPACE = '\x7f'
 const ESC = '\x1b'
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
 const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
-const TO_SEATS = DOWN.repeat(withJevRow(STARTUP_MENU).length)
+const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.ts')
+const TO_SEATS = DOWN.repeat(settingsEditors.length + withJevRow(STARTUP_MENU).length)
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -197,12 +199,12 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: 's', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: 's', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: TO_SEATS, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: RIGHT, awaitText: "· this machine's reading", requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-seats' },
         { data: BACKSPACE, awaitText: 'set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-raised' },
         { data: ESC, awaitText: 'seats follow', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
         { data: '/seats\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: `/seats ${SET_TO}\r`, awaitText: 'Seats: ', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-status' },
         { data: '/config\r', awaitText: `Seats set to ${SET_TO}`, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'verb-set' },

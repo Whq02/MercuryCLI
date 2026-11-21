@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const ESC = '\x1b'
@@ -206,7 +207,7 @@ const rowOf = (rows: string[], needle: string): number => rows.findIndex(r => r.
 const rightOf = (line: string | undefined, col: number): string => (line ?? '').slice(col)
 const leftOf = (line: string | undefined, col: number): string => (line ?? '').slice(0, col)
 
-const face = { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: SHIFT_RIGHT, mark: 'face' }
+const face = { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: SHIFT_RIGHT, mark: 'face' }
 
 const listTopOf = (rows: string[]): number => rows.findIndex(r => r.startsWith('╭─sessions · '))
 const liveOf = (rows: string[]): string[] => rows.slice(0, Math.max(0, listTopOf(rows)))
@@ -250,7 +251,7 @@ console.log('§3a 80×21 — two stacked frames (the live view on top), the key 
   const tab = markOf('split', 'tab')
   check('80×21: ⇥ returns focus to the list — the letter verbs print again', liveFootOf(tab).startsWith('│ ⇥ list · x stop · p pause · esc board') && composerRowOf(tab).includes('steer words'), liveFootOf(tab))
   const esc = markOf('split', 'esc')
-  check('80×21: esc from the list returns to the boot face', has(esc, '↑↓ choose') && !has(esc, 'sessions · 7'), esc.slice(0, 3).join(' | '))
+  check('80×21: esc from the list returns to the boot face', paintsBootFaceReady(esc.join('\n')) && !has(esc, 'sessions · 7'), esc.slice(0, 3).join(' | '))
   const back = markOf('split', 'back')
   check('80×21: ⇧→ brings the board back', listTopOf(back) > 0)
   const fresh = markOf('split', 'new')

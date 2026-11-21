@@ -8,6 +8,7 @@ import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { afterBootFace, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -130,8 +131,7 @@ writeFileSync(
   }),
 )
 const ESC = String.fromCharCode(27)
-const N = '↑↓ choose'
-const after = (ms: number, payload: string): string => `after:${N}:${ms}:${payload}`
+const after = (ms: number, payload: string): string => afterBootFace(ms, payload)
 const sends = [
   after(1500, '\r'),
   after(12000, `${ESC}[1;2D`),
@@ -207,7 +207,7 @@ if (sendRecs.length === sends.length) {
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
   check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family — the rows say not signed in · /logins)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && /not signed in · \/logins/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
-  check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && /↑↓ choose|New Session/.test(t(refusedFrame)), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
+  check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && (paintsBootFaceReady(t(refusedFrame)) || /New Session/.test(t(refusedFrame))), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
   check('…and the receipt says what frees a seat, levers first: stop or park a session on the Session Concourse, or /seats N', /stop or park a session on the Session Concourse/.test(t(refusedFrame)) && /\/seats N/.test(t(refusedFrame)), refusedFrame.rows[refusedFrame.rows.length - 1]?.trim().slice(0, 120) ?? '')
   check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
   const milestonesPath = join(configDir, 'launch-milestones.json')

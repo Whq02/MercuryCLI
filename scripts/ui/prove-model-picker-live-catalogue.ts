@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { idCellPattern, showsId } from '../lib/pickerCells.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -158,7 +159,7 @@ if (driver.kind !== 'posix-pty') {
       JSON.stringify({
         argv: ['node', BIN],
         sends: [
-          { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
+          { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
           { afterPrevTicks: 3, data: '\r' },
           { requireAwait: true, awaitText: '│ │ Opus 5.5 ', awaitSettleTicks: 2, data: '\u001b[H' + '\u001b[B'.repeat(openrouterIndex) },

@@ -8,6 +8,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { compactGrid, DEFAULT_MASKS, firstDivergence, type StoredGrid } from '../ui/visualBaseline.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -67,7 +68,7 @@ function homeFor(name: string, verb = name.startsWith('busy-') ? WRAP_VERB : und
   return { configHome, cwd }
 }
 
-const faceEnter: Send = { requireAwait: true, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 6, data: '\r' }
+const faceEnter: Send = { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 6, data: '\r' }
 const WAY_BACK = keyHintLabel('⇧← back')
 const onReady = (data: string, mark: string): Send => ({ requireAwait: true, awaitText: 'ready ·', awaitPattern: '(?:^|\\n) ?ready ·', targetText: WAY_BACK, awaitSettleTicks: 6, data, mark })
 

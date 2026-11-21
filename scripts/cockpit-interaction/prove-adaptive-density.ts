@@ -4,6 +4,7 @@
 
 import { spawn, spawnSync } from 'node:child_process'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -183,7 +184,7 @@ t.section('§4 — REAL BINARY: the named boundaries, both directions, one boot'
       argv: ['node', BIN], out, cwd: process.cwd(),
       resizes: WIDTHS.map((cols, i) => ({ afterMark: 'drafted', afterMs: 4000 + i * 3200, cols, rows: 40 })),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 3, data: 'draft survives', mark: 'drafted' },
       ],
       readyText: 'draft survives', readySettleTicks: 3,
@@ -350,7 +351,7 @@ t.section('§5 — REAL BINARY, LIVE ACTIVITY: the density pipe at rendered grid
         cols: 120, rows: TALL, total: 460,
         argv: ['node', BIN], out, cwd: process.cwd(),
         sends: [
-          { atTick: 40, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
+          { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' },
           { atTick: 90, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 8, data: '', mark: 'calm' },
           { afterPrevTicks: 2, data: 'go\r' },
           { atTick: 200, awaitText: 'chunk-5', minTick: 2, awaitSettleTicks: 1, data: '', mark: 'active' },

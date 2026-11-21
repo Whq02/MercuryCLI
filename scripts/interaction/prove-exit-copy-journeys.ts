@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { CONFIG_HOME, scenario, cleanupScenario } from '../ui/renderScenarios.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const CTRL_C = String.fromCharCode(3)
@@ -172,7 +173,7 @@ const closeBusyWorld = (world: BusyWorld): void => {
   }
 }
 const ENTER_FRESH_CHAT: Send[] = [
-  { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
 ]
 
 section('C · busy: one press interrupts AND arms; a second press closes')

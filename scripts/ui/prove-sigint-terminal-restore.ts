@@ -22,7 +22,7 @@ try {
     tag: 'sigint-title', argv: base.argv, cwd: base.cwd, cols: 120, rows: 40, budgetSeconds: 90,
     env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file', MERCURY_FULLSCREEN: '1' },
     steps: [
-      { wait: 'host$', timeout: 15 }, { launch: true }, { wait: 'Health Check', timeout: 45 },
+      { wait: 'host$', timeout: 15 }, { launch: true }, { wait: 'New Session', timeout: 45 },
       { send: '\r' }, { wait: 'Type a prompt', timeout: 30 }, { sleep: 1 }, { mark: 'armed' },
       { signal: 'SIGINT' }, { sleep: 3 }, { typeline: 'echo status-$?' }, { wait: 'status-130', timeout: 25 },
     ],

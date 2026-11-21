@@ -6,6 +6,7 @@ import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { showsId } from '../lib/pickerCells.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -228,7 +229,7 @@ try {
     { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '\r' },
   ]
   const c = await capture('two-sessions', env, [
-    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
+    { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: SHIFT_RIGHT },
     ...birth,
     ...openPicker,
     { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: 'llama' },

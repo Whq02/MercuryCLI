@@ -106,6 +106,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -119,7 +120,7 @@ if (driver.kind !== 'posix-pty') {
 }
 seedFirstRun(TEMPLATE, [FIX])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
+const faceReady = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const SHIFT_LEFT = '\x1b[1;2D'
@@ -185,10 +186,10 @@ async function idleOn(surface: 'face' | 'chat' | 'board'): Promise<Surface> {
   ]
   const sends: Send[] =
     surface === 'face'
-      ? [g(READY_LINE, '', { awaitSettleTicks: 4 }), ...idle]
+      ? [faceReady('', { awaitSettleTicks: 4 }), ...idle]
       : surface === 'chat'
-        ? [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { awaitSettleTicks: 4 }), ...idle]
-        : [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }), g(BOARD, '', { awaitSettleTicks: 4 }), ...idle]
+        ? [faceReady(''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { awaitSettleTicks: 4 }), ...idle]
+        : [faceReady(''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }), g(BOARD, '', { awaitSettleTicks: 4 }), ...idle]
   const cfgPath = join(SCRATCH, `cfg-${surface}.json`)
   const outPath = join(SCRATCH, `grid-${surface}.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN, '--model', 'claude-sonnet-5'], cwd: FIX, cols: 120, rows: 40, sends, total: SETTLE_TICKS + idleTicks + BOUND_TICKS + warmTicks + TOUCH_TICKS + 300, out: outPath }))

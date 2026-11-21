@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { LEAD_ASK_SLEEPER, SEAT_NAME, startCrewStopFixture, type Fixture } from '../crew/crew-stop-fixture.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -97,7 +98,7 @@ function driveEnv(home: string, fixtureBase: string): Record<string, string> {
 }
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-  { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]

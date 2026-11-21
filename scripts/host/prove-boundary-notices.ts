@@ -34,7 +34,7 @@ if (childAt !== -1) {
   let failures = 0
   const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
   const child = (mode: string) => {
-    const run = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true' }, encoding: 'utf8', timeout: 15000 })
+    const run = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], { cwd: home, env: { PATH: process.env.PATH, HOME: home, TMPDIR: home, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, encoding: 'utf8', timeout: 15000 })
     assert.equal(run.status, 0, run.stdout + run.stderr)
     return JSON.parse(run.stdout.trim().split('\n').at(-1)!)
   }

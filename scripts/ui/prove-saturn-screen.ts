@@ -343,7 +343,7 @@ t.section('§6 — THE BOX WRITERS (stamps daemon-shaped · both presences · ca
   t.check('§6 the 51st schedule refuses at the cap', !overCap.ok && overCap.reason.includes('50'))
 }
 
-t.section('§7 — THE ROW AND THE DOOR (after Health · the fit fact · the face-door grammar)')
+t.section('§7 — THE FACE AND THE DOOR (Saturn left the face for /saturn · handover receipt still arms the face door)')
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
   type Row = { key: string; icon: string; label: string; ctx: string }
@@ -357,14 +357,10 @@ t.section('§7 — THE ROW AND THE DOOR (after Health · the fit fact · the fac
   const rows = assembleCardRows(FACTS) as Row[]
   const keys = rows.map(r => r.key)
 
-  t.check('§7 the saturn row sits directly after Health (the control-plane glance pair)', keys.indexOf('saturn') === keys.indexOf('health') + 1)
-  const sat = rows.find(r => r.key === 'saturn')
-  t.check("§7 the row's bytes: ◷ · 'Saturn Scheduler' · the standing ctx", sat?.icon === '◷' && sat?.label === 'Saturn Scheduler' && sat?.ctx === 'sessions born on the clock', JSON.stringify(sat))
-  t.check('§7 the row rides the SAME fit law as the menu/kit doors (no menu floor ⇒ no scheduler)', !(assembleCardRows({ ...FACTS, menuAvailable: false }) as Row[]).some(r => r.key === 'saturn'))
-  t.check('§7 the ctx is the HOST-TRUTH channel (the wake-glance words when passed)', (assembleCardRows({ ...FACTS, saturnCtx: '3 schedules · next in 2h' }) as Row[]).find(r => r.key === 'saturn')?.ctx === '3 schedules · next in 2h')
-  t.check('§7 a --chat world carries the same row (no world check)', (assembleCardRows({ ...FACTS, concourse: null }) as Row[]).some(r => r.key === 'saturn'))
-  t.check('§7 the merged door stays LAST (proof-leg stability)', keys[keys.length - 1] === 'sessions')
-
+  t.check('§7 Saturn Scheduler left the approved boot face (reached by /saturn from chat)', !keys.includes('saturn') && JSON.stringify(keys) === JSON.stringify(['new', 'logins', 'concourse', 'menu']), keys.join(' · '))
+  t.check('§7 menuAvailable: false drops logins and Boot Menu and adds no saturn row', !(assembleCardRows({ ...FACTS, menuAvailable: false }) as Row[]).some(r => r.key === 'saturn' || r.key === 'menu'))
+  t.check('§7 a --chat world carries the face rows minus concourse and no saturn row', JSON.stringify((assembleCardRows({ ...FACTS, concourse: null }) as Row[]).map(r => r.key)) === JSON.stringify(['new', 'logins', 'menu']))
+  t.check('§7 Boot Menu stays LAST on the approved boot face', keys[keys.length - 1] === 'menu')
 
   const { decideSplashReceipt, consumeFaceDoorDeepLink, consumeBootSurfaceIntent } = await import('../../src/substrate/splashHandover.js')
   const NOW = 1_700_000_000_000

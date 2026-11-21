@@ -8,6 +8,7 @@ import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { readAllTranscriptEntries } from '../../src/utils/sessionStorage/materialize.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -178,7 +179,7 @@ const ANSWER_4 = 'fixture answer 4 done'
 
 async function capture(leg: Leg, fixtureUrl: string): Promise<Capture> {
   const sends: Array<Record<string, unknown>> = [
-    { data: '\r', atTick: 60, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, mark: 'boot' },
+    { data: '\r', atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 3, awaitSettleTicks: 2, mark: 'boot' },
     { data: leg.unknown, atTick: 999, awaitText: '← back', requireAwait: true, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'typed-unknown' },
     { data: '\r', atTick: 999, awaitText: leg.composerNeedle, requireAwait: true, minTick: 1, awaitSettleTicks: 2, mark: 'sent-unknown' },
     { data: '', atTick: 999, awaitText: 'Unknown command: /nosuch', requireAwait: true, minTick: 1, awaitSettleTicks: 8, awaitStableTicks: 3, mark: 'after-unknown' },
