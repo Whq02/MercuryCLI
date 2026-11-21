@@ -88,6 +88,8 @@ prove-command-argument-pasted.ts
 prove-landing-lines-sent-in-order.ts
 prove-paste-type-interleaving.ts
 prove-chat-recording.ts
+prove-recording-draws.ts
+prove-store-snapshots.ts
 prove-chat-parts-law.ts
 prove-chat-title-part.ts
 prove-chat-search-part.ts

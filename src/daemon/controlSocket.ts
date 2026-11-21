@@ -31,6 +31,7 @@ import {
   type DaemonReply,
   type DaemonRequest,
 } from './protocol.js'
+import { SESSION_VERBS, type SessionVerbRow } from '../runner/wire/sessionVerbs.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
 
@@ -302,48 +303,41 @@ export function verifyControlAuth(
 }
 
 
-const AUTH_STAMPED_OPS: ReadonlySet<string> = new Set([
-  'list',
-  'has',
-  'status',
-  'dispatch',
-  'reply',
-  'kill',
-  'reconfigure',
-  'sessionAdmit',
-  'sessionDispatch',
-  'sessionList',
-  'sessionControl',
-  'sessionRelease',
-  'sessionRewind',
-  'sessionFileRestore',
-  'concourseAdmit',
-  'concourseDispatch',
-  'concourseList',
-  'concourseControl',
-  'concourseRelease',
-  'concourseWithdraw',
-  'concourseWarm',
-  'restart-when-idle',
-  'signIns',
-  'processSweep',
-])
+const DAEMON_WIDE_AUTH_OPS = ['list', 'has', 'status', 'dispatch', 'reply', 'kill', 'reconfigure'] as const
 
+const ALIASED_SESSION_ROWS = (Object.values(SESSION_VERBS) as readonly SessionVerbRow[])
+  .filter(
+    (row): row is SessionVerbRow & { daemon: { op: string; legacyOp: string; bornAt?: number; bornOrder?: number } } =>
+      row.daemon?.legacyOp !== undefined,
+  )
+  .sort((a, b) => (a.daemon.bornOrder ?? 0) - (b.daemon.bornOrder ?? 0))
 
-const SESSION_OP_DOWNGRADES: Record<string, string> = {
-  sessionAdmit: 'concourseAdmit',
-  sessionDispatch: 'concourseDispatch',
-  sessionList: 'concourseList',
-  sessionRelease: 'concourseRelease',
-  sessionControl: 'concourseControl',
-}
+const AUTH_STAMPED_OPS: ReadonlySet<string> = (() => {
+  const ops = new Set<string>(DAEMON_WIDE_AUTH_OPS)
+  for (const row of Object.values(SESSION_VERBS) as readonly SessionVerbRow[]) {
+    const d = row.daemon
+    if (!d || d.auth === false) continue
+    ops.add(d.op)
+    if (d.legacyOp !== undefined) ops.add(d.legacyOp)
+  }
+  return ops
+})()
+
+const SESSION_OP_DOWNGRADES: Readonly<Record<string, { legacyOp: string; bornAt: number }>> = Object.fromEntries(
+  ALIASED_SESSION_ROWS.map(row => [row.daemon.op, { legacyOp: row.daemon.legacyOp, bornAt: row.daemon.bornAt ?? 3 }]),
+)
+
+const SESSION_OP_ALIASES: Readonly<Record<string, string>> = Object.fromEntries(
+  ALIASED_SESSION_ROWS.map(row => [row.daemon.legacyOp, row.daemon.op]),
+)
 
 export function sessionOpWireFrame<T extends { op: string; proto?: number }>(outbound: T): T {
   const proto = outbound.proto ?? MERCURY_DAEMON_PROTO
-  const old = proto < 3 ? SESSION_OP_DOWNGRADES[outbound.op] : undefined
+  const downgrade = Object.hasOwn(SESSION_OP_DOWNGRADES, outbound.op) ? SESSION_OP_DOWNGRADES[outbound.op] : undefined
+  const old = downgrade !== undefined && proto < downgrade.bornAt ? downgrade.legacyOp : undefined
   if (old === undefined) return outbound
   const frame = { ...outbound, op: old } as T & { workerId?: string; runnerId?: string }
-  if (old === 'concourseRelease' && typeof frame.runnerId === 'string') {
+  if (old === SESSION_VERBS.sessionRelease.daemon.legacyOp && typeof frame.runnerId === 'string') {
     frame.workerId = frame.runnerId
     delete frame.runnerId
   }
@@ -353,8 +347,8 @@ export function sessionOpWireFrame<T extends { op: string; proto?: number }>(out
 export function normalizeSessionOpReply(reply: DaemonReply): DaemonReply {
   if (!('op' in reply) || typeof reply.op !== 'string') return reply
   let out: DaemonReply & { op: string } = reply
-  for (const [nu, old] of Object.entries(SESSION_OP_DOWNGRADES)) {
-    if (out.op === old) out = { ...out, op: nu } as DaemonReply & { op: string }
+  if (Object.hasOwn(SESSION_OP_ALIASES, out.op)) {
+    out = { ...out, op: SESSION_OP_ALIASES[out.op]! } as DaemonReply & { op: string }
   }
   const fielded = out as DaemonReply & { workerId?: string; runnerId?: string }
   if (typeof fielded.workerId === 'string' && fielded.runnerId === undefined) {

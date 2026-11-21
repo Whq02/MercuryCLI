@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { useDerivedState, useSubscription } from '../../hooks/effects.js'
 import 'node:path'
 import { useInput } from '../../ink.js'
 import { useSessionConnector } from '../../hooks/useSessionConnector.js'
@@ -68,9 +67,9 @@ export function PromptsPanel({
   )
 
   const [section, setSection] = useState<SectionId>(initialSection)
-  const [, refreshBoard] = useState(0)
-  useSubscription(() => connector.subscribeWork(() => refreshBoard(value => value + 1)), [connector])
-  const board = connector.swarmBoard?.() ?? null
+  const subscribeWork = useCallback((cb: () => void) => connector.subscribeWork(cb), [connector])
+  const readBoard = useCallback(() => connector.swarmBoard?.() ?? null, [connector])
+  const board = useSyncExternalStore(subscribeWork, readBoard, readBoard)
   const [editor, setEditor] = useState<Editor>(null)
   const [editorCursor, setEditorCursor] = useState(0)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
@@ -228,15 +227,14 @@ export function PromptsPanel({
     [editor, project, receipt, saved.length],
   )
 
-  const confirmDeleteLive = useRef<string | null>(null)
-  confirmDeleteLive.current = confirmDelete
-  useDerivedState(() => {
-    setConfirmDelete(null)
-    if (confirmDeleteLive.current !== null) {
-      confirmDeleteLive.current = null
+  const [confirmDeleteSection, setConfirmDeleteSection] = useState<SectionId>(section)
+  if (confirmDeleteSection !== section) {
+    setConfirmDeleteSection(section)
+    if (confirmDelete !== null) {
+      setConfirmDelete(null)
       setNote(null)
     }
-  }, [section])
+  }
 
   return panelViewOf({ prompts, saved, tokens, section, limits, queuedCount, crew, problem, drafts, note, editor, setEditor, editorCursor, setEditorCursor, commitEditor, board, records, onClose, setSection, workspace, sessionId, sections, columns, rowActions, confirmClear, modeLabel, SIDE_BODY_CHARS })
 }
