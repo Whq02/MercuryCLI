@@ -13,7 +13,7 @@ import type { SetToolJSXFn } from '../../Tool.js';
 import type { Message } from '../../types/message.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../utils/config.js';
 import { logForDebugging } from '../../utils/debug.js';
-import { getCurrentWorktreeSession } from '../../utils/worktree.js';
+import { getCurrentWorktreeSession } from '../../services/worktree.js';
 import { resolveToolJSX } from '../toolJsxArbitration.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';

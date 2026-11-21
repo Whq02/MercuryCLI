@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { cleanupStaleAgentWorktrees, createAgentWorktree } = await import('../../src/services/worktree.ts')
 const { ensureWorkerWorktree, reapWorkerWorktree } = await import('../../src/daemon/concourseWorktrees.ts')
 const { crewLeftoverWorktrees } = await import('../../src/services/crew/crewWorktreeReminder.ts')
 
@@ -197,7 +197,7 @@ try {
         'process.env.NODE_ENV = \'test\'',
         `const state = await import(${JSON.stringify(join(ROOT, 'src/bootstrap/state.ts'))})`,
         `const config = await import(${JSON.stringify(join(ROOT, 'src/utils/config/globalConfig.ts'))})`,
-        `const { createAgentWorktree } = await import(${JSON.stringify(join(ROOT, 'src/utils/worktree.ts'))})`,
+        `const { createAgentWorktree } = await import(${JSON.stringify(join(ROOT, 'src/services/worktree.ts'))})`,
         'const fixture = process.argv[2] as string',
         'process.chdir(fixture)',
         'state.setOriginalCwd(fixture)',

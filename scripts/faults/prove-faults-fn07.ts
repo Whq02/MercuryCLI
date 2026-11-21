@@ -224,7 +224,7 @@ function threwOf(fn: () => unknown): Error | null {
   }))
   const { mountPart } = await import('../ui/chatScenarios.ts')
   const { waitFor } = await import('../lib/settingsPopupHarness.ts')
-  const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+  const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
   const { useChatDialogs } = await import('../../src/screens/chat/useChatDialogs.tsx')
   restoreWorktreeSession(null)
   const notes: Array<{ key?: string; text?: string; color?: string }> = []

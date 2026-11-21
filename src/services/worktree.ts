@@ -8,29 +8,30 @@ import chalk from 'chalk'
 
 import { getSessionId } from '../bootstrap/state.js'
 import type { ToolPermissionContext } from '../Tool.js'
-import { getCwd } from './cwd.js'
-import { logForDebugging } from './debug.js'
-import { findCanonicalGitRoot, findGitRoot, gitExe } from './git.js'
-import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from './git/gitFilesystem.js'
-import { parseGitConfigValue } from './git/gitConfigParser.js'
-import { registerCleanup } from './cleanupRegistry.js'
-import { saveCurrentProjectConfig } from './config.js'
-import { containsPathTraversal } from './path.js'
-import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from './projectConfig.js'
-import { execFileNoThrowWithCwd } from './execFileNoThrow.js'
-import { startCommandHook } from './hooks/commandRunner.js'
-import { logError } from './log.js'
-import { symlinkDeniedByPrivilege } from './platform/files.js'
-import { projectLocalPath } from './projectLocal/paths.js'
-import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from './settings/settings.js'
-import { sleep } from './sleep.js'
-import { isInITerm2, isInsideTmuxSync } from './terminalDetection.js'
-import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from './worktreeClone.js'
-import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from './worktree/baseline.js'
-import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
-import { runGit } from './worktree/git.js'
-import { passedOver, passedOverAs } from './passedOver.js'
-import { hostEnv } from './hostEnv.js'
+import { getCwd } from '../utils/cwd.js'
+import { logForDebugging } from '../utils/debug.js'
+import { findCanonicalGitRoot, findGitRoot, gitExe } from '../utils/git.js'
+import { readGitHead, readWorktreeHeadSha, resolveGitDir, getCommonDir } from '../utils/git/gitFilesystem.js'
+import { parseGitConfigValue } from '../utils/git/gitConfigParser.js'
+import { registerCleanup } from '../utils/cleanupRegistry.js'
+import { saveCurrentProjectConfig } from '../utils/config.js'
+import { containsPathTraversal } from '../utils/path.js'
+import { MERCURY_PROJECT_DIR, PROJECT_CONFIG_DIR_NAMES, resolveProjectConfigPath } from '../utils/projectConfig.js'
+import { execFileNoThrowWithCwd } from '../utils/execFileNoThrow.js'
+import { startCommandHook } from '../utils/hooks/commandRunner.js'
+import { logError } from '../utils/log.js'
+import { symlinkDeniedByPrivilege } from '../utils/platform/files.js'
+import { projectLocalPath } from '../utils/projectLocal/paths.js'
+import { getInitialSettings, getRelativeSettingsFilePathForSource, getSettingsFilePathForSource } from '../utils/settings/settings.js'
+import { sleep } from '../utils/sleep.js'
+import { isInITerm2, isInsideTmuxSync } from '../utils/terminalDetection.js'
+import { canCloneHere, carryEntries, cloneIntoWorktree, cloneRefusedBetween, discardSetAside, recordWorktreeClones, returnWorktreeFromAside, setWorktreeAside, sweepSetAside, worktreeHoldsClones, type HeldBack } from '../utils/worktreeClone.js'
+import { readWorktreeBaseline, resolveWorktreeAdminDir, writeWorktreeBaseline } from '../utils/worktree/baseline.js'
+import { deltaBlocksSettlement, readWorktreeDelta, worktreeRemovalSafe } from '../utils/worktree/delta.js'
+import { runGit } from '../utils/worktree/git.js'
+import { getCurrentWorktreeSession, restoreWorktreeSession, type WorktreeSession } from '../utils/worktree/session.js'
+import { passedOver, passedOverAs } from '../utils/passedOver.js'
+import { hostEnv } from '../utils/hostEnv.js'
 
 
 
@@ -357,9 +358,9 @@ async function sameFile(one: string, other: string): Promise<boolean> {
 
 async function ownSettingsDenyReads(sourceRoot: string): Promise<boolean> {
   const { getEmptyToolPermissionContext } = await import('../Tool.js')
-  const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
-  const { permissionRuleValueFromString } = await import('./permissions/permissionRuleParser.js')
-  const { ruleMatcherFor } = await import('./permissions/filesystem.js')
+  const { applyPermissionRulesToPermissionContext } = await import('../utils/permissions/permissions.js')
+  const { permissionRuleValueFromString } = await import('../utils/permissions/permissionRuleParser.js')
+  const { ruleMatcherFor } = await import('../utils/permissions/filesystem.js')
   for (const [source, name] of [['projectSettings', 'settings.json'], ['localSettings', 'settings.local.json']] as const) {
     const theirs = resolveProjectConfigPath(sourceRoot, name) ?? join(sourceRoot, MERCURY_PROJECT_DIR, name)
     const ours = getSettingsFilePathForSource(source)
@@ -392,18 +393,18 @@ const allHeld = (): HeldBack => () => true
 async function heldBackUnder(permission: SessionRules | undefined, sourceRoot: string, always = false): Promise<((root: string) => HeldBack) | undefined> {
   if (permission === 'unknown') return allHeld
   try {
-    const { readDenialFilter, ruleMatcherFor } = await import('./permissions/filesystem.js')
+    const { readDenialFilter, ruleMatcherFor } = await import('../utils/permissions/filesystem.js')
     let rules = permission
     if (rules === undefined) {
       if (await ownSettingsDenyReads(sourceRoot)) return allHeld
       const { getEmptyToolPermissionContext } = await import('../Tool.js')
-      const { applyPermissionRulesToPermissionContext } = await import('./permissions/permissions.js')
-      const { loadAllPermissionRulesFromDisk } = await import('./permissions/permissionsLoader.js')
+      const { applyPermissionRulesToPermissionContext } = await import('../utils/permissions/permissions.js')
+      const { loadAllPermissionRulesFromDisk } = await import('../utils/permissions/permissionsLoader.js')
       rules = applyPermissionRulesToPermissionContext(getEmptyToolPermissionContext(), loadAllPermissionRulesFromDisk())
     }
     const narrowing = (rules.alwaysAllowRules as Record<string, readonly string[] | undefined>).toolsNarrowing ?? []
     if (!always && ruleMatcherFor(rules, 'read', 'deny') === null && narrowing.length === 0) {
-      const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+      const { mercurySecretReadIgnores } = await import('../utils/permissions/protectedPaths.js')
       const fold = (path: string): string => path.normalize('NFC').toLowerCase()
       const root = fold(await realpath(sourceRoot))
       if (![...mercurySecretReadIgnores().keys()].some(home => fold(home) === root || fold(home).startsWith(root.endsWith(sep) ? root : root + sep))) return undefined
@@ -430,7 +431,7 @@ async function cloneCheckoutDirectories(sourceRoot: string, worktreePath: string
 const CARRY_LISTING_BYTES = 64 * 1024 * 1024
 
 async function instructionFileTest(): Promise<HeldBack> {
-  const { conventionsForProfile, isInstructionFilePath } = await import('../services/instructions/engine.js')
+  const { conventionsForProfile, isInstructionFilePath } = await import('./instructions/engine.js')
   const conventions = conventionsForProfile('auto')
   const names = new Set(conventions.flatMap(convention => convention.instructionFileNames))
   return path => names.has(basename(path)) || conventions.some(convention => (convention.folderOf?.(path) ?? null) !== null) || isInstructionFilePath(path, conventions)
@@ -473,7 +474,7 @@ async function carryIgnoredEntries(sourceRoot: string, worktreePath: string, pla
   })
   const refusedUnder = (await heldBackUnder(permission, sourceRoot, true)) as (root: string) => HeldBack
   const instructions = await instructionFileTest()
-  const { mercurySecretReadIgnores } = await import('./permissions/protectedPaths.js')
+  const { mercurySecretReadIgnores } = await import('../utils/permissions/protectedPaths.js')
   const fold = (path: string): string => path.normalize('NFC').toLowerCase()
   const ownHomes = [...mercurySecretReadIgnores().keys()].map(fold)
   const staysBehind = (root: string): HeldBack => {
@@ -688,29 +689,7 @@ async function runWorktreePrepareCommand(worktreePath: string): Promise<string |
 }
 
 
-export type WorktreeSession = {
-  originalCwd: string
-  worktreePath: string
-  worktreeName: string
-  worktreeBranch?: string
-  originalBranch?: string
-  originalHeadCommit?: string
-  sessionId: string
-  tmuxSessionName?: string
-  prepareFailure?: string
-  creationDurationMs?: number
-  usedSparsePaths?: boolean
-}
-
-let currentWorktreeSession: WorktreeSession | null = null
-
-export function getCurrentWorktreeSession(): WorktreeSession | null {
-  return currentWorktreeSession
-}
-
-export function restoreWorktreeSession(session: WorktreeSession | null): void {
-  currentWorktreeSession = session
-}
+export { getCurrentWorktreeSession, restoreWorktreeSession, type WorktreeSession }
 
 function persistWorktreeSession(session: WorktreeSession | null): void {
   saveCurrentProjectConfig(config => {
@@ -776,17 +755,17 @@ export async function createWorktreeForSession(
     ...(usedSparse && !created.existed ? { usedSparsePaths: true } : {}),
     ...(prepareFailure !== undefined ? { prepareFailure } : {}),
   }
-  currentWorktreeSession = session
+  restoreWorktreeSession(session)
   persistWorktreeSession(session)
   return session
 }
 
 export async function keepWorktree(): Promise<void> {
   try {
-    const session = currentWorktreeSession
+    const session = getCurrentWorktreeSession()
     if (session === null) return
     process.chdir(session.originalCwd)
-    currentWorktreeSession = null
+    restoreWorktreeSession(null)
     persistWorktreeSession(null)
     logForDebugging(
       `worktree preserved at ${session.worktreePath}${session.worktreeBranch ? ` (branch ${session.worktreeBranch})` : ''}; cd there to continue working in it`,
@@ -811,7 +790,7 @@ async function removeWorktreeTree(worktreePath: string, cwd: string): Promise<{ 
 }
 
 export async function cleanupWorktree(): Promise<void> {
-  const session = currentWorktreeSession
+  const session = getCurrentWorktreeSession()
   if (session === null) return
   try {
     process.chdir(session.originalCwd)
@@ -826,7 +805,7 @@ export async function cleanupWorktree(): Promise<void> {
         throw new Error(removal.stderr.trim() || removal.stdout.trim() || `git worktree remove exited ${removal.code}`)
       }
     }
-    currentWorktreeSession = null
+    restoreWorktreeSession(null)
     persistWorktreeSession(null)
     if (session.worktreeBranch !== undefined) {
       await sleep(100)
@@ -970,7 +949,7 @@ async function removeAgentWorktree(
 }
 
 
-export { classifyPorcelainRecords, hasWorktreeChanges, readWorktreeDelta, worktreeRemovalSafe } from './worktree/delta.js'
+export { classifyPorcelainRecords, hasWorktreeChanges, readWorktreeDelta, worktreeRemovalSafe } from '../utils/worktree/delta.js'
 
 
 const AGENT_LANE_SLUG = /^agent-a[0-9a-f]{7,32}$/
@@ -1085,7 +1064,8 @@ export async function cleanupStaleAgentWorktrees(cutoffDate: Date): Promise<numb
   for (const [candidatePath, slug] of candidates) {
     const agentLane = await isAgentLane(slug, candidatePath)
     if (!agentLane && !isEphemeralSlug(slug)) continue
-    if (currentWorktreeSession !== null && candidatePath === currentWorktreeSession.worktreePath) continue
+    const activeSession = getCurrentWorktreeSession()
+    if (activeSession !== null && candidatePath === activeSession.worktreePath) continue
     let mtimeMs: number
     try {
       mtimeMs = (await stat(candidatePath)).mtimeMs
@@ -1172,8 +1152,8 @@ export async function createBaselineWorktree(
     return { ok: false, reason: `"${revision}" is not a commit in this repository` }
   }
 
-  const { getProjectTempDir } = await import('./permissions/filesystem.js')
-  const { registerScratchLease, releaseScratchLease } = await import('./scratchLeases.js')
+  const { getProjectTempDir } = await import('../utils/permissions/filesystem.js')
+  const { registerScratchLease, releaseScratchLease } = await import('../utils/scratchLeases.js')
 
   const targetPath = join(getProjectTempDir(), 'baselines', sha.slice(0, 12))
 

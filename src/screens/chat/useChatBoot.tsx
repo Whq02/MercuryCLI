@@ -36,7 +36,7 @@ import { subscribeTranscriptLoadDegradation, transcriptLoadDegradation } from '.
 import { subscribeTranscriptStoreHealth, transcriptStoreHealth } from '../../utils/sessionStorage/writer.js';
 import { getProjectDir } from '../../utils/sessionStoragePortable.js';
 import { windowsShellRoadNotice } from '../../utils/shell/windowsShellRoad.js';
-import { getCurrentWorktreeSession } from '../../utils/worktree.js';
+import { getCurrentWorktreeSession } from '../../services/worktree.js';
 import type { CrashResumeStaged } from './crashResume.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';

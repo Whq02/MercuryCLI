@@ -43,7 +43,7 @@ console.log('§3 the sweep at 0 ages a recording and leaves every transcript (th
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
   const { getProjectsDir } = await import('../../src/utils/sessionStorage/paths.ts')
-  const { cleanupOldSessionFiles, retentionWindowDays } = await import('../../src/utils/cleanup.ts')
+  const { cleanupOldSessionFiles, retentionWindowDays } = await import('../../src/services/cleanup.ts')
   check('the window reads 0 from the scratch settings', retentionWindowDays() === 0, String(retentionWindowDays()))
   const project = join(getProjectsDir(), 'proj-zero')
   mkdirSync(project, { recursive: true })

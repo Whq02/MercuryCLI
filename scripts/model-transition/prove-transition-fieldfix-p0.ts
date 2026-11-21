@@ -136,7 +136,7 @@ section('§D G04 — blob lifetime is reachability + age (behavioral, the repro 
   enableConfigs()
   const { getProjectsDir } = await import('../../src/utils/sessionStorage.js')
   const { TOOL_RESULTS_SUBDIR } = await import('../../src/utils/toolResultStorage.js')
-  const { cleanupOldSessionFiles } = await import('../../src/utils/cleanup.js')
+  const { cleanupOldSessionFiles } = await import('../../src/services/cleanup.js')
 
   const projectDir = join(getProjectsDir(), 'g04-proj')
   const sid = 'aaaaaaaa-bbbb-cccc-dddd-000000000001'

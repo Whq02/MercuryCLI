@@ -50,7 +50,7 @@ if (road !== undefined) {
   }
   const state = await import('../../src/bootstrap/state.ts')
   const config = await import('../../src/utils/config/globalConfig.ts')
-  const wt = await import('../../src/utils/worktree.ts')
+  const wt = await import('../../src/services/worktree.ts')
   process.chdir(repo); state.setOriginalCwd(repo); state.setCwdState(repo); state.setIsInteractive(true); config.enableConfigs()
   const made = await wt.createAgentWorktree('agent-a123abcd', { foldersBehindLaunch: true })
   await started

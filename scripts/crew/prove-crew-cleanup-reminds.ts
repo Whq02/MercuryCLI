@@ -32,7 +32,7 @@ const age = (path: string, days: number): void => {
 }
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const worktree = await import('../../src/utils/worktree.ts')
+const worktree = await import('../../src/services/worktree.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
 tally.section('§1 the reminder owner: a leftover worktree is named with its age, what is in it, and the day the seven-day janitor takes it — or that the machine never will')

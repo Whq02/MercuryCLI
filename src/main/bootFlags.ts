@@ -24,7 +24,7 @@ export function refuseTerminalMismatch(inputPromptArg: string | undefined, { cli
 }
 
 export async function refuseMissingTmux(): Promise<void> {
-  const { isTmuxAvailable, getTmuxInstallInstructions } = await import('../utils/worktree.js')
+  const { isTmuxAvailable, getTmuxInstallInstructions } = await import('../services/worktree.js')
   if (!(await isTmuxAvailable())) {
     failCli(`tmux is not installed. ${getTmuxInstallInstructions()}`, 1)
   }

@@ -404,7 +404,7 @@ console.log('\n§8 w10-8 — createBaselineWorktree catches scratch lease error,
     const projTmp = getProjectTempDir()
     mkdirSync(projTmp, { recursive: true })
     writeFileSync(join(projTmp, 'scratch-leases.json'), '{not json')
-    const { createBaselineWorktree } = await import(SRC + '/utils/worktree.ts')
+    const { createBaselineWorktree } = await import(SRC + '/services/worktree.ts')
     const targetPath = join(projTmp, 'baselines', sha.slice(0, 12))
     try {
       out.result = await createBaselineWorktree(sha, repo)
@@ -427,7 +427,7 @@ console.log('\n§9 w10-9 — getSettingsWithAllErrors passes over ConfigAccessBe
     delete process.env.NODE_ENV
     const { mkdirSync } = await import('node:fs')
     const { join } = await import('node:path')
-    const { getSettingsWithAllErrors } = await import(SRC + '/utils/settings/allErrors.ts')
+    const { getSettingsWithAllErrors } = await import(SRC + '/services/settings/allErrors.ts')
     const { enableConfigs } = await import(SRC + '/utils/config.ts')
     out.beforeAllowedErrors = getSettingsWithAllErrors().errors
     enableConfigs()

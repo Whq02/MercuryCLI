@@ -447,7 +447,7 @@ async function collectIdleScratchpads(budget: LifecycleBudget): Promise<Lifecycl
   const receipt = emptyReceipt('session-scratchpads')
   const { readScratchpadCensus, forgetStaleOwnerRecords, scratchpadFootprint, SCRATCHPAD_WALK_ENTRIES } = await import('../daemon/scratchpadRetention.js')
   const { forgetSweptScratchpad, isSessionScratchpad } = await import('../utils/scratchpad.js')
-  const { retentionCutoffMs } = await import('../utils/cleanup.js')
+  const { retentionCutoffMs } = await import('../services/cleanup.js')
   const { getMercuryTempDir } = await import('../utils/permissions/filesystem.js')
   const cutoff = retentionCutoffMs()
   if (cutoff === null) {
@@ -749,7 +749,7 @@ export const LIFECYCLE_MANIFEST: readonly LifecycleClassDecl[] = [
   {
     id: 'session-transcripts-and-blobs',
     lane: 'semantic-state',
-    owner: 'src/utils/cleanup.ts',
+    owner: 'src/services/cleanup.ts',
     root: '<config>/projects/** · errors · mcp-logs · plans · file-history · session-env · debug · images · pastes · worktrees',
     kind: 'semantic',
     liveReference: 'a session transcript (.jsonl) is never auto-deleted; blobs: mtime within records.retentionDays (default 30) or referenced by a live transcript',

@@ -32,7 +32,7 @@ import { maybeResizeAndDownsampleImageBlock } from '../../utils/imageResizer.js'
 import { isStoredImageRef, readStoredImageRef, storeImages } from '../../utils/imageStore.js'
 import { logError } from '../../utils/log.js'
 import { parseSlashCommand } from '../../utils/slashCommandParsing.js'
-import { untoldSettingsFaultLines } from '../../utils/settings/faultNotices.js'
+import { untoldSettingsFaultLines } from '../settings/faultNotices.js'
 import { untoldHiddenCharacterLines } from '../../utils/text/hiddenCharacterFindings.js'
 
 export type ProcessUserInputContext = ToolUseContext &

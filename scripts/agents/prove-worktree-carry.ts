@@ -26,7 +26,7 @@ if (scenario !== undefined && process.env.CARRY_SCENARIO_HOME !== undefined) pro
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
-const worktree = await import('../../src/utils/worktree.ts')
+const worktree = await import('../../src/services/worktree.ts')
 const instructions = await import('../../src/services/instructions/engine.ts')
 const cloneModule = (await import('../../src/utils/worktreeClone.ts')) as unknown as { planCloneCalls: (source: string, held?: (path: string) => boolean, leaveOut?: boolean) => Promise<{ folders: string[]; clones: string[]; links: string[] }> }
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
