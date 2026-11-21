@@ -26,17 +26,17 @@ try {
   const create = module.createVastRental
   assert.equal(typeof create, 'function')
   let confirms = 0
-  await create(api, offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'fixture-cancel', async (q: any) => { confirms++; assert.ok(q.found.includes('$1.71/hr')); return 'cancel' }, () => {}, signal)
+  await create(api, offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'fixture-cancel', async (q: any) => { confirms++; assert.ok(q.found.includes('$1.71/hr'), `replacement Vast offer confirmation missing $1.71/hr price (found=${String(q.found).slice(0, 140)}); check createVastRental`); return 'cancel' }, () => {}, signal)
   assert.equal(confirms, 1)
   assert.equal(vast.state.creates, 2)
   const rented = await create(api, offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'fixture-confirm', async (q: any) => {
     confirms++
     assert.equal(vast.state.creates, 3)
-    assert.ok(q.willRun.includes('Billing starts'))
+    assert.ok(q.willRun.includes('Billing starts'), `replacement Vast offer confirmation missing Billing starts notice (willRun=${String(q.willRun).slice(0, 140)}); check createVastRental`)
     vast.state.stockLoss = false
     return 'rent'
   }, () => {}, signal)
-  assert.ok(rented?.pod.id)
+  assert.ok(rented?.pod.id, `confirmed Vast replacement rental returned no pod.id (got=${JSON.stringify(rented)?.slice(0, 140)}); check createVastRental`)
   assert.equal(rented.offer.price, 1.708)
   assert.equal(vast.state.creates, 4)
   assert.equal(vast.requests.filter(row => row.method === 'PUT' && row.path.startsWith('/api/v0/asks/')).at(-1)?.path, '/api/v0/asks/202/')
@@ -45,6 +45,6 @@ try {
   const notices: string[] = []
   const absent = await create(api, offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'fixture-empty', async () => { throw new Error('No replacement can be confirmed') }, (event: any) => notices.push(event.words), signal)
   assert.equal(absent, undefined)
-  assert.ok(notices.some(text => text.includes('No other machine') && text.includes('nothing was rented')))
+  assert.ok(notices.some(text => text.includes('No other machine') && text.includes('nothing was rented')), `empty replacement stock notices missing honest refusal (notices=${notices.join(' | ').slice(0, 160)}); check createVastRental`)
   console.log('PASS no_such_ask reads stock once, excludes the lost machine, preserves the recipe, requires confirmation at the new price, and reports empty stock honestly')
 } finally { await vast.close(); f.close() }

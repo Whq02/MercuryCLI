@@ -31,7 +31,7 @@ try {
   writeHuggingfaceTokens({ accessToken: 'fixture-expired', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() - 1 })
   assert.deepEqual(await vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).pods(), [])
   assert.equal(refreshes, 1)
-  assert.ok(hf.requests.filter(row => row.path === '/api/whoami-v2').every(row => row.authorized))
+  assert.ok(hf.requests.filter(row => row.path === '/api/whoami-v2').every(row => row.authorized), 'whoami-v2 request fired without valid refreshed bearer token; check HF token refresh')
   console.log('PASS expired OAuth refreshes before whoami')
   writeHuggingfaceTokens({ accessToken: 'fixture-rejected-oauth', refreshToken: 'fixture-refresh', accessTokenExpiresAtMs: Date.now() + 7200_000 })
   const before = hf.requests.filter(row => row.path === '/api/whoami-v2').length

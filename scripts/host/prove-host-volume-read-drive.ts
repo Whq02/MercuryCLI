@@ -54,7 +54,7 @@ try {
     const flat = () => screen().replace(/[│\s]+/g, ' ')
     const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 20)), 15000), name + '\n' + screen())
     const open = async () => { popup.openSettingsPopup(llmHostPopupRequest((ask, emit, signal) => implementation(plan => { question = plan; return ask(plan) }, event => { notices.push(event.words); emit(event) }, signal))); await step('door-models') }
-    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), `${label}: settings popup did not close within 5000ms after Esc; check popup close`) }
     const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
     const choose = async (value: string) => {
       const row = question!.rows!.find(row => row.value === value)
@@ -67,19 +67,19 @@ try {
     const reads = () => fixture.requests.length
     await open()
     const before = reads()
-    assert.ok(before > 0)
+    assert.ok(before > 0, `${label}: opening door-models sent 0 requests to vendor fixture; check host vendor read`)
     await choose('bank'); await step('door-bank')
     const afterBank = reads()
     assert.equal(afterBank, before + 1, label + ' checks volumes independently of the rejected machine read, once')
     assert.equal(notices.length, 0, label + ' has one summary, not a second raw volume notice')
     assert.equal(flat().split(label + ': could not be read (HTTP 401)').length - 1, 1)
-    assert.ok(!flat().includes('GET /'))
+    assert.ok(!flat().includes('GET /'), `${label}: door-bank summary leaked raw HTTP request line GET /; check vendor error formatting`)
     await choose('vendor-error:' + vendor); await step('door-vendor-error')
-    assert.ok(question!.found.includes('HTTP 401'))
-    assert.ok(!question!.found.includes('fixture-rejected'))
+    assert.ok(question!.found.includes('HTTP 401'), `${label}: door-vendor-error detail missing HTTP 401 status (found=${question!.found.slice(0, 140)}); check vendor error view`)
+    assert.ok(!question!.found.includes('fixture-rejected'), `${label}: door-vendor-error detail leaked raw rejected API key; check vendor error redaction`)
     await close(); await open(); await choose('pods'); await step('paid-pods')
     assert.equal(reads(), afterBank, label + ' paid list must not retry either rejected operation until the credential changes')
-    assert.ok(question!.found.includes(label + ': unread'))
+    assert.ok(question!.found.includes(label + ': unread'), `${label}: paid-pods summary missing '${label}: unread' status (found=${question!.found.slice(0, 140)}); check paid-pods summary`)
     assert.equal(notices.length, 0)
     if (frames) {
       writeFileSync(join(frames, width + '-' + vendor + '.txt'), screen())
@@ -92,8 +92,8 @@ try {
     await close()
     saveVendorKey(vendor, fixture.key)
     await open(); await choose('bank'); await step('door-bank')
-    assert.ok(reads() > before)
-    assert.ok(!question!.found.includes('could not be read'))
+    assert.ok(reads() > before, `${label}: saving valid vendor key did not resume volume reads (reads=${reads()}, before=${before}); check vendor read cache invalidation`)
+    assert.ok(!question!.found.includes('could not be read'), `${label}: door-bank still showed 'could not be read' after saving valid key; check vendor read cache`)
     await close(); mounted.unmount(); mounted = undefined
     console.log('PASS ' + label + ' at ' + width + ': machine and volume reads fail independently, each stays parked, HTTP detail preserved, changed key resumes reads')
   }

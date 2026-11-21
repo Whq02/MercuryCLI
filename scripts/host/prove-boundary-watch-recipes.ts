@@ -45,7 +45,7 @@ if (process.argv.includes('--child')) {
   }
   try {
     const source = HOST_RECIPES.find(row => row.gpu === 'B200' && row.count === 4 && !row.nodes)!
-    assert.ok(source)
+    assert.ok(source, `HOST_RECIPES missing single-node 4x B200 recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
     const recipe = { ...source, flags: [...source.flags, '--saved-watch-marker'], environment: { ...source.environment, SAVED_WATCH_MARKER: 'kept' } }
     fixtures.runpod.state.customGpus = [{ id: 'NVIDIA B200', name: 'B200', memory: 192, secure: true, price: { secure: 2 }, maxCount: { secure: 8 }, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
     for (const [kind, fixture] of Object.entries(fixtures)) {
@@ -56,7 +56,7 @@ if (process.argv.includes('--child')) {
       check(kind + ' keeps the saved same-id recipe instead of replacing it from its catalogue', isDeepStrictEqual(offer.recipe, recipe))
     }
     const clusterSource = HOST_RECIPES.find(row => (row.nodes ?? 1) > 1)!
-    assert.ok(clusterSource)
+    assert.ok(clusterSource, `HOST_RECIPES missing multi-node cluster recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
     const clusterRecipe = { ...clusterSource, flags: [...clusterSource.flags, '--saved-cluster-marker'] }
     fixtures.runpod.state.clusterGpus = [{ id: 'NVIDIA ' + clusterRecipe.gpu, name: clusterRecipe.gpu, memory: clusterRecipe.vramGb, secure: true, price: { secure: 2 }, maxCount: { secure: 64 }, availability: 'HIGH', dataCenters: [{ id: 'EU-NL-1', availability: 'HIGH' }] }]
     writeHostRecord({ id: 'saved-cluster', name: clusterRecipe.label, recipe: clusterRecipe.id, recipeRow: clusterRecipe, price: 1000, status: 'WATCHING', startedAt: new Date().toISOString() })

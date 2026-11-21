@@ -28,7 +28,7 @@ try {
   const tune = await import('../../src/services/host/tune.ts')
   const a = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-3090')!
   const b = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-a6000')!
-  assert.ok(a && b)
+  assert.ok(a && b, `HOST_RECIPES missing RTX 3090 or RTX A6000 tensorfold-qwen35-2b recipe (a=${Boolean(a)}, b=${Boolean(b)}); check src/services/host/recipes.ts`)
   const title = a.label.split(' · ')[0]!
   const prefsPath = join(f.home, 'host/preferences.json')
   const beforePrefs = (): string => existsSync(prefsPath) ? readFileSync(prefsPath, 'utf8') : ''
@@ -54,7 +54,7 @@ try {
       if (q.step === 'rent-confirm') { confirmation = q; return cancel ? 'cancel' : 'rent' }
       return null
     }, () => {}, new AbortController().signal)
-    assert.ok(confirmation)
+    assert.ok(confirmation, `host rental road did not reach rent-confirm step (cancel=${cancel}); check createHostRoad`)
     return confirmation
   }
   const empty = beforePrefs()

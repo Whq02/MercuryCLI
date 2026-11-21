@@ -61,7 +61,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     let manifest
     try { manifest = weightManifest(recipe) } catch {}
     check('a derived HF recipe carries a trusted file manifest instead of failing at mirror', manifest)
-    assert.ok(manifest)
+    assert.ok(manifest, `weightManifest returned empty for derived HF recipe ${recipe.id}; check HF recipe manifest derivation`)
     const revision = createHash('sha1').update(model.id).digest('hex')
     check('the manifest pins the Hub commit, exact quant files, byte counts and SHA256 hashes', manifest.revision === revision && manifest.files.length === 4 && manifest.files.every((file, index) => file.path === hf.repos.gguf.files[index]!.path && file.size === bytes[index]!.length && file.sha256 === createHash('sha256').update(bytes[index]!).digest('hex')))
     check('the tree and config use the resolved immutable commit, not a moving main', hf.requests.some(row => row.path.endsWith('/tree/' + revision)) && !hf.requests.some(row => row.path.endsWith('/tree/main')))
@@ -72,7 +72,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     check('a repeated page cannot produce a partial trusted manifest', !repeated.ok)
     hf.state.repeatPage = false
     const tensor = await pickHuggingFaceModel(found.state === 'ready' ? found.models.find(row => row.id === hf.repos.fp8.id)! : undefined!, { base: hf.baseUrl })
-    assert.ok(tensor.ok)
+    assert.ok(tensor.ok, `pickHuggingFaceModel failed for safetensors repo ${hf.repos.fp8.id}: ${tensor.ok ? '' : JSON.stringify(tensor).slice(0, 160)}; check HF model picker`)
     const tensorManifest = weightManifest(tensor.row.recipe)
     check('a single-file safetensors recipe includes its config git hash and weights SHA256 without requiring an index', tensorManifest.files.length === 2 && tensorManifest.files.some(file => file.path === 'config.json' && file.git) && tensorManifest.files.some(file => file.path === 'model.safetensors' && file.sha256) && Math.round(tensor.row.recipe.weightsGb * 1e9) === configBytes.length + tensorBytes.length)
     const folder = rememberBankFolder(join(f.home, 'mercury-model-bank'))

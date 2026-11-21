@@ -31,7 +31,7 @@ try {
     await runHostJob(record.id, record.generation!, { runner: ssh!.runner, pauseMs: 5, timeoutMs: 3000, keepAlive: false })
     const ready = readHostRecord(record.id)!
     assert.equal(ready.jobState, 'ready', ready.error)
-    assert.ok(configuredCompatEndpoints().some(row => row.name === ready.provider && row.hostPodId === pod.id))
+    assert.ok(configuredCompatEndpoints().some(row => row.name === ready.provider && row.hostPodId === pod.id), `ready host job did not register compat endpoint for provider=${ready.provider} pod=${pod.id}; check runHostJob`)
     return ready
   }
   const gone = (id: string, provider: string | undefined): boolean => !readHostRecord(id) && !configuredCompatEndpoints().some(row => row.hostPodId === id || row.name === provider) && !namedCompatModelOptions().some(row => row.value.startsWith('compat/' + provider + '/'))
@@ -41,7 +41,7 @@ try {
     let billed = false
     const result = await road(async q => {
       if (q.step === 'door-models') { billed = q.rows?.some(row => row.value === 'pods' && row.label.includes('· 1 ')) ?? false; return 'pods' }
-      if (q.step === 'paid-pods') { assert.ok(q.rows?.some(row => row.value === record.id && row.label.includes(record.id))); return record.id }
+      if (q.step === 'paid-pods') { assert.ok(q.rows?.some(row => row.value === record.id && row.label.includes(record.id)), `paid-pods rows missing live pod ${record.id} (loseRecord=${loseRecord}); check paid-pods listing`); return record.id }
       if (q.step === 'pod-controls' || q.step === 'pod-confirm') return 'terminate'
       return null
     }, () => {}, new AbortController().signal)

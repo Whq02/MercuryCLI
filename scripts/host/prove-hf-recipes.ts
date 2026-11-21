@@ -69,7 +69,7 @@ try {
   check('GGUF preserves the repo-declared context per slot without imposing a smaller ceiling', g.context === 1048576 && g.contextPerSlot === 1048576 && g.flags.join(' ').includes('--ctx-size 4194304 --parallel 4') && g.flags.includes('--jinja'))
   for (const context of [32768, 2097152, undefined]) {
     const variation = deriveHostRecipe({ ...gguf, ggufContext: context }, ggufRepo.files, ggufRepo.config)
-    assert.ok(variation.ok)
+    assert.ok(variation.ok, `deriveHostRecipe failed for ggufContext=${String(context)}: ${variation.ok ? '' : JSON.stringify(variation).slice(0, 160)}; check deriveHostRecipe`)
     const expected = context ?? 131072
     check('GGUF context ' + (context ?? 'unknown') + ' retains its declaration or the unknown-context default', variation.recipe.context === expected && variation.recipe.contextPerSlot === expected && variation.recipe.flags.join(' ').includes('--ctx-size ' + expected * 4 + ' --parallel 4'))
   }

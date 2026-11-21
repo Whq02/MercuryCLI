@@ -289,7 +289,7 @@ try {
   rp.state.noStock = true
   from = ssh.commands.length
   outcome = await drive([
-    ['door-models', () => 'Source fixture'], ['door-model', question => { assert.ok(question.rows!.some(row => row.value === 'watch')); return 'watch' }],
+    ['door-models', () => 'Source fixture'], ['door-model', question => { assert.ok(question.rows!.some(row => row.value === 'watch'), 'door-model missing watch row when no stock is available; check host door-model'); return 'watch' }],
     ['rent-confirm', question => { assert.ok(question.rows!.some(row => row.value === 'watch'), 'the catalogue price gives the watch its ceiling'); return weightsRow(question).value }],
     ['weights-source', () => 'private-repo'], ['weights-private-repo', () => MIRROR],
     ['rent-confirm', question => { check('the watch confirmation discloses the private repository', weightsRow(question).label.includes(MIRROR)); return 'watch' }],
@@ -338,13 +338,13 @@ try {
   check('the popup chooser lists the four sources', ['Hugging Face', 'Private repository', 'Bank', 'Kept volume'].every(words => screen().includes(words)))
   await capture('02-weights-chooser')
   await choose('private-repo'); await step('weights-private-repo'); await capture('03-private-repository')
-  mounted.push(MIRROR); assert.ok(await waitFor(() => screen().includes(MIRROR), 3000)); mounted.push(KEY.enter)
+  mounted.push(MIRROR); assert.ok(await waitFor(() => screen().includes(MIRROR), 3000), `weights-private-repo input did not paint ${MIRROR} within 3000ms; check popup input`); mounted.push(KEY.enter)
   await step('rent-confirm')
   check('the popup confirmation names the chosen repository and private source', screen().includes(MIRROR) && weightsRow(question!).label.includes('private'))
   await capture('04-confirm-private-repository')
   await choose('cancel'); assert.ok(await waitFor(() => screen().includes('Cancelled') || !popup.isSettingsPopupOpen(), 5000), screen())
   mounted.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) mounted.push(KEY.esc)
-  assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000))
+  assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'weights-source popup did not close within 5000ms after Esc; check popup close')
   check('the popup walk rents nothing', rp.state.creates === popupCreates && endpoints.state.creates === 0)
   check('every request stayed on loopback fixtures', escaped.length === 0)
   console.log('WEIGHTS SOURCE PROOF GREEN — ' + checks + ' checks; real rental question flow on Runpod and HF endpoint fixtures, SSH shim; Hugging Face, Bank, private repository and kept volume each set up exactly as chosen; zero billable calls')
