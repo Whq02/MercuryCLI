@@ -162,33 +162,65 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
   return { folders: [cwd], lost: true }
 }
 
-const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|trap)\b/
+const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|CDPATH|trap)\b/
+const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
 const PLAIN_CD = new Set(['cd', 'chdir', 'set-location', 'sl'])
 const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
 const PLAIN_POPD = new Set(['popd', 'pop-location'])
 const ALLOWED_MOVE_OPTION = /^-[LPe@]+$/
 const STACK_INDEX = /^[+-]\d+$/
+const SHELL_BUILTINS = new Set([
+  '.', 'alias', 'autoload', 'bg', 'bind', 'bindkey', 'break', 'builtin',
+  'caller', 'cd', 'chdir', 'command', 'compgen', 'complete', 'compopt',
+  'continue', 'coproc', 'declare', 'dirs', 'disable', 'disown', 'emulate',
+  'enable', 'eval', 'exec', 'exit', 'export', 'fc', 'fg', 'float', 'functions',
+  'getopts', 'hash', 'help', 'history', 'integer', 'jobs', 'kill', 'let',
+  'local', 'logout', 'mapfile', 'noglob', 'popd', 'print', 'pushd',
+  'read', 'readarray', 'readonly', 'rehash', 'return', 'set', 'setopt',
+  'shift', 'shopt', 'source', 'suspend', 'times', 'trap', 'type',
+  'typeset', 'ulimit', 'umask', 'unalias', 'unfunction', 'unhash',
+  'unset', 'unsetopt', 'wait', 'whence', 'zmodload',
+])
+
+function printfAssigns(argv: readonly string[]): boolean {
+  for (const word of argv.slice(1)) {
+    if (word === '--') return false
+    if (word === '-v' || /^-[A-Za-z]*v/.test(word)) return true
+  }
+  return false
+}
 
 export function placesCertain(read: ShellRead, text: string): boolean {
-  if (UNCERTAIN_PLACE_WORDS.test(text)) return false
+  if (UNCERTAIN_PLACE_WORDS.test(text) || UNCERTAIN_SYNTAX.test(text)) return false
+  if (read.exported.size > 0) return false
   for (const turn of read.commands) {
+    if (turn.body !== undefined) return false
     const move = moveOf(turn)
-    if (move === undefined) continue
-    if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.body !== undefined || turn.background || turn.stages.length > 0 || turn.substituted === true) return false
-    const { program, operands } = move
-    if (PLAIN_CD.has(program)) {
-      if (operands.length > 1) return false
-    } else if (PLAIN_PUSHD.has(program)) {
-      if (operands.length !== 1 || STACK_INDEX.test(operands[0]!)) return false
-    } else if (PLAIN_POPD.has(program)) {
-      if (operands.length !== 0) return false
-    } else return false
-    const layer = layersOf(turn.argv).find(found => found.program === program)
-    if (layer === undefined) return false
-    for (const word of layer.argv.slice(1)) {
-      if (word === '--') break
-      if (word === '-') continue
-      if (word.startsWith('-') && !ALLOWED_MOVE_OPTION.test(word)) return false
+    if (move !== undefined) {
+      if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.background || turn.stages.length > 0 || turn.substituted === true) return false
+      const { program, operands } = move
+      if (PLAIN_CD.has(program)) {
+        if (operands.length > 1) return false
+      } else if (PLAIN_PUSHD.has(program)) {
+        if (operands.length !== 1 || STACK_INDEX.test(operands[0]!)) return false
+      } else if (PLAIN_POPD.has(program)) {
+        if (operands.length !== 0) return false
+      } else return false
+      const layer = layersOf(turn.argv).find(found => found.program === program)
+      if (layer === undefined) return false
+      for (const word of layer.argv.slice(1)) {
+        if (word === '--') break
+        if (word === '-') continue
+        if (word.startsWith('-') && !ALLOWED_MOVE_OPTION.test(word)) return false
+      }
+      continue
+    }
+    if (turn.argv.length === 0) continue
+    const head = turn.argv[0]!
+    if (!wordKnown(head) || head.startsWith('$')) return false
+    for (const layer of layersOf(turn.argv)) {
+      if (SHELL_BUILTINS.has(layer.program)) return false
+      if (layer.program === 'printf' && printfAssigns(layer.argv)) return false
     }
   }
   return true
