@@ -1,6 +1,6 @@
 import { rewindOutcomeFromWire } from '../../services/engine-connector/seatWire.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
-import { SESSION_VERBS, type RunnerVerbKey } from '../../runner/wire/sessionVerbs.js'
+import { SESSION_VERBS, type RunnerVerbKey, type SessionVerbRow } from '../../runner/wire/sessionVerbs.js'
 import type { Verb } from '../runnerConnection.js'
 import type { QuiescenceRequest, QuiescenceAnswer } from '../runnerQuiescence.js'
 import type { SessionRewindMode, SessionRewindOutcomeV1, BoardPostRequestV1, McpToolsV1 } from '../protocol.js'
@@ -132,38 +132,72 @@ export async function controlSessionAgent(
   })
 }
 
-export async function backgroundSessionShell(
+interface GenericZeroArgSeatVerb {
+  readonly key: HostRequestVerbKey
+  readonly action: string
+  readonly olderDetail: string
+}
+
+const EMPTY_DETAIL_OLDER_DETAIL: Readonly<Record<string, string>> = {
+  [SESSION_VERBS.backgroundShell.daemon.action]: "this session's runner predates shift+B · /daemon restart, then reopen the session",
+  [SESSION_VERBS.sendNow.daemon.action]: "this session's runner predates ctrl+s s · /daemon restart, then reopen the session",
+}
+
+const GENERIC_ZERO_ARG_SEAT_VERBS: ReadonlyMap<string, GenericZeroArgSeatVerb> = new Map(
+  (Object.entries(SESSION_VERBS) as readonly [string, SessionVerbRow][]).flatMap(([key, row]) => {
+    if (row.carrier !== 'empty-detail') return []
+    if (row.daemon?.op !== SESSION_VERBS.sessionControl.daemon.op || row.daemon.action === undefined) return []
+    if (row.runner?.from !== 'host' || row.runner.kind !== 'request') return []
+    const action = row.daemon.action
+    return [[action, {
+      key: key as HostRequestVerbKey,
+      action,
+      olderDetail: EMPTY_DETAIL_OLDER_DETAIL[action] ?? `this session's runner predates ${action} · /daemon restart, then reopen the session`,
+    }] as const]
+  }),
+)
+
+export function isGenericSeatVerb(action: string): boolean {
+  return GENERIC_ZERO_ARG_SEAT_VERBS.has(action)
+}
+
+export async function forwardGenericSeatVerb(
   sessionId: string,
+  action: string,
   roster: SeatRosterPort,
   dir?: string,
   opts?: { deadlineMs?: number },
 ): Promise<SeatVerbOutcome> {
-  return runSeatVerb(sessionId, {}, roster, dir, {
-    verb: 'backgroundShell',
-    deadlineMs: opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS,
+  const entry = GENERIC_ZERO_ARG_SEAT_VERBS.get(action)
+  if (entry === undefined) return { outcome: 'refused', detail: `unregistered session action: ${action}` }
+  return runSeatVerb(sessionId, {} as never, roster, dir, {
+    verb: entry.key,
+    label: entry.action,
+    ...(opts?.deadlineMs !== undefined ? { deadlineMs: opts.deadlineMs } : {}),
     onAnswer: (result, runnerId) => {
-      console.error(`[daemon] seat ${SESSION_VERBS.backgroundShell.daemon.action} applied: ${runnerId}`)
+      console.error(`[daemon] seat ${entry.action} applied: ${runnerId}`)
       return appliedDetail(result)
     },
-    olderDetail: "this session's runner predates shift+B · /daemon restart, then reopen the session",
+    olderDetail: entry.olderDetail,
   })
 }
 
-export async function sendSessionNow(
+export function backgroundSessionShell(
   sessionId: string,
   roster: SeatRosterPort,
   dir?: string,
   opts?: { deadlineMs?: number },
 ): Promise<SeatVerbOutcome> {
-  return runSeatVerb(sessionId, {}, roster, dir, {
-    verb: 'sendNow',
-    deadlineMs: opts?.deadlineMs ?? AGENT_VERB_ANSWER_DEADLINE_MS,
-    onAnswer: (result, runnerId) => {
-      console.error(`[daemon] seat ${SESSION_VERBS.sendNow.daemon.action} applied: ${runnerId}`)
-      return appliedDetail(result)
-    },
-    olderDetail: "this session's runner predates ctrl+s s · /daemon restart, then reopen the session",
-  })
+  return forwardGenericSeatVerb(sessionId, SESSION_VERBS.backgroundShell.daemon.action, roster, dir, opts)
+}
+
+export function sendSessionNow(
+  sessionId: string,
+  roster: SeatRosterPort,
+  dir?: string,
+  opts?: { deadlineMs?: number },
+): Promise<SeatVerbOutcome> {
+  return forwardGenericSeatVerb(sessionId, SESSION_VERBS.sendNow.daemon.action, roster, dir, opts)
 }
 
 export async function pauseSessionGate(
