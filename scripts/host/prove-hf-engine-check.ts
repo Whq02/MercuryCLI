@@ -87,7 +87,7 @@ try {
   hf.state.down = false
 
   const search = await searchHuggingFace('deepseek', { base, token: hf.token })
-  assert.ok(search.state === 'ready')
+  assert.ok(search.state === 'ready', `searchHuggingFace('deepseek') returned state=${search.state}, expected ready; check HF search fixture`)
   const models = search.models
   const ggufModel = models.find(model => model.id === gguf.id)!
   forgetDerivedHfRecipes(); forgetSessionHostRecipes()

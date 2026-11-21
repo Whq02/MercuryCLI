@@ -34,19 +34,19 @@ try {
   const until = async (text: string) => assert.ok(await waitFor(() => mounted!.screen().includes(text), 15000), text + '\n' + mounted!.screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const choose = async (text: string) => {
-    for (let n = 0; n < 12 && !selected().includes(text); n++) { const before = selected(); mounted!.push(KEY.down); assert.ok(await waitFor(() => selected() !== before, 2000)) }
+    for (let n = 0; n < 12 && !selected().includes(text); n++) { const before = selected(); mounted!.push(KEY.down); assert.ok(await waitFor(() => selected() !== before, 2000), `key management cursor did not move toward ${text} on step ${n}; check manageVendorKey popup`) }
     assert.ok(selected().includes(text), text + '\n' + mounted!.screen())
     mounted!.push(KEY.enter)
   }
   for (const [id, fixture] of [['runpod', rp], ['vast', vast], ['lambda', lambda]] as const) {
     saveVendorKey(id, 'fixture-old-' + id)
-    assert.ok(vendorKeyRows().some((row: any) => row.value === 'key:' + id && row.label.includes('Replace key / Remove key')))
+    assert.ok(vendorKeyRows().some((row: any) => row.value === 'key:' + id && row.label.includes('Replace key / Remove key')), `vendorKeyRows missing Replace/Remove row for ${id}; check vendorKeyRows`)
     let changed = 0
     const open = () => popup.openSettingsPopup(llmHostPopupRequest(async (ask, emit, signal) => {
       const result = await manageVendorKey(id, ask, emit, signal, { apiBaseUrl: fixture.baseUrl, changed: () => { changed++ } })
       return { ok: true, words: result ? 'Key changed' : 'Key unchanged' }
     }))
-    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000)) }
+    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000), `vendor key popup for ${id} did not close within 3000ms after Esc; check popup close`) }
     open(); await until('Replace key'); await choose('Replace key'); await until('new key is checked'); mounted!.push('fixture-invalid'); await until('********'); mounted!.push(KEY.enter); await until('Key unchanged'); await close()
     assert.equal(vendorKey(id), 'fixture-old-' + id)
     assert.equal(changed, 0)
@@ -56,15 +56,15 @@ try {
     open(); await until('Replace key'); await choose('Remove key'); await until('Rented machines and disks keep billing'); await choose('Remove key'); await until('Key changed'); await close()
     assert.equal(vendorKey(id), undefined)
     assert.equal(changed, 2)
-    assert.ok(!vendorKeyRows().some((row: any) => row.value === 'key:' + id))
+    assert.ok(!vendorKeyRows().some((row: any) => row.value === 'key:' + id), `vendorKeyRows still listed ${id} after key removal; check vendorKeyRows`)
     assert.equal(fixture.state.creates, 0)
     console.log('PASS ' + vendorLabel(id) + ': rejected replacement keeps old key; valid replacement verifies; removal disconnects without renting')
   }
   writeStoredHuggingfaceApiKey('fixture-hf-signout')
-  assert.ok(vendorKeyRows().some((row: any) => row.value === 'key:huggingface' && row.label.includes('Sign out with /logins huggingface')))
+  assert.ok(vendorKeyRows().some((row: any) => row.value === 'key:huggingface' && row.label.includes('Sign out with /logins huggingface')), 'vendorKeyRows missing /logins huggingface sign-out row; check vendorKeyRows')
   const notices: string[] = []
   await manageVendorKey('huggingface', async () => { throw new Error('HF must use its existing sign-out') }, (notice: any) => notices.push(notice.words), new AbortController().signal)
-  assert.ok(notices[0]?.includes('/logins huggingface'))
+  assert.ok(notices[0]?.includes('/logins huggingface'), `HF manageVendorKey notice missing /logins huggingface guidance (got=${notices[0]}); check manageVendorKey`)
   assert.equal(vendorKey('huggingface'), 'fixture-hf-signout')
   console.log('PASS HF sign-out uses the existing login owner; no duplicate credential removal')
 } finally { mounted?.unmount(); await rp.close(); await vast.close(); await lambda.close(); f.close(); globalThis.fetch = nativeFetch }

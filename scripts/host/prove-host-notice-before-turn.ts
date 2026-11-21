@@ -64,7 +64,7 @@ try {
   assert.equal(messages.length, 5)
   for (const command of messages) {
     assert.ok(isHeldNotice(command), 'every completed host event stays on the notice road')
-    assert.ok(taskNoticeBlock(String(command.value)))
+    assert.ok(taskNoticeBlock(String(command.value)), `taskNoticeBlock returned empty for queued host notice (len=${String(command.value).length}); check host notice block parser`)
   }
   deliverHostNotices(own.sessionId)
   assert.equal(getCommandQueue().length, 5, 'reopening does not deliver a notice twice')

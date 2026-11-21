@@ -29,13 +29,13 @@ for (const windows of [false, true]) {
       assert.equal(timeout, 43200000)
       assert.deepEqual(passedEnv, env)
       const script = windows ? Buffer.from(args[3]!, 'base64').toString('utf16le') : args[1]!
-      assert.ok(!script.includes(env.HF_TOKEN))
+      assert.ok(!script.includes(env.HF_TOKEN), `bankDownloadScript (windows=${windows}) leaked HF_TOKEN into script body; check bankDownloadScript`)
       const words = bankDownloadWords(command, args)
-      assert.ok(words)
+      assert.ok(words, `bankDownloadWords returned null for windows=${windows} command=${command}; check bankDownloadWords`)
       assert.deepEqual(words.slice(1), ['download', recipe.model, '--revision', recipe.weightManifest.revision, '--include', ...files.map(file => file.path), '--local-dir', destination])
       if (windows) {
         encoded = args[3]!
-        assert.ok(script.includes('python -m venv ') && script.includes('Scripts') && script.includes('pip.exe') && script.includes('hf.exe'))
+        assert.ok(script.includes('python -m venv ') && script.includes('Scripts') && script.includes('pip.exe') && script.includes('hf.exe'), 'Windows bank download script missing python venv/Scripts/pip.exe/hf.exe setup; check bankDownloadScript')
       }
       return 'fixture download'
     },

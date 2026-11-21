@@ -94,7 +94,7 @@ try {
     throw new Error('Missing choice ' + needle + '\n' + m.screen())
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push('\u0015'); m.push(value); await until(value) } m.push(KEY.enter) }
-  const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'rent-model-first settings popup did not close within 5000ms after Esc; check popup close') }
   const rent = async () => { open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70'); await heading('Choose a model · live Runpod stock') }
 
   const distinctModels = [...new Set(HOST_RECIPES.map(row => row.label.split(' · ')[0]!))]

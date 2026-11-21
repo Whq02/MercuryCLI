@@ -27,11 +27,11 @@ for (const row of added) check(row.id + ' exports its full shape, byte sum and c
   const manifest = manifests.find(entry => entry.model === row.model)!
   assert.match(manifest.revision, /^[a-f0-9]{40}$/)
   assert.equal(manifest.files.reduce((sum, file) => sum + file.size, 0) / 1e9, row.weightsGb)
-  assert.ok(row.diskGb >= row.weightsGb + 12)
+  assert.ok(row.diskGb >= row.weightsGb + 12, `${row.id}: diskGb=${row.diskGb} < weightsGb+12 (${row.weightsGb + 12}); check host recipes.ts`)
   assert.equal(Number(value(row, '--tp', '--tp-size', '--tensor-parallel-size') ?? 1) * Number(value(row, '--pp-size') ?? 1), row.count * (row.nodes ?? 1))
-  assert.ok(Number(value(row, '--ep', '--ep-size') ?? 1) <= row.count * (row.nodes ?? 1))
+  assert.ok(Number(value(row, '--ep', '--ep-size') ?? 1) <= row.count * (row.nodes ?? 1), `${row.id}: --ep exceeds total GPUs (${row.count * (row.nodes ?? 1)}); check host recipes.ts`)
   assert.equal(row.context, row.contextPerSlot)
-  assert.ok(row.context! >= 131072)
+  assert.ok(row.context! >= 131072, `${row.id}: context=${row.context} < 131072; check host recipes.ts`)
   assert.deepEqual(shipped.find(entry => entry.id === row.id), row)
 })
 for (const row of added.filter(row => row.model === 'Qwen/Qwen3.8-Flash-Next-FP8')) check(row.id + ' opts into the documented structured-tool parser', () => {
@@ -40,7 +40,7 @@ for (const row of added.filter(row => row.model === 'Qwen/Qwen3.8-Flash-Next-FP8
 })
 for (const row of added.filter(row => row.model === 'openai/gpt-oss-120b')) check(row.id + ' enables vLLM Harmony function calling', () => {
   assert.equal(value(row, '--tool-call-parser'), 'openai')
-  assert.ok(row.flags.includes('--enable-auto-tool-choice'))
+  assert.ok(row.flags.includes('--enable-auto-tool-choice'), `${row.id}: vLLM flags missing --enable-auto-tool-choice; check host recipes.ts`)
 })
 for (const row of added.filter(row => row.model === 'stepfun-ai/Step-5-Preview')) check(row.id + ' exposes the vendor low/medium/high effort vocabulary', () => {
   assert.deepEqual(row.efforts?.levels, ['low', 'medium', 'high'])
@@ -53,7 +53,7 @@ for (const id of ['step5-preview-b300', 'step5-preview-h200', 'nemotron35-super-
   assert.equal(row.verified.note, 'verified')
   assert.equal(row.verified.on, '2026-10-22')
   assert.equal(row.verified.source, row.source)
-  assert.ok(row.verification.startsWith('verified · '))
+  assert.ok(row.verification.startsWith('verified · '), `${row.id}: verification='${row.verification}' missing 'verified · ' prefix; check host recipes.ts`)
 })
 for (const row of HOST_RECIPES.filter(row => row.id.startsWith('hy4-preview-'))) check(row.id + ' serves the 262144-token hardware budget (SGLang Hy4-Preview, read 2026-10-25)', () => {
   assert.match(row.label, /770B/)

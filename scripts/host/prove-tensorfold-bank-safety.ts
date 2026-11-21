@@ -48,7 +48,7 @@ try {
   await sealBank(recipe, folder, new AbortController().signal)
   const manifest = pinnedWeightManifest(recipe)
   console.log('BANKED', bankState(recipe).banked, 'MANIFEST', Boolean(manifest), 'FILES', manifest?.files.length)
-  assert.ok(bankState(recipe).banked && manifest)
+  assert.ok(bankState(recipe).banked && manifest, `sealed bank missing banked state or pinnedWeightManifest (banked=${bankState(recipe).banked}, hasManifest=${Boolean(manifest)}); check services/host/bank.ts`)
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const options = { runner: ssh.runner, sessionId: 'tensorfold-bank-fixture', apiBaseUrl: rp.baseUrl, startJob: () => {} }
   const steps: string[] = []

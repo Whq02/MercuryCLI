@@ -61,7 +61,7 @@ try {
     assert.ok(await waitFor(() => m.lines().slice(0, 4).join(' ').includes(text), 20000), 'heading reaches ' + text + '\n' + m.screen())
   }
   const capture = (name: string, cols = 140, rows = 44) => {
-    assert.ok(!m.screen().includes('RENDER ERROR')); checks++
+    assert.ok(!m.screen().includes('RENDER ERROR'), `mercury-host frame ${name} painted RENDER ERROR; check host dialog render`); checks++
     if (!frames) return
     writeFileSync(join(frames, name + '.txt'), m.screen())
     const grid = m.lines().map((line, y) => Array.from(line.padEnd(cols)).map((c, x) => { const style = m.styleAt(x, y); return { c, bg: style?.bg ?? 'default', fg: style?.fg ?? 'default', bold: style?.bold ?? false, rev: style?.inverse ?? false } }))
@@ -78,12 +78,12 @@ try {
     }, 20000), 'selection reaches ' + text + '\n' + m.screen())
     m.push(KEY.enter)
   }
-  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'mercury-host popup did not close within 5000ms after Esc; check popup close') }
   await heading('Where should the model run?'); await until('One of my computers'); capture('01-four-doors'); await choose('One of my computers')
   await heading('One of my computers'); capture('02-computers'); await choose('This computer')
   await heading('Computer · this-computer'); capture('03-uninstalled'); await choose('Choose a model')
   await heading('Choose a model for'); await until('needs 200 GB; this box has 48'); capture('04-memory-fits')
-  await choose('GLM-5.3-Flash'); await heading('Choose a model for'); assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')))
+  await choose('GLM-5.3-Flash'); await heading('Choose a model for'); assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')), 'oversized model choice unexpectedly invoked launchctl bootstrap; check box memory fit guard')
   await choose('Back to this computer'); await heading('Computer · this-computer'); await choose('Choose a model'); await heading('Choose a model for'); await choose('GGUF Q4_K_M')
   await heading('Where are the weights?'); capture('05-weights'); await choose('Use a bank folder')
   await heading('Bank folder'); capture('06-bank-folder'); m.push(KEY.enter)
@@ -98,7 +98,7 @@ try {
   assert.ok(await waitFor(() => !flat().includes('Enlarge the terminal') && flat().includes('Confirm installation and start'), 20000), 'restored confirmation choices are actionable after resize\n' + m.screen())
   assert.ok(!fixture.commands.some((c: any) => c.args.at(-1)?.includes('launchctl bootstrap')), 'no service before explicit confirmation')
   await choose('Confirm installation and start'); await heading('Computer · this-computer'); await until('slots busy'); capture('08-running')
-  assert.ok(namedCompatModelOptions().some(row => row.value.includes('compat/box-this-computer/unsloth/Qwen3.8-27B-GGUF')))
+  assert.ok(namedCompatModelOptions().some(row => row.value.includes('compat/box-this-computer/unsloth/Qwen3.8-27B-GGUF')), 'started box service did not register compat/box-this-computer/unsloth/Qwen3.8-27B-GGUF model option; check box service registration')
   await choose('Read engine logs'); await heading('Engine logs'); capture('09-logs'); await choose('Back to this computer')
   await heading('Computer · this-computer'); await choose('Stop the service'); await heading('Confirm stop'); capture('10-stop-confirm'); await choose('Confirm stop')
   await heading('Computer · this-computer'); await until('engine stopped'); capture('11-stopped')
