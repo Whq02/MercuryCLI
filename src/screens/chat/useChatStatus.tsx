@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { useDerivedState, usePublish } from '../../hooks/effects.js';
+import { usePublish } from '../../hooks/effects.js';
 import { MercuryTurnRollup } from '../../components/MercuryTurnRollup.js';
 import type { ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
 import { SpinnerWithVerb } from '../../components/Spinner.js';
@@ -168,7 +168,6 @@ export function useChatTurnEnd({
   seatPausedMsRef: { current: number };
   seatPauseStartRef: { current: number | null };
 }) {
-  const [lastCompletedAt, setLastCompletedAt] = useState<number | null>(null);
   const tipPickedThisTurnRef = useRef(false);
   const shellCommandsSeenRef = useRef(new Set<string>());
   const shellScanCursorRef = useRef(0);
@@ -197,31 +196,54 @@ export function useChatTurnEnd({
       })
       .catch(passedOver);
   }, [setAppState, themeName, getReadFileState]);
-  const wasLoadingRef = useRef(false);
-  const connectorCompletedRef = useRef<{ connector: unknown; at: number | null }>({ connector: null, at: null });
   const hasConnectorCompleted = hasLastTurnCompletedAtMs(focusedConnector);
   const connectorCompletedAt = hasConnectorCompleted ? focusedConnector.lastTurnCompletedAtMs() : null;
-  useDerivedState(() => {
-    if (connectorCompletedRef.current.connector !== focusedConnector) {
-      connectorCompletedRef.current = { connector: focusedConnector, at: connectorCompletedAt };
-      if (isLoading) tipPickedThisTurnRef.current = false;
-      wasLoadingRef.current = isLoading;
-      return;
-    }
+  const [turnEndState, setTurnEndState] = useState<{
+    connector: unknown;
+    at: number | null;
+    wasLoading: boolean;
+    lastCompletedAt: number | null;
+    completionSeq: number;
+  }>(() => ({
+    connector: focusedConnector,
+    at: connectorCompletedAt,
+    wasLoading: isLoading,
+    lastCompletedAt: null,
+    completionSeq: 0,
+  }));
+  if (turnEndState.connector !== focusedConnector) {
+    setTurnEndState(prev => ({
+      ...prev,
+      connector: focusedConnector,
+      at: connectorCompletedAt,
+      wasLoading: isLoading,
+    }));
+  } else {
     const completed = hasConnectorCompleted
-      ? !isLoading && connectorCompletedAt !== null && connectorCompletedAt !== connectorCompletedRef.current.at
-      : wasLoadingRef.current && !isLoading;
-    if (!isLoading) connectorCompletedRef.current.at = connectorCompletedAt;
-    if (completed) {
-      setLastCompletedAt(Date.now());
+      ? !isLoading && connectorCompletedAt !== null && connectorCompletedAt !== turnEndState.at
+      : turnEndState.wasLoading && !isLoading;
+    const nextAt = !isLoading ? connectorCompletedAt : turnEndState.at;
+    if (completed || nextAt !== turnEndState.at || isLoading !== turnEndState.wasLoading) {
+      setTurnEndState(prev => ({
+        connector: focusedConnector,
+        at: nextAt,
+        wasLoading: isLoading,
+        lastCompletedAt: completed ? Date.now() : prev.lastCompletedAt,
+        completionSeq: completed ? prev.completionSeq + 1 : prev.completionSeq,
+      }));
+    }
+  }
+  const handledCompletionSeqRef = useRef(0);
+  usePublish(() => {
+    if (turnEndState.completionSeq !== handledCompletionSeqRef.current) {
+      handledCompletionSeqRef.current = turnEndState.completionSeq;
       seatPausedMsRef.current = 0;
       seatPauseStartRef.current = null;
       pickTurnTip();
     }
     if (isLoading) tipPickedThisTurnRef.current = false;
-    wasLoadingRef.current = isLoading;
-  }, [focusedConnector, hasConnectorCompleted, connectorCompletedAt, isLoading, pickTurnTip]);
-  return { lastCompletedAt };
+  }, [turnEndState.completionSeq, isLoading, pickTurnTip]);
+  return { lastCompletedAt: turnEndState.lastCompletedAt };
 }
 
 export function useChatTurnSignals({
