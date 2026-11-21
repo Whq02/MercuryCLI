@@ -19,7 +19,8 @@ import { parseSlashCommand } from '../utils/slashCommandParsing.js'
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
 
-const queue: QueuedCommand[] = []
+const triedCompact = Symbol('triedCompact')
+const queue: (QueuedCommand & { [triedCompact]?: true })[] = []
 let snapshot: readonly QueuedCommand[] = Object.freeze([])
 const queueChanged = createSignal()
 
@@ -167,24 +168,33 @@ export function markDraining(commands: readonly QueuedCommand[]): void {
 let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
-export function queuedCompactRequest(owner: OwnerKey): { instructions?: string; complete: () => void } | undefined {
-  if (queue.length === 0) return undefined
+function compactArgs(cmd: QueuedCommand): string | undefined {
+  if (cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) return undefined
+  const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
+  const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
+  return parsed?.commandName === 'compact' ? parsed.args.trim() : undefined
+}
+
+export function beginQueuedCompact(owner: OwnerKey): { fresh: boolean; instructions?: string; complete: () => void } | undefined {
   const { sessionId, lane } = parseOwnerKey(owner)
-  if (lane !== MAIN_LANE || sessionId !== (owningSessionId ?? getSessionId())) return undefined
+  const sameSession = (): boolean => sessionId === (owningSessionId ?? getSessionId())
+  if (lane !== MAIN_LANE || !sameSession()) return undefined
   const ids = new Set<string>()
   let instructions: string | undefined
+  let fresh = false
   for (const cmd of queue) {
-    if (cmd.queueId === undefined || cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) continue
-    const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
-    const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
-    if (parsed?.commandName !== 'compact') continue
+    const args = compactArgs(cmd)
+    if (args === undefined || cmd.queueId === undefined) continue
     ids.add(cmd.queueId)
-    const args = parsed.args.trim()
+    if (!cmd[triedCompact]) fresh = true
+    cmd[triedCompact] = true
     if (args !== '') instructions = args
   }
-  if (ids.size === 0) return undefined
-  return { instructions, complete: () => { dequeueAllMatching(cmd => cmd.queueId !== undefined && ids.has(cmd.queueId)) } }
+  return { fresh, instructions, complete: () => {
+    if (sameSession()) dequeueAllMatching(cmd => cmd.queueId !== undefined && (ids.has(cmd.queueId) || compactArgs(cmd) === ''))
+  } }
 }
+
 export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { landing?: boolean }): void {
   const prevKey = owningSessionId ?? getSessionId()
   const nextKey = sessionId ?? getSessionId()
