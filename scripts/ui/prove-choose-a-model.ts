@@ -10,7 +10,7 @@ requireDist()
 
 const COLS = 120
 const ROWS = 40
-const FACE_READY = '↑↓ choose'
+const FACE_READY = '>_  ·  ↵  ·  ↑↓'
 const COMPOSER_READY = 'Type a prompt'
 const PROMPT = 'hello there'
 const DUD = 'choose a model'
@@ -91,7 +91,7 @@ try {
 
   check('the boot face painted', home !== null && home.some(l => l.includes('New Session')), unfired(run))
   check('the first screen names no model', home !== null && namesAModel(home).length === 0, namesAModel(home).join(' | '))
-  check('the Logins row says not signed in', rowsWith(home, 'Logins').some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
+  check('the boot face status line says no sign-in yet', rowsWith(home, 'Model ').some(l => l.includes('no sign-in yet')), rowsWith(home, 'Model ').join(' | '))
 
   check('the chat painted its composer', chat !== null && chat.some(l => l.includes(COMPOSER_READY)), unfired(run))
   check(`the chat's model row reads "${DUD}"`, rowsWith(chat, 'model').some(l => l.includes(DUD) && l.includes('/model changes it')), rowsWith(chat, 'model').join(' | '))

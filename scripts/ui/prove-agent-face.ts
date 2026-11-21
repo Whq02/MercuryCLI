@@ -368,9 +368,10 @@ t.section('§4 — TWO SKINS, ONE MODEL (the face consumes the machine; no secon
 {
 }
 
-t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled position; the 'agents' wire word)")
+t.section("§5 — THE BOOT MENU DOOR, BOTH HOSTS (Agents lives inside Boot Menu; the 'agents' wire word)")
 {
   const { assembleCardRows } = await import('../../assets/splash/splash-core.mjs')
+  const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.js')
   const rowsOf = (facts: Record<string, unknown>): Array<{ key: string; icon: string; label: string; ctx: string }> =>
     assembleCardRows(facts) as never
   const BASE = { cwdBase: 'proj', continueTarget: null, menuAvailable: true }
@@ -379,20 +380,18 @@ t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled pos
   const full = rowsOf(FULL).map(r => r.key)
   const chat = rowsOf(CHAT).map(r => r.key)
   t.check(
-    'the full world carries the agents row directly after the kit row (the ruled under-kit position, operator-vetoable)',
-    full.indexOf('agents') === full.indexOf('kit') + 1 && full.indexOf('health') === full.indexOf('agents') + 1,
+    'the full world carries the approved four no-history rows (Agents moved into Boot Menu)',
+    JSON.stringify(full) === JSON.stringify(['new', 'logins', 'concourse', 'menu']),
     full.join(' · '),
   )
-  t.check('the --chat world carries the SAME row at the SAME place (identical worlds)', chat.indexOf('agents') === chat.indexOf('kit') + 1)
-  const row = rowsOf(FULL).find(r => r.key === 'agents')
+  t.check('the --chat world carries the same rows minus concourse', JSON.stringify(chat) === JSON.stringify(['new', 'logins', 'menu']), chat.join(' · '))
+  const editor = settingsEditors.find(r => r.editor === 'agents')
   t.check(
-    "the row's bytes: ◈ · 'Agents' · the ruled standing ctx 'create and edit agents'",
-    row?.icon === '◈' && row?.label === 'Agents' && row?.ctx === 'create and edit agents',
-    JSON.stringify(row),
+    "Agents opens from Boot Menu with its ruled label and summary ('create and edit agents')",
+    editor?.label === 'Agents' && editor?.summary === 'create and edit agents',
+    JSON.stringify(editor),
   )
-  t.check('the runtime host-truth ctx rides facts.agentsCtx', rowsOf({ ...FULL, agentsCtx: '3 agents' }).find(r => r.key === 'agents')?.ctx === '3 agents')
-  t.check('the row rides the SAME fit law as the menu/kit doors', !rowsOf({ ...FULL, menuAvailable: false }).map(r => r.key).includes('agents'))
-
+  t.check('menuAvailable: false drops Boot Menu (so the Agents editor rides the same fit law)', !rowsOf({ ...FULL, menuAvailable: false }).map(r => r.key).includes('menu'))
   const { decideSplashReceipt, consumeFaceDoorDeepLink } = await import('../../src/substrate/splashHandover.js')
   const now = 1_700_000_000_000
   const fresh = decideSplashReceipt(JSON.stringify({ version: 1, ts: now, action: 'agents' }), now, () => true)
