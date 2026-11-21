@@ -9,6 +9,7 @@ import type { SurfaceReturnToken, SurfaceTransitionVerb } from '../../src/contex
 import type { HeldFireV1, SaturnScheduleV1, ScheduleAccountV1 } from '../../src/daemon/saturn.ts'
 import type { LayoutRoots } from '../../src/services/privateChannel/installLayout.ts'
 import type { FoldExit } from '../../src/services/compact/foldStatus.ts'
+import type { SignInKind, SignInLedgerIo } from '../../src/utils/accounts/signInLedger.ts'
 import { checker, guardWrite, scratchRoot } from '../engine-durability/harness.ts'
 import { runnerLaunches } from '../lib/runnerLaunches.ts'
 
@@ -39,6 +40,13 @@ const saturn = await import('../../src/daemon/saturn.ts')
 const { saturnDueAtOf } = await import('../../src/daemon/saturnTicker.ts')
 const installLayout = await import('../../src/services/privateChannel/installLayout.ts')
 const foldStatus = await import('../../src/services/compact/foldStatus.ts')
+const completionEvaluator = await import('../../src/services/run/completionEvaluator.ts')
+const runInspector = await import('../../src/commands/run/runInspectorModel.ts')
+const currentWork = await import('../../src/services/workbench/currentWork.ts')
+const promptDraft = await import('../../src/utils/promptDraft.ts')
+const signInLedger = await import('../../src/utils/accounts/signInLedger.ts')
+const { loginSuccessReceipt } = await import('../../src/utils/accounts/loginReceipt.ts')
+const { AuthCodeListener } = await import('../../src/services/oauth/auth-code-listener.ts')
 
 const EXPECTED_HEADERS = [
   'flow',
@@ -82,6 +90,10 @@ const IMPLEMENTED_MODEL_IDS = new Set([
   `${SELF_PROOF}#saturn-hold-fire`,
   `${SELF_PROOF}#update-pointer-swap`,
   `${SELF_PROOF}#compact-fold-status`,
+  `${SELF_PROOF}#edit-verify-status`,
+  `${SELF_PROOF}#deliverables-panels`,
+  `${SELF_PROOF}#draft-excursion`,
+  `${SELF_PROOF}#signin-receipt-cancel`,
   'scripts/formal-models/prove-model-interview.ts#interview-store',
 ])
 
@@ -124,8 +136,11 @@ function validateMajorFlowsTable(
     if (isEmptyCell(row.flow)) errors.push('empty flow id')
     else if (seenFlows.has(row.flow)) errors.push(`duplicate flow id: ${row.flow}`)
     seenFlows.add(row.flow)
-    if (row.category !== 'golden-journey' && row.category !== 'crossing') {
+    if (row.category !== 'golden-journey' && row.category !== 'crossing' && row.category !== 'deterministic-core') {
       errors.push(`${row.flow}: invalid category ${row.category}`)
+    }
+    if (row.category === 'deterministic-core' && row.disposition !== 'modelled') {
+      errors.push(`${row.flow}: deterministic-core row must have disposition modelled`)
     }
     if (isEmptyCell(row.start_action_outcome)) errors.push(`${row.flow}: empty start_action_outcome`)
     if (isEmptyCell(row.invariant)) errors.push(`${row.flow}: empty invariant`)
@@ -193,8 +208,10 @@ function checkObligationTable(): void {
   const parsed = parseMajorFlowsTsv(readFileSync(TABLE_PATH, 'utf8'))
   t.check('major-flows.tsv parses with exact 13-column schema', parsed.errors.length === 0, parsed.errors.join('; '))
   const tableErrors = validateMajorFlowsTable(parsed.rows, enrolled, goldenJourneys, fileExists)
-  t.check('all 12 rows match enrolled anchors, golden journeys, production entries, and waiver rules', tableErrors.length === 0, tableErrors.join('; '))
-  t.check('table holds all 12 major-flow obligations (5 golden journeys + 7 crossings)', parsed.rows.length === 12, `got ${parsed.rows.length}`)
+  t.check('all table rows match enrolled anchors, golden journeys, production entries, and waiver rules', tableErrors.length === 0, tableErrors.join('; '))
+  const topLevel = parsed.rows.filter(r => r.category === 'golden-journey' || r.category === 'crossing')
+  const detCores = parsed.rows.filter(r => r.category === 'deterministic-core')
+  t.check('table holds 12 major-flow obligations plus 4 deterministic-core rows', topLevel.length === 12 && detCores.length === 4, `top=${topLevel.length} cores=${detCores.length}`)
 
   const modelled = parsed.rows.filter(r => r.disposition === 'modelled')
   const bounded = modelled.filter(r => r.witness_kind === 'bounded-model').length
@@ -202,7 +219,7 @@ function checkObligationTable(): void {
   const accepted = parsed.rows.filter(r => r.disposition === 'waiver-accepted').length
   const proposed = parsed.rows.filter(r => r.disposition === 'waiver-proposed').length
   console.log(
-    `  [census] total=${parsed.rows.length} modelled=${modelled.length} (bounded-model=${bounded}, sampled-property=${sampled}) waiver-accepted=${accepted} waiver-proposed=${proposed} (decision-needed=${proposed})`,
+    `  [census] total=${parsed.rows.length} (flows=${topLevel.length}, deterministic-cores=${detCores.length}) modelled=${modelled.length} (bounded-model=${bounded}, sampled-property=${sampled}) waiver-accepted=${accepted} waiver-proposed=${proposed} (decision-needed=${proposed})`,
   )
 
   const withStaleProof = parsed.rows.map((r, i) => (i === 0 ? { ...r, anchor: 'scripts/golden-journeys/journey-stale.ts' } : r))
@@ -212,12 +229,32 @@ function checkObligationTable(): void {
   const missingFlowErrs = validateMajorFlowsTable(parsed.rows, enrolled, [...goldenJourneys, 'scripts/golden-journeys/journey-j6.ts'], fileExists)
   t.check('validator rejects a newly added golden journey missing from the table', missingFlowErrs.some(e => e.includes('missing golden journey')), missingFlowErrs.join('; '))
 
-  const emptyWaiver = parsed.rows.map(r => (r.disposition === 'waiver-proposed' ? { ...r, waiver_reason: '-' } : r))
-  const emptyWaiverErrs = validateMajorFlowsTable(emptyWaiver, enrolled, goldenJourneys, fileExists)
-  t.check('validator rejects an empty waiver reason', emptyWaiverErrs.some(e => e.includes('empty waiver_reason')), emptyWaiverErrs.join('; '))
+  const syntheticEmptyWaiver: MajorFlowRow = {
+    ...parsed.rows[0]!,
+    flow: 'synthetic-empty-waiver',
+    category: 'crossing',
+    disposition: 'waiver-proposed',
+    witness_kind: 'scripted-example',
+    model_proof: '-',
+    unmodellable_part: 'synthetic external step',
+    waiver_reason: '-',
+    approval_ref: '-',
+  }
+  const emptyWaiverErrs = validateMajorFlowsTable([...parsed.rows, syntheticEmptyWaiver], enrolled, goldenJourneys, fileExists)
+  t.check('validator rejects an empty waiver reason independent of live row statuses', emptyWaiverErrs.some(e => e.includes('empty waiver_reason')), emptyWaiverErrs.join('; '))
 
-  const selfApproved = parsed.rows.map(r => (r.flow === 'j1-first-change' ? { ...r, disposition: 'waiver-accepted', approval_ref: '-' } : r))
-  const selfApprovedErrs = validateMajorFlowsTable(selfApproved, enrolled, goldenJourneys, fileExists)
+  const syntheticUnapproved: MajorFlowRow = {
+    ...parsed.rows[0]!,
+    flow: 'synthetic-unapproved-waiver',
+    category: 'crossing',
+    disposition: 'waiver-accepted',
+    witness_kind: 'scripted-example',
+    model_proof: '-',
+    unmodellable_part: 'synthetic external step',
+    waiver_reason: 'synthetic external boundary',
+    approval_ref: '-',
+  }
+  const selfApprovedErrs = validateMajorFlowsTable([...parsed.rows, syntheticUnapproved], enrolled, goldenJourneys, fileExists)
   t.check('validator rejects waiver-accepted without an owner approval_ref', selfApprovedErrs.some(e => e.includes('requires approval_ref')), selfApprovedErrs.join('; '))
 
   const fakeModelKind = parsed.rows.map(r => (r.flow === 'switch-live-chats' ? { ...r, witness_kind: 'scripted-example' } : r))
@@ -1016,6 +1053,376 @@ function checkCompactFoldStatusModel(): void {
   t.check(`all ${count} exhaustive compaction-status traces matched the independent monotonic/exit oracle`, firstErr === null, firstErr ?? '')
 }
 
+function checkEditVerifyStatusModel(): void {
+  t.section('§8 — bounded model #edit-verify-status (J1/J2 edit invalidation, bad effects, stop evaluator)')
+  type EvAction = 'editOk' | 'editFail' | 'readOnly' | 'checkFail' | 'checkPass' | 'complete'
+  const alphabet: readonly EvAction[] = ['editOk', 'editFail', 'readOnly', 'checkFail', 'checkPass', 'complete']
+  const owner = makeOwnerKey({ workspace: root, sessionId: '00000000-0000-4000-8000-00000000c308', lane: 'main' })
+  let count = 0
+  let firstErr: string | null = null
+
+  const runSeq = (seq: readonly EvAction[]): string | null => {
+    let snap = runKernel.emptyRunSnapshot({ runId: 'run_edit_verify', owner, objective: 'fix greeting', rootMessageId: null, at: 1 })
+    let ver: 'unverified' | 'verified' | 'stale' | 'failed' = 'unverified'
+    let bad = 0
+    let muts = 0
+    let subst = false
+    let life: 'active' | 'completed' = 'active'
+    let tick = 10
+    for (let i = 0; i < seq.length; i++) {
+      const act = seq[i]!
+      tick += 10
+      if (act === 'editOk') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'tool-effected', at: tick, toolName: 'Edit', toolUseId: `e_${i}`, operation: 'edit apply', outcome: 'succeeded', changedPaths: ['src/greet.ts'] })
+        subst = true
+        bad = 0
+        muts += 1
+        if (ver === 'verified') ver = 'stale'
+      } else if (act === 'editFail') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'tool-effected', at: tick, toolName: 'Edit', toolUseId: `f_${i}`, operation: 'edit apply', outcome: 'failed', changedPaths: [] })
+        bad += 1
+      } else if (act === 'readOnly') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'tool-effected', at: tick, toolName: 'Read', toolUseId: `r_${i}`, operation: 'read', outcome: 'succeeded', changedPaths: [] })
+      } else if (act === 'checkFail') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'evidence', at: tick, state: 'failed', detail: 'FAIL' })
+        ver = 'failed'
+        muts = 0
+      } else if (act === 'checkPass') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'evidence', at: tick, state: 'verified', detail: 'PASS' })
+        ver = 'verified'
+        muts = 0
+      } else if (act === 'complete') {
+        snap = runKernel.reduceRunEvent(snap, { type: 'completed', at: tick, satisfied: ['PASS'] })
+        life = 'completed'
+      }
+      const stop = completionEvaluator.evaluateStop({
+        snapshot: snap,
+        wordingUnfinished: false,
+        continuationsThisTurn: 0,
+        maxContinuationsPerTurn: 3,
+        aborted: false,
+        apiError: false,
+        verification: { state: snap.verification.state, mutationsSinceEvidence: muts, workspaceVerifiable: true, priorEvidenceDemands: 0 },
+        pendingIdeFeedback: false,
+        surface: 'interactive',
+      })
+      const wantStop = !subst || life === 'completed' ? 'complete' : bad > 0 || muts > 0 || ver === 'failed' ? 'continue' : 'complete'
+      const wantDemand = subst && life !== 'completed' && bad === 0 && (muts > 0 || ver === 'failed')
+      if (
+        snap.verification.state !== ver ||
+        snap.unresolvedBadEffects !== bad ||
+        snap.lifecycle !== life ||
+        stop.kind !== wantStop ||
+        (stop.kind === 'continue' && Boolean(stop.evidenceDemand) !== wantDemand)
+      ) {
+        return `${seq.join('>')} step ${i}: real=(ver=${snap.verification.state},bad=${snap.unresolvedBadEffects},stop=${stop.kind}) oracle=(ver=${ver},bad=${bad},stop=${wantStop})`
+      }
+    }
+    return null
+  }
+
+  const j2Scenario = runSeq(['checkFail', 'editFail', 'editOk', 'readOnly', 'checkPass', 'editOk', 'checkPass', 'complete'])
+  t.check('J1/J2 reproduce -> failed edit -> fix -> read-only -> verify -> stale -> re-verify -> complete matches oracle', j2Scenario === null, j2Scenario ?? '')
+  enumerateActions(alphabet, 4, seq => {
+    if (firstErr !== null) return
+    count++
+    firstErr = runSeq(seq)
+  })
+  t.check(`all ${count} exhaustive edit-verification traces matched the independent kernel + stop-evaluator oracle`, firstErr === null, firstErr ?? '')
+}
+
+function checkDeliverablesPanelsModel(): void {
+  t.section('§9 — bounded model #deliverables-panels (J3 kernel + /run + /workbench + stop agreement)')
+  type DelAction = 'd1InProg' | 'd1Done' | 'd2InProg' | 'd2Done' | 'd3Drop' | 'complete'
+  const alphabet: readonly DelAction[] = ['d1InProg', 'd1Done', 'd2InProg', 'd2Done', 'd3Drop', 'complete']
+  const owner = makeOwnerKey({ workspace: root, sessionId: '00000000-0000-4000-8000-00000000c309', lane: 'main' })
+  let count = 0
+  let firstErr: string | null = null
+
+  enumerateActions(alphabet, 4, seq => {
+    if (firstErr !== null) return
+    count++
+    let snap = runKernel.emptyRunSnapshot({ runId: 'run_j3_panels', owner, objective: 'Modernize fixture', rootMessageId: null, at: 1 })
+    snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: 2, taskId: 'd1', title: 'Config', state: 'open' })
+    snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: 3, taskId: 'd2', title: 'Docs', state: 'open' })
+    snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: 4, taskId: 'd3', title: 'Release', state: 'open' })
+    const states = new Map<string, 'open' | 'in-progress' | 'done' | 'dropped'>([['d1', 'open'], ['d2', 'open'], ['d3', 'open']])
+    let tick = 10
+
+    for (let i = 0; i < seq.length; i++) {
+      const act = seq[i]!
+      tick += 10
+      if (act === 'd1InProg') { snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: tick, taskId: 'd1', title: 'Config', state: 'in-progress' }); states.set('d1', 'in-progress') }
+      else if (act === 'd1Done') { snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: tick, taskId: 'd1', title: 'Config', state: 'done' }); states.set('d1', 'done') }
+      else if (act === 'd2InProg') { snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: tick, taskId: 'd2', title: 'Docs', state: 'in-progress' }); states.set('d2', 'in-progress') }
+      else if (act === 'd2Done') { snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: tick, taskId: 'd2', title: 'Docs', state: 'done' }); states.set('d2', 'done') }
+      else if (act === 'd3Drop') { snap = runKernel.reduceRunEvent(snap, { type: 'task-transition', at: tick, taskId: 'd3', title: 'Release', state: 'dropped' }); states.set('d3', 'dropped') }
+      else if (act === 'complete') { snap = runKernel.reduceRunEvent(snap, { type: 'completed', at: tick, satisfied: ['closed'] }) }
+
+      const openIds = ['d1', 'd2', 'd3'].filter(id => states.get(id) === 'open' || states.get(id) === 'in-progress')
+      const doneCount = ['d1', 'd2', 'd3'].filter(id => states.get(id) === 'done').length
+      const activeId = ['d1', 'd2', 'd3'].find(id => states.get(id) === 'in-progress') ?? null
+      const d3Blocked = (states.get('d3') === 'open' || states.get('d3') === 'in-progress') && states.get('d1') !== 'done'
+
+      const tasks = ['d1', 'd2', 'd3'].map(id => ({
+        id,
+        subject: id,
+        status: states.get(id) === 'done' ? 'completed' : states.get(id) === 'in-progress' ? 'in_progress' : 'pending',
+        blockedBy: id === 'd3' ? ['d1'] : [],
+      }))
+      const rows = runInspector.buildRunRows(snap, tick + 1000)
+      const delRow = rows.find(r => r.section === 'DELIVERABLES')
+      const cw = currentWork.deriveCurrentWork({
+        now: tick + 1000,
+        owner,
+        workspace: root,
+        run: snap,
+        tasks,
+        workbench: null,
+        model: 'claude-opus-5',
+        effortLabel: 'high',
+        contextPct: null,
+        recovery: { state: 'live' },
+      })
+      const stop = completionEvaluator.evaluateStop({
+        snapshot: snap,
+        wordingUnfinished: false,
+        continuationsThisTurn: 0,
+        maxContinuationsPerTurn: 3,
+        aborted: false,
+        apiError: false,
+        verification: null,
+        pendingIdeFeedback: false,
+        surface: 'interactive',
+      })
+      const wantTone = openIds.length === 0 ? 'ok' : 'accent'
+      const wantStop = openIds.length > 0 ? 'continue' : 'complete'
+      if (
+        runKernel.openDeliverables(snap).length !== openIds.length ||
+        !delRow ||
+        !delRow.line.startsWith(`${doneCount}/3 done`) ||
+        delRow.tone !== wantTone ||
+        cw.scale !== 'substantial' ||
+        cw.planItems.length !== 3 ||
+        cw.completedCount !== doneCount ||
+        (cw.activeItem?.id ?? null) !== activeId ||
+        cw.blockedItems.some(b => b.id === 'd3') !== d3Blocked ||
+        stop.kind !== wantStop
+      ) {
+        firstErr = `${seq.join('>')} step ${i}: open=${openIds.length} done=${doneCount} active=${activeId} blocked=${d3Blocked} delRow=${delRow?.line} cwBlocked=${cw.blockedItems.map(b => b.id).join(',')} stop=${stop.kind}`
+        return
+      }
+    }
+  })
+  t.check(`all ${count} exhaustive multi-panel deliverable traces agreed across kernel, /run, /workbench, and stop evaluator`, firstErr === null, firstErr ?? '')
+}
+
+async function checkDraftExcursionModel(): Promise<void> {
+  t.section('§10 — bounded model #draft-excursion (J5 unsent draft + work identity across excursion & Esc)')
+  const sidA = '00000000-0000-4000-8000-00000000c3a5'
+  const sidB = '00000000-0000-4000-8000-00000000c3b5'
+  const ownerA = makeOwnerKey({ workspace: root, sessionId: sidA, lane: 'main' })
+  let seed = runKernel.emptyRunSnapshot({ runId: 'run_j5_c3', owner: ownerA, objective: 'Modernize fixture', rootMessageId: null, at: 1 })
+  for (let k = 1; k <= 5; k++) {
+    seed = runKernel.reduceRunEvent(seed, { type: 'task-transition', at: 1 + k, taskId: `p${k}`, title: `Item ${k}`, state: k <= 2 ? 'done' : k === 3 ? 'in-progress' : 'open' })
+  }
+  await runSidecar.saveRunSidecar(ownerA, seed)
+
+  type DraftAct = 'typeA1' | 'typeA2' | 'typeB1' | 'pushBoot' | 'pushConcourse' | 'esc' | 'staleEsc' | 'emptyA' | 'delB'
+  const traces: DraftAct[][] = [
+    ['typeA1', 'pushBoot', 'esc', 'pushConcourse', 'esc'],
+    ['typeA1', 'typeB1', 'pushBoot', 'pushConcourse', 'staleEsc', 'esc', 'esc'],
+    ['typeA1', 'pushBoot', 'typeA2', 'esc', 'delB', 'emptyA'],
+    ['typeB1', 'typeA1', 'pushConcourse', 'esc', 'delB', 'pushBoot', 'esc'],
+  ]
+  const alpha: readonly DraftAct[] = ['typeA1', 'typeB1', 'pushBoot', 'pushConcourse', 'esc', 'emptyA']
+  enumerateActions(alpha, 3, seq => traces.push(seq))
+
+  let firstErr: string | null = null
+  let checked = 0
+  for (const seq of traces.slice(0, 64)) {
+    checked++
+    promptDraft.deleteDraft(sidA)
+    promptDraft.deleteDraft(sidB)
+    await promptDraft.flushDraftSaves()
+    surface._resetSurfaceRouteForTesting()
+    surface.registerRouteSurface('session', { render: () => null })
+    surface.registerRouteSurface('concourse', { render: () => null })
+    surface.registerRouteSurface('boot-settings', { render: () => null })
+    surface.registerChatPresence({ present: () => true, subscribe: () => () => {} })
+
+    let route = 'repl'
+    const stack: Array<{ to: string; token: SurfaceReturnToken }> = []
+    let firstToken: SurfaceReturnToken | null = null
+    const oracleDrafts = new Map<string, string | null>([[sidA, null], [sidB, null]])
+
+    for (let i = 0; i < seq.length; i++) {
+      const act = seq[i]!
+      if (act === 'typeA1' || act === 'typeA2' || act === 'typeB1') {
+        const sid = act === 'typeB1' ? sidB : sidA
+        const text = act === 'typeA1' ? 'cover parser edge cases' : act === 'typeA2' ? 'cover parser edge cases /diff' : 'sibling draft B'
+        promptDraft.saveDraftDebounced(sid, { text, cursorOffset: text.length, mode: 'prompt', pastedContents: {} })
+        await promptDraft.flushDraftSaves()
+        oracleDrafts.set(sid, text)
+      } else if (act === 'emptyA') {
+        promptDraft.saveDraftDebounced(sidA, { text: '   ', cursorOffset: 3, mode: 'prompt', pastedContents: {} })
+        await promptDraft.flushDraftSaves()
+        oracleDrafts.set(sidA, null)
+      } else if (act === 'delB') {
+        promptDraft.deleteDraft(sidB)
+        await promptDraft.flushDraftSaves()
+        oracleDrafts.set(sidB, null)
+      } else if (act === 'pushBoot' || act === 'pushConcourse') {
+        const target = act === 'pushBoot' ? 'boot-settings' : 'concourse'
+        const r = act === 'pushBoot' ? surface.enterBootSettings() : surface.enterConcourse()
+        if (route !== target) {
+          if (!r.ok) { firstErr = `${seq.join('>')} step ${i}: push ${target} failed`; break }
+          stack.push({ to: route, token: r.token })
+          if (firstToken === null) firstToken = r.token
+          route = target
+        } else if (r.ok) {
+          firstErr = `${seq.join('>')} step ${i}: duplicate push ${target} succeeded`
+          break
+        }
+      } else if (act === 'esc') {
+        const r = surface.leaveCurrentSurface()
+        const top = stack.pop()
+        if (Boolean(top) !== r.ok) { firstErr = `${seq.join('>')} step ${i}: esc mismatch`; break }
+        if (top) route = top.to
+      } else if (act === 'staleEsc') {
+        if (firstToken && stack.length >= 2) {
+          const r = surface.returnFromSurface(firstToken)
+          if (r.ok) { firstErr = `${seq.join('>')} step ${i}: stale token moved route`; break }
+        }
+      }
+      const gotA = promptDraft.readDraftSync(sidA)
+      const gotB = promptDraft.readDraftSync(sidB)
+      const wantA = oracleDrafts.get(sidA) ?? null
+      const wantB = oracleDrafts.get(sidB) ?? null
+      if (
+        surface.surfaceRouteId(surface.currentSurfaceRoute()) !== route ||
+        (gotA?.text ?? null) !== wantA ||
+        (gotA !== null && gotA.cursorOffset !== wantA!.length) ||
+        (gotB?.text ?? null) !== wantB
+      ) {
+        firstErr = `${seq.join('>')} step ${i} (${act}): route=${surface.surfaceRouteId(surface.currentSurfaceRoute())}/${route} A=${gotA?.text ?? null}/${wantA} B=${gotB?.text ?? null}/${wantB}`
+        break
+      }
+    }
+    if (firstErr !== null) break
+    const loaded = await runSidecar.loadRunSidecar(ownerA)
+    if (loaded.state !== 'loaded' || loaded.snapshot.runId !== 'run_j5_c3' || loaded.snapshot.deliverables.length !== 5) {
+      firstErr = `${seq.join('>')}: sidecar identity lost after excursions`
+      break
+    }
+  }
+  promptDraft.cancelPendingDraftSave()
+  t.check(`all ${checked} bounded draft-excursion traces preserved unsent draft, session isolation, and 5-item work identity`, firstErr === null, firstErr ?? '')
+}
+
+async function checkSignInReceiptCancelModel(): Promise<void> {
+  t.section('§11 — bounded model #signin-receipt-cancel (receipt identity, cancel rollback, OAuth state binding)')
+  type LedgerAct = 'anthOauth' | 'anthKey' | 'openaiOauth' | 'cancelAnth' | 'cancelOpenai' | 'invalidFam'
+  const traces: LedgerAct[][] = [
+    ['anthOauth', 'cancelAnth', 'openaiOauth', 'cancelOpenai'],
+    ['cancelAnth', 'anthOauth', 'anthKey', 'cancelAnth'],
+    ['openaiOauth', 'anthOauth', 'invalidFam', 'cancelAnth', 'cancelOpenai'],
+  ]
+  const alpha: readonly LedgerAct[] = ['anthOauth', 'anthKey', 'openaiOauth', 'cancelAnth', 'cancelOpenai', 'invalidFam']
+  enumerateActions(alpha, 3, seq => traces.push(seq))
+
+  let checked = 0
+  let firstErr: string | null = null
+  for (const seq of traces.slice(0, 64)) {
+    checked++
+    const home = join(root, 'signin-ledger', `t-${checked}`)
+    mkdirSync(home, { recursive: true })
+    let clock = 1000
+    const io: SignInLedgerIo = { home, now: () => ++clock }
+    const oracle = new Map<string, { at: number; kind: SignInKind }>()
+    let epoch = signInLedger.signInLedgerEpoch()
+
+    for (let i = 0; i < seq.length; i++) {
+      const act = seq[i]!
+      if (act === 'anthOauth' || act === 'anthKey' || act === 'openaiOauth') {
+        const fam = act === 'openaiOauth' ? 'openai' : 'anthropic'
+        const kind: SignInKind = act === 'anthKey' ? 'api-key' : 'oauth'
+        const ok = signInLedger.recordSignIn(fam, kind, io)
+        if (!ok) { firstErr = `${seq.join('>')} step ${i}: recordSignIn failed`; break }
+        oracle.set(fam, { at: clock, kind })
+        epoch += 1
+      } else if (act === 'cancelAnth' || act === 'cancelOpenai') {
+        const fam = act === 'cancelAnth' ? 'anthropic' : 'openai'
+        const restore = signInLedger.signInRecordRestorer(fam, io)
+        const ok = signInLedger.recordSignIn(fam, 'operator-switch', io)
+        if (!ok) { firstErr = `${seq.join('>')} step ${i}: tentative record failed`; break }
+        restore()
+        epoch += 2
+      } else if (act === 'invalidFam') {
+        const ok = signInLedger.recordSignIn('BAD FAMILY!', 'oauth', io)
+        if (ok) { firstErr = `${seq.join('>')} step ${i}: invalid family accepted`; break }
+      }
+      const realLedger = signInLedger.readSignInLedger(io)
+      const realKeys = Object.keys(realLedger).sort()
+      const wantKeys = [...oracle.keys()].sort()
+      const sameEntries =
+        JSON.stringify(realKeys) === JSON.stringify(wantKeys) &&
+        wantKeys.every(k => realLedger[k]?.kind === oracle.get(k)?.kind && realLedger[k]?.at === oracle.get(k)?.at)
+      if (!sameEntries || signInLedger.signInLedgerEpoch() !== epoch) {
+        firstErr = `${seq.join('>')} step ${i} (${act}): ledger=${JSON.stringify(realLedger)} oracle=${JSON.stringify([...oracle.entries()])} epoch=${signInLedger.signInLedgerEpoch()}/${epoch}`
+        break
+      }
+    }
+    if (firstErr !== null) break
+  }
+  t.check(`all ${checked} bounded sign-in ledger traces held family isolation, cancel rollback, and epoch monotonicity`, firstErr === null, firstErr ?? '')
+
+  const receiptCases: Array<[string | null | undefined, string]> = [
+    [null, 'Login successful'],
+    [undefined, 'Login successful'],
+    ['', 'Login successful'],
+    ['   ', 'Login successful'],
+    ['first@fixture.example', 'Login successful — signed in as first@fixture.example'],
+    ['  second@fixture.example  ', 'Login successful — signed in as second@fixture.example'],
+  ]
+  const receiptOk = receiptCases.every(([input, want]) => loginSuccessReceipt(input) === want)
+  t.check('loginSuccessReceipt formats trimmed identity and falls back cleanly on blank identity', receiptOk)
+
+  const listener = new AuthCodeListener('/callback')
+  let listenerErr = ''
+  try {
+    const port = await listener.start(0)
+    const badStateP = listener.waitForAuthorization('state-good').then(() => 'resolved', (e: Error) => e.message)
+    const badStateRes = await fetch(`http://localhost:${port}/callback?code=c1&state=state-wrong`, { redirect: 'manual' })
+    const badStateMsg = await badStateP
+    if (badStateRes.status !== 400 || !badStateMsg.includes('Invalid state')) {
+      listenerErr = `wrong-state returned ${badStateRes.status} / ${badStateMsg}`
+    }
+    if (!listenerErr) {
+      const noCodeP = listener.waitForAuthorization('state-good').then(() => 'resolved', (e: Error) => e.message)
+      const noCodeRes = await fetch(`http://localhost:${port}/callback?state=state-good`, { redirect: 'manual' })
+      const noCodeMsg = await noCodeP
+      if (noCodeRes.status !== 400 || !noCodeMsg.includes('No authorization code')) {
+        listenerErr = `missing-code returned ${noCodeRes.status} / ${noCodeMsg}`
+      }
+    }
+    if (!listenerErr) {
+      const okP = listener.waitForAuthorization('state-good')
+      const fetchP = fetch(`http://localhost:${port}/callback?code=fixture-auth-code&state=state-good`, { redirect: 'manual' })
+      const code = await okP
+      const hadPending = listener.hasPendingResponse()
+      listener.close()
+      const okRes = await fetchP
+      if (code !== 'fixture-auth-code' || !hadPending || listener.hasPendingResponse() || okRes.status !== 302) {
+        listenerErr = `valid/close mismatch code=${code} hadPending=${hadPending} afterClose=${listener.hasPendingResponse()} status=${okRes.status}`
+      }
+    }
+  } finally {
+    listener.close()
+  }
+  t.check('AuthCodeListener rejects wrong state and missing code, resolves matching state, and cleans up on close', listenerErr === '', listenerErr)
+}
+
 checkObligationTable()
 checkSurfaceRouteModel()
 await checkRunIdentityModel()
@@ -1023,5 +1430,9 @@ await checkPermissionAnswerModel()
 checkSaturnHoldFireModel()
 checkUpdatePointerModel()
 checkCompactFoldStatusModel()
+checkEditVerifyStatusModel()
+checkDeliverablesPanelsModel()
+await checkDraftExcursionModel()
+await checkSignInReceiptCancelModel()
 
 t.finish('prove-major-flows')
