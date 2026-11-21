@@ -1,5 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { useDerivedState } from '../hooks/effects.js';
+import React, { useMemo, useState } from 'react';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useEngineModel } from '../hooks/useEngineModel.js';
@@ -245,21 +244,19 @@ export function BootAgentsScreen({
     },
   );
 
-  const wasSuspended = useRef(suspended);
-  useDerivedState(() => {
-    if (wasSuspended.current && !suspended) {
-      setFormPick(pick =>
-        pick !== null && pick.field === 'model'
-          ? (() => {
-              const modelRows = getAgentModelPickerRows();
-              return { field: pick.field, options: modelRows.map(r => r.value), modelRows };
-            })()
-          : pick,
-      );
-      setModelPick(pick => (pick !== null ? { ...pick, rows: getAgentModelPickerRows() } : pick));
+  const [prevSuspended, setPrevSuspended] = useState(suspended);
+  if (prevSuspended !== suspended) {
+    setPrevSuspended(suspended);
+    if (prevSuspended && !suspended) {
+      if (formPick !== null && formPick.field === 'model') {
+        const modelRows = getAgentModelPickerRows();
+        setFormPick({ field: formPick.field, options: modelRows.map(r => r.value), modelRows });
+      }
+      if (modelPick !== null) {
+        setModelPick({ ...modelPick, rows: getAgentModelPickerRows() });
+      }
     }
-    wasSuspended.current = suspended;
-  }, [suspended]);
+  }
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
   const core = useMemo(

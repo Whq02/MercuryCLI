@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { basename } from 'node:path';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
-import { useClaim, useDerivedState, useLoad } from '../hooks/effects.js';
+import { useClaim, useLoad } from '../hooks/effects.js';
 import { Box, useInput } from '../ink.js';
 import { createSplashCore, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useAnthropicLoginModel } from './mercury-ui/screens/anthropicLoginModel.js';
@@ -53,7 +53,13 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const columns = fullScene?.columns ?? termCols;
   const rows = fullScene?.rows ?? termRows;
 
-  const [facts, setFacts] = useState<LoginsScreenFactsV1>(() => given ?? collectLoginsScreenFacts());
+  const [factsTick, setFactsTick] = useState(0);
+  const signInEpoch = useSignInEpoch();
+  const catalogueEpoch = useCatalogueEpoch();
+  const facts = useMemo<LoginsScreenFactsV1>(
+    () => given ?? collectLoginsScreenFacts(),
+    [given, signInEpoch, catalogueEpoch, factsTick],
+  );
   const arms = useMemo(() => loginsSortedArms(facts), [facts]);
 
   const [flow, setFlow] = useState<OpenFlowState | null>(null);
@@ -76,24 +82,12 @@ export function BootLoginsScreen({ onClose, onSignedIn, family, fullScene, facts
   const anthropicKeyRequest = useRef<AbortController | null>(null);
   useClaim(() => () => { anthropicKeyRequest.current?.abort(); anthropicKeyDraft.current = ''; }, []);
   const refreshFacts = (): void => {
-    if (given === undefined) setFacts(collectLoginsScreenFacts());
+    if (given === undefined) setFactsTick(n => n + 1);
   };
-  const signInEpoch = useSignInEpoch();
-  const mountSignInEpoch = useRef(signInEpoch);
-  useDerivedState(() => {
-    if (signInEpoch === mountSignInEpoch.current) return;
-    if (given === undefined) setFacts(collectLoginsScreenFacts());
-  }, [signInEpoch, given]);
-  const catalogueEpoch = useCatalogueEpoch();
-  const mountCatalogueEpoch = useRef(catalogueEpoch);
   useLoad(() => {
     if (given !== undefined) return;
     resolveProviderUsability(undefined, { fetchCatalogues: true });
   }, [given]);
-  useDerivedState(() => {
-    if (catalogueEpoch === mountCatalogueEpoch.current) return;
-    if (given === undefined) setFacts(collectLoginsScreenFacts());
-  }, [catalogueEpoch, given]);
 
   const setAppStateMaybe = useSetAppStateMaybe();
   const postLoginSettle = (): void => postLoginSettleOf(ctx);
