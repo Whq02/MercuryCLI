@@ -151,7 +151,7 @@ export function getCompactUserSummaryMessage(
   ]
   if (transcriptPath !== undefined && transcriptPath !== '') {
     parts.push(
-      `When a precise artifact from before the turnover matters, the live transcript is at ${transcriptPath} and earlier parts before each fold are in ${historyPartDir(transcriptPath)}`,
+      `When a precise artifact from before the turnover matters — an exact snippet, an error text, something you wrote — the complete transcript is on disk: the parts before each turnover in ${historyPartDir(transcriptPath)}, the live part at ${transcriptPath}`,
     )
   }
   const shellDirectory = shellDirectoryLeftByCd()
