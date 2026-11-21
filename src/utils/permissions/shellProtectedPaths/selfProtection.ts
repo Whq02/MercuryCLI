@@ -1,6 +1,6 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type Layer, type ReadCommand, UNREAD_PART, layersOf, moveOf } from '../decision/commandAnalysis.js'
+import { type CommandReading, type Layer, type ReadCommand, UNREAD_PART, layersOf, moveOf } from '../decision/commandAnalysis.js'
 import { namesMercuryProcess, runtimeProcessRefusal, runtimeWritePath } from '../runtimeProtection.js'
 import { protectedPathForms } from './paths.js'
 import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
@@ -131,20 +131,8 @@ async function namedSelfProtectionReason(command: string, powershell: boolean, c
   }, cwd, still)
 }
 
-export async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
-  if (powershell) {
-    const named = await namedSelfProtectionReason(command, true, cwd)
-    if (named !== null) return named
-  }
-  const named = powershell ? null : await namedSelfProtectionReason(command, false, cwd)
-  const read = await readForFloors(command, powershell, cwd)
-  if (named !== null) {
-    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
-    if (!placed || (await namedSelfProtectionReason(command, false, cwd, true)) !== null) return named
-  }
-  if (read === null) return null
+async function selfProtectionFromRead(read: CommandReading, cwd: string, changing: (path: string, hit: string) => string): Promise<string | null> {
   const homes = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
-  const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
   const feedsKill = (at: number, simple: ReadCommand): boolean =>
     read.commands.some(
       other =>
@@ -267,6 +255,24 @@ export async function readSelfProtection(command: string, powershell: boolean, c
       }
     }
   }
+  return null
+}
+
+export async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+  if (powershell) {
+    const named = await namedSelfProtectionReason(command, true, cwd)
+    if (named !== null) return named
+  }
+  const named = powershell ? null : await namedSelfProtectionReason(command, false, cwd)
+  const read = await readForFloors(command, powershell, cwd)
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await namedSelfProtectionReason(command, false, cwd, true)) !== null) return named
+  }
+  if (read === null) return null
+  const changing = (path: string, hit: string): string => 'Changing ' + path + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
+  const hit = await selfProtectionFromRead(read, cwd, changing)
+  if (hit !== null) return !powershell && read.exact.kind === 'parse-unavailable' ? `${hit} ${UNREAD_ADVICE}.` : hit
   const words = unreadWords(read, command, powershell)
   const removes = words.some(word => TREE_MOVERS.includes(verb(word)))
   if (removes || words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word)) || RUNTIME_WRITERS.has(verb(word))) || (words.length > 0 && WRITE_REDIRECT.test(command))) {
