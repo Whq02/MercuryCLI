@@ -63,9 +63,16 @@ const oauthServer = Bun.serve({
 const oauthOrigin = `http://127.0.0.1:${oauthServer.port}`
 const dead = 'http://127.0.0.1:1'
 const BASE_ENV = /^(?:MERCURY_UPDATE_API_BASE_URL|MERCURY_[A-Z0-9_]+_BASE)$/
-const deadBases: Record<string, string> = Object.fromEntries(
-  ['ANTHROPIC_BASE_URL', ...FLAG_REGISTRY.map(row => row.env).filter(name => BASE_ENV.test(name))].map(name => [name, dead]),
-)
+const deadBases: Record<string, string> = {
+  ...Object.fromEntries(
+    ['ANTHROPIC_BASE_URL', ...FLAG_REGISTRY.map(row => row.env).filter(name => BASE_ENV.test(name))].map(name => [name, dead]),
+  ),
+  MERCURY_OPENAI_AUTH_BASE: dead,
+  MERCURY_GEMINI_OAUTH_TOKEN_BASE: dead,
+  MERCURY_HUGGINGFACE_HUB_BASE: dead,
+  MERCURY_MOONSHOT_OAUTH_BASE: dead,
+  MERCURY_OPENROUTER_API_BASE: dead,
+}
 for (const [k, v] of Object.entries(deadBases)) process.env[k] = v
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = oauthOrigin
 
