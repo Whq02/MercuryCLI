@@ -27,7 +27,7 @@ import { storeTogetherApiKeyLogin } from '../../services/providers/together/toge
 import { runXaiDeviceLogin, storeXaiApiKeyLogin } from '../../services/providers/xai/xaiLogin.js'
 import { storeZaiApiKeyLogin } from '../../services/providers/zai/zaiLogin.js'
 import { storeZenApiKeyLogin } from '../../services/providers/zen/zenLogin.js'
-import { readSignInRefusal, signInRefusalWords } from '../../utils/accounts/signInRefusal.js'
+import { readSignInRefusal, signInRefusalWords } from '../../services/providers/signInRefusal.js'
 import { saveApiKey } from '../../utils/auth.js'
 import { jsonStringify } from '../../utils/slowOperations.js'
 import { authLogin, authLogout, authStatus } from './auth.js'

@@ -52,7 +52,7 @@ const slots = await import('../../src/services/providers/accountSlots.js')
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
 await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })
 const logins = await import('../../src/components/BootLoginsScreen.js')
-const refusals = await import('../../src/utils/accounts/signInRefusal.js')
+const refusals = await import('../../src/services/providers/signInRefusal.js')
 const WORDS_401 = 'key refused (HTTP 401: API key expired) at '
 const RECONNECT = ' · /logins openrouter reconnects'
 const rowState = () => logins.loginsRowStateOf(logins.loginsCatalogue().find(row => row.familyId === 'openrouter')!, logins.collectLoginsScreenFacts())

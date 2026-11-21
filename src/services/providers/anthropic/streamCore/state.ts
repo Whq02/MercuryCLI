@@ -24,7 +24,7 @@ import type { createCallLedger } from './callLedger.js'
 import type { wireRequestOf } from './requestPlan.js'
 import type { wireParamsFor } from './wireParams.js'
 
-export type SignInRefusal = typeof import('../../../../utils/accounts/signInRefusal.js')
+export type SignInRefusal = typeof import('../../signInRefusal.js')
 
 type BetaStopReason = NonNullable<BetaMessage['stop_reason']>
 

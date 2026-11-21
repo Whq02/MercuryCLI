@@ -9,7 +9,7 @@ for (const key of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const { captureSignInRequest, observeSignInResponse, readSignInRefusal, signInRefusalWords } = await import('../../src/utils/accounts/signInRefusal.js')
+const { captureSignInRequest, observeSignInResponse, readSignInRefusal, signInRefusalWords } = await import('../../src/services/providers/signInRefusal.js')
 const { writeStoredOpenaiApiKey, writeStoredGeminiApiKey } = await import('../../src/services/providers/providerSecrets.js')
 let failures = 0
 function check(label: string, ok: boolean) { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`) }

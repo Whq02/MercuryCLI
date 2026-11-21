@@ -31,7 +31,7 @@ const cat = await import('../../src/services/providers/zai/zaiCatalogue.ts')
 const { zaiCallModel } = await import('../../src/services/providers/zai/zaiCallModel.ts')
 const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
-const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
 const keyPlan = await import('../../src/services/providers/zai/zaiKeyPlan.ts').catch(() => null)
 
 let failures = 0

@@ -227,7 +227,7 @@ export async function authLogin(opts: {
   }
 }
 
-import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js'
+import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../services/providers/signInRefusal.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
