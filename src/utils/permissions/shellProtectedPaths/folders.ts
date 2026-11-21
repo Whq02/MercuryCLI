@@ -164,7 +164,7 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
 }
 
 const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|CDPATH|trap)\b/
-const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly|unset)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
+const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly|unset)(?=$|[ \t\r\n])|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
 const UNCERTAIN_MOVE_WORD = /[`$*?[\]{}\\<>()!'"]/
 const PLAIN_SEP = /^[ \t]*(?:;|\r?\n)[ \t]*/
 const AFTER_RETURN = /^[ \t]*(?:$|;(?!;)|\r?\n|&&(?!&))/
