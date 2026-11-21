@@ -12,7 +12,7 @@ import type {
   ProgressMessage,
 } from '../../../types/message.js'
 import type { MessageLookups } from '../../../utils/messages/lookups.js'
-import { summarizeToolResult } from '../../../utils/toolResultSummary.js'
+import { summarizeToolResult } from '../../../tools/toolResultSummary.js'
 import { logError } from '../../../utils/log.js'
 import { getTheme } from '../../../utils/theme.js'
 import { useTheme } from '../../design-system/ThemeProvider.js'

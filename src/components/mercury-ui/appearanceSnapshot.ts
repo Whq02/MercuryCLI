@@ -1,10 +1,10 @@
 
 import chalk from 'chalk'
-import { getSessionAccent } from '../../components/mercury-ui/sessionAccent.js'
-import { getGlobalConfig } from '../config.js'
-import { getInitialSettings } from '../settings/settings.js'
-import { resolveThemeSetting } from '../systemTheme.js'
-import type { ThemeName, ThemeSetting } from '../theme.js'
+import { getSessionAccent } from './sessionAccent.js'
+import { getGlobalConfig } from '../../utils/config.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
+import { resolveThemeSetting } from '../../utils/systemTheme.js'
+import type { ThemeName, ThemeSetting } from '../../utils/theme.js'
 
 type TerminalColorMode = 'truecolor' | '256' | '16' | 'mono'
 
