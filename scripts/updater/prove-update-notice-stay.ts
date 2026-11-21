@@ -4,6 +4,7 @@ import * as childProcess from 'node:child_process'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, settle, waitFor, type Mounted } from '../lib/settingsPopupHarness.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const HOME = pinScratchHome('update-notice-stay')
 const RUNNING = '1.0.0-beta.17'
@@ -170,7 +171,7 @@ section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER
   const faceLine = notice.faceUpdateNoticeText(NEWER)
   seedNewer()
   const face = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(KeybindingSetup, null, h(BootSplashScreen))), 120, 40)
-  const painted = await waitFor(() => face.screen().includes('↑↓ choose'), 15_000)
+  const painted = await waitFor(() => paintsBootFaceReady(face.screen()), 15_000)
   await settle(400)
   const bottom = (): string => face.lines()[39] ?? ''
   check('the face painted its hint row', painted, face.lines().slice(0, 6).join(' | '))
@@ -192,7 +193,7 @@ section(`§1 the boot-splash line (120x40): "${notice.faceUpdateNoticeText(NEWER
   resetClock()
   seedNewer()
   const second = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(KeybindingSetup, null, h(BootSplashScreen))), 120, 40)
-  await waitFor(() => second.screen().includes('↑↓ choose'), 15_000)
+  await waitFor(() => paintsBootFaceReady(second.screen()), 15_000)
   await settle(400)
   check('a fresh face with the line seeded again paints it (the control for the early end)', (second.lines()[39] ?? '').includes(faceLine), JSON.stringify(second.lines()[39] ?? ''))
   const pendingBefore = [...held.values()].some(timer => timer.delayMs === FIVE_MINUTES_MS)
@@ -319,7 +320,7 @@ section(`§3 after the update: the cache that offered ${NEWER} under ${RUNNING} 
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: NEWER }
   seedNewer()
   const face = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(BootSplashScreen))), 120, 40)
-  const painted = await waitFor(() => face.screen().includes('↑↓ choose'), 15_000)
+  const painted = await waitFor(() => paintsBootFaceReady(face.screen()), 15_000)
   await settle(400)
   check('the splash painted', painted, face.lines().slice(0, 6).join(' | '))
   check('the splash paints no update line for the version now running', !face.screen().includes('available'), rowsWith(face, 'available'))

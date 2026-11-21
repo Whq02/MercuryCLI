@@ -23,15 +23,15 @@ const facts = {
   sessionsCtx: null,
 } as never
 const cardRows = assembleCardRows(facts)
-t('the live composer yields the ten-row card this floor is pinned against', cardRows.length === 10, `${cardRows.length} rows`)
+t('the live composer yields the five-row card this floor is pinned against', cardRows.length === 5, `${cardRows.length} rows`)
 
 const opts = {
   cardRows,
   hintSegments: [
-    { key: '↵ ', label: 'start' },
+    { key: '↵', label: '' },
     { key: 'm', label: ' menu' },
   ],
-  tinyHint: '↵ start',
+  tinyHint: '↵',
   stripLines: () => [],
 }
 
@@ -40,21 +40,21 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
 }
 
 {
-  const at24 = compose(100, 24)
-  t('§1 the card paints at 24 rows (the macOS Terminal default keeps its front door)', at24.cardShown === true)
-  const at23 = compose(100, 23)
-  t('§1 the card sheds at 23 rows (the floor is exactly 24 for the ten-row card)', at23.cardShown === false)
+  const at19 = compose(100, 19)
+  t('§1 the card paints at 19 rows (the floor keeps the five-row front door)', at19.cardShown === true)
+  const at18 = compose(100, 18)
+  t('§1 the card sheds at 18 rows (the floor is exactly 19 for the five-row card)', at18.cardShown === false)
 }
 
 {
-  const shed = compose(100, 23)
+  const shed = compose(100, 18)
   const cut = shed.lines.find(l => /card needs \d+ rows/.test(l))
   t('§2 the word-only tier names the hidden card and its need', cut !== undefined, shed.lines.map(l => l.trim()).filter(Boolean).slice(-3).join(' | '))
-  t('§2 …with this window\'s size beside it', cut !== undefined && cut.includes('100×23'))
-  t('§2 …and the true floor in the words', cut !== undefined && cut.includes('needs 24 rows'))
-  const shown = compose(100, 24)
+  t('§2 …with this window\'s size beside it', cut !== undefined && cut.includes('100×18'))
+  t('§2 …and the true floor in the words', cut !== undefined && cut.includes('needs 19 rows'))
+  const shown = compose(100, 19)
   t('§2 the line never appears while the card shows', !shown.lines.some(l => /card needs|card hidden/.test(l)))
-  for (const [cols, rows] of [[100, 23], [46, 20], [100, 10], [30, 10], [100, 24]] as const) {
+  for (const [cols, rows] of [[100, 18], [46, 17], [100, 10], [30, 10], [100, 19]] as const) {
     const c = compose(cols, rows)
     const wide = c.lines.filter(l => vis(l) > cols)
     t(`§2 no composed line exceeds ${cols} cols at ${cols}×${rows}`, wide.length === 0, wide[0]?.slice(0, 60) ?? '')
@@ -76,11 +76,11 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
   const rowsWithCross = assembleCardRows(crossFacts) as Array<{ key: string; ctx: string; dim?: boolean }>
   const cont = rowsWithCross.find(r => r.key === 'continue')
   t('§3 the cross-repo row is dim', cont?.dim === true)
-  t('§3 …and its ctx names the road, not a plain target', cont !== undefined && cont.ctx.includes('via Sessions · Projects'), cont?.ctx ?? '')
+  t('§3 …and its ctx names the target repo', cont !== undefined && cont.ctx === 'in otherrepo', cont?.ctx ?? '')
   const composed = compose(100, 40)
   void composed
   const withDim = core.composeLockup(100, 40, { ...opts, cardRows: rowsWithCross }) as { lines: string[] }
-  const dimLine = withDim.lines.find(l => l.includes('via Sessions'))
+  const dimLine = withDim.lines.find(l => l.includes('in otherrepo'))
   t('§3 the dim row paints no → affordance', dimLine !== undefined && !dimLine.includes('→'), dimLine?.trim().slice(0, 80) ?? '')
   const liveLine = withDim.lines.find(l => l.includes('the live board'))
   t('§3 a live row keeps its →', liveLine !== undefined && liveLine.includes('→'))
@@ -93,13 +93,8 @@ function compose(cols: number, rows: number): { lines: string[]; cardShown: bool
     new: 'New Session',
     continue: 'Continue Last Session',
     menu: 'Boot Menu',
-    kit: 'MCPs & Skills',
-    agents: 'Agents',
-    health: 'Health Check',
-    saturn: 'Saturn Scheduler',
     logins: 'Logins',
-    concourse: 'Session Concourse',
-    sessions: 'Sessions · Projects',
+    concourse: 'Concourse',
   }
   const keys = (cardRows as Array<{ key: string }>).map(r => r.key)
   const unmapped = keys.filter(k => DOC_NEEDLE[k] === undefined)

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -332,8 +333,8 @@ function sessionFiles(dir: string): string[] {
   return out
 }
 
-const bootSends = (ask: string, faceReady = '↑↓ choose'): Array<Record<string, unknown>> => [
-  { data: '\r', atTick: 999, awaitText: faceReady, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+const bootSends = (ask: string): Array<Record<string, unknown>> => [
+  { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]
@@ -445,7 +446,7 @@ async function restartLeg(): Promise<void> {
         cwd,
         argv: ['node', DIST, '--model', FABLE],
         sends: [
-          ...bootSends(ASK, '↵ start'),
+          ...bootSends(ASK),
           { data: `${CONTINUE}\r`, atTick: 999, awaitText: 'launched two in the background', requireAwait: true, minTick: 2, awaitSettleTicks: 45, mark: 'launched' },
           { data: '/crewmates', atTick: 999, awaitText: 'check 1:', requireAwait: true, minTick: 4, awaitSettleTicks: 6, mark: 'after-restart' },
           { data: '\r', afterPrevTicks: 4 },

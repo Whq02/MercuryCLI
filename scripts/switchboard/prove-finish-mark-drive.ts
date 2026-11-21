@@ -33,6 +33,7 @@ if (!existsSync(BIN)) {
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
@@ -97,7 +98,6 @@ const theme = getTheme('dark')
 const WARNING = hexOf(theme.warning)
 const SUCCESS = hexOf(theme.success)
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const TAG = keyHintLabel('⇧← back')
@@ -299,7 +299,7 @@ const c = await capture({
   id: 'finish-mark',
   home,
   sends: [
-    g(READY_LINE, '', { mark: 'face' }),
+    g('↑↓', '', { awaitPattern: BOOT_FACE_READY, mark: 'face' }),
     { afterPrevTicks: WARM_TICKS, data: '\r' },
     g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
     ...PICK_Q,

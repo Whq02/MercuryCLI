@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFi
 import { dirname, isAbsolute, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { gridToPng } from './gridToPng.ts'
 import { fixture, option, ROOT } from './viewportFixture.ts'
 
@@ -81,16 +82,16 @@ for (const size of sizes) {
       }
       const cfg = join(world.root, 'capture.json')
       const sends = kind === 'boot' ? [
-        { ...gate, awaitText: '↑↓ choose', data: '\x1b[1;2C', mark: 'before' },
+        { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '\x1b[1;2C', mark: 'before' },
         { ...gate, awaitText: 'no sessions running', data: '\x1b[1;2D', mark: 'concourse' },
-        { ...gate, awaitText: '↑↓ choose', data: '', mark: 'after' },
+        { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '', mark: 'after' },
       ] : [
-        { ...gate, awaitText: '↑↓ choose', data: '\r', mark: 'boot' },
+        { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '\r', mark: 'boot' },
         { ...gate, awaitText: 'Type a prompt', data: prompt, mark: 'session' },
         { ...gate, awaitText: prompt, data: '\r' },
         { ...gate, awaitText: 'sensitive file', data: '', mark: 'notice' },
       ]
-      const readyText = kind === 'boot' ? '↑↓ choose' : 'sensitive file'
+      const readyText = kind === 'boot' ? '↑↓' : 'sensitive file'
       writeFileSync(cfg, JSON.stringify({ argv: [node, dist], cwd: world.cwd, cols, rows, total: 500,
         sends, readyText, readySettleTicks: 3, out: output }))
       const env = { ...world.env, VSHOT_TEE: join(out, `${tag}.tee.bin`), ...(api ? { ANTHROPIC_BASE_URL: api.url } : {}) }

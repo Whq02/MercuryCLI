@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -244,10 +245,9 @@ const flat = (s: string): string => s.replace(/\s+/g, ' ')
 const SPLASH_READY = 'type a prompt, or / for commands'
 const SHIFT_LEFT = '\x1b[1;2D'
 const BOARD = 'SESSIONS'
-const FACE_READY = '↵ start  ·  ↑↓ choose'
 
 const bootSends = (ask: string): Array<Record<string, unknown>> => [
-  { data: '\r', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+  { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
   { data: ask, atTick: 999, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
   { data: '\r', afterPrevTicks: 4 },
 ]
@@ -288,7 +288,7 @@ try {
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew' },
         { data: SHIFT_LEFT, afterPrevTicks: 4, mark: 'fresh-after' },
         { data: SHIFT_LEFT, atTick: 999, awaitText: BOARD, requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'board' },
-        { data: '\r', atTick: 999, awaitText: FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3, mark: 'face' },
+        { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3, mark: 'face' },
         { data: '/crewmates', atTick: 999, awaitText: SPLASH_READY, requireAwait: true, minTick: 2, awaitSettleTicks: 8, mark: 'fresh-b' },
         { data: '\r', afterPrevTicks: 4 },
         { data: '\x1b', atTick: 999, awaitText: 'Crewmates', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'fresh-crew-b' },
@@ -317,7 +317,7 @@ const freshCrew = marks['fresh-crew'] ?? ''
 check(`the born session's Crew view reads the honest empty line ("${CREW_EMPTY_LINE}") and names no seat`, freshCrew.includes(CREW_EMPTY_LINE) && !namesSeat(freshCrew), freshCrew.split('\n').filter(l => /sub-agent|running/.test(l)).join(' | '))
 const freshAfter = marks['fresh-after'] ?? ''
 check('back on the fresh chat, still none of it', !namesSeat(freshAfter) && !attributesCrew(freshAfter))
-check('the leave gesture reached the concourse, then the face', (marks['board'] ?? '').includes(BOARD) && (marks['face'] ?? '').includes(FACE_READY))
+check('the leave gesture reached the concourse, then the face', (marks['board'] ?? '').includes(BOARD) && paintsBootFaceReady(marks['face'] ?? ''))
 const freshB = marks['fresh-b'] ?? ''
 check('the session born from the face is a fresh chat naming no earlier seat and attributing no sub-agents', freshB.includes(SPLASH_READY) && !namesSeat(freshB) && !attributesCrew(freshB), freshB.split('\n').filter(l => namesSeat(l) || attributesCrew(l)).join(' | '))
 const freshCrewB = marks['fresh-crew-b'] ?? ''

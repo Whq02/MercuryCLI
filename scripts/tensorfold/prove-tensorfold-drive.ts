@@ -6,6 +6,7 @@ import { homedir, tmpdir, userInfo } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -289,7 +290,7 @@ const launch = await capture(launchWorld, [COMMAND], [
   { requireAwait: true, awaitText: 'Qwen3.5 2B', awaitSettleTicks: 2, data: DOWN },
   { requireAwait: true, awaitText: '↵ serve and switch', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-framed-2b', data: '\r' },
   { requireAwait: true, awaitText: `serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`, awaitStableTicks: 3, mark: 'launch-served', data: ESC },
-  { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-boot-face', data: '\r' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, awaitStableTicks: 2, mark: 'launch-boot-face', data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'launch-session', data: '/exit\r' },
 ], 600, 'Type a prompt')
 saveFrames(launchWorld, launch, 'launch')
@@ -305,7 +306,7 @@ check(`${launchWorld.tag} leg A: the three starting points are listed with the 2
 const launchServed = launch.marks.get('launch-served') ?? []
 check(`${launchWorld.tag} leg A: ↵ on the 2B served it on the seeded port from the launch panel; the row reads current`, launchServed.some(l => l.includes(`serving ${NAME_2B} on 127.0.0.1:${launchWorld.port}`)) && launchServed.some(l => l.includes('· 1 serving')), launchServed.filter(l => l.includes('serving') || l.includes('Qwen3.5 2B')).map(l => l.trim()).join(' | '))
 const launchBoot = launch.marks.get('launch-boot-face') ?? []
-check(`${launchWorld.tag} leg A: esc leaves the panel; with no session born behind a slash-command launch the chat settles to the boot face, the feed naming the serve as your default model`, launchBoot.some(l => l.includes('↑↓ choose')) && launchBoot.some(l => l.includes('New Session')), launchBoot.filter(l => l.includes('choose')).map(l => l.trim()).join(' | '))
+check(`${launchWorld.tag} leg A: esc leaves the panel; with no session born behind a slash-command launch the chat settles to the boot face, the feed naming the serve as your default model`, paintsBootFaceReady(launchBoot.join('\n')) && launchBoot.some(l => l.includes('New Session')), launchBoot.filter(l => l.includes('↑↓') || l.includes('New Session')).map(l => l.trim()).join(' | '))
 const launchSession = launch.marks.get('launch-session') ?? []
 check(`${launchWorld.tag} leg A: New Session from the boot face is born on the served 2B — the saved default read at birth, never the most recent sign-in; the daemon admits it because discovery probes the remembered port (the pinned target is a dead loopback, so only the port Mercury remembered answers)`, launchSession.some(l => l.includes(NAME_2B) && !l.includes('❯')) && !launchSession.some(l => l.includes('Opus 5.5 ·')), launchSession.filter(l => l.includes(NAME_2B) || l.includes('Opus')).map(l => l.trim().slice(0, 140)).join(' | '))
 check(`${launchWorld.tag} leg A: the seeded port was quiet before and nothing the leg started is left running`, launchQuietBefore && launchStopped && !(await portAnswers(launchWorld.port)))
@@ -318,7 +319,7 @@ const quietBefore = !(await portAnswers(world.port))
 
 section(`${world.tag} — leg B: in a session, /tensorfold → ↓ ↓ to the 2B on disk → ↵ serves it on a free port and switches → a turn answers`)
 const sends: Send[] = [
-  { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', awaitSettleTicks: 3, awaitStableTicks: 2, data: COMMAND },
   { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'TENSORFOLD', awaitStableTicks: 3, mark: 'panel', data: DOWN },

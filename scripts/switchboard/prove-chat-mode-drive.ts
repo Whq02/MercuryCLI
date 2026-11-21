@@ -29,6 +29,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
@@ -45,8 +46,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
-const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+const FACE_WAIT: Send = { awaitPattern: BOOT_FACE_READY }
 const COMPOSER = 'Type a prompt'
 const MANAGER_FOOTER = 'n new ·'
 const WARM_TICKS = 25
@@ -203,18 +203,18 @@ const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
 const FACE_TO_CHAT = keyHintLabel('⇧→ chat')
 const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
 const hintRows = (text: string): string => text.split('\n').filter(l => /Concourse|⇧|shift\+|live view/i.test(l)).join(' | ')
-const isFace = (text: string): boolean => text.includes('New Session') && text.includes(READY_LINE)
-const isChat = (text: string): boolean => text.includes(COMPOSER) && !text.includes(READY_LINE)
-const isChatWorldFace = (text: string): boolean => text.includes('New Session') && text.includes(CHAT_READY_LINE) && !text.includes('m menu')
-const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
+const isFace = (text: string): boolean => text.includes('New Session') && paintsBootFaceReady(text)
+const isChat = (text: string): boolean => text.includes(COMPOSER) && !paintsBootFaceReady(text)
+const isChatWorldFace = (text: string): boolean => text.includes('New Session') && paintsBootFaceReady(text) && !text.includes('m menu')
+const isChatFace = (text: string): boolean => isChatWorldFace(text) && !text.includes('Session Manager (Concourse)') && !text.includes('Session Concourse') && text.includes(FACE_NO_CHAT)
 
-async function feltEnter(id: string, argv: string[], readyLine = READY_LINE): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
+async function feltEnter(id: string, argv: string[]): Promise<{ c: Capture; face: string; ms: number | null; claims: number; log: string }> {
   const home = freshHome(id)
   const c = await capture({
     id,
     home,
     argv,
-    sends: [g(readyLine, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
+    sends: [g('↑↓', '', { ...FACE_WAIT, mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
     ready: COMPOSER,
     total: 200,
   })
@@ -228,7 +228,7 @@ async function feltEnter(id: string, argv: string[], readyLine = READY_LINE): Pr
 console.log('F1 — mercury --chat: the boot menu lands with no session and no concourse row; ↵ New Session is warm')
 let chatMs: number | null = null
 {
-  const r = await feltEnter('f1-felt-chat', ['--chat'], CHAT_READY_LINE)
+  const r = await feltEnter('f1-felt-chat', ['--chat'])
   const home = (r as { home?: string }).home!
   printFrame('f1 (--chat: the chat after ↵)', r.c.lines)
   chatMs = r.ms
@@ -251,7 +251,7 @@ console.log('F2 — the control: a bare boot\'s face and the felt ↵ (the fleet
   const home = (r as { home?: string }).home!
   printFrame('f2 (the chat after ↵)', r.c.lines)
   console.log(`  [FELT] bare ↵ → composer ready: ${r.ms === null ? '∅' : `${r.ms} ms`} · --chat ↵: ${chatMs ?? '∅'} ms (budget ${ENTER_BUDGET_TICKS * 200} ms each)`)
-  check('F2 the bare boot landed on the face first, with its concourse row', isFace(r.face) && r.face.includes('Session Concourse'), firstRows(r.face))
+  check('F2 the bare boot landed on the face first, with its concourse row', isFace(r.face) && r.face.includes('Session Manager (Concourse)'), firstRows(r.face))
   check(`F2 ↵ reached the composer within the budget (${r.ms ?? '∅'} ms ≤ ${ENTER_BUDGET_TICKS * 200})`, r.ms !== null && r.ms <= ENTER_BUDGET_TICKS * 200, r.c.tail.slice(-200))
   check('F2 the plain world\'s first answer is the fleet world\'s: both ↵ within the one budget', chatMs !== null && r.ms !== null && chatMs <= ENTER_BUDGET_TICKS * 200 && r.ms <= ENTER_BUDGET_TICKS * 200)
   reapHome(home)
@@ -270,7 +270,7 @@ for (const size of [
     cols: size.cols,
     rows: size.rows,
     sends: [
-      g(CHAT_READY_LINE, '', { mark: 'landing', awaitSettleTicks: 4 }),
+      g('↑↓', '', { ...FACE_WAIT, mark: 'landing', awaitSettleTicks: 4 }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: '', mark: 'face-again' },
@@ -281,10 +281,10 @@ for (const size of [
   const landing = markText(c, 'landing')
   const again = markText(c, 'face-again')
   printFrame(`${size.id} (the --chat landing, ${size.cols}×${size.rows})`, landing.split('\n'))
-  check(`${size.id.toUpperCase()} the landing is the face with New Session · Health Check · Sessions · Projects`, isChatWorldFace(landing) && landing.includes('Health Check') && landing.includes('Sessions · Projects'), firstRows(landing))
-  check(`${size.id.toUpperCase()} NO "Session Concourse" row on the --chat card (seven rows at most); the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
+  check(`${size.id.toUpperCase()} the landing is the face with New Session · Logins/Keys · Boot Menu`, isChatWorldFace(landing) && landing.includes('Logins/Keys') && landing.includes('Boot Menu'), firstRows(landing))
+  check(`${size.id.toUpperCase()} NO concourse row on the --chat card; the key-map row says "⇧→ no chat open"`, isChatFace(landing), hintRows(landing))
   check(`${size.id.toUpperCase()} ↵ births the chat`, isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
-  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
+  check(`${size.id.toUpperCase()} ⇧← from the chat is the same face — still no concourse row — whose row now names the chat ("⇧→ chat")`, isChatWorldFace(again) && !again.includes('Session Manager (Concourse)') && !again.includes('Session Concourse') && again.includes(FACE_TO_CHAT) && !again.includes(FACE_TO_CONCOURSE), again.split('\n').filter(l => /Concourse|⇧/.test(l)).join(' | '))
   reapHome(home)
 }
 
@@ -297,14 +297,14 @@ console.log('P3 — --concourse-off at 100×30: the face keeps the row as its li
     argv: ['--concourse-off'],
     cols: 100,
     rows: 30,
-    sends: [g(READY_LINE, '', { mark: 'face', awaitSettleTicks: 4 })],
-    ready: READY_LINE,
+    sends: [g('↑↓', '', { ...FACE_WAIT, mark: 'face', awaitSettleTicks: 4 })],
+    ready: 'Boot Menu',
     stableTicks: 4,
     total: 120,
   })
   printFrame('p3 (--concourse-off, 100×30)', c.lines)
   check('P3 the switch boot landed the face', isFace(c.text), firstRows(c.text))
-  check('P3 the face KEEPS the Session Concourse row as the live-view door ("live view only — concourse off")', c.text.includes('Session Concourse') && c.text.includes('live view only') && c.text.includes('concourse off'), c.lines.filter(l => /live|concourse/i.test(l)).join(' | '))
+  check('P3 the face KEEPS the Session Manager (Concourse) row as the live-view door', c.text.includes('Session Manager (Concourse)'), c.lines.filter(l => /live|concourse/i.test(l)).join(' | '))
   check('P3 with no chat the key-map row says "⇧→ no chat open" — no concourse stop, no chat yet', c.text.includes(FACE_NO_CHAT), hintRows(c.text))
   reapHome(home)
 }
@@ -317,7 +317,7 @@ console.log('P4 — --chat: /crewmates answers the sentence, /sessions opens, /c
     home,
     argv: ['--chat'],
     sends: [
-      g(CHAT_READY_LINE, ''),
+      g('↑↓', '', FACE_WAIT),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, '/crewmates', { awaitSettleTicks: 4 }),
       { afterPrevTicks: 3, data: '\r' },

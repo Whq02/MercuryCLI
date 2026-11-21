@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -155,7 +156,7 @@ const readyFor = (cols: number, rows: number): string[] => rows <= 17 ? ['esc cl
   : '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes']
 function openConfig(cols: number): Send[] {
   return [
-    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 999, requireAwait: true, awaitText: cols < 100 ? '1 session on' : '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
     { afterPrevTicks: 1, data: '/config' },
     { afterPrevTicks: 2, data: '\r' },

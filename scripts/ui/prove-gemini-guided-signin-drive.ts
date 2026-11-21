@@ -6,6 +6,7 @@ import { createServer as createProbeServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -216,7 +217,7 @@ const after = (ticks: number, data: string, mark?: string): Send => ({ afterPrev
 
 function openCard(): Send[] {
   return [
-    { atTick: 90, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
+    { atTick: 90, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r', mark: 'face' },
     { minTick: 10, ...composerGate, data: '/logins gemini', mark: 'composer' },
     after(4, '\r'),
     gate('Google Gemini —', '\r', 'menu', 3),

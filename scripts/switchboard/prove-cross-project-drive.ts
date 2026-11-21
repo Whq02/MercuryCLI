@@ -31,6 +31,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
 const { encodeSeedTranscript } = await import('../lib/seedTranscript.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { workerTranscriptPath } = await import('../../src/services/concourse/workerTranscript.ts')
@@ -80,8 +81,7 @@ seedFirstRun(TEMPLATE, [CWD, OTHER])
 }
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const READY_LINE = '↵ start  ·  ↑↓ choose'
-const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+const FACE_WAIT: Send = { awaitPattern: BOOT_FACE_READY }
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const TAG = keyHintLabel('⇧← back')
@@ -213,8 +213,8 @@ function reapHome(home: string): void {
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
-const isFace = (frame: string): boolean => frame.includes(READY_LINE)
-const isChatWorldFace = (frame: string): boolean => frame.includes(CHAT_READY_LINE) && !frame.includes('m menu')
+const isFace = (frame: string): boolean => paintsBootFaceReady(frame)
+const isChatWorldFace = (frame: string): boolean => paintsBootFaceReady(frame) && !frame.includes('m menu')
 const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER) || frame.includes(TAG)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
@@ -237,7 +237,7 @@ console.log('D1 — X and Y born in P (Y focused); pick Q: Y ★ from P, "1 runn
     id: 'd1-carry-over-and-hand-back',
     home,
     sends: [
-      g(READY_LINE, ''),
+      g('↑↓', '', FACE_WAIT),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       g('SESSIONS', '', { awaitSettleTicks: 3 }),
@@ -277,7 +277,7 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
     id: 'd2-line-is-a-door-and-face',
     home,
     sends: [
-      g(READY_LINE, ''),
+      g('↑↓', '', FACE_WAIT),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       g('SESSIONS', '', { awaitSettleTicks: 3 }),
@@ -305,7 +305,7 @@ console.log('D2 — ↵ on P\'s line switches the view to P (X, Y plain; Z ★ f
   check('D2 ↵ on the line switched the VIEW to P: the board (no chat opened by the door)', isBoard(pBoard) && !isChat(pBoard), firstRows(pBoard))
   check(`D2 P's sessions are plain live rows now (no line for P, no star on them); Z (focused, of Q) is the star (glyph + home)`, !lineRe(null, CWD).test(pBoard) && pBoard.split('\n').some(l => l.includes('✦') && l.includes('proj-q')), rowsWith(pBoard, '✦'))
   check('D2 Q has no line (its one session is on this board as the star — the line counts what you do not see)', !lineRe(null, OTHER).test(pBoard))
-  check('D2 ⇧← is the face; its Sessions · Projects row counts the repos it knows ("1 repo · pick a session" — the running count is the board\'s line, never the face\'s)', isFace(face) && /\b[1-9]\d* repos? · pick a session/.test(face), rowsWith(face, 'pick a session'))
+  check('D2 ⇧← is the face for proj-p with no running count (the running count is the board\'s line, never the face\'s)', isFace(face) && face.includes(`Dir: ${basename(CWD)}`) && !face.includes(' running'), rowsWith(face, 'Dir:'))
   reapHome(home)
 }
 
@@ -317,7 +317,7 @@ console.log('D4 — --chat: no OTHER PROJECTS group, no door, no running suffix 
     home,
     argv: ['--chat'],
     sends: [
-      g(CHAT_READY_LINE, '', { mark: 'landing' }),
+      g('↑↓', '', { ...FACE_WAIT, mark: 'landing' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: '', mark: 'face' },

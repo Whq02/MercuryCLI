@@ -17,9 +17,9 @@ console.log('a harness sends a key of its own only to the Boot face, through one
 const helper = await import('../lib/bootFace.ts').catch(() => null)
 const fires = (line: string): boolean => helper !== null && helper.paintsBootFaceReady(line)
 const NEEDLE = '↑↓ choose'
-const NEEDLE_LOOSE = /↑↓\s*choose/
-const FACE_LOCKUP = /^\s*>_ ready {2}· {2}↵ (?:start|open) {2}·(?: {2}m menu {2}·)? {2}↑↓ choose\s*$/
-const FACE_COMPACT = /^\s*│ ↵ (?:start|open) · ↑↓ choose(?: · m menu)?\s*│\s*$/
+const STORED_NEEDLE = /↑↓/
+const FACE_LOCKUP = /^\s*>_ {2}· {2}↵ {2}·(?: {2}m menu {2}·)? {2}↑↓\s*$/
+const FACE_COMPACT = /^\s*│ >_ · ↵(?: · m menu)? · ↑↓\s*│\s*$/
 const isBootFaceLine = (line: string): boolean => FACE_LOCKUP.test(line) || FACE_COMPACT.test(line)
 
 function filesUnder(dir: string, keep: (path: string) => boolean, out: string[] = []): string[] {
@@ -52,12 +52,12 @@ console.log('\n§1 the words the helper waits for')
 {
   check('one helper owns the pattern (scripts/lib/bootFace.ts)', helper !== null && typeof helper.BOOT_FACE_READY === 'string' && typeof helper.paintsBootFaceReady === 'function' && typeof helper.arenaBootFacePass === 'function')
   for (const [label, line, expected] of [
-    ['the lockup with the menu key', '>_ ready  ·  ↵ start  ·  m menu  ·  ↑↓ choose', true],
-    ['the lockup without it', '>_ ready  ·  ↵ start  ·  ↑↓ choose', true],
-    ['the lockup on a row that opens', '>_ ready  ·  ↵ open  ·  m menu  ·  ↑↓ choose', true],
-    ['the compact face', '│ ↵ start · ↑↓ choose · m menu │', true],
-    ['the same words with their gaps skipped by the painter', '>_ready·↵start·↑↓choose', true],
-    ['the face before its card is up', '>_ ready  ·  ↵ start', false],
+    ['the lockup with the menu key', '>_  ·  ↵  ·  m menu  ·  ↑↓', true],
+    ['the lockup without it', '>_  ·  ↵  ·  ↑↓', true],
+    ['the compact face', '│ >_ · ↵ · ↑↓ │', true],
+    ['the compact face with the menu key', '│ >_ · ↵ · m menu · ↑↓ │', true],
+    ['the same icons with their gaps skipped by the painter', '>_·↵·↑↓', true],
+    ['the face before its card is up', '>_  ·  ↵', false],
     ["the board's SESSIONS legend", '↑↓ choose · ↵ enter · n new · p pause', false],
     ['a permission card', '↑↓ choose · ↵ confirm · esc cancel · tab amend', false],
     ['the contract card', '↑↓ choose · ↵ confirm · esc starts it plain', false],
@@ -73,7 +73,7 @@ console.log('\n§1 the words the helper waits for')
         "│ ❯ New Session in City St George's · start fresh here         │",
       ].every(line => line.includes(kitFaceReady)) &&
       [
-        '>_ ready  ·  ↵ start',
+        '>_  ·  ↵',
         '│ SESSIONS              + new session · n │',
         '↑↓ choose · ↵ enter · n new · p pause',
         '↑↓ choose · ↵ confirm · esc cancel · tab amend',
@@ -90,7 +90,7 @@ console.log('\n§2 every stored frame and every legend in the tree')
     ...filesUnder(join(ROOT, 'design-system', 'live', 'grids'), path => path.endsWith('.json')),
     ...filesUnder(join(ROOT, 'scripts'), path => /\.(?:txt|json|ans)$/.test(path) && (path.includes('/fixtures/') || /frames[^/]*\.json$/.test(path))),
   ]
-  const stored = frames.flatMap(path => rowsOf(path).filter(line => NEEDLE_LOOSE.test(line)).map(line => ({ path: relative(ROOT, path), line })))
+  const stored = frames.flatMap(path => rowsOf(path).filter(line => STORED_NEEDLE.test(line)).map(line => ({ path: relative(ROOT, path), line })))
   const face = stored.filter(row => isBootFaceLine(row.line))
   const other = stored.filter(row => !isBootFaceLine(row.line))
   check(`the stored frames hold both kinds of line, so the next two checks have something to read (${face.length} Boot face, ${other.length} other, ${frames.length} files)`, face.length >= 5 && other.length >= 5, `${face.length} / ${other.length}`)

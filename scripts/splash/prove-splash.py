@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
 import fcntl
-import hashlib
 import json
 import os
 import pty
 import re
-HINT_RE = re.compile(r'↵ ?(?:\x1b\[[0-9;]*m)* ?start\b')
+HINT_RE = re.compile(r'(?:>_(?:\x1b\[[0-9;]*m)*\s*·\s*(?:\x1b\[[0-9;]*m)*↵|MERCURY(?:\x1b\[[0-9;]*m)*\s+(?:\x1b\[[0-9;]*m)*↵)')
 import struct
 import subprocess
 import sys
 import tempfile
 import termios
 import time
-import unicodedata
 
 SCALE = max(1.0, float(os.environ.get('MERCURY_VSHOT_BUDGET_SCALE', '1') or 1))
 from pathlib import Path
@@ -153,7 +151,7 @@ raw = run_pty(120, 44)
 lines = vis_lines(raw)
 check('half-block head cells present', any(c in raw for c in '▀▄█'))
 check('the (>_) rule present', '(>_)' in raw and '─' in raw)
-check('hint present (↵ start)', HINT_RE.search(raw) is not None)
+check('hint present (>_ · ↵)', HINT_RE.search(raw) is not None)
 check('every visible line fits 120 cols', all(len(l) <= 120 for l in lines), f'max={max(len(l) for l in lines)}')
 check('head engaged (tall lockup ≥ 20 lines)', sum(1 for l in lines if l.strip()) >= 20)
 check('cursor hidden + restored', '\x1b[?25l' in raw and '\x1b[?25h' in raw)
@@ -168,26 +166,30 @@ check('rule + hint present', '(>_)' in raw and HINT_RE.search(raw) is not None)
 check('launcher card present (New Session row — the bare-↵ path made visible)',
       'New Session' in plain80)
 check('head art dropped (no cream head SGR — actions outrank art)', '38;2;240;232;214' not in raw)
-check('the six-row card sheds the strip FIRST (no Model row — actions outrank the readout)', 'Model' not in plain80)
-check('every action row survives the empty-home shed',
-      all(s in plain80 for s in ('New Session', 'Boot Menu', 'MCPs & Skills', 'Agents',
-                                 'Health Check', 'Saturn Scheduler', 'Logins', 'Sessions · Projects')))
+check('the one-line strip fits at 80×24 (Model and Dir: present)', 'Model' in plain80 and 'Dir:' in plain80)
+check('every action row survives the empty-home face',
+      all(s in plain80 for s in ('New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu')))
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
 check('every visible line fits 80 cols', all(len(l) <= 80 for l in lines), f'max={max(len(l) for l in lines)}')
 
-print('\n── HEADLESS-CARD @80×24 under PRESSURE (populated home: strip sheds before the card)')
+print('\n── HEADLESS-CARD @80×24 and @80×19 under PRESSURE (populated home: strip sheds before the card)')
 pop_home = make_populated_home()
 raw = run_pty(80, 24, env_extra={'MERCURY_HOME': pop_home, **INLINE})
 lines = vis_lines(raw)
 plain80 = STRIP.sub('', raw)
 check('card grew (Continue Last Session row present)', 'Continue Last Session' in plain80)
-check('every action row survives the squeeze (New/Menu/Health/Logins/Sessions · Projects)',
-      all(s in plain80 for s in ('New Session', 'Boot Menu', 'Health', 'Logins', 'Sessions · Projects')))
-check('strip shed FIRST (no Model row under pressure)', 'Model' not in plain80)
+check('every action row survives the five-row card',
+      all(s in plain80 for s in ('New Session', 'Continue Last Session', 'Logins/Keys',
+                                 'Session Manager (Concourse)', 'Boot Menu')))
 check('fits the 24-row window', sum(1 for l in lines if l.strip()) <= 23,
       f"lines={sum(1 for l in lines if l.strip())}")
 check('every visible line fits 80 cols', all(len(l) <= 80 for l in lines), f'max={max(len(l) for l in lines)}')
+raw19 = run_pty(80, 19, env_extra={'MERCURY_HOME': pop_home, **INLINE})
+plain19 = STRIP.sub('', raw19)
+check('strip sheds FIRST under pressure at 80×19 (no Model row, all five rows survive)',
+      'Model' not in plain19 and all(s in plain19 for s in ('New Session', 'Continue Last Session',
+                                                             'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu')))
 
 print('\n── COMPACT @45×12 (one-line brand)')
 raw = run_pty(45, 12)
@@ -372,61 +374,41 @@ try:
     env2 = {'MERCURY_HOME': home2, 'MERCURY_REDUCED_MOTION': '1', **INLINE}
     raw = run_pty(120, 50, env2)
     plain = STRIP.sub('', raw)
-    check('card renders at the standard tier (continue · menu · agents · health · logins · sessions)',
-          'Continue Last Session' in plain and 'Boot Menu' in plain and 'Health Check' in plain
-          and 'Agents' in plain and 'Logins' in plain and 'Sessions · Projects' in plain)
-    check('status strip present (Model · Critter · Dir)',
-          'Model' in plain and 'Critter' in plain and 'Dir' in plain)
-    check('ready line advertises the card (↑↓ choose) only when shown', '↑↓ choose' in plain)
+    check('card renders at the standard tier (new · continue · logins · concourse · menu)',
+          'New Session' in plain and 'Continue Last Session' in plain and 'Logins/Keys' in plain
+          and 'Session Manager (Concourse)' in plain and 'Boot Menu' in plain)
+    check('status strip present (Model · Dir:)',
+          'Model' in plain and 'Dir:' in plain)
+    check('ready line advertises the card (↑↓) only when shown', '↑↓' in plain)
     lines = vis_lines(raw)
     check('card tier fits 120 cols', all(len(l) <= 120 for l in lines),
           f'max={max(len(l) for l in lines)}')
     raw = run_pty(100, 34, env2)
     plain = STRIP.sub('', raw)
     check('card PRESENT at 100×34 (ladder inversion: the head art drops, the actions stay)',
-          'Continue Last Session' in plain and '↑↓ choose' in plain)
+          'Continue Last Session' in plain and '↑↓' in plain)
     raw = run_pty(120, 50, env2,
-                  send=[(0.6, b'\x1b[B'), (0.9, b'\x1b[B'), (1.2, b'\x1b[B'), (1.5, b'\x1b[B'), (1.8, b'\x1b[B'), (2.2, b'\r')],
+                  send=[(0.6, b'\x1b[B'), (0.9, b'\x1b[B'), (1.3, b'\r')],
                   oneshot=False)
     act_path = os.path.join(home2, 'splash-action.json')
     act = None
     if os.path.exists(act_path):
         with open(act_path) as f:
             act = json.load(f)
-    check('↓×5 ↵ activates Health: splash-action.json {action: health} + launch',
-          'starting' in raw and bool(act) and act.get('version') == 1 and act.get('action') == 'health',
+    check('↓×2 ↵ activates Logins/Keys: splash-action.json {action: logins} + launch',
+          'starting' in raw and bool(act) and act.get('version') == 1 and act.get('action') == 'logins',
           json.dumps(act) if act else 'no file')
     txt_path = os.path.join(home2, 'splash-action.txt')
     check('NO plain-text twin is written (BM-30 — the txt protocol is retired)',
           not os.path.exists(txt_path))
     raw = run_pty(120, 50, env2,
-                  send=[(0.6, b'\x1b[B'), (0.9, b'\x1b[B'), (1.2, b'\x1b[B'), (1.5, b'\x1b[B'), (1.9, b'\r')],
+                  send=[(0.6, b'\x1b[B'), (0.9, b'\x1b[B'), (1.2, b'\x1b[B'), (1.6, b'\r')],
                   oneshot=False)
     act = None
     if os.path.exists(act_path):
         with open(act_path) as f:
             act = json.load(f)
-    check('↓×4 ↵ activates Agents: splash-action.json {action: agents}',
-          bool(act) and act.get('version') == 1 and act.get('action') == 'agents',
-          json.dumps(act) if act else 'no file')
-    raw = run_pty(120, 50, env2,
-                  send=[(0.6, b'\x1b[A'), (1.2, b'\r')],
-                  oneshot=False)
-    act = None
-    if os.path.exists(act_path):
-        with open(act_path) as f:
-            act = json.load(f)
-    check('the merged sessions row activates: splash-action.json {action: resume}',
-          bool(act) and act.get('action') == 'resume', json.dumps(act) if act else 'no file')
-    raw = run_pty(120, 50, env2,
-                  send=[(0.6, b'\x1b[B'), (0.9, b'\x1b[B'), (1.2, b'\x1b[B'), (1.5, b'\x1b[B'),
-                        (1.8, b'\x1b[B'), (2.1, b'\x1b[B'), (2.4, b'\x1b[B'), (2.7, b'\x1b[B'), (3.1, b'\r')],
-                  oneshot=False)
-    act = None
-    if os.path.exists(act_path):
-        with open(act_path) as f:
-            act = json.load(f)
-    check('↓×8 ↵ activates Session Concourse: splash-action.json {action: concourse}',
+    check('↓×3 ↵ activates Session Manager (Concourse): splash-action.json {action: concourse}',
           bool(act) and act.get('version') == 1 and act.get('action') == 'concourse',
           json.dumps(act) if act else 'no file')
     raw = run_pty(120, 50, env2, send=[(0.6, b'\x1b[B'), (1.2, b'\r')], oneshot=False)
@@ -509,24 +491,13 @@ try:
     raw = run_pty(120, 50, dict(env4, MERCURY_SPLASH_VIEW='projects'))
     plain = STRIP.sub('', raw)
     check('the projects capture env falls to the lockup (the view is gone)',
-          '◆ Projects' not in plain and '↑↓ pick' not in plain and 'Sessions · Projects' in plain)
+          '◆ Projects' not in plain and '↑↓ pick' not in plain and 'New Session' in plain)
     raw = run_pty(120, 50, env4)
     plain = STRIP.sub('', raw)
-    check("the card wears the merged door and neither retired row",
-          'Sessions · Projects' in plain and 'pick a session or a repo' in plain
-          and 'Recent Project' not in plain and '2 repos' not in plain and 'Resume Session' not in plain)
-    raw = run_pty(120, 50, env4,
-                  send=[(0.6, b'\x1b[A'), (1.2, b'\r')],
-                  oneshot=False)
-    act_path4 = os.path.join(home4, 'splash-action.json')
-    act = None
-    if os.path.exists(act_path4):
-        with open(act_path4) as f:
-            act = json.load(f)
-    check('the merged door hands over {action: resume} with NO dir',
-          bool(act) and act.get('action') == 'resume' and 'dir' not in act,
-          json.dumps(act) if act else 'no file')
-    check('the merged flow still launches (starting)', 'starting' in raw)
+    check("the card carries none of the retired project/session rows",
+          'New Session' in plain and 'Continue Last Session' in plain
+          and 'Sessions · Projects' not in plain and 'Recent Project' not in plain
+          and '2 repos' not in plain and 'Resume Session' not in plain)
     with open(os.path.join(REPO, 'assets', 'splash', 'mercury-splash.mjs')) as f:
         launcher_src = f.read()
     check("the launcher no longer writes the 'project' action",
@@ -951,7 +922,7 @@ if len(found) == 3 and all(found) and RAMP_RGB:
 
 raw_lab = run_pty(120, 44, dict(INLINE))
 raw_lab_lines = raw_lab.replace('\r', '').split('\n')
-lab_line = next((l for l in raw_lab_lines if 'New Session in' in STRIP.sub('', l)), None)
+lab_line = next((l for l in raw_lab_lines if 'New Session' in STRIP.sub('', l)), None)
 check('selected launcher label line present', lab_line is not None)
 if lab_line:
     distinct = set(re.findall(r'38;2;\d+;\d+;\d+', lab_line))
@@ -965,8 +936,8 @@ CRAB_MAIN = '38;2;221;68;68'
 raw_fam = run_pty(120, 44)
 check('hermetic default wears CRAB red (the baked default family)', CRAB_MAIN in raw_fam)
 check('…and no jellyfish cyan survives anywhere in the frame (the default family is total)', JELLY_MAIN not in raw_fam)
-fam_txt = STRIP.sub('', run_pty(120, 44, dict(INLINE)))
-check("…and the deck's Theme chip says Crab (strip truth == family truth)", 'Crab' in fam_txt)
+fam_menu = STRIP.sub('', run_pty(150, 60, {'MERCURY_SPLASH_VIEW': 'menu'}))
+check("…and the menu ENVIRONMENT panel says Crab (panel truth == family truth)", 'Crab' in fam_menu)
 raw_fam = run_pty(120, 44, {'MERCURY_CRITTER': 'clam'})
 check('MERCURY_CRITTER=clam pins the clam teal family', CLAM_MAIN in raw_fam and CRAB_MAIN not in raw_fam)
 raw_fam = run_pty(120, 44, {'MERCURY_CRITTER': 'dragon'})
@@ -1156,55 +1127,27 @@ def seeded_home(native=None, external=None):
 home_native = seeded_home(native={'defaultCritter': 'jellyfish',
                                   'oauthAccount': {'emailAddress': 'native@mercury.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE})
-plain = STRIP.sub('', raw)
-check('native home: theme chip serves .mercury.json (Jellyfish)', 'Jellyfish' in plain)
-check('native home: account chip serves .mercury.json', 'native@mercury.test' in plain)
+menu_native = STRIP.sub('', run_pty(150, 60, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home_native}))
+check('native home: menu environment panel serves .mercury.json (Jellyfish)', 'Jellyfish' in menu_native)
 check('native home: the persisted critter drives the accent family (jellyfish cyan, no default red)',
       JELLY_MAIN in raw and CRAB_MAIN not in raw)
 
 home_external = seeded_home(external={'defaultCritter': 'jellyfish',
                                       'oauthAccount': {'emailAddress': 'external@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_external, **INLINE})
-plain = STRIP.sub('', raw)
+menu_external = STRIP.sub('', run_pty(150, 60, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home_external}))
 check('external-file-only home: an external .claude.json is never read',
-      'external@compat.test' not in plain and 'Jellyfish' not in plain)
+      'Jellyfish' not in menu_external and JELLY_MAIN not in raw and CRAB_MAIN in raw)
 
 home_both = seeded_home(
     native={'defaultCritter': 'jellyfish', 'oauthAccount': {'emailAddress': 'native@mercury.test'}},
     external={'defaultCritter': 'octopus', 'oauthAccount': {'emailAddress': 'other@compat.test'}})
 raw = run_pty(120, 44, {'MERCURY_HOME': home_both, **INLINE})
-plain = STRIP.sub('', raw)
+menu_both = STRIP.sub('', run_pty(150, 60, {'MERCURY_SPLASH_VIEW': 'menu', 'MERCURY_HOME': home_both}))
 check('both files present: the native file wins',
-      'native@mercury.test' in plain and 'Jellyfish' in plain)
+      'Jellyfish' in menu_both and JELLY_MAIN in raw and CRAB_MAIN not in raw)
 check("both files present: the external file's facts never render",
-      'other@compat.test' not in plain and 'Octopus' not in plain)
-
-print("\n── K1: health chip reads the certificate where /health writes it (the project's store under the config home)")
-
-
-def project_home_dir(home, cwd):
-    canonical = unicodedata.normalize('NFC', os.path.realpath(cwd))
-    slug = re.sub(r'[^a-zA-Z0-9]', '-', canonical) + '-' + hashlib.sha256(canonical.encode('utf-8')).hexdigest()[:8]
-    return os.path.join(home, 'projects', slug)
-
-
-cert_cwd = tempfile.mkdtemp(prefix='splash-proof-certcwd.')
-cert_store = os.path.join(project_home_dir(home_native, cert_cwd), 'health')
-os.makedirs(cert_store, exist_ok=True)
-with open(os.path.join(cert_store, 'last-cert.json'), 'w') as f:
-    json.dump({'verdict': 'certified', 'ranAt': '2026-08-07T12:00:00Z'}, f)
-raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd)
-plain = STRIP.sub('', raw)
-check("health chip renders the certificate from <config home>/projects/<slug>/health",
-      'Health' in plain and 'certified' in plain)
-cert_cwd2 = tempfile.mkdtemp(prefix='splash-proof-certcwd2.')
-os.makedirs(os.path.join(cert_cwd2, '.mercury', 'health'), exist_ok=True)
-with open(os.path.join(cert_cwd2, '.mercury', 'health', 'last-cert.json'), 'w') as f:
-    json.dump({'verdict': 'caution', 'ranAt': '2026-08-07T12:00:00Z'}, f)
-raw = run_pty(120, 44, {'MERCURY_HOME': home_native, **INLINE}, cwd=cert_cwd2)
-plain = STRIP.sub('', raw)
-check("health chip never reads a certificate left in the project folder (<cwd>/.mercury/health)", 'caution' not in plain)
-
+      'Octopus' not in menu_both)
 print('\n── K2: the launched cwd WINS (two-repo continue/resume dir law)')
 
 
@@ -1244,30 +1187,16 @@ check('cwd-with-history: continue action carries NO dir (launcher stays put)',
 check('cwd-with-history: no plain twin beside the action (BM-30 — retired)',
       not os.path.exists(k2_txt))
 
-raw = run_pty(120, 50, {'MERCURY_HOME': k2_home, **INLINE}, cwd=k2_dirs['cwdfix'],
-              send=[(0.6, b'\x1b[A'), (1.2, b'\r')], oneshot=False)
-act = None
-if os.path.exists(k2_act):
-    with open(k2_act) as f:
-        act = json.load(f)
-check('resume action NEVER carries a dir (picker opens cwd-scoped)',
-      bool(act) and act.get('action') == 'resume' and 'dir' not in act,
-      json.dumps(act) if act else 'no file')
-
 fresh_cwd = tempfile.mkdtemp(prefix='splash-proof-freshcwd.')
 raw = run_pty(120, 50, {'MERCURY_HOME': k2_home, **INLINE}, cwd=fresh_cwd,
               send=[(0.6, b'\x1b[B'), (1.2, b'\r')], oneshot=False)
-plain = STRIP.sub('', raw)
 act = None
 if os.path.exists(k2_act):
     with open(k2_act) as f:
         act = json.load(f)
-check('history-less cwd: Continue ctx NAMES the crossing (in other-proj)',
-      'in other-proj' in plain)
 check('history-less cwd: continue action carries the cross-repo dir',
       bool(act) and act.get('action') == 'continue' and act.get('dir') == k2_dirs['other-proj'],
       json.dumps(act) if act else 'no file')
-
 print('\n── gates')
 raw = run_pty(120, 44, {'MERCURY_SPLASH': 'off'})
 check('MERCURY_SPLASH=off ⇒ zero output', raw.strip() == '')

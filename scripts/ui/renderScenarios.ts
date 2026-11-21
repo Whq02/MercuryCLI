@@ -16,6 +16,7 @@ import { saveBootDefaultsProfile } from '../../src/substrate/startupMenu.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const distArg = process.argv.indexOf('--dist')
@@ -1488,7 +1489,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
       total: back ? 88 : 64,
       cols,
       rows,
-      chromeMarkers: ['❯', '╭', '│', '╰', 'terminal too small', '↵ start'],
+      chromeMarkers: ['❯', '╭', '│', '╰', 'terminal too small', '↑↓'],
     }
   }
   if (name === 'concourse-burst-arrows' || name === 'concourse-burst-arrows-discrete' || name === 'concourse-burst-type' || name === 'concourse-tab-probe') {
@@ -1568,7 +1569,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, data: 'm', mark: 'open' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 20, awaitSettleTicks: 2, data: 's', mark: 'open' },
         { atTick: 60, awaitText: 'boot menu', minTick: 30, awaitSettleTicks: 2, data: '' },
       ],
       total: 85,
@@ -1585,7 +1586,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: 'Health Check', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '' },
       ],
       total: 60,
       cols,
@@ -1601,8 +1602,8 @@ function scenarioInner(name: string, cols: number, rows: number) {
     return {
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: 'MCPs & Skills', minTick: 20, awaitSettleTicks: 2, mark: 'face', data: '\u001b[B\u001b[B' },
-        { afterPrevTicks: 4, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 20, awaitSettleTicks: 2, mark: 'face', data: 's' },
+        { atTick: 60, awaitText: 'MCPs & Skills', minTick: 30, awaitSettleTicks: 2, data: '\r' },
         { atTick: 80, awaitText: 'mcps & skills', minTick: 50, awaitSettleTicks: 2, mark: 'kit', data: '' },
       ],
       total: 100,
@@ -3063,7 +3064,7 @@ function scenarioInner(name: string, cols: number, rows: number) {
            { afterPrevTicks: 3, data: '\r' },
            { atTick: 80, awaitText: 'LIVE PEEK', minTick: 42, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'concourse-1', data: '\u001b[6;5~' },
-           { atTick: 112, awaitText: 'Health Check', minTick: 84, awaitSettleTicks: 2, data: '\u001b[A' },
+           { atTick: 112, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 84, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'boot-settings', data: '\u001b[5;5~' },
            { atTick: 144, awaitText: 'LIVE PEEK', minTick: 116, awaitSettleTicks: 2, data: '\u001b[A' },
            { afterPrevTicks: 2, mark: 'concourse-2', data: '\r' },

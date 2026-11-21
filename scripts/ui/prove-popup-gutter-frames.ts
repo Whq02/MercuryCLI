@@ -4,6 +4,7 @@ import { join } from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { mountOffscreen, pinScratchHome, releaseScratchHome, type Mounted } from '../lib/settingsPopupHarness.ts'
 import { settledFrame } from './popupFrameSettle.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const HOME = pinScratchHome('popup-gutter-frames')
 Object.assign(process.env, {
@@ -198,7 +199,7 @@ for (const size of process.argv.includes('--concourse-only') ? [] : selectedSize
   resetOverlayStackForTests()
   resetChromeModeLatchForTests()
   const boot = await mountOffscreen(wrap(h(BootSplashScreen)), columns, rows)
-  await settledFrame(boot, frame => frame.includes('↑↓ choose'))
+  await settledFrame(boot, frame => paintsBootFaceReady(frame))
   boot.push('m')
   await settledFrame(boot, frame => frame.includes('Mercury · model'))
   save(`boot-model-${size}`, boot.lines())

@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { spawnCaptureSync } from '../lib/spawnCapture.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'hz-fid-'))
@@ -33,7 +34,7 @@ if (!existsSync(BIN)) {
     cwd: process.cwd(),
     resizes: [{ cols: 100, rows: 40, afterMark: 'pre-resize', afterMs: 0 }],
     sends: [
-      { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, requireAwait: true, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'alpha ' },
       { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ alpha ', data: 'b' },
       { afterPrevTicks: 1, requireAwait: true, awaitText: '❯ alpha b', data: 'r' },

@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync, existsSync } from '
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -137,7 +138,7 @@ console.log('============================================================')
       total: 200,
       argv: ['node', DIST],
       sends: [
-        { data: '\r', atTick: 999, awaitText: '↵ start', requireAwait: true, minTick: 8, awaitSettleTicks: 3, awaitStableTicks: 3 },
+        { data: '\r', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 8, awaitSettleTicks: 3, awaitStableTicks: 3 },
         { data: '\r', atTick: 999, awaitText: '1 session on', requireAwait: true, repeatEveryTicks: 5 },
         { data: '/logins zai\r', atTick: 999, awaitText: '1 session on', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '\r', atTick: 999, awaitText: 'GLM (Z.AI)', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },

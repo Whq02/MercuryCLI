@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -120,7 +121,7 @@ async function runArm(arm: Arm): Promise<Run> {
     argv: ['node', DIST, '--model', 'claude-opus-4-8'],
     cwd: FIXTURE_CWD,
     sends: [
-      { atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 80, minTick: 20, requireAwait: true, awaitText: '? for shortcuts', data: `write design note ${NOTE_WORDS[0]}\r` },
       ...noteSends,
       { atTick: 140 + NOTES * 60, minTick: 10, requireAwait: true, awaitText: switchNeedle, awaitSettleTicks: 3, data: `/model local/${LOCAL_TAG}\r`, mark: 'switch-sent' },

@@ -8,6 +8,7 @@ import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/
 import { describeCapturePreflight, preflightCaptureDriver } from '../lib/capturePreflight.ts'
 import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -325,13 +326,12 @@ function childEnv(leg: Leg, fixtureUrl: string): NodeJS.ProcessEnv {
   return env
 }
 
-const FACE_READY = '↑↓ choose'
 const LANDED = '← back'
 type Payload = { endReason?: string; readyAt?: number | null; sendReceipts?: Array<{ atTick: number }>; stages?: Array<{ untilTick: number; cols: number; rows: number }>; marks?: Array<{ label: string; atTick: number }> }
 async function capture(leg: Leg, fixtureUrl: string): Promise<{ status: number | null; payload: Payload | null; output: string }> {
   const other = SIZES.find(s => s.cols !== leg.size.cols || s.rows !== leg.size.rows) ?? { cols: 100, rows: 30 }
   const sends: unknown[] = [
-    { atTick: 60, awaitText: FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
+    { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
     { atTick: 999, awaitText: LANDED, minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, requireAwait: true, data: leg.journey.ask, mark: 'typed' },
     { afterPrevTicks: 2, data: '\r', mark: 'sent' },
   ]

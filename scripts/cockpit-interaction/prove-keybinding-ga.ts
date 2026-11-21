@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'mercury-kb-ga-'))
@@ -91,7 +92,7 @@ t.section('§4 — REAL BINARY: null-unbound Space TYPES (the HZ-02 journey)')
       cols: 100, rows: 30, total: 200,
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'a' },
         { afterPrevTicks: 3, atTick: 80, awaitText: '❯ a', minTick: 3, awaitSettleTicks: 2, data: ' ' },
         { afterPrevTicks: 3, atTick: 100, data: 'b' },
@@ -188,7 +189,7 @@ console.log(JSON.stringify({
         cols: 100, rows: 30, total: 160,
         argv: ['node', BIN], out: out2, cwd: process.cwd(),
         sends: [
-          { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+          { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
           { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'ok' },
         ],
         readyText: '❯ ok', readySettleTicks: 3,

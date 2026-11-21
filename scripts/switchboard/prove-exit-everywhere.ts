@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetScale } from '../lib/captureDriver.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -41,6 +42,7 @@ const linesOf = (g: Grid): string[] => g.grid.map(r => r.map(c => c.c || ' ').jo
 interface Send {
   data: string
   awaitText?: string
+  awaitPattern?: string
   awaitSettleTicks?: number
   requireAwait?: boolean
   afterPrevTicks?: number
@@ -119,7 +121,7 @@ console.log('leg A — the boot face')
 {
   const { home } = freshHome('face')
   const c = capture('A-face', ['node', BIN], [
-    { data: CTRL_C, requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 4 },
+    { data: CTRL_C, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 4 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env: envFor(home, null) })
   const armed = c.marks.get('armed') ?? []
@@ -177,7 +179,7 @@ console.log('leg E — the reduced stage (--concourse-off: the face, then the li
   const env = envFor(home, fixturePath)
   delete env.MERCURY_CONCOURSE
   const c = capture('E-reduced', ['node', BIN, '--concourse-off'], [
-    { data: 'o', requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 4 },
+    { data: 'o', requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 4 },
     { data: CTRL_C, requireAwait: true, awaitText: 'the concourse is off', awaitSettleTicks: 3 },
     ...armThenExit,
   ], { cols: 120, rows: 40, total: 150, env })

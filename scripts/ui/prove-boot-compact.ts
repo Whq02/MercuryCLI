@@ -8,6 +8,7 @@ import {
 } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 import { createSplashCore } from '../../assets/splash/splash-core.mjs'
 
 const REFUSAL = /needs \d+ rows|this window is|needs at least|terminal too small|too small for|resize to continue/i
@@ -15,6 +16,7 @@ const CONCOURSE_HINT = '⇧→ concourse'
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const CONCOURSE_HINT_HOST = keyHintLabel(CONCOURSE_HINT)
 const HINT_ROW = '↵ start · ↑↓ choose'
+const LIVE_HINT_ROW = '>_ · ↵ · ↑↓'
 const CHAT_READY = 'Type a prompt'
 const HINT_SEGMENTS = [
   { key: '↵ ', label: 'start', tone: 'ivory' as const },
@@ -24,6 +26,7 @@ const strip = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const bottomRight = (frame: string[], cols: number, rows: number, hint: string = CONCOURSE_HINT_HOST): boolean =>
   frame[rows - 1] === ' '.repeat(cols - hint.length - 2) + hint
 const inFrameHint = (line: string): boolean => /^\s*│ ↵ start · ↑↓ choose\s*│$/.test(line)
+const liveInFrameHint = (line: string): boolean => /^\s*│ >_ · ↵ · ↑↓\s*│$/.test(line)
 const topBorder = (cols: number, at: number): string => ' '.repeat(at) + '╭' + '─'.repeat(cols - 2) + '╮'
 
 const APPROVED_80x21 = [
@@ -112,7 +115,7 @@ console.log('§0 the composer against the approved grids')
   const hero = full.hero.map(l => strip(l).trimEnd())
   const card = full.lines.map(l => strip(l).trimEnd())
   check('80×21: the splash hero keeps the banner, the rule and the blank on the rows the card view paints them', hero.length === 7 && hero.slice(0, 6).join('\n') === card.slice(0, 6).join('\n') && hero[1]!.includes('██▄██'), hero.join('\n'))
-  check('80×21: the ready line stands where the frame top composes in beneath the banner', hero[6] === ' '.repeat(30) + '►_ ready  ·  ↵ start' && card[6] === topBorder(64, 8), `${hero[6]} / ${card[6]}`)
+  check('80×21: the ready line stands where the frame top composes in beneath the banner', hero[6] === ' '.repeat(36) + '>_  ·  ↵' && card[6] === topBorder(64, 8), `${hero[6]} / ${card[6]}`)
   const asset = readFileSync(join(ROOT, 'assets/splash/mercury-splash.mjs'), 'utf8')
   const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
   check('the launcher splash mirrors the cockpit gate the size latch reads', asset.includes(`const COMPACT_HOST_COLS = ${LAYOUT_BREAKPOINTS.cockpitMin}\n`) && asset.includes(`const COMPACT_HOST_ROWS = ${LAYOUT_BREAKPOINTS.cockpitMinRows}\n`) && asset.includes('const compactHost = (c, r) => CINEMATIC && !(c >= COMPACT_HOST_COLS && r >= COMPACT_HOST_ROWS)'))
@@ -137,7 +140,7 @@ for (const [cols, rows] of sizes) {
     const cfgPath = join(scratch, `${tag}-vshot.json`)
     const sends = [
       { atTick: 40, awaitText: FACE_READY, minTick: 3, requireAwait: true, data: '' },
-      { atTick: 40, awaitText: '❯', awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, awaitStableTicks: 2, requireAwait: true, data: '\r', mark: 'boot' },
       { atTick: 120, awaitText: CHAT_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'chat' },
     ]
     writeFileSync(cfgPath, JSON.stringify({ argv: [productNode(), dist], cwd: fixtureCwd, cols, rows, sends, resizes: [], readyText: CHAT_READY, readySettleTicks: 2, total: 220, out }))
@@ -169,23 +172,23 @@ for (const [cols, rows] of sizes) {
     const compact = cols < 100 || rows < 26
     if (compact) {
       check(`${cols}x${rows}: the concourse key-map sits bottom-right`, bottomRight(boot, cols, rows), boot[rows - 1] ?? '')
-      check(`${cols}x${rows}: the ready hint row is on the face`, boot.some(l => l.includes(HINT_ROW)))
+      check(`${cols}x${rows}: the ready hint row is on the face`, boot.some(l => l.includes(LIVE_HINT_ROW)))
     }
     if (cols === 80 && rows === 21) {
-      check('80x21: the banner rides row 2 and the rule beneath it', boot[1]?.includes('██▄██') === true && boot[4]?.includes('(>_)') === true && boot[4]?.includes('■') === true)
-      check('80x21: the framed card is 64 wide, centred, with the hint as its last inner row', boot.some(l => l === topBorder(64, 8)) && boot.some(l => l.trim().startsWith('╰')) && boot.some(inFrameHint))
+      check('80x21: the banner and rule stand above the centred card', boot.some(l => l.includes('██▄██')) && boot.some(l => l.includes('(>_)') && l.includes('■')), boot.slice(0, 8).join(' | '))
+      check('80x21: the framed card is 37 wide, centred, with the hint as its last inner row', boot.some(l => l === topBorder(37, 21)) && boot.some(l => l.trim().startsWith('╰')) && boot.some(liveInFrameHint))
     }
     if (cols === 80 && rows === 14) {
-      check('80x14: the banner gives way and the frame starts on row 1', !boot.some(l => l.includes('██▄██')) && boot[0] === topBorder(64, 8) && boot.some(inFrameHint))
+      check('80x14: the banner gives way and the centred 37-wide frame holds the hint', !boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(37, 21)) && boot.some(liveInFrameHint))
     }
     if (cols === 60 && rows === 16) {
-      check('60x16: no banner, the frame narrows to the window and keeps the descriptions', !boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(60, 0)) && boot.some(l => l.includes('start fresh here')) && boot.some(inFrameHint))
+      check('60x16: the five-row card fits with the banner and 37-wide centred frame', boot.some(l => l.includes('██▄██')) && boot.some(l => l === topBorder(37, 11)) && boot.some(liveInFrameHint))
     }
     if (cols === 40 && rows === 10) {
-      check('40x10: no banner, no frame, no descriptions, the list scrolls behind a cut with the caret on screen', !boot.some(l => l.includes('██▄██')) && !boot.some(l => l.includes('╭')) && !boot.some(l => l.includes('start fresh here')) && boot.some(l => /[↑↓] \d+ more/.test(l)) && boot.some(l => l.includes('❯ New Session')))
+      check('40x10: the banner gives way and the 37-wide frame keeps all rows and the caret on screen', !boot.some(l => l.includes('██▄██')) && boot[0] === topBorder(37, 1) && boot.some(liveInFrameHint) && boot.some(l => l.includes('❯ New Session')))
     }
     if (!compact) {
-      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, joined(boot).includes('>_ ready') && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(inFrameHint))
+      check(`${cols}x${rows}: the full-size face is untouched (its own ready line, its key-map at the left, no compact frame)`, paintsBootFaceReady(joined(boot)) && (boot[rows - 1] ?? '').startsWith('  ' + CONCOURSE_HINT_HOST) && !boot.some(liveInFrameHint))
     }
   } finally {
     await endLeg(leg)

@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const DIST = path.join(REPO, 'dist/mercury.mjs')
@@ -101,7 +102,7 @@ async function driveScene(route: 'openai' | 'anthropic', arm: 'plain' | 'note'):
   const model = route === 'openai' ? 'gpt-5.6-sol' : 'claude-opus-4-8'
   const out = path.join(RUN_HOME, 'grid.json')
   const sends: Array<Record<string, unknown>> = [
-    { atTick: 60, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 60, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 2, data: `${ASK}\r` },
     { requireAwait: true, minTick: 5, awaitText: FIRST_WORDS, awaitSettleTicks: 1, data: `${QUEUED}\r`, mark: 'first-delta' },
   ]

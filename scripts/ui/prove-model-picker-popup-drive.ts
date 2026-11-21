@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -24,7 +25,6 @@ const ROWS = 51
 const TITLE = 'Mercury · model'
 const COMPOSER = 'Type a prompt'
 const KEYS = '↑↓ select'
-const FACE_HINT = '↑↓ choose'
 
 let failures = 0
 let checks = 0
@@ -183,9 +183,9 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
   const home = seededHome('popup')
   const downs: Send[] = Array.from({ length: 8 }, () => ({ afterPrevTicks: 1, data: DOWN.repeat(5) }))
   const sends: Send[] = [
-    { atTick: 999, requireAwait: true, awaitText: FACE_HINT, minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
+    { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'face', data: 'm' },
     { requireAwait: true, awaitText: TITLE, awaitStableTicks: 3, mark: 'face-picker', data: ESC },
-    { requireAwait: true, awaitText: FACE_HINT, awaitSettleTicks: 3, mark: 'face-closed', data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, mark: 'face-closed', data: '\r' },
     { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'chat', data: '/model' },
     { afterPrevTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: TITLE, awaitStableTicks: 3, mark: 'session-picker', data: '' },
@@ -211,7 +211,7 @@ section(`§1 ${COLS}x${ROWS}: m on the Boot face, then /model in the chat born f
   console.log(`  session window:   ${describe(sessionWindow)}`)
   console.log(`  scrolled window:  ${describe(scrolledWindow)}`)
   check('m opens the picker over the Boot face as one closed bordered window', faceWindow !== null, face.slice(2, 6).join(' | '))
-  check('esc closes it back to the face', (c.marks.get('face-closed') ?? []).some(l => l.includes(FACE_HINT)) && !(c.marks.get('face-closed') ?? []).some(l => l.includes(TITLE)))
+  check('esc closes it back to the face', paintsBootFaceReady((c.marks.get('face-closed') ?? []).join('\n')) && !(c.marks.get('face-closed') ?? []).some(l => l.includes(TITLE)))
   check('the chat landed with its composer', chat.some(l => l.includes(COMPOSER)) && trimmedRow(chat, '← back') !== '', chat.slice(-6).join(' | '))
   check('/model opens the picker in the session as one closed bordered window', sessionWindow !== null, session.slice(-8).join(' | '))
   const sheetRule = session.findIndex(line => /^▔+$/.test(line.trim()) && line.trim().length >= COLS - 2)

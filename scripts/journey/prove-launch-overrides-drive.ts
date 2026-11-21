@@ -7,6 +7,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { EFFORT_HIGH } from '../../src/constants/figures.ts'
 import { SEAT_VERB_SETTLE_MS } from '../../src/services/engine-connector/daemonConnector.ts'
 
@@ -261,7 +262,7 @@ const a = drive(
   'seed',
   ['--model', SEED_MODEL],
   [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 100, minTick: 20, awaitText: '? for shortcuts', data: `${TURN_ONE}\r` },
     { atTick: 220, minTick: 30, awaitText: 'reply to [[launch turn one', awaitSettleTicks: 3, data: '', mark: 'seeded' },
     { afterPrevTicks: 2, data: '/exit\r' },

@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-onedoor-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -45,8 +46,9 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
-const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
+const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
+const FACE_TO_CONCOURSE = keyHintLabel('⇧→ concourse')
+const FACE_NO_CHAT = keyHintLabel('⇧→ no chat open')
 const COMPOSER = 'Type a prompt'
 const WARM_TICKS = 25
 const ENTER_BUDGET_TICKS = 3
@@ -182,6 +184,7 @@ function reapHome(home: string): void {
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
+const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 
 console.log('L1/L2 — the felt Enter (warm road) births exactly one session')
 {
@@ -189,7 +192,7 @@ console.log('L1/L2 — the felt Enter (warm road) births exactly one session')
   const c = await capture({
     id: 'l1-felt-enter',
     home,
-    sends: [g(READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
+    sends: [gFace('', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
     ready: COMPOSER,
     total: 200,
   })
@@ -215,14 +218,14 @@ console.log('L3 — --chat: the boot menu is the landing, no session born; ↵ N
     id: 'l3-chat-menu',
     home,
     argv: ['--chat'],
-    sends: [g(CHAT_READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
+    sends: [gFace('', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }],
     ready: COMPOSER,
     total: 200,
   })
   printFrame('l3 (--chat: the chat after ↵)', c.lines)
   const face = markText(c, 'face')
-  check('L3 the landing is the boot menu (the face), not a chat', face.includes('New Session') && face.includes(CHAT_READY_LINE) && !face.includes('m menu') && !face.includes(COMPOSER), face.slice(0, 120))
-  check('L3 the --chat face carries NO Session Concourse row (New Session is the door)', !face.includes('Session Concourse'), face.split('\n').filter(l => /Concourse|live view/i.test(l)).join(' | '))
+  check('L3 the landing is the boot menu (the face), not a chat', face.includes('New Session') && paintsBootFaceReady(face) && !face.includes('m menu') && !face.includes(COMPOSER), face.slice(0, 120))
+  check('L3 the --chat face carries NO Session Manager (Concourse) row (New Session is the door)', !face.includes('Session Manager (Concourse)'), face.split('\n').filter(l => /Concourse|live view/i.test(l)).join(' | '))
   check('L3 ↵ births exactly ONE session — none existed at boot (born at ↵, not at boot)', Object.keys(liveRecords(home)).length === 1 && Object.values(liveRecords(home))[0]?.bornBlankAt !== undefined, JSON.stringify(Object.keys(liveRecords(home))))
   check('L3 the chat is on screen after ↵ (the composer is live)', c.text.includes(COMPOSER), c.tail.slice(-200))
   const ms = enterLatencyMs(c)
@@ -234,25 +237,25 @@ console.log('L3 — --chat: the boot menu is the landing, no session born; ↵ N
 console.log('L4 — --concourse-off persists across boots; --concourse-on turns it back')
 {
   const home = freshHome('switch')
-  const boot = (id: string, argv: string[]): Promise<Capture> => capture({ id, home, argv, sends: [g(READY_LINE, '', { mark: 'face', awaitSettleTicks: 4 })], ready: READY_LINE, stableTicks: 4, total: 120 })
+  const boot = (id: string, argv: string[]): Promise<Capture> => capture({ id, home, argv, sends: [gFace('', { mark: 'face', awaitSettleTicks: 4 })], ready: '↑↓', stableTicks: 4, total: 120 })
   const a = await boot('l4a-concourse-off', ['--concourse-off'])
   printFrame('l4a (--concourse-off)', a.lines)
-  check('L4a the switch boot landed on the face', a.text.includes('New Session'), a.tail.slice(-200))
-  check('L4a the face already reads the switch (live view only)', a.text.includes('live view only'))
+  check('L4a the switch boot landed on the face', a.text.includes('New Session') && paintsBootFaceReady(a.text), a.tail.slice(-200))
+  check('L4a the face already reads the switch (no concourse stop advertised)', a.text.includes(FACE_NO_CHAT) && !a.text.includes(FACE_TO_CONCOURSE), a.lines.filter(l => /concourse|⇧|no chat/i.test(l)).join(' | '))
   reapHome(home)
   const b = await boot('l4b-bare-after-off', [])
   printFrame('l4b (bare boot after the switch)', b.lines)
-  check('L4b the OFF state SURVIVED the restart: a bare boot\'s face says "live view only — concourse off"', b.text.includes('live view only') && b.text.includes('concourse off'), b.lines.filter(l => /concourse|live view/i.test(l)).join(' | '))
-  check('L4b B1: the projects row is not dimmed with the concourse off (the row stays a plain row)', b.text.includes('Projects') || b.text.includes('Recent Project'))
+  check('L4b the OFF state SURVIVED the restart: a bare boot\'s face advertises no concourse stop', b.text.includes(FACE_NO_CHAT) && !b.text.includes(FACE_TO_CONCOURSE), b.lines.filter(l => /concourse|⇧|no chat/i.test(l)).join(' | '))
+  check('L4b B1: the five-row menu still shows Session Manager (Concourse) and Boot Menu', b.text.includes('Session Manager (Concourse)') && b.text.includes('Boot Menu'))
   const cfg = JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as Record<string, unknown>
   check('L4b the persisted field is the registered one', cfg['concourseEnabled'] === false)
   reapHome(home)
   const on = await boot('l4c-concourse-on', ['--concourse-on'])
-  check('L4c the symmetric switch boots to the face', on.text.includes('New Session'), on.tail.slice(-200))
+  check('L4c the symmetric switch boots to the face', on.text.includes('New Session') && paintsBootFaceReady(on.text), on.tail.slice(-200))
   reapHome(home)
   const d = await boot('l4d-bare-after-on', [])
   printFrame('l4d (bare boot after --concourse-on)', d.lines)
-  check('L4d the ON state survived: the face says "the live board" again (off is never a one-way door)', d.text.includes('the live board') && !d.text.includes('live view only'), d.lines.filter(l => /concourse|live/i.test(l)).join(' | '))
+  check('L4d the ON state survived: the face advertises concourse again (off is never a one-way door)', d.text.includes(FACE_TO_CONCOURSE) && !d.text.includes(FACE_NO_CHAT), d.lines.filter(l => /concourse|⇧|no chat/i.test(l)).join(' | '))
   const cfg2 = JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as Record<string, unknown>
   check('L4d the persisted field flipped back', cfg2['concourseEnabled'] === true)
   reapHome(home)
@@ -265,7 +268,7 @@ console.log('L5 — /clear parks the old session and births a fresh one')
     id: 'l5-clear-births',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, 'words before the clear', { awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: '\r' },

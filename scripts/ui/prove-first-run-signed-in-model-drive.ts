@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -162,7 +163,7 @@ for (const [cols, rows] of SIZES) {
       { requireAwait: true, awaitText: 'Terminal keys', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'terminal', data: '\x1b[B' },
       { afterPrevTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: 'I trust this folder', awaitSettleTicks: 3, awaitStableTicks: 3, mark: 'trust', data: '\r' },
-      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'face', data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'face', data: '\r' },
       { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 4, mark: 'chat', data: '' },
     ]
     writeFileSync(cfg, JSON.stringify({ argv: [NODE, DIST], cwd, cols, rows, total: 600, readySettleTicks: 3, stableTicks: 3, sends, readyText: ['← back'], out }))
@@ -198,8 +199,7 @@ for (const [cols, rows] of SIZES) {
     if (cols >= 160) {
       check(`${tag}: the Boot face's model line names the signed-in account's newest usable row (${NEWEST})`, modelRow.includes(NEWEST), modelRow)
       check(`${tag}: the Boot face's model line names no Claude row`, modelRow !== '' && !/Opus|Sonnet|Fable|Haiku/.test(modelRow), modelRow)
-      const acctRow = rowWith(face, 'Acct')
-      check(`${tag}: the Boot face's account line names the ChatGPT sign-in`, /sam@example\.test|ChatGPT/.test(acctRow), acctRow)
+      check(`${tag}: the Boot face's status line carries Dir:`, modelRow.includes('Dir:'), modelRow)
     } else {
       check(`${tag}: the Boot face paints no Claude row as the model`, face !== '' && !/Model (Opus|Sonnet|Fable|Haiku)/.test(face), rowWith(face, 'Model '))
     }

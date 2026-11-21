@@ -9,6 +9,7 @@ import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { afterBootFace } from '../lib/bootFace.ts'
 
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'unknown-cmd-pure-home-'))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -78,10 +79,9 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'The fixture answers.', whenModel: 'opus' },
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
 ])
-const N = '↑↓ choose'
 const after = (needle: string, ms: number, payload: string): string => `after:${needle}:${ms}:${payload}`
 const sends = [
-  after(N, 1200, '\r'),
+  afterBootFace(1200, '\r'),
   after('Type a prompt', 600, 'hello persisted turn'),
   after('~❯ hello persisted turn', 400, '\r'),
   after('The fixture answers.', 800, '/frobnicate'),

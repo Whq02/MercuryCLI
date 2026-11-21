@@ -7,6 +7,7 @@ import { CONFIG_HOME, RUNTIME_CWD, cleanupScenario, scenario } from './renderSce
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY } from '../lib/firstRunSeed.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { composerCaret, inspect, needleRows, paintedRows, rowsOf, type Grid } from './frameChecks.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -56,19 +57,19 @@ const SCENES: Scene[] = [
   {
     name: 'boot-face', base: 'boot-face', world: 'face',
     replaceSends: true,
-    ready: { text: 'Health Check', stable: 3 },
-    once: ['Health Check', 'New Session'], keep: ['Health Check'],
+    ready: { text: 'Boot Menu', stable: 3 },
+    once: ['Boot Menu', 'New Session'], keep: ['Boot Menu'],
     key: { data: DOWN, expect: 'changes' },
-    root: /↵ start\s+·\s+↑↓ choose/,
+    root: new RegExp(BOOT_FACE_READY),
   },
   {
     name: 'boot-settings', base: 'boot-settings', world: 'face',
     replaceSends: true,
-    sends: [{ requireAwait: true, awaitText: 'Health Check', awaitStableTicks: 2, data: 'm' }],
+    sends: [{ requireAwait: true, awaitText: 'Boot Menu', awaitPattern: BOOT_FACE_READY, awaitStableTicks: 2, data: 's' }],
     ready: { text: 'boot menu', stable: 3 },
     once: ['boot menu'], keep: ['boot menu', 'Content-rule wards'],
     key: { data: ESC, expect: 'closes' },
-    root: /↵ start\s+·\s+↑↓ choose|esc back/,
+    root: new RegExp(`${BOOT_FACE_READY}|esc back`),
   },
   {
     name: 'chat-idle', base: 'cockpit-wide', world: 'chat',

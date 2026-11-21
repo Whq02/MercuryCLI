@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => {
@@ -150,7 +151,7 @@ console.log(' cap offer LIST + BINDING POOL + WIRE ROAD — the real binary, loo
 console.log('============================================================')
 console.log(` bundle ${DIST}`)
 
-type Send = { atTick?: number; minTick?: number; afterPrevTicks?: number; requireAwait?: boolean; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
+type Send = { atTick?: number; minTick?: number; afterPrevTicks?: number; requireAwait?: boolean; awaitText?: string; awaitPattern?: string; awaitSettleTicks?: number; data: string; mark?: string }
 type Mark = { label: string; atTick: number; grid: Array<Array<{ c: string }>> }
 type Payload = { grid: Array<Array<{ c: string }>>; sendReceipts?: Array<{ atTick?: number; ts?: number }>; marks?: Mark[]; endReason?: string }
 type Capture = { kind: string; method?: string; url?: string; body?: Record<string, unknown>; at: number }
@@ -243,7 +244,7 @@ const list = ONLY.has('list') ? drive(
   listEnv,
   FABLE_52,
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'ready' },
     { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\x1b', mark: 'home-offer' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 4, awaitSettleTicks: 3, data: '/model gpt-5.6-sol\r', mark: 'after-esc' },
@@ -334,7 +335,7 @@ const pool = ONLY.has('pool') ? drive(
   poolEnv,
   FABLE_52,
   [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 20, data: 'hello fable\r', mark: 'observed' },
     { requireAwait: true, awaitText: ANTHROPIC_OFFER_TITLE, minTick: 6, awaitSettleTicks: 4, data: '\r', mark: 'pool-offer' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 6, awaitSettleTicks: 2, data: 'pick up from fable pls\r', mark: 'settled' },
@@ -491,7 +492,7 @@ for (const lane of [
   env[lane.baseKey] = `${base}/${lane.family}/v1`
   const ask = `pickup-${lane.family}-from-capped-openai`
   const shot = drive(lane.family, world, env, 'gpt-5.6-sol', [
-    { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: '? for shortcuts', minTick: 8, awaitSettleTicks: 3, data: 'hello sol\r' },
     { requireAwait: true, awaitText: OPENAI_OFFER_TITLE, minTick: 8, awaitSettleTicks: 4, data: '\r', mark: 'offer' },
     { requireAwait: true, awaitText: 'Set model to', minTick: 8, awaitSettleTicks: 3, data: `${ask}\r`, mark: 'selected' },

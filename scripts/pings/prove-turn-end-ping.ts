@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { PING_MESSAGE } from '../../src/hooks/useTurnEndPing.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
@@ -48,7 +49,7 @@ const IDLE = '? for shortcuts'
 const BUSY = 'esc interrupt'
 const past = (needle: string, ticks: number, data: string, extra: Send = {}): Send => awaits(needle, data, { awaitSettleTicks: ticks, ...extra })
 const pause = (needle: string, ticks: number, mark: string): Send => past(needle, ticks, '', { mark })
-const opening = (): Send[] => [awaits('↑↓ choose', '\r', { awaitSettleTicks: 4 }), awaits('ype a prompt', '', { minTick: 8, awaitSettleTicks: 5, mark: 'composer' })]
+const opening = (): Send[] => [awaits('↑↓', '\r', { awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 4 }), awaits('ype a prompt', '', { minTick: 8, awaitSettleTicks: 5, mark: 'composer' })]
 const submit = (prompt: string, focus: string | null): Send[] => [
   past(IDLE, 1, prompt),
   past(prompt, 2, '\r'),

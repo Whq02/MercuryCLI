@@ -45,9 +45,8 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [CWD])
 
+const { BOOT_FACE_READY, paintsBootFaceReady } = await import('../lib/bootFace.ts')
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const READY_LINE = '↵ start  ·  ↑↓ choose'
-const CHAT_READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const EMPTY_BOARD = 'no sessions yet'
@@ -180,8 +179,9 @@ function reapHome(home: string): void {
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
-const isFace = (frame: string): boolean => frame.includes(READY_LINE)
-const isChatWorldFace = (frame: string): boolean => frame.includes(CHAT_READY_LINE) && !frame.includes('m menu')
+const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
+const isFace = (frame: string): boolean => paintsBootFaceReady(frame)
+const isChatWorldFace = (frame: string): boolean => paintsBootFaceReady(frame) && !frame.includes('m menu')
 const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER) || frame.includes(TAG)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
@@ -195,7 +195,7 @@ console.log('S1 — a bare boot: menu → concourse, and no further (byte-still)
     id: 's1-bare-boot-two-stops',
     home,
     sends: [
-      g(READY_LINE, SHIFT_RIGHT, { mark: 'face', awaitSettleTicks: 4 }),
+      gFace(SHIFT_RIGHT, { mark: 'face', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'board-before' },
       { afterPrevTicks: 5, data: '', mark: 'board-after' },
     ],
@@ -222,7 +222,7 @@ console.log('S2 — ↵ births the chat: the stop appears; the strip walks chat 
     id: 's2-stop-appears',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'board' },
@@ -250,7 +250,7 @@ console.log('S3 — the last chat closed from the board: the board stays, and th
     id: 's3-stop-vanishes',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { awaitSettleTicks: 4 }),
       g('SESSIONS', '', { awaitSettleTicks: 3 }),
@@ -294,7 +294,7 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
     home,
     argv: ['--chat'],
     sends: [
-      g(CHAT_READY_LINE, '', { mark: 'landing' }),
+      gFace('', { mark: 'landing' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: SHIFT_LEFT, mark: 'menu' },
@@ -308,7 +308,7 @@ console.log('S4 — --chat: the menu lands, ↵ births, then menu ⇄ chat with 
   const landing = markText(c, 'landing')
   const menu = markText(c, 'menu')
   check('S4 the landing is the boot menu (L15) — no chat born at boot', isChatWorldFace(landing) && !isChat(landing), firstRows(landing))
-  check('S4 the --chat face carries NO Session Concourse row and its row says "⇧→ no chat open"', !landing.includes('Session Concourse') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
+  check('S4 the --chat face carries NO Session Manager (Concourse) row and its row says "⇧→ no chat open"', !landing.includes('Session Manager (Concourse)') && landing.includes(FACE_NO_CHAT), landing.split('\n').filter(l => /Concourse|⇧|shift\+/.test(l)).join(' | '))
   check('S4 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check('S4 ⇧← from the chat is the BOOT MENU directly — no concourse between (the plain world)', isChatWorldFace(menu) && !isBoard(menu), firstRows(menu))
   check(`S4 the menu's row names the chat ("${FACE_TO_CHAT}") — the one stop to its right`, menu.includes(FACE_TO_CHAT) && !menu.includes(FACE_TO_CONCOURSE), hintRows(menu))
@@ -326,7 +326,7 @@ console.log('S5 — --concourse-off: the face, then menu ⇄ chat with no live v
     home,
     argv: ['--concourse-off'],
     sends: [
-      g(READY_LINE, '', { mark: 'face' }),
+      gFace('', { mark: 'face' }),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, SHIFT_LEFT, { mark: 'chat', awaitSettleTicks: 4 }),
       { afterPrevTicks: 8, data: SHIFT_RIGHT, mark: 'menu' },
@@ -338,7 +338,7 @@ console.log('S5 — --concourse-off: the face, then menu ⇄ chat with no live v
   printFrame('s5 (--concourse-off, back in the chat)', c.lines)
   const face = markText(c, 'face')
   const menu = markText(c, 'menu')
-  check('S5 the switch boot landed the face, which reads the switch ("live view only")', isFace(face) && face.includes('live view only'), firstRows(face))
+  check('S5 the switch boot landed the face, which reads the switch (no concourse stop)', isFace(face) && !face.includes(FACE_TO_CONCOURSE), firstRows(face))
   check(`S5 with no chat the face's row says so ("⇧→ no chat open") — no concourse stop, no chat yet`, face.includes(FACE_NO_CHAT), hintRows(face))
   check('S5 ↵ births the chat', isChat(markText(c, 'chat')), firstRows(markText(c, 'chat')))
   check('S5 ⇧← from the chat is the face DIRECTLY — the live view is not a stop', isFace(menu) && !isBoard(menu), firstRows(menu))
