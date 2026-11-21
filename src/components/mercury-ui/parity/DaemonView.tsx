@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useDerivedState, useTimer } from '../../../hooks/effects.js'
+import { useTimer } from '../../../hooks/effects.js'
 import { Box, Text, useInput } from '../../../ink.js'
 import { usePopupListNavigation } from '../../CustomSelect/popup-list.js'
 import { formatFreshness } from '../../../utils/cockpit/freshness.js'
@@ -110,9 +110,7 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   const indexClamped = Math.min(sel, Math.max(0, v.workers.length - 1))
   const keyAt = selKey !== null ? v.workers.findIndex(w => w.short === selKey) : -1
   const clampedSel = keyAt >= 0 ? keyAt : indexClamped
-  useDerivedState(() => {
-    if (sel !== clampedSel) setSel(clampedSel)
-  }, [sel, clampedSel])
+  if (sel !== clampedSel) setSel(clampedSel)
   const winStart = Math.max(
     0,
     Math.min(clampedSel - Math.floor(MAX_ROWS / 2), v.workers.length - MAX_ROWS),
