@@ -126,6 +126,55 @@ try {
       await endEngineSessionFor(owner)
     }
   }
+
+  const { createPowerShellProvider } = await import('../../src/utils/shell/powershellProvider.js')
+  const { getCachedPowerShellPath } = await import('../../src/utils/shell/powershellDetection.js')
+  const psProvider = createPowerShellProvider('pwsh')
+  const psBuilt = await psProvider.buildExecCommand('cd -', { id: 'old-folder-check' })
+  const clearAt = psBuilt.commandString.indexOf('Set-Location -LiteralPath .')
+  const userAt = psBuilt.commandString.indexOf('\ncd -')
+  check(
+    'PowerShell provider prelude resets location history to the start folder before the command',
+    clearAt !== -1 && userAt !== -1 && clearAt < userAt,
+    `clearAt=${clearAt} userAt=${userAt}`,
+  )
+
+  const psPath = await getCachedPowerShellPath()
+  if (psPath === null) {
+    console.log('  [SKIP] no pwsh/PowerShell binary on this host; skipping live PowerShell location-history checks')
+  } else {
+    const samePath = (a: string, b: string): boolean => (process.platform === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b)
+    const runPs = async (command: string): Promise<{ stdout: string; stderr: string; code: number }> => {
+      const shell = await exec(command, new AbortController().signal, 'powershell', {
+        timeout: 20_000,
+        cwd: proj,
+        preventCwdChanges: true,
+      } as never)
+      const result = await shell.result
+      return {
+        stdout: String(result.stdout ?? '').trim(),
+        stderr: String(result.stderr ?? '').trim(),
+        code: result.code,
+      }
+    }
+    const psVer = await runPs('$PSVersionTable.PSVersion.Major')
+    const psMajor = Number(lastLine(psVer.stdout))
+
+    const psCdDash = await runPs('cd -; (Get-Location).Path')
+    check('PowerShell cd - as first command stays in the project', samePath(lastLine(psCdDash.stdout), proj), `stdout=${JSON.stringify(psCdDash.stdout)} expected=${JSON.stringify(proj)}`)
+
+    const psSetLocDash = await runPs('Set-Location -; (Get-Location).Path')
+    check('PowerShell Set-Location - as first command stays in the project', samePath(lastLine(psSetLocDash.stdout), proj), `stdout=${JSON.stringify(psSetLocDash.stdout)} expected=${JSON.stringify(proj)}`)
+
+    const psRepeatDash = await runPs('cd -; cd -; cd -; (Get-Location).Path')
+    check('PowerShell repeated cd - as first commands stay in the project', samePath(lastLine(psRepeatDash.stdout), proj), `stdout=${JSON.stringify(psRepeatDash.stdout)} expected=${JSON.stringify(proj)}`)
+
+    if (Number.isFinite(psMajor) && psMajor >= 7) {
+      const escapedHome = home.split("'").join("''")
+      const psRealReturn = await runPs(`Set-Location -LiteralPath '${escapedHome}'; Set-Location -; (Get-Location).Path`)
+      check('PowerShell 7 real return (Set-Location <home>; Set-Location -) returns to the project', samePath(lastLine(psRealReturn.stdout), proj), `stdout=${JSON.stringify(psRealReturn.stdout)} expected=${JSON.stringify(proj)}`)
+    }
+  }
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }
