@@ -57,7 +57,6 @@ const LAYERS: Rule = {
     ['src/utils/normalizeToolSchema.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
     ['src/utils/ocr.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/permissions/decision/', 'row 8'],
-    ['src/utils/permissions/filesystem.ts', 'remoteFiles/thisMachine.ts goes down once row 11 releases this file, its importer'],
     ['src/utils/permissions/flowLaw.ts', 'row 8'],
     ['src/utils/permissions/runtimeProtection.ts', "self-protection reads the live daemon pid and script; row 8's floors call it"],
     ['src/utils/permissions/shellProtectedPaths/', 'row 8'],
