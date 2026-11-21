@@ -99,19 +99,19 @@ try {
     assert.ok(flat().includes('EXL3') && !flat().includes('not booted by Mercury'), 'saved rows retain format without provenance\n' + screen())
     await capture('saved-search')
     mounted!.push('deepseek')
-    assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000))
+    assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000), `HF live search did not list hf:${fixtureRepos.gguf.id} within 15000ms; check host model trust search`)
     const rows = question!.rows!
-    assert.ok(rows.findIndex(row => row.value === privateName) < rows.findIndex(row => row.value === 'hf:' + fixtureRepos.gguf.id))
+    assert.ok(rows.findIndex(row => row.value === privateName) < rows.findIndex(row => row.value === 'hf:' + fixtureRepos.gguf.id), `account row ${privateName} did not sort ahead of hf:${fixtureRepos.gguf.id}; check host model sort order`)
     await select('hf:' + fixtureRepos.gguf.id)
-    assert.ok(flat().includes('GGUF Q4_K_M') && !flat().includes('not booted by Mercury'))
+    assert.ok(flat().includes('GGUF Q4_K_M') && !flat().includes('not booted by Mercury'), `live search row missing GGUF Q4_K_M format or showed provenance stamp (width=${width}); check host model row formatting`)
     await capture('live-search')
     mounted!.push(KEY.enter); await step('door-model')
     assert.equal(derivedHfRecipe(fixtureRepos.gguf.id)!.recipe.label, fixtureRepos.gguf.id + ' · GGUF Q4_K_M')
     await choose('rent:0'); await step('rent-confirm')
-    assert.ok(question!.found.includes('GGUF Q4_K_M') && !question!.found.includes('not booted by Mercury'))
+    assert.ok(question!.found.includes('GGUF Q4_K_M') && !question!.found.includes('not booted by Mercury'), `rent-confirm missing GGUF Q4_K_M or showed provenance stamp (found=${question!.found.slice(0, 160)}); check rent-confirm copy`)
     assert.equal(rp.state.creates, 0)
     await capture('rental-confirm')
-    mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)); mounted.unmount(); mounted = undefined
+    mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), `model-trust popup did not close within 5000ms after Esc (width=${width}); check popup close`); mounted.unmount(); mounted = undefined
     console.log('PASS model rows follow account rows in stock and price order, with the cheapest selected at ' + width + '; format labels remain, no provenance stamp and nothing rented')
   }
   assert.equal(escaped.length, 0)

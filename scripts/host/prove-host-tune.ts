@@ -103,7 +103,7 @@ try {
     const m = mounted
     const until = async (text: string) => assert.ok(await waitFor(() => m.screen().includes(text), 15000), text + '\n' + m.screen())
     const choose = async (text: string) => {
-      if (!m.lines().some(row => row.includes('› '))) { m.push(KEY.down); assert.ok(await waitFor(() => m.lines().some(row => row.includes('› ')), 3000)) }
+      if (!m.lines().some(row => row.includes('› '))) { m.push(KEY.down); assert.ok(await waitFor(() => m.lines().some(row => row.includes('› ')), 3000), `tune popup did not paint cursor row within 3000ms (width=${width}); check runTune popup`) }
       for (let n = 0; n < 40; n++) {
         const selected = m.lines().find(row => row.includes('› ')) ?? ''
         if (selected.includes(text)) { m.push(KEY.enter); return }
@@ -130,8 +130,8 @@ try {
     await until('THINKING'); capture('thinking'); await choose('high')
     await until('Confirm tune'); capture('confirm')
     if (width === 120) { check('nothing saved before final confirm', !existsSync(prefsPath)); await choose('Confirm · save'); await until('Tune saved') }
-    else { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000)); check('escape from confirm leaves earlier settings unchanged', tune.readTunePreferences(modelTitle)?.conversations === 1) }
-    if (popup.isSettingsPopupOpen()) { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000)) }
+    else { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000), `tune confirm popup did not close within 3000ms after Esc (width=${width}); check popup close`); check('escape from confirm leaves earlier settings unchanged', tune.readTunePreferences(modelTitle)?.conversations === 1) }
+    if (popup.isSettingsPopupOpen()) { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 3000), `tune popup stayed open after Esc cleanup (width=${width}); check popup close`) }
     mounted.unmount(); mounted = undefined
   }
   check('preferences persist all four choices with a timestamp', tune.readTunePreferences(modelTitle)?.quality === glm.id && tune.readTunePreferences(modelTitle)?.contextPerConversation === 1048576 && tune.readTunePreferences(modelTitle)?.effort === 'high' && Boolean(tune.readTunePreferences(modelTitle)?.updatedAt))

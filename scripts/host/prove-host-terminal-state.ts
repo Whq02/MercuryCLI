@@ -37,7 +37,7 @@ try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   saveVendorKey('vast', vast.key)
   const recipe = HOST_RECIPES.find(row => row.id === 'qwen38-27b-rtx-pro-6000')!
-  assert.ok(recipe)
+  assert.ok(recipe, `HOST_RECIPES missing qwen38-27b-rtx-pro-6000 (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
   const sessionId = 'terminal-state-session'
   const notices = () => readdirSync(join(hostDirectory(), 'notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(hostDirectory(), 'notices', name), 'utf8')) as { words: string })
   let sequence = 8100
@@ -85,7 +85,7 @@ try {
     }, event => events.push(event), new AbortController().signal)
     assert.ok(question, 'the actual host controls were reached')
     const host = events.filter(event => event.host?.id === id).at(-1)?.host
-    assert.ok(host)
+    assert.ok(host, `host road emitted no host event for pod id=${id} (events=${events.length}); check createHostRoad`)
     return { question, host, result }
   }
   for (const [actual, status] of [['stopped', 'EXITED'], ['exited', 'ERROR']] as const) {
