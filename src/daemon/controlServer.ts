@@ -43,7 +43,7 @@ import { isOutsideReportOrigin, type OutsideReportOrigin } from '../utils/messag
 import { isScreenCommandOrigin, type ScreenCommandOrigin } from '../utils/messages/noticeRows.js'
 import type { TaskRoster } from './roster.js'
 import { attachToJobPty } from './runPtyHost.js'
-import type { ProcessSweepEntry } from './processSweep.js'
+import type { ProcessSweepEntry } from '../utils/processSweep.js'
 import { pollUntil, withDeadline } from '../utils/deadline.js'
 import { passedOver } from '../utils/passedOver.js'
 

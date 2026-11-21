@@ -31,7 +31,7 @@ import {
   type ProcessSweepRegistration,
   type ProcessSweepRunnerRecord,
   type ProcessSweepTable,
-} from './processSweep.js'
+} from '../utils/processSweep.js'
 import { collectPosixProcessTable } from './processSweepPosix.js'
 import { passedOver, passedOverAs } from '../utils/passedOver.js'
 

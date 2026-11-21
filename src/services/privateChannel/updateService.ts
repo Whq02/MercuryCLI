@@ -156,7 +156,7 @@ export async function livePayloadDirs(roots: LayoutRoots): Promise<string[]> {
 async function runningBundleDirs(): Promise<string[] | null> {
   try {
     const { readCockpitRegistrations, readMercuryProcesses } = await import('../../daemon/processSweepRun.js')
-    const { bundleArgOf, bundleDirOf, processNamesMercury, tokenBinding } = await import('../../daemon/processSweep.js')
+    const { bundleArgOf, bundleDirOf, processNamesMercury, tokenBinding } = await import('../../utils/processSweep.js')
     const census = await readMercuryProcesses({ rpc: async () => ({ ok: false, code: 'ENOTSUP', error: 'the update reads command lines only' }) })
     const running = census.entries.filter(entry => !entry.state.startsWith('Z'))
     const dirs = running.flatMap(entry => {

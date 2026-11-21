@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/mneme/ledger.ts src/mneme/lineageSession.ts src/mneme/entryPage.ts src/mneme/types.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts src/utils/ownerWatch.ts src/daemon/processSweep.ts
+// gate-watch: src/mneme/ledger.ts src/mneme/lineageSession.ts src/mneme/entryPage.ts src/mneme/types.ts src/utils/sessionStorage/paths.ts src/utils/sessionStorage/vnext.ts src/utils/sessionStorage/transcriptReader.ts src/fabric/transcriptDecode.ts src/utils/ownerWatch.ts src/utils/processSweep.ts
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -36,7 +36,7 @@ const { getTranscriptPathForSession } = await import('../../src/utils/sessionSto
 const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vnext.ts')
 const { mnemeEnabled } = await import('../../src/mneme/mnemeGates.ts')
 const { getProcessStartToken } = await import('../../src/utils/ownerWatch.ts')
-const { parseProcessStartToken } = await import('../../src/daemon/processSweep.ts')
+const { parseProcessStartToken } = await import('../../src/utils/processSweep.ts')
 
 const projectKey = mnemeProjectKey()
 const me = String(getSessionId())

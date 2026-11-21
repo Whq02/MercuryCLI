@@ -1,11 +1,11 @@
 import { execFile } from 'node:child_process'
 import { readlinkSync, statSync } from 'node:fs'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
-import type { ProcessSweepObservation, ProcessSweepRead, ProcessSweepTable } from './processSweep.js'
-import { isMercuryExecutableName, parseProcessStartToken, processNamesMercury } from './processSweep.js'
+import type { ProcessSweepObservation, ProcessSweepRead, ProcessSweepTable } from '../utils/processSweep.js'
+import { isMercuryExecutableName, parseProcessStartToken, processNamesMercury } from '../utils/processSweep.js'
 import { passedOver } from '../utils/passedOver.js'
 
-export { parseProcessStartToken } from './processSweep.js'
+export { parseProcessStartToken } from '../utils/processSweep.js'
 
 export function parsePosixProcessTable(text: string): ProcessSweepTable {
   const observations: ProcessSweepObservation[] = []

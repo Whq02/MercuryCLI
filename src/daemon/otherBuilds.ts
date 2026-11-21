@@ -1,12 +1,13 @@
 import { readFileSync, readdirSync, realpathSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
-import { bundleArgOf, bundleDirOf, sameBundlePath, tokenBinding, type ProcessSweepCensus, type ProcessSweepEntry } from '../../daemon/processSweep.js'
-import type { ProcessSweepDeps } from '../../daemon/processSweepRun.js'
-import { runningBuildTree } from '../artifactIdentity.js'
-import { getMercuryHome } from '../envUtils.js'
-import { passedOver } from '../passedOver.js'
-import { pathModuleFor, stripExtendedLengthPrefixForPlatform } from '../platform/paths.js'
+import { bundleArgOf, bundleDirOf, sameBundlePath, tokenBinding, type ProcessSweepCensus, type ProcessSweepEntry } from '../utils/processSweep.js'
+import type { ProcessSweepDeps } from './processSweepRun.js'
+import { runningBuildTree } from '../utils/artifactIdentity.js'
+import { getMercuryHome } from '../utils/envUtils.js'
+import { passedOver } from '../utils/passedOver.js'
+import { pathModuleFor, stripExtendedLengthPrefixForPlatform } from '../utils/platform/paths.js'
+import { registerOtherBuildAliveProbe } from '../utils/secureStorage/keychainPrefetch.js'
 
 const NO_OWN_BUNDLE = 'this process does not run from a mercury.mjs it can name, so it cannot tell its own build from another'
 
@@ -142,8 +143,8 @@ export async function otherBuildAlive(deps: OtherBuildsDeps = {}): Promise<strin
     } catch {
       return NO_OWN_BUNDLE
     }
-    const { readMercuryProcesses } = await import('../../daemon/processSweepRun.js')
-    const { daemonDir } = await import('../../daemon/controlSocket.js')
+    const { readMercuryProcesses } = await import('./processSweepRun.js')
+    const { daemonDir } = await import('../utils/daemonState.js')
     const home = deps.home ?? getMercuryHome()
     const records = recordsOf(home, deps.ownDaemonDir ?? daemonDir())
     if (records === null) return 'the records of this home\'s windows could not be read'
@@ -156,4 +157,8 @@ export async function otherBuildAlive(deps: OtherBuildsDeps = {}): Promise<strin
   } catch (error) {
     return `the Mercury processes could not be read (${error instanceof Error ? error.message : String(error)})`
   }
+}
+
+export function registerOtherBuildAliveDoor(): void {
+  registerOtherBuildAliveProbe(() => otherBuildAlive())
 }
