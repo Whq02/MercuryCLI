@@ -1,6 +1,8 @@
 import type { FlagSpec } from './spec.js'
 
 export const PROOFS_FLAGS: readonly FlagSpec[] = [
+  { env: 'MERCURY_FEATURE_TRACE', kind: 'value', summary: 'file receiving the features reached by a proof', off: 'unset ⇒ no trace', consumer: 'src/substrate/featureReached.ts' },
+  { env: 'MERCURY_FEATURE_TRACE_PROOF', kind: 'value', summary: 'suite member to credit in the feature trace', off: 'unset ⇒ the entry script', consumer: 'src/substrate/featureReached.ts' },
   { env: 'MERCURY_PROOF', kind: 'value', summary: 'marks the process as a proof: set to 1 by scripts/gate/run-suite.sh for every child a suite starts; the credential writers then refuse a write into the account\'s own ~/.mercury (a proof writes only under a scratch home). A script named prove-* is a proof with or without the mark', off: 'unset ⇒ only a prove-* script name marks a proof', consumer: 'src/utils/proofHomeGuard.ts' },
   { env: 'MERCURY_PROOF_POISON_GUARD', kind: 'value', summary: 'set to 1 to disable the environment guard in its isolated proof copy', off: 'unset ⇒ ordinary assertions', consumer: 'scripts/gate/prove-suite-env-guard.sh' },
   { env: 'MERCURY_PROOF_POISON_SCRUB', kind: 'value', summary: 'set to 1 to exercise the shell-environment proof failure control', off: 'unset ⇒ ordinary assertions', consumer: 'scripts/bash/prove-shell-session-env.ts' },

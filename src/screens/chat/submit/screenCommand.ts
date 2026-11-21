@@ -1,3 +1,4 @@
+import { featureReached } from '../../../substrate/featureReached.js';
 import { getCommandName, type Command } from '../../../commands.js';
 import { performUiRouteAlias } from '../../../context/routeAliases.js';
 import { expandPastedTextRefs, resolvePastedContents } from '../../../history.js';
@@ -37,6 +38,7 @@ export async function runLocalCommand({ addNotification, getToolUseContext, pain
     }
     const context = getToolUseContext([...focusedNow.records()], [], createAbortController(), focusedNow.modelFacts().effective);
     const module = await seatCommand.load();
+    featureReached('command', seatCommand.name);
     const result = await module.call(await argsWithPastes(), context);
     if (result.type === 'text' && result.value.trim() !== '') paintScreenCommandReceipt(getCommandName(seatCommand), args, result.value, submittedAt);
   } catch (error) {
