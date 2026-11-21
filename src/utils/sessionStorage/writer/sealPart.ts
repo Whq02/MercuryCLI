@@ -118,7 +118,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
     const current = statSync(file)
     if (current.ino !== before.ino || current.dev !== before.dev || current.size !== before.size || current.mtimeMs !== before.mtimeMs) throw new Error(`History changed while sealing ${file}`)
     const header = entryToRecord({ type: 'mercury-transcript-header', fileVersion: 1, format: 'mercury-records' }, { sessionId: boundary.sessionId, nextOrdinal: () => boundary.creationOrdinal, observedAt: boundary.occurredAt, source: boundary.source })
-    const marker = JSON.stringify({ historyPart: 1, before: end, carry: carrySize, boundary: boundary.recordId, ...header }) + '\n'
+    const marker = JSON.stringify({ annotations: { historyPart: 1, before: end, carry: carrySize, boundary: boundary.recordId }, ...header }) + '\n'
     faultPoint('seal-part', file)
     archive(file, part)
     renameSync(staging, `${part}.index`)

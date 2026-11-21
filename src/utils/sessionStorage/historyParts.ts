@@ -2,7 +2,7 @@ import { basename, dirname, join } from 'node:path'
 import { closeSync, fstatSync, lstatSync, openSync, realpathSync, statSync } from 'node:fs'
 import { nodeTranscriptReaderIo, rangeFromFd, transcriptLineBytes } from './transcriptBytes.js'
 
-const PREFIX = '{"historyPart":1,'
+const PREFIX = '{"annotations":{"historyPart":1,'
 const HEADER_MAX = 2048
 
 export const historyPartDir = (file: string): string => join(dirname(file), basename(file, '.jsonl'), 'history')
@@ -32,7 +32,8 @@ export function historyHead(file: string): HistoryExtent & { boundary?: string }
   if (!prefix.subarray(0, PREFIX.length).equals(Buffer.from(PREFIX))) return plain
   const nl = prefix.indexOf(10)
   if (nl < 0) throw new Error(`Invalid history part header in ${file}`)
-  const row = JSON.parse(prefix.toString('utf8', 0, nl)) as { before: number; carry: number; boundary: string }
+  const { annotations: row, payload } = JSON.parse(prefix.toString('utf8', 0, nl)) as { annotations: { before: number; carry: number; boundary: string }; payload?: { kind?: string; metaKind?: string } }
+  if (payload?.kind !== 'session-meta' || payload.metaKind !== 'mercury-transcript-header') return plain
   if (!Number.isSafeInteger(row.before) || row.before < 1 || !Number.isSafeInteger(row.carry) || row.carry < 0 || row.carry > size - nl - 1 || typeof row.boundary !== 'string') throw new Error(`Invalid history part header in ${file}`)
   return { path: file, before: row.before, start: nl + 1 + row.carry, end: size, ino, boundary: row.boundary }
 }
