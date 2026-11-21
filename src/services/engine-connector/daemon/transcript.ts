@@ -1,10 +1,9 @@
-import { statSync, watch, type FSWatcher } from 'node:fs'
+import { statSync } from 'node:fs'
 import { basename, dirname } from 'node:path'
 import type { Message } from '../../../types/message.js'
 import { createLiveTurnFold, deserializeLiveMessages, type LiveTurnFold } from '../../resume/conversationRecovery.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import type { TranscriptChainCursor } from '../../../utils/sessionStorage/transcriptReader.js'
-import { resolveWatchRoot } from '../../../utils/watchRoot.js'
 import { projectOperatorRewinds } from '../../compact/checkpointRewind.js'
 import { readClearModelReceipt } from '../../switchboard/sessionReceipts.js'
 import { endedRunResults } from '../endedRunCalls.js'
@@ -13,10 +12,9 @@ import { withoutRetractedReplies, type CommittedTextRow } from '../midTurnText.j
 import { mergeRecordsContentKeyed } from '../recordIdentity.js'
 import { IDLE_LIVE, type SessionLiveV1 } from '../seatLive.js'
 import type { SessionFactsV1 } from '../seatProjections.js'
-import { HEARTBEAT_MS } from '../projectionFeed.js'
+import { createProjectionFeed, HEARTBEAT_MS, type ProjectionFeedHandle } from '../projectionFeed.js'
 import { connectorTrace, emitAll, type Listeners } from './shared.js'
 import { passedOver } from '../../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../../utils/timers.js'
 
 const IDLE_TRANSCRIPT_FLOOR_MS = 2000
 
@@ -77,9 +75,7 @@ export class TranscriptPart {
   private chainCursor: TranscriptChainCursor | null = null
   private readonly liveFold: LiveTurnFold = createLiveTurnFold()
   private releaseTranscript: (() => void) | null = null
-  private transcriptWatcher: FSWatcher | null = null
-  private transcriptTimer: ReturnType<typeof setInterval> | null = null
-  private transcriptTimerMs = 0
+  private readonly feed: ProjectionFeedHandle
   private tickInFlight: Promise<void> | null = null
   private tickDirty = false
   private readonly transcriptPath: string
@@ -87,6 +83,13 @@ export class TranscriptPart {
 
   constructor(private readonly needs: TranscriptNeeds) {
     this.transcriptPath = needs.transcriptPath
+    this.feed = createProjectionFeed(
+      dirname(this.transcriptPath),
+      this.transcriptPath,
+      () => void this.tick(),
+      () => (this.needs.turnInFlight() ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS),
+      { createDir: false, filename: basename(this.transcriptPath) },
+    )
   }
 
   rows(): Message[] {
@@ -114,59 +117,24 @@ export class TranscriptPart {
   }
 
   heartbeatMs(): number {
-    return this.transcriptTimer === null ? 0 : this.transcriptTimerMs
+    return this.feed.heartbeatMs()
   }
 
   detached(): void {
-  if (this.transcriptTimer !== null) {
-    stopInterval(this.transcriptTimer)
-    this.transcriptTimer = null
-    this.transcriptTimerMs = 0
-  }
-  try {
-    this.transcriptWatcher?.close()
-  } catch (error) {
-    passedOver(error)
-  }
-  this.transcriptWatcher = null
-  this.releaseTranscript?.()
-  this.releaseTranscript = null
+    this.feed.stop()
+    this.releaseTranscript?.()
+    this.releaseTranscript = null
   }
 
   armTranscriptWatcher(): void {
     if (this.needs.armWatcherByHand()) return
-    if (this.transcriptWatcher !== null) return
-    try {
-      const dir = dirname(this.transcriptPath)
-      const name = basename(this.transcriptPath)
-      const watcher = watch(resolveWatchRoot(dir), (_event, filename) => {
-        if (filename === undefined || filename === null || String(filename) === name) void this.tick()
-      })
-      watcher.on('error', () => {
-        try {
-          watcher.close()
-        } catch (error) {
-          passedOver(error)
-        }
-        if (this.transcriptWatcher === watcher) this.transcriptWatcher = null
-        this.armTranscriptTimer()
-      })
-      this.transcriptWatcher = watcher
-    } catch (error) {
-      passedOver(error)
-    }
+    this.feed.armWatcher()
   }
 
   armTranscriptTimer(): void {
     if (this.needs.armTimerByHand()) return
     if (!this.needs.attached()) return
-    const ms = this.transcriptWatcher === null || this.needs.turnInFlight() ? HEARTBEAT_MS : IDLE_TRANSCRIPT_FLOOR_MS
-    if (this.transcriptTimer !== null && this.transcriptTimerMs === ms) return
-    if (this.transcriptTimer !== null) stopInterval(this.transcriptTimer)
-    const timer = startInterval(() => void this.tick(), ms)
-    timer.unref?.()
-    this.transcriptTimer = timer
-    this.transcriptTimerMs = ms
+    this.feed.armTimer()
   }
 
   toolStartedAtMs(inProgress: ReadonlySet<string>): number | null {
@@ -238,7 +206,7 @@ export class TranscriptPart {
       }
       connectorTrace({ ev: 'tick', sid: this.needs.record().sessionId, sizeNow, lastSize: this.lastSize, lastLen: this.lastLen })
       if (sizeNow === this.lastSize && this.lastLen >= 0) return
-      if (sizeNow !== -1 && this.transcriptWatcher === null) {
+      if (sizeNow !== -1 && !this.feed.hasWatcher()) {
         this.armTranscriptWatcher()
         this.armTranscriptTimer()
       }

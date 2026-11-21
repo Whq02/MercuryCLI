@@ -547,7 +547,7 @@ async function emitOnceOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path:
 
 function startWatcherOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string, rt: Runtime): void {
   const { startPollUntilExists, scheduleEmit, cfg, startPollFallback, stopWatching, startPollFloor } = ctx
-  if (rt.watcher || rt.watcherStarting || rt.pollTimer) return
+  if (rt.watcher || rt.watcherStarting || rt.pollTimer || rt.pollLadderStop) return
   rt.watcherStarting = (async () => {
     try {
       try {
@@ -604,25 +604,19 @@ function startWatcherOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: s
 
 function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string, rt: Runtime): void {
   const { startWatcher, emitIfChanged, cfg } = ctx
-  if (rt.pollTimer || rt.listeners.size === 0) return
+  if (rt.pollLadderStop !== null || rt.pollTimer !== null || rt.listeners.size === 0) return
   let ancestor: NodeFSWatcher | null = null
+  let stop: (() => void) | null = null
   const upgrade = (): void => {
-    if (rt.pollTimer) {
-      stopInterval(rt.pollTimer)
-      rt.pollTimer = null
+    if (rt.pollLadderStop === stop && stop !== null) {
+      rt.pollLadderStop = null
+      stop()
     }
-    stopFloor()
-    try {
-      ancestor?.close()
-    } catch (error) {
-      passedOver(error)
-    }
-    ancestor = null
     startWatcher(path, rt)
   }
   const probe = async (): Promise<void> => {
     await emitIfChanged(path, rt)
-    if (rt.pollTimer === null) return
+    if (rt.pollLadderStop === null || rt.pollLadderStop !== stop) return
     if (rt.lastStatKey === STAT_KEY_ABSENT || rt.lastStatKey === null) return
     upgrade()
   }
@@ -644,9 +638,7 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
   }
   const floorMs = ancestor !== null ? (cfg.pollFloorMs ?? DEFAULT_POLL_FLOOR_MS) : (cfg.pollFallbackMs ?? DEFAULT_POLL_FALLBACK_MS)
   const stopFloor = subscribeUiClock(floorMs, () => void probe())
-  rt.pollTimer = startInterval(() => {}, 0x7fffffff)
-  rt.pollTimer.unref?.()
-  rt.pollLadderStop = () => {
+  stop = () => {
     stopFloor()
     try {
       ancestor?.close()
@@ -655,6 +647,7 @@ function startPollUntilExistsOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>,
     }
     ancestor = null
   }
+  rt.pollLadderStop = stop
 }
 
 function makeHandleOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: string): StoreHandle<T> {
@@ -801,7 +794,7 @@ function makeHandleOf<T, A extends unknown[]>(ctx: StoreFactory<T, A>, path: str
       listeners: rt.listeners.size,
       watcher: rt.watcher !== null,
       watcherStarting: rt.watcherStarting !== null,
-      pollTimer: rt.pollTimer !== null,
+      pollTimer: rt.pollTimer !== null || rt.pollLadderStop !== null,
       pollFloorTimer: rt.pollFloorStop !== null,
       debounceTimer: rt.debounceTimer !== null,
       emissionSeq: rt.emissionSeq,

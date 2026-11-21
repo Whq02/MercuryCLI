@@ -22,6 +22,7 @@ import { parseSearchQuery } from '../../utils/transcriptSearch.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { Screen } from './screen.js';
 import { startTimeout, stopTimeout } from '../../utils/timers.js';
+import { editorNotConfiguredWords } from '../../utils/platform/words.js';
 
 const SEARCH_WARMUP_QUIET_MS = 20;
 const SEARCH_WARMUP_SHOW_MS = 2000;
@@ -316,11 +317,7 @@ export function useChatSearch({
         if (openFileInExternalEditor(path)) {
           setEditorStatus(`opening ${path}`);
         } else {
-          setEditorStatus(
-            process.platform === 'win32'
-              ? `written to ${path} — set EDITOR (or VISUAL) to open it`
-              : `written to ${path} — set $EDITOR to open it`,
-          );
+          setEditorStatus(editorNotConfiguredWords(path));
         }
       } catch (error) {
         if (generation === editorGenerationRef.current) setEditorStatus(`render failed: ${error instanceof Error ? error.message : String(error)}`);

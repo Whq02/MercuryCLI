@@ -67,16 +67,7 @@ export async function* minimaxCallModel(params: CallModelParams): CallModelStrea
     yield* compatChatCallModel(minimaxLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('minimax'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('minimax', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedMinimaxCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)

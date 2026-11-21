@@ -17,6 +17,7 @@ import { fastLoadEstimate, keptVolumes, matchesVolume, vastVolumeBilling, volume
 import { passedOver } from '../../utils/passedOver.js'
 import { mountedVolumeRoots, userHomeDir } from '../../utils/platform/files.js'
 import { hostScriptDialect } from '../../utils/platform/spawn.js'
+import { modelBankCandidateWords } from '../../utils/platform/words.js'
 
 const bankedModelSchema = z.object({
   path: z.string(), bytes: z.number().nonnegative(), verifiedAt: z.string().optional(), sha256: z.string().regex(/^[a-f0-9]{64}$/).optional(),
@@ -79,7 +80,7 @@ export function bankCandidates(): string[] {
   const mounted = (root: string): string[] => { try { return readdirSync(root).sort().map(name => join(root, name, 'mercury-model-bank')) } catch (error) { passedOver(error); return [] } }
   return [join(home, 'mercury-model-bank'), join(home, 'models'), ...roots.flatMap(mounted)]
 }
-export const bankCandidateWords = (): string => process.platform === 'win32' ? '~\\mercury-model-bank or ~\\models' : '~/mercury-model-bank, ~/models, /Volumes/*/mercury-model-bank or /mnt/*/mercury-model-bank'
+export const bankCandidateWords = (): string => modelBankCandidateWords()
 export function bankFolder(): string | undefined {
   const remembered = readBankRegistry().folder
   if (remembered && probeDirectory(remembered)) return remembered

@@ -43,6 +43,7 @@ import { nonAnthropicBootNotice } from './services/providers/providerUsability.j
 import { addBootNote } from './substrate/bootNotes.js'
 import { applySafeConfigEnvironmentVariables } from './utils/managedEnv.js'
 import { applyConfigEnvironmentVariables } from './utils/managedEnv.js'
+import { supportedTerminalHintSuffix } from './utils/platform/words.js'
 import { updateGithubRepoPathMapping } from './utils/githubRepoPathMapping.js'
 import { getCwd } from './utils/cwd.js'
 import {
@@ -194,7 +195,7 @@ export async function showSetupScreens(
       await exitWithMessage(
         root,
         `This terminal is missing required capabilities: ${missing || 'see the card above'}.\n` +
-          `Use a supported terminal${process.platform === 'win32' ? ' (the stable Windows Terminal or your editor’s integrated terminal; PowerShell 7 preferred)' : ''}.\n` +
+          `Use a supported terminal${supportedTerminalHintSuffix()}.\n` +
           'Non-interactive use works anywhere via mercury run.',
         { exitCode: 1, plainLines: true },
       )

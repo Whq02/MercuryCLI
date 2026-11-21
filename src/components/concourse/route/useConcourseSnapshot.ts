@@ -1,16 +1,16 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTimer } from '../../../hooks/effects.js';
 import { readFileSync } from 'node:fs';
-import { basename, dirname } from 'node:path';
 import { flagEnv } from '../../../substrate/flagRegistry.js';
 import { logForDebugging } from '../../../utils/debug.js';
+import { subscribeConcourseDispatches } from '../../../daemon/concourseDispatch.js';
+import { subscribeConcourseDelta } from '../../../daemon/concourseWorkers/store.js';
 import { buildConcourseSnapshot, sanitizeLabel, subscribeConcourseDraft } from '../../../services/concourse/concourseSnapshot.js';
 import { subscribeObligations } from '../../../services/crew/obligations.js';
 import { subscribeCurrentProject } from '../../../utils/bootCardFacts.js';
 import { subscribeFocusedSessionConnector } from '../../../services/engine-connector/focusedConnector.js';
 import type { ConcourseSnapshotV1 } from '../contracts.js';
 import { passedOver } from '../../../utils/passedOver.js';
-import { startInterval, stopInterval } from '../../../utils/timers.js';
 
 let lastCoherentSnapshot: ConcourseSnapshotV1 | null = null
 
@@ -88,52 +88,16 @@ export function useConcourseSnapshot(): {
     const unsubDraft = subscribeConcourseDraft(rebuild)
     const unsubProject = subscribeCurrentProject(rebuild)
     const unsubSlot = subscribeFocusedSessionConnector(() => rebuild())
-    let watcher: import('node:fs').FSWatcher | null = null
-    let lastDelta = ''
-    void Promise.all([import('../../../daemon/concourseWorkers.js'), import('node:fs')])
-      .then(([sup, fs]) => {
-        if (!alive.current) return
-        const deltaPath = sup.concourseDeltaPath()
-        const dir = dirname(deltaPath)
-        const name = basename(deltaPath)
-        try {
-          fs.mkdirSync(dir, { recursive: true })
-          watcher = fs.watch(dir, (_ev, file) => {
-            if (file !== null && file !== name) return
-            try {
-              const raw = fs.readFileSync(deltaPath, 'utf8')
-              const stamp = JSON.parse(raw) as { pid?: number; revision?: number }
-              const key = `${stamp.pid ?? 0}:${stamp.revision ?? 0}`
-              if (key === lastDelta) return
-              lastDelta = key
-            } catch (error) {
-              passedOver(error)
-            }
-            rebuild()
-          })
-          watcher.on('error', () => {
-            try {
-              watcher?.close()
-            } catch (error) {
-              passedOver(error)
-            }
-            watcher = null
-          })
-        } catch (error) {
-          passedOver(error)
-        }
-      })
-      .catch(passedOver)
-    const timer = startInterval(rebuild, 15_000)
-    timer.unref?.()
+    const unsubDelta = subscribeConcourseDelta(rebuild)
+    const unsubDispatches = subscribeConcourseDispatches(rebuild)
     return () => {
       alive.current = false
       unsubObl()
       unsubDraft()
       unsubProject()
       unsubSlot()
-      watcher?.close()
-      stopInterval(timer)
+      unsubDelta()
+      unsubDispatches()
     }
   }, [rebuild])
   return {

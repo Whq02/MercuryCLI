@@ -17,12 +17,16 @@ import {
   type LineDraft,
 } from './lineDraft.js'
 import {
+  readConcourseDispatches,
+  subscribeConcourseDispatches,
+} from '../../daemon/concourseDispatch.js'
+import {
   appendConcourseQueuedStackEntry,
   readConcourseHeldDispatch,
   readConcourseQueuedStack,
+  subscribeConcourseDraft,
 } from '../../services/concourse/concourseSnapshot.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
 
 const EMPTY_DRAFT: LineDraft = { text: '', caret: 0 }
 
@@ -54,8 +58,7 @@ export function SessionWaitingRoom({
   const admittedLatch = useRef(false)
   const load = useCallback(async (): Promise<void> => {
     try {
-      const dispatchMod = await import('../../daemon/concourseDispatch.js')
-      const rec = dispatchMod.readConcourseDispatches()[dispatchId]
+      const rec = readConcourseDispatches()[dispatchId]
       setRecord(
         rec !== undefined
           ? {
@@ -90,9 +93,12 @@ export function SessionWaitingRoom({
   }, [dispatchId, onAdmitted])
   useTimer(() => {
     void load()
-    const iv = startInterval(() => void load(), 1200)
-    iv.unref?.()
-    return () => stopInterval(iv)
+    const unsubDispatches = subscribeConcourseDispatches(() => void load())
+    const unsubDraft = subscribeConcourseDraft(() => void load())
+    return () => {
+      unsubDispatches()
+      unsubDraft()
+    }
   }, [load])
   useInput((input, key, event) => {
     if (key.shift && key.leftArrow) {

@@ -66,16 +66,7 @@ export async function* metaCallModel(params: CallModelParams): CallModelStream {
     yield* compatChatCallModel(metaLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('meta'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('meta', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedMetaCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)

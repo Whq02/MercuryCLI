@@ -16,6 +16,7 @@ import { otherBuildAlive } from './otherBuilds.js'
 import { plainTextStorage } from './plainTextStorage.js'
 import { startSealedStore } from './sealedStoreStart.js'
 import { sealsUnder, systemProtectorFor } from './systemProtector.js'
+import { credentialStoreWaitNote } from '../platform/words.js'
 
 
 type PrefetchLookupResult = { stdout: string | null; timedOut: boolean }
@@ -84,7 +85,7 @@ export async function ensureKeychainPrefetchCompleted(): Promise<void> {
 }
 
 export function startWaitNote(platform: NodeJS.Platform): string {
-  return platform === 'win32' ? 'checking the credential store and managed settings…' : 'checking the system keychain and managed settings…'
+  return credentialStoreWaitNote(platform)
 }
 
 export function getLegacyApiKeyPrefetchResult(): { stdout: string | null } | null {

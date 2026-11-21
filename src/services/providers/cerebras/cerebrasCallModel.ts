@@ -57,10 +57,7 @@ export async function* cerebrasCallModel(params: CallModelParams): CallModelStre
     return
   }
   if (!resolveCerebrasApiKey()) { yield* compatChatCallModel(cerebrasLaneProfile, params); return }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => { onAbort = resolve; params.signal.addEventListener('abort', onAbort, { once: true }) })
-  try { await Promise.race([readCatalogueIfPending('cerebras'), cancelled]) }
-  finally { params.signal.removeEventListener('abort', onAbort) }
+  await readCatalogueIfPending('cerebras', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedCerebrasCatalogue()
   const listed = cerebrasListedModel(snapshot, verdict.wireId)

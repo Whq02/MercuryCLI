@@ -36,6 +36,7 @@ import { ImageSizeError } from '../../utils/imageValidation.js'
 import { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 import { providerAskedWaitMs } from './recoveryBudget.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { clearEnvVarCommandWords } from '../../utils/platform/words.js'
 export { API_ERROR_MESSAGE_PREFIX, startsWithApiErrorPrefix } from './errorPrefix.js'
 
 export function malformedStreamFrameText(
@@ -751,10 +752,7 @@ function composeAuthFailureMessage(status: number, model: string, message: strin
         : `${API_ERROR_MESSAGE_PREFIX} (${status}): ${detail.text}`
   const authSource = getAuthTokenSource().source
   if (isEnvShadowedAuthSource(authSource)) {
-    const clearVerb =
-      process.platform === 'win32'
-        ? `clear ${authSource} (PowerShell: Remove-Item Env:\\${authSource} · cmd: set ${authSource}=)`
-        : `unset ${authSource}`
+    const clearVerb = clearEnvVarCommandWords(authSource)
     const fix = hasStoredOAuthToken()
       ? `restart Mercury (or ${clearVerb}) to use your saved login`
       : `${clearVerb} and then run /logins`
