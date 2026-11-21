@@ -18,6 +18,97 @@ type Words = { values: string[]; inner: number[] }
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
 const COVERED_IN_EXPANSION = new Set(['command_substitution', 'process_substitution', 'regex', 'string', 'translated_string', 'expansion'])
+const BRACE_CAP = 64
+
+type ExpandedWord = { values: string[]; written: string; inner: number[] }
+type BraceToken = { kind: 'open' | 'comma' | 'close' } | { kind: 'atom'; word: ExpandedWord }
+
+function joinExpanded(left: ExpandedWord[], right: ExpandedWord[]): ExpandedWord[] | undefined {
+  const out: ExpandedWord[] = []
+  for (const a of left) {
+    for (const b of right) {
+      if (out.length >= BRACE_CAP) return undefined
+      out.push({ values: cross(a.values, b.values), written: a.written + b.written, inner: [...a.inner, ...b.inner] })
+    }
+  }
+  return out
+}
+
+function expandBraceTokens(tokens: readonly BraceToken[]): ExpandedWord[] | undefined {
+  const empty: ExpandedWord = { values: [''], written: '', inner: [] }
+  const parseSeq = (from: number, stopAt: 'end' | 'brace'): { words: ExpandedWord[] | undefined; next: number } => {
+    let acc: ExpandedWord[] | undefined = [empty]
+    let i = from
+    while (i < tokens.length) {
+      const tok = tokens[i]!
+      if (stopAt === 'brace' && (tok.kind === 'comma' || tok.kind === 'close')) break
+      if (tok.kind === 'atom') {
+        if (acc !== undefined) acc = joinExpanded(acc, [tok.word])
+        i++
+      } else if (tok.kind === 'open') {
+        const group = parseBrace(i)
+        if (group !== undefined) {
+          if (acc !== undefined) acc = group.words === undefined ? undefined : joinExpanded(acc, group.words)
+          i = group.next
+        } else {
+          if (acc !== undefined) acc = joinExpanded(acc, [{ values: ['{'], written: '{', inner: [] }])
+          i++
+        }
+      } else {
+        const ch = tok.kind === 'comma' ? ',' : '}'
+        if (acc !== undefined) acc = joinExpanded(acc, [{ values: [ch], written: ch, inner: [] }])
+        i++
+      }
+    }
+    return { words: acc, next: i }
+  }
+  const parseBrace = (openAt: number): { words: ExpandedWord[] | undefined; next: number } | undefined => {
+    const alts: Array<ExpandedWord[] | undefined> = []
+    let i = openAt + 1
+    let commas = 0
+    while (i < tokens.length) {
+      const part = parseSeq(i, 'brace')
+      alts.push(part.words)
+      i = part.next
+      if (i >= tokens.length) return undefined
+      if (tokens[i]!.kind === 'comma') {
+        commas++
+        i++
+      } else if (tokens[i]!.kind === 'close') {
+        if (commas === 0) return undefined
+        const out: ExpandedWord[] = []
+        for (const alt of alts) {
+          if (alt === undefined) return { words: undefined, next: i + 1 }
+          for (const w of alt) {
+            if (out.length >= BRACE_CAP) return { words: undefined, next: i + 1 }
+            out.push(w)
+          }
+        }
+        return { words: out, next: i + 1 }
+      }
+    }
+    return undefined
+  }
+  return parseSeq(0, 'end').words
+}
+
+function hasBraceListCandidate(node: Node): boolean {
+  let open = false
+  let comma = false
+  let close = false
+  for (const child of node.children) {
+    if (child.type !== 'word') continue
+    const text = child.text
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i]!
+      if (ch === '\\') { i++; continue }
+      if (ch === '{') open = true
+      else if (ch === ',') comma = true
+      else if (ch === '}') close = true
+    }
+  }
+  return open && comma && close
+}
 
 function cross(left: string[], right: string[]): string[] {
   const out: string[] = []
@@ -100,7 +191,7 @@ export class PosixWalk {
       if (child.type === 'do_group') {
         if (name !== undefined) this.reading.scope.set(name, items.length > 0 ? items.slice(0, READING_CAP) : [`$${name}`])
         this.children(child, this.maybe(frame))
-      } else if (WORD_KINDS.has(child.type)) items.push(...this.word(child, frame).values)
+      } else if (WORD_KINDS.has(child.type)) for (const item of this.expandWord(child, frame)) items.push(...item.values)
     }
   }
 
@@ -161,6 +252,69 @@ export class PosixWalk {
     return posixWord.call(this, node, frame)
   }
 
+  expandWord(node: Node, frame: Frame): ExpandedWord[] {
+    if (node.type !== 'concatenation' || !hasBraceListCandidate(node)) {
+      const part = this.word(node, frame)
+      return [{ values: part.values, written: node.text, inner: part.inner }]
+    }
+    const tokens: BraceToken[] = []
+    let fallbackValues = ['']
+    const fallbackInner: number[] = []
+    const stands = this.reading.cwd
+    for (const child of node.children) {
+      if (child.type !== 'word') {
+        const part = this.word(child, frame)
+        fallbackValues = cross(fallbackValues, part.values)
+        fallbackInner.push(...part.inner)
+        tokens.push({ kind: 'atom', word: { values: part.values, written: child.text, inner: part.inner } })
+        continue
+      }
+      const raw = child.text
+      const leads = child.startIndex === 0 || /[\s;&|(=:]/.test(this.source[child.startIndex - 1] ?? '')
+      const plain = unescapeBackslashes(raw)
+      const expandedLead = stands !== undefined && leads && /^~\+(?=\/|$)/.test(raw)
+      fallbackValues = cross(fallbackValues, [expandedLead ? stands + plain.slice(2) : plain])
+      let valBuf = ''
+      let rawBuf = ''
+      const flush = (): void => {
+        if (valBuf === '' && rawBuf === '') return
+        tokens.push({ kind: 'atom', word: { values: [valBuf], written: rawBuf, inner: [] } })
+        valBuf = ''
+        rawBuf = ''
+      }
+      let start = 0
+      if (expandedLead) {
+        valBuf = stands
+        rawBuf = '~+'
+        start = 2
+      }
+      for (let i = start; i < raw.length; i++) {
+        const ch = raw[i]!
+        if (ch === '\\' && i + 1 < raw.length) {
+          const next = raw[i + 1]!
+          if (next !== '\n') valBuf += next
+          rawBuf += '\\' + next
+          i++
+        } else if (ch === '{') {
+          flush()
+          tokens.push({ kind: 'open' })
+        } else if (ch === ',') {
+          flush()
+          tokens.push({ kind: 'comma' })
+        } else if (ch === '}') {
+          flush()
+          tokens.push({ kind: 'close' })
+        } else {
+          valBuf += ch
+          rawBuf += ch
+        }
+      }
+      flush()
+    }
+    const expanded = expandBraceTokens(tokens)
+    return expanded !== undefined && expanded.length > 1 ? expanded : [{ values: fallbackValues, written: node.text, inner: fallbackInner }]
+  }
+
   redirect(node: Node, frame: Frame, redirects: ReadRedirect[], inputInner: number[]): void {
     let op = ''
     for (const child of node.children) {
@@ -193,10 +347,14 @@ export class PosixWalk {
           if (name !== undefined) env.push({ name, value: value === undefined ? '' : (this.word(value, frame).values[0] ?? '') })
           break
         }
-        case 'command_name':
-          words.push(this.word(child.children[0] ?? child, frame))
-          written.push((child.children[0] ?? child).text)
+        case 'command_name': {
+          const target = child.children[0] ?? child
+          for (const item of this.expandWord(target, frame)) {
+            words.push({ values: item.values, inner: item.inner })
+            written.push(item.written)
+          }
           break
+        }
         case 'file_redirect':
           this.redirect(child, frame, own, ownInner)
           break
@@ -207,8 +365,10 @@ export class PosixWalk {
         }
         default:
           if (WORD_KINDS.has(child.type)) {
-            words.push(this.word(child, frame))
-            written.push(child.text)
+            for (const item of this.expandWord(child, frame)) {
+              words.push({ values: item.values, inner: item.inner })
+              written.push(item.written)
+            }
           } else this.node(child, frame)
       }
     }

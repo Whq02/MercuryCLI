@@ -281,6 +281,9 @@ section('§7 the hook road: the real guard lets the search through and refuses t
     ['no-root-recursive-delete', 'echo ${x:-`rm -rf /`}'],
     ['no-other-user-delete', 'echo "${x:-`rm -rf /Users/m37-other/decoy`}"'],
     ['no-root-recursive-delete', 'echo "${x:-\'`rm -rf /`\'}"'],
+    ['no-root-recursive-delete', 'rm -rf /{etc,usr}'],
+    ['no-root-recursive-delete', 'rm -rf /{etc,{usr,var}}'],
+    ['no-other-user-delete', 'rm -rf /Users/m37-other/{a,b}'],
   ] as const) {
     const res = await judge(command)
     check(`${shown(command)} is refused on the hook road by ${rule}`, typeof res === 'string' && res.includes(`Ward '${rule}'`), String(res).slice(0, 120))
@@ -291,6 +294,10 @@ section('§7 the hook road: the real guard lets the search through and refuses t
     "echo '${x:-`rm -rf /`}'",
     "echo ${x:-'`rm -rf /`'}",
     'echo "${x:-\\`rm -rf /\\`}"',
+    'cp a{,.bak}',
+    'rm -rf "/{etc,usr}"',
+    'rm -rf build/{a,b}',
+    'rm -rf /{etc,a}{1,2}{b,c}{3,4}{d,e}{5,6}{f,g}',
   ]) {
     const res = await judge(command)
     check(`${shown(command)} passes on the hook road`, res === true, String(res).slice(0, 120))
