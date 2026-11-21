@@ -10,7 +10,6 @@ import { passedOver } from '../../utils/passedOver.js'
 export type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
 
 const SHELL_TOOL_NAMES = new Set(['Bash', POWERSHELL_TOOL_NAME])
-const PS_REWIND_UNSAFE_RE = /[({]|(?<![>&])&(?!&)/
 
 type ShellCall = {
   id: string
@@ -85,11 +84,7 @@ export async function findMutatingShellToolUseIds(messages: Message[]): Promise<
     }
     try {
       if (tool.isReadOnly(call.input) === true) continue
-      if (
-        call.tool === POWERSHELL_TOOL_NAME &&
-        typeof call.input.command === 'string' &&
-        !PS_REWIND_UNSAFE_RE.test(call.input.command)
-      ) {
+      if (call.tool === POWERSHELL_TOOL_NAME) {
         const classified = safeSearchOrReadClassification(tool, call.input)
         if (classified?.isRead || classified?.isSearch) continue
       }
