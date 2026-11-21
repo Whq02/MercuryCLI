@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useCallback, useState } from 'react'
-import { useLoad, useSubscription } from '../../hooks/effects.js'
+import { useLoad } from '../../hooks/effects.js'
 import { AMBER, CRIMSON, FAINT, IVORY, SECOND, TEAL } from '../../components/mercuryPalette.js'
 import { CommandCenter, SectionHeader } from '../../components/mercury-ui/components.js'
 import { padTo, truncateToWidth } from '../../utils/glyphs.js'
@@ -22,7 +22,6 @@ import {
   syncDeliverablesFromTasks,
   syncVerification,
 } from '../../services/run/runCoordinator.js'
-import type { RunSnapshot } from '../../services/run/runKernel.js'
 import {
   getBootRecovery,
   subscribeBootRecovery,
@@ -47,20 +46,25 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
   const accent = useSessionAccent().accent
   const { columns, rows: terminalRows } = useModalOrTerminalSize(useTerminalSize())
   const owner = React.useMemo(() => processMainOwner(), [])
-  const [snapshot, setSnapshot] = useState<RunSnapshot | null>(() => getRunSnapshot(owner))
+  const subscribeOwnerRuns = useCallback(
+    (listener: () => void) =>
+      subscribeRuns(changed => {
+        if (changed === owner) listener()
+      }),
+    [owner],
+  )
+  const getOwnerRunSnapshot = useCallback(() => getRunSnapshot(owner), [owner])
+  const snapshot = React.useSyncExternalStore(
+    subscribeOwnerRuns,
+    getOwnerRunSnapshot,
+    getOwnerRunSnapshot,
+  )
   const [sel, setSel] = useState(0)
   const [openIdx, setOpenIdx] = useState<number | null>(null)
   const [confirmCancel, setConfirmCancel] = useState(false)
   const confirmRef = React.useRef(false)
   confirmRef.current = confirmCancel
   const pastEnterBuffer = useOpenEventGate()
-
-  useSubscription(() => {
-    const unsubscribe = subscribeRuns(changed => {
-      if (changed === owner) setSnapshot(getRunSnapshot(owner))
-    })
-    return unsubscribe
-  }, [owner])
 
   const recovery = React.useSyncExternalStore(subscribeBootRecovery, getBootRecovery, getBootRecovery)
 
@@ -95,7 +99,6 @@ function MercuryRunInspector({ onClose }: { onClose: () => void }): React.ReactN
         syncVerification(owner, getCwd())
         await flushRun(owner)
       }
-      setSnapshot(getRunSnapshot(owner))
     })()
   }, [owner])
 

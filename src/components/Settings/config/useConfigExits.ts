@@ -1,3 +1,4 @@
+import { featureReached } from '../../../substrate/featureReached.js'
 import React, { useRef } from 'react'
 import { escapeFromOutsidePress } from '../../../ink/recessLayer.js'
 import type { AppState } from '../../../state/AppState.js'
@@ -143,8 +144,10 @@ export function useConfigExits({
   const activate = (index: number): void => {
     const item = filtered[index]
     if (item === undefined) return
-    if (item.kind === 'managed-enum' && item.open !== undefined) setSubMenu(item.open)
-    else item.change?.(1)
+    if (item.kind === 'managed-enum' && item.open !== undefined) {
+      if (item.open === 'media-root' || item.open === 'media-image' || item.open === 'media-video') featureReached('screen', 'MediaConfigPicker')
+      setSubMenu(item.open)
+    } else item.change?.(1)
   }
   return { saveAndClose, signInFromDoor, escape, activate }
 }

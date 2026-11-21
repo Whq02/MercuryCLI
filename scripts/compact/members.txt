@@ -32,6 +32,7 @@ prove-fold-ladder-replay.ts
 prove-fold-ladder-rungs.ts
 prove-fold-landing-room.ts
 prove-fold-ledger.ts
+prove-fold-ledger-stretches.ts
 prove-fold-local-window.ts
 prove-fold-loop-answers.ts
 prove-fold-mechanical-profile.ts
@@ -82,6 +83,7 @@ prove-prune-rung-any-failure.ts
 prove-prune-set.ts
 prove-ptl-recovery-road.ts
 prove-ptl-retry-keeps-capsule.ts
+prove-queued-compact.ts
 prove-restored-read-is-full.ts
 prove-result-room-limiter.ts
 prove-seat-context-receipt.ts

@@ -61,13 +61,13 @@ try {
   assert.match(strFromU8(zip['word/footnotes.xml']!), /Appendix source/)
   assert.match(strFromU8(zip['docProps/core.xml']!), /Appendix report/)
   assert.equal(strFromU8(zip['word/styles.xml']!), strFromU8(unzipSync(readFileSync(join(proofHome, 'source.docx')))['word/styles.xml']!))
-  assert.ok(safeForOffice(readFileSync(join(proofHome, 'source.docx'))))
+  assert.ok(safeForOffice(readFileSync(join(proofHome, 'source.docx'))), 'src/tools/DocumentTool/archive.ts safeForOffice rejected freshly generated source.docx')
   assert.throws(() => parseXml('<!DOCTYPE r [<!ENTITY x SYSTEM "file:///secret">]><r>&x;</r>'), /document type/)
   for (const converter of ['soffice', 'pandoc']) {
     if (!whichSync(converter)) { console.log(`SKIP live ${converter}: not on PATH`); continue }
     const to = converter === 'soffice' ? 'pdf' : 'html'
     const external = await convertDocument({ op: 'convert', source: join(proofHome, 'source.docx'), output: join(proofHome, `external.${to}`), renderer: converter === 'soffice' ? 'libreoffice' : 'pandoc' }, io)
-    assert.ok(external.files[0]!.bytes.length)
+    assert.ok(external.files[0]!.bytes.length, `src/tools/DocumentTool/convert.ts ${converter} conversion to ${to} produced 0 bytes`)
     assert.equal(external.road, converter === 'soffice' ? 'LibreOffice' : 'pandoc')
   }
   console.log('PASS convert: twelve text-document directions, slide text to PDF, CSV round trip, PDF order/split/rotate/metadata and styled DOCX append with footnotes')

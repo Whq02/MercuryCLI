@@ -194,7 +194,7 @@ try {
   }
   const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
   const press = async (needle: string, key: string) => { await select(needle); mounted!.push(key) }
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'fast-load-private settings popup did not close within 5000ms after Esc; check host popup close handler') }
   const row = (title: string) => mounted!.lines().find(line => line.includes(title)) ?? ''
   const noKeys = (name: string) => check(name + ' renders without errors or keys', !screen().includes('RENDER ERROR') && !screen().includes(rp.key))
   const openModel = async () => { open(); await heading('Which model?'); await choose('DeepSeek-V4.1-Flash UNCENSORED'); await heading('DeepSeek-V4.1-Flash UNCENSORED'); await until('WEIGHTS') }

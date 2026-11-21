@@ -1,7 +1,7 @@
 import { getToolNameForPermissionCheck } from '../mcp/mcpStringUtils.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import type { PermissionBehavior, PermissionRule, PermissionRuleSource, PermissionRuleValue } from '../../types/permissions.js'
-import { getDenyRules, namesWholeServerOfTool, runsItsCommandAsBash } from './decision/rules.js'
+import { getDenyRuleForTool, getDenyRules, mcpServerPermissionTarget, namesWholeServerOfTool, runsItsCommandAsBash } from './decision/rules.js'
 import { BASH_TOOL_NAME } from '../../constants/tools/bash.js'
 import { RULE_INHERITS } from '../../constants/tools.js'
 import { permissionRuleValueFromString, permissionRuleValueToString } from './permissionRuleParser.js'
@@ -123,4 +123,20 @@ export function wholeToolDenyRulesCovering(
     if (rule.ruleValue.toolName === BASH_TOOL_NAME && runsItsCommandAsBash(name)) return true
     return namesWholeServerOfTool(rule.ruleValue.toolName, tool)
   })
+}
+
+export function mcpServerDenyDecision(
+  context: ToolPermissionContext,
+  toolName: string,
+  serverName: string,
+): { behavior: 'deny'; decisionReason: { type: 'rule'; rule: PermissionRule }; message: string } | null {
+  const target = mcpServerPermissionTarget(serverName)
+  const denyRule = getDenyRuleForTool(context, target)
+  if (!denyRule) return null
+  const said = withRuleReason(context, denyRule, () => wholeToolDenyRulesCovering(context, target))
+  return {
+    behavior: 'deny',
+    decisionReason: { type: 'rule', rule: said },
+    message: refusalWithReason(ruleSentence(`Using ${toolName}`, 'deny', said), said.ruleValue.reason),
+  }
 }

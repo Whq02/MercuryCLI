@@ -26,6 +26,6 @@ for (const row of [
   if (getAssistantMessageFromError(error, 'stranger/gateway').error !== 'rate_limit') failures.push(`home result: ${JSON.stringify(row)}`)
 }
 assert.deepEqual(failures, [])
-assert.ok(classifyOverflowFault({ family: 'openai-compat', status: 400, message: 'too many tokens: cannot exceed 4096; received 5000' }))
+assert.ok(classifyOverflowFault({ family: 'openai-compat', status: 400, message: 'too many tokens: cannot exceed 4096; received 5000' }), 'classifyOverflowFault returned null for genuine 400 token-limit overflow; check overflow classification')
 assert.equal(mapCompatHttpFailure(403, { message: 'ThrottlingException' }).retryable, false)
 console.log('Bedrock throttling is retryable, never overflow: PASS')

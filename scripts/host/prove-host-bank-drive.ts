@@ -127,7 +127,7 @@ try {
   }
   const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
   const press = async (needle: string, key: string) => { await select(needle); mounted!.push(key) }
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'host bank settings popup did not close within 5000ms after Esc; check host popup close handler') }
   const capture = async (name: string) => {
     const text = screen()
     check(name + ' renders without errors, keys or tokens', !text.includes('RENDER ERROR') && !text.includes(rp.key) && !text.includes(vast.key) && !text.includes(lambda.key) && !text.includes(hfToken))

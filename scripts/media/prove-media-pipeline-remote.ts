@@ -62,7 +62,7 @@ try {
   })().catch(error => { res.destroy(error as Error) }) })
   await new Promise<void>(done => proxy!.listen(0, '127.0.0.1', done))
   const address = proxy.address()
-  assert.ok(address && typeof address === 'object')
+  assert.ok(address && typeof address === 'object', `remote media proxy server did not bind TCP port (address=${String(address)}); check fixture proxy server`)
   const id = 'pipeline-fixture'
   Object.assign(globalThis, { MACRO: { VERSION: '1.0.0', IS_DEV: false } })
   process.chdir(project)
@@ -83,7 +83,7 @@ try {
   publishActiveSet(computeActiveSet({ cwd: project, sessionPaths: [] })); clearExtensionMcpServerCache()
   const server = 'ext:mercury-media:engine'
   const config = getExtensionMcpServers()[server]
-  assert.ok(config && config.type === 'stdio')
+  assert.ok(config && config.type === 'stdio', `remote media extension missing stdio MCP server config (got=${JSON.stringify(config)}); check extensions/load/servers.ts`)
   assert.equal(config.args?.[0], join(dirname(serverPath), 'remote-client.js'))
   assert.equal(config.env?.MEDIA_REMOTE_ID, id)
   const { connectToServer, fetchToolsForClient } = await import('../../src/services/mcp/client.js')
@@ -111,7 +111,7 @@ try {
   }
   const valid = (await call('pipeline_validate', { pipeline: 'landscape.pipeline.json' })).data
   assert.equal(valid.valid, true)
-  assert.ok(forwarded.length)
+  assert.ok(forwarded.length, 'pipeline_validate did not forward request through remote media proxy (forwarded=0); check remote-client.js')
   assert.ok(!JSON.stringify(forwarded).includes(project), 'Pipeline forwarded local paths or cwd to the host')
   const described = (await call('pipeline_describe', { pipeline: path })).data
   assert.equal(described.pipelineHash, valid.pipelineHash)
@@ -134,7 +134,7 @@ try {
   assert.equal(run.pipeline.path, path)
   assert.equal(run.pipelineHash, valid.pipelineHash)
   for (const row of run.steps) for (const file of row.files ?? []) {
-    assert.ok(file.path.startsWith(join(project, 'media') + sep))
+    assert.ok(file.path.startsWith(join(project, 'media') + sep), `remote pipeline output landed outside project media dir (tail=${file.path.slice(-60)}); check remote pipeline output path`)
     assert.equal(createHash('sha256').update(readFileSync(file.path)).digest('hex'), file.sha256)
   }
   assert.equal(readFileSync(result.path).readUInt32BE(16), 32)
@@ -170,7 +170,8 @@ try {
   const detail = await readMediaPipelineDetails({ pipeline: path, step: 'small' }, project)
   assert.ok(detail.includes('Runpod pod pipeline-fixture'), detail)
   const { readMediaGenerationDetails } = await import('../../src/services/media/generation.js')
-  assert.ok((await readMediaGenerationDetails('image', { prompt: 'fixture' }, project)).includes('Runpod pod pipeline-fixture'))
+  const genDetails = await readMediaGenerationDetails('image', { prompt: 'fixture' }, project)
+  assert.ok(genDetails.includes('Runpod pod pipeline-fixture'), `readMediaGenerationDetails missing remote pod label (details=${genDetails.slice(0, 140)}); check services/media/generation.ts`)
   const React = await import('react')
   const { enableConfigs } = await import('../../src/utils/config.js')
   enableConfigs()
@@ -185,8 +186,8 @@ try {
   const frame = await mountOffscreen(React.createElement(AppStoreContext.Provider, { value: createStore(getDefaultAppState()) }, card), 120, 28)
   try {
     assert.ok(await waitFor(() => frame.screen().includes('Runpod pod pipeline-fixture'), 5000), frame.screen())
-    assert.ok(frame.screen().includes('Local image'))
-    assert.ok(frame.screen().includes('Pipeline: Remote landscape · step small'))
+    assert.ok(frame.screen().includes('Local image'), 'MediaPermissionRequest card missing Local image heading; check MediaPermissionRequest.tsx')
+    assert.ok(frame.screen().includes('Pipeline: Remote landscape · step small'), 'MediaPermissionRequest card missing remote pipeline step summary; check MediaPermissionRequest.tsx')
     const frames = arg('--frames')
     if (frames) {
       mkdirSync(frames, { recursive: true })

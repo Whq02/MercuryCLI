@@ -1,3 +1,4 @@
+import { featureReached } from '../substrate/featureReached.js'
 import {
   cwdIsMissing,
   evaluateNodeRuntime,
@@ -26,6 +27,7 @@ async function main(): Promise<void> {
   }
 
   if (args.length === 1 && (args[0] === '--version' || args[0] === '-v' || args[0] === '-V' || args[0] === 'version')) {
+    featureReached('verb', args[0] === 'version' ? 'version' : '--version')
     console.log(`Mercury ${MACRO.VERSION}`)
     return
   }
@@ -195,6 +197,7 @@ async function main(): Promise<void> {
     enableConfigs()
     const { hostCommand } = await import('../commands/host/index.js')
     await tellTheBuiltInCommands()
+    featureReached('verb', 'host')
     process.exitCode = await hostCommand(args.slice(1))
     return
   }
@@ -204,6 +207,7 @@ async function main(): Promise<void> {
     enableConfigs()
     const { daemonMain } = await import('../daemon/main.js')
     await tellTheBuiltInCommands()
+    featureReached('verb', 'daemon')
     return daemonMain(args.slice(1))
   }
   if (args[0] === 'acp') {
@@ -214,6 +218,7 @@ async function main(): Promise<void> {
       const { enableConfigs } = await import('../utils/config.js')
       enableConfigs()
       const { runAcpLoginScreen } = await import('../services/acp/acpLoginScreen.js')
+      featureReached('verb', 'acp --login')
       return runAcpLoginScreen()
     }
     if (extra.length > 0) {
@@ -230,6 +235,7 @@ async function main(): Promise<void> {
     enableConfigs()
     const { runAcpServer } = await import('../services/acp/acpServer.js')
     await tellTheBuiltInCommands()
+    featureReached('verb', 'acp')
     return runAcpServer()
   }
 

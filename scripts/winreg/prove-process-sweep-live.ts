@@ -55,8 +55,8 @@ try {
   for (const target of [live, stale]) {
     assert.equal(target.process.user, self.process.user)
     assert.equal(target.state, 'running')
-    assert.ok(target.startToken !== null && target.process.startedAtMs > 0)
-    assert.ok(target.process.args.includes(bundle) && target.process.exe.toLowerCase() === node.toLowerCase())
+    assert.ok(target.startToken !== null && target.process.startedAtMs > 0, `collectWindowsProcesses in src/daemon/processSweepWindows.js must populate startToken and startedAtMs for pid ${target.process.pid}`)
+    assert.ok(target.process.args.includes(bundle) && target.process.exe.toLowerCase() === node.toLowerCase(), `collectWindowsProcesses in src/daemon/processSweepWindows.js must report fixture node exe and bundle arg for pid ${target.process.pid}`)
   }
   assert.equal(live.terminalAlive, true, JSON.stringify(live))
   assert.equal(live.process.terminal, 'session ' + live.process.terminal!.split(' ')[1] + ' · console attached')
@@ -99,7 +99,7 @@ try {
   const again = await signalWindowsProcess(stale, true)
   assert.equal(again.sent, false, JSON.stringify(again))
   assert.equal(withConsole!.exitCode, null, 'the daemon with a console is still alive after the other one ended')
-  assert.ok((await rowOf(withConsole!.pid)) !== undefined)
+  assert.ok((await rowOf(withConsole!.pid)) !== undefined, `console-backed daemon pid ${withConsole!.pid} must remain present in collectWindowsProcesses after headless daemon stops`)
   console.log(JSON.stringify({
     status: 'PASS',
     protected: { pid: live.process.pid, terminal: live.process.terminal },

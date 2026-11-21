@@ -29,10 +29,10 @@ try {
   const result = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'call_fixture', content: 'Ward refused this call.', is_error: true }] })
   const paired = requestConversationPlan([user, thinking, tool, refused, error, result, next], [], 'family')
   const kept = paired.messages.find(row => row.type === 'assistant' && row.message.id === refused.message.id)
-  assert(kept && Array.isArray(kept.message.content))
+  assert(kept && Array.isArray(kept.message.content), 'requestConversationPlan in src/utils/messages/apiPlan.ts must keep paired refused assistant turn with array content')
   assert.equal(JSON.stringify(kept.message.content), JSON.stringify([...thinking.message.content, ...tool.message.content, ...refused.message.content]))
-  assert(!paired.messages.some(row => row.uuid === error.uuid))
-  assert(JSON.stringify(paired.messages).includes('Ward refused this call.'))
+  assert(!paired.messages.some(row => row.uuid === error.uuid), 'requestConversationPlan in src/utils/messages/apiPlan.ts must omit synthetic API error row')
+  assert(JSON.stringify(paired.messages).includes('Ward refused this call.'), 'requestConversationPlan in src/utils/messages/apiPlan.ts must retain ward tool_result text')
   assert.equal(JSON.stringify(paired.messages).match(/"tool_use_id":"call_fixture"/g)?.length, 1)
   console.log('PASS family refusal: omit the complete refused turn and synthetic rows; keep user prompts, paired tools and ward results; never change the transcript')
 } finally {

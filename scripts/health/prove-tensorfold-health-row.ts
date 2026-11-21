@@ -111,6 +111,6 @@ assert.equal(focusedHost, `TensorFold 1.2.2 · studio · ${osVersion} · qwen3.8
 console.log('PASS the focus: the framed row\'s repo and window, or the host, stand in the one composed line')
 
 const plain = renderPlainCertificate({ verdict: 'certified', durationMs: 0, sections: [{ id: 'auth', title: 'AUTH', checks: [{ id: 'tensorfold', label: 'TensorFold', status: 'ok', evidence: ok.tensorfold!.evidence, detail: ok.tensorfold!.detail }, { id: 'tensorfold-support', label: 'support', status: 'info', evidence: ok.support! }] }] } as never)
-assert.ok(plain.includes('[OK] TensorFold — qwen3.5-2b on 127.0.0.1:8080'))
-assert.ok(plain.includes('[INFO] support — TensorFold 1.2.2 · Metal'))
+assert.ok(plain.includes('[OK] TensorFold — qwen3.5-2b on 127.0.0.1:8080'), `renderPlainCertificate missing TensorFold OK row in src/cli/healthPresentation.ts: ${plain.slice(0, 200)}`)
+assert.ok(plain.includes('[INFO] support — TensorFold 1.2.2 · Metal'), `renderPlainCertificate missing TensorFold support row in src/cli/healthPresentation.ts: ${plain.slice(0, 200)}`)
 console.log('PASS the plain certificate carries the TensorFold row and the support row')

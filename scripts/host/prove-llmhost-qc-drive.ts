@@ -171,7 +171,7 @@ try {
     mounted!.push(KEY.esc); await until('model name')
     mounted!.push('deepseek'); await until('MODELS')
     check('the verified list narrows before the Hub responds', !question?.search || !screen().includes('Qwen Tiny'))
-    assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000))
+    assert.ok(await waitFor(() => question?.rows?.some(row => row.value === 'hf:' + fixtureRepos.gguf.id) === true, 15000), `HF search results missing hf:${fixtureRepos.gguf.id} within 15000ms (step=${question?.step}, rows=${question?.rows?.length ?? 0}); check host HF search`)
     await select('hf:' + fixtureRepos.gguf.id)
     await capture(width + '-search')
     mounted!.push(KEY.enter); await step('door-model'); await until('QUALITY')
@@ -215,7 +215,7 @@ try {
     await choose('network'); await step('fast-load-where'); await choose('EU-NL-1'); await step('fast-load-when'); await choose('now'); await step('fast-load-confirm')
     await capture(width + '-mirror-confirm')
     await choose('confirm'); await step('door-model')
-    assert.ok(await waitFor(() => volumes.keptVolumes().some(volume => volume.state === 'kept'), 20000))
+    assert.ok(await waitFor(() => volumes.keptVolumes().some(volume => volume.state === 'kept'), 20000), `network mirror volume did not reach state=kept within 20000ms (count=${volumes.keptVolumes().length}); check host mirror job`)
     await Promise.all(jobs)
     await choose('bank'); await step('door-bank'); await capture(width + '-volume')
     await select('qc-0'); mounted!.push('d'); await step('volume-delete')
@@ -226,7 +226,7 @@ try {
     await capture(width + '-watch-confirm')
     check('the watch confirmation names all providers, the price ceiling, separate storage billing and when it stops', question!.found.includes('Runpod, Vast.ai, Lambda') && question!.found.includes('ceiling $1.23/hr') && question!.willRun.includes('Rents automatically at or below the ceiling; storage bills separately.') && question!.willRun.includes('Stops after 12 hours or on Cancel.'))
     await close()
-    await open(); mounted!.push('deepseek'); assert.ok(await waitFor(() => question?.search?.query === 'deepseek', 10000)); mounted!.push(KEY.esc); await until('model name'); check('Escape clears first and leaves the model list open', popup.isSettingsPopupOpen()); await close()
+    await open(); mounted!.push('deepseek'); assert.ok(await waitFor(() => question?.search?.query === 'deepseek', 10000), `model picker search query did not reach 'deepseek' within 10000ms (got=${question?.search?.query}); check host model search`); mounted!.push(KEY.esc); await until('model name'); check('Escape clears first and leaves the model list open', popup.isSettingsPopupOpen()); await close()
     check('no bank job remains unfinished', hostRecords().every(record => record.jobKind !== 'bank'))
     mounted!.unmount(); mounted = undefined
   }

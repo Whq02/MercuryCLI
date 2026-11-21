@@ -46,7 +46,7 @@ try {
   const decoded = decodeTranscriptBuffer<any>(raw).entries
   assert.equal(decoded.find(row => row.uuid === history[1]!.uuid)?.message.content[0].text, 'fixture historical answer')
   assert.equal(JSON.stringify(history), before, 'the parent chat is unchanged')
-  assert.ok(JSON.stringify(result.messages).includes('fixture summary'))
+  assert.ok(JSON.stringify(result.messages).includes('fixture summary'), `fork compact result.messages missing fixture summary (count=${result.messages?.length ?? 0}); check fork replay compaction`)
   console.log('PASS compact replay markers distinguish inherited records without changing the parent chat or the summary')
 } finally {
   await api.close()

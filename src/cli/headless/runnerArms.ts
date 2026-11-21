@@ -34,6 +34,7 @@ import { getLastCacheSafeParams } from '../../services/agents/forkedAgent.js'
 import type { ToolUseContext } from '../../Tool.js'
 import type { RunnerPorts } from './runnerPorts.js'
 import type { RunnerArms } from './runnerMethods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { startTimeout } from '../../utils/timers.js'
 
 const INTERRUPT_DEDUPE_CAP = 200
@@ -43,11 +44,11 @@ const SEAT_VERB_AT = (held: boolean): 'now' | 'turn_end' => (held ? 'turn_end' :
 export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
   const { acceptInputRow, applySeatEffort, applySeatModel, asks, canUseTool, driver, enqueueRow, getAppState, getReadFileCache, interruptOutcomes, io, isLocalShellTask, killTask, landSpawnSwitch, live, liveScope, messages, options, quiescence, relaunchContext, requestShellBackground, setAppState } = ports
   return {
-    'project/query': async params => {
+    [SESSION_VERBS.projectQuery.runner.name]: async params => {
       const { projectQuery } = await import('./projectQuery.js')
       return projectQuery(params, getAppState().toolPermissionContext)
     },
-    'turn/interrupt': params => {
+    [SESSION_VERBS.interrupt.runner.name]: params => {
       if (params.op_id !== undefined && interruptOutcomes.has(params.op_id)) return { interrupted: interruptOutcomes.get(params.op_id)! }
       if (params.turn_id !== undefined && live.currentTurnId !== null && params.turn_id !== live.currentTurnId) return { interrupted: false }
       const interrupted = live.inFlightAbort !== null || live.leaveAbort !== null
@@ -65,12 +66,12 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       }
       return { interrupted }
     },
-    'queue/add': params => acceptInputRow(params),
-    'queue/withdraw': params => {
+    [SESSION_VERBS.sendWords.runner.name]: params => acceptInputRow(params),
+    [SESSION_VERBS.withdrawSend.runner.name]: params => {
       const popped = popById(params.id)
       return popped.popped ? { withdrawn: true, text: popped.text } : { withdrawn: false, reason: popped.reason }
     },
-    'session/set_mode': params => {
+    [SESSION_VERBS.setPermissionMode.runner.name]: params => {
       const resolved = resolvePermissionModeTransition(params.mode as WirePermissionMode, getAppState().toolPermissionContext)
       if (!resolved.ok) throw refused(resolved.error, 'mode')
       const nextContext = resolved.context
@@ -84,7 +85,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       void asks.recheckPendingPermissionRequests()
       return { mode: params.mode }
     },
-    'session/set_model': async (params, ref) => {
+    [SESSION_VERBS.setModel.runner.name]: async (params, ref) => {
       const requested = params.model
       let resolved: string
       try {
@@ -103,8 +104,8 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       await applySeatModel(String(resolved), words)
       return { model: String(resolved), at: SEAT_VERB_AT(false) }
     },
-    'session/claim': params => claimSession(params, ports),
-    'session/set_effort': (params, ref) => {
+    [SESSION_VERBS.claim.runner.name]: params => claimSession(params, ports),
+    [SESSION_VERBS.setEffort.runner.name]: (params, ref) => {
       const requestedEffort = String(params.effort ?? '')
       if (!isEffortLevel(requestedEffort)) throw refused(`effort refused ('${requestedEffort}' is not on the shared ladder)`, 'effort')
       if (live.inFlightAbort !== null) {
@@ -115,8 +116,8 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       applySeatEffort(requestedEffort)
       return { effort: requestedEffort, at: SEAT_VERB_AT(false) }
     },
-    'session/facts': () => answerSessionFacts(ports),
-    'schedule/roster': params => {
+    [SESSION_VERBS.sessionFacts.runner.name]: () => answerSessionFacts(ports),
+    [SESSION_VERBS.scheduleRoster.runner.name]: params => {
       const rows = Array.isArray(params.schedules)
         ? (params.schedules as unknown[]).flatMap(raw => {
             if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return []
@@ -139,7 +140,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       latchSessionScheduleRoster(rows)
       return {}
     },
-    'session/rewind': async params => {
+    [SESSION_VERBS.rewind.runner.name]: async params => {
       const outcome = await handleRewindSession(params, {
         messages,
         getAppState,
@@ -149,11 +150,11 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       })
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
-    'session/file_restore': async params => {
+    [SESSION_VERBS.fileRestore.runner.name]: async params => {
       const outcome = await handleFileRestoreSession(params, { messages, getAppState, setAppState, drift: getReadFileCache(), turnActive: live.inFlightAbort !== null })
       return rewindOutcomeToWire(outcome) as Record<string, unknown>
     },
-    'session/set_spawn_switch': (params, ref) => {
+    [SESSION_VERBS.setSpawnSwitch.runner.name]: (params, ref) => {
       if (params.switch === 'workflows') return { switch: params.switch, on: params.on, at: SEAT_VERB_AT(false) }
       const toggle = { kind: params.switch, on: params.on }
       if (live.inFlightAbort !== null) {
@@ -164,30 +165,30 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       landSpawnSwitch(toggle.kind, toggle.on)
       return { switch: toggle.kind, on: toggle.on, at: SEAT_VERB_AT(false) }
     },
-    'credentials/changed': () => {
+    [SESSION_VERBS.credentialsChanged.runner.name]: () => {
       readGlobalConfigAgain()
       resetLimitsForCredentialSwitch()
       dropCredentialMemos()
       readOpenaiAccountAgain()
       noteCrewAccountChange()
     },
-    'mcp/action': (params, _ref, signal) => mcpAction(params, signal, ports),
-    'mcp/tools': params => mcpTools(params, ports),
-    'session/set_kit': params => setSessionKit(params, ports),
-    'session/pause_gate': params => {
+    [SESSION_VERBS.mcpAction.runner.name]: (params, _ref, signal) => mcpAction(params, signal, ports),
+    [SESSION_VERBS.mcpTools.runner.name]: params => mcpTools(params, ports),
+    [SESSION_VERBS.setKit.runner.name]: params => setSessionKit(params, ports),
+    [SESSION_VERBS.pauseGate.runner.name]: params => {
       const changed = params.paused ? operatorPauseGate.pause() : operatorPauseGate.resume()
       return { paused: operatorPauseGate.paused(), parked: operatorPauseGate.parked().length, changed }
     },
-    'shell/background': () => {
+    [SESSION_VERBS.backgroundShell.runner.name]: () => {
       const taken = requestShellBackground()
       if (taken > 0) return { taken }
       throw refused('no shell command is running in the main conversation', 'no-shell')
     },
-    'session/send_now': () => {
+    [SESSION_VERBS.sendNow.runner.name]: () => {
       if (live.inFlightAbort === null) return SEND_NOW_NOTHING_QUEUED
       return sendQueuedWordsNow(getAppState, setAppState)
     },
-    'session/board_post': params => {
+    [SESSION_VERBS.postBoard.runner.name]: params => {
       const receipt = swarmOwnerPost({ clientOpId: params.client_op_id, channel: params.channel, ...(params.target === undefined ? {} : { target: params.target }), text: params.text })
       if (!receipt.ok) return { ok: false as const, reason: receipt.reason, ...(receipt.candidates ? { candidates: receipt.candidates } : {}) }
       return { ok: true as const, event_id: receipt.eventId, seq: receipt.seq, replay: receipt.replay, address: receipt.channel.kind === 'general' ? 'all' : receipt.channel.target, recipients: receipt.recipients }
@@ -201,7 +202,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
         for (const row of drainRows()) enqueueRow(row)
       }
     },
-    'session/quiesce': async params => {
+    [SESSION_VERBS.quiesce.runner.name]: async params => {
       const answer = await quiescence.request({ subtype: 'quiesce', action: params.action, token: params.token })
       if (!answer.ok) throw refused(answer.reason, 'quiesce')
       if (answer.phase === 'committed') {
@@ -211,7 +212,7 @@ export function runnerArmsOf(ports: RunnerPorts): RunnerArms {
       }
       return { token: answer.token, phase: answer.phase }
     },
-    'session/leave': async (_params, _ref, signal) => {
+    [SESSION_VERBS.leave.runner.name]: async (_params, _ref, signal) => {
       if (live.inFlightAbort !== null || live.leaveAbort !== null) return { note: 'skipped', ledger: 'absent' }
       const controller = new AbortController()
       live.leaveAbort = controller

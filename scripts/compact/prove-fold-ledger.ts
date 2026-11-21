@@ -36,9 +36,11 @@ assert.equal(JSON.parse(renderFoldLedger(ledger).split('\n\n')[1]!).tools.length
 const boundary = createCompactBoundaryMessage('manual', 100)
 boundary.compactMetadata.ledger = ledger
 const repeated = buildFoldLedger([boundary], owner, 2)
-assert.deepEqual(repeated.operator, ledger.operator)
-assert.deepEqual(repeated.tools, ledger.tools)
-assert.deepEqual(repeated.files, ledger.files)
+const chain: NonNullable<typeof boundary.compactMetadata.ledger>[] = [ledger, repeated]
+for (const key of ['operator', 'tools', 'files'] as const) {
+  const witnesses = chain.flatMap(l => [...l[key]].filter(row => l.version !== 1 || row.epoch === l.epoch))
+  assert.deepEqual(witnesses, ledger[key], `every ${key} witness is preserved once across the two boundaries`)
+}
 const repeatedIndex = JSON.parse(renderFoldLedger(repeated).split('\n\n')[1]!) as { tools: unknown[]; files: unknown[]; operator: { messages: number }; earlierFolds: { tools: number; files: number; operatorMessages: number; records: number }; witnessesInBoundary: { argumentHashes: number; operatorHashes: number } }
 assert.equal(repeatedIndex.tools.length, 0, 'the second fold\'s index carries only its own stretch (no new tool here)')
 assert.equal(repeatedIndex.files.length, 0)
@@ -46,10 +48,11 @@ assert.equal(repeatedIndex.operator.messages, 0)
 assert.deepEqual([repeatedIndex.earlierFolds.tools, repeatedIndex.earlierFolds.files, repeatedIndex.earlierFolds.operatorMessages, repeatedIndex.earlierFolds.records], [3, 1, 1, 4], 'the earlier fold is counted, not repeated')
 assert.deepEqual([repeatedIndex.witnessesInBoundary.argumentHashes, repeatedIndex.witnessesInBoundary.operatorHashes], [3, 1], 'the boundary record still holds every witness')
 assert.ok(!('openAsks' in repeatedIndex), 'no per-message open-ask rows ride in the index')
-assert.ok(ledger.tools.every(tool => tool.epoch === 1) && repeated.sourceRecordIds.length === 5 && repeated.priorRecords === 4)
+const ids = chain.flatMap(l => l.sourceRecordIds.slice(l.version === 1 ? l.priorRecords : 0))
+assert.ok(ledger.tools.every(tool => tool.epoch === 1) && ids.length === 5 && new Set(ids).size === 5 && repeated.priorRecords === 4, 'buildFoldLedger must preserve five distinct source IDs across both boundaries, four prior records and epoch 1 on first-fold tools; check foldLedger.ts')
 const operatorAttachment = { type: 'attachment', attachment: selected } as never
 const fit = fitPostCompactUnderThreshold({ boundaryMarker: boundary, summaryMessages: [], attachments: [], hookResults: [], operatorMessages: operatorAttachment, preCompactTokenCount: 100, postCompactTokenCount: 0 }, 10)
 assert.equal(fit.result.operatorMessages, operatorAttachment)
-assert.ok(fit.estimate >= 10)
+assert.ok(fit.estimate >= 10, `fitPostCompactUnderThreshold returned estimate=${fit.estimate}, expected >=10 when unsheddable operator block remains; check compact fit estimator`)
 assert.throws(() => selectOperatorMessages(messages, { tokenBudget: 1 }), /original context is kept/)
 console.log('PASS source-ID coverage, operator witnesses, actual rc/unknown outcomes, observed file anchors, repeated folds and unsheddable operator block')

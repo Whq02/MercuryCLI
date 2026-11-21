@@ -78,7 +78,7 @@ try {
   const tools = await client.listTools()
   const schema = tools.tools.find(tool => tool.name === 'image_generate')!.inputSchema
   for (const key of ['workflow', 'dry', 'export_workflow', 'cfg', 'clip_skip']) assert.ok(schema.properties?.[key], key)
-  assert.ok(!(schema.required as string[] | undefined)?.includes('prompt'))
+  assert.ok(!(schema.required as string[] | undefined)?.includes('prompt'), `image_generate schema still marks prompt required when workflow is supported (required=${JSON.stringify(schema.required)}); check media server schema`)
   const generate = (args: Record<string, unknown>) => client.callTool({ name: 'image_generate', arguments: { wait: true, cwd: proofHome, ...args } })
   const text = (result: Awaited<ReturnType<typeof generate>>) => (result.content as Array<{ text: string }>)[0]!.text
   const refused = await generate({ workflow: join(dir, 'unsupported-api.json') })
@@ -103,7 +103,7 @@ try {
   assert.match(result.mask, /run[\\/]workflow-masks[\\/][a-f0-9]{64}\.png$/)
   assert.equal(result.workflow.format, 'api')
   assert.equal(result.workflow.mapping.find((entry: { node: string }) => entry.node === '14').note, 'the mask is the transparent area of wall.png, grown by 6 pixels')
-  assert.ok((generated.content as Array<{ type: string }>).some(part => part.type === 'image'))
+  assert.ok((generated.content as Array<{ type: string }>).some(part => part.type === 'image'), `workflow image_generate response missing image content block (types=${(generated.content as Array<{ type: string }>).map(p => p.type).join(',')}); check media server`)
   const calls = readFileSync(join(root, 'engine-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line))
   const render = calls.find(call => call.route === 'img_gen').body
   assert.deepEqual([render.width, render.height, render.seed, render.strength, render.control_strength, render.lora.length, render.lora[0].multiplier], [64, 64, 7, 1, 0.5, 1, 0.6])

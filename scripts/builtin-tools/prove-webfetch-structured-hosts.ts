@@ -236,7 +236,7 @@ const callFetch = async (url: string): Promise<{ code: number; result: string }>
     { url },
     { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never,
   )
-  assert.ok('data' in res)
+  assert.ok('data' in res, `WebFetchTool.call(${url}) in src/tools/WebFetchTool/WebFetchTool.ts must return a data payload`)
   return { code: res.data.code, result: res.data.result }
 }
 

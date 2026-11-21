@@ -24,7 +24,7 @@ try {
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   saveVendorKey('runpod', rp.key)
   const recipe = HOST_RECIPES.find(row => row.nodes === 2 && row.gpu === 'B200')!
-  assert.ok(recipe)
+  assert.ok(recipe, `HOST_RECIPES missing 2-node B200 cluster recipe (total=${HOST_RECIPES.length}); check src/services/host/recipes.ts`)
   const notices = (id: string): string[] => readdirSync(join(f.home, 'host/notices')).filter(name => name.endsWith('.json')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === id).map(row => row.words)
   for (const mode of ['shape-mismatch', 'node-lost', 'cuda', 'placement', 'tunnel-failed', 'tunnel-delete-held', 'tunnel-listing-unavailable', 'head-oom', 'node-launch', 'worker-exit', 'delete-held', 'listing-unavailable', 'read-paused', 'repriced'] as const) {
     const id = 'cluster-' + mode

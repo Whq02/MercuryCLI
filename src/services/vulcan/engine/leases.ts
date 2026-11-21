@@ -9,13 +9,9 @@ import { holderAlive } from '../../../substrate/pidLock.js'
 import { getProcessStartTokensAsync } from '../../../utils/ownerWatch.js'
 import { selectedTreeChanges, type ProofTreeFacts } from './proofDrift.js'
 import { passedOver } from '../../../utils/passedOver.js'
+import type { LeaseHolder } from '../../../utils/run/ownerContext.js'
 
-export interface LeaseHolder {
-  sessionId: string
-  agentId: string
-  pid: number
-  procStart?: string
-}
+export type { LeaseHolder } from '../../../utils/run/ownerContext.js'
 
 interface ProjectLease {
   path: string

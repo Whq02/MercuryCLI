@@ -48,7 +48,10 @@ function check(label: string, ok: boolean) {
   if (!ok) failures++
 }
 try {
-  for (const member of crew) assert.ok(!('state' in await sessions.ensureBrowserSession(member)))
+  for (const member of crew) {
+    const ensured = await sessions.ensureBrowserSession(member)
+    assert.ok(!('state' in ensured), `ensureBrowserSession(${member}) failed unexpectedly in src/services/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
+  }
   const fourth = await sessions.ensureBrowserSession(owner('agent:d'))
   check('three children retain their existing allowance', 'state' in fourth && fourth.state === 'at-capacity')
   check('three idle children cannot consume the lead slot', !('state' in await sessions.ensureBrowserSession(lead)))

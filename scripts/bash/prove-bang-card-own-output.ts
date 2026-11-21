@@ -44,7 +44,8 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
 const { processBashCommand } = await import('../../src/services/processUserInput/processBashCommand.tsx')
-const { resetSessionEnvNoticeForTesting } = await import('../../src/tools/shared/sessionEnvNotice.ts')
+const { disposeOwner } = await import('../../src/utils/run/ownerLifecycle.ts')
+const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 const { formatError } = await import('../../src/utils/toolErrors.ts')
 const { extractTag } = await import('../../src/utils/messages.ts')
 const { unescapeXml } = await import('../../src/utils/xml.js')
@@ -83,7 +84,7 @@ console.log(" The `!` card — a failed command's transcript row shows what it p
 console.log('============================================================')
 
 section('§1 the model side keeps the note: a failed Bash tool call, the first of the session')
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 let modelText = ''
 let thrownStderr = ''
 try {
@@ -98,7 +99,7 @@ check("the model's result carries the full scrub note with the inherit hint", mo
 check("the note rides the result as its own line after the command's output, not inside the output", modelText.indexOf('Exited with code 7') >= 0 && modelText.indexOf('[session env scrubbed') > modelText.indexOf('Exited with code 7') && !thrownStderr.includes('[session env scrubbed'), clip(thrownStderr))
 
 section('§2 the operator\'s `!` card: a failed command as the first scrubbing command of the session')
-resetSessionEnvNoticeForTesting()
+await disposeOwner(processMainOwner())
 const failed = await bangCard(COMMAND)
 console.log(`        the card's stderr reads ${clip(failed?.stderr ?? '(no card)')}`)
 check('the transcript carries the card row with the exit code', failed !== null && failed.code === '7', failed === null ? 'no <bash-stdout> row' : `code ${failed.code}`)
@@ -116,6 +117,7 @@ try {
 }
 check("a later failed tool call that names a stamp still tells the model the short line", laterText.includes('[session env scrubbed: MERCURY_SEATS]') && laterText.startsWith('Shell command failed (exit code 3)'), clip(laterText))
 
+await disposeOwner(processMainOwner())
 rmSync(SCRATCH, { recursive: true, force: true })
 rmSync(process.env.MERCURY_CONFIG_DIR as string, { recursive: true, force: true })
 console.log(failures === 0 ? '\nALL BANG-CARD PROOFS PASS' : `\n${failures} BANG-CARD PROOF(S) FAILED`)

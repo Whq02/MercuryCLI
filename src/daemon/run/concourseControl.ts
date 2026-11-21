@@ -8,7 +8,8 @@ import { answerPermissionAsk } from '../permissionAsks.js'
 import type { TaskRoster } from '../roster.js'
 import { dropSaturnSelfWakes, type SaturnSelfWakeDropWhy } from '../saturn.js'
 import { applyConcourseContractOp } from '../sessionContract.js'
-import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, backgroundSessionShell, sendSessionNow, pauseSessionGate, postSessionBoard, leaveSession } from '../sessionSeat.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
+import { controlSessionAgent, applySeatScheduleControl, onSeatSpawned, pushScheduleRosterForSession, refreshSessionFacts, setSessionEffort, setSessionKitDial, actOnSessionMcp, listSessionMcpTools, setSessionModel, setSessionPermissionMode, setSessionSpawnSwitch, withdrawSessionSend, isGenericSeatVerb, forwardGenericSeatVerb, pauseSessionGate, postSessionBoard, leaveSession } from '../sessionSeat.js'
 import type { DaemonRunState } from './state.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
 import { errorMessage } from '../../utils/errors.js'
@@ -55,9 +56,9 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       }
       return r
     }
-    if (action === 'answer-permission') {
+    if (action === SESSION_VERBS.answerAsk.daemon.action) {
       if (requestId === undefined || requestId === '') {
-        return { outcome: 'refused' as const, detail: 'answer-permission requires requestId' }
+        return { outcome: 'refused' as const, detail: `${SESSION_VERBS.answerAsk.daemon.action} requires requestId` }
       }
       return answerPermissionAsk(
         requestId,
@@ -96,13 +97,13 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
         answer as Parameters<typeof answerPermissionAsk>[4],
       )
     }
-    if (action === 'park-all') {
+    if (action === SESSION_VERBS.parkAll.daemon.action) {
       const all = parkAllConcourseSessions(by, roster ?? undefined, undefined, {
         reason: undefined,
         exceptFocusedByLiveTerminal: true,
       })
       console.error(
-        `[daemon] park-all by ${by}: parked ${all.parked.length}, draining ${all.draining.length}, released ${all.released.length} newborn(s), skipped ${all.skipped.length}${all.refused.length > 0 ? `, refused ${all.refused.join(', ')}` : ''}`,
+        `[daemon] ${SESSION_VERBS.parkAll.daemon.action} by ${by}: parked ${all.parked.length}, draining ${all.draining.length}, released ${all.released.length} newborn(s), skipped ${all.skipped.length}${all.refused.length > 0 ? `, refused ${all.refused.join(', ')}` : ''}`,
       )
       return {
         outcome: 'applied' as const,
@@ -113,7 +114,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
       r => r.sessionId === sessionId && r.endedAt === undefined,
     )
     if (!rec) return settle({ outcome: 'refused' as const, detail: 'unknown-session: no live worker record owns this session' })
-    if (action === 'park') {
+    if (action === SESSION_VERBS.park.daemon.action) {
       if (roster && rec.pid !== undefined && !isNewbornRecord(rec) && !turnInFlightOf(rec) && workerPidAlive(rec) && rec.attachedAt === undefined) {
         const retired = await retireConcourseSession(sessionId, by, roster)
         return retired.outcome === 'parked'
@@ -129,106 +130,102 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
             ? { outcome: 'draining' as const, detail: `${out.runnerId} finishes its turn, then parks` }
             : { outcome: 'applied' as const, detail: out.released ? `released newborn ${out.runnerId}` : `parked ${out.runnerId}` }
     }
-    if (action === 'set-title') {
+    if (action === SESSION_VERBS.setTitle.daemon.action) {
       return settle(setConcourseSessionTitle(sessionId, title ?? '', by, titleSource === 'minted' ? 'minted' : 'operator'))
     }
-    if (action === 'contract') {
-      if (contract === undefined) return { outcome: 'refused' as const, detail: 'contract requires { contract: { op, text? } }' }
+    if (action === SESSION_VERBS.contract.daemon.action) {
+      if (contract === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.contract.daemon.action} requires { contract: { op, text? } }` }
       return settle(applyConcourseContractOp(sessionId, contract, by))
     }
-    if (action === 'set-schedule') {
-      if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: 'set-schedule requires { scheduleEdit: { op, schedule? | scheduleId? } }' }
+    if (action === SESSION_VERBS.setSchedule.daemon.action) {
+      if (scheduleEdit === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setSchedule.daemon.action} requires { scheduleEdit: { op, schedule? | scheduleId? } }` }
       return settle(applySeatScheduleControl(sessionId, scheduleEdit, by, roster))
     }
-    if (action === 'mcp-action') {
+    if (action === SESSION_VERBS.mcpAction.daemon.action) {
       if (!mcpAction || !roster) return { outcome: 'refused' as const, detail: 'the MCP action or runner is unavailable' }
       return actOnSessionMcp(sessionId, mcpAction, roster)
     }
-    if (action === 'mcp-tools') {
+    if (action === SESSION_VERBS.mcpTools.daemon.action) {
       if (!mcpServer || !roster) return { outcome: 'refused' as const, detail: 'the MCP server or runner is unavailable' }
       return listSessionMcpTools(sessionId, mcpServer, roster)
     }
-    if (action === 'set-kit') {
-      if (kitEdit === undefined) return { outcome: 'refused' as const, detail: 'set-kit requires { kitEdit: { mcp?, skills?, extensions? } }' }
+    if (action === SESSION_VERBS.setKit.daemon.action) {
+      if (kitEdit === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setKit.daemon.action} requires { kitEdit: { mcp?, skills?, extensions? } }` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       const dialed = setSessionKitDial(sessionId, kitEdit, by, roster)
       return dialed.outcome === 'queued'
         ? dialed
         : settle({ outcome: dialed.outcome, ...(dialed.detail !== undefined ? { detail: dialed.detail } : {}) })
     }
-    if (action === 'set-model') {
-      if (model === undefined || model === '') return { outcome: 'refused' as const, detail: 'set-model requires model' }
+    if (action === SESSION_VERBS.setModel.daemon.action) {
+      if (model === undefined || model === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setModel.daemon.action} requires model` }
       return roster !== null ? await setSessionModel(sessionId, model, roster, undefined, words) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
-    if (action === 'set-effort') {
-      if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: 'set-effort requires effort' }
+    if (action === SESSION_VERBS.setEffort.daemon.action) {
+      if (effort === undefined || effort === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setEffort.daemon.action} requires effort` }
       return roster !== null ? setSessionEffort(sessionId, effort, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
-    if (action === 'set-spawn-switch') {
-      if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: 'set-spawn-switch requires { spawnSwitch: { kind: subagents|workflows, on } }' }
+    if (action === SESSION_VERBS.setSpawnSwitch.daemon.action) {
+      if (spawnSwitch === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setSpawnSwitch.daemon.action} requires { spawnSwitch: { kind: subagents|workflows, on } }` }
       if (spawnSwitch.kind === 'workflows') return { outcome: 'noop' as const }
       return roster !== null ? setSessionSpawnSwitch(sessionId, { kind: spawnSwitch.kind, on: spawnSwitch.on }, by, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
-    if (action === 'set-permission-mode') {
-      if (mode === undefined || mode === '') return { outcome: 'refused' as const, detail: 'set-permission-mode requires mode' }
+    if (action === SESSION_VERBS.setPermissionMode.daemon.action) {
+      if (mode === undefined || mode === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.setPermissionMode.daemon.action} requires mode` }
       return roster !== null ? setSessionPermissionMode(sessionId, mode, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
-    if (action === 'session-facts') {
+    if (action === SESSION_VERBS.sessionFacts.daemon.action) {
       return roster !== null ? refreshSessionFacts(sessionId, roster) : { outcome: 'refused' as const, detail: 'daemon roster not ready' }
     }
-    if (action === 'focus' || action === 'blur') {
-      const out = action === 'focus' ? focusConcourseSession(sessionId, by, undefined, terminalApplication) : blurConcourseSession(sessionId, by)
+    if (action === SESSION_VERBS.focus.daemon.action || action === SESSION_VERBS.blur.daemon.action) {
+      const out = action === SESSION_VERBS.focus.daemon.action ? focusConcourseSession(sessionId, by, undefined, terminalApplication) : blurConcourseSession(sessionId, by)
       if (out.outcome === 'applied') {
-        const left = action === 'focus' && out.cleared.length > 0 ? ` — seat left ${out.cleared.join(', ')}` : ''
+        const left = action === SESSION_VERBS.focus.daemon.action && out.cleared.length > 0 ? ` — seat left ${out.cleared.join(', ')}` : ''
         return { outcome: 'applied' as const, detail: `${action} ${out.runnerId}${left}` }
       }
       return out.outcome === 'noop'
         ? { outcome: 'noop' as const, detail: out.reason }
         : { outcome: 'refused' as const, detail: out.reason }
     }
-    if (action === 'interrupt') {
+    if (action === SESSION_VERBS.interrupt.daemon.action) {
       const door = roster?.door(rec.runnerId)
       if (door === undefined) return settle({ outcome: 'refused' as const, detail: 'worker has no live runner door' })
       if (door.closed) return settle({ outcome: 'refused' as const, detail: 'the interrupt did not reach the runner: its door is closed' })
-      const sent = door.send('turn/interrupt', { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
+      const sent = door.send(SESSION_VERBS.interrupt.runner.name, { ...(clientOpId !== undefined ? { op_id: `concourse-interrupt-${clientOpId}` } : {}), ...(hard === true ? { hard: true } : {}) })
       sent.answer.catch(passedOverAs(undefined))
       dropSelfWakesAtFlip(sessionId, by, 'interrupted', roster)
-      return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : 'interrupt'} ${rec.runnerId}` })
+      return settle({ outcome: 'applied' as const, detail: `${hard === true ? 'second interrupt' : SESSION_VERBS.interrupt.daemon.action} ${rec.runnerId}` })
     }
-    if (action === 'stop-agent' || action === 'resume-agent') {
+    if (action === SESSION_VERBS.stopAgent.daemon.action || action === SESSION_VERBS.resumeAgent.daemon.action) {
       if (agentId === undefined || agentId === '') return { outcome: 'refused' as const, detail: `${action} requires agentId` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       return controlSessionAgent(sessionId, agentId, action, roster, undefined, note !== undefined ? { note } : undefined)
     }
-    if (action === 'withdraw-send') {
-      if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: 'withdraw-send requires clientMessageId' }
+    if (action === SESSION_VERBS.withdrawSend.daemon.action) {
+      if (clientMessageId === undefined || clientMessageId === '') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.withdrawSend.daemon.action} requires clientMessageId` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       return withdrawSessionSend(sessionId, clientMessageId, roster)
     }
-    if (action === 'background-shell') {
+    if (isGenericSeatVerb(action)) {
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
-      return backgroundSessionShell(sessionId, roster)
+      return forwardGenericSeatVerb(sessionId, action, roster)
     }
-    if (action === 'send-now') {
-      if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
-      return sendSessionNow(sessionId, roster)
-    }
-    if (action === 'board-post') {
-      if (boardPost === undefined) return { outcome: 'refused' as const, detail: 'board-post requires { boardPost: { clientOpId, channel, target?, text } }' }
+    if (action === SESSION_VERBS.postBoard.daemon.action) {
+      if (boardPost === undefined) return { outcome: 'refused' as const, detail: `${SESSION_VERBS.postBoard.daemon.action} requires { boardPost: { clientOpId, channel, target?, text } }` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       return postSessionBoard(sessionId, boardPost, roster)
     }
-    if (action === 'pause-gate') {
-      if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: 'pause-gate requires paused' }
+    if (action === SESSION_VERBS.pauseGate.daemon.action) {
+      if (typeof paused !== 'boolean') return { outcome: 'refused' as const, detail: `${SESSION_VERBS.pauseGate.daemon.action} requires paused` }
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       return pauseSessionGate(sessionId, paused, roster)
     }
-    if (action === 'leave') {
+    if (action === SESSION_VERBS.leave.daemon.action) {
       if (roster === null) return { outcome: 'refused' as const, detail: 'daemon roster not ready' }
       return leaveSession(sessionId, roster)
     }
-    if (action === 'stop') {
-      roster?.door(rec.runnerId)?.request('turn/interrupt', { hard: true }).catch(passedOver)
+    if (action === SESSION_VERBS.stop.daemon.action) {
+      roster?.door(rec.runnerId)?.request(SESSION_VERBS.interrupt.runner.name, { hard: true }).catch(passedOver)
       const out = stopConcourseSession(sessionId, by, roster ?? undefined)
       if (out.outcome === 'applied') dropSelfWakesAtFlip(sessionId, by, 'stopped')
       return out.outcome === 'refused'
@@ -239,13 +236,13 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
             ? { outcome: 'applied' as const, detail: `stopped ${out.runnerId}` }
             : { outcome: 'applied' as const, detail: `stop sent — ${out.runnerId} ends its turn and its crewmates; the row reads stopped once it is gone` }
     }
-    if (action === 'attach') {
+    if (action === SESSION_VERBS.attach.daemon.action) {
       const out = attachYieldConcourseSession(sessionId, by, roster ?? undefined)
       return out.outcome === 'refused'
         ? { outcome: 'refused' as const, detail: out.detail ?? out.reason }
         : { outcome: out.outcome, detail: out.runnerId }
     }
-    if (action === 'detach') {
+    if (action === SESSION_VERBS.detach.daemon.action) {
       const out = detachRespawnConcourseSession(sessionId, by, roster ?? undefined, undefined, {
         ...(mintedAtMs !== undefined ? { mintedAtMs } : {}),
       })
@@ -258,12 +255,12 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
           ? { outcome: 'noop' as const, detail: out.reason }
           : { outcome: 'refused' as const, detail: out.detail ?? out.reason }
     }
-    if (action === 'grant-workflows' || action === 'revoke-workflows') {
+    if (action === SESSION_VERBS.grantWorkflows.daemon.action || action === SESSION_VERBS.revokeWorkflows.daemon.action) {
       const out =
-        action === 'grant-workflows'
+        action === SESSION_VERBS.grantWorkflows.daemon.action
           ? grantConcourseWorkflows(sessionId, by)
           : revokeConcourseWorkflows(sessionId, by)
-      if (action === 'grant-workflows' && out.outcome === 'applied' && roster !== null) {
+      if (action === SESSION_VERBS.grantWorkflows.daemon.action && out.outcome === 'applied' && roster !== null) {
         const r = roster
         void buildConcoursePromptRow(
           '[switchboard notice] The crewmates-allowed tag just landed on this session — crewmates are available from your next turn. Automated notice; no reply needed.',
@@ -280,13 +277,16 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
               detail: out.reason === 'cap-one' && out.detail !== undefined ? out.detail : out.reason,
             }
     }
-    if (action === 'pause') {
+    if (action === SESSION_VERBS.pause.daemon.action) {
       const out = pauseConcourseWorker(rec.runnerId, by)
       return settle(
         out.outcome === 'applied'
-          ? { outcome: 'applied' as const, detail: `pause ${rec.runnerId}` }
+          ? { outcome: 'applied' as const, detail: `${SESSION_VERBS.pause.daemon.action} ${rec.runnerId}` }
           : { outcome: out.outcome, detail: out.reason },
       )
+    }
+    if (action !== SESSION_VERBS.resume.daemon.action) {
+      return { outcome: 'refused' as const, detail: `unknown session action: ${action}` }
     }
     const out = resumeConcourseWorker(rec.runnerId, by)
     if (out.outcome === 'refused') return settle({ outcome: 'refused' as const, detail: out.reason })
@@ -304,10 +304,10 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
         rev.outcome === 'applied'
           ? {
               outcome: 'applied' as const,
-              detail: `resume ${rec.runnerId} — revived${rev.pid !== undefined ? ` (pid ${rev.pid})` : ''}`,
+              detail: `${SESSION_VERBS.resume.daemon.action} ${rec.runnerId} — revived${rev.pid !== undefined ? ` (pid ${rev.pid})` : ''}`,
             }
           : rev.outcome === 'noop'
-            ? { outcome: 'applied' as const, detail: `resume ${rec.runnerId}` }
+            ? { outcome: 'applied' as const, detail: `${SESSION_VERBS.resume.daemon.action} ${rec.runnerId}` }
             : {
                 outcome: 'refused' as const,
                 detail: `the valve opened but the session could not be revived: ${rev.detail ?? rev.reason}`,
@@ -316,7 +316,7 @@ export function makeConcourseControl(state: DaemonRunState, { concourseDispatchH
     }
     return settle(
       out.outcome === 'applied'
-        ? { outcome: 'applied' as const, detail: `resume ${rec.runnerId}` }
+        ? { outcome: 'applied' as const, detail: `${SESSION_VERBS.resume.daemon.action} ${rec.runnerId}` }
         : { outcome: out.outcome, detail: out.reason },
     )
   }

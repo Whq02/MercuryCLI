@@ -1,38 +1,13 @@
 
 import type { ProcessSweepDaemonAnswer, ProcessSweepEntry } from './processSweep.js'
 import type { SessionKitEditV1, SessionKitV1 } from './sessionKit.js'
+import { DAEMON_VERB_BORN_AT, type DaemonOpFor, type SessionControlAction } from '../runner/wire/sessionVerbs.js'
 
 export const MERCURY_DAEMON_PROTO = 19
 
 export const MIN_PROTO = 1
 
-export const DAEMON_VERB_BORN_AT: Readonly<Record<string, number>> = {
-  hello: 2,
-  'restart-when-idle': 2,
-  sessionAdmit: 3,
-  sessionDispatch: 3,
-  sessionList: 3,
-  sessionRelease: 3,
-  sessionControl: 3,
-  'sessionControl/set-effort': 3,
-  'sessionControl/contract': 3,
-  sessionRewind: 5,
-  'sessionControl/set-spawn-switch': 6,
-  signIns: 7,
-  'sessionControl/stop-agent': 8,
-  'sessionControl/resume-agent': 8,
-  'sessionControl/withdraw-send': 9,
-  processSweep: 10,
-  'sessionControl/background-shell': 11,
-  'sessionControl/pause-gate': 12,
-  'sessionControl/leave': 14,
-  'sessionControl/mcp-action': 15,
-  'sessionControl/mcp-tools': 16,
-  sessionFileRestore: 17,
-  'sessionControl/send-now': 18,
-  'sessionControl/board-post': 19,
-}
-
+export { DAEMON_VERB_BORN_AT }
 export type BoardPostRequestV1 = { clientOpId: string; channel: 'general' | 'team' | 'whisper'; target?: string; text: string }
 
 export function verbBornAt(op: string, action?: string): number {
@@ -162,7 +137,7 @@ export type DaemonRequest =
       effort?: string
     }
   | {
-      op: 'sessionAdmit' | 'concourseAdmit'
+      op: DaemonOpFor<'sessionAdmit'>
       proto?: number
       auth?: string
       workspaceDir: string
@@ -183,11 +158,11 @@ export type DaemonRequest =
       runnerArgv?: string[]
       vacatingSessionId?: string
     }
-  | { op: 'sessionList' | 'concourseList'; proto?: number; auth?: string }
-  | { op: 'concourseWithdraw'; proto?: number; auth?: string; clientMessageId: string }
-  | { op: 'sessionRelease' | 'concourseRelease'; proto?: number; auth?: string; runnerId: string }
+  | { op: DaemonOpFor<'sessionList'>; proto?: number; auth?: string }
+  | { op: DaemonOpFor<'concourseWithdraw'>; proto?: number; auth?: string; clientMessageId: string }
+  | { op: DaemonOpFor<'sessionRelease'>; proto?: number; auth?: string; runnerId: string }
   | {
-      op: 'concourseWarm'
+      op: DaemonOpFor<'concourseWarm'>
       proto?: number
       auth?: string
       workspaceDir: string
@@ -197,42 +172,10 @@ export type DaemonRequest =
       bypassConsent?: true
     }
   | {
-      op: 'sessionControl' | 'concourseControl'
+      op: DaemonOpFor<'sessionControl'>
       proto?: number
       auth?: string
-      action:
-        | 'pause'
-        | 'resume'
-        | 'interrupt'
-        | 'attach'
-        | 'detach'
-        | 'grant-workflows'
-        | 'revoke-workflows'
-        | 'answer-permission'
-        | 'stop'
-        | 'set-model'
-        | 'set-permission-mode'
-          | 'session-facts'
-        | 'set-title'
-        | 'focus'
-        | 'blur'
-        | 'park'
-        | 'park-all'
-        | 'mcp-action'
-        | 'mcp-tools'
-        | 'set-spawn-switch'
-        | 'stop-agent'
-        | 'resume-agent'
-        | 'withdraw-send'
-        | 'background-shell'
-        | 'pause-gate'
-        | 'leave'
-        | 'set-effort'
-        | 'contract'
-        | 'set-kit'
-        | 'set-schedule'
-        | 'send-now'
-        | 'board-post'
+      action: SessionControlAction
       sessionId: string
       by: string
       reason?: string
@@ -266,7 +209,7 @@ export type DaemonRequest =
       mintedAtMs?: number
     }
   | {
-      op: 'sessionDispatch' | 'concourseDispatch'
+      op: DaemonOpFor<'sendWords'>
       origin?: import('../utils/messages/outsideReport.js').OutsideReportOrigin
       proto?: number
       auth?: string
@@ -289,7 +232,7 @@ export type DaemonRequest =
       kitPreset?: string
     }
   | {
-      op: 'hello'
+      op: DaemonOpFor<'hello'>
       proto?: number
       clientVersion?: string
       clientBuildTree?: string | null
@@ -297,13 +240,13 @@ export type DaemonRequest =
       clientKind?: 'screen' | 'client'
     }
   | {
-      op: 'restart-when-idle'
+      op: DaemonOpFor<'restartWhenIdle'>
       proto?: number
       auth?: string
       by?: string
     }
   | {
-      op: 'sessionRewind'
+      op: DaemonOpFor<'rewind'>
       proto?: number
       auth?: string
       sessionId: string
@@ -312,21 +255,20 @@ export type DaemonRequest =
       userMessageId: string
       dryRun?: boolean
     }
-  | ({ op: 'sessionFileRestore'; proto?: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
+  | ({ op: DaemonOpFor<'fileRestore'>; proto?: number; auth?: string; sessionId: string; by: string } & SessionFileRestoreRequest)
   | {
-      op: 'signIns'
+      op: DaemonOpFor<'signIns'>
       proto?: number
       auth?: string
       refresh?: true
     }
   | {
-      op: 'processSweep'
+      op: DaemonOpFor<'processSweep'>
       proto?: number
       auth?: string
       action: 'facts' | 'end'
       expected?: ProcessSweepEntry
     }
-
 export interface SignInFamilyViewV1 {
   family: string
   credentialed: boolean
@@ -420,7 +362,7 @@ export type DaemonReply =
   | { ok: true; op: 'reconfigure'; respawned: boolean; pending: boolean; note?: string }
   | {
       ok: true
-      op: 'sessionAdmit' | 'concourseAdmit'
+      op: DaemonOpFor<'sessionAdmit'>
       runnerId: string
       workerId: string
       sessionId: string
@@ -437,10 +379,10 @@ export type DaemonReply =
       presetName?: string
       presetNote?: string
     }
-  | { ok: true; op: 'sessionList' | 'concourseList'; workers: ReadonlyArray<Record<string, unknown>> }
+  | { ok: true; op: DaemonOpFor<'sessionList'>; workers: ReadonlyArray<Record<string, unknown>> }
   | {
       ok: true
-      op: 'sessionDispatch' | 'concourseDispatch'
+      op: DaemonOpFor<'sendWords'>
       clientMessageId: string
       state: string
       stateRevision: number
@@ -452,17 +394,17 @@ export type DaemonReply =
       presetName?: string
       presetNote?: string
     }
-  | { ok: true; op: 'sessionRelease' | 'concourseRelease'; settled: boolean; killed: boolean }
-  | { ok: true; op: 'sessionControl' | 'concourseControl'; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: McpToolsV1 }
-  | ({ ok: true; op: 'sessionRewind' } & SessionRewindOutcomeV1)
-  | ({ ok: true; op: 'sessionFileRestore' } & SessionRewindOutcomeV1)
-  | { ok: true; op: 'concourseWithdraw'; withdrawn: boolean }
-  | { ok: true; op: 'concourseWarm'; state: 'warmed' | 'kept' | 'refused'; detail?: string }
-  | ({ ok: true; op: 'hello'; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
-  | { ok: true; op: 'restart-when-idle'; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
-  | { ok: true; op: 'signIns'; view: DaemonSignInViewV1 }
-  | { ok: true; op: 'processSweep'; action: 'facts'; facts: ProcessSweepDaemonAnswer }
-  | { ok: true; op: 'processSweep'; action: 'end'; ended: boolean; road: 'daemon' | 'none'; reason: string }
+  | { ok: true; op: DaemonOpFor<'sessionRelease'>; settled: boolean; killed: boolean }
+  | { ok: true; op: DaemonOpFor<'sessionControl'>; outcome: 'applied' | 'noop' | 'refused' | 'draining' | 'queued'; detail?: string; respawned?: true; withdrawn?: boolean; text?: string; reason?: 'taken' | 'unknown'; mcpTools?: McpToolsV1 }
+  | ({ ok: true; op: DaemonOpFor<'rewind'> } & SessionRewindOutcomeV1)
+  | ({ ok: true; op: DaemonOpFor<'fileRestore'> } & SessionRewindOutcomeV1)
+  | { ok: true; op: DaemonOpFor<'concourseWithdraw'>; withdrawn: boolean }
+  | { ok: true; op: DaemonOpFor<'concourseWarm'>; state: 'warmed' | 'kept' | 'refused'; detail?: string }
+  | ({ ok: true; op: DaemonOpFor<'hello'>; proto: number; minProto: number; ready: boolean } & DaemonHelloFacts)
+  | { ok: true; op: DaemonOpFor<'restartWhenIdle'>; state: 'restarting' | 'armed' | 'refused'; live: number; detail?: string }
+  | { ok: true; op: DaemonOpFor<'signIns'>; view: DaemonSignInViewV1 }
+  | { ok: true; op: DaemonOpFor<'processSweep'>; action: 'facts'; facts: ProcessSweepDaemonAnswer }
+  | { ok: true; op: DaemonOpFor<'processSweep'>; action: 'end'; ended: boolean; road: 'daemon' | 'none'; reason: string }
   | {
       ok: false
       code: DaemonErrorCode

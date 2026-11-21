@@ -51,7 +51,8 @@ recordSeenLines(owner, 'fixture', 'generation', 1, 10000, alternating)
 assert.deepEqual(seenLinesOf(owner, 'fixture', 'generation')?.ranges,
   Array.from({ length: 256 }, (_, i) => ({ start: 9490 + i * 2, end: 9490 + i * 2 })))
 recordSeenLines(owner, 'fixture', 'generation', 9999, 2)
-assert.ok(seenLinesOf(owner, 'fixture', 'generation')?.ranges.some(r => r.start <= 9999 && r.end >= 10000))
+const tailRanges = seenLinesOf(owner, 'fixture', 'generation')?.ranges
+assert.ok(tailRanges?.some(r => r.start <= 9999 && r.end >= 10000), `src/services/changeTransaction/seenLines.ts recordSeenLines(9999, 2) missing range covering 9999..10000: got ${JSON.stringify(tailRanges?.slice(-3))}`)
 _resetSeenLinesForTesting()
 
 for (const majority of ['LF', 'CRLF'] as const) {

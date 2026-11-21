@@ -15,15 +15,15 @@ try {
   await road(async plan => {
     if (plan.step === 'door-models') return 'Qwen3.8-27B'
     if (plan.step === 'door-model') {
-      if (removed) { returned = true; assert.ok(plan.rows?.some(row => row.value === 'connect')); assert.ok(!plan.rows?.some(row => row.value === 'key:runpod')); return null }
+      if (removed) { returned = true; assert.ok(plan.rows?.some(row => row.value === 'connect'), 'door-model missing connect row after key removal; check host key door'); assert.ok(!plan.rows?.some(row => row.value === 'key:runpod'), 'door-model still listed key:runpod after removal; check host key door'); return null }
       assert.ok(plan.rows?.some(row => row.value === 'key:runpod' && row.label === 'Runpod · Replace key / Remove key'), 'a connected vendor exposes its key controls on the model screen')
       return 'key:runpod'
     }
     if (plan.step === 'host-key-manage') { managed = true; return 'remove' }
-    if (plan.step === 'host-key-remove') { assert.ok(plan.found.includes('keep billing') || plan.willRun.includes('keep billing')); removed = true; return 'remove' }
+    if (plan.step === 'host-key-remove') { assert.ok(plan.found.includes('keep billing') || plan.willRun.includes('keep billing'), 'host-key-remove prompt missing keep-billing warning; check host key removal copy'); removed = true; return 'remove' }
     throw new Error('Unexpected screen ' + plan.step)
   }, () => {}, new AbortController().signal)
-  assert.ok(managed && removed && returned)
+  assert.ok(managed && removed && returned, `host key removal flow incomplete (managed=${managed}, removed=${removed}, returned=${returned}); check host key door`)
   assert.equal(vendorKey('runpod'), undefined)
   assert.equal(rp.state.creates, 0)
   assert.equal(rp.state.deletes, 0)

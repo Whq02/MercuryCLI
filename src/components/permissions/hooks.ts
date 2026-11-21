@@ -1,6 +1,7 @@
+import { featureReached } from '../../substrate/featureReached.js'
 import { ReadStream } from 'node:tty'
 import { useContext, useRef } from 'react'
-import { useLayoutSubscription, usePublish, useSubscription } from '../../hooks/effects.js'
+import { useClaim, useLayoutClaim, usePublish } from '../../hooks/effects.js'
 import { useStdin } from '../../ink.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../ink/events/input-event.js'
@@ -9,12 +10,13 @@ import { trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { startImmediate } from '../../utils/timers.js'
 
-export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): void {
+export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, screen?: 'ChangeSetPermissionRequest' | 'MediaPermissionRequest'): void {
   const setAppState = useSetAppState()
   const loggedToolUseId = useRef<string | null>(null)
   usePublish(() => {
     if (loggedToolUseId.current === toolUseConfirm.toolUseID) return
     loggedToolUseId.current = toolUseConfirm.toolUseID
+    if (screen) featureReached('screen', screen)
     setAppState(prev => ({
       ...prev,
       attribution: {
@@ -22,7 +24,7 @@ export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): voi
         permissionPromptCount: prev.attribution.permissionPromptCount + 1,
       },
     }))
-  }, [toolUseConfirm, setAppState])
+  }, [toolUseConfirm, setAppState, screen])
 }
 
 export function useKeysHeldUntilFirstPaint(): void {
@@ -30,7 +32,7 @@ export function useKeysHeldUntilFirstPaint(): void {
   const { stdin, internal_eventEmitter } = useStdin()
   const painted = useRef(false)
 
-  useLayoutSubscription(() => {
+  useLayoutClaim(() => {
     if (!ink) return undefined
     painted.current = false
     const typedAheadRead = (): void => {
@@ -45,7 +47,7 @@ export function useKeysHeldUntilFirstPaint(): void {
     return stop
   }, [ink, stdin])
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!ink) return undefined
     const hold = (event: InputEvent): void => {
       if (painted.current) return

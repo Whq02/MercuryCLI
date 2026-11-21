@@ -10,7 +10,7 @@ import { CancelRequestHandler } from '../../hooks/useCancelRequest.js';
 import { CommandKeybindingHandlers } from '../../hooks/useCommandKeybindings.js';
 import { useHoldsEscape } from '../../hooks/useEscapeOwned.js';
 import { GlobalKeybindingHandlers } from '../../hooks/useGlobalKeybindings.js';
-import { useSubscription } from '../../hooks/effects.js';
+import { useClaim } from '../../hooks/effects.js';
 import type { VimMode } from '../../hooks/useVimInput.js';
 import { useStdin } from '../../ink.js';
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js';
@@ -108,7 +108,7 @@ export function ChatKeys({
   };
   useHoldsEscape(helpOpen || isSearchingHistory || messageCursorActive);
   const { internal_eventEmitter } = useStdin();
-  useSubscription(() => {
+  useClaim(() => {
     const onSuspend = (): void => {
       if (!fullscreen) {
         process.stdout.write('\nMercury suspended — `fg` brings it back (ctrl+z suspends, ctrl+_ undoes input)\n');

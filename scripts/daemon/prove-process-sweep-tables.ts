@@ -31,9 +31,11 @@ await check('the birth token parses in the C and the en_GB spellings and refuses
   const c = parseProcessStartToken('Sun Sep 20 04:14:19 2026')
   const gb = parseProcessStartToken('Sun 20 Sep 04:14:19 2026')
   assert.equal(c, gb)
-  assert.ok(Number.isFinite(c) && c > 0)
-  assert.ok(Number.isNaN(parseProcessStartToken('garbage')))
-  assert.ok(Number.isNaN(parseProcessStartToken('')))
+  assert.ok(Number.isFinite(c) && c > 0, `src/daemon/processSweepPosix.ts parseProcessStartToken(C) expected positive epoch ms, got ${c}`)
+  const garbageToken = parseProcessStartToken('garbage')
+  assert.ok(Number.isNaN(garbageToken), `src/daemon/processSweepPosix.ts parseProcessStartToken('garbage') expected NaN, got ${garbageToken}`)
+  const emptyToken = parseProcessStartToken('')
+  assert.ok(Number.isNaN(emptyToken), `src/daemon/processSweepPosix.ts parseProcessStartToken('') expected NaN, got ${emptyToken}`)
 })
 
 await check('a birth token carries no zone: inside the repeated hour of a clock change it reads as the first pass, never later than the process began; outside a change, and in a zone without one, it reads exactly', () => {
@@ -532,7 +534,7 @@ await check('/health words and the JSON report carry the approved sentences', ()
   const report = healthProcessesReport(census, false)
   assert.equal(report.row, 'Mercury processes')
   assert.equal(report.lines.length, counts.stale + counts['cannot-end'])
-  assert.ok(report.lines.every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)))
+  assert.ok(report.lines.every(line => /^pid \d+ · .+ · .+ · .+$/.test(line)), `src/cli/healthProcesses.ts healthProcessesReport line format mismatch: ${report.lines.join(' | ').slice(0, 160)}`)
   assert.equal(report.result, undefined)
 })
 
@@ -679,7 +681,7 @@ await check('a released runner the daemon killed but that survived goes on to th
   const ending = await ladder(port, 4003)
   assert.equal(ending.outcome, 'survived')
   assert.deepEqual(port.signals, ['4003:SIGTERM', '4003:SIGKILL'])
-  assert.ok(ending.reason.startsWith(PROCESS_SWEEP_WORDS.unkillable))
+  assert.ok(ending.reason.startsWith(PROCESS_SWEEP_WORDS.unkillable), `src/daemon/processSweepRun.ts survivor reason expected prefix '${PROCESS_SWEEP_WORDS.unkillable}', got '${ending.reason}'`)
 })
 
 await check('a process that leaves on the termination signal is never sent the kill signal', async () => {

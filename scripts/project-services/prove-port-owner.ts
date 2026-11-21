@@ -27,12 +27,12 @@ try {
     name: 'collision', command: process.execPath, args: ['-e', 'process.stderr.write("EADDRINUSE\\n"); process.exit(1)'], cwd: scratch,
     readiness: [{ kind: 'tcp', port }], readinessMode: 'all', restart: 'never', lifecycle: 'session',
   } })
-  assert.ok('record' in result)
+  assert.ok('record' in result, `src/services/projectServices/serviceManager.ts startService(collision) expected record, got ${JSON.stringify(result).slice(0, 140)}`)
   await awaitOutput(scratch, 'collision', 0, 5000)
   const final = await waitForReady(scratch, 'collision', 5000)
   assert.equal(final.ready, false)
   assert.ok(final.statuses.some(status => status.detail.includes(`PID ${process.pid} (fixture-node)`) && !status.met), JSON.stringify(final.statuses))
-  assert.ok(calls.some(args => args[0] === 'lsof' && args.includes(`-iTCP:${port}`) && args.includes('-sTCP:LISTEN')))
+  assert.ok(calls.some(args => args[0] === 'lsof' && args.includes(`-iTCP:${port}`) && args.includes('-sTCP:LISTEN')), `src/services/projectServices/serviceManager.ts did not probe lsof -iTCP:${port} -sTCP:LISTEN: calls=${JSON.stringify(calls).slice(0, 140)}`)
   console.log('service port holder: PASS')
 } finally {
   await stopService(scratch, 'collision')

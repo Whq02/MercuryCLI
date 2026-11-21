@@ -9,7 +9,8 @@ import { installFixture, removeProofHome, root, serverPath } from './fixture.ts'
 
 try {
   installFixture()
-  assert.ok(SettingsSchema().safeParse({ media: { enabled: false, root, imageModel: 'image-one', videoModel: 'video-one', serverPath } }).success)
+  const parsedMedia = SettingsSchema().safeParse({ media: { enabled: false, root, imageModel: 'image-one', videoModel: 'video-one', serverPath } })
+  assert.ok(parsedMedia.success, `SettingsSchema rejected valid media config: ${parsedMedia.success ? '' : parsedMedia.error.message}; check utils/settings/types.ts`)
   for (const media of [{ enabled: 'yes' }, { root: '' }, { imageModel: 1 }, { videoModel: '' }, { serverPath: 123 }]) assert.equal(SettingsSchema().safeParse({ media }).success, false)
   assert.equal(updateSettingsForSource('userSettings', { media: { root, serverPath } }).error, null)
   const reader = await mediaConfigModule()

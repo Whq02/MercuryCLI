@@ -154,3 +154,4 @@ prove-withheld-tools.ts
 prove-workflow-removed.ts
 prove-write-directory-target.ts
 prove-write-refusal-honesty.ts
+prove-task-update-stored.ts

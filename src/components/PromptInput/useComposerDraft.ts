@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useCallback, useRef, useState, useSyncExternalStore } from 'react'
-import { useDerivedState } from '../../hooks/effects.js'
+import { useLoad } from '../../hooks/effects.js'
 import * as pendingInput from '../../input-core/pending-input.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import type { Notification } from '../../context/notifications.js'
@@ -133,7 +133,7 @@ export function useComposerDraft({
 
   const cursorSessionRef = useRef(getFocusedSessionConnector().sessionId())
   const cursorAtRepointRef = useRef<number | null>(null)
-  useDerivedState(() => {
+  useLoad(() => {
     const focusedId = getFocusedSessionConnector().sessionId()
     if (cursorSessionRef.current === focusedId) return
     if (cursorAtRepointRef.current === null) cursorAtRepointRef.current = cursorOffset

@@ -4,7 +4,7 @@ import { getOriginalCwd, getSessionId } from '../../bootstrap/state.js';
 import { splitWayOut, type useNotifications } from '../../context/notifications.js';
 import { useFpsMetrics } from '../../context/fpsMetrics.js';
 import { useCostSummary } from '../../costHook.js';
-import { useClaim, useLoad, useMount, usePublish, useSubscription, useTimer } from '../../hooks/effects.js';
+import { useClaim, useLoad, useMount, usePublish, useTimer } from '../../hooks/effects.js';
 import { useDeprecationWarningNotification } from '../../hooks/notifs/useDeprecationWarningNotification.js';
 import { useLspInitializationNotification } from '../../hooks/notifs/useLspInitializationNotification.js';
 import { useRateLimitWarningNotification } from '../../hooks/notifs/useRateLimitWarningNotification.js';
@@ -23,7 +23,7 @@ import { hasSeatLive } from '../../services/engine-connector/seatLive.js';
 import type { EngineConnectorV1 } from '../../services/engine-connector/types.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../../services/privateChannel/quietUpdateNotice.js';
 import { takeResumeFoldNotice } from '../../services/run/runCoordinator.js';
-import { startBackgroundHousekeeping } from '../../utils/backgroundHousekeeping.js';
+import { startBackgroundHousekeeping } from '../../services/backgroundHousekeeping.js';
 import { crashReportDirDisplay, markCrashReportsNoticed, resolveCrashTranscript, unnoticedCrashReports } from '../../utils/crashReport.js';
 import { getCwd } from '../../utils/cwd.js';
 import { logForDebugging } from '../../utils/debug.js';
@@ -66,7 +66,7 @@ export function useChatBootLines({
   focusedConnector: EngineConnectorV1;
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
 }) {
-  useSubscription(() => {
+  useClaim(() => {
     const paintNoRunnerLine = (): void => {
       const focused = getFocusedSessionConnector() as {
         admissionRefusal?: () => string | null;
@@ -101,7 +101,7 @@ export function useChatBootLines({
   }, [focusedConnector, addNotification]);
 
   const lostLinePaintedAtRef = useRef(0);
-  useSubscription(() => {
+  useClaim(() => {
     if (!hasSeatLive(focusedConnector) || focusedConnector.lostLine === undefined) return undefined;
     const readLostLine = focusedConnector.lostLine.bind(focusedConnector);
     const paintLostLine = (): void => {
@@ -207,7 +207,7 @@ export function useChatBootNotices({
   apiKeyVerification: ReturnType<typeof useApiKeyVerification>;
   engineModel: ReturnType<typeof useEngineModel>;
 }) {
-  useSubscription(() => {
+  useClaim(() => {
     const hosted = hasSeatLive(focusedConnector) && focusedConnector.transcriptStoreFailing !== undefined ? focusedConnector : null;
     const paint = (): void => {
       const health = transcriptStoreHealth();
@@ -232,7 +232,7 @@ export function useChatBootNotices({
     };
   }, [focusedConnector]);
 
-  useSubscription(() => {
+  useClaim(() => {
     const paintDegradation = (): void => {
       try {
         const focused = getFocusedSessionConnector() as PaintsRows;

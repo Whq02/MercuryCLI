@@ -60,3 +60,4 @@ prove-swift-fold-repaint.ts
 prove-switchboard-geometry.ts
 prove-work-chip.ts
 prove-concourse-composer-border.ts
+prove-contract-tool-hosted.ts

@@ -67,17 +67,17 @@ try {
       mounted!.push(KEY.enter)
     }
     const open = async () => { popup.openSettingsPopup(llmHostPopupRequest((ask, emit, signal) => road(plan => { question = plan; return ask(plan) }, emit, signal))); await step('door-models'); await choose('Upload fixture'); await step('door-model') }
-    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'upload-confirm settings popup did not close within 5000ms after Esc; check host popup close handler') }
     await open()
     mounted!.push('k'); await step('bank-keep-safe')
-    await choose('upload'); await step('bank-upload-speed'); mounted!.push('25'); assert.ok(await waitFor(() => screen().includes('25'), 3000)); mounted!.push(KEY.enter)
+    await choose('upload'); await step('bank-upload-speed'); mounted!.push('25'); assert.ok(await waitFor(() => screen().includes('25'), 3000), `bank-upload-speed input did not paint '25' within 3000ms; check host bank upload prompt`); mounted!.push(KEY.enter)
     await step('bank-upload-confirm')
-    assert.ok(question!.willRun.includes('bills throughout the upload'))
+    assert.ok(question!.willRun.includes('bills throughout the upload'), `bank-upload-confirm missing billing notice (willRun=${String(question!.willRun).slice(0, 140)}); check host bank upload confirm`)
     await choose('upload'); await step('door-model')
     assert.equal(safe.bankUploadPreference(recipe)?.bytesPerSecond, 25e6 / 8)
     for (const label of ['Vast.ai', 'Lambda']) {
       const row = question!.rows!.find(row => row.label.startsWith('Rent · ' + label))!
-      assert.ok(row)
+      assert.ok(row, `door-model rows missing Rent · ${label} option (rows=${question!.rows!.map(r => r.label).join('; ').slice(0, 180)}); check host rental rows`)
       assert.ok(row.label.includes('1× H100 · $') && row.label.includes('/hr') && !/uploads|downloads/.test(row.label), 'the rental row names its shape and hourly price without transfer narration')
       assert.ok(question!.found.includes('WEIGHTS · 0 KB · banked on ' + join('~', 'mercury-model-bank')), 'the weights summary names the banked files without promising a download')
       await choose(row.value); await step('rent-confirm')

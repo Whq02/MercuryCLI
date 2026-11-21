@@ -71,7 +71,7 @@ try {
     throw new Error('Choice not found: ' + needle)
   }
   const choose = async (needle: string) => { await walk(needle); mounted!.push(KEY.enter) }
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'host door settings popup did not close within 5000ms after Esc; check host popup close handler') }
   const capture = async (name: string) => {
     const screen = mounted!.screen()
     check(name + ' has an exit and no render error or key', screen.includes('esc') && !screen.includes('RENDER ERROR') && !screen.includes(rp.key))

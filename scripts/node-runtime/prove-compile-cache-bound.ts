@@ -58,7 +58,7 @@ try {
   }
   const results = await Promise.all([pruneCompileCache(preserved, {}), pruneCompileCache(preserved, {})])
   assert.equal(results.filter(result => result.state === 'complete').length, 1)
-  assert.ok(results.every(result => ['complete', 'busy', 'fresh'].includes(result.state)))
+  assert.ok(results.every(result => ['complete', 'busy', 'fresh'].includes(result.state)), `concurrent pruneCompileCache returned unexpected states=${results.map(r => r.state).join(',')}; check compileCachePrune.ts`)
   assert.equal(readFileSync(join(foreign, 'keep'), 'utf8'), 'untouched')
   console.log('PASS opt-out, external pin, foreign folders, symlinks and concurrent boots are respected')
 
@@ -68,7 +68,8 @@ try {
   const old = new Date(Date.now() - COMPILE_CACHE_PRUNE_INTERVAL_MS - 1000)
   utimesSync(join(huge, 'compile-cache', '.last-prune'), old, old)
   assert.equal((await pruneCompileCache(huge, {})).state, 'complete')
-  assert.ok(!readdirSync(join(huge, 'compile-cache')).includes(tomb.split(/[\\/]/).pop()!))
+  const remainingAfterTomb = readdirSync(join(huge, 'compile-cache'))
+  assert.ok(!remainingAfterTomb.includes(tomb.split(/[\\/]/).pop()!), `pruneCompileCache left interrupted retired dir behind (entries=${remainingAfterTomb.join(',')}); check compileCachePrune.ts`)
   console.log('PASS the next pass finishes an interrupted retired-directory removal')
 
   const live = makeHome('node')
@@ -81,11 +82,12 @@ try {
   const run = () => { const result = spawnSync(node, [entry], { env, encoding: 'utf8', timeout: 30_000 }); assert.equal(result.status, 0, result.stderr); assert.equal(result.stdout.trim(), '42') }
   run()
   const nodeBucket = readdirSync(cache).find(name => name.startsWith('v'))!
-  assert.ok(nodeBucket)
+  assert.ok(nodeBucket, `Node compile cache created no v* bucket dir (entries=${readdirSync(cache).join(',')}); check compileCachePrune.ts`)
   sparse(join(cache, nodeBucket, 'oversized'), COMPILE_CACHE_MAX_BYTES + 1)
   assert.deepEqual((await pruneCompileCache(live, env)).removed, [nodeBucket])
   run()
-  assert.ok(readdirSync(join(cache, nodeBucket)).length > 0)
+  const repopulated = readdirSync(join(cache, nodeBucket))
+  assert.ok(repopulated.length > 0, `Node did not repopulate evicted compile-cache bucket ${nodeBucket} (entries=0); check compileCachePrune.ts`)
   console.log('PASS Node runs and repopulates after eviction; boot schedules the pruner without awaiting it')
 } finally {
   rmSync(scratch, { recursive: true, force: true })

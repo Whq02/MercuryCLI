@@ -2,7 +2,7 @@
 import 'figures'
 import * as React from 'react'
 import { useRef, useState } from 'react'
-import { useClaim, usePublish, useSubscription } from '../../hooks/effects.js'
+import { useClaim, usePublish } from '../../hooks/effects.js'
 import type { PrimitiveSchemaDefinition } from '../../utils/mcp/sdk.js'
 import { Box, Text } from '../../ink.js'
 import { popupListWindow, usePopupListPaging } from '../CustomSelect/popup-list.js'
@@ -128,7 +128,7 @@ function UrlElicitationDialog({
 
   const phaseRef = useRef(phase)
   phaseRef.current = phase
-  useSubscription(() => {
+  useClaim(() => {
     const onAbort = () => {
       if (phaseRef.current === 'waiting') onWaitingDismiss('cancel')
       else onResponse('cancel')
@@ -292,7 +292,7 @@ function FormElicitationDialog({
     [],
   )
 
-  useSubscription(() => {
+  useClaim(() => {
     const onAbort = () => onResponse('cancel')
     if (event.signal.aborted) {
       onAbort()

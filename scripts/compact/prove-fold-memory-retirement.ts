@@ -84,7 +84,7 @@ try {
   const first = await fold(firstInput)
   const envelope = envelopeOf(first)
   check('the boundary carries the fold memory envelope', envelope !== undefined)
-  assert.ok(envelope)
+  assert.ok(envelope, 'compaction boundary record missing fold memory envelope; check fold memory persistence')
   check('the envelope is committed with a shared memory pointer', envelope.state === 'committed' && 'pointer' in envelope && envelope.pointer.id.startsWith('pending:'), envelope.state)
   assert.equal(envelope.state, 'committed')
   const id = envelope.pointer.id

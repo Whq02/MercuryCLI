@@ -1,5 +1,4 @@
 import React, { useCallback, useRef, useState } from 'react'
-import { useDerivedState } from '../hooks/effects.js'
 import type { CommandResultDisplay } from '../commands.js'
 import type { Message } from '../types/message.js'
 import { useKeybinding } from '../keybindings/useKeybinding.js'
@@ -580,10 +579,8 @@ export function Feedback({
   const viewRows = Math.max(6, Math.min(lines.length, rows - 16))
   const maxScroll = Math.max(0, lines.length - viewRows)
   const bytes = bodyByteCount(body)
-
-  useDerivedState(() => {
-    if (scroll > maxScroll) setScroll(maxScroll)
-  }, [scroll, maxScroll])
+  const clampedScroll = Math.min(scroll, maxScroll)
+  if (scroll > maxScroll) setScroll(maxScroll)
 
   useRegisterOverlay('feedback-review', step === 'review', { ownsPageKeys: true })
 
@@ -641,7 +638,7 @@ export function Feedback({
 
   const slug = slugRef.current
 
-  return feedbackView({ tokens, surfaceRef, columns, form, setForm, step, setStep, setAskIndex, draft, setDraft, cursorOffset, setCursorOffset, title, scroll, paths, access, failure, issueUrl, formUrl, cancel, field, advance, lines, viewRows, bytes, slug, surfaceTitle })
+  return feedbackView({ tokens, surfaceRef, columns, form, setForm, step, setStep, setAskIndex, draft, setDraft, cursorOffset, setCursorOffset, title, scroll: clampedScroll, paths, access, failure, issueUrl, formUrl, cancel, field, advance, lines, viewRows, bytes, slug, surfaceTitle })
 }
 
 export default Feedback

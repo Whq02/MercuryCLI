@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetScale } from '../lib/captureDriver.ts'
 import { argValue, parseJobs, vshotSlotsFor } from '../lib/captureJobs.ts'
+import { applyEdits, findNodeAtLocation, parseTree, type Edit } from 'jsonc-parser'
 import { SETTLE_LAW, settleWallMs } from '../ui/visualBaseline.ts'
 
 const REPO = resolve(import.meta.dir, '../..')
@@ -142,6 +143,38 @@ function receiptOf(gridPath: string): string {
   }
 }
 
+function stripSendReceiptStampsText(raw: string): string {
+  const tree = parseTree(raw)
+  const receipts = tree ? findNodeAtLocation(tree, ['sendReceipts']) : undefined
+  if (!receipts || receipts.type !== 'array' || !receipts.children?.length) return raw
+  const edits: Edit[] = []
+  for (const receipt of receipts.children) {
+    if (receipt.type !== 'object' || !receipt.children?.length) continue
+    const props = receipt.children
+    const kept = props.map((p, idx) => ({ p, idx })).filter(x => x.p.children?.[0]?.value !== 'ts')
+    if (kept.length === props.length) continue
+    const first = props[0]!
+    const last = props[props.length - 1]!
+    let content = ''
+    if (kept.length > 0) {
+      content = raw.slice(kept[0]!.p.offset, kept[0]!.p.offset + kept[0]!.p.length)
+      for (let k = 1; k < kept.length; k++) {
+        const cur = kept[k]!
+        const prev = props[cur.idx - 1]!
+        content += raw.slice(prev.offset + prev.length, cur.p.offset + cur.p.length)
+      }
+    }
+    edits.push({ offset: first.offset, length: last.offset + last.length - first.offset, content })
+  }
+  return edits.length > 0 ? applyEdits(raw, edits) : raw
+}
+
+function stripSendReceiptStamps(gridPath: string): void {
+  const raw = readFileSync(gridPath, 'utf8')
+  const stripped = stripSendReceiptStampsText(raw)
+  if (stripped !== raw) writeFileSync(gridPath, stripped)
+}
+
 async function runPool(captures: Capture[], jobs: number): Promise<Map<string, { ok: boolean; line: string }>> {
   const results = new Map<string, { ok: boolean; line: string }>()
   let next = 0
@@ -154,6 +187,7 @@ async function runPool(captures: Capture[], jobs: number): Promise<Map<string, {
       const r = await c.run(scratch)
       const wall = ((Date.now() - started) / 1000).toFixed(1)
       if (r.ok && r.grid) {
+        stripSendReceiptStamps(r.grid)
         copyFileSync(r.grid, join(OUT, `${c.name}.json`))
         const line = `✅ ${c.name}.json — ${receiptOf(r.grid)} · ${wall}s`
         results.set(c.name, { ok: true, line })

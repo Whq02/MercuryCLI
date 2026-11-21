@@ -87,7 +87,7 @@ try {
     throw new Error('Choice not found: ' + needle)
   }
   const choose = async (needle: string, key: string = KEY.down) => { await select(needle, key); mounted!.push(KEY.enter) }
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'vendor-road settings popup did not close within 5000ms after Esc; check popup close') }
   const capture = async (name: string) => {
     if (!frames) return
     writeFileSync(join(frames, name + '.txt'), mounted!.screen())
@@ -108,7 +108,7 @@ try {
     if (vendor === 'vast') check('Vast offer rows display their hosting type beside the price', /\$[\d.]+\/hr · (datacenter|community host)/.test(mounted!.screen().replace(/[│\s]+/g, ' ')))
     await choose('Rent · ' + label); await until('Confirm the hourly price')
     if (mounted!.screen().includes('Saved quality has no stock')) {
-      await choose('Tune:'); await until('QUALITY ·'); mounted!.push(KEY.up); assert.ok(await waitFor(() => selected().includes('1× H200'), 3000)); mounted!.push(KEY.enter); await until('CONVERSATIONS × CONTEXT'); mounted!.push(KEY.enter)
+      await choose('Tune:'); await until('QUALITY ·'); mounted!.push(KEY.up); assert.ok(await waitFor(() => selected().includes('1× H200'), 3000), `${label}: Tune quality cursor did not reach 1× H200 within 3000ms (selected=${selected()}); check runTune`); mounted!.push(KEY.enter); await until('CONVERSATIONS × CONTEXT'); mounted!.push(KEY.enter)
       await until('THINKING ·'); mounted!.push(KEY.enter); await until('Confirm tune'); await choose('Confirm · save'); await until('Confirm the hourly price')
     }
     await capture('80-' + vendor + '-confirmation')

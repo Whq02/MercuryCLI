@@ -91,7 +91,7 @@ try {
     }
   }
   const text = async (title: string, value = '') => { await until(title); if (value) { m.push(value); await until(value) } m.push(KEY.enter) }
-  const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { m.push(KEY.esc); if (!await waitFor(() => !popup.isSettingsPopupOpen(), 1000)) m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'SettingsPopupSlot did not close within 5000ms after Esc in src/commands/llmhost/llmhost.tsx') }
   const tail = async (name?: string) => {
     await heading('5 · name the provider'); await until('524,288 tokens')
     check('the single served model is selected without a question', m.screen().includes(f.model))
@@ -112,7 +112,7 @@ try {
   check('the confirmation names the model, GPU shape and hourly price without a verification stamp', m.screen().includes('Qwen3.8-27B · FP8 · 1× RTX PRO 6000 · $2.49/hr') && !/\b(measured|documented|community|unverified|verified)\b/i.test(m.screen()))
   check('separate confirmation precedes all paid work', rp.state.creates === 0 && ssh.commands.length === 0)
   await choose('Confirm $2.49/hr')
-  assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.jobState === 'ready', 15000))
+  assert.ok(await waitFor(() => readHostRecord('fixture-pod-1')?.jobState === 'ready', 15000), `fixture-pod-1 jobState did not reach ready within 15000ms (got ${readHostRecord('fixture-pod-1')?.jobState}) in src/services/host/worker.ts`)
   await heading('Machine controls'); await until('so far'); capture('05-provider-and-meter')
   check('the model picker catalogue contains the registered provider', namedCompatModelOptions().some(row => row.value === 'compat/pod-fixture-pod-1/' + f.model))
   const settingsRaw = readFileSync(join(f.home, 'settings.json'), 'utf8')
@@ -153,7 +153,7 @@ try {
   await heading('Machine controls'); await until('downloading weights on the machine'); await until('so far'); capture('12-popup-close-keeps-pod')
   check('Machine controls shows the running setup step while the engine loads', readHostRecord('fixture-pod-2')?.jobState === 'running' && m.screen().includes('downloading weights on the machine'))
   ssh.state.holdHealth = false; await close()
-  assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000))
+  assert.ok(await waitFor(() => readHostRecord('fixture-pod-2')?.jobState === 'ready', 15000), `fixture-pod-2 jobState did not reach ready within 15000ms after popup close (got ${readHostRecord('fixture-pod-2')?.jobState}) in src/services/host/worker.ts`)
   check('closing popup never silently deletes a pod', rp.state.pods.has('fixture-pod-2') && rp.state.deletes === 1)
   check('pod identity survives on disk outside settings', readFileSync(join(f.home, 'host/pods/fixture-pod-2.json'), 'utf8').includes('fixture-pod-2'))
   open(); await heading('Where should the model run?'); await until('fixture-pod-2'); capture('13-paid-pod-on-return'); await choose('fixture-pod-2')
@@ -167,7 +167,7 @@ try {
   f.state.dialect = 'llamacpp'; f.state.window = 131072; f.state.slots = 4
   open(); await heading('Where should the model run?'); await choose('Rent a GPU'); await text('Optional spending budget', '70')
   await until('live Runpod stock'); await choose('UD-Q3_K_XL'); await heading('Choose a GPU shape'); await choose('UD-Q3_K_XL'); await heading('Confirm the hourly price'); await until('1× RTX PRO 6000'); await until('Tune: 4 × 128k · UD-Q3_K_XL'); capture('15-gguf-one-gpu-confirm'); await choose('Confirm $2.49/hr')
-  assert.ok(await waitFor(() => readHostRecord('fixture-pod-3')?.jobState === 'ready', 15000)); await heading('Machine controls'); capture('16-gguf-ready')
+  assert.ok(await waitFor(() => readHostRecord('fixture-pod-3')?.jobState === 'ready', 15000), `fixture-pod-3 GGUF jobState did not reach ready within 15000ms (got ${readHostRecord('fixture-pod-3')?.jobState}) in src/services/host/worker.ts`); await heading('Machine controls'); capture('16-gguf-ready')
   const { startHostEngine } = await import('../../src/services/host/ssh.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')

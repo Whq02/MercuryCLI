@@ -1,5 +1,4 @@
 import * as React from 'react'
-import { useDerivedState } from '../../hooks/effects.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { useAnimationValue } from '../../ink.js'
 import { useSettingsMaybe } from '../../hooks/useSettings.js'
@@ -43,9 +42,11 @@ export function useGreetingShimmer(
     return shimmerPhaseKey(timeMs - startRef.current, spanRef.current)
   })
 
-  useDerivedState(() => {
-    if (phaseKey === SHIMMER_SETTLED) setSettled(true)
-  }, [phaseKey])
+  const prevPhaseKeyRef = React.useRef(phaseKey)
+  if (prevPhaseKeyRef.current !== phaseKey) {
+    prevPhaseKeyRef.current = phaseKey
+    if (phaseKey === SHIMMER_SETTLED && !settled) setSettled(true)
+  }
 
   if (!animate) return null
   return shimmerPhaseOf(phaseKey, spanCells)

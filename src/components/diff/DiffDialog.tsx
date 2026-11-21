@@ -5,7 +5,7 @@ import * as React from 'react'
 import { useMemo, useRef, useState } from 'react'
 import { usePopupListPaging } from '../CustomSelect/popup-list.js'
 import { useKeybinding } from '../../keybindings/useKeybinding.js'
-import { useDerivedState, useLoad } from '../../hooks/effects.js'
+import { useLoad } from '../../hooks/effects.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
 import { useTurnDiffs, type TurnDiff } from '../../hooks/useTurnDiffs.js'
 import { useDiffData } from '../../hooks/useDiffData.js'
@@ -181,11 +181,9 @@ export function DiffDialog({
   }
   const selectedFile = files[selectedIndex]
   rememberedIndexRef.current = files.length > 0 ? selectedIndex : 0
-  useDerivedState(() => {
-    if (selectedFile && selectedFile.path !== selectedPath) {
-      setSelectedPath(selectedFile.path)
-    }
-  }, [selectedFile, selectedPath])
+  if (selectedFile && selectedFile.path !== selectedPath) {
+    setSelectedPath(selectedFile.path)
+  }
 
   const hunksForSelected: StructuredPatchHunk[] = selectedFile
     ? (diffData.hunks.get(selectedFile.path) ?? [])

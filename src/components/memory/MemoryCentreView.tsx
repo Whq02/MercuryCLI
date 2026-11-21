@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { join } from 'node:path'
-import { useDerivedState, useLayoutDerivedState, useLayoutPublish, usePublish } from '../../hooks/effects.js'
+import { useLayoutPublish, useLoad, usePublish } from '../../hooks/effects.js'
 import { useInput } from '../../ink.js'
 import { useSessionAccent } from '../mercury-ui/sessionAccent.js'
 import { useMercuryTokens } from '../mercury-ui/useMercuryTokens.js'
@@ -288,16 +288,14 @@ export function MemoryCentreView({
     reloadNote: 're-read memory stores',
     rowId: r => r.id,
   })
-  const listLength = fl.list.length
-  useLayoutDerivedState(() => {
-    setOverflow(listLength > listRoom)
-  }, [listLength, listRoom])
+  const nextOverflow = fl.list.length > listRoom
+  if (nextOverflow !== overflow) setOverflow(nextOverflow)
 
   const reloadRef = React.useRef(fl.reload)
   reloadRef.current = fl.reload
   const setNoteRef = React.useRef(fl.setNote)
   setNoteRef.current = fl.setNote
-  useDerivedState(() => {
+  useLoad(() => {
     setNoteRef.current(null)
     if (view === 'overview' && cameFromRef.current !== null) {
       const at = cameFromRef.current

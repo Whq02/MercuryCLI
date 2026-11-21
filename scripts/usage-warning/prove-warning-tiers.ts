@@ -66,7 +66,7 @@ for (const pct of [79, 80, 85, 90, 95]) {
   const notices = getUsageLimitNoticeAttachment(context, messages, reads(pct))
   assert.equal(notices.length, 0, `pct ${pct} must stay quiet with the setting off`)
 }
-assert.ok(!messages.some(m => JSON.stringify(m).includes('usage_limit_notice')))
+assert.ok(!messages.some(m => JSON.stringify(m).includes('usage_limit_notice')), 'usage_limit_notice was appended to messages while engine.usageNotice was off in src/services/attachments/sessionContext.ts')
 armNotice(true)
 for (const pct of [79, 80, 85, 90, 95]) {
   const notices = getUsageLimitNoticeAttachment(context, messages, reads(pct))
@@ -220,7 +220,7 @@ const staleReads: LimitWarningReads = {
 }
 const staleWindows = usage.openaiObservedWindowViews(staleReads)
 assert.equal(staleWindows[0]!.state, 'live')
-assert.ok(usage.usageViewIsStale(staleWindows[0]!, now))
+assert.ok(usage.usageViewIsStale(staleWindows[0]!, now), 'usageViewIsStale returned false for a window whose resetsAtMs is in the past in src/services/providers/providerUsage.ts')
 const staleBands = staleWindows.map(w => ({ ...w, usedPct: w.usedPct!, windowName: usage.usageWindowWord(w) }))
 const staleCard = observedFamilyWindow('openai', {
   now: () => now, openaiActiveSource: () => 'chatgpt-subscription', openaiWall: () => null,
@@ -246,19 +246,19 @@ const weekly = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached',
   'x-codex-secondary-reset-after-seconds': '604800',
   'x-codex-secondary-window-minutes': '10080',
 }))
-assert.ok(weekly.message.includes('the prolite window is reached — resets in 7 d 0 h'))
-assert.ok((weekly.resetsAtMs ?? 0) >= now + 604800000)
+assert.ok(weekly.message.includes('the prolite window is reached — resets in 7 d 0 h'), `mapOpenaiHttpFailure weekly limit message mismatch in src/services/providers/openai/openaiWire.ts: ${weekly.message}`)
+assert.ok((weekly.resetsAtMs ?? 0) >= now + 604800000, `mapOpenaiHttpFailure weekly resetsAtMs ${weekly.resetsAtMs} did not reflect 7d secondary reset in src/services/providers/openai/openaiWire.ts`)
 const cappedSecondary = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'The usage limit has been reached' } }, new Headers({
   'x-codex-primary-used-percent': '32', 'x-codex-primary-reset-after-seconds': '3600',
   'x-codex-secondary-used-percent': '100', 'x-codex-secondary-reset-after-seconds': '604800',
 }))
-assert.ok(cappedSecondary.message.includes('the usage window is reached — resets in 7 d 0 h'))
+assert.ok(cappedSecondary.message.includes('the usage window is reached — resets in 7 d 0 h'), `mapOpenaiHttpFailure capped-secondary message mismatch in src/services/providers/openai/openaiWire.ts: ${cappedSecondary.message}`)
 console.log('PASS one stale word on both surfaces and reset facts from the body or matching window')
 
 const spendText = 'Anthropic says this account is close to its extra usage spending limit'
 assert.equal(warnings.usageWarningNoticeText(spendText, 0), `Usage limit near — ${spendText}. The provider stops this session when the window is used up. Finish the step in hand, commit what is done, and write down where the work stands before the stop; start nothing that cannot be saved in time.`)
 const unlabelled = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600' }))
-assert.ok(unlabelled.message.includes('the usage window is reached — resets in 1 h 0 min'))
+assert.ok(unlabelled.message.includes('the usage window is reached — resets in 1 h 0 min'), `mapOpenaiHttpFailure unlabelled 1h limit message mismatch in src/services/providers/openai/openaiWire.ts: ${unlabelled.message}`)
 const ambiguous = mapOpenaiHttpFailure(429, { error: { type: 'usage_limit_reached', message: 'Limit reached' } }, new Headers({ 'x-codex-primary-reset-after-seconds': '3600', 'x-codex-secondary-reset-after-seconds': '604800' }))
 assert.equal(ambiguous.resetsAtMs, undefined)
 assert.equal(ambiguous.message, 'the usage window is reached — no reset stated — Limit reached')

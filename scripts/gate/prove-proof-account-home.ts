@@ -27,7 +27,7 @@ process.exit(7)
   const result = spawnSync(process.execPath, [script], { encoding: 'utf8', env: { ...process.env, HOME: invokingHome, USERPROFILE: invokingHome, TMPDIR: ownedTmp } })
   assert.equal(result.status, 7, result.stderr)
   const { home } = JSON.parse(result.stdout.trim()) as { home: string }
-  assert.ok(home.startsWith(realpathSync(ownedTmp) + '/') && home !== realpathSync(invokingHome))
+  assert.ok(home.startsWith(realpathSync(ownedTmp) + '/') && home !== realpathSync(invokingHome), `scripts/lib/proofAccountHome.ts must allocate synthetic home inside TMPDIR (${ownedTmp}) and distinct from invoking home, got ${home}`)
   assert.equal(existsSync(home), false, 'the parent removes the synthetic account after failure too')
   assert.deepEqual(readdirSync(invokingHome), before)
   assert.equal(readFileSync(join(invokingHome, 'canary'), 'utf8'), 'unchanged')

@@ -29,7 +29,7 @@ try {
   for (const model of upscalers) {
     const plan = mediaPullPlan(snapshot, model.id)
     assert.deepEqual(plan.args, ['pull-model', model.id])
-    assert.ok(plan.bytes > 17_000_000)
+    assert.ok(plan.bytes > 17_000_000, `upscaler pull plan for ${model.id} reported bytes=${plan.bytes}, expected >17MB; check media catalog.json`)
     assert.equal(plan.license, 'BSD-3-Clause')
     assert.match(plan.source, /^https:\/\/github.com\/xinntao\/Real-ESRGAN\/releases\/download\//)
     let ran = false
@@ -50,7 +50,7 @@ try {
   await assert.rejects(saveMediaSettings({ imageModel: upscalers[0]!.id }), /Choose a image model/)
   await client.connect(new StdioClientTransport({ command: 'node', args: [serverPath], cwd: proofHome, env: { ...process.env, MEDIA_ROOT: root, MEDIA_OUTPUT_DIR: join(root, 'outputs') } as Record<string, string>, stderr: 'pipe' }))
   const tools = await client.listTools(), schema = tools.tools.find(tool => tool.name === 'image_generate')!.inputSchema
-  assert.ok(schema.properties?.upscale)
+  assert.ok(schema.properties?.upscale, `image_generate inputSchema missing upscale property (keys=${Object.keys(schema.properties ?? {}).join(',')}); check media server schema`)
   const generate = (args: Record<string, unknown>) => client.callTool({ name: 'image_generate', arguments: { model: 'image-one', prompt: 'fixture', width: 64, height: 64, wait: true, seed: 123, ...args } })
   const missing = await generate({ upscale: 4 })
   assert.equal(missing.isError, true)

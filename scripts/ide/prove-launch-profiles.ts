@@ -243,6 +243,21 @@ try {
 
     const last = (await LaunchTool.call({ op: 'last' } as never, ctx)) as { data: { result: string } }
     check('C11 last remembers the newest action', last.data.result.includes('test') || last.data.result.includes('run'), last.data.result)
+
+    const { disposeOwnerProcesses, ownerLifecycleCounts } = await import('../../src/utils/run/ownerLifecycle.js')
+    const crewCtx = { getAppState: () => ({}), agentId: 'launch-last-crew-a' } as never
+    const crewOwner = ownerFromToolUseContext(crewCtx)
+    const crewEmpty = (await LaunchTool.call({ op: 'last' } as never, crewCtx)) as { data: { result: string } }
+    check('C12a another owner sees no action and peek allocates no store slot', crewEmpty.data.result === 'no launch-profile action this session' && (ownerLifecycleCounts().stores['launch-last-actions'] ?? 0) === 1, JSON.stringify({ crewEmpty: crewEmpty.data.result, count: ownerLifecycleCounts().stores['launch-last-actions'] }))
+    await LaunchTool.call({ op: 'run', profile: pyId } as never, crewCtx)
+    await disposeOwnerProcesses(crewOwner)
+    const crewAfterProcessEnd = (await LaunchTool.call({ op: 'last' } as never, crewCtx)) as { data: { result: string } }
+    check('C12b disposeOwnerProcesses preserves last action for a resumed crewmate', crewAfterProcessEnd.data.result.includes('run ') && (ownerLifecycleCounts().stores['launch-last-actions'] ?? 0) === 2, crewAfterProcessEnd.data.result)
+    await disposeOwner(crewOwner)
+    const mainStillHasLast = (await LaunchTool.call({ op: 'last' } as never, ctx)) as { data: { result: string } }
+    const crewAfterFullDispose = (await LaunchTool.call({ op: 'last' } as never, crewCtx)) as { data: { result: string } }
+    await disposeOwner(ownerFromToolUseContext(ctx))
+    check('C12c full owner disposal releases each owner entry cleanly without disturbing siblings', mainStillHasLast.data.result.includes('test') && crewAfterFullDispose.data.result === 'no launch-profile action this session' && (ownerLifecycleCounts().stores['launch-last-actions'] ?? 0) === 0, JSON.stringify({ mainStillHasLast: mainStillHasLast.data.result, crewAfterFullDispose: crewAfterFullDispose.data.result, count: ownerLifecycleCounts().stores['launch-last-actions'] }))
   }
 
   section('(D) source honesty — broken launch.json degrades, never throws')

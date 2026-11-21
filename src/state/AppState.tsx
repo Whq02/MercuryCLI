@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useCallback, useContext, useMemo, useRef, useSyncExternalStore } from 'react'
-import { useMount, useSubscription } from '../hooks/effects.js'
+import { useClaim, useMount } from '../hooks/effects.js'
 import { createStore } from './store.js'
 import { fluxMark } from '../utils/flux/fluxProbe.js'
 import {
@@ -76,7 +76,7 @@ export function AppStateProvider({
   const applyChangedSourceRef = useRef((source: Parameters<typeof applySettingsChange>[0]) => {
     applySettingsChange(source, store.setState)
   })
-  useSubscription(() => {
+  useClaim(() => {
     const unsubscribe = settingsChangeDetector.subscribe(source => {
       applyChangedSourceRef.current(source)
     })

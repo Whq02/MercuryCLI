@@ -1,4 +1,4 @@
-import { sleep } from '../../../utils/sleep.js'
+import { withDeadline } from '../../../utils/deadline.js'
 import { gracefulShutdown, TERMINAL_GONE_EXIT_CODE, markRunModeSignalsOwned } from '../../../utils/gracefulShutdown.js'
 import { getSessionId } from '../../../bootstrap/state.js'
 import { DRAIN_CUT_WORDS } from '../../../utils/messages/turnCut.js'
@@ -16,13 +16,37 @@ function run(ports: RunnerPorts): BootMade<never> {
     const running = live.inFlightAbort !== null
     live.inFlightAbort?.abort(cut)
     if (running) {
-      const deadline = sleep(SIGNAL_SETTLE_MS, undefined, { unref: true })
-      await Promise.race([outcomeAfterAbort(), deadline])
+      let unsubscribe: (() => void) | undefined
+      try {
+        await withDeadline(
+          outcomeAfterAbort(stop => {
+            unsubscribe = stop
+          }),
+          SIGNAL_SETTLE_MS,
+          () => undefined,
+          { unref: true },
+        )
+      } finally {
+        unsubscribe?.()
+      }
     }
     void gracefulShutdown(code)
   }
-  const outcomeAfterAbort = async (): Promise<void> => {
-    while (driver.isRunning()) await sleep(20)
+  const outcomeAfterAbort = async (onStop: (stop: () => void) => void): Promise<void> => {
+    if (driver.isRunning()) {
+      await new Promise<void>(resolve => {
+        const stop = driver.onIdle(() => {
+          if (driver.isRunning()) return
+          stop()
+          resolve()
+        })
+        onStop(stop)
+        if (!driver.isRunning()) {
+          stop()
+          resolve()
+        }
+      })
+    }
     await live.lastOutcomeWritten
   }
   const hostCutWords = (): string | undefined => {

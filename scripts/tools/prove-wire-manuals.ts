@@ -59,15 +59,18 @@ try {
     const delivered: any = picked.newMessages!.find((message: any) => message.attachment.content.startsWith(`# Tool manual: ${tool.name}\n`))
     assert.equal(delivered.attachment.content, `# Tool manual: ${tool.name}\n\n${full}`, 'not one manual sentence is lost')
     assert.ok(isNullRenderingAttachment(delivered), 'manuals never paint a screen row')
-    assert.ok(JSON.stringify(normalizeAttachmentForAPI(delivered.attachment)).includes(tool.name))
+    const normalizedManual = JSON.stringify(normalizeAttachmentForAPI(delivered.attachment))
+    assert.ok(normalizedManual.includes(tool.name), `normalizeAttachmentForAPI omitted ${tool.name} manual in src/utils/messages/attachmentText.ts`)
     if (tool.name === 'Browser') {
-      assert.ok(bytes <= 350 && Buffer.byteLength(full) <= 3000)
-      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'))
+      const fullBytes = Buffer.byteLength(full)
+      assert.ok(bytes <= 350 && fullBytes <= 3000, `Browser wire/manual size (${bytes}B / ${fullBytes}B) exceeded 350B / 3000B ceiling in src/tools/BrowserTool/BrowserTool.ts`)
+      assert.ok(!schema.description.includes('status:') && !schema.description.includes('waitFor:'), 'Browser wire description leaked status:/waitFor: manual text in src/tools/BrowserTool/BrowserTool.ts')
       assert.equal(schema.input_schema.properties.op.description, 'Browser operation.')
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
     }
     if (tool.name === 'Debug') {
-      assert.ok(bytes <= 600 && Buffer.byteLength(full) <= 4000)
+      const debugFullBytes = Buffer.byteLength(full)
+      assert.ok(bytes <= 600 && debugFullBytes <= 4000, `Debug wire/manual size (${bytes}B / ${debugFullBytes}B) exceeded 600B / 4000B ceiling in src/tools/DebugTool/DebugTool.ts`)
       assert.equal(schema.input_schema.properties.op.description, 'Debug operation.')
       for (const operation of schema.input_schema.properties.op.enum as string[]) assert.ok(full.includes(operation), `${operation} has manual depth`)
       assert.ok(!schema.description.includes('launch:') && !schema.description.includes('Full usage notes'), 'the wire does not abridge the manual')

@@ -112,7 +112,7 @@ try {
   }
   const choose = async (needle: string) => { await select(needle); mounted!.push(KEY.enter) }
   const press = async (needle: string, key: string) => { await select(needle); mounted!.push(key) }
-  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'vast-volumes settings popup did not close within 5000ms after Esc; check popup close') }
   const noKeys = (name: string) => check(name + ' renders without errors or keys', !screen().includes('RENDER ERROR') && !screen().includes(vast.key))
   const openModel = async () => { open(); await heading('Which model?'); await choose('DeepSeek-V4.1-Flash UNCENSORED'); await heading('DeepSeek-V4.1-Flash UNCENSORED'); await until('WEIGHTS') }
   await openModel()
