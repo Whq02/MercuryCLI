@@ -170,7 +170,7 @@ const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
 const PLAIN_POPD = new Set(['popd', 'pop-location'])
 const UNCERTAIN_MOVE_WORD = /[`$*?[\]{}\\<>()!'"]/
 const PLAIN_SEP = /^[ \t]*(?:;|\r?\n)[ \t]*/
-const AFTER_CMD = /[\s;|&})]/
+const AFTER_RETURN = /^[ \t]*(?:$|;(?!;)|\r?\n|&&(?!&))/
 const SHELL_BUILTINS = new Set([
   '.', 'alias', 'autoload', 'bg', 'bind', 'bindkey', 'break', 'builtin',
   'caller', 'cd', 'chdir', 'command', 'compgen', 'complete', 'compopt',
@@ -235,7 +235,7 @@ function startsWithReturnPair(text: string, prevText: string, turnText: string):
   if (sep === null) return false
   const turnAt = afterPrev + sep[0].length
   const afterTurn = turnAt + turnText.length
-  return text.startsWith(turnText, turnAt) && (afterTurn === text.length || AFTER_CMD.test(text[afterTurn]!))
+  return text.startsWith(turnText, turnAt) && AFTER_RETURN.test(text.slice(afterTurn))
 }
 
 export function placesCertain(read: ShellRead, text: string): boolean {
