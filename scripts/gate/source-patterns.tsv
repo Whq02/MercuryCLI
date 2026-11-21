@@ -101,11 +101,14 @@ startInterval	src/ink/ink.tsx	1	periodic 1
 startInterval	src/main/interactiveLaunch.ts	1	heartbeat 1
 startInterval	src/services/blender/bridgeClient.ts	1	heartbeat 1
 startInterval	src/services/compact/compact/summarise.ts	1	heartbeat 1
+startInterval	src/services/concourse/sessionTitleMint.ts	1	periodic 1
 startInterval	src/services/engine-connector/daemon/live.ts	1	heartbeat 1
 startInterval	src/services/engine-connector/projectionFeed.ts	2	clock 2
 startInterval	src/services/eval/kernelManager.ts	1	periodic 1
 startInterval	src/services/host/bankPull.ts	1	clock 1
 startInterval	src/services/host/keepSafe.ts	1	heartbeat 1
+startInterval	src/services/host/notices.ts	1	periodic 1
+startInterval	src/services/host/store.ts	1	periodic 1
 startInterval	src/services/mcp/client.ts	1	heartbeat 1
 startInterval	src/services/preventSleep.ts	1	periodic 1
 startInterval	src/services/providers/local/localWarm.ts	1	heartbeat 1

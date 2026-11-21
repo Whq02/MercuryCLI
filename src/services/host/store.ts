@@ -3,8 +3,8 @@ import { dirname, join } from 'node:path'
 import { getMercuryHome } from '../../utils/envUtils.js'
 import { publishAtomicSync } from '../../substrate/fileStore.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
-import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 import type { SshTarget } from './ssh.js'
 import type { HostRecipe } from './recipes.js'
 import type { HostCluster, HostClusterPod } from './runpod.js'
@@ -128,21 +128,21 @@ export function watchHostDirectory(dir: string, onChange: (filename: string | nu
     }
   }
   arm()
-  const stopFloor = subscribeUiClock(fallbackMs, () => {
+  const timer = fallbackMs > 0 ? startInterval(() => {
     if (closed) return
     if (!watcher) arm()
     onChange(null)
-  })
+  }, fallbackMs) : null
   return () => {
     closed = true
-    stopFloor()
+    if (timer !== null) stopInterval(timer)
     closeWatcher(watcher)
     watcher = null
     closeWatcher(ancestor)
     ancestor = null
   }
 }
-export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefined) => void): () => void {
+export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefined) => void, fallbackMs = 1000): () => void {
   const path = recordPath(id)
   const file = id + '.json'
   const readRaw = (): string | null => {
@@ -159,7 +159,7 @@ export function subscribeHostRecord(id: string, cb: (record: HostRecord | undefi
   }
   return watchHostDirectory(podsDirectory(), filename => {
     if (filename === null || filename === file || filename.startsWith('.' + file + '.')) check()
-  })
+  }, fallbackMs)
 }
 export function subscribeHostRecords(cb: () => void): () => void {
   const dir = podsDirectory()

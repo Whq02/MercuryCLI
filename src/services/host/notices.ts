@@ -8,6 +8,7 @@ import { errorMessage } from '../../utils/errors.js'
 import { escapeXml } from '../../utils/xml.js'
 import { hostDirectory, watchHostDirectory, type HostRecord } from './store.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { startInterval, stopInterval } from '../../utils/timers.js'
 
 export function hostNotice(record: HostRecord, kind: string, words: string): void {
   if (!record.sessionId) return
@@ -60,9 +61,14 @@ function readNotice(path: string): { sessionId: string; words: string } | undefi
 }
 export function watchHostNotices(sessionId: () => string): () => void {
   const tick = (): void => { try { deliverHostNotices(sessionId()) } catch (error) { passedOver(error) } }
-  const stop = watchHostDirectory(join(hostDirectory(), 'notices'), filename => {
+  const stopWatch = watchHostDirectory(join(hostDirectory(), 'notices'), filename => {
     if (filename === null || filename.endsWith('.json') || filename.endsWith('.tmp')) tick()
-  }, 1000)
+  }, 0)
+  const timer = startInterval(tick, 1000)
+  timer.unref()
   tick()
-  return stop
+  return () => {
+    stopInterval(timer)
+    stopWatch()
+  }
 }
