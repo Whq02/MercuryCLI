@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useDerivedState, useLoad, useSubscription, useTimer } from '../hooks/effects.js';
+import { useLoad, useTimer } from '../hooks/effects.js';
 import 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
@@ -35,7 +35,7 @@ import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener 
 import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
 import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
-import { mintImmediateReceipt, recentWarningReceipt, subscribeSeatReceipts } from '../utils/model/seatReceipts.js';
+import { hasQueuedWarningReceipt, latestWarningSnapshot, mintImmediateReceipt, recentWarningReceipt, subscribeWarningReceipts } from '../utils/model/seatReceipts.js';
 import { loginsGlance } from './BootLoginsScreen.js';
 import { fireDeltaWords } from './BootSaturnScreen.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
@@ -159,14 +159,21 @@ export function BootSplashScreen(): React.ReactNode {
   const stripHint = stripKeyMapHint();
   const keyMapHint = faceKeyMapHintOf(stripHint, modelDefaultDoor);
 
-  const [birthReceipt, setBirthReceipt] = useState<string | null>(() => recentWarningReceipt()?.text ?? null);
-  useSubscription(
-    () =>
-      subscribeSeatReceipts(r => {
-        if (r.level === 'warning') setBirthReceipt(r.text);
-      }, r => r.level === 'warning'),
-    [],
+  const [mountWarning] = useState(() => ({
+    seq: latestWarningSnapshot()?.seq ?? 0,
+    hadInitial: recentWarningReceipt() !== null || hasQueuedWarningReceipt(),
+  }));
+  const latestWarning = useSyncExternalStore(
+    subscribeWarningReceipts,
+    latestWarningSnapshot,
+    latestWarningSnapshot,
   );
+  const birthReceipt =
+    latestWarning === null
+      ? null
+      : latestWarning.seq > mountWarning.seq || mountWarning.hadInitial
+        ? latestWarning.receipt.text
+        : null;
 
   const [liveCount, setLiveCount] = useState<number>(0);
   useLoad(() => {
@@ -336,13 +343,11 @@ export function BootSplashScreen(): React.ReactNode {
     reasonUnavailable: r => r.ctx,
   });
   const selIdx = list.selectedIndex;
-  const prevSelRef = useRef(selIdx);
-  useDerivedState(() => {
-    if (prevSelRef.current !== selIdx) {
-      prevSelRef.current = selIdx;
-      setSelCleared(false);
-    }
-  }, [selIdx]);
+  const [prevSelIdx, setPrevSelIdx] = useState(selIdx);
+  if (prevSelIdx !== selIdx) {
+    setPrevSelIdx(selIdx);
+    setSelCleared(false);
+  }
 
 
   const { accent: coreAccent, rampStops } = useSplashCoreAccent();
