@@ -834,8 +834,8 @@ async function discoverFor(connection: ConnectedMCPServer, includeResourceTools:
     fetchCommandsForClient(connection),
     connection.capabilities.resources ? fetchResourcesForClient(connection) : Promise.resolve([] as ServerResource[]),
   ])
-  const allTools = includeResourceTools && connection.capabilities.resources
-    ? [...tools, ListMcpResourcesTool, ReadMcpResourceTool]
+  const allTools = includeResourceTools
+    ? [...tools, ...supplementaryToolsForMcpClient(connection)]
     : tools
   return { client: connection, tools: allTools, commands, ...(resources.length > 0 ? { resources } : {}) }
 }
@@ -861,8 +861,6 @@ export async function getMcpToolsCommandsAndResources(
     else remote.push([name, config])
   }
   let resourceToolsAdded = false
-  const authTool = (name: string, config: ScopedMcpServerConfig): Tool =>
-    createMcpAuthTool(name, config)
   const connectOne = async ([name, config]: [string, ScopedMcpServerConfig]): Promise<void> => {
     try {
       if (!isMcpCatalogueMember(name)) {
@@ -874,7 +872,8 @@ export async function getMcpToolsCommandsAndResources(
         const warm = await isNeedsAuthWarm(name)
         const discoveredNoToken = (type === 'http' || type === 'sse') && hasMcpDiscoveryButNoToken(name, config)
         if (warm || discoveredNoToken) {
-          onConnectionAttempt({ client: { name, type: 'needs-auth', config }, tools: [authTool(name, config)], commands: [] })
+          const needsAuth: MCPServerConnection = { name, type: 'needs-auth', config }
+          onConnectionAttempt({ client: needsAuth, tools: supplementaryToolsForMcpClient(needsAuth), commands: [] })
           return
         }
       }
@@ -882,7 +881,7 @@ export async function getMcpToolsCommandsAndResources(
       if (connection.type !== 'connected') {
         onConnectionAttempt({
           client: connection,
-          tools: connection.type === 'needs-auth' ? [authTool(name, config)] : [],
+          tools: supplementaryToolsForMcpClient(connection),
           commands: [],
         })
         return
@@ -920,6 +919,8 @@ export async function prefetchAllMcpResources(
   return { clients, tools, commands }
 }
 
+const MCP_RESOURCE_TOOL_NAMES = new Set([ListMcpResourcesTool.name, ReadMcpResourceTool.name])
+
 export function supplementaryToolsForMcpClient(client: MCPServerConnection): Tool[] {
   if (client.type === 'connected') {
     return client.capabilities.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
@@ -928,6 +929,16 @@ export function supplementaryToolsForMcpClient(client: MCPServerConnection): Too
     return [createMcpAuthTool(client.name, client.config)]
   }
   return []
+}
+
+export function pruneStaleMcpResourceTools(
+  clients: readonly MCPServerConnection[],
+  tools: Tool[],
+): Tool[] {
+  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities.resources))) {
+    return tools
+  }
+  return tools.filter(tool => !MCP_RESOURCE_TOOL_NAMES.has(tool.name))
 }
 
 export async function reconnectMcpServerImpl(

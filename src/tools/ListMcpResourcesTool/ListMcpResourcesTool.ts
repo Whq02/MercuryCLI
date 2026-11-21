@@ -7,6 +7,8 @@ import { isOutputLineTruncated } from '../../utils/terminal.js'
 import { DESCRIPTION, LIST_MCP_RESOURCES_TOOL_NAME, PROMPT } from './prompt.js'
 import { renderToolResultMessage, renderToolUseMessage } from './UI.js'
 import { mcpClientForTools } from '../../services/mcp/client/forTools.js'
+import { getDenyRuleForMcpServer } from '../../utils/permissions/decision/rules.js'
+import { mcpServerDenyDecision } from '../../utils/permissions/ruleReason.js'
 
 
 const inputSchema = z.object({
@@ -52,8 +54,22 @@ export const ListMcpResourcesTool = buildTool({
   async prompt(): Promise<string> {
     return PROMPT
   },
+  async checkPermissions(input: Input, context: ToolUseContext) {
+    if (input.server !== undefined) {
+      const denied = mcpServerDenyDecision(
+        context.getAppState().toolPermissionContext,
+        LIST_MCP_RESOURCES_TOOL_NAME,
+        input.server,
+      )
+      if (denied) return denied
+    }
+    return { behavior: 'allow' as const, updatedInput: input }
+  },
   async call(input: Input, context: ToolUseContext) {
-    const clients = context.options.mcpClients
+    const permissionContext = context.getAppState().toolPermissionContext
+    const clients = context.options.mcpClients.filter(
+      client => getDenyRuleForMcpServer(permissionContext, client.name) === null,
+    )
     const selected = input.server
       ? clients.filter(client => client.name === input.server)
       : clients
