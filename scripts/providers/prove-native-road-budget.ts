@@ -13,10 +13,11 @@ delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 delete process.env.MERCURY_API_TIMEOUT_MS
 delete process.env.NODE_ENV
 
+const nativeRoadFixHint = 'fix streamOllamaChat, localApiAgentOptions or withLocalDispatcher in src/services/providers/local/ollamaChatTransport.ts, the budget words in src/services/providers/streamIdleBudget.ts, or the local law in localStreamLawFor in src/services/providers/localLiveness.ts (the node lane is scripts/providers/lib/native-road-node-lane.mjs; its output is printed above as node ·)'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${nativeRoadFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

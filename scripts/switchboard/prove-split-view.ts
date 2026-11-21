@@ -13,9 +13,17 @@ process.env['MERCURY_CONFIG_DIR'] = scratch
 const REPO = join(import.meta.dir, '..', '..')
 
 let failures = 0
+const splitFailureHint = (label: string): string => {
+  if (/^A([6-9]|1\d)/.test(label) || /^G/.test(label)) return 'change the key rows or the legend in src/components/concourse/controlManifest.ts (regionKeysFor, withSplitViewTruth, legendPriorityOf, CONCOURSE_CONTROLS)'
+  if (/^F2/.test(label)) return 'change resolveConcourseProfile in src/components/concourse/ConcourseLayout.tsx'
+  if (/^C/.test(label)) return 'change splitGeometryAt and the pane minimums in src/components/concourse/splitView.ts'
+  if (/^[AEF]/.test(label)) return 'change splitToggleDecisionOf, splitAvailableAt, toggleSplitView, collapseSplitForFrame or nudgeSplitRatio in src/components/concourse/splitView.ts'
+  return 'change src/components/concourse/splitView.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${splitFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const split = await import('../../src/components/concourse/splitView.ts')

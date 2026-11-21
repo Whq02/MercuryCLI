@@ -47,13 +47,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix, read the rung choice and notice text in src/services/compact/overflowRecovery.ts and the recovery loop run by queryEvents in src/query.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow recovery prover exceeded 180s')
+  console.log('\nTIMEOUT — overflow recovery prover exceeded 180s — a scripted model or fold never answered; look at the last section printed above and the recovery loop in queryEvents in src/query.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

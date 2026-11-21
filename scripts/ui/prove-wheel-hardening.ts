@@ -53,10 +53,12 @@ const DRAG = '\x1b[<32;10;5M'
 
 let failures = 0
 let checks = 0
+const WHEEL_HARDENING_FAIL_HINT =
+  'to fix, change coalesceWheelRun in src/ink/components/AppInputLoop.ts (wheel chunk netting and page cap), resolveAlternateScrollIntent in src/ink/termio/alternateScrollPolicy.ts, or the wheel handling of src/components/prompts-panel/PromptsPanel.tsx and src/screens/Chat.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1600)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${WHEEL_HARDENING_FAIL_HINT}${detail ? `; ${detail.slice(0, 1600)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

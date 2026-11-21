@@ -19,16 +19,32 @@ const { getCommandQueue } = await import('../../src/utils/messageQueueManager.ts
 const { normalizeSampleDoc, renderSampleDoc } = await import('../../src/services/samples/renderDoc.ts')
 
 let failures = 0
+let currentSectionKey = ''
+const sectionWhere: Record<string, string> = {
+  B: 'the sample() bridge call run by scripts/samples/evalCell.js, the records in src/services/samples/store.ts and the page from renderSampleDoc in src/services/samples/renderDoc.ts',
+  L1: 'sampleListenerAddress in src/services/samples/listener.ts and sampleUrl in src/services/samples/store.ts',
+  L2: 'the token check and the 404 answers in the request handler of src/services/samples/listener.ts',
+  L3: 'the shell answer in the request handler of src/services/samples/listener.ts',
+  L4: 'the version route in the request handler of src/services/samples/listener.ts',
+  L5: 'the versions route in the request handler of src/services/samples/listener.ts',
+  L6: 'the marks route in src/services/samples/listener.ts, parseMarksBody and formatMarksMessage in src/services/samples/marks.ts, appendMarks in src/services/samples/store.ts',
+  L7: 'the marks route refusals in src/services/samples/listener.ts and parseMarksBody in src/services/samples/marks.ts',
+  L8: 'closeSampleListener in src/services/samples/listener.ts and the address kept by src/services/samples/store.ts',
+  P: 'the token comparison in the request handler of src/services/samples/listener.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = sectionWhere[currentSectionKey]
+  const shown = [detail, where ? `look at ${where}` : ''].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionKey = /^L\d/.test(t) ? t.slice(0, 2) : t.slice(0, 1)
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples listener proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — samples listener proof exceeded 120s; a cell run or an http call to the listener (src/services/samples/listener.ts) did not answer')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

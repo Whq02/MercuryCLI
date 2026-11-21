@@ -2,9 +2,15 @@
 import { spawn, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { check, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback, printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg } from '../computer/computerDriveKit.ts'
+import { check as recordCheck, childEnv, DIST, endLeg, FACE_READY, finish, joined, netlines, nonLoopback, printFrame, productNode, requireCaptureDriver, ROOT, scratch, startLeg } from '../computer/computerDriveKit.ts'
 import { captureEngineEntry, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+
+const FACE_LINE_FAIL_HINT =
+  'to fix, change decideFaceNotice or takeFaceUpdateNotice in src/services/privateChannel/quietUpdateNotice.ts (what is announced and recorded as faceAnnounced) or the face line painting in src/components/BootSplashScreen.tsx (faceKeyMapHintOf); the frame is printed above'
+const check = (label: string, cond: boolean, detail = ''): void => {
+  recordCheck(label, cond, cond ? detail : detail ? `${FACE_LINE_FAIL_HINT}; ${detail}` : FACE_LINE_FAIL_HINT)
+}
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
 const { faceKeyMapHintOf } = await import('../../src/components/BootSplashScreen.tsx')

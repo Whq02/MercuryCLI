@@ -14,9 +14,10 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
+const SERVED_WINDOW_HINT = 'to fix, change the window choice in chooseLocalWindow / heldLocalWindow (src/services/providers/local/localWindow.ts), the send path in localCallModel (src/services/providers/local/localCallModel.ts), or the served-figure read in refreshLocalDiscovery (src/services/providers/local/localDiscovery.ts) that this section exercises'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${SERVED_WINDOW_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

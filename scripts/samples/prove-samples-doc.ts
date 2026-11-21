@@ -12,11 +12,25 @@ process.env.BROWSER = '/usr/bin/true'
 process.env.MERCURY_SAMPLES = '1'
 
 let failures = 0
+let currentSectionLetter = ''
+const sectionWhere: Record<string, string> = {
+  R: 'renderSampleDoc and normalizeSampleDoc in src/services/samples/renderDoc.ts, DOC_STYLE and DOC_SCRIPT in src/services/samples/docTheme.ts; if the page change is intended, regenerate scripts/samples/fixtures/samples-doc-reference.json',
+  N: 'normalizeSampleDoc, diffTones and renderSampleDoc in src/services/samples/renderDoc.ts',
+  F: 'specOf and SAMPLE_DOC_REFUSAL in src/services/samples/bridge.ts, and the refusal messages thrown by normalizeSampleDoc in src/services/samples/renderDoc.ts',
+  E: 'the escaping in renderSampleDoc and sanitizeSvg in src/services/samples/renderDoc.ts',
+  D: 'the id assignment in renderSampleDoc in src/services/samples/renderDoc.ts',
+  C: 'the colour tokens in DOC_STYLE in src/services/samples/docTheme.ts',
+  T: 'SAMPLE_PROMPT_LINES in src/tools/EvalTool/prompt.ts and the prompt built by src/tools/EvalTool/EvalTool.ts',
+  B: 'handleSampleCall, keepSample and specOf in src/services/samples/bridge.ts, and the version files kept by src/services/samples/store.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = sectionWhere[currentSectionLetter]
+  const shown = [detail, where ? `look at ${where}` : ''].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionLetter = t.slice(0, 1)
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 function thrown(fn: () => unknown): string {
@@ -38,7 +52,7 @@ async function rejected(p: Promise<unknown>): Promise<string> {
 const sha = (s: string): string => createHash('sha256').update(s).digest('hex')
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — samples doc proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — samples doc proof exceeded 120s; a await in handleSampleCall or closeSampleListener (src/services/samples/bridge.ts, src/services/samples/listener.ts) did not settle')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

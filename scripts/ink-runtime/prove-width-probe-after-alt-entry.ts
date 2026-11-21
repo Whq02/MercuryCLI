@@ -127,32 +127,32 @@ console.log('§1 a first screen that takes the alternate screen and the keyboard
   check(
     'control: the alternate screen is entered once and the eight samples are asked',
     countOf(bytes, ALT_ENTRY) === 1 && countOf(bytes, CURSOR_ASK) === WIDTH_PROBE_SAMPLES.length,
-    `entries ${countOf(bytes, ALT_ENTRY)}, asks ${countOf(bytes, CURSOR_ASK)}`,
+    `entries ${countOf(bytes, ALT_ENTRY)}, asks ${countOf(bytes, CURSOR_ASK)}; the alternate screen must be entered once and queueTerminalWidthProbe in src/ink/session/widthProbe.ts must ask one cursor position per entry of WIDTH_PROBE_SAMPLES`,
   )
   const before = altAt < 0 ? bytes : bytes.slice(0, altAt)
   check(
     "no sample is written, no row erased and no cell addressed before the alternate screen's entry: what stood in the terminal stays",
     altAt >= 0 && !before.includes(CURSOR_ASK) && !before.includes(LINE_ERASE) && !/\x1b\[\d+;\d+H/.test(before),
-    `entry at ${altAt}, first ask at ${firstAsk}, first row erase at ${firstErase}; before the entry: ${show(before)}`,
+    `entry at ${altAt}, first ask at ${firstAsk}, first row erase at ${firstErase}; before the entry: ${show(before)}; the width probe (queueTerminalWidthProbe in src/ink/session/widthProbe.ts) must not write its samples until the alternate screen entry has been written`,
   )
   check(
     'the entry and the first frame go out in one write, down to the last row, and the samples in a later one',
     entryWrite >= 0 && out.chunks[entryWrite]!.includes(`\x1b[${ROWS};1H`) && askWrite > entryWrite,
-    `the entry in write ${entryWrite}, the first ask in write ${askWrite}; the entry's write: ${show(out.chunks[entryWrite] ?? '')}`,
+    `the entry in write ${entryWrite}, the first ask in write ${askWrite}; the entry's write: ${show(out.chunks[entryWrite] ?? '')}; the entry and the first frame must leave in one write and the probe samples in a later one`,
   )
   const measured = readTerminalWidthMeasurements()
   const expected = Object.fromEntries(WIDTH_PROBE_SAMPLES.map((sample, i) => [sample.kind, ADVANCES[i]!]))
   check(
     "the terminal's answers are taken: the eight classes are measured",
     JSON.stringify(measured) === JSON.stringify(expected),
-    `${JSON.stringify(measured)} against ${JSON.stringify(expected)}`,
+    `${JSON.stringify(measured)} against ${JSON.stringify(expected)}; the cursor replies must be read back by queueTerminalWidthProbe and returned by readTerminalWidthMeasurements in src/ink/session/widthProbe.ts`,
   )
   const lines = out.lines()
   const wanted = Array.from({ length: ROWS }, (_, i) => rowText(i + 1))
   check(
     "after the probe every row of the frame stands again, the eight it sampled on among them",
     JSON.stringify(lines) === JSON.stringify(wanted),
-    JSON.stringify(lines),
+    JSON.stringify(lines) + '; the frame rows must be repainted after the probe erased the rows it sampled on (see the probe request in src/ink/session/widthProbe.ts)',
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()
@@ -179,12 +179,12 @@ console.log('§2 a first screen that gives the alternate screen up before its en
   const owed = ink.isAltEntryPending()
   ink.render(React.createElement(PlainScreen))
   await settle(700)
-  check('control: the first screen armed the entry and still owed it when it was replaced', owed && !ink.isAltScreenActive)
-  check('control: the plain screen is painted', out.bytes.includes('plain-screen-painted'), show(out.bytes))
+  check('control: the first screen armed the entry and still owed it when it was replaced', owed && !ink.isAltScreenActive, 'the first screen must arm the alternate entry and not yet have entered it when the plain screen replaces it')
+  check('control: the plain screen is painted', out.bytes.includes('plain-screen-painted'), show(out.bytes) + '; the replacement screen must paint its text')
   check(
     "the alternate screen is never entered, and nothing of the probe is written on the terminal's own screen",
     !out.bytes.includes(ALT_ENTRY) && !out.bytes.includes(CURSOR_ASK) && !out.bytes.includes(LINE_ERASE) && !out.bytes.includes('\x1b7'),
-    show(out.bytes),
+    show(out.bytes) + '; a screen that gives up the alternate entry before it is written must leave the width probe unsent (src/ink/session/widthProbe.ts)',
   )
   ;(ink as unknown as { isTTY: boolean }).isTTY = false
   ink.unmount()

@@ -6,7 +6,8 @@ import type { ToolPermissionContext } from '../../src/utils/permissions/permissi
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const hint = 'fix permissionRuleValueFromString in src/utils/permissions/permissionRuleParser.ts (section 1), getDenyRuleForTool in src/utils/permissions/decision/rules.ts (section 2) or validatePermissionRule in src/utils/settings/permissionValidation.ts (section 3)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' — ' : ' — ') + hint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

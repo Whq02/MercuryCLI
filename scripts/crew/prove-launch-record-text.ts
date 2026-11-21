@@ -17,7 +17,7 @@ let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — strip control bytes, line breaks and length in restartStopSummary, backgroundLaunchReceipts and stoppedRecordFor in src/tasks/LocalAgentTask/launchReceipts.ts'}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

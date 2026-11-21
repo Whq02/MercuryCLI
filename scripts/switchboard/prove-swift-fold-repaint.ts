@@ -14,9 +14,15 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const repaintFailureHint = (label: string): string => {
+  if (/loading line|paint selection|warm|hint|identity|render-only/.test(label)) return 'change the paint selection in src/services/concourse/sessionWarmth.ts (paintedTranscriptOf, entryLoadingLineOf)'
+  if (/slot|re-point|early/.test(label)) return 'change the focused slot in src/services/engine-connector/focusedConnector.ts (subscribeThroughFocused, the hop epoch) and focusDaemonSession in src/services/engine-connector/daemonConnector.ts'
+  return 'change focusDaemonSession and the records subscription in src/services/engine-connector/daemonConnector.ts so a transcript file that appears after attach still repaints'
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${repaintFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const until = async (pred: () => boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()

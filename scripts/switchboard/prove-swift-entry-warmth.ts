@@ -9,9 +9,14 @@ mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 
 let failures = 0
+const warmthFailureHint = (label: string): string => {
+  if (/the Chat|transcript modes|cold loading line is keyed/.test(label)) return 'change how the chat screen uses the warmth in src/screens/chat/useChatSession.ts (paintedMessages, entryLoadingLine) and src/services/concourse/sessionWarmth.ts'
+  return 'change the store or the paint selection in src/services/concourse/sessionWarmth.ts (armEntryWarmth, settleEntryWarmth, paintedTranscriptOf, entryLoadingLineOf)'
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${warmthFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 console.log('§1 the wiring (mirror publishes · entry arms/settles · Chat paints render-only)')

@@ -16,9 +16,11 @@ delete process.env.OPENROUTER_API_KEY
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
 let failures = 0
+let wallHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, wallHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -51,6 +53,7 @@ const OPERATOR_BLOB = '401 {"type":"error","error":{"type":"authentication_error
 
 console.log('§1 — the pure classifier: two walls in every wire spelling; the neighbours keep their own presenters')
 {
+  wallHint = 'change classifyCredentialWall, isRevokedSignInText, credentialWallLine or reconnectDoorFor in src/services/providers/credentialWall.ts'
   check("401 + \"OAuth access token has been revoked\" (the operator's blob) ⇒ sign-in", classifyCredentialWall(401, OPERATOR_BLOB) === 'sign-in')
   check('403 + "OAuth token has been revoked" (the older spelling) ⇒ sign-in', classifyCredentialWall(403, 'OAuth token has been revoked') === 'sign-in')
   check("403 + \"Key limit exceeded\" (OpenRouter's per-key cap) ⇒ key-limit", classifyCredentialWall(403, 'Key limit exceeded') === 'key-limit')
@@ -87,6 +90,7 @@ console.log('§1 — the pure classifier: two walls in every wire spelling; the 
 
 console.log('§2 — the first-party door: the SDK presenter paints the line, never the envelope')
 {
+  wallHint = 'change getAssistantMessageFromError in src/services/api/errors.ts (it must paint credentialWallLine from src/services/providers/credentialWall.ts, never the raw envelope)'
   const { APIError } = await import('../../src/utils/api/sdkErrors.js')
   const { getAssistantMessageFromError, API_ERROR_MESSAGE_PREFIX } = await import('../../src/services/api/errors.ts')
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
@@ -127,6 +131,7 @@ console.log('§2 — the first-party door: the SDK presenter paints the line, ne
 
 console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" through the real client → the line')
 {
+  wallHint = 'change mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel.ts, so the 403 reaches classifyCredentialWall in src/services/providers/credentialWall.ts'
   const { streamCompatChat, mapCompatHttpFailure } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
   const { compatFaultToTypedError, compatTerminalFaultText } = await import('../../src/services/providers/openaicompat/compatChatCallModel.ts')
   const { openrouterLaneProfile } = await import('../../src/services/providers/openrouter/openrouterCallModel.ts')
@@ -155,6 +160,7 @@ console.log('§3 — the compat door: OpenRouter\'s 403 "Key limit exceeded" thr
 
 console.log("§4 — the row receipt: the live composer's gate speaks the identical line for a walled row")
 {
+  wallHint = 'change liveComposerGateOf in src/components/concourse/ConcourseScreen.tsx, or credentialWallLineForModel / observedCredentialWall in src/services/providers/credentialWall.ts'
   const { liveComposerGateOf } = await import('../../src/components/concourse/ConcourseScreen.tsx')
   type Row = import('../../src/components/concourse/contracts.ts').ConcourseRowV1
   const row = (over: Partial<Row> = {}): Row => ({

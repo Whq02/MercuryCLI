@@ -6,10 +6,11 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
+const WHERE_TO_CHANGE = 'to fix: the plan (roster, marks, admission records) is planToolPayload in src/services/providers/toolEconomy.ts; the refusal of a call to an unsent schema is gateToolCall in src/services/providers/toolCallGate.ts; the hint is buildSchemaNotSentHint in src/services/tools/toolExecution.ts; the announcement is getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the route of a model is declaredRouteOf in src/services/providers/routeLaw.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${WHERE_TO_CHANGE}`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

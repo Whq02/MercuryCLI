@@ -38,7 +38,7 @@ setCwdState(project)
 
 const PORT = 27068
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 480 seconds')
+  console.log('  [FAIL] the proof did not finish within 480 seconds; the last section header printed above names where it hung: look at the remote transport (scripts/remote-files/remoteKit.ts remoteWorld) and at GrepTool in src/tools/GrepTool/GrepTool.ts')
   process.exit(1)
 }, 480_000)
 watchdog.unref()
@@ -48,6 +48,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1100)}` : ''}`)
+  if (!ok) console.log('      fix: the ssh:// branch of GrepTool in src/tools/GrepTool/GrepTool.ts (the remote mirror, validateInput and checkPermissions) and the mirror, permission and validation code it calls in src/services/remoteFiles/bridge.ts; a case that compares with the local twin means the remote answer drifted from the local one')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

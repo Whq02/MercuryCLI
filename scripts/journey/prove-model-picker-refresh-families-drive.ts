@@ -26,10 +26,10 @@ if (!existsSync(DIST)) throw new Error(`Build missing: ${DIST}`)
 if (FRAMES) mkdirSync(FRAMES, { recursive: true })
 let failures = 0
 let checks = 0
-const check = (name: string, ok: boolean, detail = ''): void => {
+const check = (name: string, ok: boolean, detail = '', fix = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
 }
 type Cell = { c?: string }
 type Grid = Cell[][]
@@ -212,7 +212,7 @@ for (const legName of LEGS) {
         writeFileSync(join(FRAMES, `${tag}-grid.json`), JSON.stringify(payload))
         writeFileSync(join(FRAMES, `${tag}-wire.jsonl`), readFileSync(captureFile))
       }
-      check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`)
+      check(`${tag}: the drive reached every state`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}`, 'an awaited screen never appeared: rerun with --frames <dir> and read the saved cached and refreshed frames and wire.jsonl')
       const requestsOf = (name: string): Wire[] => wire.filter(event => event.kind === 'models' && event.family === name)
       const sendIndex = (mark: string): number => sends.findIndex(send => (send as { mark?: string }).mark === mark)
       const openAt = payload.sendReceipts?.[sendIndex('open')]?.ts ?? Infinity
@@ -220,12 +220,12 @@ for (const legName of LEGS) {
       const full = cached.includes('Mercury · model')
       if (leg.dark) {
         for (const name of ['openrouter', 'gemini', 'huggingface'] as const) {
-          check(`${tag}: ${FAMILIES[name].word} sends nothing with catalogue traffic switched off`, requestsOf(name).length === 0, `models requests ${requestsOf(name).length}`)
+          check(`${tag}: ${FAMILIES[name].word} sends nothing with catalogue traffic switched off`, requestsOf(name).length === 0, `models requests ${requestsOf(name).length}`, 'with MERCURY_DISABLE_NONESSENTIAL_TRAFFIC set the picker must send no list request for this family; see the refresh start in src/commands/model/picker/roads.ts')
           const frame = name === 'huggingface' ? markOf('hf-off') : cached
-          check(`${tag}: the ${FAMILIES[name].word} rows read catalogue off`, frame.includes(`${FAMILIES[name].word} — catalogue off`) || !full)
+          check(`${tag}: the ${FAMILIES[name].word} rows read catalogue off`, frame.includes(`${FAMILIES[name].word} — catalogue off`) || !full, '', 'the family heading must read catalogue off while catalogue traffic is switched off')
         }
-        check(`${tag}: the local probe stays exempt from the switch (the gate's own law)`, requestsOf('local').length >= 1, `tags requests ${requestsOf('local').length}`)
-        check(`${tag}: no notice line paints`, !refreshed.includes('the live list changed'))
+        check(`${tag}: the local probe stays exempt from the switch (the gate's own law)`, requestsOf('local').length >= 1, `tags requests ${requestsOf('local').length}`, 'the local probe must still run when catalogue traffic is switched off')
+        check(`${tag}: no notice line paints`, !refreshed.includes('the live list changed'), '', 'the changed-list notice in src/commands/model/picker/roads.ts must not be set when no list was fetched')
         continue
       }
       const spec = family!
@@ -235,22 +235,22 @@ for (const legName of LEGS) {
       const afterOpen = requests.filter(event => event.at >= openAt)
       const between = requests.filter(event => event.at >= (turn?.at ?? Infinity) && event.at < openAt)
       const landed = wire.filter(event => event.kind === 'landed' && event.family === spec.name && event.at >= openAt).at(-1)
-      check(`${tag}: the turn reached the fixture and the list was read at least once before it`, turn !== undefined && primed.length >= 1, `turn ${turn !== undefined}; primed reads ${primed.length}`)
-      check(`${tag}: nothing polls the list between the turn and the open`, between.length === 0, `reads ${between.length}`)
-      check(`${tag}: opening makes exactly one background list request within the cache span`, afterOpen.length === 1 && afterOpen[0]!.phase === 'after', `reads after open ${afterOpen.length}`)
+      check(`${tag}: the turn reached the fixture and the list was read at least once before it`, turn !== undefined && primed.length >= 1, `turn ${turn !== undefined}; primed reads ${primed.length}`, 'the family list must be read once before the first turn; check the fixture log wire.jsonl')
+      check(`${tag}: nothing polls the list between the turn and the open`, between.length === 0, `reads ${between.length}`, 'no timer or render may re-read the family list between a turn and the picker open')
+      check(`${tag}: opening makes exactly one background list request within the cache span`, afterOpen.length === 1 && afterOpen[0]!.phase === 'after', `reads after open ${afterOpen.length}`, 'the picker open in src/commands/model/picker/roads.ts must start exactly one background list request for the family')
       if (tight) check(`${tag}: the cached frame shows the current row and no notice before the delayed refresh lands`, current(cached, spec.keepName) && !cached.includes(noticeWords) && (landed === undefined || cachedAt < landed.at), `cachedAt ${cachedAt} landed ${landed?.at}`)
       else check(`${tag}: the cached rows paint before the delayed refresh lands`, live(cached, spec.oldName) && (walk || current(cached, spec.keepName)) && !live(cached, spec.newName) && (landed === undefined || cachedAt < landed.at), `cachedAt ${cachedAt} landed ${landed?.at}`)
       for (const other of (['openrouter', 'gemini', 'huggingface', 'local'] as const).filter(name => name !== spec.name)) {
-        check(`${tag}: the keyless ${FAMILIES[other].word} family sends nothing`, requestsOf(other).length === 0, `models requests ${requestsOf(other).length}`)
+        check(`${tag}: the keyless ${FAMILIES[other].word} family sends nothing`, requestsOf(other).length === 0, `models requests ${requestsOf(other).length}`, 'a family with no credentials must not be asked for its list')
       }
       if (leg.changed) {
-        if (!tight) check(`${tag}: the new rows replace the old live rows in place`, live(refreshed, spec.newName) && !live(refreshed, spec.oldName), refreshed.split('\n').filter(l => l.includes('efresh')).join(' | '))
-        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (focusedRowPattern(spec.keepName, spec.model).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '))
-        else check(`${tag}: the kept row is still live after the refresh`, live(refreshed, spec.keepName), refreshed.split('\n').filter(l => l.includes('refresh-')).join(' | '))
-        if (full) check(`${tag}: the notice names the family and the changed list`, refreshed.includes(noticeWords), refreshed.split('\n').filter(l => l.includes('changed')).join(' | '))
+        if (!tight) check(`${tag}: the new rows replace the old live rows in place`, live(refreshed, spec.newName) && !live(refreshed, spec.oldName), refreshed.split('\n').filter(l => l.includes('efresh')).join(' | '), 'the picker must repaint with the new rows once the refresh lands; see src/commands/model/picker/roads.ts')
+        if (!walk) check(`${tag}: the highlight stays on ${spec.model} after its row moves`, current(refreshed, spec.keepName) && (focusedRowPattern(spec.keepName, spec.model).test(refreshed) || !full), refreshed.split('\n').filter(l => l.includes('│ │ ')).join(' | '), 'the focused row must follow the model id when rows move; see src/commands/model/picker/roads.ts')
+        else check(`${tag}: the kept row is still live after the refresh`, live(refreshed, spec.keepName), refreshed.split('\n').filter(l => l.includes('refresh-')).join(' | '), 'the kept local row must stay live after the refresh')
+        if (full) check(`${tag}: the notice names the family and the changed list`, refreshed.includes(noticeWords), refreshed.split('\n').filter(l => l.includes('changed')).join(' | '), 'the notice is set in src/commands/model/picker/roads.ts when the live list changed')
       } else {
         check(`${tag}: an unchanged list keeps the rows as they were`, live(refreshed, spec.oldName) && (walk || current(refreshed, spec.keepName)) && !live(refreshed, spec.newName))
-        check(`${tag}: an unchanged list paints no notice`, !refreshed.includes('the live list changed'), refreshed.split('\n').filter(l => l.includes('catalogue')).join(' | '))
+        check(`${tag}: an unchanged list paints no notice`, !refreshed.includes('the live list changed'), refreshed.split('\n').filter(l => l.includes('catalogue')).join(' | '), 'the notice in src/commands/model/picker/roads.ts must be set only when the rows changed')
       }
     } finally {
       fixture.kill('SIGTERM')

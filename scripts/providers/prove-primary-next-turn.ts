@@ -2,8 +2,9 @@ import { existsSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { makeWorld, bootLead, LEAD_MODEL } from '../crew/crew-world.ts'
 
+const primaryTurnFixHint = 'fix the backup ladder and the overload switch in src/services/api/backupEngines.ts (backupEngineLadder, withBackupVote, backupEngineNoticeLine) so a backup answers only the overloaded turn and the next turn starts on the session primary; the journey world is scripts/crew/crew-world.ts'
 let failures = 0
-const check = (name: string, yes: boolean, detail = ''): void => { if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`) }
+const check = (name: string, yes: boolean, detail = ''): void => { if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${!yes ? ` — ${primaryTurnFixHint}` : ''}`) }
 const backup = 'claude-opus-5-5'
 const world = await makeWorld('primary-next-turn', [
   { kind: 'text', text: 'PRIMARY-RETURNED', whenModel: LEAD_MODEL, whenSaid: 'second turn starts with the session primary', model: LEAD_MODEL },

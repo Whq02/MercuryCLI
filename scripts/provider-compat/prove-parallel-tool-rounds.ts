@@ -7,16 +7,17 @@ import { z } from 'zod/v4'
 
 let failures = 0
 let checks = 0
+const PARALLEL_ROUNDS_HINT = 'to fix, change how the tool round is executed, answered and replayed in query (src/query.ts) or the provider adapter for the lane named in the section heading above, or the refusal gate in src/services/providers/toolCallGate.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${PARALLEL_ROUNDS_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — parallel tool rounds prover exceeded 240s')
+  console.log('\nTIMEOUT — parallel tool rounds prover exceeded 240s; a drive of the real loop (query in src/query.ts) against the loopback fixture never settled, so look at the last section printed above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

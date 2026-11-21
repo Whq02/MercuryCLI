@@ -30,7 +30,7 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${('change the turn so an operator answer given to a read card before a streamed reply is cut is kept for the same call in the retried reply, a plain No stops the turn, and an unmatched open card is withdrawn; run: ' + detail).slice(0, 900)}` : ''}`)
   if (!cond) failures++
 }
 function section(title: string): void {

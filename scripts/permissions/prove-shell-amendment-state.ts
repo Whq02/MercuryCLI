@@ -15,7 +15,8 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  const hint = 'fix handleInputModeToggle, handleFocus or handleReject in useShellPermissionFeedback in src/components/permissions/useShellPermissionFeedback.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' — ' : '') + hint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

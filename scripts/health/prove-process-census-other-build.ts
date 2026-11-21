@@ -12,9 +12,12 @@ const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus
 const { readMercuryProcesses, ownBundlePath } = await import('../../src/daemon/processSweepRun.ts')
 
 let checks = 0
-const check = (label: string, run: () => void | Promise<void>): Promise<void> => Promise.resolve(run()).then(() => {
+const check = (label: string, run: () => void | Promise<void>): Promise<void> => new Promise<void>(resolve => resolve(run())).then(() => {
   checks++
   console.log(`[PASS] ${label}`)
+}, (error: unknown) => {
+  console.log(`[FAIL] ${label} — change composeProcessSweepFacts or classifyMercuryProcess in src/utils/processSweep.ts, or readMercuryProcesses and ownBundlePath in src/daemon/processSweepRun.ts, so this reading holds`)
+  throw error
 })
 
 const NOW = Date.parse('2026-10-03T23:24:07+01:00')

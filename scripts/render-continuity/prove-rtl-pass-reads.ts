@@ -15,7 +15,8 @@ const ARABIC = 'تفلسف means philosophising'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const rtlHint = 'fix terminalBidiFrame in src/ink/terminalBidiFrame.ts (when it reads cells and when it shapes rows)'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${rtlHint}` : ''}`)
   if (!ok) failures = 1
 }
 

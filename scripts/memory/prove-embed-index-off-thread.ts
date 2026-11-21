@@ -61,7 +61,7 @@ writeLibrary(one, 1)
 const t0 = performance.now()
 const first = await idx.ensureEmbedIndex(one)
 const unitMs = performance.now() - t0
-check('one owner-length fact embeds and the index is written', first.built && first.rows === 1, JSON.stringify(first))
+check('one owner-length fact embeds and the index is written', first.built && first.rows === 1, JSON.stringify(first) + ' — ensureEmbedIndex in src/mneme/mnemeIndex.ts must build the index for one topic-doc fact')
 console.log(`  one fact (model load included): ${unitMs.toFixed(0)} ms`)
 
 console.log(`\n[T] a whole-library build does not hold the thread (${FACTS} facts)`)
@@ -78,9 +78,9 @@ console.log(`\n[T] a whole-library build does not hold the thread (${FACTS} fact
   clearInterval(timer)
   let maxGap = 0
   for (let i = 1; i < ticks.length; i++) maxGap = Math.max(maxGap, ticks[i]! - ticks[i - 1]!)
-  check(`the ${FACTS}-fact build completes`, out.built && out.rows === FACTS, JSON.stringify(out))
+  check(`the ${FACTS}-fact build completes`, out.built && out.rows === FACTS, JSON.stringify(out) + ' — ensureEmbedIndex in src/mneme/mnemeIndex.ts must index every fact of topic-ops.md')
   const bound = 3 * Math.max(unitMs, 50)
-  check(`the longest pause of the event loop during the build stays under three facts' worth (${bound.toFixed(0)} ms)`, maxGap < bound, `longest pause ${maxGap.toFixed(0)} ms over a ${took.toFixed(0)} ms build — the build runs synchronously on the calling thread`)
+  check(`the longest pause of the event loop during the build stays under three facts' worth (${bound.toFixed(0)} ms)`, maxGap < bound, `longest pause ${maxGap.toFixed(0)} ms over a ${took.toFixed(0)} ms build — the build runs synchronously on the calling thread; ensureEmbedIndex in src/mneme/mnemeIndex.ts must embed in batches that yield to the event loop (embedBatchAsync)`)
 }
 
 pack.resetEmbedAddonForTest()

@@ -12,9 +12,13 @@ const act = await import('../../src/services/crew/activity.js')
 const dispatch = await import('../../src/services/crew/dispatch.js')
 
 let failures = 0
+const ACTIVITY_FAIL_HINT =
+  'fix classifyActivity, activityIdOf, ingestActivity or cachedActivityFeed in src/services/crew/activity.ts (a tool_call_update must fold into the existing row; ids are adapterKind:sessionId:...), or DELIVERY_STATES in src/services/crew/dispatch.ts, not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${ACTIVITY_FAIL_HINT}` : ''}`,
+  )
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

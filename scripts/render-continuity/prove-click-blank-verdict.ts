@@ -20,7 +20,10 @@ const BAND = 'rgb(40,60,70)'
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) failures = 1
+  if (!ok) {
+    failures = 1
+    console.log('      fix: the blank-or-ink verdict of a click (cellIsBlank) comes from pointerOnBlank in src/ink/ink/pointer.ts and is delivered by dispatchClick in src/ink/geometry/hit.ts; the values in the detail are ink, blank or unheard for the clicked cells')
+  }
 }
 
 class Terminal extends EventEmitter {

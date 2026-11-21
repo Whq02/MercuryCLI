@@ -7,10 +7,11 @@ import { buildFixtureMcpTools } from './fixtureMcpEstate.ts'
 
 let failures = 0
 let checks = 0
+const WHERE_TO_CHANGE = 'to fix: the route predicates (isDeferredToolFor, loadsInFullFor, defersOnCloudFor) are in src/tools/ToolSearchTool/prompt.ts and each tool declares shouldDefer and loadInFullOnCloud; the plan (roster, deferredNames, held tools) is planToolPayload in src/services/providers/toolEconomy.ts; the announcement is getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the admission hint is buildSchemaNotSentHint in src/services/tools/toolExecution.ts; the search is ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${WHERE_TO_CHANGE}`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

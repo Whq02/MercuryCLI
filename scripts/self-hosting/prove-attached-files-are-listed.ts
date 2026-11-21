@@ -5,6 +5,7 @@ import { checker, openWorld } from './instructionWorld.ts'
 const world = openWorld('attached-listed')
 const { check, section, close } = checker()
 const same = (got: string[], want: string[]): boolean => JSON.stringify([...got].sort()) === JSON.stringify([...want].sort())
+const listedHint = ' | change attachedRows, listingRowWords or getInstructionListing in src/services/instructions/listing.ts, or the attaching in getNestedMemoryAttachmentsForFile in src/services/attachments/nestedMemory.ts'
 
 try {
   const project = world.project({
@@ -31,19 +32,19 @@ try {
   ]
 
   section('before a file of its folder is read, a nested file is not listed')
-  check('no attached row stands at the start, and no nested file is among the rows', d.attachedBefore.length === 0 && d.listedBefore.every(row => !row.includes('./sub/') && !row.includes('./own/') && !row.includes('./pkg/') && !row.includes('./quiet/')), JSON.stringify([d.attachedBefore, d.listedBefore]))
-  check('a scoped rule of the working directory reads "loads with"', same(d.listedBefore, ['Cursor · ./.cursor/rules/top.mdc · loads with src/**']), JSON.stringify(d.listedBefore))
+  check('no attached row stands at the start, and no nested file is among the rows', d.attachedBefore.length === 0 && d.listedBefore.every(row => !row.includes('./sub/') && !row.includes('./own/') && !row.includes('./pkg/') && !row.includes('./quiet/')), JSON.stringify([d.attachedBefore, d.listedBefore]) + listedHint)
+  check('a scoped rule of the working directory reads "loads with"', same(d.listedBefore, ['Cursor · ./.cursor/rules/top.mdc · loads with src/**']), JSON.stringify(d.listedBefore) + listedHint)
 
   section('once it has attached it is listed, whatever its format')
-  check("another tool's nested guide is listed with its tool", d.attached.includes(NESTED[0]!), JSON.stringify(d.attached))
-  check('a nested AGENTS.md is listed', d.attached.includes(NESTED[1]!), JSON.stringify(d.attached))
-  check("Mercury's own nested MERCURY.md is listed", d.attached.includes(NESTED[2]!), JSON.stringify(d.attached))
-  check('a scoped rule of a nested folder is listed with its patterns', d.attached.includes(NESTED[3]!), JSON.stringify(d.attached))
-  check('those four rows are all of them: a folder nothing was read in adds none, and the scoped rule of the working directory keeps its own row', same(d.attached, NESTED) && same(d.listed, ['Cursor · ./.cursor/rules/top.mdc · loaded with src/**']), JSON.stringify([d.attached, d.listed]))
+  check("another tool's nested guide is listed with its tool", d.attached.includes(NESTED[0]!), JSON.stringify(d.attached) + listedHint)
+  check('a nested AGENTS.md is listed', d.attached.includes(NESTED[1]!), JSON.stringify(d.attached) + listedHint)
+  check("Mercury's own nested MERCURY.md is listed", d.attached.includes(NESTED[2]!), JSON.stringify(d.attached) + listedHint)
+  check('a scoped rule of a nested folder is listed with its patterns', d.attached.includes(NESTED[3]!), JSON.stringify(d.attached) + listedHint)
+  check('those four rows are all of them: a folder nothing was read in adds none, and the scoped rule of the working directory keeps its own row', same(d.attached, NESTED) && same(d.listed, ['Cursor · ./.cursor/rules/top.mdc · loaded with src/**']), JSON.stringify([d.attached, d.listed]) + listedHint)
 
   section('the rows follow what the session still holds')
-  check('after the session lets them go, no nested file is shown as loaded and the scoped rule reads "loads with" again', d.dropped.attached.length === 0 && same(d.dropped.listed, ['Cursor · ./.cursor/rules/top.mdc · loads with src/**']), JSON.stringify(d.dropped))
-  check('read again, each attaches again and is listed again', same(d.returned.attached, NESTED) && same(d.returned.listed, ['Cursor · ./.cursor/rules/top.mdc · loaded with src/**']), JSON.stringify(d.returned))
+  check('after the session lets them go, no nested file is shown as loaded and the scoped rule reads "loads with" again', d.dropped.attached.length === 0 && same(d.dropped.listed, ['Cursor · ./.cursor/rules/top.mdc · loads with src/**']), JSON.stringify(d.dropped) + listedHint)
+  check('read again, each attaches again and is listed again', same(d.returned.attached, NESTED) && same(d.returned.listed, ['Cursor · ./.cursor/rules/top.mdc · loaded with src/**']), JSON.stringify(d.returned) + listedHint)
 } finally {
   world.close()
 }

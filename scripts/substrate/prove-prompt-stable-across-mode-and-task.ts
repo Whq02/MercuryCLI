@@ -34,7 +34,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}${!ok ? ' — change: the posture block and mode reminder in src/utils/cockpit/runtimePosture.ts (getRuntimePostureSection, markSessionPermissionMode), or the memory-at-start and section caching in getSystemPrompt (src/constants/prompts.ts) and src/constants/systemPromptSections.ts' : ''}`)
 }
 const MODEL = 'claude-fable-5-1'
 const promptOf = async (task?: string): Promise<string> => (await getSystemPrompt([], MODEL, [], 'default', task === undefined ? undefined : { prompt: task })).join('\n\n')

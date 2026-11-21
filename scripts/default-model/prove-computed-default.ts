@@ -96,9 +96,10 @@ const { switchDefaultProvider } = await import('../../src/utils/model/defaultPro
 const { clearAuthScope, setAuthScope } = await import('../../src/utils/envUtils.ts')
 
 let failures = 0
+const defaultHint = 'change the sign-in ledger in src/utils/accounts/signInLedger.ts (section 1), or orderCredentials, evaluateComputedDefault and the describe functions in src/services/model/computedDefault.ts (sections 2 and 3), or the live chain they feed through src/services/model/model.ts and src/utils/model/defaultProviderRung.ts (sections 4 and 5)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${defaultHint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

@@ -43,7 +43,7 @@ function run(label: string, extra: Record<string, string>): Row[] {
     const certificate = JSON.parse(result.stdout) as { sections: Array<{ checks: Row[] }> }
     rows = certificate.sections.flatMap(section => section.checks)
   } catch {}
-  check(`${label}: health emits a certificate`, rows.length > 0, `exit=${result.status}`)
+  check(`${label}: health emits a certificate`, rows.length > 0, `exit=${result.status} — run node dist/mercury.mjs health --json (build first with bun run build.ts) and read why it printed no certificate`)
   return rows
 }
 try {
@@ -52,16 +52,16 @@ try {
     const rows = run(label, { OPENROUTER_API_KEY: 'fixture-router-key', ...(keyless ? {} : { MERCURY_SEARCH_KEYLESS: '0' }) })
     const model = rows.find(row => row.id === 'model')
     const search = rows.find(row => row.id === 'web-search-door')
-    check(`${label}: model is not resolved before the catalogue is fetched`, String(model?.evidence).includes('no usable row yet'), JSON.stringify(model))
-    check(`${label}: search reports the same unresolved model`, String(search?.evidence).includes('no usable row yet'), JSON.stringify(search))
-    check(`${label}: search does not advertise a native provider`, !String(search?.evidence).includes('(native, session account)'), JSON.stringify(search))
-    check(`${label}: search status follows the available doors`, search?.status === (keyless ? 'ok' : 'info'), JSON.stringify(search))
+    check(`${label}: model is not resolved before the catalogue is fetched`, String(model?.evidence).includes('no usable row yet'), `${JSON.stringify(model)} — the model check in src/services/health/sections/settings/model.ts must report an unresolved default before the catalogue is fetched`)
+    check(`${label}: search reports the same unresolved model`, String(search?.evidence).includes('no usable row yet'), `${JSON.stringify(search)} — webSearchDoorCheck in src/services/health/sections/auth.ts must report the same unresolved model as the model check`)
+    check(`${label}: search does not advertise a native provider`, !String(search?.evidence).includes('(native, session account)'), `${JSON.stringify(search)} — webSearchDoorCheck in src/services/health/sections/auth.ts must not name a native provider while the default model is unresolved`)
+    check(`${label}: search status follows the available doors`, search?.status === (keyless ? 'ok' : 'info'), `${JSON.stringify(search)} — webSearchDoorCheck in src/services/health/sections/auth.ts must be ok with the keyless door and info without it (MERCURY_SEARCH_KEYLESS=0)`)
   }
   const native = run('native-default', { ANTHROPIC_API_KEY: 'fixture-anthropic-key' }).find(row => row.id === 'web-search-door')
-  check('native default keeps its native search door', native?.status === 'ok' && String(native.evidence).includes('Anthropic web search (native, session account)'), JSON.stringify(native))
+  check('native default keeps its native search door', native?.status === 'ok' && String(native.evidence).includes('Anthropic web search (native, session account)'), `${JSON.stringify(native)} — webSearchDoorCheck in src/services/health/sections/auth.ts must keep the native door for an Anthropic default`)
   const explicit = run('explicit-router', { OPENROUTER_API_KEY: 'fixture-router-key', MERCURY_MODEL: 'openrouter/fixture/search-model' }).find(row => row.id === 'web-search-door')
-  check('explicit model still wins', String(explicit?.evidence).includes('openrouter/fixture/search-model'), JSON.stringify(explicit))
-  check('explicit routed model does not acquire native search', !String(explicit?.evidence).includes('(native, session account)'), JSON.stringify(explicit))
+  check('explicit model still wins', String(explicit?.evidence).includes('openrouter/fixture/search-model'), `${JSON.stringify(explicit)} — webSearchDoorCheck in src/services/health/sections/auth.ts must name the model set by MERCURY_MODEL`)
+  check('explicit routed model does not acquire native search', !String(explicit?.evidence).includes('(native, session account)'), `${JSON.stringify(explicit)} — webSearchDoorCheck in src/services/health/sections/auth.ts must not add a native search door for a routed model`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

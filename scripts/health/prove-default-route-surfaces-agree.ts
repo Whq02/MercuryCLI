@@ -9,7 +9,7 @@ import { DIST, NODE } from '../daemon/dupline-world.ts'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — run node dist/mercury.mjs auth status --json and health --json in the same home and make the surface that disagrees name the route the run used' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

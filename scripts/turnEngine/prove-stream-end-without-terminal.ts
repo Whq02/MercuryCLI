@@ -30,7 +30,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond ? ` — to fix: read the close-without-end-event branch after the stream loop in src/services/providers/anthropic/streamCore.ts (settleTypedEnd, the NO_EVENTS_MESSAGE retry) and the receipt sentence in streamEndReceiptLine in src/services/providers/streamIdleBudget.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -38,7 +38,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the stream-end proof exceeded 180s')
+  console.log('\n❌ TIMEOUT — the stream-end proof exceeded 180s; a scene is waiting on a reply that never settles, so read the section printed last above and the close handling in src/services/providers/anthropic/streamCore.ts')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

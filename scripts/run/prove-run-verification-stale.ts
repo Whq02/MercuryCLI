@@ -2,11 +2,22 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let currentSectionNumber = 0
+const sectionWhere: Record<number, string> = {
+  1: 'the tool-effected and evidence handling in reduceRunEvent in src/services/run/runKernel.ts, where a mutation with changed paths turns verified into stale',
+  2: 'the tool-effected handling in reduceRunEvent in src/services/run/runKernel.ts, which must leave reads, failed or no-change edits, unverified and failed states as they are',
+  3: 'the evidence handling in reduceRunEvent in src/services/run/runKernel.ts',
+  4: 'buildRunContinuationCapsule in src/services/run/runContinuationCapsule.ts and buildRunRows in src/commands/run/runInspectorModel.ts, which must print the kernel verification state',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = sectionWhere[currentSectionNumber]
+  const hint = !cond && where ? `look at ${where}` : ''
+  const shown = [detail, hint].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionNumber = Number.parseInt(t, 10)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

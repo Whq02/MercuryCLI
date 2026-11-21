@@ -155,32 +155,32 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
     { atTick: 999, awaitText: FINISHED, minTick: 2, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'done' },
   ])
   try {
-    check('on: the boot, the plain call, the running shell and the continued turn all painted (engine exit 0)', run.status === 0 && ['plain', 'running', 'done'].every(l => run.marks.has(l)), `exit=${run.status}; ${run.log}`)
+    check('on: the boot, the plain call, the running shell and the continued turn all painted (engine exit 0)', run.status === 0 && ['plain', 'running', 'done'].every(l => run.marks.has(l)), `exit=${run.status}; engine log ${run.log} says which awaited text never painted; the hint and chord live in src/components/PromptInput/PromptInputFooterLeftSide.tsx and src/hooks/useCancelRequest.ts`)
     const plain = run.marks.get('plain')
     const running = run.marks.get('running')
     const done = run.marks.get('done')
     if (plain !== undefined) {
       const rows = textRows(plain.grid)
       printFrame('on · a plain model call in flight', rows)
-      check('on · plain call: the ready line ends with esc interrupts · ⇧← back and no row names ⇧b', tailRow(rows).endsWith(TAIL_PLAIN) && !rows.some(r => r.includes(SHIFT_B)), JSON.stringify(tailRow(rows)))
-      check('on · plain call: the hint row reads esc interrupt alone', rows.some(r => r === 'esc interrupt'), JSON.stringify(rows.filter(r => r.startsWith('esc interrupt'))))
+      check('on · plain call: the ready line ends with esc interrupts · ⇧← back and no row names ⇧b', tailRow(rows).endsWith(TAIL_PLAIN) && !rows.some(r => r.includes(SHIFT_B)), `a plain model call must not offer the chord: check shellRunning in src/components/PromptInput/PromptInputFooterLeftSide.tsx and escBackHint in src/components/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
+      check('on · plain call: the hint row reads esc interrupt alone', rows.some(r => r === 'esc interrupt'), `the hint row of a plain call is built in src/components/PromptInput/PromptInputFooterLeftSide.tsx; rows: ${JSON.stringify(rows.filter(r => r.startsWith('esc interrupt')))}`)
     }
     if (running !== undefined) {
       const rows = textRows(running.grid)
       printFrame('on · a shell command running', rows)
-      check('on · shell running: the ready line ends with esc interrupts · ⇧b backgrounds · ⇧← back', tailRow(rows).endsWith(TAIL_RUNNING), JSON.stringify(tailRow(rows)))
+      check('on · shell running: the ready line ends with esc interrupts · ⇧b backgrounds · ⇧← back', tailRow(rows).endsWith(TAIL_RUNNING), `with a shell running the ready line must name ⇧b: see escBackHint in src/components/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
       const at = rows.indexOf(HINT_ROW)
-      check('on · shell running: the hint row reads esc interrupt · ⇧b background the command, directly under the composer and above the newline row', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2)))
-      check('on · shell running: ⇧b is named on exactly those two rows', rows.filter(r => r.includes(SHIFT_B)).length === 2, String(rows.filter(r => r.includes(SHIFT_B)).length))
+      check('on · shell running: the hint row reads esc interrupt · ⇧b background the command, directly under the composer and above the newline row', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), `the background hint row is built in src/components/PromptInput/PromptInputFooterLeftSide.tsx and must sit between the composer border and the newline row; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
+      check('on · shell running: ⇧b is named on exactly those two rows', rows.filter(r => r.includes(SHIFT_B)).length === 2, `only the ready line and the hint row may name ⇧b (src/components/SwitchboardTagBar.tsx, src/components/PromptInput/PromptInputFooterLeftSide.tsx); rows naming it: ${rows.filter(r => r.includes(SHIFT_B)).length}`)
     }
     if (done !== undefined) {
       const rows = textRows(done.grid)
       printFrame('on · after ⇧b', rows)
-      check('on · after ⇧b: the turn went on to the next reply and no row names ⇧b any more', joined(rows).includes(FINISHED) && !rows.some(r => r.includes(SHIFT_B)))
+      check('on · after ⇧b: the turn went on to the next reply and no row names ⇧b any more', joined(rows).includes(FINISHED) && !rows.some(r => r.includes(SHIFT_B)), 'after ⇧b the background hint must go once the shell is moved and the turn must continue: see the backgroundShell action in src/hooks/useCancelRequest.ts')
       const told = run.leg.fixture.requests.some(req => JSON.stringify(req.body).includes(MOVED))
-      check('on · after ⇧b: the agent was told the command moved to the background as a task whose output arrives as a notification', told, run.leg.fixture.requests.map(req => JSON.stringify(req.body).slice(-300)).join(' | '))
+      check('on · after ⇧b: the agent was told the command moved to the background as a task whose output arrives as a notification', told, `the tool result sent back to the model must carry the moved-to-background sentence built in src/tools/BashTool/resultBlock.ts; request tails: ${run.leg.fixture.requests.map(req => JSON.stringify(req.body).slice(-300)).join(' | ')}`)
     }
-    check('on: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check('on: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0, `the drive reached a non-loopback address: read the netlog in ${run.leg.home} and point the fixture or childEnv in scripts/computer/computerDriveKit.ts at loopback`)
   } finally {
     await endLeg(run.leg)
   }
@@ -195,20 +195,20 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
     { afterPrevTicks: 3, data: '', mark: 'typed' },
   ])
   try {
-    check('off: the boot, the plain call and the running shell painted (engine exit 0)', run.status === 0 && ['plain', 'running', 'typed'].every(l => run.marks.has(l)), `exit=${run.status}; ${run.log}`)
+    check('off: the boot, the plain call and the running shell painted (engine exit 0)', run.status === 0 && ['plain', 'running', 'typed'].every(l => run.marks.has(l)), `exit=${run.status}; engine log ${run.log} says which awaited text never painted; the setting is view.backgroundKey in src/utils/settings/types.ts`)
     const running = run.marks.get('running')
     const typed = run.marks.get('typed')
     if (running !== undefined) {
       const rows = textRows(running.grid)
       printFrame('off · a shell command running, the setting off', rows)
-      check('off · shell running: the command is on the canvas', joined(rows).includes('a long command') || joined(rows).includes('sleep 40'))
-      check('off · shell running: both rows read as shipped — esc interrupts · ⇧← back and esc interrupt, no ⇧b', tailRow(rows).endsWith(TAIL_PLAIN) && rows.some(r => r === 'esc interrupt') && !rows.some(r => r.includes(SHIFT_B)), JSON.stringify(tailRow(rows)))
+      check('off · shell running: the command is on the canvas', joined(rows).includes('a long command') || joined(rows).includes('sleep 40'), 'the running Bash call must be painted on the canvas: see src/components/messages/AssistantToolUseMessage.tsx')
+      check('off · shell running: both rows read as shipped — esc interrupts · ⇧← back and esc interrupt, no ⇧b', tailRow(rows).endsWith(TAIL_PLAIN) && rows.some(r => r === 'esc interrupt') && !rows.some(r => r.includes(SHIFT_B)), `with view.backgroundKey false both rows must read as plain: the gate is getSettingsSnapshot().settings.view?.backgroundKey in src/components/PromptInput/PromptInputFooterLeftSide.tsx and src/components/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
     }
     if (typed !== undefined) {
       const rows = textRows(typed.grid)
-      check('off · B typed: the letter lands in the composer and the command runs on', composerRow(rows).includes('❯ B') && !joined(rows).includes(FINISHED), JSON.stringify(composerRow(rows)))
+      check('off · B typed: the letter lands in the composer and the command runs on', composerRow(rows).includes('❯ B') && !joined(rows).includes(FINISHED), `with view.backgroundKey false the B chord must not be taken: see the isActive gates in src/hooks/useCancelRequest.ts; composer row: ${JSON.stringify(composerRow(rows))}`)
     }
-    check('off: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check('off: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0, `the drive reached a non-loopback address: read the netlog in ${run.leg.home} and point the fixture or childEnv in scripts/computer/computerDriveKit.ts at loopback`)
   } finally {
     await endLeg(run.leg)
   }
@@ -225,28 +225,28 @@ console.log(`shell background key artifacts: ${scratch} (dist: ${DIST})`)
     { afterPrevTicks: wallTicks(15), data: '', mark: 'later' },
   ], holdRunnerOnceItsShellRuns)
   try {
-    check('refused: the boot, the plain call, the running shell, the press and the answer all painted (engine exit 0)', run.status === 0 && ['running', 'pressed', 'refused', 'later'].every(l => run.marks.has(l)), `exit=${run.status}; ${run.log}`)
+    check('refused: the boot, the plain call, the running shell, the press and the answer all painted (engine exit 0)', run.status === 0 && ['running', 'pressed', 'refused', 'later'].every(l => run.marks.has(l)), `exit=${run.status}; engine log ${run.log} says which awaited text never painted; the refusal sentence is the seat answer to the background-shell request, find it with grep in src/`)
     const pressed = run.marks.get('pressed')
     const refused = run.marks.get('refused')
     const later = run.marks.get('later')
-    check('refused: the runner was held while its shell command ran, before ⇧b was pressed', run.hold !== null && run.hold.pid !== null && run.hold.heldAtTick !== null && pressed !== undefined && run.hold.heldAtTick < pressed.atTick - 5, JSON.stringify({ pid: run.hold?.pid, heldAtTick: run.hold?.heldAtTick, pressedAtTick: pressed?.atTick }))
+    check('refused: the runner was held while its shell command ran, before ⇧b was pressed', run.hold !== null && run.hold.pid !== null && run.hold.heldAtTick !== null && pressed !== undefined && run.hold.heldAtTick < pressed.atTick - 5, JSON.stringify({ pid: run.hold?.pid, heldAtTick: run.hold?.heldAtTick, pressedAtTick: pressed?.atTick }) + ' the runner must be stopped (SIGSTOP) while its sleep 40 shell runs and before the press; see holdRunnerOnceItsShellRuns in this file and the pids read from daemon/concourse-workers.json')
     if (pressed !== undefined) {
       const rows = textRows(pressed.grid)
       printFrame('refused · a second after ⇧b, the seat still waiting on the held runner', rows)
-      check('refused · after the press: the command still runs and no answer has come yet', rows.indexOf(HINT_ROW) > 0 && !rows.some(r => r.includes(REFUSAL)) && !joined(rows).includes(FINISHED), JSON.stringify(rows.filter(r => r.includes('runner'))))
+      check('refused · after the press: the command still runs and no answer has come yet', rows.indexOf(HINT_ROW) > 0 && !rows.some(r => r.includes(REFUSAL)) && !joined(rows).includes(FINISHED), `after the press the shell must keep running until the seat answers: see the backgroundShell action in src/hooks/useCancelRequest.ts; runner rows: ${JSON.stringify(rows.filter(r => r.includes('runner')))}`)
     }
     if (refused !== undefined) {
       const rows = textRows(refused.grid)
       printFrame('refused · the seat\'s answer on the notice row', rows)
       const at = rows.findIndex(r => r.includes(REFUSAL))
-      check('refused: the seat\'s own sentence reaches the operator on the row under the composer', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2)))
-      check('refused: the command was not moved — the turn is still open and the ready line still names ⇧b', !joined(rows).includes(FINISHED) && tailRow(rows).endsWith(TAIL_RUNNING), JSON.stringify(tailRow(rows)))
+      check('refused: the seat\'s own sentence reaches the operator on the row under the composer', at > 0 && (rows[at - 1] ?? '').startsWith('╰') && (rows[at + 1] ?? '').includes('for a new line'), `the seat refusal sentence must paint on the notice row under the composer; rows: ${JSON.stringify(rows.slice(Math.max(0, at - 1), at + 2))}`)
+      check('refused: the command was not moved — the turn is still open and the ready line still names ⇧b', !joined(rows).includes(FINISHED) && tailRow(rows).endsWith(TAIL_RUNNING), `a refused move must leave the turn open with ⇧b still offered: see escBackHint in src/components/SwitchboardTagBar.tsx; ready line: ${JSON.stringify(tailRow(rows))}`)
     }
     if (later !== undefined) {
       const rows = textRows(later.grid)
-      check('refused · three seconds on: the sentence still stands (the channel\'s own clock, no clock of the chord\'s)', rows.some(r => r.includes(REFUSAL)), JSON.stringify(rows.filter(r => r.includes('runner'))))
+      check('refused · three seconds on: the sentence still stands (the channel\'s own clock, no clock of the chord\'s)', rows.some(r => r.includes(REFUSAL)), `the refusal notice must stay on screen without a timer of the chord: see src/hooks/useCancelRequest.ts; runner rows: ${JSON.stringify(rows.filter(r => r.includes('runner')))}`)
     }
-    check('refused: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check('refused: the drive stayed on loopback', nonLoopback(netlines(run.leg.netlog)).length === 0, `the drive reached a non-loopback address: read the netlog in ${run.leg.home} and point the fixture or childEnv in scripts/computer/computerDriveKit.ts at loopback`)
   } finally {
     run.hold?.release()
     await endLeg(run.leg)

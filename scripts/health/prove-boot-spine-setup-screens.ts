@@ -44,8 +44,9 @@ const FIX = `The rungs must fire ${ORDER}; an inverted spine means a stamp moved
 type Row = { schema: 1; pid: number; atMs: number; milestone: string; boot?: string; beforeLaunch?: unknown }
 type Check = { id: string; status: string; evidence: string; fix?: string }
 let failures = 0
+const WHERE_TO_LOOK = 'to fix: the launch-spine row is judged in src/services/health/sections/crew/boot.ts and the marks are written by recordLaunchMilestone in src/substrate/launchMilestones.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + WHERE_TO_LOOK}`)
   if (!cond) failures++
 }
 const readRows = (): Row[] => JSON.parse(readFileSync(STORE, 'utf8')).rows as Row[]

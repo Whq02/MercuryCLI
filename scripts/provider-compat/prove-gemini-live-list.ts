@@ -31,7 +31,7 @@ const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let failures = 0
 let checks = 0
-function check(label: string, yes: boolean) { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}`) }
+function check(label: string, yes: boolean) { checks++; if (!yes) failures++; console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ' | change refreshGeminiCatalogue, getGeminiModelOptions or geminiMakesNoChat in src/services/providers/gemini/geminiCatalogue.ts (list, rows, credential header), geminiCallModel in src/services/providers/gemini/geminiCallModel.ts (dispatch, wire, signatures, usage), resolveContextWindow or getModelMaxOutputTokens in src/utils/model/capabilities.ts, or the OAuth client config in src/services/providers/gemini/geminiAccounts.ts'}`) }
 const model = 'gemini-fixture-next'
 try {
   const suppliedEnv = { MERCURY_GEMINI_API_BASE: base, GEMINI_API_KEY: 'fixture-explicit-env-key' }

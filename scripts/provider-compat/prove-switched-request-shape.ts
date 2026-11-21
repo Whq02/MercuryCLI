@@ -6,10 +6,12 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+let failHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failHint].filter(Boolean).join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -228,6 +230,7 @@ function degenerates(body: Body): string[] {
 }
 
 section('§A both requests capture and settle')
+failHint = 'routedCallModel in src/services/providers/callModelRouter.ts must dispatch a history with a /model switch and settle on end_turn; read threw= above'
 const switched = await drive(switchedHistory())
 const native = await drive(nativeHistory())
 check('the SWITCHED request dispatched and the turn settled', switched.threw === undefined && switched.settled && Object.keys(switched.body).length > 0, `threw=${String(switched.threw)}`)
@@ -235,6 +238,7 @@ check('the NATIVE request dispatched and the turn settled', native.threw === und
 
 section('§B top-level key parity')
 {
+  failHint = 'the request built after a /model switch must have the same top-level fields as a native one; find where routedCallModel (src/services/providers/callModelRouter.ts) builds it and remove the difference'
   const sKeys = Object.keys(switched.body).sort().join(',')
   const nKeys = Object.keys(native.body).sort().join(',')
   check('top-level key sets are IDENTICAL (no switched-only field)', sKeys === nKeys, `switched={${sKeys}} native={${nKeys}}`)
@@ -244,6 +248,7 @@ section('§B top-level key parity')
 
 section('§C the block-shape vocabulary — switched ⊆ native + allowed extras')
 {
+  failHint = 'the switched history conversion must emit only block shapes the native history emits; the shapes listed are the ones to remove or reshape'
   const switchedShapes = blockShapes(switched.body)
   const nativeShapes = blockShapes(native.body)
   const extras = [...switchedShapes].filter(s => !nativeShapes.has(s))
@@ -256,6 +261,7 @@ section('§C the block-shape vocabulary — switched ⊆ native + allowed extras
 
 section('§D degenerate-shape scan of the switched body')
 {
+  failHint = 'fix the conversion of a switched history so no empty, repeated-role, thinking or unpaired tool blocks reach the wire, and the interrupted prompt and pickup text survive'
   const found = degenerates(switched.body)
   check('no degenerate shapes ride the switched wire', found.length === 0, found.join(' | '))
   const messages = (switched.body.messages as Array<{ role: string; content: unknown }> | undefined) ?? []
@@ -275,6 +281,7 @@ section('§D degenerate-shape scan of the switched body')
 
 section('§E the shape digest (for the receipt)')
 {
+  failHint = 'the switched request body had no messages; check the drive result in section A first'
   const shapes = [...blockShapes(switched.body)].sort()
   console.log('  switched-request block vocabulary:')
   for (const s of shapes) console.log(`    · ${s}`)

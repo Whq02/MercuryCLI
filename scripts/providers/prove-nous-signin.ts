@@ -14,18 +14,19 @@ for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_MODEL', 'MERCU
 const fixture = nousFixture()
 Object.assign(process.env, fixture.signinEnv)
 
+const nousFixHint = 'fix the sign-in code in src/services/providers/nous/ (nousOauth.ts for the token grant, refresh and refusal mark, nousLogin.ts for the device sign-in and key receipts, nousAccounts.ts and nousCatalogue.ts for what each surface reads) or the route in src/services/providers/callModelRouter.ts; the loopback fixture is scripts/providers/lib/nous-fixture.ts'
 let failures = 0
 let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${nousFixHint}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 async function until(what: string, holds: () => boolean, timeoutMs = 15_000): Promise<void> {
   const deadline = Date.now() + timeoutMs
   while (!holds()) {
-    if (Date.now() > deadline) throw new Error(`timed out waiting until ${what}`)
+    if (Date.now() > deadline) throw new Error(`timed out waiting until ${what}; look at refreshNousTokens in src/services/providers/nous/nousOauth.ts and the fixture hold in scripts/providers/lib/nous-fixture.ts`)
     await sleep(25)
   }
 }

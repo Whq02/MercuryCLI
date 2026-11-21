@@ -84,9 +84,10 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fixHint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shownHint = fixHint || 'read daemon.log, concourse-workers.json and spawn-ledger.jsonl in the kept world printed as [forensics] at the end of this run, then fix the daemon behaviour this step names'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${shownHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -322,7 +323,7 @@ try {
   const born = await say('hello there', undefined, 'claude-fable-5-1')
   check('the session dispatched onto a real runner', born.ok === true && typeof born.sessionId === 'string', JSON.stringify(born))
   sid = born.sessionId ?? ''
-  check('the first turn ended', await untilAsync(() => turnEnded(sid), 90_000), JSON.stringify({ rec: readRec(sid), facts: readFacts(sid) }))
+  check('the first turn ended', await untilAsync(() => turnEnded(sid), 90_000), JSON.stringify({ rec: readRec(sid), facts: readFacts(sid) }), 'the first turn never settled: read daemon.log in the kept world for the runner start, and the fixture capture file wire-captures.jsonl for the request it sent')
   const first = mainHits()
   check('the wire carried the ask on the Anthropic wire, on the Fable row, answered 200', first.some(h => h.kind === 'anthropic' && h.model === 'claude-fable-5-1' && h.status === 200), JSON.stringify(first))
   check('the transcript carries the reply', lastAssistantText(sid).includes(ANTHROPIC_REPLY), lastAssistantText(sid).slice(0, 200))
@@ -339,7 +340,7 @@ try {
   check('C1 the turn ENDED on the cap (no retry sleep, no hang)', ended, JSON.stringify({ rec: readRec(sid), facts: readFacts(sid) }))
   check('C1 exactly one request carried the spent ask (a subscriber refusal is never retried)', sinceHits(before2).filter(h => h.kind === 'anthropic').length === 1, JSON.stringify(sinceHits(before2)))
   const rec2 = readRec(sid)
-  check('C1 the runner is ALIVE after the cap', rec2 !== undefined && alive(rec2.pid) && rec2.pid === pid1, `pid ${rec2?.pid} (was ${pid1}) alive=${alive(rec2?.pid)}`)
+  check('C1 the runner is ALIVE after the cap', rec2 !== undefined && alive(rec2.pid) && rec2.pid === pid1, `pid ${rec2?.pid} (was ${pid1}) alive=${alive(rec2?.pid)}`, 'a provider cap must end the turn without killing or replacing the runner: read daemon.log in the kept world for a crash or stop line')
   check('C1 the record carries no crash, stop or park stamp', rec2 !== undefined && rec2.crash === undefined && rec2.stoppedAt === undefined && rec2.parkedAt === undefined, JSON.stringify(rec2))
   const wall = lastAssistantText(sid)
   check('C1 the wall row is a typed API error carrying the provider words and Retry-After clock', assistantRows(sid).at(-1)?.annotations?.isApiErrorMessage === true && wall === `API Error: Anthropic is rate limited (${RESET_IN_SECONDS / 3600} h 0 min wait): This request would exceed your account's rate limit.`, wall)
@@ -354,7 +355,7 @@ try {
   const sw1 = await setModel(sid, GPT_ID)
   check('the switch was APPLIED (never "no live control channel")', sw1.ok === true && sw1.outcome === 'applied', JSON.stringify(sw1))
   console.log(`      switch receipt: ${JSON.stringify(sw1)}`)
-  check('the receipt on a runner with no standing crash row is the plain "<runner> → <model>"', sw1.detail === `${readRec(sid)?.runnerId} → ${GPT_ID}`, JSON.stringify(sw1))
+  check('the receipt on a runner with no standing crash row is the plain "<runner> → <model>"', sw1.detail === `${readRec(sid)?.runnerId} → ${GPT_ID}`, JSON.stringify(sw1), 'the receipt of a switch on a healthy runner must read "<runner> → <model>": the receipt wording is built in src/daemon/sessionSeat/model.ts')
   check('the record and the facts carry the new model', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
   const before3 = mainHits().length
   const again = await say('hello again', sid)
@@ -430,7 +431,7 @@ try {
   }, 10_000), JSON.stringify(readFacts(sid)?.runner))
   check('…and the fact names the ladder (1/5)', runnerFact6 !== undefined && runnerFact6.respawns === 1 && runnerFact6.maxRespawns === 5, JSON.stringify(runnerFact6))
   const crash6 = readRec(sid)?.crash
-  check('C2 the crash row\'s words name the death and the resume: "crashed mid-run (exit none · signal SIGKILL) … · resumed — the interrupted ask needs a re-send"', crash6 !== undefined && /^crashed mid-run \(exit none · signal SIGKILL\)/.test(crash6.reason) && / · resumed — the interrupted ask needs a re-send$/.test(crash6.reason), JSON.stringify(crash6))
+  check('C2 the crash row\'s words name the death and the resume: "crashed mid-run (exit none · signal SIGKILL) … · resumed — the interrupted ask needs a re-send"', crash6 !== undefined && /^crashed mid-run \(exit none · signal SIGKILL\)/.test(crash6.reason) && / · resumed — the interrupted ask needs a re-send$/.test(crash6.reason), JSON.stringify(crash6), 'the crash row words are built in src/daemon/roster/life.ts (the crashed mid-run text): change them there')
   check('C2 the daemon read the death as a crash and the ladder chose the respawn (its first)', await untilAsync(() => /long-lived concourse-w\d+ crashed \(code=null sig=SIGKILL\); respawn \(1\/\d+\)/.test(daemonLog()), 10_000), crashLines())
   const respawned6 = await untilAsync(() => respawnAfterExit(runnerLive, exitsBefore6 + 1) !== null, 10_000)
   const gap6 = respawnAfterExit(runnerLive, exitsBefore6 + 1)
@@ -448,7 +449,7 @@ try {
   const sw3 = await setModel(sid, GPT_ID)
   console.log(`      switch receipt on the respawned runner: ${JSON.stringify(sw3)}`)
   check('C2 the family switch on the respawned runner is APPLIED', sw3.ok === true && sw3.outcome === 'applied', JSON.stringify(sw3))
-  check('C2 the receipt names the exit the record still shows and the landing in place: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) and is back — <runner> → <model>", the clock the crash row\'s own, no respawned flag', sw3.detail === `the runner had exited at ${clockOf(crash6?.at ?? 0)} (crashed mid-run (exit none · signal SIGKILL)) and is back — ${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify({ sw3, at: crash6?.at }))
+  check('C2 the receipt names the exit the record still shows and the landing in place: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) and is back — <runner> → <model>", the clock the crash row\'s own, no respawned flag', sw3.detail === `the runner had exited at ${clockOf(crash6?.at ?? 0)} (crashed mid-run (exit none · signal SIGKILL)) and is back — ${runnerLive} → ${GPT_ID}` && (sw3 as { respawned?: unknown }).respawned === undefined, JSON.stringify({ sw3, at: crash6?.at }), 'the switch receipt after a crash is built in src/daemon/sessionSeat/model.ts: compare its words and clock with the crash row')
   check('C2 the switch landed in place: the respawned pid stands', readRec(sid)?.pid === pidBack && alive(pidBack), JSON.stringify({ pid: readRec(sid)?.pid, pidBack }))
   check("C2 the record's crash row still stands after the switch (the row says the runner exited and resumed; the receipt did not)", readRec(sid)?.crash?.respawning === true && readRec(sid)?.crash?.at === crash6?.at, JSON.stringify(readRec(sid)?.crash))
   check('C2 the record and the facts carry the GPT row', await untilAsync(() => readRec(sid)?.modelKey === GPT_ID && readRec(sid)?.pendingModelKey === undefined && readFacts(sid)?.model?.effective === GPT_ID, 20_000), JSON.stringify({ rec: readRec(sid)?.modelKey, facts: readFacts(sid)?.model }))
@@ -477,7 +478,7 @@ try {
   const sw4 = await setModel(sid, 'claude-fable-5-1')
   console.log(`      switch receipt on the dead runner: ${JSON.stringify(sw4)}`)
   check('C2b the switch on the dead runner is APPLIED — never "no live control channel"', sw4.ok === true && sw4.outcome === 'applied', JSON.stringify(sw4))
-  check('C2b the receipt names the exit and the restart: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1", respawned', typeof sw4.detail === 'string' && /^the runner had exited at \d\d:\d\d \(crashed mid-run \(exit none · signal SIGKILL\)\) — restarting on Fable 5\.1$/.test(sw4.detail) && (sw4 as { respawned?: unknown }).respawned === true, JSON.stringify(sw4))
+  check('C2b the receipt names the exit and the restart: "the runner had exited at hh:mm (crashed mid-run (exit none · signal SIGKILL)) — restarting on Fable 5.1", respawned', typeof sw4.detail === 'string' && /^the runner had exited at \d\d:\d\d \(crashed mid-run \(exit none · signal SIGKILL\)\) — restarting on Fable 5\.1$/.test(sw4.detail) && (sw4 as { respawned?: unknown }).respawned === true, JSON.stringify(sw4), 'the switch receipt on a dead runner is built in src/daemon/sessionSeat/model.ts: change its words or the respawned flag there')
   check("C2b the receipt's clock is the crash row's own stamp", typeof sw4.detail === 'string' && recDead?.crash !== undefined && sw4.detail.includes(`had exited at ${clockOf(recDead.crash.at)}`), JSON.stringify({ detail: sw4.detail, at: recDead?.crash?.at }))
   check('C2b the record took the Fable row in the same beat (nothing parked)', readRec(sid)?.modelKey === 'claude-fable-5-1' && readRec(sid)?.pendingModelKey === undefined, JSON.stringify({ model: readRec(sid)?.modelKey, pending: readRec(sid)?.pendingModelKey }))
   check("C2b the ladder's respawn lands the runner on the Fable row (a new live pid)", await untilAsync(() => {

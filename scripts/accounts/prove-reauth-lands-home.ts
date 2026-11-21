@@ -35,9 +35,9 @@ section('§1 the family-focus vocabulary (pure)')
     ['deepseek', 'deepseek'],
   ]
   for (const [word, focus] of rows) {
-    check(`'${word}' pre-focuses ${focus}`, parseFamilyFocus(word) === focus)
+    check(`'${word}' pre-focuses ${focus}`, parseFamilyFocus(word) === focus, `parseFamilyFocus returned ${String(parseFamilyFocus(word))}; fix the word-to-family table in parseFamilyFocus in src/commands/login/login.tsx`)
   }
-  check('an unknown word opens the menu unfocused (never a crash)', parseFamilyFocus('galactica') === undefined && parseFamilyFocus(undefined) === undefined)
+  check('an unknown word opens the menu unfocused (never a crash)', parseFamilyFocus('galactica') === undefined && parseFamilyFocus(undefined) === undefined, 'fix parseFamilyFocus in src/commands/login/login.tsx so a word outside its table and an undefined word both return undefined')
 }
 
 
@@ -48,9 +48,9 @@ section('§5 every wall reconnect door lands focused; the /accounts reroute ride
     const door = reconnectDoorFor(family)
     if (door.startsWith('/logins ')) {
       const word = door.slice('/logins '.length).trim()
-      check(`the ${family} wall door ('${door}') pre-focuses a real row`, parseFamilyFocus(word) !== undefined)
+      check(`the ${family} wall door ('${door}') pre-focuses a real row`, parseFamilyFocus(word) !== undefined, `parseFamilyFocus has no row for '${word}'; fix reconnectDoorFor in src/services/providers/credentialWall.ts to name a word parseFamilyFocus knows, or add the word to parseFamilyFocus in src/commands/login/login.tsx`)
     } else {
-      check(`the ${family} door is its own named road ('${door}')`, door.startsWith('/') || /^[A-Z][A-Z0-9_]+$/.test(door))
+      check(`the ${family} door is its own named road ('${door}')`, door.startsWith('/') || /^[A-Z][A-Z0-9_]+$/.test(door), `reconnectDoorFor returned '${door}'; fix reconnectDoorFor in src/services/providers/credentialWall.ts to return a /logins word, another slash command, or an upper-case environment variable name`)
     }
   }
 }

@@ -10,7 +10,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: git offers in src/components/concourse/GitOfferCard.tsx (deriveGitOffer) and src/daemon/permissionAsks.ts (mintGitInitAsk, answerPermissionAsk), their obligation rows in src/services/crew/obligations.ts, the ground and held dispatch in src/services/concourse/concourseSnapshot.ts, the m door in src/components/concourse/controlManifest.ts'}`)
 }
 
 const { deriveGitOffer } = await import('../../src/components/concourse/GitOfferCard.js')

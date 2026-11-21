@@ -8,12 +8,20 @@ process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 
 let failures = 0
 let checks = 0
+let encodingFixHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && encodingFixHint ? ` — ${encodingFixHint}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
+const section = (t: string): void => {
+  encodingFixHint = t.startsWith('§1')
+    ? 'fix readFileInRange in src/utils/readFileInRange.ts so it decodes by the byte-order mark'
+    : t.startsWith('§2')
+      ? 'fix mintFileAnchor, checkAnchor or normalizeForAnchor in src/services/changeTransaction/snapshotAnchor.ts, or the content readFileSyncWithMetadata in src/utils/fileRead.ts returns, so the Read-side and edit-side anchors agree'
+      : 'fix writeTextContent in src/utils/file.ts so it writes the byte-order mark only when keepBom is set and never twice'
+  console.log('\n' + '─'.repeat(72) + '\n' + t)
+}
 
 const { readFileInRange } = await import('../../src/utils/readFileInRange.ts')
 const { readFileSyncWithMetadata } = await import('../../src/utils/fileRead.ts')

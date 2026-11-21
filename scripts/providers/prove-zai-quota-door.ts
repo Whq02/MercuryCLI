@@ -21,6 +21,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('      fix: the Z.ai quota reader in src/services/providers/zai/zaiUsageState.ts (raw-then-Bearer auth form, last-failure note, tier) or the refresh door refreshProviderUsage in src/services/providers/providerUsage.ts (cadence floor, single-flight, windows and reader note on the view)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -252,7 +253,7 @@ try {
 } catch (error) {
   if (!(error instanceof Error && error.message === 'base tree: no reader')) {
     failures++
-    console.log(`  [FAIL] the proof ran to its end — ${error instanceof Error ? error.stack ?? error.message : String(error)}`)
+    console.log(`  [FAIL] the proof ran to its end — ${error instanceof Error ? error.stack ?? error.message : String(error)} — the proof threw before its last check: read the stack above and fix the module it names (src/services/providers/zai/zaiUsageState.ts or src/services/providers/providerUsage.ts)`)
   }
 } finally {
   server.stop(true)

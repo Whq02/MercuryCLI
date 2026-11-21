@@ -8,9 +8,11 @@ const {
 type Reason = NonNullable<ReturnType<typeof decodeDecisionReasonFromWire>>
 
 let failures = 0
+const reasonWireHint = 'change encodeDecisionReasonForWire and decodeDecisionReasonFromWire in src/utils/permissions/decisionReasonWire.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${reasonWireHint}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 const trip = (reason: Reason): unknown =>
   decodeDecisionReasonFromWire(JSON.parse(JSON.stringify(encodeDecisionReasonForWire(reason))))

@@ -3,9 +3,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
 
 let failures = 0
+let sectionFailHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && sectionFailHint ? (detail ? `${detail}; ${sectionFailHint}` : sectionFailHint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -27,6 +29,7 @@ const { computeSliceStart } = await import('../../src/components/Messages.js')
 
 section('history: paste references')
 {
+  sectionFailHint = 'change formatPastedTextRef, parseReferences or expandPastedTextRefs in src/history.ts'
   check('three-line text produces a +2 lines reference', formatPastedTextRef(3, getPastedTextRefNumLines('a\nb\nc')).includes('+2 lines'))
   const ref = formatPastedTextRef(1, 2)
   const refs = parseReferences(`before ${ref} after`)
@@ -43,6 +46,7 @@ section('history: paste references')
 
 section('wheel: browser-hosted + native models')
 {
+  sectionFailHint = 'change initWheelAccel or computeWheelStep in src/components/ScrollKeybindingHandler.tsx'
   const hosted = initWheelAccel(true)
   let t = 1000
   computeWheelStep(hosted, 1, t)
@@ -72,6 +76,7 @@ section('wheel: browser-hosted + native models')
 
 section('drag: anchor-inside guard')
 {
+  sectionFailHint = 'change dragScrollDirection in src/components/ScrollKeybindingHandler.tsx'
   check('focus above the viewport scrolls up', dragScrollDirection({ anchorRow: 10, focusRow: 2 }, 5, 20, 0) === -1)
   check('focus below the viewport scrolls down', dragScrollDirection({ anchorRow: 10, focusRow: 30 }, 5, 20, 0) === 1)
   check('anchor OUTSIDE the viewport never autoscrolls', dragScrollDirection({ anchorRow: 2, focusRow: 30 }, 5, 20, 0) === 0)
@@ -80,6 +85,7 @@ section('drag: anchor-inside guard')
 
 section('redaction: every credential class, text intact')
 {
+  sectionFailHint = 'change redactSensitiveInfo in src/components/Feedback.tsx'
   const cases: Array<[string, string, string]> = [
     ['api key bare', 'key sk-ant-abcdefghijklmnop end', '[REDACTED_API_KEY]'],
     ['aws AKIA', 'creds AKIAABCDEFGHIJKLMNOP end', '[REDACTED_AWS_KEY]'],
@@ -100,6 +106,7 @@ section('redaction: every credential class, text intact')
 
 section('issue form link: under the cap, never mid-percent-escape, the steps kept')
 {
+  sectionFailHint = 'change issueFormUrl, ISSUE_FORM_URL_CAP or URL_CUT_NOTE in src/commands/feedback/issueForms.ts'
   const bug = ISSUE_FORMS.bug
   const values = {
     version: 'Mercury 0.0.0-proof',
@@ -123,6 +130,7 @@ section('issue form link: under the cap, never mid-percent-escape, the steps kep
 
 section('feedback: fallback title rules')
 {
+  sectionFailHint = 'change fallbackTitle in src/components/Feedback.tsx'
   check('a 6–60 char first line is used as-is', fallbackTitle('Scroll resets on resize') === 'Scroll resets on resize')
   const long = fallbackTitle('word '.repeat(30))
   check('over-60 truncates to a word boundary past 30 with an ellipsis', long.length <= 61 && long.endsWith('…'))
@@ -131,6 +139,7 @@ section('feedback: fallback title rules')
 
 section('unseen divider: turn transitions + floor')
 {
+  sectionFailHint = 'change countUnseenAssistantTurns or computeUnseenDivider in src/components/FullscreenLayout.tsx'
   const assistant = (uuid: string, text: string): unknown => ({ type: 'assistant', uuid, message: { content: [{ type: 'text', text }] } })
   const toolOnly = (uuid: string): unknown => ({ type: 'assistant', uuid, message: { content: [{ type: 'tool_use', id: 'x', name: 'T', input: {} }] } })
   const user = (uuid: string): unknown => ({ type: 'user', uuid, message: { role: 'user', content: 'hi' } })
@@ -146,6 +155,7 @@ section('unseen divider: turn transitions + floor')
 
 section('rewind: selectable filter + only-synthetic predicate')
 {
+  sectionFailHint = 'change selectableUserMessagesFilter or messagesAfterAreOnlySynthetic in src/components/MessageSelector.tsx'
   const plain = { type: 'user', uuid: 'u1', timestamp: 't', message: { role: 'user', content: 'do the thing' } }
   const toolResult = { type: 'user', uuid: 'u2', timestamp: 't', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'x', content: 'r' }] } }
   const meta = { ...plain, uuid: 'u3', isMeta: true }
@@ -166,6 +176,7 @@ section('rewind: selectable filter + only-synthetic predicate')
 
 section('transcript: slice anchor cap/step')
 {
+  sectionFailHint = 'change computeSliceStart (re-exported by src/components/Messages.tsx from src/components/messagesList/transcript.ts)'
   const rows = (n: number): Array<{ uuid: string }> => Array.from({ length: n }, (_, i) => ({ uuid: `u${i}` }))
   const anchorRef = { current: null as never }
   const at400 = computeSliceStart(rows(400) as never, anchorRef as never)

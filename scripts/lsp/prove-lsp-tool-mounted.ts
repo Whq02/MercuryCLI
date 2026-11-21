@@ -51,8 +51,8 @@ const mounted = mgr.isLspToolMounted as (() => boolean) | undefined
 
 section('§1 the mount predicate')
 {
-  check('the predicate is exported', typeof mounted === 'function')
-  check('with no manager the tool is not mounted', mounted?.() === false)
+  check('the predicate is exported', typeof mounted === 'function', 'export isLspToolMounted from src/services/lsp/manager.ts')
+  check('with no manager the tool is not mounted', mounted?.() === false, 'isLspToolMounted in src/services/lsp/manager.ts must return false until initializeLspServerManager has run')
   mgr.initializeLspServerManager()
   await mgr.waitForInitialization()
   const manager = mgr.getLspServerManager() as
@@ -60,15 +60,15 @@ section('§1 the mount predicate')
     | undefined
   const key = manager !== undefined ? [...manager.getAllServers().keys()].find(k => k === 'fakecrash' || k.endsWith(':fakecrash')) : undefined
   check('the manager initialised with the configured server', manager !== undefined && key !== undefined, manager !== undefined ? [...manager.getAllServers().keys()].join(',') : 'no manager')
-  check('a configured server mounts the tool', mounted?.() === true)
+  check('a configured server mounts the tool', mounted?.() === true, 'isLspToolMounted in src/services/lsp/manager.ts must return true once a server from MERCURY_LSP_SERVERS is configured')
   const server = key !== undefined ? manager?.getAllServers().get(key) : undefined
   const target = path.join(PROJECT, 'x.fk')
   writeFileSync(target, 'fake\n')
   await manager?.openFile(target, 'fake\n').catch(() => {})
-  check('the server crashed into error (restartOnCrash false)', await until(() => server?.state === 'error', 4_000), server?.state)
-  check('the tool stays mounted with its server in error — serverStatus remains callable', mounted?.() === true)
+  check('the server crashed into error (restartOnCrash false)', await until(() => server?.state === 'error', 4_000), `${server?.state} — the crash path in src/services/lsp/LSPServerInstance.ts must set state error when restartOnCrash is false`)
+  check('the tool stays mounted with its server in error — serverStatus remains callable', mounted?.() === true, 'isLspToolMounted in src/services/lsp/manager.ts must not depend on server health')
   const { LSP_TOOLS } = await import(path.join(SRC, 'tools/LSPTool/LSPTool.ts'))
-  check('all seven tools stay mounted with an unhealthy server', LSP_TOOLS.length === 7 && LSP_TOOLS.every((tool: { isEnabled(): boolean }) => tool.isEnabled()))
+  check('all seven tools stay mounted with an unhealthy server', LSP_TOOLS.length === 7 && LSP_TOOLS.every((tool: { isEnabled(): boolean }) => tool.isEnabled()), `LSP_TOOLS length ${LSP_TOOLS.length} — every tool in src/tools/LSPTool/LSPTool.ts must set isEnabled to isLspToolMounted`)
   await manager?.shutdown().catch(() => {})
 }
 

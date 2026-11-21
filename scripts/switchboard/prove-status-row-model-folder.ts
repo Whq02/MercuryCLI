@@ -25,10 +25,16 @@ process.env.ANTHROPIC_API_KEY ??= 'proof-key-ci-gate-not-a-real-key'
 
 let failures = 0
 let checks = 0
+const statusRowFailureHint = (label: string): string => {
+  if (/daemon/.test(label)) return 'change the daemon-mismatch words in src/daemon/handshake.ts and how the status row paints them in src/components/SwitchboardTagBar.tsx'
+  if (/motion|reduced|slow link/.test(label)) return 'change statusMotionWords in src/components/SwitchboardTagBar.tsx (the posture and trip come from src/utils/cockpit/motionGovernor.ts)'
+  return 'change FocusedSessionStatusRow, statusRowPlan, modelStatusWords or restingStatusWords in src/components/SwitchboardTagBar.tsx'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? '' : `${detail ? `${detail} — ` : ''}${statusRowFailureHint(label)}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

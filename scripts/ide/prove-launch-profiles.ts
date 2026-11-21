@@ -21,7 +21,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 240s')
+  console.log('\n❌ TIMEOUT — proof exceeded 240s; a LaunchTool op (run, debug or test) did not finish, so check the op that ran last in src/tools/LaunchTool/LaunchTool.ts and the debug adapter start in src/services/dap/dapClient.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -138,13 +138,13 @@ try {
   {
     const bySource = (s: string) => d.profiles.filter(p => p.source === s)
     const vs = bySource('vscode')
-    check('A1 seven representable launch.json configs profiled: the six launches of every shipped adapter family and the attach configuration', vs.length === 7, vs.map(p => p.label).join(', '))
+    check('A1 seven representable launch.json configs profiled: the six launches of every shipped adapter family and the attach configuration', vs.length === 7, `${vs.map(p => p.label).join(', ')}; the .vscode/launch.json reader in discoverLaunchProfiles in src/services/ide/launchProfiles.ts must profile exactly these seven configs`)
     const attach = vs.find(p => p.label === 'attach to server')
     check('A1b the attach configuration is a Debug attach profile (python, port 5678), not a launch', attach?.attach?.adapter === 'python' && attach?.attach?.port === 5678 && attach?.debug === undefined, JSON.stringify(attach))
     const py = vs.find(p => p.label === 'hello (py)')
     check('A2 python config: adapter+program expanded', py?.debug?.adapter === 'python' && py?.debug?.program === path.join(proj, 'hello.py'), JSON.stringify(py?.debug))
     check('A3 dropped fields listed honestly', (py?.droppedFields ?? []).includes('console') && (py?.droppedFields ?? []).includes('justMyCode'), JSON.stringify(py?.droppedFields))
-    check('A4 native config maps to lldb', vs.some(p => p.debug?.adapter === 'lldb'))
+    check('A4 native config maps to lldb', vs.some(p => p.debug?.adapter === 'lldb'), 'the launch.json type to adapter mapping in src/services/ide/launchProfiles.ts must map type lldb to the lldb adapter')
     check(
       'A4b the four shipped families route to their adapters with language populated (pwa-node→js, go→go, coreclr→dotnet, rdbg→ruby)',
       vs.find(p => p.label === 'node service')?.debug?.adapter === 'js' &&
@@ -167,7 +167,7 @@ try {
       d.skipped.length === 2 &&
         d.skipped.some(s => s.name === 'macro laden' && s.reason.includes('unexpanded macro') && s.reason.includes('${file}')) &&
         d.skipped.some(s => s.name === 'alien' && s.reason.includes('no Mercury adapter')),
-      JSON.stringify(d.skipped),
+      `${JSON.stringify(d.skipped)}; the launch.json skip reasons in src/services/ide/launchProfiles.ts must name an unexpanded macro and an unknown adapter type`,
     )
     const tests = bySource('python-tests')
     check('A6 the detected test framework profiles (unittest)', tests.length === 1 && tests[0]?.test?.framework === 'unittest', JSON.stringify(tests.map(t => t.test)))
@@ -175,7 +175,7 @@ try {
     check('A7 one build profile per NON-HIDDEN preset', cmake.length === 1 && cmake[0]?.build?.preset === 'dev', JSON.stringify(cmake.map(c => c.build)))
     const godot = bySource('godot')
     check('A8 godot scenes profiled through the slice-6 discovery', godot.length >= 2 && godot.some(g => g.godotScene?.scene === 'res://Main.tscn'), JSON.stringify(godot.map(g => g.godotScene?.scene)))
-    check('A9 zero source errors on the healthy tree', d.sourceErrors.length === 0, JSON.stringify(d.sourceErrors))
+    check('A9 zero source errors on the healthy tree', d.sourceErrors.length === 0, `${JSON.stringify(d.sourceErrors)}; a source reader in discoverLaunchProfiles in src/services/ide/launchProfiles.ts reported an error on the healthy fixture tree`)
   }
 
   section('(B) content-stable identity')
@@ -264,7 +264,7 @@ try {
   {
     writeFileSync(path.join(proj, '.vscode', 'launch.json'), '{ this is not json')
     const broken = await launch.discoverLaunchProfiles(proj)
-    check('D1 typed sourceError for the broken file', broken.sourceErrors.some(e => e.source === 'vscode' && e.error.includes('unparseable')), JSON.stringify(broken.sourceErrors))
+    check('D1 typed sourceError for the broken file', broken.sourceErrors.some(e => e.source === 'vscode' && e.error.includes('unparseable')), `${JSON.stringify(broken.sourceErrors)}; the launch.json reader in src/services/ide/launchProfiles.ts must record a sourceError containing unparseable instead of throwing`)
     check('D2 the other sources still discovered', broken.profiles.some(p => p.source === 'cmake') && broken.profiles.some(p => p.source === 'godot'))
   }
 } finally {

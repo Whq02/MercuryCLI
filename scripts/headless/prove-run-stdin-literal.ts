@@ -16,7 +16,7 @@ const marker = 'THE_FILE_ATTACHMENT_MARKER'
 writeFileSync(note, marker)
 const api = await startFixtureApi([...Array.from({ length: 12 }, () => ({ kind: 'text' as const, text: 'The literal input answered.' })), ...Array.from({ length: 12 }, () => handoffTurn())])
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
+const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail} (what to change: text piped on stdin to mercury run must reach the model as literal text, with no slash command invoked and no @path expanded, while an @path or slash command in the prompt argument keeps its normal road; the evidence above gives the exit code, output and whether the file marker reached the request)`}`); if (!ok) failures++ }
 async function run(prompt: string | undefined, input: string) {
   const before = api.messageRequests().length
   const child = spawn('node', [dist, 'run', ...(prompt === undefined ? [] : [prompt])], { cwd: home, env: { HOME: home, PATH: process.env.PATH, TMPDIR: tmpdir(), MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key', ANTHROPIC_BASE_URL: api.url }, stdio: ['pipe', 'pipe', 'pipe'] })

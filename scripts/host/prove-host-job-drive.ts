@@ -14,7 +14,7 @@ const bundle = resolve(option('--bundle') ?? join(import.meta.dir, '../../dist/m
 const frames = option('--frames')
 if (frames) mkdirSync(frames, { recursive: true })
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — change the host path it exercises under src/services/host (ssh.ts startHostEngine, jobs.ts, store.ts, notices.ts); rerun with --frames <dir> to keep the screens and daemon.log'); checks++; console.log('PASS ' + name) }
 const { startHostEngine } = await import('../../src/services/host/ssh.ts')
 const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
 const llamaRecipe = HOST_RECIPES.find(row => row.engine === 'llamacpp')!

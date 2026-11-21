@@ -7,11 +7,12 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'fix getContextCapsuleAttachment in src/services/attachments/contextCapsule.ts (which capsule refs re-attach) or assembleContextCapsule in src/services/projectIntel/capsule.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' — ' : ''}${hint}` : ''}`)
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — proof exceeded 120s: look at getContextCapsuleAttachment in src/services/attachments/contextCapsule.ts and assembleContextCapsule in src/services/projectIntel/capsule.ts for a hang')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

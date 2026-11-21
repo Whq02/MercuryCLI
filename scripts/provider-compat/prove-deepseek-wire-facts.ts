@@ -51,10 +51,19 @@ const { mapMessagesToZai } = await import('../../src/services/providers/zai/zaiC
 
 let failures = 0
 let checks = 0
+const wireFactHints: Record<string, string> = {
+  D1: 'change keepsReasoningHistory in deepseekLaneProfile (src/services/providers/deepseek/deepseekCallModel.ts), the reasoning replay the request carries',
+  D2: 'change modelReceivesImageBlocks in src/utils/model/capabilities.ts, or the image mapping of the DeepSeek request',
+  D3: 'change getContextWindowForModel or getModelMaxOutputTokens in src/utils/model/capabilities.ts, or the max_tokens clamp on the request',
+  D4: 'change decodeDeepseekModel or refreshDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts, or resolveContextWindow in src/utils/model/capabilities.ts',
+  D5: 'change deferralWireFormFor in src/services/providers/deferralWire.ts, or how admitted deferred tools ride the DeepSeek request',
+  D6: 'change how the DeepSeek request maps toolChoice to tool_choice',
+}
 function check(label: string, ok: boolean, detail?: unknown): void {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` ${JSON.stringify(detail)}`}`)
+  const hint = wireFactHints[label.slice(0, 2)]
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` ${JSON.stringify(detail)}${hint ? ` | ${hint}` : ''}`}`)
 }
 const fixtureTool = (name: string, defer = false): Tool => ({
   name, shouldDefer: defer, inputSchema: z.object({ path: z.string() }),

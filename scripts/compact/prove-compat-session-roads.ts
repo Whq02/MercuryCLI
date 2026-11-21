@@ -45,7 +45,7 @@ const { CheckpointTool } = await import('../../src/tools/CheckpointTool/Checkpoi
 const { RewindTool } = await import('../../src/tools/RewindTool/RewindTool.tsx')
 let checks = 0
 let failures = 0
-const check = (name: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${name}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`) }
+const check = (name: string, truth: unknown, detail?: unknown, hint?: string) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${name}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}${!truth && hint !== undefined ? ' — ' + hint : ''}`) }
 const assistant = (model: string, content: any) => {
   const row = createAssistantMessage({ content })
   row.message.model = model
@@ -60,14 +60,14 @@ try {
     f.state.field = name === 'llamacpp' ? '' : 'max_model_len'
     const model = `compat/${name}/${f.model}`
     await refreshCompatCatalogues({ force: true, name })
-    check('the served 32k window owns the fold threshold', resolveAutoCompactWindow(model).window === 32768, resolveAutoCompactWindow(model))
+    check('the served 32k window owns the fold threshold', resolveAutoCompactWindow(model).window === 32768, resolveAutoCompactWindow(model), 'fix resolveAutoCompactWindow and getAutoCompactThreshold in src/services/compact/autoCompact.ts so the window the compat catalogue serves (refreshCompatCatalogues, src/services/providers/openaicompat/compatCatalogue.ts) sets the fold threshold')
     const threshold = getAutoCompactThreshold(model)
     const weighted = (tokens: number) => {
       const row = assistant(model, 'prior turn')
       row.message.usage = { input_tokens: tokens, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } as never
       return [createUserMessage({ content: 'continue' }), row]
     }
-    check('warning and auto-compact meet at the same served-window threshold', calculateTokenWarningState(threshold - 1, model).level === 'warn' && calculateTokenWarningState(threshold, model).level === 'compact' && !await shouldAutoCompact(weighted(threshold - 1), model) && await shouldAutoCompact(weighted(threshold), model))
+    check('warning and auto-compact meet at the same served-window threshold', calculateTokenWarningState(threshold - 1, model).level === 'warn' && calculateTokenWarningState(threshold, model).level === 'compact' && !await shouldAutoCompact(weighted(threshold - 1), model) && await shouldAutoCompact(weighted(threshold), model), undefined, 'fix calculateTokenWarningState and shouldAutoCompact in src/services/compact/autoCompact.ts so warn starts one token below getAutoCompactThreshold and compact starts at it')
 
     const history = [createUserMessage({ content: 'KEEP-BEFORE-CHECKPOINT' })]
     const checkpoint = { type: 'tool_use', id: 'checkpoint-original', name: 'Checkpoint', input: { goal: 'preserve the original boundary' } }
@@ -76,29 +76,29 @@ try {
     history.push(createUserMessage({ content: 'ABANDON-THIS-EXPLORATION' }))
     const rejected = { type: 'tool_use', id: 'checkpoint-refused', name: 'Checkpoint', input: { goal: 'nested attempt' } }
     const refusal = await CheckpointTool.call(rejected.input as never, { messages: history } as never).then(() => null, error => String(error))
-    check('the second checkpoint is refused', refusal?.includes('already active'))
+    check('the second checkpoint is refused', refusal?.includes('already active'), refusal, 'fix CheckpointTool.call in src/tools/CheckpointTool/CheckpointTool.tsx so a checkpoint call made while one is active is refused with an already active error')
     history.push(assistant(model, [rejected]) as never, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: rejected.id, content: refusal ?? 'unexpected success', is_error: true }] }))
     const reparsed = JSON.parse(JSON.stringify(history))
-    check('a refused nested call cannot hide the original checkpoint after replay', cr.findActiveCheckpoint(reparsed)?.id === checkpoint.id)
+    check('a refused nested call cannot hide the original checkpoint after replay', cr.findActiveCheckpoint(reparsed)?.id === checkpoint.id, undefined, 'fix findActiveCheckpoint in src/services/compact/checkpointRewind.ts so a checkpoint call answered by an error result does not replace the active checkpoint')
     const unsettled = assistant(model, [{ type: 'tool_use', id: 'checkpoint-unsettled', name: 'Checkpoint', input: { goal: 'interrupted call' } }])
-    check('an unsettled later call cannot hide the original checkpoint', cr.findActiveCheckpoint([...reparsed, unsettled])?.id === checkpoint.id)
+    check('an unsettled later call cannot hide the original checkpoint', cr.findActiveCheckpoint([...reparsed, unsettled])?.id === checkpoint.id, undefined, 'fix findActiveCheckpoint in src/services/compact/checkpointRewind.ts so a checkpoint call with no tool result yet does not replace the active checkpoint')
     const stillRefused = await CheckpointTool.call(rejected.input as never, { messages: reparsed } as never).then(() => false, () => true)
-    check('a third checkpoint remains refused rather than replacing the original', stillRefused)
+    check('a third checkpoint remains refused rather than replacing the original', stillRefused, undefined, 'fix CheckpointTool.call in src/tools/CheckpointTool/CheckpointTool.tsx so it still refuses when the messages hold a refused nested call after the original checkpoint')
     const rewind = { type: 'tool_use', id: 'rewind-original', name: 'Rewind', input: { report: 'KEEP-REPORT-ONLY' } }
     const rewound = await RewindTool.call(rewind.input as never, { messages: reparsed } as never).then(value => value, () => null)
-    check('Rewind still returns to the original goal', (rewound as any)?.data?.goal === checkpoint.input.goal)
+    check('Rewind still returns to the original goal', (rewound as any)?.data?.goal === checkpoint.input.goal, rewound, 'fix RewindTool.call in src/tools/RewindTool/RewindTool.tsx so it returns the goal of the original active checkpoint')
     const result = createUserMessage({ content: [{ type: 'tool_result', tool_use_id: rewind.id, content: JSON.stringify(rewound), ...(rewound === null ? { is_error: true } : {}) }] })
     const record = cr.buildRewindRecordIfSettled(reparsed, [rewind], [result])
-    check('the successful rewind mints its retained report', record !== null)
+    check('the successful rewind mints its retained report', record !== null, undefined, 'fix buildRewindRecordIfSettled in src/services/compact/checkpointRewind.ts so a settled Rewind result produces a rewind record')
     if (record !== null) {
       const full = [...reparsed, assistant(model, [rewind]), result, record, createUserMessage({ content: 'CONTINUE-AFTER-REWIND' })]
       const projected = cr.projectRewoundWindows(full)
-      check('the closed checkpoint cannot be resurrected by a later refused call', cr.findActiveCheckpoint([...full, assistant(model, [rejected]), history.at(-1)!]) === null)
+      check('the closed checkpoint cannot be resurrected by a later refused call', cr.findActiveCheckpoint([...full, assistant(model, [rejected]), history.at(-1)!]) === null, undefined, 'fix findActiveCheckpoint in src/services/compact/checkpointRewind.ts so a closed checkpoint stays closed after a later refused checkpoint call')
       const before = f.captures.length
       const answer = await f.run(model, projected)
-      check('the rewound conversation receives a completed answer', answer.some(row => row.message.content.some((block: any) => block.type === 'text' && block.text === 'LLMHOST-READY')) && answer.every(row => !row.isApiErrorMessage))
+      check('the rewound conversation receives a completed answer', answer.some(row => row.message.content.some((block: any) => block.type === 'text' && block.text === 'LLMHOST-READY')) && answer.every(row => !row.isApiErrorMessage), answer, 'the engine request built from projectRewoundWindows (src/services/compact/checkpointRewind.ts) returned no LLMHOST-READY text or an API error; read the fixture in scripts/providers/lib/llmhostFixture.ts')
       const sent = JSON.stringify(f.captures[before]?.body.messages)
-      check('the next engine request retains the checkpoint pair and report, not the exploration', sent.includes('checkpoint-original') && sent.includes('KEEP-BEFORE-CHECKPOINT') && sent.includes('KEEP-REPORT-ONLY') && sent.includes('CONTINUE-AFTER-REWIND') && !sent.includes('ABANDON-THIS-EXPLORATION') && !sent.includes('checkpoint-refused'))
+      check('the next engine request retains the checkpoint pair and report, not the exploration', sent.includes('checkpoint-original') && sent.includes('KEEP-BEFORE-CHECKPOINT') && sent.includes('KEEP-REPORT-ONLY') && sent.includes('CONTINUE-AFTER-REWIND') && !sent.includes('ABANDON-THIS-EXPLORATION') && !sent.includes('checkpoint-refused'), undefined, 'fix projectRewoundWindows in src/services/compact/checkpointRewind.ts so the request keeps the checkpoint pair and the report and drops the abandoned exploration')
     }
 
     const statuses: any[] = []
@@ -109,14 +109,14 @@ try {
     const before = f.captures.length
     const folded = await withFoldStatus(context, scoped => compactConversation(turns, scoped, cache as never, true), { trigger: 'manual', sessionMemory: false, microcompaction: false })
     const requests = f.captures.slice(before)
-    check('the summariser answers on the selected engine with the original effort', requests.length > 0 && requests.every(row => row.body.model === f.model && (name === 'lmstudio' || (row.body.reasoning_effort ?? row.body.chat_template_kwargs?.reasoning_effort) === 'max')))
-    check('fold progress and successful completion reach the session status door', statuses.some(row => row?.compacting?.summaryTokens > 0) && statuses.some(row => row?.compacting?.exit === 'landed'))
+    check('the summariser answers on the selected engine with the original effort', requests.length > 0 && requests.every(row => row.body.model === f.model && (name === 'lmstudio' || (row.body.reasoning_effort ?? row.body.chat_template_kwargs?.reasoning_effort) === 'max')), requests.map(row => ({ model: row.body.model, reasoning_effort: row.body.reasoning_effort, kwargs: row.body.chat_template_kwargs })), 'fix compactConversation in src/services/compact/compact.ts so the summariser request uses the selected engine model and the effortValue of the session')
+    check('fold progress and successful completion reach the session status door', statuses.some(row => row?.compacting?.summaryTokens > 0) && statuses.some(row => row?.compacting?.exit === 'landed'), statuses, 'fix withFoldStatus and compactConversation in src/services/compact/compact.ts so progress with summaryTokens and a landed exit reach setSDKStatus')
     const post = buildPostCompactMessages(folded)
-    check('the verbatim tail and summary survive with a fresh context estimate', (folded.messagesToKeep?.length ?? 0) > 0 && JSON.stringify(post).includes('answer-14') && JSON.stringify(post).includes('LLMHOST-READY') && contextFill(post).source === 'estimate')
+    check('the verbatim tail and summary survive with a fresh context estimate', (folded.messagesToKeep?.length ?? 0) > 0 && JSON.stringify(post).includes('answer-14') && JSON.stringify(post).includes('LLMHOST-READY') && contextFill(post).source === 'estimate', undefined, 'fix compactConversation and buildPostCompactMessages in src/services/compact/compact.ts so the kept tail and the summary survive, and contextFill in src/services/context/tokens.ts reports an estimate for them')
     const answer = await f.run(model, [...post, createUserMessage({ content: 'CONTINUE-AFTER-COMPACT' })])
-    check('the first post-compact request reaches the same engine and answers', f.captures.at(-1)?.body.model === f.model && JSON.stringify(f.captures.at(-1)?.body.messages).includes('CONTINUE-AFTER-COMPACT') && answer.some(row => row.message.content.some((block: any) => block.type === 'text' && block.text === 'LLMHOST-READY')) && answer.every(row => !row.isApiErrorMessage))
+    check('the first post-compact request reaches the same engine and answers', f.captures.at(-1)?.body.model === f.model && JSON.stringify(f.captures.at(-1)?.body.messages).includes('CONTINUE-AFTER-COMPACT') && answer.some(row => row.message.content.some((block: any) => block.type === 'text' && block.text === 'LLMHOST-READY')) && answer.every(row => !row.isApiErrorMessage), undefined, 'the request built from buildPostCompactMessages (src/services/compact/compact.ts) did not reach the selected engine and answer; read the fixture in scripts/providers/lib/llmhostFixture.ts')
   }
-  check('every request passes its engine rule fixture', ruleFaults.length === 0, ruleFaults)
+  check('every request passes its engine rule fixture', ruleFaults.length === 0, ruleFaults, 'an engine rule in scripts/provider-compat/fixtures/engineRules.mjs refused a request; fix the request builder under src/services/providers/openaicompat that produced it')
 } finally {
   globalThis.fetch = originalFetch
   process.chdir(previousCwd)

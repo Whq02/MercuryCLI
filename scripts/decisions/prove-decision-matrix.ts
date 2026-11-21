@@ -15,9 +15,10 @@ const { hasPermissionsToUseTool, checkRuleBasedPermissions } = await import(
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const matrixHint = 'change the stage this row names in hasPermissionsToUseTool or checkRuleBasedPermissions in src/utils/permissions/permissions.ts (the stages run in the order the section titles list)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${matrixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

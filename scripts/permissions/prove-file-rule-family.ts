@@ -21,6 +21,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const ruleFamilyHint = 'fix matchingRuleForInput / getFileReadIgnorePatterns in src/utils/permissions/filesystem.ts'
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const ctxWithDeny = (rules: string[]): Ctx =>
@@ -35,32 +36,32 @@ const inScratch = join(PROJ, 'scratch', 'x.ts')
 section('§1 EDIT FAMILY')
 {
   const writeDeny = matchingRuleForInput(inScratch, ctxWithDeny(['Write(scratch/**)']), 'edit', 'deny')
-  check('a Write(<glob>) deny covers an edit-type path (FC-003)', writeDeny !== null, JSON.stringify(writeDeny))
+  check('a Write(<glob>) deny covers an edit-type path (FC-003)', writeDeny !== null, ruleFamilyHint + ' | ' + JSON.stringify(writeDeny))
   const nbDeny = matchingRuleForInput(inScratch, ctxWithDeny(['NotebookEdit(scratch/**)']), 'edit', 'deny')
-  check('a NotebookEdit(<glob>) deny covers an edit-type path', nbDeny !== null)
+  check('a NotebookEdit(<glob>) deny covers an edit-type path', nbDeny !== null, ruleFamilyHint)
   const editControl = matchingRuleForInput(inScratch, ctxWithDeny(['Edit(scratch/**)']), 'edit', 'deny')
-  check('control: an Edit(<glob>) deny still covers', editControl !== null)
+  check('control: an Edit(<glob>) deny still covers', editControl !== null, ruleFamilyHint)
   const outside = matchingRuleForInput(join(PROJ, 'other', 'y.ts'), ctxWithDeny(['Write(scratch/**)']), 'edit', 'deny')
-  check('a non-matching path stays uncovered (no over-reach)', outside === null)
+  check('a non-matching path stays uncovered (no over-reach)', outside === null, ruleFamilyHint)
   const readTypeMiss = matchingRuleForInput(inScratch, ctxWithDeny(['Write(scratch/**)']), 'read', 'deny')
-  check('a Write rule does NOT govern read-type paths (families stay split)', readTypeMiss === null)
+  check('a Write rule does NOT govern read-type paths (families stay split)', readTypeMiss === null, ruleFamilyHint)
 }
 
 section('§2 READ FAMILY')
 {
   const globDeny = matchingRuleForInput(inScratch, ctxWithDeny(['Glob(scratch/**)']), 'read', 'deny')
-  check('a Glob(<glob>) deny covers a read-type path (FC-003)', globDeny !== null, JSON.stringify(globDeny))
+  check('a Glob(<glob>) deny covers a read-type path (FC-003)', globDeny !== null, ruleFamilyHint + ' | ' + JSON.stringify(globDeny))
   const nbReadDeny = matchingRuleForInput(inScratch, ctxWithDeny(['NotebookRead(scratch/**)']), 'read', 'deny')
-  check('a NotebookRead(<glob>) deny covers a read-type path', nbReadDeny !== null)
+  check('a NotebookRead(<glob>) deny covers a read-type path', nbReadDeny !== null, ruleFamilyHint)
   const readControl = matchingRuleForInput(inScratch, ctxWithDeny(['Read(scratch/**)']), 'read', 'deny')
-  check('control: a Read(<glob>) deny still covers', readControl !== null)
+  check('control: a Read(<glob>) deny still covers', readControl !== null, ruleFamilyHint)
 
   const patterns = getFileReadIgnorePatterns(ctxWithDeny(['Glob(scratch/**)', 'Read(hidden/**)']))
   const flat = [...patterns.values()].flat()
   check(
     'the search-tool ignore patterns carry Glob deny rules too',
     flat.includes('scratch/**') && flat.includes('hidden/**'),
-    JSON.stringify(flat),
+    ruleFamilyHint + ' | ' + JSON.stringify(flat),
   )
 }
 
@@ -75,7 +76,7 @@ section('§3 COLLISION PRECEDENCE')
   check(
     'the canonical member (Edit) wins a same-pattern collision',
     collided !== null && collided.ruleValue.toolName === 'Edit',
-    JSON.stringify(collided?.ruleValue),
+    ruleFamilyHint + ' so the canonical Edit rule wins a collision | ' + JSON.stringify(collided?.ruleValue),
   )
 }
 

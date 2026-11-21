@@ -33,18 +33,18 @@ await getProject().flush()
 const visited = getTranscriptMessagesVisited() - before
 
 console.log(`\n  visited=${visited} for ${N} appends (quadratic would be ${(N * (N + 1)) / 2})`)
-check(`§A visited is O(new): ${visited} ≤ 2×${N}`, visited <= 2 * N, String(visited))
+check(`§A visited is O(new): ${visited} ≤ 2×${N}`, visited <= 2 * N, `${visited}; recordTranscript in src/utils/sessionStorage/writer.ts must count only the messages passed to it per append, so find the code path there that walks the whole transcript on each call and make it touch only the new messages`)
 
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.js')
 const lines = decodeTranscriptBuffer<{ type?: string; uuid: string; parentUuid: string | null }>(
   readFileSync(file),
 ).entries.filter(l => l.type === 'user')
-check(`§B all ${N} messages landed once`, lines.length === N, String(lines.length))
+check(`§B all ${N} messages landed once`, lines.length === N, `${lines.length}; recordTranscript in src/utils/sessionStorage/writer.ts must write each new message exactly once (see partitionUnwritten and insertMessageChain there)`)
 let chained = true
 for (let i = 1; i < lines.length; i++) {
   if (lines[i]!.parentUuid !== lines[i - 1]!.uuid) { chained = false; break }
 }
-check('§B the parent chain is intact across delta submissions (no forks)', chained)
+check('§B the parent chain is intact across delta submissions (no forks)', chained, 'each appended message must have the previous message uuid as parentUuid; check the parent returned by recordTranscript and the startingParentUuid it passes to insertMessageChain in src/utils/sessionStorage/writer.ts')
 
 console.log(failures === 0 ? '\n ✅ APPEND COST O(new) PROVEN' : `\n ❌ ${failures} FAILED`)
 process.exit(failures === 0 ? 0 : 1)

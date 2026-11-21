@@ -25,9 +25,13 @@ const mock = await import('../../src/services/mockRateLimits.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
+const CAP_POSTURE_FAIL_HINT =
+  'fix the code this check exercises, not the check: the posture, return and candidate decisions (resolveCapPosture, decideCapAction, decideCapReturn, deriveCapFailoverCandidates, observedFamilyWindow, laneSpendPosture, capLaneLineWords, failoverLineMs, noteCapHandoff) in src/services/capFailover.ts; the mock limits seam in src/services/mockRateLimits.ts; header parsing in src/services/anthropicLimits.ts; the boot menu row in src/substrate/startupMenu.ts; the flag consumers in src/substrate/flagRegistry.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${CAP_POSTURE_FAIL_HINT}` : ''}`,
+  )
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

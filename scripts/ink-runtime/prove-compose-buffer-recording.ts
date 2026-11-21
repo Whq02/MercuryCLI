@@ -219,7 +219,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 console.log('prove-compose-buffer-recording — ComposeBuffer recording')
-check('two runs in one process produce identical recordings', first === second)
+check('two runs in one process produce identical recordings', first === second, 'ComposeBuffer in src/ink/compose-buffer.ts keeps state between scenes (a pool, cache or reset path) that changes the second run; make reset and get start each scene clean')
 
 if (WRITE) {
   if (failures === 0) {
@@ -227,7 +227,7 @@ if (WRITE) {
     console.log(`  wrote ${RECORDING} (${first.length} bytes)`)
   }
 } else {
-  check('stored recording exists', existsSync(RECORDING), RECORDING)
+  check('stored recording exists', existsSync(RECORDING), `${RECORDING} is missing; restore it from git, or run this script with --write to record it`)
   if (existsSync(RECORDING)) {
     const stored = readFileSync(RECORDING, 'utf8')
     const equal = stored === first
@@ -237,7 +237,7 @@ if (WRITE) {
       const b = first.split('\n')
       for (let i = 0; i < Math.max(a.length, b.length); i++) {
         if (a[i] !== b[i]) {
-          detail = `first diff line ${i + 1}: stored=${a[i]} vs now=${b[i]}`
+          detail = `first diff line ${i + 1}: stored=${a[i]} vs now=${b[i]}; if the change in src/ink/compose-buffer.ts is unintended, fix it there, and if intended, re-record with this script and --write and commit scripts/ink-runtime/compose-buffer-recording.json`
           break
         }
       }

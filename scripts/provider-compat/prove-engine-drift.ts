@@ -21,7 +21,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  const engineDriftHint = 'change inspectCompatServer, resolveLlamacppTotalSlots or readSelfHostedLiveness in src/services/providers/openaicompat/compatProbe.ts, or readCompatPrefillSpeed in src/services/providers/openaicompat/compatPrefill.ts (a check that only reads the fixture itself points at scripts/provider-compat/fixtures/engineRules.mjs)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} | ${engineDriftHint}`}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.ts')

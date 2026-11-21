@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix the failure path in the src file named by the heading line above this check so the read or write error is reported (EACCES, ELOOP, EBUSY) and not swallowed; the JSON shows what the probe returned' : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)
@@ -46,7 +46,7 @@ function runCase(body: string): Record<string, unknown> {
       encoding: 'utf8',
       env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_HOME: '' },
     })
-    if (res.status !== 0) throw new Error(`case failed: ${res.stderr.slice(-1500)}`)
+    if (res.status !== 0) throw new Error(`case failed: ${res.stderr.slice(-1500)} — the probe script for the src file named by the heading line above crashed; read the stderr tail and fix that module or its import path under PROVE_SRC`)
     return JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as Record<string, unknown>
   } finally {
     rmSync(scratch, { recursive: true, force: true })

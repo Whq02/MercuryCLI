@@ -6,16 +6,18 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+let failHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failHint].filter(Boolean).join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — switched dispatch parity prover exceeded 120s')
+  console.log('\nTIMEOUT — switched dispatch parity prover exceeded 120s; a drive of queryEvents (src/query.ts) never finished, so find which drive stalled (captured requests reached the fixture server or not)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -209,6 +211,7 @@ const switched = await drive(switchedHistory())
 const fresh = await drive(freshHistory())
 
 section('§A dispatch fires post-switch — the engine seam AND the wire')
+failHint = 'a history carrying a /model switch must still dispatch through queryEvents in src/query.ts and send its request to the wire'
 check('the switched drive threw nothing', switched.threw === undefined, String(switched.threw))
 check(
   'the engine DISPATCHED: model_call_started emitted on the switched run',
@@ -220,6 +223,7 @@ check('the switched request REACHED the wire', switched.request !== undefined)
 check('the fresh request reached the wire (control)', fresh.request !== undefined)
 
 section('§B header parity — names and load-bearing values')
+failHint = 'the switched request must carry the same headers as the fresh one; find where the request headers are built on the switched path and remove the difference'
 if (switched.request && fresh.request) {
   const VOLATILE = new Set([
     'content-length',
@@ -249,6 +253,7 @@ if (switched.request && fresh.request) {
 }
 
 section('§C body option parity — everything except the history itself')
+failHint = 'the switched request body must match the fresh one except for the history; find where the request body options are built on the switched path and remove the difference'
 if (switched.request && fresh.request) {
   const s = switched.request.body
   const f = fresh.request.body
@@ -290,6 +295,7 @@ if (switched.request && fresh.request) {
 }
 
 section('§D both drives settle — no engine-side park on either path')
+failHint = 'queryEvents in src/query.ts must end both drives with reason completed and run_started first, run_terminal last'
 check('switched terminal: completed', switched.terminal.reason === 'completed', JSON.stringify(switched.terminal))
 check('fresh terminal: completed', fresh.terminal.reason === 'completed', JSON.stringify(fresh.terminal))
 check(

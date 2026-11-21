@@ -20,9 +20,10 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key-000'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const askHint = 'change holdWorkerAsk, operatorClientPresence and unattendedAskDenialMessage in src/daemon/permissionAsks.ts (the deny at once or park decision), the presence table in src/daemon/clientPresence.ts, or the screen beat in src/services/switchboard/screenPresence.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${askHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

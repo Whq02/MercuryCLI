@@ -23,7 +23,7 @@ try {
     await refreshGeminiCatalogue('api-key', { force: true })
     const result = await resolveEngineDispatch('gemini')
     const ok = result?.model === expected
-    console.log(`${ok ? 'PASS' : 'FAIL'} gemini picks the newest account-listed generation: ${result?.model}; expected ${expected}`)
+    console.log(`${ok ? 'PASS' : 'FAIL'} gemini picks the newest account-listed generation: ${result?.model}; expected ${expected}${ok ? '' : ' | change how resolveEngineDispatch (src/services/crew/engineDispatch.ts) picks the gemini model from the account list that refreshGeminiCatalogue (src/services/providers/gemini/geminiCatalogue.ts) stored'}`)
     if (!ok) failures++
   }
 } finally { server.stop(true); rmSync(home, { recursive: true, force: true }) }

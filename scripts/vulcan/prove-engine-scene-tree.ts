@@ -20,7 +20,7 @@ const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 let checks = 0
 const evidence: Array<{ label: string; value: unknown }> = []
 function check(label: string, condition: unknown, value?: unknown): void {
-  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)}`)
+  assert.ok(condition, `${label}${value === undefined ? '' : ': ' + JSON.stringify(value)} (to fix: decodeGodotSceneTree, viewGodotSceneTree and findGodotSceneTreeNode are in src/services/vulcan/engine/debuggerProfile.ts, runEngineOp in src/services/vulcan/engine/ops.ts, EngineJobService in src/services/vulcan/engine/service.ts)`)
   checks++
   console.log(`PASS ${label}`)
   if (value !== undefined) evidence.push({ label, value })
@@ -43,7 +43,7 @@ for (const [label, data, words] of [
   ['a name that is not a string', [0, 7, 'Window', 1, '', 0], /name must be a string/],
   ['an id that is not an integer', [0, 'root', 'Window', 1.5, '', 0], /id must be an integer/],
 ] as const) {
-  assert.throws(() => decodeGodotSceneTree([...data]), words)
+  assert.throws(() => decodeGodotSceneTree([...data]), words, `${label}: decodeGodotSceneTree in src/services/vulcan/engine/debuggerProfile.ts must throw an error matching ${words}`)
   check(`${label} refuses with words`, true)
 }
 const shallow = viewGodotSceneTree(tree, 1)

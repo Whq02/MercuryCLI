@@ -116,16 +116,16 @@ for (const [target, path] of TARGETS) {
       }
     }
   }
-  check(`${target}: under three rule spellings and three postures, four spellings through three doors answer as the path with one slash does`, rows.length === 0, rows.join(' | '))
+  check(`${target}: under three rule spellings and three postures, four spellings through three doors answer as the path with one slash does`, rows.length === 0, rows.join(' | ') + ' | make a path with extra leading slashes judged and read as its one-slash form: folding is localPath in src/utils/path.ts, the judge resolves through getResolvedWorkingDirPaths in src/utils/permissions/filesystem.ts')
 }
 console.log(`  (${red.length} of ${cells} cells red)`)
 
 console.log('the resolver the judge and the credential floor share takes such a path through its links')
 {
   const forms = permissions.getResolvedWorkingDirPaths(`/${join(project, 'link-secret.txt')}`) as string[]
-  check('two leading slashes before a link: the forms judged hold the file the link leads to', forms.includes(join(project, 'secret/keys.txt')), forms.join(' | '))
+  check('two leading slashes before a link: the forms judged hold the file the link leads to', forms.includes(join(project, 'secret/keys.txt')), forms.join(' | ') + ' | getResolvedWorkingDirPaths in src/utils/permissions/filesystem.ts must resolve the link after folding the leading slashes')
   const writes = permissions.checkWritePermissionForTool({ name: 'Edit', getPath: () => `/${join(project, 'link-secret.txt')}` }, {}, { ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: ['Edit(secret/**)'] } }) as { behavior: string }
-  check('a write through the same spelling to a file an Edit rule denies is denied', writes.behavior === 'deny', writes.behavior)
+  check('a write through the same spelling to a file an Edit rule denies is denied', writes.behavior === 'deny', writes.behavior + ' | checkWritePermissionForTool in src/utils/permissions/filesystem.ts must judge the path with leading slashes folded and links resolved')
 }
 
 console.log('where two slashes do begin a network path: a spelling of a local drive is that drive\'s path (read from the rule, not run on that system)')
@@ -142,8 +142,8 @@ console.log('where two slashes do begin a network path: a spelling of a local dr
     ['C:\\Users\\me\\k.txt', 'C:\\Users\\me\\k.txt'],
   ]
   const wrong = typeof local === 'function' ? cases.filter(([given, expected]) => local(given, 'windows') !== expected).map(([given]) => `${given} → ${local(given, 'windows')}`) : ['no function']
-  check('five spellings of a local drive become the drive\'s path; a true network path, its long form and a plain drive path stay', wrong.length === 0, wrong.join(' | '))
-  check('on this system a network spelling is left alone and leading slashes are folded to one', typeof local === 'function' && local('//a/b', 'macos') === '/a/b' && local('///a//b', 'macos') === '/a//b' && local('/a/b', 'macos') === '/a/b' && local('a//b', 'macos') === 'a//b')
+  check('five spellings of a local drive become the drive\'s path; a true network path, its long form and a plain drive path stay', wrong.length === 0, wrong.join(' | ') + ' | fix localPath in src/utils/path.ts so each listed spelling maps to the drive path shown in the cases table')
+  check('on this system a network spelling is left alone and leading slashes are folded to one', typeof local === 'function' && local('//a/b', 'macos') === '/a/b' && local('///a//b', 'macos') === '/a//b' && local('/a/b', 'macos') === '/a/b' && local('a//b', 'macos') === 'a//b', 'fix localPath in src/utils/path.ts: on a non-Windows platform fold leading slashes to one and leave inner doubled slashes alone')
 }
 
 rmSync(world, { recursive: true, force: true })

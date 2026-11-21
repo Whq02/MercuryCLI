@@ -11,7 +11,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const imageShapeHint = 'change classifyModelRoute in src/services/providers/idSpaces.ts (route ids), modelReceivesImageBlocks in src/utils/model/capabilities.ts (image predicate), buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts (tool row then image user row), or buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts (input_text then input_image)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ` | ${imageShapeHint}`}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 

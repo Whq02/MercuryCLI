@@ -17,9 +17,13 @@ const ok = await import('../../src/utils/run/ownerKey.js')
 const auto = await import('../../src/services/compact/autoCompact.js')
 
 let failures = 0
+const CALIBRATION_FAIL_HINT =
+  'fix the code this check exercises, not the check: calibration keys and the bounded EMA store in src/services/run/contextCalibration.ts (calibrationKeyFor, calibrationFor, noteMeasuredUsage); the plan estimate and its reconciliation in src/services/run/requestContextPlan.ts (buildRequestContextPlan, reconcileAppliedPlanUsage); selection in src/services/run/contextSelection.ts; the ladder and thrash guard in src/services/compact/autoCompact.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = detail.includes('src/') ? '' : CALIBRATION_FAIL_HINT
+  const text = [detail, hint].filter(part => part.length > 0).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && text ? ` — ${text}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

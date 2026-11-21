@@ -8,9 +8,15 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'switchboard-mirror-
 process.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR
 
 let failures = 0
+const mirrorFailureHint = (label: string): string => {
+  if (/plate/.test(label)) return 'change attachedPlateName in src/components/messages/TranscriptNameplate.tsx'
+  if (/projection|retired-format/.test(label)) return 'change foldWorkerRecord in src/utils/sessionStorage/mirrorRecord.ts (re-exported by src/components/concourse/workerTranscriptFold.ts)'
+  return 'change mergeFoldedMessages in src/components/concourse/workerTranscriptFold.ts (or foldWorkerRecord, which gives both revisions one uuid)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : `${detail ? `${detail} — ` : ''}${mirrorFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 console.log('LAW 2 — the word-ban (mirror-agent-word):')

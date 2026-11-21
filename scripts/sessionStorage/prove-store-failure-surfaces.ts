@@ -36,9 +36,9 @@ await sleep(900)
 
 {
   const health = writer.transcriptStoreHealth()
-  t('§1 two consecutive drain failures publish the failing fact', health.failing === true, JSON.stringify(health))
-  t('§1 …carrying the store owner\'s sentence', (health.sentence ?? '').includes('transcript store') || (health.sentence ?? '').includes(poisoned), health.sentence ?? '(none)')
-  t('§1 …and the seam fired listeners', healthEvents >= 1, `${healthEvents} events`)
+  t('§1 two consecutive drain failures publish the failing fact', health.failing === true, `${JSON.stringify(health)}; runDrain in src/utils/sessionStorage/writer/queue.ts must call setStoreHealth({ failing: true, ... }) after the second consecutive drain failure`)
+  t('§1 …carrying the store owner\'s sentence', (health.sentence ?? '').includes('transcript store') || (health.sentence ?? '').includes(poisoned), `${health.sentence ?? '(none)'}; the failing sentence set in runDrain (src/utils/sessionStorage/writer/queue.ts) must carry the describeTranscriptStoreFailure text from src/utils/sessionStorage/writer/storeHealth.ts`)
+  t('§1 …and the seam fired listeners', healthEvents >= 1, `${healthEvents} events; setStoreHealth in src/utils/sessionStorage/writer/storeHealth.ts must call every listener added by subscribeTranscriptStoreHealth when the health changes`)
 }
 
 rmSync(poisoned, { recursive: true, force: true })
@@ -46,13 +46,13 @@ await sleep(5_600)
 
 {
   const health = writer.transcriptStoreHealth()
-  t('§2 the first successful drain clears the failing fact', health.failing === false, JSON.stringify(health))
+  t('§2 the first successful drain clears the failing fact', health.failing === false, `${JSON.stringify(health)}; runDrain in src/utils/sessionStorage/writer/queue.ts must call setStoreHealth({ failing: false, sentence: null }) after a drain succeeds`)
   let landed = ''
   try {
     landed = readFileSync(poisoned, 'utf8')
   } catch {
   }
-  t('§2 …and the queued words actually landed', landed.includes('first words') && landed.includes('second words'))
+  t('§2 …and the queued words actually landed', landed.includes('first words') && landed.includes('second words'), `file read back: ${JSON.stringify(landed)}; the queue in src/utils/sessionStorage/writer/queue.ts must keep failed entries and write them on the next successful drain`)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

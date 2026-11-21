@@ -14,7 +14,8 @@ if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); proce
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok || !detail ? '' : `: ${detail}`}`); if (!ok) failures++ }
+const WHERE_TO_LOOK = 'to fix: the brief a session keeps, replaces or drops is settled in settleSessionBriefs (src/cli/headless/boot/settleBriefs.ts) and written by saveSessionBrief (src/utils/sessionStorage/logs.ts); flag conflicts are refused in src/main/bootFlags.ts'
+const check = (label: string, ok: boolean, detail = ''): void => { checks++; console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}`}`); if (!ok) failures++ }
 const head = (text: string): string => JSON.stringify(text.slice(0, 120))
 
 const BRIEF = 'SESSION_BRIEF_MARKER: answer in one line and name the file you would open first.'

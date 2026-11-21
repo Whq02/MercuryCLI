@@ -16,11 +16,19 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_CONCOURSE_WORKER
 
 let failures = 0
+const wireWheres: Record<string, string> = {
+  '§3': 'fix rewindSession in src/daemon/sessionSeat.ts (the typed refusals and the request it sends)',
+  '§4': 'fix projectRewoundWindows and projectOperatorRewinds in src/services/compact/checkpointRewind.ts',
+  '§5': 'fix the session/rewind params in METHODS in src/runner/wire/methods.ts',
+  '§6': 'fix handleRewindSession in src/cli/headless/controlHandlers.ts (the typed refusal arms and the conversation record)',
+}
+let wireWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${wireWhere}` : ''}`)
 }
 function section(t: string): void {
+  wireWhere = wireWheres[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)

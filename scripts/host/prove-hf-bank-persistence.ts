@@ -18,7 +18,7 @@ if (readBack >= 0) {
   const f = await llmhostFixture()
   process.env.HOME = f.home
   let checks = 0
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' — fix bankState, sealBank, readBankRegistry or recordBankFailure in src/services/host/bank.ts, or fastLoadRecipes in src/services/host/fastLoad.ts, so the banked recipe survives a fresh process'); checks++; console.log('PASS ' + name) }
   try {
     const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
     const { rememberSessionHostRecipe, forgetSessionHostRecipes } = await import('../../src/services/host/recipesFile.ts')

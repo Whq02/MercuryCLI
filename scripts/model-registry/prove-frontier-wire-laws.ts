@@ -48,19 +48,21 @@ const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/m
 const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')
 
 let failures = 0
+let sectionFix = ''
 function check(label: string, cond: boolean, detail?: string): void {
   const mark = cond ? 'PASS' : 'FAIL'
   if (!cond) failures++
-  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && sectionFix ? ` — to fix: ${sectionFix}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, fix = ''): void {
+  sectionFix = fix
   console.log(`\n${title}`)
 }
 const repoRoot = join(import.meta.dir, '..', '..')
 const src = (rel: string): string => readFileSync(join(repoRoot, rel), 'utf-8')
 const show = (v: unknown): string => JSON.stringify(v)
 
-section('§1 forced tool_choice folds to auto exactly where the model rejects it')
+section('§1 forced tool_choice folds to auto exactly where the model rejects it', 'fix modelSupportsForcedToolChoice and foldToolChoiceForModel in src/utils/model/capabilities.ts so the rejecting models fold tool and any to auto and the accepting ones pass the choice through')
 {
   const rejecting = ['claude-fable-5-2', 'claude-fable-5-2[1m]', 'claude-mythos-5-2', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const accepting = [
@@ -108,7 +110,7 @@ section('§1 forced tool_choice folds to auto exactly where the model rejects it
   check('the fold never mutates the input object', show(forcedTool) === show({ type: 'tool', name: 'classify_result' }))
 }
 
-section('§2 thinking is always on for the frontier family; the disable is omitted there')
+section('§2 thinking is always on for the frontier family; the disable is omitted there', 'fix modelThinkingAlwaysOn and modelSupportsAdaptiveThinking in src/utils/model/capabilities.ts, or sideQueryThinkingParam in src/services/api/sideQuery.ts')
 {
   const alwaysOn = ['claude-fable-5', 'claude-fable-5[1m]', 'claude-fable-5-1', 'claude-fable-5-1[1m]', 'claude-mythos-5', 'claude-mythos-5-1', 'claude-opus-5-5', 'claude-sonnet-5-5', 'claude-sonnet-5-5[1m]']
   const notAlwaysOn = ['claude-opus-5', 'claude-sonnet-5', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-haiku-4-5', 'openrouter/anthropic/claude-fable-5-1', 'openrouter/anthropic/claude-sonnet-5-5']
@@ -152,7 +154,7 @@ section('§2 thinking is always on for the frontier family; the disable is omitt
 }
 
 
-section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2')
+section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family word resolves to the generation table\'s newest, which is Fable 5.2', 'fix getCanonicalName in src/utils/model/modelNames.ts, parseUserSpecifiedModel and renderModelName in src/services/model/model.ts, the fable51 row in src/utils/model/configs.ts, the effort functions in src/utils/model/capabilities.ts, or foldLegacyWorkerModelKey in src/services/concourse/workerModels.ts')
 {
   const ID = 'claude-fable-5-1'
   const FAMILY = 'claude-fable-5'
@@ -183,7 +185,7 @@ section('§4 Claude Fable 5.1 is recognised everywhere the family is; the family
   check("a crew record's legacy keys: fable51 stays on this member, the family word lands on the newest row", foldLegacyWorkerModelKey('fable51') === ID && foldLegacyWorkerModelKey('fable') === 'claude-fable-5-2', `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 }
 
-section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served')
+section('§5 Claude Sonnet 5.5 answers both laws as recorded on the wire: the disabled shape and a forced choice are refused, the omitted parameter and auto are served', 'if a fixture leg fails, the recording scripts/model-registry/fixtures/sonnet-55-wire-probe.json no longer matches the wire, so re-record it; if a law check fails, fix modelThinkingAlwaysOn and modelSupportsForcedToolChoice in src/utils/model/capabilities.ts or sideQueryThinkingParam in src/services/api/sideQuery.ts')
 {
   type Leg = { leg: string; request: Record<string, unknown>; response: { status: number; stop_reason?: string; content?: Array<{ type: string; name?: string }>; error_body?: { error?: { type?: string; message?: string } } } }
   const fixture = JSON.parse(src('scripts/model-registry/fixtures/sonnet-55-wire-probe.json')) as { model: string; legs: Leg[] }

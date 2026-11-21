@@ -7,9 +7,13 @@ import { z } from 'zod'
 import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
 
 let failures = 0
+const CALLMODEL_FAIL_HINT =
+  'fix the code this check exercises, not the check: the stream, request body and replay come from openaiCallModel in src/services/providers/openai/openaiCallModel.ts (and its openaiCallModel/ folder); effort adjustment and receipts from resolveEffortTruth and effortAdjustedReceiptLine in src/utils/effort.ts; the remembered wire effort vocabulary from src/services/providers/openai/qualificationStore.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${CALLMODEL_FAIL_HINT}` : ''}`,
+  )
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

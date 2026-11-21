@@ -35,7 +35,7 @@ const summary = createUserMessage({ content: 'The repair and checks are complete
 annotateBoundaryWithWork(boundary, messages, keep, summary.uuid)
 const folded = buildPostCompactMessages({ boundaryMarker: boundary, summaryMessages: [summary], messagesToKeep: keep, attachments: [], hookResults: [], preCompactTokenCount: 80_000, postCompactTokenCount: 200 })
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail}` : ''}`) }
+const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail} (to fix: the work counts a fold carries are written by annotateBoundaryWithWork in src/services/compact/compact.ts and painted by src/components/messages/TurnReceiptRow.tsx and ResumeRecapCard.tsx, with the recap numbers from buildAwayRecap in src/utils/cockpit/awaySummary.ts; compare the printed frame with the unfolded one)` : ''}`) }
 async function frame(rows: Message[], width: number): Promise<string> {
   const composition = composeTranscript({ normalized: normalizeMessages(rows).filter(isNotEmptyMessage), syntheticStreamingRows: [], verbose: false, fullscreen: true, isTranscriptMode: false, truncateTranscript: false, tools: [], inProgressToolUseIDs: new Set() })
   const receipt = composition.collapsed.find((m): m is TurnReceiptMessage => m.type === 'turn_receipt')

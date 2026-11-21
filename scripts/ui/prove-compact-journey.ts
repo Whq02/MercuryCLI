@@ -83,9 +83,9 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
       child.once('close', code => { clearTimeout(wall); resolve(code) })
     })
     writeFileSync(join(scratch, `${tag}-requests.json`), JSON.stringify({ status, requests: leg.fixture.requests, pacedEmits: leg.fixture.pacedEmits }, null, 2))
-    check(`${tag}: the complete send sequence ran`, status === 0, `exit=${status}; complete engine output: ${log}; artifact: ${out}`)
+    check(`${tag}: the complete send sequence ran`, status === 0, `exit=${status}; complete engine output: ${log}; artifact: ${out}; read the engine log first: a send whose awaited text never appeared stalls the run, so find which awaitText in the sends list timed out and fix the screen that should have painted it`)
     if (status !== 0) console.error(readFileSync(log, 'utf8'))
-    check(`${tag}: the captured artifact exists`, existsSync(out))
+    check(`${tag}: the captured artifact exists`, existsSync(out), `the capture engine wrote no artifact; read ${log} for the engine error`)
     if (!existsSync(out)) continue
     let raw: unknown
     try { raw = JSON.parse(readFileSync(out, 'utf8')) } catch (error) {
@@ -112,15 +112,15 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
         const models = stream.map((row, i) => row.includes('Opus 5') ? i : -1).filter(i => i >= 0)
         const composerTop = stream.findIndex(row => /^╭/.test(row) || /^❯( |$)/.test(row))
         const chipAt = composerTop > 0 && /Opus 5|sovereign|need you|permissions unreported/.test(stream[composerTop - 1]!) ? composerTop - 1 : -1
-        check(`${tag} ${label}: one activity row sits directly above the chip line, or above the composer when no chip line is up, and the model paints once`, activity >= 0 && models.length === 1 && activity === (chipAt >= 0 ? chipAt : composerTop) - 1, `activity=${activity} chip=${chipAt} composer=${composerTop} models=${JSON.stringify(models)}`)
+        check(`${tag} ${label}: one activity row sits directly above the chip line, or above the composer when no chip line is up, and the model paints once`, activity >= 0 && models.length === 1 && activity === (chipAt >= 0 ? chipAt : composerTop) - 1, `one activity row must sit directly above the chip line (or the composer) and the model name must paint once; check the compact chat layout in src/components/Spinner.tsx and src/components/CompactIdentityBand.tsx; activity=${activity} chip=${chipAt} composer=${composerTop} models=${JSON.stringify(models)}`)
       }
       check(`${tag}: queued text is painted while the stream runs`, joined(rowsAt('queued')).includes('queued while streaming'))
-      check(`${tag}: detail actually opened`, joined(rowsAt('detail')).includes('Session statistics'))
+      check(`${tag}: detail actually opened`, joined(rowsAt('detail')).includes('Session statistics'), 'Ctrl+T then Enter must open the compact detail, whose heading is painted by src/components/tasks/backgroundTasks/overview.tsx; see the detail frame printed above and CompactWorkSummary in src/components/tasks/CompactWorkSummary.tsx')
       check(`${tag}: Escape closes detail with the nonempty draft intact`, joined(rowsAt('closed')).includes('keep-this-draft') && !joined(rowsAt('closed')).includes('Session statistics'))
       const compactFrame = rowsAt('compact-restored')
-      check(`${tag}: compact summary is restored once`, compactFrame.filter(line => /sessions? on/.test(line)).length === 1)
+      check(`${tag}: compact summary is restored once`, compactFrame.filter(line => /sessions? on/.test(line)).length === 1, 'the compact frame must carry exactly one line matching sessions? on; see CompactWorkSummary in src/components/tasks/CompactWorkSummary.tsx and the compact-restored frame printed above')
       check(`${tag}: compact has no old top band and no miniature mark`, compactFrame.length > 0 && !/▚▛▀▜▞|▖▟▆▙▗|▝▜▆▛▘|▗▙█▟▖/.test(joined(compactFrame)) && !compactFrame.some(line => line.includes('daemon') && line.includes('fleet')))
-      check(`${tag}: the compact chat keeps its critter in the identity band`, compactFrame.slice(0, 3).some(line => /[▀▄]{3,}/.test(line)) && compactFrame[3] === '─'.repeat(80), compactFrame.slice(0, 4).join(' | '))
+      check(`${tag}: the compact chat keeps its critter in the identity band`, compactFrame.slice(0, 3).some(line => /[▀▄]{3,}/.test(line)) && compactFrame[3] === '─'.repeat(80), `the identity band in src/components/CompactIdentityBand.tsx must paint the critter in the top three rows and the rule on row four; top rows: ${compactFrame.slice(0, 4).join(' | ')}`)
     } else {
       check(`${tag}: full task toggle never opens compact detail`, rowsAt('toggled').length === 40 && !joined(rowsAt('toggled')).includes('Session statistics') && joined(rowsAt('toggled')).includes('keep-this-draft'))
     }
@@ -138,7 +138,7 @@ for (const variant of ['resize', 'compact', 'full'] as const) {
       const words = body.data.messages.filter(message => message.role === 'user').flatMap(message => typeof message.content === 'string' ? [message.content] : message.content.filter(block => block.type === 'text').map(block => block.text ?? '')).filter(text => !text.startsWith('<system-reminder>'))
       requests.push(words)
     }
-    check(`${tag}: exactly the submitted and queued user messages reached the fixture`, JSON.stringify(requests) === JSON.stringify(expectedRequests), JSON.stringify(requests))
+    check(`${tag}: exactly the submitted and queued user messages reached the fixture`, JSON.stringify(requests) === JSON.stringify(expectedRequests), `only the submitted line and the queued line may reach the provider, with the interrupt marker between them; compare with expectedRequests at the top of this file; got ${JSON.stringify(requests)}`)
     check(`${tag}: draft/detail keys never became model requests`, main.length === 2 && main.every(request => !request.raw.includes('keep-this-draft')))
     check(`${tag}: nothing left loopback`, nonLoopback(netlines(leg.netlog)).length === 0)
     results.push({ complete: status === 0 && labels.every(label => marks.has(label)), requests })
@@ -164,7 +164,7 @@ for (const answer of ['accept', 'interrupt'] as const) {
       { requireAwait: true, awaitText: 'after-consent', targetText: 'after-consent', awaitSettleTicks: 2, data: '', mark: 'composer' },
     ], 180, { MERCURY_DESKTOP_DRIVER: 'none' })
     for (const mark of ['detail', 'card', 'settled', 'composer']) printFrame(`detail-consent-${answer} ${mark}`, result.marks[mark] ?? [])
-    check(`${answer}: detail is displaced by the real consent card and every key lands`, result.status === 0 && joined(result.marks.detail ?? []).includes('Session statistics') && joined(result.marks.card ?? []).includes('1. Yes'), result.stderr)
+    check(`${answer}: detail is displaced by the real consent card and every key lands`, result.status === 0 && joined(result.marks.detail ?? []).includes('Session statistics') && joined(result.marks.card ?? []).includes('1. Yes'), `the consent card must replace the open compact detail (src/components/tasks/CompactWorkSummary.tsx) and show 1. Yes; see the detail and card frames printed above; stderr: ${result.stderr}`)
     check(`${answer}: closing consent never reopens detail`, !joined(result.marks.composer ?? []).includes('Session statistics') && joined(result.marks.composer ?? []).includes('after-consent'))
     check(`${answer}: only approved writes execute`, existsSync(resultFile) === (answer === 'accept'))
     check(`${answer}: draft never reaches the provider`, leg.fixture.requests.every(request => !request.raw.includes('after-consent')))

@@ -40,21 +40,21 @@ for (const platform of ['darwin', 'linux', 'win32'] as const) {
   const { plan } = await firstStep(platform, 'stop')
   const tags = plan?.rows?.map(row => row.tag) ?? []
   const want = platform === 'win32' ? ['Hugging Face', 'Bank', 'Ollama / running server'] : ['Hugging Face', 'Bank', 'Ollama / running server', 'TensorFold']
-  check(`${platform}: ${want.length} rows (${want.join(' · ')})`, tags.join('|') === want.join('|'), tags.join('|'))
+  check(`${platform}: ${want.length} rows (${want.join(' · ')})`, tags.join('|') === want.join('|'), `${tags.join('|')} — change the step 1 rows in runLocalSetupRoad or tensorFoldSourceRow in src/services/localSetup/ggufRoad.ts`)
 }
 {
   const mac = (await firstStep('darwin', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
   const linux = (await firstStep('linux', 'stop')).plan?.rows?.find(row => row.tag === 'TensorFold')?.words
-  check("the pointer's words: this Mac on macOS, the NVIDIA GPU on Linux", mac === 'serve an MLX model on this Mac · /tensorfold' && linux === "serve an MLX model on this machine's NVIDIA GPU · /tensorfold", `${mac} | ${linux}`)
+  check("the pointer's words: this Mac on macOS, the NVIDIA GPU on Linux", mac === 'serve an MLX model on this Mac · /tensorfold' && linux === "serve an MLX model on this machine's NVIDIA GPU · /tensorfold", `${mac} | ${linux} — change the words in tensorFoldSourceRow in src/services/localSetup/ggufRoad.ts`)
 }
 
 console.log('§2 picking it opens /tensorfold: the road ends, the popup closes, /tensorfold is the command the chat runs')
 {
   popup.openSettingsPopup({ view: 'localsetup', width: () => 80, rows: 20, line: '', hint: '', body: () => null } as never)
   const picked = await firstStep('darwin', { pick: 'TensorFold' })
-  check('the road ends without a download or a server', picked.reason === 'stopped', String(picked.reason))
-  check('the /localsetup popup is closed', !popup.isSettingsPopupOpen())
-  check('/tensorfold is dispatched', helm.consumeCommandDispatch() === '/tensorfold')
+  check('the road ends without a download or a server', picked.reason === 'stopped', `${String(picked.reason)} — the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must yield done with reason stopped`)
+  check('the /localsetup popup is closed', !popup.isSettingsPopupOpen(), 'the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must call closeSettingsPopup')
+  check('/tensorfold is dispatched', helm.consumeCommandDispatch() === '/tensorfold', 'the TensorFold branch of runLocalSetupRoad in src/services/localSetup/ggufRoad.ts must call requestCommandDispatch with /tensorfold')
 }
 
 console.log('§3 the frame: the pointer as the last row of step 1 (DESIGN 25)')

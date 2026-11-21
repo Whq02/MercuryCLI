@@ -68,10 +68,12 @@ section('V. mutation-operation vocabulary')
   check('V1 file./notebook./lsp-apply ops are mutations',
     isMutationOperation('file.edit') && isMutationOperation('file.write') &&
     isMutationOperation('notebook.edit') && isMutationOperation('lsp.rename.apply') &&
-    isMutationOperation('lsp.codeAction.apply'))
+    isMutationOperation('lsp.codeAction.apply'),
+    'isMutationOperation in src/services/changeTransaction/contracts.ts must return true for file., notebook. and lsp apply operations')
   check('V2 read/navigation ops are not',
     !isMutationOperation('lsp.goToDefinition') && !isMutationOperation('debug.stack') &&
-    !isMutationOperation('lsp.diagnostics'))
+    !isMutationOperation('lsp.diagnostics'),
+    'isMutationOperation in src/services/changeTransaction/contracts.ts must return false for read and navigation operations')
 }
 
 section('L. receipt ring laws (through the real observer seam)')
@@ -79,12 +81,13 @@ section('L. receipt ring laws (through the real observer seam)')
   _resetChangeReceiptsForTesting()
 
   synthEvent({})
-  check('L1 mutation effect mints one receipt', receiptsFor(owner).length === 1)
+  check('L1 mutation effect mints one receipt', receiptsFor(owner).length === 1, `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/utils/run/effectObserver.ts must record a receipt through src/services/changeTransaction/receipts.ts for a mutation effect`)
   const r = receiptsFor(owner)[0]!
   check('L2 receipt shape: version/seq/intent/effect',
     r.version === 1 && r.seq === 1 && r.intent.operation === 'file.edit' &&
-    r.intent.targetPaths[0] === '/tmp/a.ts' && r.effect.outcome === 'succeeded')
-  check('L3 receiptById finds it', receiptById(owner, r.id)?.seq === 1)
+    r.intent.targetPaths[0] === '/tmp/a.ts' && r.effect.outcome === 'succeeded',
+    `receipt ${JSON.stringify(r)} · the receipt built in src/services/changeTransaction/receipts.ts must carry version 1, seq, intent and effect`)
+  check('L3 receiptById finds it', receiptById(owner, r.id)?.seq === 1, 'receiptById in src/services/changeTransaction/receipts.ts must find a receipt by its id')
 
   synthEvent({
     toolName: 'LSP',
@@ -93,7 +96,7 @@ section('L. receipt ring laws (through the real observer seam)')
       evidence: 'nav', startedAt: 1, completedAt: 2,
     },
   })
-  check('L4 read-shaped effect mints nothing', receiptsFor(owner).length === 1)
+  check('L4 read-shaped effect mints nothing', receiptsFor(owner).length === 1, `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/utils/run/effectObserver.ts must skip an effect whose operation is not a mutation`)
 
   synthEvent({
     ok: false,
@@ -103,34 +106,38 @@ section('L. receipt ring laws (through the real observer seam)')
     },
   })
   check('L5 failed mutation mints a failed-attempt receipt',
-    receiptsFor(owner).length === 2 && receiptsFor(owner)[1]!.effect.outcome === 'failed')
+    receiptsFor(owner).length === 2 && receiptsFor(owner)[1]!.effect.outcome === 'failed',
+    `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/utils/run/effectObserver.ts must mint a receipt for a failed mutation`)
 
   synthEvent({ effect: undefined })
-  check('L6 effect-less event mints nothing', receiptsFor(owner).length === 2)
+  check('L6 effect-less event mints nothing', receiptsFor(owner).length === 2, `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/utils/run/effectObserver.ts must skip an event with no effect`)
 
-  check('L7 receiptCursor is the high-water seq', receiptCursor(owner) === 2)
+  check('L7 receiptCursor is the high-water seq', receiptCursor(owner) === 2, `cursor ${receiptCursor(owner)} · receiptCursor in src/services/changeTransaction/receipts.ts must return the highest seq`)
   check('L8 receiptsSince(1) returns only the newer receipt',
-    receiptsSince(owner, 1).length === 1 && receiptsSince(owner, 1)[0]!.seq === 2)
+    receiptsSince(owner, 1).length === 1 && receiptsSince(owner, 1)[0]!.seq === 2,
+    `since 1: ${receiptsSince(owner, 1).length} · receiptsSince in src/services/changeTransaction/receipts.ts must return only receipts newer than the cursor`)
 
   const other = makeOwnerKey({
     workspace: '/tmp/vanguard-receipts',
     sessionId: 'session-other',
     lane: 'main',
   } as never)
-  check('L9 owners are isolated', receiptsFor(other).length === 0)
+  check('L9 owners are isolated', receiptsFor(other).length === 0, `other owner sees ${receiptsFor(other).length} · src/services/changeTransaction/receipts.ts must key receipts by owner`)
 
   for (let i = 0; i < 300; i++) synthEvent({})
   const ring = receiptsFor(owner)
   check('L10 ring bounded at 256, newest retained',
-    ring.length === 256 && ring[ring.length - 1]!.seq === 302)
+    ring.length === 256 && ring[ring.length - 1]!.seq === 302,
+    `ring ${ring.length}, newest seq ${ring[ring.length - 1]?.seq} · the ring in src/services/changeTransaction/receipts.ts must hold 256 and keep the newest`)
 
   disposeOwner(owner)
   check('L11 disposeOwner clears the ring (cursor resets)',
-    receiptsFor(owner).length === 0 && receiptCursor(owner) === 0)
+    receiptsFor(owner).length === 0 && receiptCursor(owner) === 0,
+    `receipts ${receiptsFor(owner).length}, cursor ${receiptCursor(owner)} · disposeOwner in src/utils/run/ownerLifecycle.ts must clear the receipt ring in src/services/changeTransaction/receipts.ts`)
 
   process.env.MERCURY_CHANGE_RECEIPTS = '0'
   synthEvent({})
-  check('L12 gate OFF ⇒ no receipt', receiptsFor(owner).length === 0)
+  check('L12 gate OFF ⇒ no receipt', receiptsFor(owner).length === 0, `receipts ${receiptsFor(owner).length} · observeToolTerminal in src/utils/run/effectObserver.ts must mint nothing when MERCURY_CHANGE_RECEIPTS is 0`)
   delete process.env.MERCURY_CHANGE_RECEIPTS
 }
 
@@ -207,7 +214,8 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
     e2eReceipts.length === 1 &&
     e2eReceipts[0]!.effect.operation === 'file.edit' &&
     e2eReceipts[0]!.effect.changedPaths[0] === file &&
-    e2eReceipts[0]!.toolUseId === 'toolu_e2e_1')
+    e2eReceipts[0]!.toolUseId === 'toolu_e2e_1',
+    `receipts ${JSON.stringify(e2eReceipts)} · runToolUse in src/services/tools/toolExecution.ts must report the executed edit to observeToolTerminal once`)
 
   _resetChangeReceiptsForTesting()
   const file2 = join(dir, 'unread.ts')
@@ -228,7 +236,8 @@ section('T. end-to-end: runToolUse mints exactly one receipt per executed edit')
   }
   check('T2 a pre-execution refusal mints no receipt (cancellation law)',
     rf(owner).length === 0 &&
-    (await import('node:fs')).readFileSync(file2, 'utf8').includes('const y = 1'))
+    (await import('node:fs')).readFileSync(file2, 'utf8').includes('const y = 1'),
+    `receipts ${rf(owner).length} · runToolUse in src/services/tools/toolExecution.ts must not report a refused tool call to observeToolTerminal`)
 }
 
 console.log('\n' + '═'.repeat(76))

@@ -15,7 +15,10 @@ const { syncOutputCapabilityNow, upgradeSyncOutputSupport } = await import('../.
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) failures = 1
+  if (!ok) {
+    failures = 1
+    console.log('      fix: the settled-resize path in src/ink/ink/resize.ts (applySettledResize, fitConsoleBufferToWindow, consoleBufferOutlivesWindow) decides when a Windows console re-enters the alternate screen; the sync-output capability it reads is syncOutputCapabilityNow in src/ink/session/capabilities.ts')
+  }
 }
 
 const ENTER_ALT = '\u001b[?1049h'

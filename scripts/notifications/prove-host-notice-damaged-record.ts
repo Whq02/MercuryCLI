@@ -21,6 +21,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
 }
+const noticesHint = 'fix deliverHostNotices / watchHostNotices in src/services/host/notices.ts'
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 
 const { hostNotice, deliverHostNotices, watchHostNotices } = await import('../../src/services/host/notices.ts')
@@ -47,43 +48,43 @@ const noticeLines = (): string[] => debugLines.filter(line => line.includes('Hos
 
 section('§1 a notice file that cannot be read is passed over; the valid ones of the session are still queued')
 {
-  check('the scene holds three valid notices (two for S, one for T) among six damaged files', valid.length === 3 && readdirSync(dir).filter(name => name.endsWith('.json')).length === 9, readdirSync(dir).join(' '))
+  check('the scene holds three valid notices (two for S, one for T) among six damaged files', valid.length === 3 && readdirSync(dir).filter(name => name.endsWith('.json')).length === 9, noticesHint + ' (hostNotice writes the files) | ' + readdirSync(dir).join(' '))
   let thrown = ''
   try {
     deliverHostNotices('S')
   } catch (error) {
     thrown = `${(error as Error).name}: ${(error as Error).message}`
   }
-  check('the delivery does not throw on a damaged record', thrown === '', thrown)
+  check('the delivery does not throw on a damaged record', thrown === '', noticesHint + ' so one unreadable record is skipped, not thrown | ' + thrown)
   const queued = wordsOf()
-  check('both of the session\'s notices are queued, whatever the directory order', queued.length === 2 && queued.some(w => w.includes('The model is ready')) && queued.some(w => w.includes('The setup failed')), JSON.stringify(queued.map(w => w.slice(0, 60))))
-  check('another session\'s notice is not', !queued.some(w => w.includes('Another session')))
+  check('both of the session\'s notices are queued, whatever the directory order', queued.length === 2 && queued.some(w => w.includes('The model is ready')) && queued.some(w => w.includes('The setup failed')), noticesHint + ' | ' + JSON.stringify(queued.map(w => w.slice(0, 60))))
+  check('another session\'s notice is not', !queued.some(w => w.includes('Another session')), noticesHint + ' so only the given session id is delivered')
   try {
     deliverHostNotices('S')
   } catch {}
-  check('a second pass queues nothing twice', wordsOf().length === 2, String(wordsOf().length))
+  check('a second pass queues nothing twice', wordsOf().length === 2, noticesHint + ' so a delivered notice is not queued twice | ' + String(wordsOf().length))
 }
 
 section('§2 the damaged files are named once each in the debug log and left as they are')
 {
   const lines = noticeLines()
-  check('each damaged file is named once, with why it was skipped', Object.keys(DAMAGED).every(name => lines.filter(line => line.includes(join(dir, name)) && line.includes('skipped:')).length === 1), lines.join(' | '))
-  check('a file that parses but is not a notice says so', lines.some(line => line.includes('aaaa-wordless.json') && line.includes('not a notice record')) && lines.some(line => line.includes('5555-null.json') && line.includes('not a notice record')), lines.join(' | '))
-  check('no valid notice is named', valid.every(name => !lines.some(line => line.includes(name))))
-  check('the damaged files keep their bytes and gain no delivered mark', Object.entries(DAMAGED).every(([name, text]) => readFileSync(join(dir, name), 'utf8') === text && !existsSync(join(dir, `${name}.delivered`))))
+  check('each damaged file is named once, with why it was skipped', Object.keys(DAMAGED).every(name => lines.filter(line => line.includes(join(dir, name)) && line.includes('skipped:')).length === 1), noticesHint + ' (the Host notice skipped: debug line, logged once per path) | ' + lines.join(' | '))
+  check('a file that parses but is not a notice says so', lines.some(line => line.includes('aaaa-wordless.json') && line.includes('not a notice record')) && lines.some(line => line.includes('5555-null.json') && line.includes('not a notice record')), noticesHint + ' so a parsed non-notice throws not a notice record | ' + lines.join(' | '))
+  check('no valid notice is named', valid.every(name => !lines.some(line => line.includes(name))), noticesHint + ' so only damaged files are logged')
+  check('the damaged files keep their bytes and gain no delivered mark', Object.entries(DAMAGED).every(([name, text]) => readFileSync(join(dir, name), 'utf8') === text && !existsSync(join(dir, `${name}.delivered`))), noticesHint + ' so a skipped file is neither rewritten nor marked delivered')
 }
 
 section('§3 consumption still acknowledges; the watcher delivers past the damage')
 {
   dequeue()
   const marks = readdirSync(dir).filter(name => name.endsWith('.delivered'))
-  check('a consumed notice gains its delivered mark', marks.length === 1 && valid.includes(marks[0]!.replace(/\.delivered$/, '')), marks.join(' '))
+  check('a consumed notice gains its delivered mark', marks.length === 1 && valid.includes(marks[0]!.replace(/\.delivered$/, '')), noticesHint + ' so dequeuing a notice writes its .delivered mark | ' + marks.join(' '))
   const before = wordsOf().length
   const stop = watchHostNotices(() => 'T')
   stop()
   const after = wordsOf()
-  check('the watcher\'s first tick queues the other session\'s notice past the same damaged files', after.length === before + 1 && after.some(w => w.includes('Another session is ready')), JSON.stringify(after.map(w => w.slice(0, 50))))
-  check('…and names no damaged file a second time', noticeLines().length === Object.keys(DAMAGED).length, String(noticeLines().length))
+  check('the watcher\'s first tick queues the other session\'s notice past the same damaged files', after.length === before + 1 && after.some(w => w.includes('Another session is ready')), noticesHint + ' | ' + JSON.stringify(after.map(w => w.slice(0, 50))))
+  check('…and names no damaged file a second time', noticeLines().length === Object.keys(DAMAGED).length, noticesHint + ' so a damaged path is logged once | ' + String(noticeLines().length))
 }
 
 process.stderr.write = stderrWrite

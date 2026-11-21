@@ -16,7 +16,7 @@ const KEY = 'fixture-key-000'
 const launch = realpathSync(mkdtempSync(join(tmpdir(), 'remote-product-')))
 
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; the last section header printed above names where it hung: look at the remote transport (scripts/remote-files/remoteKit.ts remoteWorld) and at the built product dist/mercury.mjs run against it')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
@@ -26,6 +26,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  if (!ok) console.log('      fix: the ssh:// paths of the Read, Edit, Write, Grep and Glob tools under src/tools, and the shared remote code in src/services/remoteFiles/bridge.ts; this proof runs the built dist/mercury.mjs, so rebuild with bun run build.ts after a change')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 
@@ -170,7 +171,7 @@ async function untouched(world: RemoteWorld): Promise<void> {
 
 try {
   if (!existsSync(DIST)) {
-    console.log(`  [FAIL] there is no built product at ${DIST}: build it first`)
+    console.log(`  [FAIL] there is no built product at ${DIST}: build it first with bun run build.ts, or point REMOTE_KIT_DIST at a built mercury.mjs`)
     failures++
     checks++
   } else {

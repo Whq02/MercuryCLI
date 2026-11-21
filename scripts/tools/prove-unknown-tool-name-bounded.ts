@@ -20,9 +20,10 @@ const { itemRowsOf, refusedCallRowsOf } = await import('../../src/rows/project.t
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
 
 let failures = 0
+let fixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond && fixHint ? ` — to fix: ${fixHint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -30,7 +31,7 @@ function section(title: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the unknown-tool-name proof exceeded 180s')
+  console.log('\nTIMEOUT — the unknown-tool-name proof exceeded 180s; the section printed last is the one waiting, and in section 5 look at the built run of DIST and the scripted local model server')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -88,6 +89,7 @@ console.log('============================================================')
 
 section('§1 the one display bound')
 {
+  fixHint = 'displayToolName and TOOL_NAME_DISPLAY_LIMIT in src/utils/toolNameDisplay.ts must cut a name to 120 characters plus an ellipsis, whole code points'
   check(`the limit is ${TOOL_NAME_DISPLAY_LIMIT} characters`, TOOL_NAME_DISPLAY_LIMIT === 120)
   check('a 200,000-character name shows as its first 120 characters and an ellipsis', displayToolName(LONG) === HEAD && displayToolName(LONG).length === 121, j(displayToolName(LONG).length))
   check('a 30-character name is unchanged', displayToolName('a'.repeat(30)) === 'a'.repeat(30))
@@ -101,6 +103,7 @@ section('§1 the one display bound')
 
 section('§2 the executor\'s refusal (the tool_result the model reads)')
 {
+  fixHint = 'runToolUse in src/services/tools/toolExecution.ts must echo the unknown tool name through displayToolName in its No such tool available result'
   const long = await call(ROSTER(), LONG)
   check('a 200,000-character unknown name answers an error result', long.isError, j(long.isError))
   check('…whose text is under 400 characters', long.text.length < 400, `length ${long.text.length}`)
@@ -115,6 +118,7 @@ section('§2 the executor\'s refusal (the tool_result the model reads)')
 
 section('§3 the transport gate: the refusal\'s reason, note, result text, correction and debug line')
 {
+  fixHint = 'gateToolCall and the toolCallRefusal* functions in src/services/providers/toolCallGate.ts must put the bounded name (displayToolName) in the reason, debug line, note, result text and correction'
   const tools = ROSTER() as never
   const verdict = gateToolCall(tools, { id: 'call_0', name: LONG, argumentsRaw: '{}', malformed: false })
   check('the gate refuses the call as unknown-tool', !verdict.ok && verdict.refusal.code === 'unknown-tool', j(verdict.ok))
@@ -138,6 +142,7 @@ section('§3 the transport gate: the refusal\'s reason, note, result text, corre
 
 section('§4 the rows: tool_call rows carry the bounded name')
 {
+  fixHint = 'itemRowsOf and refusedCallRowsOf in src/rows/project.ts and the absent-tool card in src/tools/MCPTool/absentToolShim.ts must show the name through displayToolName'
   const scope = { session_id: 'sess_bound', turn: 1 }
   const rows = itemRowsOf(scope, 'msg_1', [{ type: 'tool_use', id: 'call_0', name: LONG, input: {} }] as never)
   const callRow = rows.find(row => row.type === 'tool_call') as { tool?: string } | undefined
@@ -154,6 +159,7 @@ section('§4 the rows: tool_call rows carry the bounded name')
 
 section('§5 the product: a scripted 200,000-character tool call on the built build')
 {
+  fixHint = 'the built bundle at DIST may be stale, so run bun run build.ts; otherwise bound the name in the places §2 to §4 name, and check the debug log writer for the full name'
   const MODEL = 'qwen2.5-coder:3b'
   const root = realpathSync(mkdtempSync(join(SCRATCH_ROOT, 'unknown-tool-name-')))
   const home = join(root, 'home')

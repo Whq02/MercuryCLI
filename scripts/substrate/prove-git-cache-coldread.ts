@@ -10,7 +10,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — change: the cold-read path of getCachedBranch and getCachedHead in src/utils/git/gitFilesystem.ts, or getGitState in src/utils/git.ts, so that every concurrent first read answers the real value'}`)
 }
 
 const repo = mkdtempSync(join(tmpdir(), 'git-cache-coldread-'))

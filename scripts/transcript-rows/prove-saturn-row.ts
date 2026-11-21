@@ -18,7 +18,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — to fix: by section, §0 the Saturn words are in src/utils/messages/noticeRows.ts, §1-§2 the row painting is src/components/messages/UserTextMessage.tsx, §3 and §6 the origin and hide handling is processUserInput in src/services/processUserInput/processUserInput.ts, §4 the title is src/daemon/saturn.ts and the Cron tools under src/tools/ScheduleCronTool, §5 the restart carry is src/cli/headless/restartCarry.ts and src/tasks/LocalAgentTask/launchReceipts.ts' : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 

@@ -15,7 +15,8 @@ const { loginFamilyRows, keyPageLine } = await import('../../src/components/logi
 const { loginsPickOptions, deviceWaitPaneLines } = await import('../../src/components/BootLoginsScreen.tsx')
 const { providerAuthList } = await import('../../src/cli/handlers/providerAuth.ts')
 let checks = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); checks++; console.log(`[PASS] ${name}`) }
+const orcarouterFixHint = 'fix src/services/providers/orcarouter/orcarouterLogin.ts (storeOrcarouterApiKeyLogin, runOrcarouterDeviceLogin), orcarouterAccounts.ts (resolveOrcarouterApiKey), OrcarouterConnect.tsx for the rendered card, or the login rows in src/components/loginFamilyRows.ts and src/components/BootLoginsScreen.tsx'
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${orcarouterFixHint}`); checks++; console.log(`[PASS] ${name}`) }
 const keyFetch = (status: number): typeof fetch => (async () => Response.json(status === 200 ? fixture.catalogue : { error: { type: 'orcarouter_api_error', message: 'invalid api key' } }, { status })) as typeof fetch
 try {
   check('the login row uses the existing device-code and API-key grammar', loginFamilyRows({ engineLegs: true }).some(row => row.value === 'orcarouter' && row.label === 'OrcaRouter — device-code sign-in or API key'))

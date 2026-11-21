@@ -13,7 +13,12 @@ const wallModule = (await import('../../src/tools/MonitorTool/laneWall.ts')) as 
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const laneWallHint = /states no fact|the fact, with|window read is/.test(label)
+    ? 'fix openaiWindowFact and activeOpenaiWindow in src/services/providers/openai/openaiWindowFact.ts'
+    : /completion|driver|timer|before the reset|queue is empty/.test(label)
+      ? 'fix how createTurnDriver in src/cli/headless/turnDriver.ts holds a queued completion while the wall is closed and re-checks at the wall reopen time'
+      : 'fix sessionLaneWall in src/tools/MonitorTool/laneWall.ts: a limited OpenAI window closes the wall with its reset as the reopen time'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${laneWallHint}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {

@@ -43,22 +43,22 @@ try {
       await refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: `${kind}=http://127.0.0.1:${port}` } })
       process.env.MERCURY_MODEL = 'local/fixture'
       const supported = vision === true
-      assert.equal(modelReceivesImageBlocks('local/fixture'), supported, `${kind} vision=${vision}`)
+      assert.equal(modelReceivesImageBlocks('local/fixture'), supported, `${kind} vision=${vision} — change modelReceivesImageBlocks in src/utils/model/capabilities.ts or the ${kind} vision read in refreshLocalDiscovery (src/services/providers/local/localDiscovery.ts)`)
       const pathLine = `screenshot: ${imagePath} (https://example.test, 1280x800)`
       const result = BrowserTool.mapToolResultToToolResultBlockParam({ result: pathLine, outcome: 'completed', imagePath } as never, 'shot')
-      assert.equal(Array.isArray(result.content), supported, `${kind} Browser result shape`)
+      assert.equal(Array.isArray(result.content), supported, `${kind} Browser result shape — change mapToolResultToToolResultBlockParam in src/tools/BrowserTool/BrowserTool.ts so the image block rides only when modelReceivesImageBlocks is true`)
       if (Array.isArray(result.content)) {
-        assert.equal(result.content[0]?.type, 'text')
-        assert.equal(result.content[1]?.type, 'image')
+        assert.equal(result.content[0]?.type, 'text', 'the first Browser result block must be the text path line — change mapToolResultToToolResultBlockParam in src/tools/BrowserTool/BrowserTool.ts')
+        assert.equal(result.content[1]?.type, 'image', 'the second Browser result block must be the image — change mapToolResultToToolResultBlockParam in src/tools/BrowserTool/BrowserTool.ts')
       } else {
-        assert.equal(result.content, `${pathLine}\n(image not inlined — this model takes no image input; open the file to view it)`)
+        assert.equal(result.content, `${pathLine}\n(image not inlined — this model takes no image input; open the file to view it)`, 'the text-only Browser result changed — change mapToolResultToToolResultBlockParam in src/tools/BrowserTool/BrowserTool.ts')
       }
       checks++
     }
   }
   await refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: 'none' } })
-  assert.equal(modelReceivesImageBlocks('local/never-listed'), false)
-  assert.equal(modelReceivesImageBlocks('future-hosted-engine'), true)
+  assert.equal(modelReceivesImageBlocks('local/never-listed'), false, 'a local model that discovery never listed must not receive images — change modelReceivesImageBlocks in src/utils/model/capabilities.ts')
+  assert.equal(modelReceivesImageBlocks('future-hosted-engine'), true, 'a non-local model must keep receiving images — change modelReceivesImageBlocks in src/utils/model/capabilities.ts')
   console.log(`${checks + 2} local vision and Browser shape checks passed`)
 } finally {
   await new Promise<void>(resolve => server.close(() => resolve()))

@@ -25,7 +25,7 @@ function check(name: string, cond: boolean, detail?: string): void {
     console.log(`  ✅ ${name}`)
   } else {
     failures++
-    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  ❌ ${name}${detail ? ` — ${detail}` : ''} — fix the function this rule names (verdictFromStatuses, filterCertificateToCheck, interpretGateVerdict, decodeGateVerdict, nextActions, composeChip, decode*Summary) in src/utils/healthCertCore.ts`)
   }
 }
 

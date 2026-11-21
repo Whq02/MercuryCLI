@@ -70,10 +70,11 @@ const seedMint = () => writeFileSync(accounts.openrouterAuthPathForDisplay(), JS
 const family = { id: 'openrouter', available: true, credentialed: true, credentialLabel: 'OpenRouter fixture' }
 await stub('../../src/services/providers/providerUsage.js', { providerFamilyPresences: () => [family] })
 const readSlots = () => slots.deriveFamilySlotGroups([]).find(group => group.family.id === 'openrouter')!.slots
+const openrouterFixHint = 'fix the key resolution and expiry mark in src/services/providers/openrouter/openrouterAccounts.ts (resolveOpenrouterApiKey), the credit read in openrouterUsageState.ts (refreshOpenrouterKeyUsage), the slot notes in src/services/providers/accountSlots.ts (deriveFamilySlotGroups), or the painting in src/components/Settings/Usage.tsx and src/components/HelmVitalsRail.tsx for the frame checks'
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${openrouterFixHint}` : ''}`)
 }
 const compact = (text: string) => text.replace(/│/g, ' ').replace(/\s+/g, ' ').trim()
 const framesAt = process.argv.indexOf('--frames')

@@ -14,7 +14,10 @@ import { spawnSync } from 'node:child_process'
 let failures = 0
 const ok = (cond: boolean, label: string) => {
   console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('     fix: defineStore (revision, recovery, quarantine and subscribeChanges behaviour) in src/substrate/fileStore.ts, or readStoreRecoveryEvents (the recovery ledger read) in src/substrate/storeRecovery.ts; the section number in the label names the case')
+  }
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const BUDGET_SCALE = Number(process.env.MERCURY_VSHOT_BUDGET_SCALE ?? '1') || 1

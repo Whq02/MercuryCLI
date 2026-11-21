@@ -54,10 +54,61 @@ const keys = { down: '\x1b[B', up: '\x1b[A', pgdn: '\x1b[6~', pgup: '\x1b[5~', e
 const options = Array.from({ length: 24 }, (_, i) => ({ label: `choice ${String(i + 1).padStart(2, '0')}`, value: String(i) }))
 let failures = 0
 let checks = 0
+const popupFailSurfaces: Array<[RegExp, string]> = [
+  [/^\d+ (single|multi):/, 'src/components/CustomSelect/select.tsx (Select) or SelectMulti.tsx'],
+  [/input row/, 'src/components/CustomSelect/select.tsx (Select input rows)'],
+  [/interactive lists/, 'src/components/mercury-ui/useInteractiveList.ts and InteractiveRow.tsx'],
+  [/ effort:/, 'src/commands/effort/EffortPopup.tsx'],
+  [/ mcp (tools|detail):| mcp:/, 'src/commands/mcp/McpPopup.tsx'],
+  [/ model:/, 'src/components/MercuryModelPicker.tsx'],
+  [/ color:/, 'src/components/agents/ColorPicker.tsx'],
+  [/ config:/, 'src/components/Settings/Config.tsx and SettingsPopupSlot.tsx'],
+  [/ jev:/, 'src/components/Settings/Jev.tsx and SettingsPopupSlot.tsx'],
+  [/elicitation/, 'src/components/mcp/ElicitationDialog.tsx'],
+  [/boot logins|boot-logins/, 'src/components/BootLoginsScreen.tsx'],
+  [/ kit/, 'src/components/KitMenuScreen.tsx'],
+  [/saturn/, 'src/components/BootSaturnScreen.tsx'],
+  [/boot legend/, 'composeBootMenu in assets/splash/splash-core.mjs'],
+  [/ (theme|quick-model|export|crash-resume|cost-threshold|sovereign|mcp-approval|mcp-multiselect|help-commands):/, 'the dialog component named in the label (src/components/ThemePicker.tsx, ModelPicker.tsx, ExportDialog.tsx, CrashResumeDialog.tsx, CostThresholdDialog.tsx, SovereignModeDialog.tsx, MCPServerApprovalDialog.tsx, MCPServerMultiselectDialog.tsx, HelpV2/Commands.tsx)'],
+  [/ daemon:/, 'src/components/mercury-ui/parity/DaemonView.tsx'],
+  [/ sessions:/, 'src/components/mercury-ui/screens/SessionManagerView.tsx'],
+  [/ skills:/, 'src/components/skills/SessionSkillsDial.tsx'],
+  [/ samples:/, 'src/components/samples/SamplesListView.tsx'],
+  [/ tasks:/, 'src/components/tasks/BackgroundTasksDialog.tsx'],
+  [/ panes:/, 'src/components/mercury-ui/NavigablePanes.tsx'],
+  [/popup reader/, 'CommandCenter in src/components/mercury-ui/components.tsx'],
+  [/ ground:/, 'src/components/concourse/GroundPicker.tsx'],
+  [/ submodels:/, 'src/components/SubModelPicker.tsx'],
+  [/ localsetup:/, 'src/components/LocalSetupDialog.tsx'],
+  [/ health:/, 'src/commands/health/HealthCertificate.tsx'],
+  [/ log-selector:/, 'src/components/LogSelector.tsx'],
+  [/ palette:/, 'src/components/MercuryCommandPalette.tsx'],
+  [/ hook-(events|matchers|list):/, 'src/components/hooks/SelectEventMode.tsx, SelectMatcherMode.tsx or SelectHookMode.tsx'],
+  [/ permissions:/, 'src/components/permissions/rules/PermissionRuleList.tsx'],
+  [/ usage /, 'src/components/Settings/Usage.tsx'],
+  [/ diff:/, 'src/components/diff/DiffDialog.tsx'],
+  [/ caching:/, 'src/commands/caching/caching.tsx'],
+  [/ capabilities:/, 'src/components/mercury-ui/parity/CapabilityManagerView.tsx'],
+  [/ accounts:/, 'src/components/mercury-ui/parity/AccountView.tsx'],
+  [/ crew:/, 'src/components/mercury-ui/screens/CrewView.tsx'],
+  [/ agent-trash:/, 'src/components/agents/studio/AgentStudio.tsx'],
+  [/ run-inspector:/, 'src/commands/run/run.tsx'],
+  [/ workbench:/, 'src/components/prompts-panel/PromptsPanel.tsx'],
+  [/login (roster|account card)/, 'src/components/ConsoleOAuthFlow.tsx'],
+  [/file permission/, 'src/components/permissions/FilePermissionDialog/FilePermissionDialog.tsx'],
+  [/ trust:/, 'src/components/MercurySetupFrame.tsx and TrustDialog/TrustDialog.tsx'],
+  [/late selector/, 'src/components/PopupForm.tsx and CustomSelect/select.tsx'],
+  [/memory files/, 'src/components/memory/MemoryFileSelector.tsx'],
+  [/memory/, 'src/components/memory/MemoryCentreView.tsx'],
+]
+const popupFailHint = (label: string) => {
+  const surface = popupFailSurfaces.find(([pattern]) => pattern.test(label))?.[1]
+  return surface ? `fix the key handling, scroll window or footer guide of ${surface}` : 'fix the key handling, scroll window or footer guide of the popup this check names'
+}
 const check = (label: string, good: boolean, detail = '') => {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${popupFailHint(label)}${detail ? ` — ${detail}` : ''}` : ''}`)
 }
 const save = async (scene: Mounted, label: string, cols: number, rows = 24) => {
   if (!frames) return

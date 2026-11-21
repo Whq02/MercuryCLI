@@ -53,9 +53,9 @@ const settled = computeWorkingTreeSha(repo, { signal: controller.signal })
 setTimeout(() => controller.abort(new Error('check timed out after 300ms')), 300)
 const sha = await settled
 const tookMs = Date.now() - startedAt
-check('the tree read answers null once the check gives up', sha === null, String(sha))
-check('…promptly, not after git\'s own timeout', tookMs < 10_000, `${tookMs} ms`)
-check('no gate-tree-* store is left in the temp dir', scratchStores().length === 0, scratchStores().join(','))
+check('the tree read answers null once the check gives up', sha === null, `${String(sha)} — computeWorkingTreeSha in src/services/health/healthReport.ts must return null when its signal aborts`)
+check('…promptly, not after git\'s own timeout', tookMs < 10_000, `${tookMs} ms — computeWorkingTreeSha in src/services/health/healthReport.ts must stop its git child when the signal aborts`)
+check('no gate-tree-* store is left in the temp dir', scratchStores().length === 0, `${scratchStores().join(',')} — computeWorkingTreeSha in src/services/health/healthReport.ts must remove its gate-tree- temp dir when the signal aborts`)
 
 section('§2 an exit before the read settles still removes the store')
 const child = join(world, 'exit-mid-read.ts')
@@ -73,8 +73,8 @@ const run = spawn(process.execPath, [child], { cwd: ROOT, env: { ...process.env,
 let childErr = ''
 run.stderr.on('data', (c: Buffer) => (childErr += c.toString('utf8')))
 const code = await new Promise<number | null>(resolve => run.on('close', resolve))
-check('the child exited by itself', code === 0, `exit ${code}: ${childErr.slice(-300)}`)
-check('its gate-tree-* store is gone after the exit', scratchStores().length === 0, scratchStores().join(','))
+check('the child exited by itself', code === 0, `exit ${code}: ${childErr.slice(-300)} — the child imports computeWorkingTreeSha from src/services/health/healthReport.ts; read its stderr above`)
+check('its gate-tree-* store is gone after the exit', scratchStores().length === 0, `${scratchStores().join(',')} — computeWorkingTreeSha in src/services/health/healthReport.ts must remove its gate-tree- temp dir on process exit`)
 
 rmSync(world, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? 'ALL LAWS HOLD' : `${failures} FAILURE(S)`} — prove-tree-scratch-cleanup`)

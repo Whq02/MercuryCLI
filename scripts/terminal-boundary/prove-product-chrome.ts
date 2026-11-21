@@ -63,16 +63,17 @@ for (const f of files) {
     }
   })
 }
-check('zero exposure-class hits in product chrome', hits.length === 0, `\n    ${hits.slice(0, 12).join('\n    ')}`)
+check('zero exposure-class hits in product chrome', hits.length === 0, `\n    ${hits.slice(0, 12).join('\n    ')}\n    to fix: reword the quoted line in that file under src/components or src/screens so the class text no longer reaches the screen, or add the file and class id to ALLOWLIST in scripts/terminal-boundary/prove-product-chrome.ts with a reason`)
 
 console.log('\n── preservation fixtures stay wired (content is never rewritten) ──')
 const machineProver = readFileSync(join(ROOT, 'scripts', 'terminal-boundary', 'prove-machine-output-contract.ts'), 'utf8')
 check(
   'the byte-exact model-content preservation leg exists (L3)',
   machineProver.includes('preservation') && machineProver.includes('[object Object]') && machineProver.includes('byte-exact'),
+  'to fix: scripts/terminal-boundary/prove-machine-output-contract.ts lost its leg that keeps model content byte-exact (it must still mention preservation, [object Object] and byte-exact); restore that leg',
 )
 const crashProver = readFileSync(join(ROOT, 'scripts', 'terminal-boundary', 'prove-crash-surface.ts'), 'utf8')
-check('the crash prover asserts product projection, not content filtering', crashProver.includes('raw fault text never paints'))
+check('the crash prover asserts product projection, not content filtering', crashProver.includes('raw fault text never paints'), 'to fix: scripts/terminal-boundary/prove-crash-surface.ts lost its check that the raw fault text never paints; restore that check')
 
 console.log('\n' + '═'.repeat(76))
 if (failures > 0) {

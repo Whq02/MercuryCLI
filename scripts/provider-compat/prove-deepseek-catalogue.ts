@@ -31,9 +31,11 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 let failures = 0
+let catalogueHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : [detail, catalogueHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -92,6 +94,7 @@ const statusFetch = (status: number) => (async () => jsonResponse(status, { erro
 
 section('1 · the pins and the retired alias (no network)')
 {
+  catalogueHint = 'change the pins in src/utils/model/pins/deepseekPins.ts (deepseekCurrentModelId, deepseekDisplayPin), the static catalogue in src/services/providers/deepseek/deepseekAdapter.ts, or the route, pricing and wire-id laws the check names'
   check('the Flash pin carries the page\'s own id (deepseek-flash) with its label', flashPin?.id === CURRENT_FLASH, String(flashPin?.id))
   check('no pin carries the retired id', DEEPSEEK_DISPLAY_PINS.every(p => p.id !== RETIRED_FLASH))
   check('the retired id folds onto the current id', pins.deepseekCurrentModelId?.(RETIRED_FLASH) === CURRENT_FLASH, String(pins.deepseekCurrentModelId?.(RETIRED_FLASH)))
@@ -119,6 +122,7 @@ section('2 · decode and the fetch (the documented page shape, injected fetch)')
 if (!catalogue) {
   check('the catalogue module exists', false, 'src/services/providers/deepseek/deepseekCatalogue.ts is absent')
 } else {
+  catalogueHint = 'change decodeDeepseekModel or fetchDeepseekLiveModels in src/services/providers/deepseek/deepseekCatalogue.ts'
   const rows = DOC_PAGE.data.map(catalogue.decodeDeepseekModel)
   check('the documented page decodes to ids with their owner', rows.length === 2 && rows[0]?.id === 'deepseek-flash' && rows[0]?.ownedBy === 'deepseek' && rows[1]?.id === 'deepseek-v4-pro')
   check('a row without an id is skipped; an unstated owner stays absent', catalogue.decodeDeepseekModel({ object: 'model' }) === undefined && catalogue.decodeDeepseekModel({ id: 'deepseek-x' })?.ownedBy === undefined)
@@ -151,6 +155,7 @@ if (!catalogue) {
 
 section('3 · the door and the cache')
 if (catalogue) {
+  catalogueHint = 'change refreshDeepseekCatalogue or kickDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts (key door, TTL, retry window, epoch bump)'
   catalogue.__resetDeepseekCatalogueForTest()
   const doorCalls = { n: 0, urls: [] as string[], headers: [] as Record<string, string>[] }
   const closed = await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: pageFetch(FIXTURE_PAGE, doorCalls) })
@@ -203,6 +208,7 @@ if (catalogue) {
 
 section('4 · the derivations over a live list: the router arm, the picker rows, the frontier line')
 if (catalogue) {
+  catalogueHint = 'change deepseekCatalogueRows in src/services/providers/deepseek/deepseekCatalogue.ts, describeDeepseekProvider or listDeepseekModels in deepseekAdapter.ts, keyLanePins or getModelOptions in src/services/model/modelOptions.ts, or providerFrontierFact in src/services/model/providerFrontier.ts'
   catalogue.__resetDeepseekCatalogueForTest()
   const landed = await catalogue.refreshDeepseekCatalogue({ force: true, fetchImpl: pageFetch(FIXTURE_PAGE) })
   const derived = catalogue.deepseekCatalogueRows()
@@ -239,6 +245,7 @@ if (catalogue) {
 
 section('5 · the fallback: no list, the dated pins stand in')
 if (catalogue) {
+  catalogueHint = 'change the pin fallback in deepseekCatalogueRows (src/services/providers/deepseek/deepseekCatalogue.ts), or its readers in deepseekAdapter.ts, src/services/model/modelOptions.ts and src/services/model/providerFrontier.ts'
   catalogue.__resetDeepseekCatalogueForTest()
   const derived = catalogue.deepseekCatalogueRows()
   check('the source is the pin table with its date', derived.source.kind === 'pin' && derived.source.observedAt === PIN_DATE, JSON.stringify(derived.source))

@@ -30,8 +30,11 @@ import { readCompatFloor, releaseLayoutSection } from '../release/payloadContrac
 }
 
 let failures = 0
+const SIGNING_FAIL_HINT =
+  'to fix, change parseStatement, canonicalStatementBytes, signStatement or verifySignatureBlock in src/services/privateChannel/artifactSigning.ts, verifyPayloadDir in src/services/privateChannel/artifactVerify.ts, or releaseLayoutSection in scripts/release/payloadContract.mjs'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  const shown = ok ? '' : detail ? `${detail}; ${SIGNING_FAIL_HINT}` : SIGNING_FAIL_HINT
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures++
 }
 

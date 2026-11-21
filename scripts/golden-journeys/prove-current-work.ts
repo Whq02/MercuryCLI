@@ -30,7 +30,9 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(
+      `  FAIL ${name}${detail ? ` — ${detail}` : ''} — fix deriveCurrentWork in src/services/workbench/currentWork.ts (the projection of the run, tasks and workbench inputs) so this law holds`,
+    )
   }
 }
 

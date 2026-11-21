@@ -37,7 +37,7 @@ const blocklist = await import('../../src/extensions/blocklist.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — fix the gate in src/extensions (approve, setSwitch and installFromSource in install.ts, computeRoster and trustStateOf in roster.ts, getActiveSet in active.ts, reloadExtensions in reload.ts, block and unblock in blocklist.ts) so nothing contributes before approval' : ''}`)
 }
 const FIXTURE = join(import.meta.dir, 'fixtures', 'fixture-source')
 

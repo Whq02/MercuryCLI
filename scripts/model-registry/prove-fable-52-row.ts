@@ -24,12 +24,14 @@ for (const k of [
 }
 
 let failures = 0
+let sectionFix = ''
 function check(label: string, cond: boolean, detail?: string): void {
   const mark = cond ? 'PASS' : 'FAIL'
   if (!cond) failures++
-  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && sectionFix ? ` — to fix: ${sectionFix}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, fix = ''): void {
+  sectionFix = fix
   console.log(`\n${title}`)
 }
 
@@ -41,7 +43,7 @@ const DATED = 'claude-fable-5-2-20261109'
 const CARRIER = 'openrouter/anthropic/claude-fable-5-2'
 const UNDECLARED = 'claude-fable-5-7'
 
-section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, never the Fable 5.1 estimate")
+section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, never the Fable 5.1 estimate", 'fix the claude-fable-5-2 price row, its ANTHROPIC_PRICE_OBSERVED_AT entry and resolveModelPricing in src/services/usage/modelCost.ts, or the mythos52 row in src/utils/model/configs.ts')
 {
   const { calculateUSDCost, getModelPricingString, resolveModelPricing, ANTHROPIC_PRICE_OBSERVED_AT } = await import('../../src/services/usage/modelCost.ts')
   const pricing = resolveModelPricing(ID)
@@ -61,7 +63,7 @@ section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, 
   check('the observation is dated the day the pricing page was read', ANTHROPIC_PRICE_OBSERVED_AT[ID]?.observedAt === '2026-11-09', JSON.stringify(ANTHROPIC_PRICE_OBSERVED_AT[ID]))
 }
 
-section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row')
+section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row', 'fix getCanonicalName in src/utils/model/modelNames.ts, the display owner renderModelName in src/services/model/model.ts, the alias parser parseUserSpecifiedModel in src/services/model/model.ts, or the fable52 and mythos52 rows in src/utils/model/configs.ts')
 {
   const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/services/model/model.ts')
   const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
@@ -101,7 +103,7 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
   check('the id space recognises the bare id by its claude- mark', recognizeModelId(ID).kind === 'first-party')
 }
 
-section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth")
+section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth", 'fix the fable52 generation in src/utils/model/configs.ts (FAMILY_GENERATIONS), the picker rows in src/services/model/modelOptions.ts, the launch effort in src/utils/effort.ts, or the capability record in src/utils/model/capabilities.ts')
 {
   const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
@@ -170,7 +172,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   check('the capability record is coherent on the row', record.canonical === ID && record.thinking.adaptive && record.effort.ceiling === 'max' && record.tools.structuredOutputs && record.context.window === 1_000_000 && record.identity.knowledgeCutoff === 'June 2026', JSON.stringify(record))
 }
 
-section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways')
+section('§4 the wire laws the vendor states for the row: thinking always on, no forced tool choice, the disabled road omits the parameter, foreign thinking leaves the wire both ways', 'fix the wire laws in src/utils/model/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel), src/services/api/sideQuery.ts (sideQueryThinkingParam), src/services/providers/anthropic/thinkingDisplay.ts or src/services/providers/anthropic/thinkingBinding.ts')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
@@ -217,7 +219,7 @@ section('§4 the wire laws the vendor states for the row: thinking always on, no
   check("a drop the provider attributes to another account is said as that: the row's thinking stays with the account that wrote it", otherAccount !== null && otherAccount.includes('another account') && !otherAccount.includes('client-side edit'), String(otherAccount))
 }
 
-section('§5 thinking binding and declared mirrors')
+section('§5 thinking binding and declared mirrors', 'fix readsThinkingOf and carriesThinking in src/services/providers/anthropic/thinkingBinding.ts, or the mirror rows (mirrorTwinOf) in src/utils/model/configs.ts')
 {
   const { carriesThinking, readsThinkingOf } = await import('../../src/services/providers/anthropic/thinkingBinding.ts')
   const readers = (target: string): string => ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5', 'claude-opus-5-5', 'claude-fable-5', 'claude-fable-5-1', 'claude-fable-5-2'].filter(writer => readsThinkingOf(target, writer)).join(',')

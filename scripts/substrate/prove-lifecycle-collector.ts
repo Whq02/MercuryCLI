@@ -28,8 +28,9 @@ const housekeeping = await import('../../src/services/backgroundHousekeeping.ts'
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
+let sectionHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && sectionHint ? ' — change: ' + sectionHint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -54,6 +55,7 @@ const tasksRoot = join(HOME, 'tasks')
 const crewRoot = join(HOME, 'crew')
 
 section('§1 COLLECTOR CLASSES')
+sectionHint = 'the class that owns this item in LIFECYCLE_MANIFEST, or runLifecyclePass, in src/substrate/stateLifecycle.ts'
 {
   await lifecycle._resetLifecycleForProofs()
 
@@ -124,6 +126,7 @@ section('§1 COLLECTOR CLASSES')
 }
 
 section('§2 BUDGET + CURSOR (G08)')
+sectionHint = 'the removal budget and the persisted cursor (.lifecycle-cursor.json) in runLifecyclePass, src/substrate/stateLifecycle.ts'
 {
   await lifecycle._resetLifecycleForProofs()
   const snapOld2 = join(snapshots, 'snapshot-bash-0001-cccccc.sh')
@@ -150,6 +153,7 @@ section('§2 BUDGET + CURSOR (G08)')
 }
 
 section('§3 THE SENTINEL LAW (G07)')
+sectionHint = 'runCleanupCycleStep in src/services/backgroundHousekeeping.ts must return cycle-failed when a removal fails (runLifecyclePass in src/substrate/stateLifecycle.ts counts cycleFailures) and only a cycle-complete cycle may stamp .last-cleanup'
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
@@ -210,6 +214,7 @@ section('§3 THE SENTINEL LAW (G07)')
 }
 
 section('§4 RECURRING RE-ARM (G09)')
+sectionHint = 'startCleanupCycleLoop and its armNextCycle re-arm in src/services/backgroundHousekeeping.ts'
 {
   await lifecycle._resetLifecycleForProofs()
   housekeeping._resetHousekeepingCycleForTesting()
@@ -266,6 +271,7 @@ section('§4 RECURRING RE-ARM (G09)')
 }
 
 section('§5 HEADLESS MINT GATE (BM-17)')
+sectionHint = 'headlessMintAllowed in src/guards/runStopAdapter.ts'
 {
   const { headlessMintAllowed } = await import('../../src/guards/runStopAdapter.ts')
   const { setIsInteractive } = await import('../../src/bootstrap/state.ts')
@@ -278,6 +284,7 @@ section('§5 HEADLESS MINT GATE (BM-17)')
 }
 
 section('§6 DRAFTS NO-OP (the _rev 616 pathology)')
+sectionHint = 'saveDraftDebounced and saveScopedDoc in src/utils/promptDraft.ts must skip the write when the content is unchanged'
 {
   const drafts = await import('../../src/utils/promptDraft.ts')
   const sid = '11111111-2222-4333-8444-555555555555'
@@ -317,6 +324,7 @@ section('§6 DRAFTS NO-OP (the _rev 616 pathology)')
 
 
 section('§8 PROVISIONAL SESSION RECONCILE')
+sectionHint = 'reconcileProvisionalSession in src/utils/provisionalSessionReconcile.ts'
 {
   const { reconcileProvisionalSession } = await import('../../src/utils/provisionalSessionReconcile.ts')
   const provisionalId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'
@@ -343,6 +351,7 @@ section('§8 PROVISIONAL SESSION RECONCILE')
 }
 
 section('§9 WIRING')
+sectionHint = 'the lifecycle-collection row in src/services/health/sections/crew/scratch.ts, the MERCURY_DELIVERY_ARTIFACT summary in src/substrate/flags/permissions.ts, or scripts/substrate/gen-lifecycle-manifest.ts (run it with bun to see its error)'
 {
   const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')

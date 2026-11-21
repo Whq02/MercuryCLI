@@ -32,9 +32,10 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_COMPAT_BASE_URL
 
 let failures = 0
+const WAIT_COUNT_HINT = 'to fix, change the status words and count in statusLine / fitStatusLine / statusRowPlan (src/components/SwitchboardTagBar.tsx), the wait and heartbeat rows in waitRow / heartbeatRow (src/rows/project.ts), or the keep-alive relay in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${WAIT_COUNT_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

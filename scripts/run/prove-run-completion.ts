@@ -7,11 +7,30 @@
 }
 
 let failures = 0
+let currentSectionNumber = 0
+const sectionWhere: Record<number, string> = {
+  1: 'evaluateStop in src/services/run/completionEvaluator.ts must continue on an open deliverable whatever the wording says',
+  2: 'evaluateStop in src/services/run/completionEvaluator.ts and reduceRunEvent in src/services/run/runKernel.ts must gate completion on stale verification and on failed or indeterminate effects',
+  3: 'evaluateStop in src/services/run/completionEvaluator.ts must rank blocker, budget, abort and API error as these checks name',
+  4: 'evaluateStop in src/services/run/completionEvaluator.ts must keep its no-run and lightweight-run behaviour',
+  5: 'claimContinuation and continuationsThisTurn in src/services/run/continuationLatch.ts must allow one claim per stop attempt',
+  6: 'syncDeliverablesFromTasks in src/services/run/runCoordinator.ts must open deliverables for live tasks and drop those whose task vanished',
+  7: 'the blocker-over-budget order in evaluateStop (src/services/run/completionEvaluator.ts) and the absence of src/services/run/blockerDeclaration.ts',
+  8: 'evaluateStopAttempt in src/guards/runStopAdapter.ts, the blocked event in src/services/run/runCoordinator.ts and the rows in src/commands/run/runInspectorModel.ts',
+  9: 'the evidence-demand bound in evaluateStop (src/services/run/completionEvaluator.ts) and read-back evidence in src/utils/verification/verificationState.ts',
+  10: 'the one-shot and surface policy in evaluateStop (src/services/run/completionEvaluator.ts)',
+  11: 'reduceRunEvent and reconcileCompletion in src/services/run/runKernel.ts, and evaluateStop in src/services/run/completionEvaluator.ts',
+  12: 'evaluateStopAttempt in src/guards/runStopAdapter.ts and the run record kept by src/services/run/runCoordinator.ts on a non-interactive seat',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = sectionWhere[currentSectionNumber]
+  const hint = !cond && where ? `look at ${where}` : ''
+  const shown = [detail, hint].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionNumber = Number.parseInt(t, 10)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

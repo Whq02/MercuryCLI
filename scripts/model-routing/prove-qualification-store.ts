@@ -7,9 +7,13 @@ import { tmpdir } from 'node:os'
 import { join as joinPath } from 'node:path'
 
 let failures = 0
+const QUALIFICATION_FAIL_HINT =
+  'fix recordLiveQualification, readQualificationReceipts, receiptCurrency or roleCapabilityDigest in src/services/providers/openai/qualificationStore.ts (the digests come from OPENAI_ADAPTER_DIGEST and APEX_ARCHITECTURE_EPOCH in src/services/providers/openai/openaiCatalogue.ts), not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${QUALIFICATION_FAIL_HINT}` : ''}`,
+  )
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

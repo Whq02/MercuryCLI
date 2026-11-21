@@ -46,7 +46,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const hint = 'fix the ssh:// rule matching and decisions in src/utils/permissions/filesystem.ts (matchingRuleForInput, pathMatchesRulePattern, checkReadPermissionForTool, checkWritePermissionForTool, generateSuggestions) or the mode decision in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail.slice(0, 700) + ' — ' : ''}${hint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

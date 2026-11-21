@@ -9,8 +9,10 @@ import { vshotBudgetMs as S } from '../lib/captureDriver.ts'
 import { SHIMMER_GREETING_MS } from '../../src/utils/cockpit/greetingShimmer.ts'
 
 let failures = 0
+const MOTION_PARK_FAIL_HINT =
+  'the shipped artifact must stop composing byte-identical frames while a claims-modal (the /help sheet, rows starting with the ▔▔▔▔ rule) covers the screen, and compose again within 3s of closing it; the composed frames are teed to INK_COMPOSED_TEE with MERCURY_LIVE_GLYPHS=1, so read that tee file (kept with keep: true) to see which frames repeated, and fix the motion that keeps composing under the modal, not this check'
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok ? '' : ` — ${detail ? `${detail} — ` : ''}${MOTION_PARK_FAIL_HINT}`}`)
   if (!ok) failures++
 }
 

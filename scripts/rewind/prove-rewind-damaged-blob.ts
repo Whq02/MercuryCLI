@@ -17,7 +17,8 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const blobHint = 'fix blobMatchesRecord, fileHistoryRestore and copyFileHistoryForResume in src/services/changeTransaction/fileHistory.ts (a blob shorter than its recorded sourceSize must be refused as backup-missing and not re-recorded)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${blobHint}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

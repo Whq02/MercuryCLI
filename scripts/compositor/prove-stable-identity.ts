@@ -16,7 +16,7 @@ import {
 
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — fix the cursor anchoring, activation or clamping in src/utils/cockpit/helmFocus.ts (publishHelmRows, setHelmCursor, requestHelmRowActivation, moveHelmCursor)'}`)
   if (!ok) failures++
 }
 

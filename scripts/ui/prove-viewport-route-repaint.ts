@@ -25,7 +25,12 @@ const { default: instances } = await import('../../src/ink/instances.js')
 const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 const { default: stripAnsi } = await import('strip-ansi')
 const { runtime, plain, checks } = await import('./viewportRuntime.ts')
-const { check, finish } = checks()
+const { check: recordCheck, finish } = checks()
+const ROUTE_REPAINT_FAIL_HINT =
+  'to fix, make a route change (SurfaceRouter in src/components/SurfaceRouter.tsx) or a modal prop change (FullscreenLayout in src/components/FullscreenLayout.tsx) end in one in-place whole-frame paint with no display erase, scrollback clear or alternate-screen switch'
+function check(name: string, condition: boolean, detail = ''): void {
+  recordCheck(name, condition, condition ? detail : detail ? `${detail}; ${ROUTE_REPAINT_FAIL_HINT}` : ROUTE_REPAINT_FAIL_HINT)
+}
 const store = createStore({ notifications: { current: null, queue: [] } })
 
 function FixtureInput({ children }: { children: React.ReactNode }): React.ReactNode {

@@ -11,7 +11,8 @@ const { glob } = await import('../../src/utils/glob.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const root = realpathSync(mkdtempSync(join(tmpdir(), 'glob-spread-')))
 let failures = 0
-const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`); if (!ok) failures++ }
+const globSamplingHint = 'fix glob in src/utils/glob.ts: prune the VCS directories (.git .svn .hg .bzr .jj .sl) in both ripgrep walks, keep the limit and offset paging, and sample over-cap pages across top-level directories newest-first'
+const check = (label: string, ok: boolean): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' — ' + globSamplingHint}`); if (!ok) failures++ }
 const stamp = (path: string, age: number): void => {
   const file = join(root, path)
   mkdirSync(dirname(file), { recursive: true })

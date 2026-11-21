@@ -28,8 +28,9 @@ const LIMIT_MINUTES = '0.05'
 const LIMIT_MS = 3_000
 
 let failures = 0
+const WHERE_TO_LOOK = 'to fix: the kind vocabulary and pin are in src/utils/sessionKind.ts, the posture words in getRuntimePostureSection (src/utils/cockpit/runtimePosture.ts), the ask clock in askLimitMs (src/utils/permissions/askClock.ts), the spawn stamp in src/daemon/concourseWorkers.ts and the daemon ask limit in src/daemon/permissionAsks.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' · ' : '') + WHERE_TO_LOOK}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

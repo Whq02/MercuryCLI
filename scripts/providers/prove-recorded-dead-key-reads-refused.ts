@@ -61,10 +61,11 @@ const readSlots = () => slots.deriveFamilySlotGroups([]).find(group => group.fam
 const slot = (id: string) => readSlots().find(entry => entry.id === id)
 const signedFamilies = () => logins.loginsFamilyCounts(slots.deriveFamilySlotGroups([])).signed
 const refresh = () => reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
+const deadKeyFixHint = 'fix the recorded refusal in readSignInRefusal in src/services/providers/signInRefusal.ts, the key read and ledger in src/services/providers/openrouter/openrouterUsageState.ts and openrouterAccounts.ts, the slot notes and signedIn flag in deriveFamilySlotGroups in src/services/providers/accountSlots.ts, or the Boot face counts and row in src/components/BootLoginsScreen.tsx'
 let failures = 0
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${deadKeyFixHint}` : ''}`)
 }
 const words = (entry: ReturnType<typeof slot>) => entry === undefined ? '(absent)' : `signedIn=${entry.signedIn} active=${entry.active} note=${entry.stateNote ?? '(none)'}`
 try {

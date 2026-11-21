@@ -34,19 +34,21 @@ const {
 const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
 
 let failures = 0
+let sectionFix = ''
 function check(label: string, cond: boolean, detail?: string): void {
   const mark = cond ? 'PASS' : 'FAIL'
   if (!cond) failures++
-  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && sectionFix ? ` — to fix: ${sectionFix}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, fix = ''): void {
+  sectionFix = fix
   console.log(`\n${title}`)
 }
 
 const ID = 'claude-opus-5-5'
 const PREVIOUS = 'claude-opus-5'
 
-section('§1 the fold order and the names: claude-opus-5-5 is its own canonical, never swallowed by the opus-5 arm')
+section('§1 the fold order and the names: claude-opus-5-5 is its own canonical, never swallowed by the opus-5 arm', 'fix getCanonicalName in src/utils/model/modelNames.ts, renderModelName and parseUserSpecifiedModel in src/services/model/model.ts, or the opus55 row in src/utils/model/configs.ts')
 {
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
   check('the [1m] twin folds to the same canonical', getCanonicalName(`${ID}[1m]`) === ID, getCanonicalName(`${ID}[1m]`))
@@ -70,7 +72,7 @@ section('§1 the fold order and the names: claude-opus-5-5 is its own canonical,
   check('the id space recognises the bare id by its claude- mark', recognizeModelId(ID).kind === 'first-party')
 }
 
-section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth")
+section("§2 the row: the opus family's newest generation, its class, its picker rows, its cost tier, its launch effort and its capability truth", 'fix the opus55 generation in src/utils/model/configs.ts (FAMILY_GENERATIONS), the picker rows in src/services/model/modelOptions.ts, the price row in src/services/usage/modelCost.ts, the launch effort in src/utils/effort.ts, or the capability record in src/utils/model/capabilities.ts')
 {
   const { FAMILY_GENERATIONS, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getDefaultOpusModel, isDefaultOpusNatively1M, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
@@ -146,7 +148,7 @@ section("§2 the row: the opus family's newest generation, its class, its picker
   check('the capability record is coherent on the row', record.canonical === ID && record.thinking.adaptive && record.effort.ceiling === 'max' && record.tools.structuredOutputs && record.context.window === 1_000_000 && record.identity.knowledgeCutoff === 'June 2026', JSON.stringify(record))
 }
 
-section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways')
+section('§3 the wire laws: thinking always on, no forced tool choice, the four disabled roads omit the parameter, the binding rides, foreign thinking leaves the wire both ways', 'fix modelThinkingAlwaysOn, modelSupportsForcedToolChoice and foldToolChoiceForModel in src/utils/model/capabilities.ts, sideQueryThinkingParam in src/services/api/sideQuery.ts, or applyThinkingBinding and modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { sideQueryThinkingParam } = await import('../../src/services/api/sideQuery.ts')
@@ -189,7 +191,7 @@ section('§3 the wire laws: thinking always on, no forced tool choice, the four 
   check("the receipt names the row as a writer the other way", receiptToOpus5 !== null && receiptToOpus5.text.includes('1 thinking block written by Opus 5.5 stays out of the requests to Opus 5 (the conversation switched models); the model re-plans without it.'), show(receiptToOpus5))
 }
 
-section('§4 thinking.display and its beta ride only when explicitly requested')
+section('§4 thinking.display and its beta ride only when explicitly requested', 'fix applyThinkingDisplay and resolveThinkingDisplaySetting in src/services/providers/anthropic/thinkingDisplay.ts, or modelNarratesInThinkingBlocks in src/utils/model/capabilities.ts')
 {
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { applyThinkingDisplay, resolveThinkingDisplaySetting } = await import('../../src/services/providers/anthropic/thinkingDisplay.ts')

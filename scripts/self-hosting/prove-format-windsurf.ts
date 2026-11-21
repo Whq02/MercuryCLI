@@ -6,6 +6,7 @@ const world = openWorld('format-windsurf')
 const { check, section, close } = checker()
 const always = (body: string): string => `---\ntrigger: always_on\n---\n${body}`
 const scoped = (patterns: string[], body: string): string => `---\ntrigger: glob\nglobs: ${patterns.join(',')}\n---\n${body}`
+const windsurfHint = ' | change the Windsurf adapter in src/services/instructions/adapters/windsurf.ts'
 const offered = (lines: string[]): string => `Rule files offered by description (not loaded; Read one when its description fits the work):\n${lines.join('\n')}`
 
 try {
@@ -34,12 +35,12 @@ try {
     contentsOf(rule('j-described-on.md'), 'described-on-needle'),
     offered([`- ${rule('b-decision.md')}: API design rules`, `- ${rule('c-agent.md')}: Release checklist`]),
   ].join('\n\n')
-  check('a rule with no header is always on, always_on wins over a description, and model_decision and agent are offered', d1.first === expected, d1.first)
-  check('a manual rule is never sent', !d1.first.includes('manual-needle'))
-  check('a trigger word Mercury does not know keeps its rule out and is reported', !d1.first.includes('unknown-trigger-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('e-unknown.md')), JSON.stringify(d1.diagnostics))
-  check('trigger: glob with no globs is reported, not widened', !d1.first.includes('glob-without-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('f-glob-without.md')), JSON.stringify(d1.diagnostics))
-  check('trigger: model_decision with no description is reported, not widened', !d1.first.includes('decision-without-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('g-decision-without.md')), JSON.stringify(d1.diagnostics))
-  check('with no trigger the three shared fields are read', d1.touched[0]!.attached.length === 1 && d1.touched[0]!.attached[0]!.told.includes(governs(rule('h-fields.md'), 'web/**', 'fields-scoped-needle')), JSON.stringify(d1.touched[0]))
+  check('a rule with no header is always on, always_on wins over a description, and model_decision and agent are offered', d1.first === expected, d1.first + windsurfHint)
+  check('a manual rule is never sent', !d1.first.includes('manual-needle'), 'a trigger: manual rule must stay out of the first request' + windsurfHint)
+  check('a trigger word Mercury does not know keeps its rule out and is reported', !d1.first.includes('unknown-trigger-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('e-unknown.md')), JSON.stringify(d1.diagnostics) + windsurfHint)
+  check('trigger: glob with no globs is reported, not widened', !d1.first.includes('glob-without-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('f-glob-without.md')), JSON.stringify(d1.diagnostics) + windsurfHint)
+  check('trigger: model_decision with no description is reported, not widened', !d1.first.includes('decision-without-needle') && d1.diagnostics.some(d => d.kind === 'unsupported-rule-activation' && d.path === rule('g-decision-without.md')), JSON.stringify(d1.diagnostics) + windsurfHint)
+  check('with no trigger the three shared fields are read', d1.touched[0]!.attached.length === 1 && d1.touched[0]!.attached[0]!.told.includes(governs(rule('h-fields.md'), 'web/**', 'fields-scoped-needle')), JSON.stringify(d1.touched[0]) + windsurfHint)
 
   section('the files that stand alone: .windsurfrules and global_rules.md')
   const p2 = world.project({
@@ -50,12 +51,12 @@ try {
     'sub/a.ts': '\n',
   })
   const d2 = world.drive(p2, { classify: [join(p2, '.windsurfrules'), join(p2, '.windsurf/global_rules.md')], touch: [join(p2, 'sub/a.ts')] })
-  check('both reach the first request whole, as written, the legacy file first', d2.first === [contentsOf(join(p2, '.windsurfrules'), 'legacy-needle\nSee @docs/x.md'), contentsOf(join(p2, '.windsurf/global_rules.md'), 'project-global-needle')].join('\n\n'), d2.first)
-  check('both name their format and classify as instruction files', d2.entries.every(e => e.convention === 'windsurf') && d2.classified[join(p2, '.windsurfrules')] === true && d2.classified[join(p2, '.windsurf/global_rules.md')] === true, JSON.stringify(d2.entries))
-  check('the legacy file counts as the guide of its folder', d2.guides.includes(join(p2, '.windsurfrules')), JSON.stringify(d2.guides))
-  check('a legacy file in a nested folder attaches with its folder', JSON.stringify(d2.touched[0]!.attached.map(a => a.path)) === JSON.stringify([join(p2, 'sub/.windsurfrules')]), JSON.stringify(d2.touched[0]))
+  check('both reach the first request whole, as written, the legacy file first', d2.first === [contentsOf(join(p2, '.windsurfrules'), 'legacy-needle\nSee @docs/x.md'), contentsOf(join(p2, '.windsurf/global_rules.md'), 'project-global-needle')].join('\n\n'), d2.first + windsurfHint)
+  check('both name their format and classify as instruction files', d2.entries.every(e => e.convention === 'windsurf') && d2.classified[join(p2, '.windsurfrules')] === true && d2.classified[join(p2, '.windsurf/global_rules.md')] === true, JSON.stringify(d2.entries) + windsurfHint)
+  check('the legacy file counts as the guide of its folder', d2.guides.includes(join(p2, '.windsurfrules')), JSON.stringify(d2.guides) + windsurfHint)
+  check('a legacy file in a nested folder attaches with its folder', JSON.stringify(d2.touched[0]!.attached.map(a => a.path)) === JSON.stringify([join(p2, 'sub/.windsurfrules')]), JSON.stringify(d2.touched[0]) + windsurfHint)
   const p2b = world.project({ 'MERCURY.md': 'native-needle\n', '.windsurfrules': 'legacy-needle\n', '.windsurf/global_rules.md': 'project-global-needle\n' })
-  check('MERCURY.md decides over them', world.drive(p2b).first === contentsOf(join(p2b, 'MERCURY.md'), 'native-needle'))
+  check('MERCURY.md decides over them', world.drive(p2b).first === contentsOf(join(p2b, 'MERCURY.md'), 'native-needle'), 'a MERCURY.md in the folder must be the only file composed; .windsurfrules and global_rules.md must not load beside it' + windsurfHint)
 
   section("the same grammar under the vendor's new folder")
   const p3 = world.project({
@@ -67,11 +68,11 @@ try {
     '.windsurf/rules/same.md': always('same-text-needle\n'),
   })
   const d3 = world.drive(p3)
-  check('with both global files only the one of the new folder loads', d3.first.includes('new-global-needle') && !d3.first.includes('old-global-needle'), d3.first)
-  check('the rules folders of both load', d3.first.includes('old-folder-needle') && d3.first.includes('new-folder-needle'), d3.first)
-  check('a rule of identical text in both loads once', count(d3.first, 'same-text-needle') === 1, d3.first)
+  check('with both global files only the one of the new folder loads', d3.first.includes('new-global-needle') && !d3.first.includes('old-global-needle'), d3.first + windsurfHint)
+  check('the rules folders of both load', d3.first.includes('old-folder-needle') && d3.first.includes('new-folder-needle'), d3.first + windsurfHint)
+  check('a rule of identical text in both loads once', count(d3.first, 'same-text-needle') === 1, d3.first + windsurfHint)
   const p3b = world.project({ '.windsurf/global_rules.md': 'old-global-needle\n' })
-  check('alone, the old global file loads', world.drive(p3b).first === contentsOf(join(p3b, '.windsurf/global_rules.md'), 'old-global-needle'))
+  check('alone, the old global file loads', world.drive(p3b).first === contentsOf(join(p3b, '.windsurf/global_rules.md'), 'old-global-needle'), 'with only .windsurf/global_rules.md present it must still load' + windsurfHint)
 } finally {
   world.close()
 }

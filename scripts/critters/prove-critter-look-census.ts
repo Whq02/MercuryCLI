@@ -17,8 +17,9 @@ import {
 } from '../../src/utils/cockpit/critterData.js'
 
 let failures = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+const t = (name: string, ok: boolean, detail = '', fixHint = ''): void => {
+  const shown = ok || !fixHint ? detail : detail ? `${detail} — ${fixHint}` : fixHint
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 
@@ -142,11 +143,12 @@ for (const def of CRITTERS) {
     const art = gridOf(def)
     const clusters = heroEyeClusters(art) as Cluster[]
     const shared = sharedOffsetsOf(clusters)
-    t(`${def.name} ${label}: ≥2 eyes with a shared aperture`, clusters.length >= 2 && shared.length >= 1, `eyes=${clusters.length} shared=${shared.length}`)
+    t(`${def.name} ${label}: ≥2 eyes with a shared aperture`, clusters.length >= 2 && shared.length >= 1, `eyes=${clusters.length} shared=${shared.length}`, 'fix the squareDock grid of this critter in src/utils/cockpit/critterData.ts so heroEyeClusters (src/utils/cockpit/critterGaze.ts) finds two or more eyes with a shared pupil aperture')
     t(
       `${def.name} ${label}: every shared offset is one step from rest (the walk's adjacency ground)`,
       shared.every(o => Math.max(Math.abs(o.dr), Math.abs(o.dc)) === 1),
       shared.map(off).join(' '),
+      'the shared pupil offsets must each be one cell from rest: fix the eye aperture cells in the squareDock grid in src/utils/cockpit/critterData.ts, or heroEyeClusters in src/utils/cockpit/critterGaze.ts',
     )
     const H = art.length
     const W = Math.max(...art.map(r => r.length))
@@ -163,19 +165,19 @@ for (const def of CRITTERS) {
         }
       }
     }
-    t(`${def.name} ${label}: every key over ${checked} samples is lawful`, bad.length === 0, bad.join(' · '))
+    t(`${def.name} ${label}: every key over ${checked} samples is lawful`, bad.length === 0, bad.join(' · '), 'gazeKeyForPointer in src/utils/cockpit/critterGaze.ts must return one rigid key for every eye (same offset, inside each aperture); the first violations are listed above')
     const fx = clusters.reduce((s, c) => s + c.cx, 0) / clusters.length
     const descent: Array<[number | null, number | null]> = []
     for (let py = -8; py <= H + 8; py += 1) descent.push([fx + 0.3, py])
     descent.push([null, null])
     const d = walk(art, descent)
-    t(`${def.name} ${label}: the descent walks adjacent offsets`, d.adjacent, d.detail)
+    t(`${def.name} ${label}: the descent walks adjacent offsets`, d.adjacent, d.detail, 'gazeKeyForPointer in src/utils/cockpit/critterGaze.ts must step the pupil one cell at a time when the pointer moves: check how it uses the previous key')
     const restRow = clusters[0]!.rest.r
     const restColGaps = clusters.slice(1).map(cl => cl.rest.c - clusters[0]!.rest.c)
     const squareOpts = { square: true as const }
     const defForCompose = def
     const rest = composeCritterFrame(defForCompose, { ...squareOpts, pupil: '●', gazeKey: '', swayPhase: 0, sleepPhase: null })
-    t(`${def.name} ${label}: the rest frame is the authored grid (whole render, no slice)`, rest.art.join('\n') === art.join('\n'))
+    t(`${def.name} ${label}: the rest frame is the authored grid (whole render, no slice)`, rest.art.join('\n') === art.join('\n'), '', 'composeCritterFrame in src/components/mercury-ui/CritterArt.tsx must return the authored squareDock grid unchanged for the square rest frame')
     const fbad: string[] = []
     for (let sway = 0; sway < 8; sway++) {
       const open = composeCritterFrame(defForCompose, { ...squareOpts, pupil: '●', gazeKey: '', swayPhase: sway, sleepPhase: null })
@@ -191,7 +193,7 @@ for (const def of CRITTERS) {
       const gapOk = ks.slice(1).every((k, i) => k.c - ks[0]!.c === restColGaps[i])
       if ((!rowOk || !gapOk) && fbad.length < 4) fbad.push(`key ${key.slice(0, 12)}: pupils ${ks.map(k => `${k.r},${k.c}`).join(' ')}`)
     }
-    t(`${def.name} ${label}: composed square frames all lawful (still · lidded whole · rigid gaze)`, fbad.length === 0, fbad.join(' · '))
+    t(`${def.name} ${label}: composed square frames all lawful (still · lidded whole · rigid gaze)`, fbad.length === 0, fbad.join(' · '), 'composeCritterFrame in src/components/mercury-ui/CritterArt.tsx: the square frame must stay still under sway, show no pupils when lidded, and move all pupils together under a gaze key')
   }
 }
 
@@ -238,11 +240,11 @@ for (const [label, art] of gridRoster) {
   console.log(
     `  · ${label}: bands [${found.join(',') || 'none'}]${reg ? ` · registered [${reg.rows.join(',')}] — ${reg.reason}` : ' · registers nothing'}`,
   )
-  t(`${label}: every band row is registered anatomy`, unregistered.length === 0, `unregistered rows ${unregistered.join(',')}: ${unregistered.map(r => JSON.stringify(art[r])).join(' ')}`)
-  t(`${label}: no stale band registration`, stale.length === 0, `rows ${stale.join(',')} carry no band — prune them`)
+  t(`${label}: every band row is registered anatomy`, unregistered.length === 0, `unregistered rows ${unregistered.join(',')}: ${unregistered.map(r => JSON.stringify(art[r])).join(' ')}`, 'either remove the 4-cell highlight run from this grid in src/utils/cockpit/critterData.ts, or register its rows under this label in BAND_ANATOMY in this file')
+  t(`${label}: no stale band registration`, stale.length === 0, `rows ${stale.join(',')} carry no band — prune them`, 'remove these rows from this label in BAND_ANATOMY in this file, or restore the band in the grid in src/utils/cockpit/critterData.ts')
 }
-t('the octopus registers NO band on any grid (uniform body — the ruling)', Object.keys(BAND_ANATOMY).every(k => !k.startsWith('octopus')))
-t('every registry key names a grid the sweep walked', Object.keys(BAND_ANATOMY).every(k => gridRoster.some(([label]) => label === k)), Object.keys(BAND_ANATOMY).filter(k => !gridRoster.some(([label]) => label === k)).join(' · '))
+t('the octopus registers NO band on any grid (uniform body — the ruling)', Object.keys(BAND_ANATOMY).every(k => !k.startsWith('octopus')), '', 'remove every octopus entry from BAND_ANATOMY in this file: the octopus body is uniform')
+t('every registry key names a grid the sweep walked', Object.keys(BAND_ANATOMY).every(k => gridRoster.some(([label]) => label === k)), Object.keys(BAND_ANATOMY).filter(k => !gridRoster.some(([label]) => label === k)).join(' · '), 'rename or remove the listed BAND_ANATOMY keys in this file so each matches a label built in gridRoster')
 
 
 console.log('— poison: the retired per-eye sampler trips the law —')
@@ -283,7 +285,7 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
       if (key && gazeKeyViolations(octo, octoClusters, key).length > 0) desync = `@(${px},${py}) ${key}`
     }
   }
-  t('poison: the per-eye sampler DESYNCS the octopus and the census catches it', desync !== null, desync ?? 'no desync found')
+  t('poison: the per-eye sampler DESYNCS the octopus and the census catches it', desync !== null, desync ?? 'no desync found', 'gazeKeyViolations in this file no longer flags a per-eye key on the octopus squareDock: restore its check that the moves agree across eyes')
   const clam = POOL.find(d => d.name === 'clam')!.squareDock
   const clamClusters = heroEyeClusters(clam) as Cluster[]
   let split: string | null = null
@@ -295,7 +297,7 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
       if (v.some(x => x.includes('split'))) split = `@(${px},${py}) ${key}`
     }
   }
-  t('poison: the per-eye sampler SPLITS the clam pupil rows (the wrap) and the census catches it', split !== null, split ?? 'no split found')
+  t('poison: the per-eye sampler SPLITS the clam pupil rows (the wrap) and the census catches it', split !== null, split ?? 'no split found', 'gazeKeyViolations in this file no longer reports split pupil rows on the clam squareDock: restore its pupil-row check')
   let hop = false
   let last: Offset = { dr: 0, dc: 0 }
   for (const [px, py] of [[-12, 9], [32, -12], [-12, 9], [32, 24]] as Array<[number, number]>) {
@@ -304,17 +306,17 @@ function perEyeReferenceKey(art: readonly string[], px: number, py: number): str
     if (chebyshev(last, now) > 1) hop = true
     last = now
   }
-  t('poison: discarding the fed-forward key full-throws the pupil (adjacency walker bites)', hop)
+  t('poison: discarding the fed-forward key full-throws the pupil (adjacency walker bites)', hop, '', 'gazeKeyForPointer in src/utils/cockpit/critterGaze.ts with an empty previous key must still jump the pupil more than one cell on the octopus, or this poison cannot show that the adjacency walk needs the fed-forward key')
 }
 
 console.log('— poison: the band detectors bite —')
 {
   const STRIPED = ['..MMMMMM..', '..LLLLLL..', '..MMMMMM..']
-  t('poison: an unregistered 4-run stripe is detected', bandRowsOf(STRIPED).length === 1 && bandRowsOf(STRIPED)[0] === 1)
+  t('poison: an unregistered 4-run stripe is detected', bandRowsOf(STRIPED).length === 1 && bandRowsOf(STRIPED)[0] === 1, '', 'bandRowsOf in this file must report a row holding a run of 4 or more L or % cells')
   const WEDGE = ['..LLLMMM..', '..MMMMMM..']
-  t('poison: a ≤3 light-source wedge is NOT a band', bandRowsOf(WEDGE).length === 0)
+  t('poison: a ≤3 light-source wedge is NOT a band', bandRowsOf(WEDGE).length === 0, '', 'bandRowsOf in this file must ignore runs of 3 or fewer L or % cells')
   const UNIFORM = ['..MMMMMM..', '..MMMMMM..']
-  t('poison: a registered row over a uniform grid reads STALE', bandRowsOf(UNIFORM).length === 0)
+  t('poison: a registered row over a uniform grid reads STALE', bandRowsOf(UNIFORM).length === 0, '', 'bandRowsOf in this file must report no rows for a grid with no L or % run')
 }
 
 console.log(failures ? '\n❌ CRITTER-LOOK CENSUS RED' : '\n✅ CRITTER-LOOK CENSUS GREEN')

@@ -11,7 +11,8 @@ const { skillHasOnlySafeProperties, READ_ONLY_SKILL_TOOLS } = await import(
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = 'fix skillHasOnlySafeProperties or READ_ONLY_SKILL_TOOLS in src/tools/SkillTool/SkillTool.ts; for the repo-skill check, delete the allowed-tools line from each SKILL.md named above'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${hint}`}`)
 }
 
 console.log('============================================================')

@@ -13,11 +13,23 @@ process.env.MERCURY_SAMPLES = '1'
 const store = await import('../../src/services/samples/store.ts')
 
 let failures = 0
+let currentSectionKey = ''
+const sectionWhere: Record<string, string> = {
+  S1: 'createOrAppendSample, slugOf and listSamples in src/services/samples/store.ts',
+  S2: 'readVersion, sampleDir, getSample and the record write in src/services/samples/store.ts',
+  S3: 'listSamples, getSample and the atomic record write in src/services/samples/store.ts',
+  S4: 'appendMarks and readMarks in src/services/samples/store.ts',
+  S5: 'sampleUrl, writeFallbackPage, setSampleListenerAddress and sessionOfSample in src/services/samples/store.ts',
+  P: 'the id and path validation in samplesRoot, sampleDir, getSample and readVersion in src/services/samples/store.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = sectionWhere[currentSectionKey]
+  const shown = [detail, where ? `look at ${where}` : ''].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  currentSectionKey = /^S\d/.test(t) ? t.slice(0, 2) : t.slice(0, 1)
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 function throws(fn: () => unknown): boolean {

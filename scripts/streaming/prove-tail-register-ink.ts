@@ -11,7 +11,7 @@ process.env.MERCURY_STREAM_CARET = '0'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — change: the ink choice in LiveStreamingTail (src/components/LiveStreamingTail.tsx, the commentary phase picks the subtle ink) or the phase and ghost handling in src/utils/messages/streamingTailStore.ts' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

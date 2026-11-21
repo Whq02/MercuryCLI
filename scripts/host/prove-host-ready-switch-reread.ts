@@ -13,7 +13,7 @@ const { resolveHeadlessModel } = await import('../../src/cli/headless/model.ts')
 const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
 
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '') + ' — fix the function this check exercises: resolveHeadlessModel in src/cli/headless/model.ts, configuredCompatEndpoints in src/services/providers/openaicompat/compatAccounts.ts, or persistModelChoice in src/commands/model/persistModelChoice.ts'); checks++; console.log('PASS ' + name) }
 
 check('the runner resolves the endpoint it booted with', (await resolveHeadlessModel('compat/before/alive')) === 'compat/before/alive')
 check('the settings cache now holds the file as it was', configuredCompatEndpoints().map(row => row.name).join(',') === 'before')
@@ -26,7 +26,7 @@ check('this process has not seen the write yet (the situation the ready switch m
 const hosted = 'compat/pod-odoqvdb23009eo/openai/gpt-oss-120b'
 check('the switch to a just-registered rental endpoint resolves: the miss re-read the settings', (await resolveHeadlessModel(hosted)) === hosted)
 check('after the re-read the endpoint is in the cache', configuredCompatEndpoints().some(row => row.name === 'pod-odoqvdb23009eo' && row.hostPodId === 'odoqvdb23009eo'))
-await assert.rejects(resolveHeadlessModel('compat/pod-nobody/openai/gpt-oss-120b'), /has no configured endpoint/)
+await assert.rejects(resolveHeadlessModel('compat/pod-nobody/openai/gpt-oss-120b'), /has no configured endpoint/, 'resolveHeadlessModel in src/cli/headless/model.ts must still refuse an endpoint nobody registered, with a has no configured endpoint error, after re-reading the settings')
 check('an endpoint nobody registered is still refused after the re-read', true)
 
 const { persistModelChoice } = await import('../../src/commands/model/persistModelChoice.ts')

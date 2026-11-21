@@ -13,10 +13,11 @@ delete process.env.ANTHROPIC_BASE_URL
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
+const WHERE_TO_CHANGE = 'to fix: which tools are held at a plan comes from planToolPayload in src/services/providers/toolEconomy.ts; the announcement of a held joiner is getHeldToolsAttachment in src/services/attachments/deltas.ts; its text for the model is normalizeAttachmentForAPI in src/services/messages/attachmentText.ts; whether it shows on screen is isNullRenderingAttachment in src/components/messages/nullRenderingAttachments.ts and whether it is stored is isTranscribable in src/utils/sessionStorage/chain.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${WHERE_TO_CHANGE}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

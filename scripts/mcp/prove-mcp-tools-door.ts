@@ -20,7 +20,7 @@ let checks = 0
 function check(label: string, cond: unknown, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 400)}${detail ? ' ' : ''}[change src/services/mcp/toolsAnswer.ts for the answer bound and marks (sections 1-3), listSessionMcpTools in src/daemon/sessionSeat.ts for the seat relay (section 4), mcpTools in src/services/engine-connector/daemonConnector.ts or noSessionConnector.ts for the popup words (section 5)]` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -37,7 +37,7 @@ function plainData(value: unknown): boolean {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the mcp tools door proof exceeded 120s')
+  console.log('\nTIMEOUT — the mcp tools door proof exceeded 120s; a relay in listSessionMcpTools (src/daemon/sessionSeat.ts) or a stand-in runner request never settled, look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

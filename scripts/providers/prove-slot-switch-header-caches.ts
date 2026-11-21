@@ -7,7 +7,10 @@ const { switchActiveSlot } = await import(join(SRC, 'services/providers/slotSwit
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) failures = 1
+  if (!ok) {
+    failures = 1
+    console.log('      fix: switchActiveSlot in src/services/providers/slotSwitch.ts must call writes.writeAnthropicPreference and then writes.clearAuthHeaderCaches once on a landed switch, and call neither on a refused arm')
+  }
 }
 
 const anthropicPair = {

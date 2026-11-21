@@ -7,9 +7,15 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'seat-lifecycle-'))
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const lifecycleFailureHint = (label: string): string => {
+  if (/admit|birth|ENOCONN|re-send/.test(label)) return 'change admitWithDaemonRecheck in src/services/switchboard/bornSession.ts'
+  if (label.startsWith('P3 ')) return 'change NoSessionConnector in src/services/engine-connector/noSessionConnector.ts'
+  return 'change the focused slot functions in src/services/engine-connector/focusedConnector.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${lifecycleFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 

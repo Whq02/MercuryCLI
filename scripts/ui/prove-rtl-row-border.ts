@@ -16,9 +16,11 @@ process.env['FORCE_COLOR'] = '0'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = detail && sectionFixHint ? `${detail}; ${sectionFixHint}` : detail || sectionFixHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
@@ -46,6 +48,7 @@ const ROWS = [
 
 console.log(`§1 the oracle: letters, marks and ${process.env.TERM_PROGRAM} joiners agree on both paths`)
 {
+  sectionFixHint = 'change stringWidth or __correctedWidthForTest in src/ink/stringWidth.ts so both paths return the listed cell count'
   const samples: Array<[string, number]> = [
     ['تفلسف', 5],
     ['بلا تفلسف', 9],
@@ -79,6 +82,7 @@ console.log(`§1 the oracle: letters, marks and ${process.env.TERM_PROGRAM} join
 
 console.log('§2 the wrapper never packs a line wider than its columns')
 {
+  sectionFixHint = 'change wrapAnsi in src/ink/wrapAnsi.ts so no line is wider than its columns by stringWidth'
   let sound = true
   const faults: string[] = []
   for (const row of [...ROWS, 'می\u200cخواهم '.repeat(24), `\x1b[31m${'a\u200db '.repeat(40)}\x1b[0m`]) {
@@ -94,6 +98,7 @@ console.log('§2 the wrapper never packs a line wider than its columns')
 }
 
 console.log('§3 the rendered row: the right border lands on the frame at 80 and 110 columns')
+sectionFixHint = 'the rendered Markdown inside a bordered Box is wider or narrower than its columns; look at wrapAnsi in src/ink/wrapAnsi.ts and stringWidth in src/ink/stringWidth.ts, then the Markdown component in src/components/Markdown.tsx'
 for (const cols of [80, 110]) {
   const frame = await renderToString(
     mounted(h(Box, { width: cols, flexDirection: 'column', borderStyle: 'round' }, h(Box, { paddingX: 1, flexDirection: 'column' }, h(Markdown, { children: ROWS.join('\n\n') })))),
@@ -110,6 +115,7 @@ for (const cols of [80, 110]) {
 
 console.log('§4 the live path: the frame writer addresses every row of the bordered frame so its border cell is the last column, at 80 and 110')
 {
+  sectionFixHint = 'the bytes the frame writer emits put a border cell off the last column or lose an RTL row; look at FrameWriter in src/ink/frame-writer.ts, optimizePatches in src/ink/patch-stream.ts and writeDiffToTerminal in src/ink/session/delivery.ts'
   const { FrameWriter } = await import('../../src/ink/frame-writer.js')
   const { optimizePatches } = await import('../../src/ink/patch-stream.js')
   const { writeDiffToTerminal } = await import('../../src/ink/session/delivery.js')
@@ -216,6 +222,7 @@ console.log('§4 the live path: the frame writer addresses every row of the bord
 
 console.log('§5 contextual forms come from the Unicode source rows')
 {
+  sectionFixHint = 'regenerate src/ink/arabicPresentationForms.json from the rows in scripts/ui/fixtures/arabic-presentation-forms.json, or change terminalTextCells in src/ink/session/terminalProfile.ts and shapeBidiForTerminal in src/ink/bidi.ts'
   const forms: Record<string, Record<string, number>> = {}
   const ligatures: Record<string, Record<string, number>> = {}
   for (const row of unicodeRows.unicodeData) {
@@ -259,6 +266,7 @@ console.log('§5 contextual forms come from the Unicode source rows')
 
 console.log('§6 the terminal projection decodes only rows that contain RTL')
 if (appleTerminal) {
+  sectionFixHint = 'change terminalBidiFrame in src/ink/terminalBidiFrame.ts so it matches the full projection built with shapeBidiForTerminal from src/ink/bidi.ts'
   const { CharPool, HyperlinkPool, StylePool, CellWidth, cellAt, createScreen, setCellAt } = await import('../../src/ink/cell-grid.js')
   const { terminalBidiFrame } = await import('../../src/ink/terminalBidiFrame.js')
   const { shapeBidiForTerminal } = await import('../../src/ink/bidi.js')
@@ -332,6 +340,7 @@ if (appleTerminal) {
 }
 
 if (!appleTerminal) {
+  sectionFixHint = 'the --apple arm of this script failed; read its FAIL lines printed just above and fix the area each names'
   const apple = spawnSync(process.execPath, [import.meta.filename, '--apple'], { env: process.env, encoding: 'utf8' })
   process.stdout.write(apple.stdout ?? '')
   process.stderr.write(apple.stderr ?? '')

@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail.slice(0, 500)}${detail ? ' ' : ''}[change projectMcpServerDefinitionDigest or getProjectMcpServerStatus in src/services/mcp/utils.ts, or the written-env copy (unexpanded) built in src/services/mcp/config.ts]` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

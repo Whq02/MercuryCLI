@@ -11,7 +11,8 @@ const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorke
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const turnHint = 'the tail counters (turnChars, turnOutputTokens) are written by onSeatRow and onSeatSpawned in src/daemon/sessionSeat.ts and read by readSessionTail in src/services/engine-connector/seatProjections.ts; the relay is LivePart in src/services/engine-connector/daemon/live.ts and the figure is liveCounterFigure in src/components/Spinner/liveCounterWords.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${turnHint}` : ''}`)
   if (!ok) failures++
 }
 

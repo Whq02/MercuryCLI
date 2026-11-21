@@ -3,8 +3,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
+const BASELINE_FAIL_HINT =
+  'to fix, change runCaptureAttempts, captureRefusalKind, storedGridStands, firstDivergence or DEFAULT_MASKS in scripts/ui/visualBaseline.ts, or for the section 3 checks the compare calls in scripts/critters/prove-critter-mini-drive.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const shown = cond ? '' : detail ? `${detail}; ${BASELINE_FAIL_HINT}` : BASELINE_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

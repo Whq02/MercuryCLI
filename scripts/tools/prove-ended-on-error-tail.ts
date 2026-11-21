@@ -20,7 +20,11 @@ const enc = (entry: unknown): string =>
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const endedOnErrorHint = /^(endedOnError|marker)/.test(label)
+    ? 'fix formatLogMetadata in src/utils/format.ts: the last part is the ended-on-error marker, added only when endedOnError is true'
+    : 'fix scanTailForEndedOnError in src/utils/sessionStoragePortable.ts: the last real assistant or api_error line rules, quoted or nested error-shaped text never counts, and an unreadable tail gives undefined'
+  const shown = cond ? detail : detail ? `${detail} — ${endedOnErrorHint}` : endedOnErrorHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -5,10 +5,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const WHERE_TO_CHANGE = 'to fix: the wire form of each route is the table read by deferralWireFormFor in src/services/providers/deferralWire.ts; the probe that confirms a route is in src/services/providers/deferralProbe.ts; routes and model spaces are declared in src/services/providers/routeLaw.ts; the tool-search wording is src/tools/ToolSearchTool/prompt.ts and the schema mark is toolToAPISchema in src/services/messages/api.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${WHERE_TO_CHANGE}`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -78,7 +78,14 @@ if (process.argv.includes('--check')) {
     const missing = frozen[key].filter((v: string) => !live[key].includes(v))
     if (missing.length > 0) {
       failures++
-      console.log(`FAIL: ${key} shrank — missing from live tree: ${missing.join(', ')}`)
+      const shrankSource: Record<string, string> = {
+        baseToolNames: 'restore the removed tools in buildToolCensus in src/services/capability/census.ts',
+        taskTypes: 'restore the removed task types in src/Task.ts',
+        taskStatuses: 'taskStatuses is a fixed list in this script, so it cannot shrink on its own',
+        lspOps: 'restore the removed operations in LSP_READ_OPERATIONS in src/tools/LSPTool/schemas.ts',
+        dapOps: 'restore the removed operations in the op option list in src/tools/DebugTool/debug/schema.ts',
+      }
+      console.log(`FAIL: ${key} shrank — missing from live tree: ${missing.join(', ')} — ${shrankSource[key]}; the frozen list lives in ${OUT}`)
     } else {
       const grown = live[key].filter((v: string) => !frozen[key].includes(v))
       console.log(`PASS: ${key} superset holds${grown.length ? ` (+${grown.length} new: ${grown.join(', ')})` : ''}`)

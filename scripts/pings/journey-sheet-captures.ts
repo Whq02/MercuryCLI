@@ -238,16 +238,16 @@ await o.upsertObligation({ ref: 'tap-live-1', sessionId: '${SID}', question: 'Mi
       true,
     )
     const settleTick = c.payload.sendReceipts?.[0]?.atTick ?? -1
-    check('the drive settled and ran its sends', settleTick >= 0 && (c.payload.sendReceipts?.length ?? 0) >= 5, `receipts=${c.payload.sendReceipts?.length}`)
-    check('the tap leaves the chat at rest (the cockpit paints no badge since the sessions box left; the board below lists the need; keyless, the row rests on not signed in · /logins)', /not signed in · \/logins · /.test(c.marks['tapped'] ?? ''), (c.marks['tapped'] ?? '').split('\n').find(l => l.includes('signed in')) ?? '(no status row)')
+    check('the drive settled and ran its sends', settleTick >= 0 && (c.payload.sendReceipts?.length ?? 0) >= 5, `receipts=${c.payload.sendReceipts?.length} — the vshot drive did not run its sends: read the name.stderr.txt next to the capture in the captures folder and rebuild dist/mercury.mjs with bun run build.ts`)
+    check('the tap leaves the chat at rest (the cockpit paints no badge since the sessions box left; the board below lists the need; keyless, the row rests on not signed in · /logins)', /not signed in · \/logins · /.test(c.marks['tapped'] ?? ''), (c.marks['tapped'] ?? '').split('\n').find(l => l.includes('signed in')) ?? '(no status row) — the status row after the tap is not the not-signed-in row: see the name.mark-tapped.txt capture in the captures folder')
     check(
       'NO bell byte after the settle (a need is silent; only a finished turn pings)',
       loneBellFrames(c.teePath, settleTick + 10) === 0,
-      `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)}`,
+      `lone-bell frames=${loneBellFrames(c.teePath, settleTick + 10)} — something rang the bell for a need; a need must stay silent and only a finished turn pings, so find what writes the bell byte (0x07) in the name.tee.bin capture`,
     )
     const board = flat(c.marks['board'] ?? '').replace(/ /g, '')
-    check('the advertised key jumps to the board', board.includes('SESSIONS') && board.includes('LASTUSED'), board.slice(0, 160))
-    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('Migratenow?'), board.slice(0, 240))
+    check('the advertised key jumps to the board', board.includes('SESSIONS') && board.includes('LASTUSED'), board.slice(0, 160) + ' — the key after ctrl-x did not open the sessions board: see the name.mark-board.txt capture')
+    check("the board's NEEDS-YOU group lists the question", board.includes('NEEDSYOU') && board.includes('Migratenow?'), board.slice(0, 240) + ' — the board lacks the NEEDS YOU group or the question: see the name.mark-board.txt capture and the obligation written by upsertObligation in src/services/crew/obligations.ts')
   }
 
   section(`Leg B ${cols}x${rows} — the model-switched grey note paints in THAT chat`)
@@ -273,7 +273,7 @@ await new Promise(r => setTimeout(r, 400))`,
         { cwd: ROOT, env: baseEnv(w), encoding: 'utf8', timeout: vshotBudgetMs(30000) },
       )
       if (seed.status !== 0) {
-        check('rig: the parked facts seeded', false, (seed.stderr || '').slice(0, 200))
+        check('rig: the parked facts seeded', false, (seed.stderr || '').slice(0, 200) + ' — publishSessionFacts in src/services/engine-connector/seatProjections.ts threw while seeding the parked facts')
         continue
       }
     }
@@ -312,11 +312,11 @@ await new Promise(r => setTimeout(r, 400))`,
     )
     chmodSync(join(w.aux, 'daemon'), 0o755)
     const note = flat(c.marks['note'] ?? '')
-    check('the hop painted the session (the parked mark holds the chat)', (c.marks['parked'] ?? '').includes('settled and idle'), 'no transcript in the parked mark')
-    check('the settle paints the ruled grey note in THAT chat', note.includes('model switched to') && note.includes('for this session'), note.slice(0, 240))
-    check('the note names the settled model', note.includes('model switched to Fable'), note.match(/model switched to [^·]{0,40}/)?.[0] ?? '(absent)')
+    check('the hop painted the session (the parked mark holds the chat)', (c.marks['parked'] ?? '').includes('settled and idle'), 'no transcript in the parked mark — the boot menu did not hop into the resumed session: see the name.mark-parked.txt capture')
+    check('the settle paints the ruled grey note in THAT chat', note.includes('model switched to') && note.includes('for this session'), note.slice(0, 240) + ' — the ruled grey note is painted by src/components/messages/SystemTextMessage.tsx')
+    check('the note names the settled model', note.includes('model switched to Fable'), (note.match(/model switched to [^·]{0,40}/)?.[0] ?? '(absent)') + ' — the note must name the settled model; see src/components/messages/SystemTextMessage.tsx')
     const hopTick = c.payload.sendReceipts?.[2]?.atTick ?? -1
-    check('the settle is a turn end: with focus unreported and no key for a window, the one ping rings the bell exactly once — the note itself adds none', loneBellFrames(c.teePath, hopTick + 5) === 1, `frames=${loneBellFrames(c.teePath, hopTick + 5)}`)
+    check('the settle is a turn end: with focus unreported and no key for a window, the one ping rings the bell exactly once — the note itself adds none', loneBellFrames(c.teePath, hopTick + 5) === 1, `frames=${loneBellFrames(c.teePath, hopTick + 5)} — the settled turn must ring the bell exactly once; see the name.tee.bin capture for bell bytes (0x07)`)
   }
 }
 

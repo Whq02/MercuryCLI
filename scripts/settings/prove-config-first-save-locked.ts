@@ -5,9 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — change: ${hint}` : ''}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -48,8 +48,8 @@ console.log('L1 the premise — the library refuses a missing target under its d
     try { const release = lockfile.lockSync(missing, { lockfilePath: missing + '.lock', realpath: false }); release(); out.noRealpathLocked = true } catch (e) { out.noRealpathLocked = e?.code ?? String(e) }
     out.artefactReleased = !fs.existsSync(missing + '.lock')
   `)
-  check('default options: locking a missing target throws ENOENT', r.defaultThrew === 'ENOENT', String(r.defaultThrew))
-  check('realpath:false: the same missing target locks and releases', r.noRealpathLocked === true && r.artefactReleased === true, `${String(r.noRealpathLocked)} released=${String(r.artefactReleased)}`)
+  check('default options: locking a missing target throws ENOENT', r.defaultThrew === 'ENOENT', String(r.defaultThrew), 'lockSync in src/utils/lockfile.ts must pass options through to the lock library unchanged')
+  check('realpath:false: the same missing target locks and releases', r.noRealpathLocked === true && r.artefactReleased === true, `${String(r.noRealpathLocked)} released=${String(r.artefactReleased)}`, 'lockSync in src/utils/lockfile.ts must honour realpath: false and release the lock')
 }
 
 console.log('L2 a fresh home — the first saveGlobalConfig takes the LOCKED branch')
@@ -63,11 +63,11 @@ console.log('L2 a fresh home — the first saveGlobalConfig takes the LOCKED bra
     out.lockReleased = !fs.existsSync(file + '.lock')
     out.writes = g.getGlobalConfigWriteCount()
   `)
-  check('no config file existed before the save', r.fileExistedBefore === false)
-  check('the save took the locked branch (zero lockless fallbacks)', r.fallbacks === 0, `fallbacks=${String(r.fallbacks)}`)
-  check('the value is on disk', r.disk === 7, `numStartups=${String(r.disk)}`)
-  check('the lock artefact is released', r.lockReleased === true)
-  check('exactly one disk write', r.writes === 1, `writes=${String(r.writes)}`)
+  check('no config file existed before the save', r.fileExistedBefore === false, '', 'the scratch home must start without a config file')
+  check('the save took the locked branch (zero lockless fallbacks)', r.fallbacks === 0, `fallbacks=${String(r.fallbacks)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must lock a missing config file (realpath: false), not fall back lockless')
+  check('the value is on disk', r.disk === 7, `numStartups=${String(r.disk)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must write the updated config')
+  check('the lock artefact is released', r.lockReleased === true, '', 'saveGlobalConfig in src/utils/config/globalConfig.ts must release the lock after writing')
+  check('exactly one disk write', r.writes === 1, `writes=${String(r.writes)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must write the file once per save')
 }
 
 console.log('L3 a fresh home — the first saveCurrentProjectConfig takes the LOCKED branch')
@@ -82,10 +82,10 @@ console.log('L3 a fresh home — the first saveCurrentProjectConfig takes the LO
     out.trusted = Object.values(projects).some(v => v?.hasTrustDialogAccepted === true)
     out.lockReleased = !fs.existsSync(file + '.lock')
   `)
-  check('no config file existed before the save', r.fileExistedBefore === false)
-  check('the save took the locked branch (zero lockless fallbacks)', r.fallbacks === 0, `fallbacks=${String(r.fallbacks)}`)
-  check('the project record is on disk', r.projectKeys === 1 && r.trusted === true, `keys=${String(r.projectKeys)} trusted=${String(r.trusted)}`)
-  check('the lock artefact is released', r.lockReleased === true)
+  check('no config file existed before the save', r.fileExistedBefore === false, '', 'the scratch home must start without a config file')
+  check('the save took the locked branch (zero lockless fallbacks)', r.fallbacks === 0, `fallbacks=${String(r.fallbacks)}`, 'saveCurrentProjectConfig in src/utils/config/projectConfig.ts must take the locked save in src/utils/config/globalConfig.ts on a fresh home')
+  check('the project record is on disk', r.projectKeys === 1 && r.trusted === true, `keys=${String(r.projectKeys)} trusted=${String(r.trusted)}`, 'saveCurrentProjectConfig in src/utils/config/projectConfig.ts must write the project record')
+  check('the lock artefact is released', r.lockReleased === true, '', 'the locked save must release the lock after writing')
 }
 
 console.log('L4 poison — a held lock REFUSES the save (the lockless rewrite is retired)')
@@ -102,8 +102,8 @@ console.log('L4 poison — a held lock REFUSES the save (the lockless rewrite is
     out.fallbacks = typeof g.getConfigLocklessFallbackCount === 'function' ? g.getConfigLocklessFallbackCount() : 'no-counter'
     out.disk = readDisk()?.numStartups
   `)
-  check('the refusal is counted — never the lockless fallback', r.refusals === 1 && r.fallbacks === 0, `refusals=${String(r.refusals)} fallbacks=${String(r.fallbacks)}`)
-  check('nothing is written under the held lock', r.disk === undefined, `numStartups=${String(r.disk)}`)
+  check('the refusal is counted — never the lockless fallback', r.refusals === 1 && r.fallbacks === 0, `refusals=${String(r.refusals)} fallbacks=${String(r.fallbacks)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must count a contention refusal when the lock is held, never a lockless fallback')
+  check('nothing is written under the held lock', r.disk === undefined, `numStartups=${String(r.disk)}`, 'saveGlobalConfig in src/utils/config/globalConfig.ts must not write while the lock is held')
 }
 
 console.log('L5 the sibling writers — settings and keybindings round-trip on a fresh home')
@@ -120,8 +120,8 @@ console.log('L5 the sibling writers — settings and keybindings round-trip on a
     out.kbOk = w.ok === true
     out.kbOnDisk = w.ok ? fs.readFileSync(w.path, 'utf8').includes('ctrl+alt+9') : false
   `)
-  check('updateSettingsForSource lands a fresh user settings file', r.settingsError === null && r.settingsOnDisk === true, `${String(r.settingsError)} onDisk=${String(r.settingsOnDisk)}`)
-  check('writeUserBinding lands a fresh keybindings file', r.kbOk === true && r.kbOnDisk === true, `ok=${String(r.kbOk)} onDisk=${String(r.kbOnDisk)}`)
+  check('updateSettingsForSource lands a fresh user settings file', r.settingsError === null && r.settingsOnDisk === true, `${String(r.settingsError)} onDisk=${String(r.settingsOnDisk)}`, 'updateSettingsForSource in src/utils/settings/settings.ts must create the missing user settings file')
+  check('writeUserBinding lands a fresh keybindings file', r.kbOk === true && r.kbOnDisk === true, `ok=${String(r.kbOk)} onDisk=${String(r.kbOnDisk)}`, 'writeUserBinding in src/keybindings/writeBindings.ts must create the missing keybindings file')
 }
 
 console.log('L6 healScopeIdentitySnapshot — unreadable bytes stay as they are; a readable snapshot heals')
@@ -143,9 +143,9 @@ console.log('L6 healScopeIdentitySnapshot — unreadable bytes stay as they are;
     out.healedEmail = healed.oauthAccount?.emailAddress
     out.healedKeptProjects = healed.projects?.['/a']?.x === 1
   `)
-  check('the unparseable snapshot is byte-identical after the heal (never republished from {})', r.damagedAfter === damagedBytes, JSON.stringify(String(r.damagedAfter).slice(0, 60)))
-  check('a readable snapshot heals its identity', r.healedEmail === 'fresh@example.org', String(r.healedEmail))
-  check('…and keeps its other keys', r.healedKeptProjects === true)
+  check('the unparseable snapshot is byte-identical after the heal (never republished from {})', r.damagedAfter === damagedBytes, JSON.stringify(String(r.damagedAfter).slice(0, 60)), 'healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts must leave an unparseable snapshot untouched')
+  check('a readable snapshot heals its identity', r.healedEmail === 'fresh@example.org', String(r.healedEmail), 'healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts must write the new identity into a readable snapshot')
+  check('…and keeps its other keys', r.healedKeptProjects === true, '', 'healScopeIdentitySnapshot in src/utils/accounts/accountIdentity.ts must keep the other keys of the snapshot')
 }
 
 console.log(failures === 0 ? 'FRESH-HOME FIRST-SAVE LAWS HOLD' : `${failures} FAILURE(S)`)

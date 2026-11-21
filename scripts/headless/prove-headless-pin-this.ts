@@ -17,7 +17,7 @@ const TODAYS_NOTE = 'pin needs the originating owner message asking for these wo
 const CREWMATE_NOTE = 'Retain is refused: a crewmate never writes memory — put the finding in your report; the lead decides what is remembered'
 let failures = 0
 function check(label: string, ok: boolean, detail: unknown): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${JSON.stringify(detail)?.slice(0, 700)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${JSON.stringify(detail)?.slice(0, 700)} (what to change: the pin refusal and its notes live in src/mneme/memoryVerbs.ts and src/mneme/memoryPinIntent.ts, the Retain tool in src/tools/MemoryTools/MemoryTools.ts; the answer, rows and pins above show which leg broke)`}`)
   if (!ok) failures++
 }
 type Row = Record<string, unknown> & { type?: string; tool?: string; call_id?: string; status?: string; output?: unknown; parent_call_id?: string }

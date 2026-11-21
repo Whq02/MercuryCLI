@@ -48,7 +48,7 @@ for (const parked of [false, true]) for (const [cols, rows] of sizes) {
   try {
     const result = await run([driver.python, captureEngineEntry(driver, ROOT), cfg], work, { ...env, VSHOT_TEE: tee }, vshotBudgetMs(70_000))
     const payload = existsSync(grid) ? JSON.parse(readFileSync(grid, 'utf8')) : null
-    check(`${tag}: the resumed bundle reaches the saved conversation`, result.code === 0 && payload?.endReason === 'ready', result.stderr.slice(-400))
+    check(`${tag}: the resumed bundle reaches the saved conversation`, result.code === 0 && payload?.endReason === 'ready', 'the capture of mercury --resume never showed the ready status or the saved reply; open the frames written with --frames and check that the resume path paints both. ' + result.stderr.slice(-400))
     const painted = JSON.parse(execFileSync(driver.python, ['-c', `import json, re, struct, sys, pyte
 screen = pyte.Screen(int(sys.argv[2]), int(sys.argv[3]))
 stream = pyte.ByteStream(screen)
@@ -68,13 +68,13 @@ print(json.dumps(frames))`, tee, String(cols), String(rows)], { encoding: 'utf8'
     const statuses = painted.map(frame => frame.status)
     console.log(`${tag} status sequence: ${JSON.stringify(statuses.map(line => line.trim()))}`)
     check(`${tag}: at least one status row was observed at the emission boundary`, statuses.length > 0)
-    check(`${tag}: every model-bearing status names the saved model`, statuses.every(line => !/Opus|Fable|Sonnet/.test(line) || line.includes(savedName)), statuses.join('\n'))
-    check(`${tag}: the first model-bearing status names the saved model`, statuses.find(line => /Opus|Fable|Sonnet/.test(line))?.includes(savedName) === true, statuses.join('\n'))
+    check(`${tag}: every model-bearing status names the saved model`, statuses.every(line => !/Opus|Fable|Sonnet/.test(line) || line.includes(savedName)), 'a status row named a model other than the saved one (' + savedName + '); the resumed status must paint the saved session model first, not the default. ' + statuses.join('\n'))
+    check(`${tag}: the first model-bearing status names the saved model`, statuses.find(line => /Opus|Fable|Sonnet/.test(line))?.includes(savedName) === true, 'the first status that names a model must name ' + savedName + ', the model recorded in the saved transcript. ' + statuses.join('\n'))
     const firstStarting = statuses.findIndex(line => line.includes('runner is starting'))
     const firstReady = statuses.findIndex(line => /\bready\b/.test(line))
-    if (cols >= 100) check(`${tag}: readiness never precedes the runner's starting state`, firstStarting >= 0 && firstReady > firstStarting, statuses.join('\n'))
-    else check(`${tag}: the compact header keeps its saved-model ready row without a starting detour`, firstReady >= 0 && firstStarting === -1 && statuses.every(line => line.includes(savedName)), statuses.join('\n'))
-    check(`${tag}: after reaching ready the status never goes back to starting`, firstReady >= 0 && statuses.slice(firstReady).every(line => !line.includes('runner is starting')), statuses.join('\n'))
+    if (cols >= 100) check(`${tag}: readiness never precedes the runner's starting state`, firstStarting >= 0 && firstReady > firstStarting, 'at 100 columns or wider the status must show runner is starting before ready; fix the order the resumed status is painted in. ' + statuses.join('\n'))
+    else check(`${tag}: the compact header keeps its saved-model ready row without a starting detour`, firstReady >= 0 && firstStarting === -1 && statuses.every(line => line.includes(savedName)), 'below 100 columns the compact header must show the saved-model ready row with no runner is starting row. ' + statuses.join('\n'))
+    check(`${tag}: after reaching ready the status never goes back to starting`, firstReady >= 0 && statuses.slice(firstReady).every(line => !line.includes('runner is starting')), 'once the status reads ready it must not fall back to runner is starting; stop the resume path from repainting the starting state. ' + statuses.join('\n'))
     check(`${tag}: reopening the record stays on loopback`, nonLoopback(netlines(leg.netlog)).length === 0)
     if (frames !== undefined) {
       writeFileSync(join(frames, `${tag}-statuses.json`), JSON.stringify(statuses, null, 2) + '\n')

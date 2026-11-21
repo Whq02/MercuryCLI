@@ -7,7 +7,8 @@ const { default: instances } = await import('../../src/ink/instances.ts')
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const lentHint = 'fix suspendStdin and resumeStdin in src/ink/ink/stdin.ts (the read hold on the lent console)'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} | ` : ''}${lentHint}` : ''}`)
   if (!ok) failures = 1
 }
 

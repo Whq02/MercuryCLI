@@ -13,8 +13,9 @@ const { readSessionFacts } = await import('../../src/services/engine-connector/s
 const { sessionFactsToWire } = await import('../../src/services/engine-connector/seatWire.ts')
 
 let failures = 0
+const landingHint = 'change setSessionModel in src/daemon/sessionSeat/model.ts or onSeatApplied in src/daemon/sessionSeat/edges.ts so the facts published at a model switch (read back by readSessionFacts in src/services/engine-connector/seatProjections.ts) name the switched model'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — ${landingHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => {

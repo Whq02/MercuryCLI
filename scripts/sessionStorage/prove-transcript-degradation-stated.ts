@@ -56,9 +56,9 @@ section('§1 a torn final line is NOT stated — the line is still being written
   writeFileSync(path, damaged)
   const loaded = await loading.loadTranscriptFile(path)
   const fact = loading.transcriptLoadDegradation()
-  check('no fact latched for an unterminated final line', fact === null, JSON.stringify(fact))
-  check('the fold proceeded on the valid records', loaded.messages.size === 2, String(loaded.messages.size))
-  check('nothing was repaired — the bytes stay in place', readFileSync(path, 'utf8') === damaged)
+  check('no fact latched for an unterminated final line', fact === null, `an unterminated final line must not latch a fact (transcriptReader.ts in src/utils/sessionStorage); got ${JSON.stringify(fact)}`)
+  check('the fold proceeded on the valid records', loaded.messages.size === 2, `${loaded.messages.size} messages; loadTranscriptFile (src/utils/sessionStorage/loading.ts) must fold the valid records around a torn tail`)
+  check('nothing was repaired — the bytes stay in place', readFileSync(path, 'utf8') === damaged, 'loadTranscriptFile must not rewrite the transcript file')
 }
 
 section('§1b a torn final line completed by the writer folds on the growth read; one that stays malformed is stated there, once')
@@ -81,20 +81,20 @@ section('§1b a torn final line completed by the writer folds on the growth read
   const cut = Math.floor(third.length / 2)
   writeFileSync(path, recordLines(path) + third.slice(0, cut))
   const first = await loading.loadTranscriptFile(path)
-  check('the half-written line is left for the writer: two records folded, no fact', first.messages.size === 2 && loading.transcriptLoadDegradation() === null, JSON.stringify(loading.transcriptLoadDegradation()))
+  check('the half-written line is left for the writer: two records folded, no fact', first.messages.size === 2 && loading.transcriptLoadDegradation() === null, `the reader (src/utils/sessionStorage/transcriptReader.ts) must leave a half-written last line for the writer; messages ${first.messages.size}, fact ${JSON.stringify(loading.transcriptLoadDegradation())}`)
   writeFileSync(path, recordLines(path) + third)
   const second = await loading.loadTranscriptFile(path)
-  check('the growth read folds the completed line whole and states nothing', second.messages.size === 3 && loading.transcriptLoadDegradation() === null, `${second.messages.size} ${JSON.stringify(loading.transcriptLoadDegradation())}`)
+  check('the growth read folds the completed line whole and states nothing', second.messages.size === 3 && loading.transcriptLoadDegradation() === null, `the growth read in src/utils/sessionStorage/transcriptReader.ts must fold the completed line and state nothing; messages ${second.messages.size}, fact ${JSON.stringify(loading.transcriptLoadDegradation())}`)
 
   loading._resetTranscriptLoadDegradationForTesting()
   const stays = join(scratch, `${SID}-stays.jsonl`)
   writeFileSync(stays, recordLines(stays) + '{"recordId":"torn-mid-append')
   await loading.loadTranscriptFile(stays)
-  check('a torn tail alone is not stated on the load', loading.transcriptLoadDegradation() === null)
+  check('a torn tail alone is not stated on the load', loading.transcriptLoadDegradation() === null, `fact ${JSON.stringify(loading.transcriptLoadDegradation())}; a torn tail must not latch a fact in src/utils/sessionStorage/transcriptReader.ts`)
   writeFileSync(stays, recordLines(stays) + '{"recordId":"torn-mid-append and never a record\n')
   await loading.loadTranscriptFile(stays)
   const stated = loading.transcriptLoadDegradation()
-  check('a completed line that is still malformed is stated by the growth read, counted once', stated !== null && stated.malformed === 1 && stated.invalid === 0 && stated.path === stays, JSON.stringify(stated))
+  check('a completed line that is still malformed is stated by the growth read, counted once', stated !== null && stated.malformed === 1 && stated.invalid === 0 && stated.path === stays, `the growth read in src/utils/sessionStorage/transcriptReader.ts must state a completed malformed line once (malformed 1, invalid 0, this path); got ${JSON.stringify(stated)}`)
 }
 
 section('§1c a malformed line inside the file is STATED — counts, path, valid records folded')
@@ -105,14 +105,14 @@ section('§1c a malformed line inside the file is STATED — counts, path, valid
   writeFileSync(path, damaged)
   const loaded = await loading.loadTranscriptFile(path)
   const fact = loading.transcriptLoadDegradation()
-  check('the fact latched', fact !== null, JSON.stringify(fact))
+  check('the fact latched', fact !== null, `a malformed line inside the file must latch a fact in src/utils/sessionStorage/transcriptReader.ts; got ${JSON.stringify(fact)}`)
   check(
     'it names the count and the path, refusal null',
     fact !== null && fact.malformed === 1 && fact.invalid === 0 && fact.path === path && fact.refusal === null,
-    JSON.stringify(fact),
+    `the fact in src/utils/sessionStorage/transcriptReader.ts must carry the malformed count, the file path and a null refusal; got ${JSON.stringify(fact)}`,
   )
-  check('the fold proceeded on the valid records', loaded.messages.size === 2, String(loaded.messages.size))
-  check('nothing was repaired — the bytes stay in place', readFileSync(path, 'utf8') === damaged)
+  check('the fold proceeded on the valid records', loaded.messages.size === 2, `${loaded.messages.size} messages; loadTranscriptFile (src/utils/sessionStorage/loading.ts) must fold the valid records around a malformed line`)
+  check('nothing was repaired — the bytes stay in place', readFileSync(path, 'utf8') === damaged, 'loadTranscriptFile must not rewrite the transcript file')
 }
 
 section('§2 the subscription fires on latch')
@@ -125,7 +125,7 @@ section('§2 the subscription fires on latch')
   const path = join(scratch, `${SID}-sub.jsonl`)
   writeFileSync(path, recordLines(path) + '{"torn\n')
   await loading.loadTranscriptFile(path)
-  check('the listener fired exactly once for one degraded load', fired === 1, String(fired))
+  check('the listener fired exactly once for one degraded load', fired === 1, `${fired} calls; the latch in src/utils/sessionStorage/transcriptReader.ts must notify each subscribeTranscriptLoadDegradation listener once per degraded load`)
   unsubscribe()
 }
 
@@ -137,9 +137,9 @@ section('§3 a whole-file refusal is stated — the empty resume is not silent')
   writeFileSync(path, foreign)
   const loaded = await loading.loadTranscriptFile(path)
   const fact = loading.transcriptLoadDegradation()
-  check('the load resumed empty (the pre-law behaviour, unchanged this slice)', loaded.messages.size === 0)
-  check('…but the refusal is STATED with the path', fact !== null && fact.refusal !== null && fact.path === path, JSON.stringify(fact))
-  check('the bytes stay in place (repair is the deferred half)', readFileSync(path, 'utf8') === foreign)
+  check('the load resumed empty (the pre-law behaviour, unchanged this slice)', loaded.messages.size === 0, `${loaded.messages.size} messages; loadTranscriptFile (src/utils/sessionStorage/loading.ts) must resume empty on a foreign file`)
+  check('…but the refusal is STATED with the path', fact !== null && fact.refusal !== null && fact.path === path, `a whole-file refusal must latch a fact with the path in src/utils/sessionStorage/transcriptReader.ts; got ${JSON.stringify(fact)}`)
+  check('the bytes stay in place (repair is the deferred half)', readFileSync(path, 'utf8') === foreign, 'loadTranscriptFile must not rewrite the transcript file')
 }
 
 section('§4 a clean load latches nothing')
@@ -148,8 +148,8 @@ section('§4 a clean load latches nothing')
   const path = join(scratch, `${SID}-clean.jsonl`)
   writeFileSync(path, recordLines(path))
   const loaded = await loading.loadTranscriptFile(path)
-  check('clean fold', loaded.messages.size === 2)
-  check('no fact', loading.transcriptLoadDegradation() === null)
+  check('clean fold', loaded.messages.size === 2, `${loaded.messages.size} messages; loadTranscriptFile (src/utils/sessionStorage/loading.ts) must fold both records of a clean file`)
+  check('no fact', loading.transcriptLoadDegradation() === null, `fact ${JSON.stringify(loading.transcriptLoadDegradation())}; a clean load must latch nothing in src/utils/sessionStorage/transcriptReader.ts`)
 }
 
 console.log('\n' + '='.repeat(60))

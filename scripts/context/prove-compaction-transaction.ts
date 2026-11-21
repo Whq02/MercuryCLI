@@ -16,7 +16,7 @@ enableConfigs()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix compactConversation in src/services/compact/compact.ts (install, refusal and readFileState clearing) or nextCompactionFailureCount in src/services/compact/compactionPolicy.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -24,7 +24,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — compaction transaction proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — compaction transaction proof exceeded 120s — the scripted fixture API never answered compactConversation (src/services/compact/compact.ts); see the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

@@ -56,7 +56,8 @@ async function run(model: string, messages = prompt): Promise<any[]> {
 }
 let checks = 0
 let failures = 0
-const check = (name: string, pass: unknown) => { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`) }
+const NATIVE_FACTS_HINT = 'to fix, change how a settings.json models entry is merged with the live catalogue in evaluateGptCandidate / primeOpenaiCatalogue (src/services/providers/openai/openaiCatalogue.ts), or the window and image reads getContextWindowForModel / modelReceivesImageBlocks (src/utils/model/capabilities.ts), or the request built through routedCallModel (src/services/providers/callModelRouter.ts)'
+const check = (name: string, pass: unknown) => { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${pass ? '' : ` — ${NATIVE_FACTS_HINT}`}`) }
 const served = (rows: any[]) => rows.some(row => !row.isApiErrorMessage && row.message.content.some((block: any) => block.text === 'NATIVE-FACTS-SETTLED'))
 try {
   set({})

@@ -11,9 +11,13 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 const { computeNewLimitsFromHeaders } = await import('../../src/services/anthropicLimits.ts')
 
 let failures = 0
+const CAP_FIXTURE_FAIL_HINT =
+  'fix computeNewLimitsFromHeaders in src/services/anthropicLimits.ts (how the anthropic-ratelimit-unified-* headers map to status, rateLimitType, resetsAt, surpassedThreshold and isUsingOverage), not this check'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond ? ` — ${CAP_FIXTURE_FAIL_HINT}` : ''}`,
+  )
 }
 
 const H = (entries: Record<string, string>) => new Headers(entries)

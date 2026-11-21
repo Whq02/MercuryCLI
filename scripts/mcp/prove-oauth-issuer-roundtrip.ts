@@ -14,7 +14,7 @@ let failures = 0
 const check = (label: string, pass: boolean, detail = ''): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? `: ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass ? `: ${detail}${detail ? ' ' : ''}[change MercuryMcpAuthProvider (saveClientInformation, saveTokens, tokens, refreshAuthorization) in src/services/mcp/auth.ts so the client and token issuer stamps are stored, read back and bound as this check says]` : ''}`)
 }
 let origin = ''
 let tokenRequests = 0

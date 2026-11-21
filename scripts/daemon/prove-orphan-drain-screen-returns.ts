@@ -16,9 +16,10 @@ const NOT_STAGED = 75
 const STAGE_TRIES = 3
 
 let failures = 0
+const drainHint = 'change the drain in src/daemon/run/owner.ts (the reap, the ownership hand-over and the cut at the ceiling) or the park and focus records in src/daemon/concourseWorkers/park.ts and src/daemon/concourseWorkers/focus.ts; a scene run alone sets DRAIN_SCREEN_SCENE and keeps its scratch world named in the forensics line'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${drainHint}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

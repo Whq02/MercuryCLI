@@ -27,7 +27,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const byIdHint = 'fix the by-id branch of loadConversationForResume (the lastSession read) in src/services/resume/conversationRecovery.ts so that it ends on the same row as the by-file read'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${byIdHint}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

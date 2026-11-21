@@ -9,9 +9,12 @@ import { parseUnityTestResults } from '../../src/services/ide/unityTests.js'
 import { startFakeUnityBridge } from './fake-bridge.js'
 
 let failures = 0
+const PROTOCOL_FAIL_HINT =
+  'to fix, change UnityBridgeClient (request, handshake, nextDelayMs backoff, drainEvents) in src/services/unity/bridgeClient.ts, or the fake server in scripts/unity-bridge/fake-bridge.ts for a refusal the server arm sends'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${PROTOCOL_FAIL_HINT}` : PROTOCOL_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -42,7 +42,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  const turnEndHint = 'where to look: recordTurnEnd in src/utils/sessionStorage/writer.ts (the line written), the turn-end rule in src/utils/sessionStorage/fold.ts (what behind it lets it stand), runEndedLastTurn in src/services/resume/conversationRecovery.ts (how the loader reads it)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${turnEndHint}${detail ? ` | ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

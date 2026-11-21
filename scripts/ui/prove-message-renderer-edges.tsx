@@ -24,8 +24,8 @@ const { SystemTextMessage } = await import('../../src/components/messages/System
 const { CollapsedReadSearchContent } = await import('../../src/components/messages/CollapsedReadSearchContent.js')
 const { buildMessageLookups } = await import('../../src/services/messages/lookups.js')
 let failures = 0
-const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+const check = (label: string, ok: boolean, detail = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 const mount = (element: React.ReactNode) => mountOffscreen(<AppStateProvider><ThemeProvider><Box width={120} height={24} flexDirection="column">{element}</Box></ThemeProvider></AppStateProvider>, 120, 24)
@@ -38,7 +38,7 @@ try {
   }
   const memory = await mount(<CollapsedReadSearchContent message={group as never} tools={[]} lookups={buildMessageLookups([], [])} inProgressToolUseIDs={new Set()} />)
   await settle(150)
-  check('a memory-search-only group remains visible', memory.screen().includes('Searched memory'))
+  check('a memory-search-only group remains visible', memory.screen().includes('Searched memory'), 'a collapsed group with only memory searches rendered no Searched memory line; check how CollapsedReadSearchContent in src/components/messages/CollapsedReadSearchContent.tsx counts memorySearchCount when the other counts are zero')
   memory.unmount()
   await settle(50)
   for (const [name, element] of [
@@ -49,10 +49,10 @@ try {
     const view = await mount(element)
     await settle(150)
     const url = urls.at(-1)
-    check(`${name}: emits a file URL for its exact path`, url === pathToFileURL(path).href)
+    check(`${name}: emits a file URL for its exact path`, url === pathToFileURL(path).href, `got ${url ?? 'no link'}; the Link url in src/components/messages/UserImageMessage.tsx (image) and src/components/messages/SystemTextMessage.tsx (saved memory) must be pathToFileURL of the stored path`)
     let decoded: string | null = null
     try { if (url !== undefined) decoded = fileURLToPath(url) } catch {}
-    check(`${name}: spaces, hashes and percent signs round-trip`, decoded === path)
+    check(`${name}: spaces, hashes and percent signs round-trip`, decoded === path, `decoded ${decoded ?? 'nothing'}; the Link url in src/components/messages/UserImageMessage.tsx and SystemTextMessage.tsx must be built with pathToFileURL, not by string concatenation`)
     view.unmount()
     await settle(50)
   }

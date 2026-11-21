@@ -40,10 +40,10 @@ if (!given) {
   armed = true
   try { await FileReadTool.call({ file_path: `${source}#read?q=.n` }, context) } catch (error) { result = String(error) }
   let failed = 0
-  const check = (name: string, ok: boolean) => { if (!ok) failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${result}`}`) }
-  check('the fixture schedules cancellation during source admission', queued)
-  check('extensionless admission yields to cancellation before starting an engine', !started && result.includes('admission cancelled'))
-  check('cancelled admission grants no source coverage', !context.readFileState.has(source))
+  const check = (name: string, ok: boolean, hint = '') => { if (!ok) failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${result}${hint ? ` | ${hint}` : ''}`}`) }
+  check('the fixture schedules cancellation during source admission', queued, 'the mocked node:fs read never ran during admission; check that admitted() in src/tools/FileReadTool/readJson.ts still reads the unknown file through fs.read or fs.readSync before any engine starts')
+  check('extensionless admission yields to cancellation before starting an engine', !started && result.includes('admission cancelled'), 'admitted() in src/tools/FileReadTool/readJson.ts must call signal.throwIfAborted() after each read so a cancelled admission throws before runJsonQuery in jsonQueryRuntime.ts forks the engine')
+  check('cancelled admission grants no source coverage', !context.readFileState.has(source), 'readJson in src/tools/FileReadTool/readJson.ts must not record the source in readFileState when admission is cancelled')
   console.log(`${3 - failed}/3 checks`)
   process.exitCode = failed ? 1 : 0
 }

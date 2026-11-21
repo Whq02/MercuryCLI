@@ -26,7 +26,8 @@ writeFileSync(join(PROJECT, 'package.json'), '{"name":"fixture"}\n')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const seamHint = 'the writer named in this label must publish through the daemon-home door in src/daemon/daemonHome.ts (publishInDaemonHome and its append and transient siblings, with daemonHomeStands and armDaemonHomeWatch), never recreate a missing home; the parent option of durableAtomicPublishSync is in src/substrate/durablePublish.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${seamHint}` : ''}`)
 }
 const text = (v: unknown): string => JSON.stringify(v)
 const listing = (dir: string): string[] => (existsSync(dir) ? readdirSync(dir).sort() : [])

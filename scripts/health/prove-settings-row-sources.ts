@@ -10,7 +10,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix the settings check in src/services/health/sections/settings/sources.ts so its sources line lists getEnabledSettingSources'}`)
   if (!cond) failures++
 }
 

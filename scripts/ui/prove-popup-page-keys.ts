@@ -80,13 +80,13 @@ try {
   const up = marks.get('help-page-up') ?? []
   printFrame('/help commands after ↓', list.slice(10, 36))
   printFrame('/help commands after PageDown', down.slice(10, 36))
-  check('the drive reached every surface', status === 0 && payload?.endReason === 'ready', `status ${status} end ${payload?.endReason} ${stderr.slice(-400)}`)
+  check('the drive reached every surface', status === 0 && payload?.endReason === 'ready', `status ${status} end ${payload?.endReason}; the capture did not reach /help and /health, so read the frames in --frames, and check that each awaitText in the sends list above still appears on screen ${stderr.slice(-400)}`)
   const before = caretCommand(list)
   const after = caretCommand(down)
   const back = caretCommand(up)
-  check('↓ focuses the list on its first command', before !== null, list.filter(r => r.includes('❯')).join(' | '))
-  check('PageDown moves the caret onto a later command', after !== null && before !== null && after !== before && listIndex(down, after) > listIndex(list, before), `before ${before} after ${after}`)
-  check('PageUp brings the caret back to the first command', back === before, `back ${back} first ${before}`)
+  check('↓ focuses the list on its first command', before !== null, 'the /help commands list shows no caret row; check the Down handling in src/components/HelpV2/Commands.tsx and src/components/CustomSelect/use-select-input.ts; rows with a caret: ' + list.filter(r => r.includes('❯')).join(' | '))
+  check('PageDown moves the caret onto a later command', after !== null && before !== null && after !== before && listIndex(down, after) > listIndex(list, before), `PageDown must move the caret to a later command; check the PageDown handling in src/components/HelpV2/Commands.tsx and src/components/ScrollKeybindingHandler.tsx; before ${before} after ${after}`)
+  check('PageUp brings the caret back to the first command', back === before, `PageUp must page the caret back; check the PageUp handling in src/components/HelpV2/Commands.tsx and src/components/ScrollKeybindingHandler.tsx; back ${back} first ${before}`)
 
   section('/health — PageDown pages the cursor over the check rows')
   const health = marks.get('health') ?? []
@@ -94,8 +94,8 @@ try {
   printFrame('/health footer before and after PageDown', [health.find(r => /⇞⇟ page/.test(r)) ?? '', healthDown.find(r => /⇞⇟ page/.test(r)) ?? ''])
   const c0 = counter(health)
   const c1 = counter(healthDown)
-  check('/health opened with its cursor on the first check', c0 === 1, `counter ${c0}`)
-  check('PageDown moves the cursor a page down (the footer counter jumps by more than one)', c0 !== null && c1 !== null && c1 - c0 > 1, `before ${c0} after ${c1}`)
+  check('/health opened with its cursor on the first check', c0 === 1, `the /health footer counter must read 1/N when it opens; check src/commands/health/HealthCertificate.tsx; counter ${c0}`)
+  check('PageDown moves the cursor a page down (the footer counter jumps by more than one)', c0 !== null && c1 !== null && c1 - c0 > 1, `PageDown must page the cursor over the check rows; check the page-key handling in src/commands/health/HealthCertificate.tsx; before ${c0} after ${c1}`)
 } finally {
   await endLeg(leg)
 }

@@ -94,7 +94,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: ${label}${ok ? '' : ` — ${JSON.stringify(detail)} [change the holder liveness probe in describeProjectLeases, takeProjectLeases or releaseProjectLeases in src/services/vulcan/engine/leases.ts, or the process start-token cache in src/utils/ownerWatch.ts]`}`)
 }
 const resetCalls = (): void => { calls.length = 0; batches.length = 0 }
 const expectedSpawns = platform === 'linux' ? 0 : 1

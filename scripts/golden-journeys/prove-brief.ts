@@ -24,8 +24,8 @@ console.log('prove-brief — the plan-shape worlds on the resumed frame')
 const t0 = Date.parse('2026-07-20T12:00:00.000Z')
 
 function retiredBriefAbsent(world: string, c: Capture): void {
-  check(`${world}: no retired brief teaching line reappears`, !hasProse(c, 'plan: edit /tasks'))
-  check(`${world}: no retired WORK section header reappears`, !/\bWORK\b/.test(c.text))
+  check(`${world}: no retired brief teaching line reappears`, !hasProse(c, 'plan: edit /tasks'), 'the resumed frame prints the retired line plan: edit /tasks; remove that teaching line from the resumed-frame brief text')
+  check(`${world}: no retired WORK section header reappears`, !/\bWORK\b/.test(c.text), 'the resumed frame prints a WORK section header again; remove that header from the resumed-frame brief')
 }
 
 seedWorld()
@@ -56,12 +56,12 @@ writeRunSidecar(
   ]),
 )
 const planning = capture({ sid: sidA, tag: 'brief-planning', total: 90 })
-check('the planning world shows the plan formed, at a glance', hasProse(planning, 'Plan formed — five items queued'))
-check("the plan's objective is on screen (the ask line)", hasProse(planning, 'Replatform the fixture pipeline'))
+check('the planning world shows the plan formed, at a glance', hasProse(planning, 'Plan formed — five items queued'), 'the resumed planning frame does not show the seeded last assistant line (Plan formed) at a glance; the brief must carry the final assistant text of the session')
+check("the plan's objective is on screen (the ask line)", hasProse(planning, 'Replatform the fixture pipeline'), 'the resumed planning frame does not show the run objective on the ask line; the brief must print the run objective from the run sidecar')
 retiredBriefAbsent('planning', planning)
 const planningPanel = capture({ sid: sidA, tag: 'brief-planning-panel', sends: slashSends('/workbench'), total: 110 })
-check("the prompts panel's receipt roll carries the plan's ask", hasProse(planningPanel, 'Replatform the fixture pipeline'))
-check('the prompts panel chrome renders (the three tabs)', /PROMPTS/.test(planningPanel.text) && /SAVED PROMPTS/.test(planningPanel.text))
+check("the prompts panel's receipt roll carries the plan's ask", hasProse(planningPanel, 'Replatform the fixture pipeline'), 'the /workbench prompts panel receipt roll lacks the plan ask; it must list the chat ask of the session')
+check('the prompts panel chrome renders (the three tabs)', /PROMPTS/.test(planningPanel.text) && /SAVED PROMPTS/.test(planningPanel.text), 'the /workbench capture does not show the PROMPTS and SAVED PROMPTS tabs; the panel failed to open or its tab titles changed')
 
 seedWorld()
 const sidB = SIDS.J1
@@ -73,16 +73,16 @@ writeRunSidecar(
   ]),
 )
 const direct = capture({ sid: sidB, tag: 'brief-direct', total: 90 })
-check('the direct ask is on screen at a glance', hasProse(direct, 'Fix the header casing'))
-check('a direct task shows no planning report (§6.1)', !hasProse(direct, 'Plan formed'))
+check('the direct ask is on screen at a glance', hasProse(direct, 'Fix the header casing'), 'the resumed direct-task frame does not show the run objective at a glance; the brief must print it')
+check('a direct task shows no planning report (§6.1)', !hasProse(direct, 'Plan formed'), 'a direct task (one in-progress item, no plan) shows a Plan formed report; the brief must show a planning report only for a multi-item plan')
 retiredBriefAbsent('direct', direct)
 
 seedWorld()
 const sidC = SIDS.J5
 seedSubstantialState(sidC)
 const landed = capture({ sid: sidC, tag: 'brief-landed', total: 90 })
-check('the landed world reports landed items at a glance', hasProse(landed, 'Plan items 1–2 are landed'))
-check('the landed world resumes clean (the recap renders)', hasProse(landed, 'resumed clean'))
+check('the landed world reports landed items at a glance', hasProse(landed, 'Plan items 1–2 are landed'), 'the resumed frame lacks the landed-items line for the two completed deliverables seeded by seedSubstantialState in scripts/golden-journeys/j3State.ts')
+check('the landed world resumes clean (the recap renders)', hasProse(landed, 'resumed clean'), 'the resumed frame lacks the resumed clean recap line')
 retiredBriefAbsent('landed', landed)
 
 cleanupWorld()

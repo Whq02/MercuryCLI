@@ -33,7 +33,16 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hookShapeHint = /folds/.test(label)
+    ? 'see decodeTranscriptBuffer in src/fabric/transcriptDecode.ts and the hook row encoding in src/fabric/entryCodec.ts'
+    : /validates/.test(label)
+      ? 'the hook attachment row must satisfy its registry row: see validateRecord and bodyShapeIssue in src/fabric/validate.ts'
+      : /wire|model reads|reads nothing|empty context/.test(label)
+        ? 'fix the hook case of normalizeAttachmentForAPI (hookRows) in src/services/messages/attachmentText.ts'
+        : /persist|stays out of the file/.test(label)
+          ? 'fix the hook case of isTranscribable in src/utils/sessionStorage/chain.ts'
+          : 'fix the hook rows runToolUse yields for tool.before and tool.after in src/services/tools/toolExecution.ts (outcome, event, name, words, callId)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${hookShapeHint}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}`)

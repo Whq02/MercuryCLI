@@ -25,8 +25,9 @@ const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text
 const env = { HOME: home, PATH: process.env.PATH, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-session-words', ANTHROPIC_BASE_URL: api.url, TMPDIR: tmpdir(), NO_COLOR: '1' }
 writeFileSync(join(home, '.config.json'), JSON.stringify({ hasCompletedOnboarding: true, theme: 'dark', customApiKeyResponses: { approved: ['fixture-key-session-words'.slice(-20)] }, projects: { [home]: { hasTrustDialogAccepted: true, hasCompletedProjectOnboarding: true } } }))
 let failures = 0
+const WHERE_TO_LOOK = 'to fix: a run option is registered in src/main/rootOptions.ts, and the words read before the parser (command, format, input, help, option values) come from inspectSessionArgs and readSessionOption in src/utils/sessionArgs.ts'
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? `: ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}`}`)
   if (!ok) failures++
 }
 async function run(argv: string[]): Promise<{ code: number | null; out: string; err: string }> {

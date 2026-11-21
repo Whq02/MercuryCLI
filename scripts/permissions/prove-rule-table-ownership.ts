@@ -5,7 +5,8 @@ const rules = await import(join(root, 'src/utils/permissions/decision/rules.ts')
 const { getEmptyToolPermissionContext } = await import(join(root, 'src/Tool.ts'))
 let failures = 0
 const check = (label: string, condition: boolean) => {
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}`)
+  const hint = 'fix the rule caching in getAllowRules, getDenyRules or getDenyRuleForTool in src/utils/permissions/decision/rules.ts: a cache must follow in-place edits of the context and hand each caller its own copy'
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : ' — ' + hint}`)
   if (!condition) failures++
 }
 const context = () => ({ ...getEmptyToolPermissionContext(), alwaysDenyRules: { userSettings: ['Read'] } })

@@ -15,8 +15,8 @@ enableConfigs()
 delete table.futureFixture
 
 let failures = 0
-const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+const check = (name: string, ok: boolean, detail = '', fix = ''): void => {
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
   if (!ok) failures++
 }
 const folds: Record<string, string> = {
@@ -27,21 +27,21 @@ const folds: Record<string, string> = {
 }
 for (const [key, row] of existing) {
   const expected = folds[key] ?? row.firstParty
-  check(`${key}: the existing canonical answer stands`, getCanonicalName(row.firstParty) === expected, getCanonicalName(row.firstParty))
-  check(`${key}: case and context suffix keep the canonical`, getCanonicalName(`${row.firstParty.toUpperCase()}[1m]`) === expected)
-  check(`${key}: carrier identity stays outside the first-party fold`, getCanonicalName(`openrouter/anthropic/${row.firstParty}`) === `openrouter/anthropic/${row.firstParty}`)
+  check(`${key}: the existing canonical answer stands`, getCanonicalName(row.firstParty) === expected, getCanonicalName(row.firstParty), 'change getCanonicalName in src/utils/model/modelNames.ts, or the row canonical in src/utils/model/configs.ts, so this row folds to the expected id')
+  check(`${key}: case and context suffix keep the canonical`, getCanonicalName(`${row.firstParty.toUpperCase()}[1m]`) === expected, '', 'getCanonicalName in src/utils/model/modelNames.ts must ignore case and a [1m] suffix before folding')
+  check(`${key}: carrier identity stays outside the first-party fold`, getCanonicalName(`openrouter/anthropic/${row.firstParty}`) === `openrouter/anthropic/${row.firstParty}`, '', 'getCanonicalName in src/utils/model/modelNames.ts must return a carrier-prefixed id unchanged')
   const canonical = (row as { canonical?: string }).canonical
-  check(`${key}: a deliberate fold is declared`, canonical === folds[key], String(canonical))
+  check(`${key}: a deliberate fold is declared`, canonical === folds[key], String(canonical), 'declare or remove canonical on this row in src/utils/model/configs.ts, or update the folds table in this file if the fold is deliberate')
   if (canonical !== undefined) continue
-  check(`${key}: an own-canonical row has an exact cost`, Object.hasOwn(MODEL_COSTS, row.firstParty))
-  check(`${key}: an own-canonical row has a display name`, getPublicModelDisplayName(row.firstParty) !== null)
-  check(`${key}: an own-canonical row has a routing-class decision`, ([ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]).includes(row.firstParty) ? classOfModel(row.firstParty) === undefined : classOfModel(row.firstParty) !== undefined)
+  check(`${key}: an own-canonical row has an exact cost`, Object.hasOwn(MODEL_COSTS, row.firstParty), '', 'add an exact cost entry for this id to MODEL_COSTS in src/services/usage/modelCost.ts, or give the row a canonical in src/utils/model/configs.ts')
+  check(`${key}: an own-canonical row has a display name`, getPublicModelDisplayName(row.firstParty) !== null, '', 'add a display name for this id in getPublicModelDisplayName in src/services/model/model.ts')
+  check(`${key}: an own-canonical row has a routing-class decision`, ([ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]).includes(row.firstParty) ? classOfModel(row.firstParty) === undefined : classOfModel(row.firstParty) !== undefined, '', 'declare the routing class of this id in classOfModel in src/services/providers/modelRegistry.ts (sonnet46 and haiku55 stay undefined)')
   const unpinned = [ALL_MODEL_CONFIGS.opus46.firstParty, ALL_MODEL_CONFIGS.sonnet46.firstParty, ALL_MODEL_CONFIGS.haiku55.firstParty] as string[]
-  check(`${key}: an own-canonical row has a launch decision`, unpinned.includes(row.firstParty) ? !isLaunchEffortPinned(row.firstParty) && getLaunchDefaultEffort(row.firstParty) === 'high' : isLaunchEffortPinned(row.firstParty))
+  check(`${key}: an own-canonical row has a launch decision`, unpinned.includes(row.firstParty) ? !isLaunchEffortPinned(row.firstParty) && getLaunchDefaultEffort(row.firstParty) === 'high' : isLaunchEffortPinned(row.firstParty), '', 'declare the launch effort of this id in isLaunchEffortPinned and getLaunchDefaultEffort in src/utils/effort.ts')
 }
-check('the existing mirror point-release aliases keep their specific folds', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1' && getCanonicalName('claude-mythos-5-2') === 'claude-fable-5-2')
-check('a newly declared point release is its own canonical without another substring arm', getCanonicalName(future) === future, getCanonicalName(future))
-check('the synthetic point release still needs its own cost and display declarations', !Object.hasOwn(MODEL_COSTS, future) && getPublicModelDisplayName(future) === null)
+check('the existing mirror point-release aliases keep their specific folds', getCanonicalName('claude-mythos-5-1') === 'claude-fable-5-1' && getCanonicalName('claude-mythos-5-2') === 'claude-fable-5-2', '', 'restore the mythos-to-fable point-release folds in getCanonicalName in src/utils/model/modelNames.ts')
+check('a newly declared point release is its own canonical without another substring arm', getCanonicalName(future) === future, getCanonicalName(future), 'getCanonicalName in src/utils/model/modelNames.ts must return a declared point release as its own canonical without a new substring arm')
+check('the synthetic point release still needs its own cost and display declarations', !Object.hasOwn(MODEL_COSTS, future) && getPublicModelDisplayName(future) === null, '', 'a synthetic point release must not appear in MODEL_COSTS (src/services/usage/modelCost.ts) or getPublicModelDisplayName (src/services/model/model.ts) until declared')
 const undeclared: Array<[string, string]> = [
   ['claude-opus-5-7', 'claude-opus-5-7'],
   ['claude-sonnet-5-7', 'claude-sonnet-5-7'],
@@ -56,7 +56,7 @@ const undeclared: Array<[string, string]> = [
   ['CLAUDE-OPUS-5-7[1m]', 'claude-opus-5-7'],
 ]
 for (const [id, expected] of undeclared) {
-  check(`an undeclared generation keeps its own stem: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id))
+  check(`an undeclared generation keeps its own stem: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id), 'getCanonicalName in src/utils/model/modelNames.ts must keep an undeclared generation as its own stem')
 }
 const dated: Array<[string, string]> = [
   ['claude-opus-5-20260401', 'claude-opus-5'],
@@ -75,9 +75,9 @@ const dated: Array<[string, string]> = [
   ['claude-mythos-5-20260401', 'claude-fable-5'],
 ]
 for (const [id, expected] of dated) {
-  check(`a dated or gateway spelling of a declared generation folds onto it: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id))
+  check(`a dated or gateway spelling of a declared generation folds onto it: ${id}`, getCanonicalName(id) === expected, getCanonicalName(id), 'getCanonicalName in src/utils/model/modelNames.ts must strip the date or gateway wrapper and fold onto the declared generation')
 }
-check('a carrier-shaped undeclared generation keeps the carrier identity', getCanonicalName('openrouter/anthropic/claude-opus-5-7') === 'openrouter/anthropic/claude-opus-5-7')
-check('an id of a family the table does not declare is its own generic canonical', getCanonicalName('claude-zephyr-1') === 'claude-zephyr-1' && getCanonicalName('claude-zephyr-1-20260101') === 'claude-zephyr-1-20260101')
-check('the older naming scheme still folds through its own arms', getCanonicalName('claude-3-7-sonnet-latest') === 'claude-3-7-sonnet' && getCanonicalName('claude-3-5-haiku-latest') === 'claude-3-5-haiku')
+check('a carrier-shaped undeclared generation keeps the carrier identity', getCanonicalName('openrouter/anthropic/claude-opus-5-7') === 'openrouter/anthropic/claude-opus-5-7', '', 'getCanonicalName in src/utils/model/modelNames.ts must keep the carrier prefix on an undeclared generation')
+check('an id of a family the table does not declare is its own generic canonical', getCanonicalName('claude-zephyr-1') === 'claude-zephyr-1' && getCanonicalName('claude-zephyr-1-20260101') === 'claude-zephyr-1-20260101', '', 'getCanonicalName in src/utils/model/modelNames.ts must return an unknown family id unchanged, date included')
+check('the older naming scheme still folds through its own arms', getCanonicalName('claude-3-7-sonnet-latest') === 'claude-3-7-sonnet' && getCanonicalName('claude-3-5-haiku-latest') === 'claude-3-5-haiku', '', 'getCanonicalName in src/utils/model/modelNames.ts must keep the arms for the older naming scheme and its -latest suffix')
 process.exit(failures === 0 ? 0 : 1)

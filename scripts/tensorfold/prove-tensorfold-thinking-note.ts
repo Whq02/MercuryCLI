@@ -25,7 +25,8 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 let checks = 0
 let failures = 0
-const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
+const whereToLook = ' — to fix: the thinking switch is read from the engine list in src/services/providers/local/localDiscovery.ts (thinkingSwitch from capabilities.thinking_switch); the note and the popup rows are drawn by effortPopupThinkingNote and EffortPopup in src/commands/effort/EffortPopup.tsx; an off-fixture request means a caller outside refreshLocalDiscovery reached the network'
+const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (truth ? '' : whereToLook)) }
 try {
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()

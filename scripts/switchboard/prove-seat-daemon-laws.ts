@@ -27,9 +27,15 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
+const lawsFailureHint = (label: string): string => {
+  if (/^D\d/.test(label)) return 'change the matching method of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts (or the daemon op it calls in src/daemon/controlServer.ts)'
+  if (label.startsWith('W ')) return 'change the warm-runner path: the concourseWarm op in src/daemon/controlServer.ts and the pre-spawn log line in src/daemon/main.ts'
+  return 'change the daemon start or the concourseDispatch op in src/daemon/controlServer.ts; the daemon log is daemon.log in the scratch folder (run with SWITCH_KEEP=1 to keep it)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail ? `${detail} — ` : ''}${lawsFailureHint(label)}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()

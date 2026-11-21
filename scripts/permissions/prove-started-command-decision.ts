@@ -1,6 +1,10 @@
 #!/usr/bin/env bun
 import { check, decide, fill, fillBash, finish, note, said, section, shown, standInService, type Rules } from './floorsKit.ts'
 
+process.on('exit', code => {
+  if (code !== 0) console.log('  [HINT] a check above failed: fix the decision for Service, Journey and Debug inputs in decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the tools checkPermissions under src/tools/ServiceTool, src/tools/JourneyTool and src/tools/DebugTool (history of text sent to a service: src/utils/permissions/serviceInputHistory.ts)')
+})
+
 type Mode = 'default' | 'implement' | 'apollo' | 'dontAsk' | 'flow' | 'sovereign'
 type Shape = { label: string; argv: string[]; bashModes: Mode[]; rules?: Rules }
 

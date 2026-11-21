@@ -23,7 +23,11 @@ seedSubstantialState(sid)
 
 const walker = new JourneyWalker(sid, 'j3')
 const glance = walker.glance()
-check('resume renders the mid-flight report', hasProse(glance, 'wiring the config loader'))
+check(
+  'resume renders the mid-flight report',
+  hasProse(glance, 'wiring the config loader'),
+  'the resumed session screen lacks the in-progress deliverable text; check the seeded run in scripts/golden-journeys/j3State.ts (seedSubstantialState) and the capture text in the vshot output',
+)
 
 const ROUTES = [{ cmd: '/run' }, { cmd: '/tasks' }, { cmd: '/diff' }, { cmd: '/workbench' }]
 const facts = [
@@ -42,14 +46,21 @@ check(
   sidecar.snapshot.deliverables.filter(d => d.state === 'done').length === 2 &&
     sidecar.snapshot.deliverables.filter(d => d.state === 'in-progress').length === 1 &&
     sidecar.snapshot.deliverables.filter(d => d.state === 'open').length === 2,
+  'the run sidecar written by seedSubstantialState (scripts/golden-journeys/j3State.ts) or folded by the app on resume no longer holds 2 done, 1 in-progress and 2 open deliverables; compare snapshot.deliverables states in the sidecar from readRunSidecar',
 )
 const panel = walker.nav({ cmd: '/workbench' })
-check("the prompts panel carries the chat's ask (the receipt roll)", hasProse(panel, 'Modernize the fixture demo'))
+check(
+  "the prompts panel carries the chat's ask (the receipt roll)",
+  hasProse(panel, 'Modernize the fixture demo'),
+  'the /workbench capture does not show the seeded objective (J3_OBJECTIVE in scripts/golden-journeys/j3State.ts); the workbench prompts panel is not listing the chat ask',
+)
 
 const specialist = new Set<string>()
 for (const f of facts) if (f.route) specialist.add(f.route)
 const unanswered = facts.filter(f => f.visibility === 'not-visible').length
-check('every walker capture painted (C3)', walker.failedCaptures.length === 0, walker.failedCaptures.join(' · '))
+check('every walker capture painted (C3)', walker.failedCaptures.length === 0,
+  `${walker.failedCaptures.join(' · ')} — a capture painted under 40 cells on every attempt; rebuild dist/mercury.mjs and rerun, or inspect the capture function in scripts/golden-journeys/journeyLib.ts`,
+)
 
 writeReport({
   journey: 'J3',

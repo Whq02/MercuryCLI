@@ -10,8 +10,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -33,6 +33,7 @@ section('§1 THE STAMP DRIVES THE LINE')
     'an overridden model discloses override: user',
     line.includes('haiku') && line.includes('override: user'),
     line,
+    'fix renderAgentLine in src/cli/handlers/agents.ts so a definition with an operatorOverride prints its model and the clause override: user',
   )
 }
 
@@ -41,7 +42,7 @@ section('§2 NO OVERRIDE, NO CLAUSE (control)')
   const line = renderAgentLine({
     definition: { agentType: 'plain-agent', model: 'opus' },
   } as never)
-  check('a plain definition renders without the clause', !line.includes('override'), line)
+  check('a plain definition renders without the clause', !line.includes('override'), line, 'fix renderAgentLine in src/cli/handlers/agents.ts so the override clause prints only when the definition carries an operatorOverride')
 }
 
 section('§3 THE DRIVEN ESTATE')
@@ -64,18 +65,20 @@ section('§3 THE DRIVEN ESTATE')
   }
   const { activeAgents } = await getAgentDefinitionsWithOverrides(PROJ)
   const probe = activeAgents.find(a => a.agentType === 'zzprobe')
-  check('the fixture agent loads', probe !== undefined)
+  check('the fixture agent loads', probe !== undefined, '', 'fix getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts so it loads .mercury/agents/zzprobe.md from the project')
   check(
     'the override applied (model haiku) with provenance stamped',
     probe?.model === 'haiku' &&
       (probe?.operatorOverride as { from?: string } | undefined)?.from === 'user',
     JSON.stringify({ model: probe?.model, operatorOverride: probe?.operatorOverride }),
+    'fix getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts so the model in agent-overrides.json replaces the file model and the definition gets operatorOverride.from user',
   )
   const line = renderAgentLine({ definition: probe } as never)
   check(
     'the driven definition renders the provenance beside the overridden model',
     line.includes('haiku') && line.includes('override: user'),
     line,
+    'fix renderAgentLine in src/cli/handlers/agents.ts to print the operatorOverride that getAgentDefinitionsWithOverrides stamped on the definition',
   )
 }
 

@@ -42,9 +42,9 @@ enableConfigs()
 
 const h = React.createElement
 let failures = 0
-const check = (label: string, condition: boolean): void => {
+const check = (label: string, condition: boolean, detail = ''): void => {
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
 }
 let serial = 0
 const user = (content: UserMessage['message']['content'], extra: Partial<UserMessage> = {}): UserMessage => ({
@@ -89,9 +89,9 @@ const panel = async (name: string, records: Message[]): Promise<string> => {
 }
 
 try {
-  check('only operator prompts survive monitor and task deliveries', JSON.stringify(promptRows(conversation)) === JSON.stringify(expected))
-  check('rewind selects exactly the operator prompt identities', JSON.stringify(conversation.filter(selectableUserMessagesFilter).map(row => row.uuid)) === JSON.stringify(operator.map(row => row.uuid)))
-  check('notice-only rows never become empty prompt placeholders', promptRows(notices).length === 0)
+  check('only operator prompts survive monitor and task deliveries', JSON.stringify(promptRows(conversation)) === JSON.stringify(expected), 'promptRows in src/components/prompts-panel/rows.ts must skip user records that only carry monitor or task-notification blocks')
+  check('rewind selects exactly the operator prompt identities', JSON.stringify(conversation.filter(selectableUserMessagesFilter).map(row => row.uuid)) === JSON.stringify(operator.map(row => row.uuid)), 'selectableUserMessagesFilter in src/components/MessageSelector.tsx must skip notice-only user records')
+  check('notice-only rows never become empty prompt placeholders', promptRows(notices).length === 0, 'promptRows in src/components/prompts-panel/rows.ts must return no row for a notice-only record')
 
   for (const [name, value] of [
     ['adjacent monitor blocks', `${monitor}\n${monitor}`],
@@ -103,11 +103,11 @@ try {
     ['task then reminder batch', [text(task), text(reminder)]],
     ['task batch with trailing empty block', [text(task), text(monitor), text('')]],
   ] as const) {
-    check(`${name} is not an operator prompt`, promptRows([user(value as UserMessage['message']['content'])]).length === 0)
+    check(`${name} is not an operator prompt`, promptRows([user(value as UserMessage['message']['content'])]).length === 0, 'promptRows in src/components/prompts-panel/rows.ts must treat this notice or reminder shape as not an operator prompt')
   }
   const saturn = user('scheduled check', { origin: { kind: 'saturn', fire: 'cron', firedAt: first.timestamp } })
   const advisor = user('advisor check', { origin: { kind: 'advisor', model: 'fixture-model', minutes: 5, at: first.timestamp } })
-  check('scheduled and advisor notices use existing origin recognition', promptRows([saturn, advisor]).length === 0)
+  check('scheduled and advisor notices use existing origin recognition', promptRows([saturn, advisor]).length === 0, 'promptRows in src/components/prompts-panel/rows.ts must skip records whose origin is saturn or advisor')
 
   const retained = [
     user('   '),
@@ -126,8 +126,8 @@ try {
     user([{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AA==' } }]),
   ]
   snapshot.retainedRows = promptRows(retained)
-  check('operator text, quoted tags, incomplete tags, blank and image prompts remain selectable', promptRows(retained).length === retained.length)
-  check('filtering is read-only over original records', JSON.stringify(conversation) === untouched)
+  check('operator text, quoted tags, incomplete tags, blank and image prompts remain selectable', promptRows(retained).length === retained.length, `${promptRows(retained).length} of ${retained.length} rows kept; promptRows in src/components/prompts-panel/rows.ts must keep operator text, quoted or unclosed tags, blank and image prompts`)
+  check('filtering is read-only over original records', JSON.stringify(conversation) === untouched, 'promptRows or selectableUserMessagesFilter changed the records it was given; they must filter without mutating')
 
   let ordinal = 0
   const encoded = conversation.map(row => entryToRecord(row as unknown as Record<string, unknown>, {
@@ -137,20 +137,20 @@ try {
     source: { channel: 'interactive' },
   }))
   const replayed = (JSON.parse(JSON.stringify(encoded)) as typeof encoded).map(recordToEntry) as unknown as Message[]
-  check('unmarked transcript records replay with the same operator-only rows', JSON.stringify(promptRows(replayed)) === JSON.stringify(expected))
-  check('replay does not add metadata to the historical record', replayed.every(row => row.type !== 'user' || row.isMeta === undefined))
+  check('unmarked transcript records replay with the same operator-only rows', JSON.stringify(promptRows(replayed)) === JSON.stringify(expected), 'entryToRecord and recordToEntry in src/fabric/entryCodec.ts must keep the content promptRows reads')
+  check('replay does not add metadata to the historical record', replayed.every(row => row.type !== 'user' || row.isMeta === undefined), 'recordToEntry in src/fabric/entryCodec.ts must not add isMeta to a replayed record')
 
   const purePanel = await panel('operator-panel-80', operator)
   const mixedPanel = await panel('notice-panel-80', conversation)
   snapshot.operatorPanel = purePanel
-  check('80-column workbench notice conversation paints the operator-only frame byte for byte', mixedPanel === purePanel)
-  check('80-column workbench has both operator prompts and no placeholder', mixedPanel.includes(first.message.content as string) && mixedPanel.includes(last.message.content as string) && !mixedPanel.includes('(no prompt text)'))
+  check('80-column workbench notice conversation paints the operator-only frame byte for byte', mixedPanel === purePanel, 'PromptsPanel (src/components/prompts-panel/PromptsPanel.tsx) must paint only operator prompts from the focused session records')
+  check('80-column workbench has both operator prompts and no placeholder', mixedPanel.includes(first.message.content as string) && mixedPanel.includes(last.message.content as string) && !mixedPanel.includes('(no prompt text)'), 'PromptsPanel must show both operator prompts and no placeholder row for a notice')
   selectRecords(conversation)
   const rewind = await frame('rewind-80', h(MessageSelector, { messages: conversation, onPreRestore: () => {}, onRestore: async () => ({ outcome: 'refused', refusal: 'restore-failed' } as never), onSummarize: () => {}, onClose: () => {} }))
-  check('rewind paints both operator prompts without notice placeholders', rewind.includes(first.message.content as string) && rewind.includes(last.message.content as string) && !rewind.includes('(no prompt text)'))
+  check('rewind paints both operator prompts without notice placeholders', rewind.includes(first.message.content as string) && rewind.includes(last.message.content as string) && !rewind.includes('(no prompt text)'), 'MessageSelector in src/components/MessageSelector.tsx must list both operator prompts and no placeholder for a notice')
 
   const normal = normalizeMessages(conversation)
-  check('chat visibility keeps every original notification', normal.every(row => shouldShowUserMessage(row, false)))
+  check('chat visibility keeps every original notification', normal.every(row => shouldShowUserMessage(row, false)), 'shouldShowUserMessage in src/utils/messages/systemMessages.ts must keep every notification visible in chat')
   snapshot.chat = await frame('chat-notices-80', h(Box, { flexDirection: 'column' }, ...[monitor, task].map((body, index) => h(UserTextMessage, { key: index, addMargin: false, verbose: false, param: text(body) }))))
   const derived = deriveTranscriptRows(conversation, [])
   snapshot.mirrorRecords = derived.collapsed
@@ -164,7 +164,7 @@ try {
     screen: 'prompt', canAnimate: false, lastThinkingBlockId: null, latestBashOutputUUID: null,
     columns: 80, isLoading: false, lookups: derived.lookups,
   }))))
-  check('chat and mirror keep the monitor delivery behind the same counted fold', String(snapshot.chat).includes('[Monitor]') && String(snapshot.mirror).includes('[Monitor]') && /· \d+ lines? ›/.test(String(snapshot.chat)) && /· \d+ lines? ›/.test(String(snapshot.mirror)) && !String(snapshot.chat).includes('build reached the next step') && !String(snapshot.mirror).includes('build reached the next step'))
+  check('chat and mirror keep the monitor delivery behind the same counted fold', String(snapshot.chat).includes('[Monitor]') && String(snapshot.mirror).includes('[Monitor]') && /· \d+ lines? ›/.test(String(snapshot.chat)) && /· \d+ lines? ›/.test(String(snapshot.mirror)) && !String(snapshot.chat).includes('build reached the next step') && !String(snapshot.mirror).includes('build reached the next step'), 'UserTextMessage and MessageRow must fold a monitor delivery to a [Monitor] line with a line count in both chat and mirror')
   const expandedChat = await frame('chat-notices-open-80', h(UserTextMessage, { addMargin: false, verbose: true, param: text(monitor) }))
   const expandedMirror = await frame('mirror-notices-open-80', h(Box, { flexDirection: 'column' }, ...derived.collapsed.map((row, index) => h(MessageRow, {
     key: row.uuid, message: row,
@@ -174,7 +174,7 @@ try {
     screen: 'prompt', canAnimate: false, lastThinkingBlockId: null, latestBashOutputUUID: null,
     columns: 80, isLoading: false, lookups: derived.lookups,
   }))))
-  check('opening chat and mirror preserves the whole monitor delivery text', expandedChat.includes('build reached the next step') && expandedMirror.includes('build reached the next step'))
+  check('opening chat and mirror preserves the whole monitor delivery text', expandedChat.includes('build reached the next step') && expandedMirror.includes('build reached the next step'), 'UserTextMessage and MessageRow must show the whole monitor text when verbose is true')
 
   const baseline = argument('--compare')
   if (baseline) {

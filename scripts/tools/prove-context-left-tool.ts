@@ -22,9 +22,10 @@ const FOLD_CLAUSE = 'the fold runs by itself at that line and the turn goes on a
 const FOLD_NOTE = 'Your context is folded automatically when it nears its window and the turn goes on after the fold: a context near full is no reason to end your turn.'
 
 let failures = 0
+const WHERE_TO_CHANGE = 'to fix: the tool is src/tools/ContextLeftTool/ContextLeftTool.ts with its wording in src/tools/ContextLeftTool/prompt.ts, listed by getAllBaseTools and getTools in src/tools.ts; the numbers it reports come from contextFillView in src/services/context/contextFill.ts; its deferral comes from isDeferredTool in src/tools/ToolSearchTool/prompt.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${WHERE_TO_CHANGE}`}`)
 }
 const section = (title: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

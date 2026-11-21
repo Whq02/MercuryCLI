@@ -7,10 +7,11 @@ const home = pinScratchHome('declined-row-every-tool')
 
 let checks = 0
 let failures = 0
+const WHERE_TO_LOOK = 'to fix: the row is drawn by FallbackToolUseErrorMessage in src/components/FallbackToolUseErrorMessage.tsx (a tool may draw its own through renderToolUseErrorMessage); what counts as a refusal and its first sentence come from isDenialResultText and denialLineOf in src/utils/messages/rejectionText.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${ok ? '' : ` — ${WHERE_TO_LOOK}`}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

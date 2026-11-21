@@ -7,12 +7,13 @@ import { statSync } from 'node:fs'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
+const contractFixHint = 'fix the behaviour or constant in src/services/providers/gemini/antigravityClientContract.ts (the exported function or constant this check names), or this proof if the shipped contract moved on purpose'
 let failures = 0
 let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${contractFixHint}` : ''}`)
 }
 
 type Capture = { path: string; method: string; headers: Record<string, string> }

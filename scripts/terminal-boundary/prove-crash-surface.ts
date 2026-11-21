@@ -22,16 +22,17 @@ function ptyText(run: ArenaRun): string {
 const flat = (x: string): string => x.replace(/\s+/g, '')
 
 let failures = 0
+const CRASH_SURFACE_HINT = 'to fix: the app-root card is drawn by src/ink/components/ErrorOverview.tsx and the exit line by src/main/interactiveLaunch.ts; the per-message line and its report come from src/components/RowErrorBoundary.tsx; the retained report is written by persistCrashReport in src/utils/crashReport.ts; the injected faults are read in src/screens/Chat.tsx and src/components/PromptInput/Notifications.tsx; the proof runs dist, so rebuild it first'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${CRASH_SURFACE_HINT}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — crash-surface proofs exceeded 300s')
+  console.log('\n❌ TIMEOUT — crash-surface proofs exceeded 300s; look at the PTY drive log of the arena run (runArtifactArena in scripts/streaming/artifactArena.ts) for the leg that never finished')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

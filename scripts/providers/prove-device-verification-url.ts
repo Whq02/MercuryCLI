@@ -10,10 +10,11 @@ const providers = [
   [startNousDeviceAuth, 'https://portal.nousresearch.com/device'],
   [startMoonshotDeviceAuth, 'https://kimi.ai/device'],
 ] as const
+const verificationUrlWhere = 'the verification URL check inside the start function named here: startXaiDeviceAuth in src/services/providers/xai/xaiOauth.ts, startNousDeviceAuth in src/services/providers/nous/nousOauth.ts, startMoonshotDeviceAuth in src/services/providers/moonshot/moonshotAccounts.ts'
 for (const [start, valid] of providers) {
   const io = (uri: string, complete?: string) => ({ env: {}, fetchImpl: (async () => Response.json({ device_code: 'fixture-device', user_code: 'ABCD-1234', verification_uri: uri, ...(complete !== undefined ? { verification_uri_complete: complete } : {}), expires_in: 300, interval: 5 })) as typeof fetch })
-  await assert.rejects(start(io('/device')), (error: unknown) => error instanceof Error && !(error instanceof TypeError) && /invalid verification URL/.test(error.message))
-  await assert.rejects(start(io(valid, '/complete')), /invalid verification URL/)
-  assert.equal((await start(io(valid))).verificationUri, valid)
+  await assert.rejects(start(io('/device')), (error: unknown) => error instanceof Error && !(error instanceof TypeError) && /invalid verification URL/.test(error.message), `${start.name}: a relative verification_uri must throw an Error saying invalid verification URL (not a TypeError); fix ${verificationUrlWhere}`)
+  await assert.rejects(start(io(valid, '/complete')), /invalid verification URL/, `${start.name}: a relative verification_uri_complete must throw an Error saying invalid verification URL; fix ${verificationUrlWhere}`)
+  assert.equal((await start(io(valid))).verificationUri, valid, `${start.name}: an absolute verification_uri must come back unchanged as verificationUri; fix ${verificationUrlWhere}`)
 }
 console.log('P10 invalid relative device links receive a sign-in error, never a raw parser error or unusable link')

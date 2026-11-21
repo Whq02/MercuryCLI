@@ -20,7 +20,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — change the lease_take, lease_release or lease_list handler in src/services/mcp/mercuryServer.ts, or the lease store in src/services/vulcan/engine/leases.ts` : ''}`)
 }
 const server = await createMercuryServer()
 const client = new Client({ name: 'lease-proof', version: '0' })

@@ -60,8 +60,9 @@ let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${PLAN_PICKER_HINT}` : ''}`)
 }
+const PLAN_PICKER_HINT = 'to fix, change the list read and row order in moonshotCatalogueRows / refreshMoonshotCatalogue / qualifyMoonshotModel (src/services/providers/moonshot/moonshotCatalogue.ts), the picker section in getModelOptions / keyLaneGroupRows (src/services/model/modelOptions.ts), the default in computedDefault (src/services/model/computedDefault.ts), or the id resolution in resolveEngineDispatch (src/services/crew/engineDispatch.ts)'
 function section(title: string): void {
   console.log(`\n${title}`)
 }

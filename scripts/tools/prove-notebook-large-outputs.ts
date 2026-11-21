@@ -10,7 +10,8 @@ const { readNotebook } = await import(join(SRC, 'utils/notebook.ts'))
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const notebookHint = 'fix readNotebook in src/utils/notebook.ts: a cell whose outputs total over LARGE_OUTPUT_THRESHOLD (image bytes count) becomes the one Outputs are too large pointer, except when the cell is read by id'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${notebookHint}` : ''}`)
 }
 const scratch = mkdtempSync(join(tmpdir(), 'notebook-large-outputs-'))
 const stream = (text: string) => ({ output_type: 'stream', name: 'stdout', text })

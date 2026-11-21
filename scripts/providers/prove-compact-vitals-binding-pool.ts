@@ -14,10 +14,11 @@ process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:9'
 for (const name of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_MODEL', 'MERCURY_USAGE_SEED', 'MERCURY_MOCK_USAGE_PAYLOAD']) delete process.env[name]
 delete process.env.NODE_ENV
 
+const vitalsFixHint = 'fix glanceLabelsOf (the usage label) in src/services/cockpit/helmLanesModel/sections.ts, or fitRailName in src/components/HelmLanesRail.tsx for the width checks'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 400)}` : ''} — ${vitalsFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

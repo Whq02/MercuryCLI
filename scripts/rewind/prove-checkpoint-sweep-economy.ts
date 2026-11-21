@@ -16,7 +16,8 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const sweepHint = 'fix fileHistoryMakeSnapshot and fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts (the stat, read and copy counts per turn, and the source facts kept on each backup record)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${sweepHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

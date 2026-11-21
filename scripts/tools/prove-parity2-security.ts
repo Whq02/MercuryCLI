@@ -15,8 +15,9 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
+let fixHint = ''
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok || !fixHint ? '' : ` | change ${fixHint}`}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -24,6 +25,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, DeadlineExceededError, minutesKnobToMs, formatLimit } =
   await import('../../src/utils/deadline.ts')
 {
+  fixHint = 'armInactivityDeadline, withInactivityDeadline, minutesKnobToMs or formatLimit in src/utils/deadline.ts'
   let clock = 1_000
   const now = () => clock
   let expired: unknown = null
@@ -69,6 +71,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
+  fixHint = 'isRefocusPress in src/ink/components/App.tsx'
   const { isRefocusPress } = await import('../../src/ink/components/App.tsx')
   t('a press while the focus store reads blurred is focus-only', isRefocusPress({ focused: false, refocusedAt: -1, now: 10_000 }))
   t('a press 50ms after a focus-in is focus-only', isRefocusPress({ focused: true, refocusedAt: 9_950, now: 10_000 }))
@@ -78,6 +81,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
+  fixHint = 'cycleModeMayApprove in src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts'
   const { cycleModeMayApprove } = await import('../../src/components/permissions/FilePermissionDialog/useFilePermissionDialog.ts')
   t('no feedback field open ⇒ the chord may approve', cycleModeMayApprove({ yesInputMode: false, noInputMode: false }))
   t('reject feedback open ⇒ inert', !cycleModeMayApprove({ yesInputMode: false, noInputMode: true }))
@@ -85,6 +89,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
+  fixHint = 'consolidateLockOwnedBy in src/mneme/mnemeConsolidate.ts, artifactLockOwnedBy in src/services/artifacts/reviewStore.ts or refreshLockStampedBy in src/services/providers/openai/openaiAccounts.ts (the one named in the failed label)'
   const { consolidateLockOwnedBy } = await import('../../src/mneme/mnemeConsolidate.ts')
   const lock = join(SCRATCH, '.consolidate.lock')
   mkdirSync(lock)
@@ -114,6 +119,7 @@ const { armInactivityDeadline, withInactivityDeadline, isDeadlineExceeded, Deadl
 }
 
 {
+  fixHint = 'holdWorkerAsk, answerPermissionAsk, expiredAskDenialMessage or mintGitInitAsk in src/daemon/permissionAsks.ts, or askLimitMs in src/utils/permissions/askClock.ts'
   const { holdWorkerAsk, answerPermissionAsk, listPendingPermissionAsks, expiredAskDenialMessage } =
     await import('../../src/daemon/permissionAsks.ts')
   const { askLimitMs, CREWMATE_ASK_LIMIT_MINUTES } = await import('../../src/utils/permissions/askClock.ts')
