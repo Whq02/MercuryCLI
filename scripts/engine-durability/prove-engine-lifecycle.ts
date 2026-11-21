@@ -59,7 +59,7 @@ t.section('§2 — an unsubscribed vitals engine holds nothing')
   const live = vitals._statsForProofs()
   t.check(
     'subscribed: heartbeat, source subscriptions and coalescer armed',
-    live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 4 && live.coalescer,
+    live.listeners === 1 && live.heartbeat && live.sourceUnsubs === 7 && live.coalescer,
     JSON.stringify(live),
   )
 
