@@ -3,9 +3,9 @@ import { homedir } from 'node:os'
 import { posix } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type ReadCommand, type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, wordKnown, wordsAsWritten } from '../decision/commandAnalysis.js'
+import { type ReadCommand, type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, oldFolderReturn, printedBy, wordKnown, wordsAsWritten } from '../decision/commandAnalysis.js'
 import { placedUnder } from '../runtimeProtection.js'
-import { expandPath } from '../../path.js'
+import { expandPath, hasNulByte } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
 import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globNotCompiled, mercuryHomes, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
@@ -268,4 +268,32 @@ export function placesCertain(read: ShellRead, text: string): boolean {
     }
   }
   return true
+}
+
+export function oldFolderPlaces(
+  read: ShellRead,
+  text: string,
+  cwd: string | null,
+  home: () => string | undefined,
+  extra?: () => readonly string[],
+): string[] {
+  const ret = oldFolderReturn(read.commands, text)
+  if (ret === undefined) return []
+  const out: string[] = []
+  const add = (folder: string | undefined | null): void => {
+    if (folder === undefined || folder === null || folder === '' || out.includes(folder)) return
+    out.push(folder)
+  }
+  add(cwd)
+  if (ret.written !== undefined) {
+    const resolvedHome = home()
+    add(resolvedHome)
+    if (extra !== undefined) for (const folder of extra()) add(folder)
+    for (const word of ret.written) {
+      if (word === '' || word.includes(UNREAD_PART) || hasNulByte(word)) continue
+      add(expandPath(spelling(word), cwd ?? resolvedHome ?? '/'))
+    }
+  }
+  for (const one of read.commands) add(one.cwd)
+  return out.slice(0, 8)
 }

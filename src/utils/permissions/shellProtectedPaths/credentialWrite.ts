@@ -4,8 +4,8 @@ import { credentialStorePath } from './paths.js'
 import { OTHER_WRITERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, spelledTargetWord, unreadWords, verb, writeOperands, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { expandShellConstants, walkShellCommands } from './walk.js'
-import { GLOB_PART, readForFloors } from './homes.js'
-import { foldersAfter } from './folders.js'
+import { GLOB_PART, floorsWorld, mercuryHomes, readForFloors } from './homes.js'
+import { foldersAfter, oldFolderPlaces } from './folders.js'
 import { POWERSHELL_LISTERS, powershellListing, sharesEarlierStage } from './listings.js'
 
 const NET_WRITER = /\[(?:System\.)?IO\.(File|Directory|StreamWriter|FileStream)\]::(\w+)\s*\(/gi
@@ -205,6 +205,12 @@ export async function readCredentialWrite(command: string, powershell: boolean, 
   const words = unreadWords(read, command, false)
   if (words.some(word => WRITERS.has(verb(word)) || OTHER_WRITERS.has(verb(word))) || (words.length > 0 && (WRITE_REDIRECT.test(command) || netWrites(command).length > 0))) {
     for (const word of words) if (pathLike(word) && credentialStorePath(word, cwd) !== null) return `${word} (${UNREAD_ADVICE})`
+  }
+  for (const place of oldFolderPlaces(read, command, cwd, () => floorsWorld(cwd).home, mercuryHomes)) {
+    const again = await readForFloors(command, false, cwd, place)
+    if (again === null) continue
+    const found = credentialWriteFromRead(again, cwd)
+    if (found !== null) return again.exact.kind === 'parse-unavailable' ? `${found} (${UNREAD_ADVICE})` : found
   }
   return null
 }
