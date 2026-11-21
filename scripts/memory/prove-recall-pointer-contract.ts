@@ -24,14 +24,14 @@ try {
   if (stored.status !== 'stored') throw new Error('not stored')
   const id = stored.id
   const pointer = P.memoryPointerForId(id, { dir, query: 'quartz checklist' })!
-  assert.ok(pointer)
+  assert.ok(pointer, `memoryPointerForId(${id}) in src/mneme/mnemePointers.ts must resolve stored pending record`)
   assert.equal(pointer.id, id)
   assert.equal(pointer.source?.kind, 'pending')
   assert.equal(pointer.freshness?.status, 'unconsolidated')
   assert.deepEqual(pointer, P.searchPointers('quartz checklist', { dir, sessions: [] }).pointers.find(p => p.id === id))
-  assert.ok(!JSON.stringify(pointer).includes(text))
+  assert.ok(!JSON.stringify(pointer).includes(text), 'memoryPointerForId in src/mneme/mnemePointers.ts must not inline full record text in pointer payload')
   const opened = V.readMemoryRecord(id, dir)
-  assert.ok(opened.content?.startsWith(text + ' [unconsolidated,'))
+  assert.ok(opened.content?.startsWith(text + ' [unconsolidated,'), 'readMemoryRecord in src/mneme/memoryVerbs.ts must return stored text with [unconsolidated, tag')
   const saved = JSON.parse(JSON.stringify(pointer))
   const child = spawnSync(process.execPath, ['-e', `globalThis.MACRO={VERSION:'1.0.0'}; const P=await import(${JSON.stringify(join(import.meta.dir, '../../src/mneme/mnemePointers.ts'))}); const V=await import(${JSON.stringify(join(import.meta.dir, '../../src/mneme/memoryVerbs.ts'))}); console.log(JSON.stringify({pointer:P.memoryPointerForId(${JSON.stringify(id)},{dir:${JSON.stringify(dir)},query:'quartz checklist'}),content:V.readMemoryRecord(${JSON.stringify(id)},${JSON.stringify(dir)}).content}));`], { encoding: 'utf8', env: process.env })
   assert.equal(child.status, 0, child.stderr)
@@ -40,7 +40,7 @@ try {
   assert.equal(witness(restarted.content), witness(opened.content!))
   assert.equal(maybeConsolidate({ dir, force: true }).consolidated, true)
   const seqId = V.consolidatedIdOf(id, dir)!
-  assert.ok(seqId.startsWith('seq:'))
+  assert.ok(seqId.startsWith('seq:'), `consolidatedIdOf(${id}) in src/mneme/memoryVerbs.ts must resolve to a seq: id (got ${seqId})`)
   assert.equal(P.memoryPointerForId(id, { dir }), null)
   const fact = P.memoryPointerForId(seqId, { dir, query: 'quartz checklist' })!
   assert.equal(fact.source?.kind, 'entry')
