@@ -279,12 +279,7 @@ section('§1 the stored profile beside the token names the account; the config r
     const row = rosterRow(frames.logins)
     check(`${stamp} logins: the Claude row carries the credential's own email`, row.includes(PROFILE_EMAIL), row)
     check(`${stamp} logins: the config record's email is nowhere on the roster`, !frames.logins.includes(RECORD_EMAIL), lineWith(frames.logins, RECORD_EMAIL))
-    if (size.columns >= 100) {
-      check(`${stamp} face: the strip's account chip reads the credential's own email`, frames.face.includes(`Acct ${PROFILE_EMAIL}`), lineWith(frames.face, 'Acct') ?? 'no Acct chip')
-    } else {
-      check(`${stamp} face: the compact face paints no account chip and never the record`, !frames.face.includes('Acct') && !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, 'Acct'))
-    }
-    check(`${stamp} face: the config record's email is nowhere on the face`, !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, RECORD_EMAIL))
+    check(`${stamp} face: the approved boot face paints no account chip and never the config record`, !frames.face.includes('Acct') && !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, 'Acct') ?? lineWith(frames.face, RECORD_EMAIL))
     check(`${stamp} usage popup: the Anthropic subscription slot says Signed in as <email>`, frames.popup.includes(`Signed in as ${PROFILE_EMAIL}`), lineWith(frames.popup, 'Subscription') ?? frames.popup.split('\n').slice(0, 6).join(' | '))
     check(`${stamp} usage popup: the identity line sits under the Anthropic usage title`, lineAfter(frames.popup, 'Anthropic usage').includes(`Signed in as ${PROFILE_EMAIL}`), lineAfter(frames.popup, 'Anthropic usage'))
     check(`${stamp} usage popup: the config record's email is nowhere`, !frames.popup.includes(RECORD_EMAIL))
@@ -310,10 +305,6 @@ section('§2 a long email clips with each surface\'s own tail marker, never past
     const frames = await paintSurfaces(size, 'long')
     const row = rosterRow(frames.logins)
     check(`${stamp} logins: the row carries the clipped email with the ellipsis, never the whole address`, /a-very-long-fixtur[\w-]*…/.test(row) && !row.includes(LONG_EMAIL), row)
-    if (size.columns >= 100) {
-      const acct = lineWith(frames.face, 'Acct') ?? ''
-      check(`${stamp} face: the strip clips the email at 26 cells with an ellipsis`, acct.includes(`Acct ${LONG_EMAIL.slice(0, 25)}…`), acct)
-    }
     const popupLine = lineWith(frames.popup, 'Signed in as') ?? ''
     check(`${stamp} usage popup: the identity line is present and never wider than its column`, popupLine.includes('Signed in as ') && (popupLine.includes(LONG_EMAIL) || popupLine.includes('…')), popupLine)
     if (size.columns >= 150) {
@@ -344,7 +335,7 @@ section('§4 a credential with no stored email paints today\'s words and never t
   const size = SIZES[0]
   const frames = await paintSurfaces(size, 'no-email')
   check('178x51 logins: the config record\'s email is nowhere', !frames.logins.includes(RECORD_EMAIL), lineWith(frames.logins, RECORD_EMAIL))
-  check('178x51 face: the chip paints the plan label, never the record', frames.face.includes('Acct Claude subscription (max)') && !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, 'Acct'))
+  check('178x51 face: the approved boot face paints no account chip and never the record', !frames.face.includes('Acct') && !frames.face.includes(RECORD_EMAIL), lineWith(frames.face, 'Acct') ?? lineWith(frames.face, RECORD_EMAIL))
   check('178x51 usage popup: no identity line, never the record', !frames.popup.includes('Signed in as') && !frames.popup.includes(RECORD_EMAIL), lineWith(frames.popup, 'Signed in as'))
   check('178x51 usage card: no identity line, never the record', !frames.card.includes('@') && !frames.card.includes(RECORD_EMAIL), lineAfter(frames.card, 'Anthropic usage'))
 }
@@ -356,7 +347,7 @@ section('§5 a key-based sign-in is unchanged')
   const frames = await paintSurfaces(size, 'key')
   const keyRow = rosterRow(frames.logins)
   check('178x51 logins: the Anthropic row names the env key, no email', keyRow.includes('ANTHROPIC_API_KEY') && !frames.logins.includes('@'), keyRow)
-  check('178x51 face: the chip names the key', frames.face.includes('Acct Anthropic API key') && !frames.face.includes('@'), lineWith(frames.face, 'Acct'))
+  check('178x51 face: the approved boot face paints no account chip and no email', !frames.face.includes('Acct') && !frames.face.includes('@'), lineWith(frames.face, 'Acct') ?? lineWith(frames.face, '@'))
   check('178x51 usage popup: the key slot, no identity line', frames.popup.includes('Anthropic API key (ANTHROPIC_API_KEY)') && !frames.popup.includes('Signed in as'), lineWith(frames.popup, 'API key'))
   check('178x51 usage card: API usage, no email', frames.card.includes('API usage') && !frames.card.includes('@'), lineWith(frames.card, 'usage'))
 }

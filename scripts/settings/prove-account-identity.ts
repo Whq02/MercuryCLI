@@ -426,14 +426,13 @@ for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) painted.set(leg, await
   check('absent: /usage names the Claude sign-in under its title (the fixture is live)', lineUnder(absent.popup, 'Anthropic usage') === `Signed in as ${ANTHROPIC_EMAIL}`, lineUnder(absent.popup, 'Anthropic usage'))
   check('absent: /usage shows the Hugging Face username and a key tail somewhere (the check below has teeth)', absent.popup.join('\n').includes(HF_USERNAME) && TAILS.some(tail => absent.popup.join('\n').includes(tail)))
   check('absent: the rail names the Claude email', railCells(absent.rails.get('anthropic')!).includes(ANTHROPIC_EMAIL), JSON.stringify(railCells(absent.rails.get('anthropic')!).slice(0, 4)))
-  check('absent: the boot chip names the Claude email', lineWith(absent.face, 'Acct').includes(`Acct ${ANTHROPIC_EMAIL}`), lineWith(absent.face, 'Acct'))
   const differentFrame = shown.popup.findIndex((frame, index) => frame !== absent.popup[index])
   const shownLines = shown.popup[differentFrame]?.split('\n') ?? []
   const absentLines = absent.popup[differentFrame]?.split('\n') ?? []
   const differentLine = shownLines.findIndex((line, index) => line !== absentLines[index])
   check('true: every /usage frame is byte-identical to absent', JSON.stringify(shown.popup) === JSON.stringify(absent.popup), `${shown.popup.length} vs ${absent.popup.length} frames; first difference ${differentFrame}:${differentLine} — ${JSON.stringify({ absent: absentLines[differentLine], shown: shownLines[differentLine] })}`)
   check('true: every rail frame is byte-identical to absent', RAIL_FAMILIES.every(family => shown.rails.get(family.id) === absent.rails.get(family.id)))
-  check('true: the boot chip line is byte-identical to absent', lineWith(shown.face, 'Acct') === lineWith(absent.face, 'Acct'))
+  check('true: the boot face is byte-identical to absent', shown.face === absent.face)
   check('true: the Logins frame is byte-identical to absent', shown.logins === absent.logins)
   check('hidden: /usage painted every family block', POPUP_TITLES.every(title => hidden.popup.some(frame => frame.includes(title))), POPUP_TITLES.filter(title => !hidden.popup.some(frame => frame.includes(title))).join(', '))
   check('hidden: no /usage frame carries an address, a username or a key tail', leaks(hidden.popup.join('\n')).length === 0, JSON.stringify(leaks(hidden.popup.join('\n'))))
@@ -444,7 +443,7 @@ for (const leg of ['absent', 'shown', 'hidden'] as Leg[]) painted.set(leg, await
     check(`hidden: the rail on ${family.id} carries no address, username or tail`, leaks(frame).length === 0, JSON.stringify(leaks(frame)))
   }
   check('hidden: the rail names the Claude account by its word', railCells(hidden.rails.get('anthropic')!).includes('Claude account'), JSON.stringify(railCells(hidden.rails.get('anthropic')!).slice(0, 4)))
-  check('hidden: the boot chip names the Claude account by its word', lineWith(hidden.face, 'Acct').includes('Acct Claude account') && leaks(lineWith(hidden.face, 'Acct')).length === 0, lineWith(hidden.face, 'Acct'))
+  check('hidden: the boot face carries no address, username or key tail', leaks(hidden.face).length === 0, JSON.stringify(leaks(hidden.face)))
   check('hidden: the Logins screen still names the Claude account (the owner\'s exception)', lineWith(hidden.logins, ANTHROPIC_EMAIL) !== '', 'no Claude email on the Logins roster')
   check('hidden: the Logins frame is byte-identical to absent', hidden.logins === absent.logins)
 }
