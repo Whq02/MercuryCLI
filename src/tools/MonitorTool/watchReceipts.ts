@@ -7,7 +7,7 @@ import { wrapInSystemReminder } from '../../utils/messages/text.js'
 import { createSecretRedactor } from '../../utils/redactSecrets.js'
 import { SHELL_TOOL_NAMES } from '../../utils/shell/shellToolUtils.js'
 import { TASK_STOP_TOOL_NAME } from '../../constants/tools/taskStop.js'
-import { MONITOR_TOOL_NAME } from './constants.js'
+import { MONITOR_TOOL_NAME } from '../../constants/tools/monitor.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export const WATCH_STARTED_LINE = 'Monitor started (task '
