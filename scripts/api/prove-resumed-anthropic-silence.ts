@@ -64,13 +64,14 @@ try {
   assert.match(JSON.stringify(errors[0].message.content), /one non-streamed answer got nothing/)
   assert.ok(notices.some(m => /not one byte after the headers/.test(m.error?.message ?? '')), 'first-byte silence is surfaced before fallback')
   assert.deepEqual(requests.map(r => Boolean(r.stream)), [true, true, false])
-  assert.ok(requests.every(r => r.model === 'claude-opus-5-5' && r.output_config?.effort === 'max'))
+  assert.ok(requests.every(r => r.model === 'claude-opus-5-5' && r.output_config?.effort === 'max'), `Anthropic retry/fallback changed model or effort in src/services/providers/anthropic/: ${JSON.stringify(requests.map(r => ({ model: r.model, effort: r.output_config?.effort })))}`)
   assert.ok(requests.every(r => r.thinking !== undefined), 'thinking stays enabled on every attempt')
   assert.equal(requests[0]?.max_tokens, requests[1]?.max_tokens)
   for (const request of requests) {
     assert.equal(request.messages.map((row: any) => row.role).join(','), 'user,assistant,user')
-    assert.ok(JSON.stringify(request.messages.at(-1)).includes('Resume the stopped edit.'))
-    assert.ok(JSON.stringify(request.messages.at(-1)).includes('do as the lead said'))
+    const lastMessageText = JSON.stringify(request.messages.at(-1))
+    assert.ok(lastMessageText.includes('Resume the stopped edit.'), `merged trailing user message dropped task-notification in src/services/providers/anthropic/: ${lastMessageText.slice(0, 200)}`)
+    assert.ok(lastMessageText.includes('do as the lead said'), `merged trailing user message dropped follow-up user text in src/services/providers/anthropic/: ${lastMessageText.slice(0, 200)}`)
   }
   console.log('PASS stopped/resumed Anthropic history alternates and zero-byte streaming plus fallback settles with an error')
 } finally {
