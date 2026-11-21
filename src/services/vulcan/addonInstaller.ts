@@ -3,7 +3,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, u
 import { renameWithWin32RetrySync } from '../../substrate/durablePublish.js'
 import * as path from 'node:path'
 import { sleep } from '../../utils/sleep.js'
-import { vulcanEnabled, vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanEnabled, vulcanLiteMode } from './vulcanGates.js'
 import { listVulcanInstances, selectVulcanInstance } from './instances.js'
 import { VULCAN_ADDON_DIGEST, VULCAN_ADDON_FILES } from './addonFiles.generated.js'
 import { classCacheReport } from './classCache.js'

@@ -165,7 +165,7 @@ section('main and sub-agent instructions match the available interaction model')
   const { getSystemPrompt, enhanceSystemPromptWithEnvDetails } = await import('../../src/constants/prompts.ts')
   const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
   const { markSessionNonInteractive, resetRuntimePostureForTest: resetPosture } = await import('../../src/utils/cockpit/runtimePosture.ts')
-  const { resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
+  const { resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
   const resetRuntimePostureForTest = (): void => {
     resetPosture()
     resetHarnessMapForTest()

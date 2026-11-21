@@ -223,7 +223,7 @@ async function* queryModel(
   void
 > {
 
-  const { captureSignInRequest, observeSignInResponse } = require('../../../utils/accounts/signInRefusal.js') as typeof import('../../../utils/accounts/signInRefusal.js')
+  const { captureSignInRequest, observeSignInResponse } = require('../signInRefusal.js') as typeof import('../signInRefusal.js')
   const resolvedModel = options.model
   const modelRefusalRequest: { current?: ModelRefusalRequest } = {}
   const effortPinned = options.effortPinned === true

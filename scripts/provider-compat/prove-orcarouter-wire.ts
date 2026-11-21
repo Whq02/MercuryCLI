@@ -120,7 +120,7 @@ try {
   check('billing cents and total-credit units yield remaining credit', usageForProvider('orcarouter').balance?.display === 'USD 7.25 remaining credit')
   billingUnlimited = true; await refreshProviderUsage('orcarouter', { force: true })
   check('an unlimited key is not a fabricated wallet', usageForProvider('orcarouter').balance === undefined && usageForProvider('orcarouter').credits?.state === 'unreported')
-  const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
   for (const testMode of ['budget', 'key-quota', 'cycle', 'byok']) {
     mode = testMode; const before = captures.length; const result = await run()
     check(`${testMode} is terminal policy, not an expired credential`, captures.length === before + 1 && result.some(row => row.error === 'invalid_request') && readSignInRefusal('orcarouter') === undefined)

@@ -749,6 +749,9 @@ async function deliverDispatch(deps: ConcourseDispatchDeps, dispatches: Record<s
       const current = records[rec.clientMessageId]
       if (current?.state !== 'starting' || current.workerId !== runnerId) return pending
       return settle(records, current, accepted === true)
+    }).catch((error: unknown) => {
+      logForDebugging(`[concourse/dispatch] could not settle ${rec.clientMessageId}: ${errorMessage(error)}`)
+      return pending
     }) }
   }
 }

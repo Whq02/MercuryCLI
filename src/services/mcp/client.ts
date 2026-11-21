@@ -923,7 +923,7 @@ const MCP_RESOURCE_TOOL_NAMES = new Set([ListMcpResourcesTool.name, ReadMcpResou
 
 export function supplementaryToolsForMcpClient(client: MCPServerConnection): Tool[] {
   if (client.type === 'connected') {
-    return client.capabilities.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
+    return client.capabilities?.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
   }
   if (client.type === 'needs-auth') {
     return [createMcpAuthTool(client.name, client.config)]
@@ -935,7 +935,7 @@ export function pruneStaleMcpResourceTools(
   clients: readonly MCPServerConnection[],
   tools: Tool[],
 ): Tool[] {
-  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities.resources))) {
+  if (clients.some(client => client.type === 'connected' && Boolean(client.capabilities?.resources))) {
     return tools
   }
   return tools.filter(tool => !MCP_RESOURCE_TOOL_NAMES.has(tool.name))
@@ -951,7 +951,7 @@ export async function reconnectMcpServerImpl(
     await clearServerCache(name, config)
     const connection = await connectToServer(name, config)
     if (connection.type !== 'connected') return { client: connection, tools: supplementaryToolsForMcpClient(connection), commands: [] }
-    return discoverFor(connection, Boolean(connection.capabilities.resources))
+    return discoverFor(connection, Boolean(connection.capabilities?.resources))
   } catch (err) {
     logMCPError(name, err)
     return { client: { name, type: 'failed', config, error: errorMessage(err) }, tools: [], commands: [] }

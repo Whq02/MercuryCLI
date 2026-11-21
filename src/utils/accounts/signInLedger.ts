@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { durableAtomicPublishSync } from '../../substrate/durablePublish.js'
 import { logForDebugging } from '../debug.js'
 import { errorMessage } from '../errors.js'
+import { getAuthConfigHomeDir } from '../envUtils.js'
 import { passedOver } from '../passedOver.js'
 import { startMicrotask } from '../timers.js'
 
@@ -113,6 +115,20 @@ export function publishSignInRecord(path: string, text: string): void {
   durableAtomicPublishSync(path, text, { mode: 0o600 })
 }
 
+export function signInRefusalPath(family: string, home: string): string | undefined {
+  return /^(?:[a-z][a-z0-9-]{0,31}|compat-[a-z0-9-]{1,32})$/.test(family) ? join(home, '.sign-in-refusals', `${family}.json`) : undefined
+}
+
+function clearSignInRefusal(family: string, home = getAuthConfigHomeDir()): void {
+  try {
+    const path = signInRefusalPath(family, home)
+    if (!path) return
+    publishSignInRecord(path, JSON.stringify({ version: 1, generation: randomUUID() }) + '\n')
+  } catch (error) {
+    logForDebugging(`[accounts] the refusal record of ${family} could not be cleared after its sign-in, so it still reads refused until a later answer succeeds: ${errorMessage(error)}`, { level: 'warn' })
+  }
+}
+
 export function signInRecordRestorer(family: string, io?: SignInLedgerIo): () => void {
   const name = normaliseFamily(family)
   const previous = name === undefined ? undefined : readFile(io)?.signIns?.[name]
@@ -145,7 +161,6 @@ export function recordSignIn(family: string, kind: SignInKind, io?: SignInLedger
     const next: SignInLedgerFile = { ...(existing ?? {}), version: SIGN_IN_LEDGER_VERSION, signIns }
     durableAtomicPublishSync(ledgerPath(io), JSON.stringify(next, null, 2) + '\n', { mode: 0o600 })
     if (kind !== 'operator-switch') {
-      const { clearSignInRefusal } = require('./signInRefusal.js') as typeof import('./signInRefusal.js')
       clearSignInRefusal(name, io?.home)
     }
     bumpEpoch()

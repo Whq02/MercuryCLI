@@ -224,7 +224,7 @@ try {
     const { getSystemPrompt } = await import('../../src/constants/prompts.ts')
     const { clearSystemPromptSections } = await import('../../src/constants/systemPromptSections.ts')
     const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
-    const { resetHarnessMapForTest } = await import('../../src/utils/cockpit/harnessMap.ts')
+    const { resetHarnessMapForTest } = await import('../../src/services/cockpit/harnessMap.ts')
     delete process.env.MERCURY_BARE
     delete process.env.MERCURY_PROMPT_LAYERS
     delete process.env.MERCURY_PROMPT_REPLACE_FILE

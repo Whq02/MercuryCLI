@@ -5,7 +5,7 @@ import {
 import { noteWireEffortAccepted, recordLiveQualification } from '../qualificationStore.js'
 import { clearOpenaiUsageLimit } from '../openaiLimitState.js'
 import { recordLaneTurnSettled } from '../../laneBillingState.js'
-import { captureSignInRequest, observeSignInResponse } from '../../../../utils/accounts/signInRefusal.js'
+import { captureSignInRequest, observeSignInResponse } from '../../signInRefusal.js'
 import { priorConversation4xx } from './resumeTrim.js'
 import type { OpenaiTurn } from './turnState.js'
 import { passedOver } from '../../../../utils/passedOver.js'

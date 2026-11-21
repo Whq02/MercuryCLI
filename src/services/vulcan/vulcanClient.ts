@@ -2,7 +2,7 @@
 import * as net from 'node:net'
 import * as path from 'node:path'
 import { findGodotProjectRoot } from '../lsp/godotLane.js'
-import { vulcanEnabled } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanEnabled } from './vulcanGates.js'
 import {
   formatUnreadableVulcanInstance,
   parseVulcanInstance,

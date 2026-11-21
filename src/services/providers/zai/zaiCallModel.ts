@@ -45,7 +45,7 @@ import {
 } from '../../../utils/messages.js'
 import { resolveEffortTruth, resolveWireRequestedEffort } from '../../../utils/effort.js'
 import { recordLaneBillingRefusal, recordLaneTurnSettled } from '../laneBillingState.js'
-import { captureSignInRequest, observeSignInResponse } from '../../../utils/accounts/signInRefusal.js'
+import { captureSignInRequest, observeSignInResponse } from '../signInRefusal.js'
 import { normalizeModelStringForAPI } from '../../../utils/model/model.js'
 import { addToTotalSessionCost } from '../../../cost-tracker.js'
 import { calculateUSDCost } from '../../usage/modelCost.js'
