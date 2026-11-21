@@ -1631,6 +1631,8 @@ src/services/attention/viewModel.ts	resetAttentionViewForTesting	reset-export
 src/services/attention/viewModel.ts	storeUnsub	process	module	foreground TUI upstream attention-store unsubscribe handle
 src/services/attention/viewModel.ts	timer	process	module	foreground TUI burst-coalescing timeout handle, stopped on teardown
 src/services/attention/viewModel.ts	version	process	module	foreground TUI monotonic attention view version counter
+src/services/auth/oauthLifecycle.ts	clearOAuthTokenCache	reset-export
+src/services/auth/oauthLifecycle.ts	lastCredentialsMtimeMs	owner	module	Session state retained in this module
 src/services/backgroundHousekeeping.ts	cycle	process	module	process-wide background disk cleanup cycle progress
 src/services/backgroundHousekeeping.ts	seams	test	module	test-only clock/scheduler seam override via _setHousekeepingSeamsForTesting (default Date.now/startTimeout)
 src/services/blender/bridgeClient.ts	resetBlenderBridgeClientForTest	reset-export
@@ -1730,6 +1732,9 @@ src/services/cockpit/daemonRosterSnapshot.ts	crewVerdict	process	module	30s TTL 
 src/services/cockpit/daemonRows.ts	OUTCOME_ORDER	process	module	Load-time list with no local writer
 src/services/cockpit/daemonSnapshot.ts	pingInFlight	process	module	in-flight dedup key for daemon control-socket ping
 src/services/cockpit/daemonSnapshot.ts	pingVerdict	process	module	15s TTL cache of daemon control-socket ping keyed by pid:startedAt
+src/services/cockpit/harnessMap.ts	announcedLines	owner	module	session; module; initial announced harness map lines baseline used by getHarnessMapDelta; missing owner store/end; shared/overwritten across sessions in one process
+src/services/cockpit/harnessMap.ts	memo	owner	module	session; module; cached '# Mercury harness map' system prompt section depending on session interactivity/sessionKind/canAnswerAsks; missing owner store/end; latches first session's value across sessions in one process
+src/services/cockpit/harnessMap.ts	resetHarnessMapForTest	reset-export
 src/services/cockpit/mcpGauge.ts	latest	process	module	foreground TUI snapshot of MCP server connections
 src/services/cockpit/mcpGauge.ts	listeners	process	module	foreground TUI subscriber Set for MCP gauge
 src/services/cockpit/mcpGauge.ts	resetMcpGaugeForTests	reset-export
@@ -2905,7 +2910,6 @@ src/services/providers/providerKeyCommand.ts	OUTSIDE_CHECKOUT_SOURCES	process	mo
 src/services/providers/providerKeyCommand.ts	cache	process	module	Process provider-command cache
 src/services/providers/providerKeyCommand.ts	seenEpoch	process	module	last observed signInLedgerEpoch for invalidating providerKeyCommand cache
 src/services/providers/providerSecrets.ts	KEY_FIELD_FAMILY	process	module	Load-time table with no local writer
-src/services/providers/providerSecrets.ts	clearEveryStoredCompatKey	reset-export
 src/services/providers/providerSecrets.ts	credentialAsideWords	process	module	one-shot diagnostic map keyed by credential file path for damaged files kept aside
 src/services/providers/providerUsage.ts	ALL_FAMILIES	process	module	Load-time list with no local writer
 src/services/providers/providerUsage.ts	POOL_LABELS	process	module	Load-time table with no local writer
@@ -3150,6 +3154,8 @@ src/services/search/searxngInstances.ts	SEARXNG_INSTANCES	process	module	Load-ti
 src/services/search/searxngInstances.ts	SEARXNG_RATE_POLICY	process	module	Load-time table with no local writer
 src/services/search/tavily.ts	TAVILY_PACING	process	module	Load-time table with no local writer
 src/services/sessionStart.ts	firstPrompt	owner	module	session level; module let; cleared on takeFirstPrompt, missing owner key/disposal — written by runSessionStartHooks
+src/services/settings/faultNotices.ts	resetToldSettingsFaults	reset-export
+src/services/settings/faultNotices.ts	told	owner	module	Session state retained in this module
 src/services/structure/astPatterns/languages.ts	AST_BOUNDS	process	module	Load-time table with no local writer
 src/services/structure/astPatterns/languages.ts	LANGUAGE_ALIASES	process	module	Load-time table with no local writer
 src/services/structure/astPatterns/languages.ts	LANGUAGE_PATTERN_EXAMPLES	process	module	Load-time table with no local writer
@@ -3359,6 +3365,7 @@ src/services/workbench/projection.ts	listeners	process	module	single interactive
 src/services/workbench/projection.ts	oneShotVersion	process	module	monotonic version counter for one-shot workbench snapshot queries
 src/services/workbench/projection.ts	snapshot	process	module	single interactive terminal workbench projection snapshot
 src/services/workbench/selectors.ts	EXECUTION_THREAD_KINDS	process	module	Load-time lookup with no local writer
+src/services/worktree.ts	refusalCountsByDirectory	owner	module	Session state retained in this module
 src/skills/bundled/code-review.ts	SKILL_BODY	process	module	Load-time definition shared by all callers
 src/skills/bundled/code-review.ts	frontmatter	process	module	Load-time definition shared by all callers
 src/skills/bundled/code-reviewContent.ts	SKILL_FILES	process	module	Load-time table with no local writer
@@ -4087,6 +4094,7 @@ src/utils/Shell.ts	sessionCwdSeen	owner	module	session; last observed cwdState u
 src/utils/Shell.ts	shellCwd	owner	module	Main session shell cursor; agent calls use their directory context
 src/utils/accounts/accountIdentity.ts	cache	process	module	5-minute TTL cache of live OAuth profile identity keyed by auth dir and signInLedgerEpoch (forgetScopeIdentity / _resetIdentityCacheForTesting)
 src/utils/accounts/accountIdentity.ts	clearScopeIdentitySnapshot	reset-export
+src/utils/accounts/providerSecrets.ts	clearEveryStoredCompatKey	reset-export
 src/utils/accounts/scopeScan.ts	FOREIGN_HARNESS_CONFIG_HOMES	process	module	Load-time lookup with no local writer
 src/utils/accounts/scopeScan.ts	FOREIGN_HARNESS_HOMES	process	module	Load-time lookup with no local writer
 src/utils/accounts/signInLedger.ts	KINDS	process	module	Load-time lookup with no local writer
@@ -4134,13 +4142,14 @@ src/utils/attachments/types.ts	HOOK_ROW_OUTCOMES	process	module	Load-time list w
 src/utils/attachments/types.ts	TASK_REMINDER_CONFIG	process	module	Load-time table with no local writer
 src/utils/auth.ts	SUBSCRIPTION_NAMES	process	module	Load-time table with no local writer
 src/utils/auth.ts	clearApiKeyHelperCache	reset-export
-src/utils/auth.ts	clearOAuthTokenCache	reset-export
+src/utils/auth.ts	clearAuthCredentialMemos	reset-export
+src/utils/auth.ts	clearOAuthTokenMemos	reset-export
+src/utils/auth.ts	clearUnsavedRefresh	reset-export
 src/utils/auth.ts	getApiKeyFromConfigOrMacOSKeychain	owner	module	Session state retained in this module
 src/utils/auth.ts	getClaudeAIOAuthTokens	owner	module	Session state retained in this module
 src/utils/auth.ts	helperCache	process	module	single-account apiKeyHelper execution cache (ttl, epoch, in-flight dedupe, failure record), cleared by clearApiKeyHelperCache
 src/utils/auth.ts	in401	process	module	in-flight 401 refresh dedupe map keyed by failedAccessToken and deleted in finally
 src/utils/auth.ts	knownDeadRefreshTokens	process	module	process-wide set of refresh token strings already rejected as dead (has __resetKnownDeadRefreshTokensForTest)
-src/utils/auth.ts	lastCredentialsMtimeMs	owner	module	Session state retained in this module
 src/utils/auth.ts	managedKeyMemoStamp	owner	module	Session state retained in this module
 src/utils/auth.ts	refreshInFlight	process	module	single-account in-flight OAuth token refresh dedupe promise cleared in finally
 src/utils/auth.ts	scopedAccountIdentityCache	process	module	mtime+size validated cache of oauthAccount identity snapshots keyed by auth dir
@@ -4271,9 +4280,6 @@ src/utils/cockpit/deviceHeadroom.ts	cached	process	module	15s TTL host available
 src/utils/cockpit/filesMenu.ts	listeners	process	module	single-terminal UI subscriber set for files menu changes
 src/utils/cockpit/filesMenu.ts	openState	process	module	single-terminal files menu open flag
 src/utils/cockpit/filesMenu.ts	version	process	module	single-terminal files menu version counter
-src/utils/cockpit/harnessMap.ts	announcedLines	owner	module	session; module; initial announced harness map lines baseline used by getHarnessMapDelta; missing owner store/end; shared/overwritten across sessions in one process
-src/utils/cockpit/harnessMap.ts	memo	owner	module	session; module; cached '# Mercury harness map' system prompt section depending on session interactivity/sessionKind/canAnswerAsks; missing owner store/end; latches first session's value across sessions in one process
-src/utils/cockpit/harnessMap.ts	resetHarnessMapForTest	reset-export
 src/utils/cockpit/helmFocus.ts	cursor	process	module	single-terminal helm per-pane cursor indices
 src/utils/cockpit/helmFocus.ts	cursorSig	process	module	single-terminal helm per-pane selected row signatures
 src/utils/cockpit/helmFocus.ts	focus	process	module	single-terminal helm active pane focus
@@ -5024,6 +5030,7 @@ src/utils/platform/spawn.ts	EMPTY_ENV_DEFAULTS	process	module	Load-time table wi
 src/utils/platform/spawn.ts	SYSTEM_PROGRAM_FOLDERS	process	module	Load-time lookup with no local writer
 src/utils/platform/spawn.ts	WINDOWS_HEADLESS_GIT_DEFAULTS	process	module	Load-time table with no local writer
 src/utils/platform/spawn.ts	WINDOWS_TOOL_SHELL_DEFAULTS	process	module	Load-time table with no local writer
+src/utils/platform/words.ts	clearEnvVarCommandWords	reset-export
 src/utils/powershell/dangerousCmdlets.ts	DANGEROUS_SCRIPT_BLOCK_CMDLETS	process	module	Load-time lookup with no local writer
 src/utils/powershell/dangerousCmdlets.ts	FILEPATH_EXECUTION_CMDLETS	process	module	Load-time lookup with no local writer
 src/utils/powershell/dangerousCmdlets.ts	MODULE_LOADING_CMDLETS	process	module	Load-time lookup with no local writer
@@ -5268,8 +5275,6 @@ src/utils/settings/constants.ts	labels	process	module	Load-time lookup with no l
 src/utils/settings/constants.ts	originLabels	process	module	Load-time lookup with no local writer
 src/utils/settings/constants.ts	providerLabels	process	module	Load-time lookup with no local writer
 src/utils/settings/extensionOnlyPolicy.ts	ADMIN_TRUSTED_SOURCES	process	module	Load-time lookup with no local writer
-src/utils/settings/faultNotices.ts	resetToldSettingsFaults	reset-export
-src/utils/settings/faultNotices.ts	told	owner	module	Session state retained in this module
 src/utils/settings/internalWrites.ts	clearInternalWrites	reset-export
 src/utils/settings/internalWrites.ts	internalWriteMarks	process	module	file-path-keyed short-window write timestamps suppressing self-triggered watcher reloads
 src/utils/settings/managedPath.ts	getManagedFilePath	process	module	zero-arg memo of OS-level managed settings root path
@@ -5604,9 +5609,8 @@ src/utils/worktree.ts	EPHEMERAL_SLUG_PATTERNS	process	module	Load-time list with
 src/utils/worktree.ts	THROWAWAY_ADJECTIVES	process	module	Load-time list with no local writer
 src/utils/worktree.ts	THROWAWAY_NOUNS	process	module	Load-time list with no local writer
 src/utils/worktree.ts	creationChainByRepository	process	module	canonical-git-root-keyed promise chain serializing concurrent git worktree creation locks
-src/utils/worktree.ts	currentWorktreeSession	owner	module	Session state retained in this module
-src/utils/worktree.ts	refusalCountsByDirectory	owner	module	Session state retained in this module
 src/utils/worktree/delta.ts	MERCURY_EPHEMERAL_PREFIXES	process	module	Load-time list with no local writer
+src/utils/worktree/session.ts	currentWorktreeSession	owner	module	Session state retained in this module
 src/utils/worktreeClone.ts	CLONEFILE_SCRIPT	process	module	Load-time definition shared by all callers
 src/utils/worktreeClone.ts	DISCARD_SCRIPT	process	module	Load-time definition shared by all callers
 src/utils/worktreeClone.ts	NAME_TAKEN_CODES	process	module	Load-time lookup with no local writer
