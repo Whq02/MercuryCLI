@@ -34,13 +34,14 @@ import { resetSessionFilePointer, restoreSessionMetadata, saveSessionModel } fro
 import { reconstructContentReplacementState } from '../../utils/toolResultStorage.js'
 import { markSessionPermissionModeAtClaim } from '../../utils/cockpit/runtimePosture.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
+import type { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { RunnerPorts } from './runnerPorts.js'
 
 export function priorTurnCount(messages: readonly Message[]): number {
   return messages.filter(message => message.type === 'user' && (message as { isMeta?: boolean }).isMeta !== true && !isToolResultMessage(message) && !isLocalCommandCaveat(message)).length
 }
 
-export async function claimSession(params: ParamsOf<'session/claim'>, ports: RunnerPorts): Promise<ResultOf<'session/claim'>> {
+export async function claimSession(params: ParamsOf<typeof SESSION_VERBS.claim.runner.name>, ports: RunnerPorts): Promise<ResultOf<typeof SESSION_VERBS.claim.runner.name>> {
   const { armSessionRunnerWiring, driver, enqueueRow, getAppState, heldNoticeWaits, hydrateResumedRun, live, liveMcp, liveScope, messages, options, peer, persistBootModelRefusal, releaseQueueUntilClaimed, setAppState, settleClearBirth, settleSessionBriefs, wire } = ports
   if (!live.awaitingSessionClaim || live.claimSettling !== null) throw refused('claim refused — this runner already carries a session identity', 'claim')
   const sid = String(params.session_id ?? '')

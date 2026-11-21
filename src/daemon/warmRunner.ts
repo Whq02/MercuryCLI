@@ -22,6 +22,7 @@ import {
 import type { RunnerChildSpec, SeatPermissionMode } from './headlessRun.js'
 import { isProcessAlive } from '../utils/ownerWatch.js'
 import { PeerClosed, PeerDeadline } from '../runner/wire/peer.js'
+import { SESSION_VERBS } from '../runner/wire/sessionVerbs.js'
 import type { RunnerDoor } from './runnerConnection.js'
 import { passedOver } from '../utils/passedOver.js'
 import { startInterval, stopInterval } from '../utils/timers.js'
@@ -391,7 +392,7 @@ export async function claimWarmRunner(
   liveness.unref?.()
   const outcome = await door
     .request(
-      'session/claim',
+      SESSION_VERBS.claim.runner.name,
       {
         session_id: args.sessionId,
         model: args.modelKey,
