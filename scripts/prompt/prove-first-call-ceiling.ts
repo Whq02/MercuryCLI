@@ -22,8 +22,9 @@ function check(label: string, condition: boolean, detail = ''): void {
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
 }
-check('the built product is present', existsSync(dist))
-if (!existsSync(dist)) process.exit(1)
+const distPresent = existsSync(dist)
+check('the built product is present', distPresent, distPresent ? '' : `${dist} — run: bun run build.ts`)
+if (!distPresent) process.exit(1)
 const captured: Array<{ route: string; body: Record<string, any> }> = []
 const sse = (value: unknown): string => `data: ${JSON.stringify(value)}\n\n`
 const usage = { input_tokens: 8, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }

@@ -19,7 +19,7 @@ if (mode === '--owner') {
   mkdirSync(directory, { recursive: true })
   const child = fork(processScript, [], { execPath: node, execArgv: [], stdio: ['pipe', 'ignore', 'pipe', 'ipc'], env: { ...process.env, HOME: home, USERPROFILE: home } })
   let begun = 0, reply: any, started = false
-  const watchdog = setTimeout(() => { child.kill('SIGKILL'); process.exit(1) }, 3500)
+  const watchdog = setTimeout(() => { process.stderr.write(`prove-read-json-lifecycle --owner watchdog: scenario=${scenario} timed out after 3500ms waiting for jsonQueryProcess.mjs to exit\n`); child.kill('SIGKILL'); process.exit(1) }, 3500)
   child.stderr?.on('data', chunk => process.stderr.write(chunk))
   child.on('message', (message: any) => {
     if (message.started && !started) {

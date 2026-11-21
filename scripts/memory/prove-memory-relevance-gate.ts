@@ -27,7 +27,7 @@ writeFileSync(join(dir, 'topic-harbour.md'), serializeTopicDoc(doc))
 try {
   assert.equal(lookupFacts('ordinary release update', { dir }).length, 0, 'a low-information query does not walk the library')
   const exact = lookupFacts('quartz engine cobalt receipt', { dir })
-  assert.ok(exact.some(row => row.id === 'seq:28'))
+  assert.ok(exact.some(row => row.id === 'seq:28'), `lookupFacts("quartz engine cobalt receipt") in src/mneme/mnemeLookup.ts must include seq:28 (got ${exact.map(row => row.id).join(',')})`)
   assert.equal(lookupFacts('quartz engine cobalt receipt', { dir, exclude: new Set(exact.map(row => row.id)) }).length, 0, 'exclusions do not backfill lower ranks')
   const triggered = automaticMemoryCandidates('please review the harbour pages and tell me what changed', { dir, files: ['docs/releases/notes.md'], limit: Infinity })
   assert.ok(triggered.some(row => row.id === 'seq:27' && row.admission === 'constraint' && row.text.includes('private harbour key out of public copy')), 'the release-notes rule is admitted as a constraint when a release-notes path is in hand')

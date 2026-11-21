@@ -15,7 +15,7 @@ for (const test of cases) {
     const notices = result.rows.filter(row => row.type === 'notice' && row.code === test.code)
     assert.equal(notices.length, 1, JSON.stringify(result.rows))
     assert.ok(String(notices[0]!.text).includes(test.words), JSON.stringify(notices))
-    if (!test.refused) assert.ok(savedHookRowsOf(result.sessionRows).some(row => row.fields.event === 'turn.start'))
+    if (!test.refused) assert.ok(savedHookRowsOf(result.sessionRows).some(row => row.fields.event === 'turn.start'), `turn.start hook (${test.code}) not persisted in sessionRows (saved=${savedHookRowsOf(result.sessionRows).length}); check turn.start persistence`)
     assert.equal(result.code, test.refused ? 1 : 0)
     assert.equal(result.requests, test.refused ? 0 : 1)
     console.log(`PASS turn.start ${test.code}: ${test.words}`)

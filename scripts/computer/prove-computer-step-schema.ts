@@ -31,7 +31,8 @@ for (const [lane, model] of [
   assert.deepEqual(step.required, ['action'])
   assert.equal(step.additionalProperties, false)
   for (const key of Object.keys(step.properties).filter(key => key !== 'action')) assert.deepEqual(stripDescriptions(step.properties[key]), stripDescriptions(schema.properties[key]), `${lane}: ${key} keeps its type and bounds`)
-  assert.ok(!/"\$(ref|defs)"/.test(JSON.stringify(schema)))
+  const schemaJson = JSON.stringify(schema)
+  assert.doesNotMatch(schemaJson, /"\$(ref|defs)"/, `${lane ?? 'gemini'}: ComputerTool schema in src/tools/ComputerTool/ComputerTool.ts must inline definitions without $ref/$defs`)
   assert.equal(normalizeToolSchemaFor(lane, schema).schema, schema)
   const compiled = compileJsonSchema(schema)
   assert.ok(compiled.ok, compiled.ok ? '' : compiled.error)
@@ -39,7 +40,8 @@ for (const [lane, model] of [
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'sequence' }] }).length, 0)
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', steps: [] }] }).length, 0)
   assert.notEqual(compiled.check({ action: 'sequence', steps: [{ action: 'click', x: 'bad' }] }).length, 0)
-  assert.ok(Buffer.byteLength(JSON.stringify(schema)) <= 8150)
+  const schemaBytes = Buffer.byteLength(schemaJson)
+  assert.ok(schemaBytes <= 8150, `${lane ?? 'gemini'}: ComputerTool schema size ${schemaBytes}B exceeds 8150B budget in src/tools/ComputerTool/ComputerTool.ts`)
   assert.deepEqual((mapToolsToZai([definition])[0]!.function.parameters as any).properties.steps.items.properties.action.enum, actions)
   const responses = mapToolsToOpenai([definition])[0]!.parameters as any
   const responseSteps = responses.properties.steps

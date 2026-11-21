@@ -38,8 +38,9 @@ function check(label: string, condition: boolean, detail = ''): void {
   if (!condition) failures++
   console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${detail ? ': ' + detail : ''}`)
 }
-check('the built product is present', existsSync(dist))
-if (!existsSync(dist)) process.exit(1)
+const distPresent = existsSync(dist)
+check('the built product is present', distPresent, distPresent ? '' : `${dist} — run: bun run build.ts`)
+if (!distPresent) process.exit(1)
 
 console.log('\n── §1 the recorded tool calls of the 1.0.0 benchmark against the tip\'s first call ──')
 const first = await captureBriefing('Read README.md and state its first heading.', [{ kind: 'text', text: 'FIRST-CALL-DONE' }], 2)
