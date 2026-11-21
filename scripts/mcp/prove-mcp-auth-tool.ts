@@ -251,11 +251,10 @@ try {
         }
         check('oauthsrv reconnects automatically after sign-in with its real tool', connected)
 
-        const outcomesBeforeSecond = runner.rows.filter(r => r.type === 'outcome').length
         await runner.prompt('call vault_ping now')
         await runner.waitFor(
           'second turn outcome',
-          () => runner.rows.filter(r => r.type === 'outcome').length > outcomesBeforeSecond,
+          row => row.type === 'outcome' && row.turn === 2 && String(row.answer ?? '').includes('VAULT_PINGED.'),
           60_000,
         )
 
