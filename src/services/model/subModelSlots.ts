@@ -29,7 +29,7 @@ import {
   stripContext1m,
   type ModelOption,
 } from './modelOptions.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from './model.js'
 
 export type SubModelContainer = 'advisor'
 

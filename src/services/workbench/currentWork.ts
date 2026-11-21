@@ -228,7 +228,7 @@ export async function gatherCurrentWork(opts?: {
   let model = 'unknown'
   let effortLabel: string | null = null
   try {
-    const { getEngineModel } = await import('../../utils/model/model.js')
+    const { getEngineModel } = await import('../model/model.js')
     model = String(getEngineModel())
     const { getDisplayedEffortLabel } = await import('../../utils/effort.js')
     const state = opts?.getAppState?.() as { effortValue?: EffortValue } | undefined

@@ -94,7 +94,7 @@ export function birthFallbackModel(resolved: string, input: BirthFallbackInput):
 }
 
 export function screenBirthModel(): string | undefined {
-  const { getEngineModel, getUserSpecifiedModelSetting } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+  const { getEngineModel, getUserSpecifiedModelSetting } = require('../model/model.js') as typeof import('../model/model.js')
   const { getEngineModelOverride } = require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
   if (getEngineModelOverride() !== undefined) return getEngineModel()
   const { computedDefault } = require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')

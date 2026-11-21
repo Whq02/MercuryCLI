@@ -2,7 +2,7 @@ import { type CanUseToolFn, type ToolEffect, type ToolUseContext, buildTool } fr
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { zodToJsonSchema } from '../../utils/zodToJsonSchema.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
 import { suggestionForExactCommand } from '../../utils/permissions/shellRuleMatching.js'
 import { ruleSentence } from '../../utils/permissions/ruleReason.js'

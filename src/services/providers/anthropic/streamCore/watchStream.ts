@@ -2,7 +2,7 @@ import type { ApiStreamEvent as BetaRawMessageStreamEvent } from '../../../../ty
 import { logForDebugging } from 'src/utils/debug.js'
 import { logForDiagnosticsNoPII } from 'src/utils/diagLogs.js'
 import type { AssistantMessage } from '../../../../types/message.js'
-import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
+import { getPublicModelDisplayName } from '../../../model/model.js'
 import { settleTranscriptMessage } from '../../../../utils/sessionStorage/writer.js'
 import {
   silentAfterHeadersFaultWords,

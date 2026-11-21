@@ -74,7 +74,7 @@ if (process.argv[2] === '--compose') {
     [hf.HUGGINGFACE_MODEL_GROUP]: () => hf.getHuggingfaceFullModelOptions(),
   }
   const fullRows = (group: string) => (wholeCatalogues[group] === undefined ? undefined : applyModelAllowlist(wholeCatalogues[group]()).map(rowOf))
-  const { getEngineModel } = await import('../../src/utils/model/model.ts')
+  const { getEngineModel } = await import('../../src/services/model/model.ts')
   const { providerFamilyOfSetting } = await import('../../src/services/model/modelTransition.ts')
   const served = getEngineModel()
   const seatFamily = providerFamilyOfSetting(served)

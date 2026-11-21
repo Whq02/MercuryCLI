@@ -5,7 +5,7 @@ import {
   hasFocusedSession,
   subscribeThroughFocused,
 } from '../services/engine-connector/focusedConnector.js'
-import { renderModelChip } from '../utils/model/model.js'
+import { renderModelChip } from '../services/model/model.js'
 import { geminiPlanRideWords } from '../services/providers/gemini/geminiCatalogue.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { contextFillView, type ContextFillView } from '../services/context/contextFill.js'

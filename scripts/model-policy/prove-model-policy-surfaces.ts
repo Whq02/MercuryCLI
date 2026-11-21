@@ -18,7 +18,7 @@ console.log('\n§3/§9.13 one decision, no re-derivation (source census)')
 {
   const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
   const computed = await import('../../src/services/model/computedDefault.ts')
-  const frontier = await import('../../src/utils/model/frontierPolicy.ts')
+  const frontier = await import('../../src/services/model/frontierPolicy.ts')
   const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
   const frontierSays = await settingsChecks().find(row => row.id === 'frontier')?.run()
   check(

@@ -8,7 +8,7 @@
 # gate-watch: src/tools/** src/utils/capability/** src/utils/blender/bridgeGates.ts
 # gate-watch: scripts/daemon/dupline-world.ts scripts/lib/* src/bootstrap/state.ts
 # gate-watch: src/services/api/** src/services/providers/** src/utils/*
-# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/** src/utils/model/model.ts
+# gate-watch: src/utils/config/globalConfig.ts src/utils/messages/** src/services/model/model.ts
 # gate-watch: src/constants/tools.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/components/mercury-ui/toolGlyphs.ts src/utils/hooks/sessionHooks.ts

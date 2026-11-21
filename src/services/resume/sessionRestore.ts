@@ -10,7 +10,7 @@ import type { FileHistorySnapshot } from '../../types/fileHistory.js'
 import { fileHistoryRestoreStateFromLog } from '../changeTransaction/fileHistory.js'
 import { rearmMissionFromCard } from '../../guards/mission.js'
 import { migrateOrphanedMissionCard } from '../../utils/mission/missionCard.js'
-import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../../utils/model/retainedModel.js'
+import { billingSafeRetainedForm, servedModelOfAssistantRow } from '../model/retainedModel.js'
 import type { ContentReplacementRecord } from '../../utils/toolResultStorage.js'
 
 

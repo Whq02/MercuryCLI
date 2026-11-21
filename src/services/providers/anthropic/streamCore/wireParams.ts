@@ -24,7 +24,7 @@ import { modelSupportsTemperature } from '../../../../utils/betas.js'
 import { getModelMaxOutputTokens } from '../../../../utils/context.js'
 import { isTurnOwningQuerySource, resolveAppliedEffort } from '../../../../utils/effort.js'
 import { validateBoundedIntEnvVar } from '../../../../utils/envValidation.js'
-import { normalizeModelStringForAPI } from '../../../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../../../model/model.js'
 import {
   consumePendingCacheEdits,
   getPinnedCacheEdits,

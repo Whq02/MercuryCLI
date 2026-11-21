@@ -10,7 +10,7 @@ import { managedHooksOnly } from '../utils/hooks/hooksConfigSnapshot.js'
 import { hookRowsOfResult } from '../utils/hooks/rows.js'
 import { updateWatchPaths } from '../utils/hooks/fileChangedWatcher.js'
 import { logError } from '../utils/log.js'
-import { getEngineModel } from '../utils/model/model.js'
+import { getEngineModel } from './model/model.js'
 
 type SessionStartReason = 'new' | 'resumed'
 

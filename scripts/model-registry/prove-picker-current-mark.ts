@@ -51,7 +51,7 @@ const { MercuryModelPicker } = await import('../../src/components/MercuryModelPi
 type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelChoice
 const { ANTHROPIC_MODEL_GROUP, getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
 type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
-const { getEngineModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
+const { getEngineModel, parseUserSpecifiedModel, renderModelName } = await import('../../src/services/model/model.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 

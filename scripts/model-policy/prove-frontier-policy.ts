@@ -5,7 +5,7 @@ import {
   describeFrontierDecision,
   FRONTIER_MAX_20X_TIER,
   type FrontierFacts,
-} from '../../src/utils/model/frontierPolicy.js'
+} from '../../src/services/model/frontierPolicy.js'
 import {
   getBestModel,
   getDefaultEngineModel,
@@ -14,7 +14,7 @@ import {
   getUserSpecifiedModelSetting,
   isFableAvailable,
   parseUserSpecifiedModel,
-} from '../../src/utils/model/model.js'
+} from '../../src/services/model/model.js'
 import { setEngineModelOverride } from '../../src/bootstrap/state.js'
 import { restoreConversationModelFromMessages } from '../../src/services/resume/sessionRestore.js'
 import { computedDefault } from '../../src/services/model/computedDefault.js'

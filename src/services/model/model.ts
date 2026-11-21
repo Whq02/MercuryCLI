@@ -2,7 +2,7 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   getEngineModelOverride,
 } from '../../bootstrap/state.js'
-import { getInitialSettings } from '../settings/settings.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import { frontierOperatorDecision, newestPermittedGeneration } from './frontierPolicy.js'
 import {
   CHOOSE_A_MODEL_ID,
@@ -11,19 +11,19 @@ import {
   describeComputedDefaultLabel,
   describeComputedDefaultRow,
   isChooseAModel,
-} from '../../services/model/computedDefault.js'
-import { context1mNeedsUnsentHeader, has1mContext } from './capabilities.js'
-import { gptDisplayName } from './pins/gptPins.js'
-import { isMistralModelId } from './pins/mistralPins.js'
-import { getModelStrings } from './modelStrings.js'
-import { recognizeModelId } from '../../services/providers/idSpaces.js'
-import { deepseekRetiredAliasTarget } from './pins/deepseekPins.js'
-import { resolveBareFamilyWord } from '../../services/model/bareFamilyWords.js'
-import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from './modelNames.js'
-import { tellHowAModelSettingResolves } from './settingResolution.js'
-import { passedOver } from '../passedOver.js'
+} from './computedDefault.js'
+import { context1mNeedsUnsentHeader, has1mContext } from '../../utils/model/capabilities.js'
+import { gptDisplayName } from '../../utils/model/pins/gptPins.js'
+import { isMistralModelId } from '../../utils/model/pins/mistralPins.js'
+import { getModelStrings } from '../../utils/model/modelStrings.js'
+import { recognizeModelId } from '../providers/idSpaces.js'
+import { deepseekRetiredAliasTarget } from '../../utils/model/pins/deepseekPins.js'
+import { resolveBareFamilyWord } from './bareFamilyWords.js'
+import { firstPartyString, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
+import { tellHowAModelSettingResolves } from '../../utils/model/settingResolution.js'
+import { passedOver } from '../../utils/passedOver.js'
 
-export { firstPartyNameToCanonical, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, isOpus1mMergeEnabled, normalizeModelStringForAPI } from './modelNames.js'
+export { firstPartyNameToCanonical, getCanonicalName, getDefaultFableModel, getDefaultHaikuModel, getDefaultOpusModel, getDefaultSonnetModel, isOpus1mMergeEnabled, normalizeModelStringForAPI } from '../../utils/model/modelNames.js'
 export { isDefaultOpusNatively1M, newestPermittedFallback } from './frontierPolicy.js'
 
 export type ModelShortName = string
@@ -63,7 +63,7 @@ export function getDefaultEngineModel(): string {
 
 function providerNameOf(): (family: string) => string {
   const { providerDisplayName } =
-    require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
+    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
   return providerDisplayName
 }
 
@@ -231,47 +231,47 @@ export function getPublicModelDisplayName(model: string): string | null {
     }
   }
   if (/^grok-/i.test(bare)) {
-    const { xaiDisplayPin } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
+    const { xaiDisplayPin } = require('../../utils/model/pins/xaiPins.js') as typeof import('../../utils/model/pins/xaiPins.js')
     return xaiDisplayPin(bare)?.displayName ?? null
   }
   if (/^muse-/i.test(bare)) {
-    const { metaDisplayPin } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
+    const { metaDisplayPin } = require('../../utils/model/pins/metaPins.js') as typeof import('../../utils/model/pins/metaPins.js')
     return metaDisplayPin(bare)?.displayName ?? null
   }
   if (isMistralModelId(bare)) {
-    const { mistralDisplayPin } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
+    const { mistralDisplayPin } = require('../../utils/model/pins/mistralPins.js') as typeof import('../../utils/model/pins/mistralPins.js')
     return mistralDisplayPin(bare)?.displayName ?? null
   }
   if (/^minimax-/i.test(bare)) {
-    const { minimaxDisplayPin } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
+    const { minimaxDisplayPin } = require('../../utils/model/pins/minimaxPins.js') as typeof import('../../utils/model/pins/minimaxPins.js')
     return minimaxDisplayPin(bare)?.displayName ?? null
   }
   if (/^(?:command-|north-|c4ai-aya-)/i.test(bare)) {
-    const { cohereDisplayPin } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
+    const { cohereDisplayPin } = require('../../utils/model/pins/coherePins.js') as typeof import('../../utils/model/pins/coherePins.js')
     return cohereDisplayPin(bare)?.displayName ?? null
   }
   if (/^(?:qwen|qwq|qvq)(?:[0-9.]|-)/i.test(bare)) {
-    const { qwenDisplayPin } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
+    const { qwenDisplayPin } = require('../../utils/model/pins/qwenPins.js') as typeof import('../../utils/model/pins/qwenPins.js')
     return qwenDisplayPin(bare)?.displayName ?? null
   }
   if (/^together\//i.test(bare)) {
-    const { togetherDisplayPin } = require('./pins/togetherPins.js') as typeof import('./pins/togetherPins.js')
+    const { togetherDisplayPin } = require('../../utils/model/pins/togetherPins.js') as typeof import('../../utils/model/pins/togetherPins.js')
     return togetherDisplayPin(bare)?.displayName ?? null
   }
   if (/^orcarouter\//i.test(bare)) {
-    const { orcarouterListedModel } = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    const { orcarouterListedModel } = require('../providers/orcarouter/orcarouterCatalogue.js') as typeof import('../providers/orcarouter/orcarouterCatalogue.js')
     return orcarouterListedModel(bare)?.displayName ?? null
   }
   if (/^groq\//i.test(bare)) {
-    const { groqDisplayPin } = require('./pins/groqPins.js') as typeof import('./pins/groqPins.js')
+    const { groqDisplayPin } = require('../../utils/model/pins/groqPins.js') as typeof import('../../utils/model/pins/groqPins.js')
     return groqDisplayPin(bare)?.displayName ?? null
   }
   if (/^cerebras\//i.test(bare)) {
-    const { cerebrasDisplayPin } = require('./pins/cerebrasPins.js') as typeof import('./pins/cerebrasPins.js')
+    const { cerebrasDisplayPin } = require('../../utils/model/pins/cerebrasPins.js') as typeof import('../../utils/model/pins/cerebrasPins.js')
     return cerebrasDisplayPin(bare)?.displayName ?? null
   }
   if (/^fireworks\//i.test(bare)) {
-    const { fireworksDisplayPin } = require('./pins/fireworksPins.js') as typeof import('./pins/fireworksPins.js')
+    const { fireworksDisplayPin } = require('../../utils/model/pins/fireworksPins.js') as typeof import('../../utils/model/pins/fireworksPins.js')
     return fireworksDisplayPin(bare)?.displayName ?? null
   }
   const gpt = gptDisplayName(bare)

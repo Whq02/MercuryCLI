@@ -41,7 +41,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 
 const configs = await import('../../src/utils/model/configs.ts')
 const { ALL_MODEL_CONFIGS, familyDefaultsModel, familyHeadOf, parseFirstPartyGeneration } = configs
-const model = await import('../../src/utils/model/model.ts')
+const model = await import('../../src/services/model/model.ts')
 const caps = await import('../../src/utils/model/capabilities.ts')
 const effort = await import('../../src/utils/effort.ts')
 const cost = await import('../../src/services/usage/modelCost.ts')

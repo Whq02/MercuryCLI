@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { getModelStrings } from '../../src/utils/model/modelStrings.js'
-import { renderModelChip } from '../../src/utils/model/model.js'
+import { renderModelChip } from '../../src/services/model/model.js'
 
 let fail = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

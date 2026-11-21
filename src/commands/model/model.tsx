@@ -23,7 +23,7 @@ import {
   type TransitionPlan,
 } from '../../services/model/modelTransition.js'
 import { isModelAlias } from '../../utils/model/aliases.js'
-import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
+import { isModelAllowed } from '../../services/model/modelAllowlist.js'
 import { isModelFromDisabledProvider, isProviderDisabled } from '../../services/providers/disabledProviders.js'
 import { BARE_FAMILY_WORDS } from '../../services/model/bareFamilyWords.js'
 import { validateModel } from '../../services/providers/validateModel.js'
@@ -36,7 +36,7 @@ import {
   renderDefaultModelSetting,
   renderModelName,
   type ModelSetting,
-} from '../../utils/model/model.js'
+} from '../../services/model/model.js'
 import { resolveEffortTruth, type EffortValue } from '../../utils/effort.js'
 import { errorMessage } from '../../utils/errors.js'
 import { getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'

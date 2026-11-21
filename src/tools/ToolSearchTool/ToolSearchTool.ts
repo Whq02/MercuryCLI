@@ -3,7 +3,7 @@ import { z } from 'zod'
 
 import { buildTool, closestToolByName, findToolByName, getEmptyToolPermissionContext, type Tool, type Tools, type ToolUseContext } from '../../Tool.js'
 import { deferralWireFormFor } from '../../services/providers/deferralWire.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { getToolManualAttachments } from '../../services/attachments/toolManuals.js'
 import { createAttachmentMessage } from '../../services/attachments/orchestrator.js'
 import { declaredCapability } from '../../utils/capability/contract.js'

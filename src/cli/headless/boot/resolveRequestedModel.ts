@@ -4,7 +4,7 @@ import { errorMessage } from '../../../utils/errors.js'
 import { formatPrintsOutcomeRow, refusedOutcome } from '../refusalEnvelope.js'
 import { jsonStringify } from '../../../utils/slowOperations.js'
 import { gracefulShutdownSync } from '../../../utils/gracefulShutdown.js'
-import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../../services/model/model.js'
 import { BOOT_ENDS, type BootMade, type BootStep, type RunnerPorts } from '../runnerPorts.js'
 
 async function run(ports: RunnerPorts): Promise<BootMade<never>> {

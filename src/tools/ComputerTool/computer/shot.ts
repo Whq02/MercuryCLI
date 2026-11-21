@@ -10,7 +10,7 @@ import {
   compatModelImageReading,
   refreshCompatModelImageReading,
 } from '../../../services/providers/openaicompat/compatProbe.js'
-import { getEngineModel, normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { getEngineModel, normalizeModelStringForAPI } from '../../../services/model/model.js'
 import type { OwnerKey } from '../../../utils/run/ownerKey.js'
 import { getRuleByContentsForToolName } from '../../../utils/permissions/permissions.js'
 import type { PermissionRule, ToolPermissionContext } from '../../../types/permissions.js'

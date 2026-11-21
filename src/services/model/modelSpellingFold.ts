@@ -2,7 +2,7 @@ import {
   getModelOptions,
   isProviderActionRow,
   type ModelOption,
-} from '../../services/model/modelOptions.js'
+} from './modelOptions.js'
 import { normalizeModelStringForAPI, parseUserSpecifiedModelRaw } from './model.js'
 
 export function foldModelSpelling(value: string): string {

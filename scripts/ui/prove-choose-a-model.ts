@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/services/model/computedDefault.ts src/utils/model/model.ts src/services/providers/callModelRouter.ts
+// gate-watch: src/services/model/computedDefault.ts src/services/model/model.ts src/services/providers/callModelRouter.ts
 // gate-watch: src/services/accounts/sessionSignIn.ts src/components/messages/AssistantTextMessage.tsx src/services/health/healthReport.ts src/utils/model/capabilities.ts
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'

@@ -106,6 +106,19 @@ export interface ProviderCapabilities {
   fireworksOutputMaxFor(model: string): number | undefined
   carrierOutputMaxFor(route: 'openrouter' | 'nous' | 'gemini', normalizedId: string): number | undefined
   localVisionDeclared(model: string): boolean
+  modelHasRecordedFacts(model: string): boolean
+  operatorModelFacts(model: string, recorded?: OperatorModelFacts): OperatorModelFacts | undefined
+  getEngineModel(): string
+}
+
+export interface OperatorModelFacts {
+  contextWindow?: number
+  maxOutputTokens?: number
+  prices?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number }
+  efforts?: string[]
+  images?: boolean
+  reasoning?: boolean
+  thinkingBudget?: number
 }
 
 let registered: ProviderCapabilities | undefined

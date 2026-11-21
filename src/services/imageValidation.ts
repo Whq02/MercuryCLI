@@ -1,6 +1,6 @@
 import { GENERIC_IMAGE_LIMITS, type ImageLimits } from '../constants/apiLimits.js'
-import { formatFileSize } from './format.js'
-import { imageDimensionsOfBase64, imageLimitsForModel, patchCountOf } from './imageResizer.js'
+import { formatFileSize } from '../utils/format.js'
+import { imageDimensionsOfBase64, imageLimitsForModel, patchCountOf } from '../utils/imageResizer.js'
 import { getEngineModel } from './model/model.js'
 
 

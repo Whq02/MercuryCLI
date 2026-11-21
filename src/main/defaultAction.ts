@@ -11,7 +11,7 @@ import { getAgentDefinitionsWithOverrides } from '../tools/AgentTool/loadAgentsD
 import { binaryName } from '../utils/config.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { startCapturingEarlyInput } from '../utils/earlyInput.js'
-import { getDefaultEngineModelSetting, getEngineModel } from '../utils/model/model.js'
+import { getDefaultEngineModelSetting, getEngineModel } from '../services/model/model.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { checkHasTrustDialogAccepted } from '../utils/config.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'

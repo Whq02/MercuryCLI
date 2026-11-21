@@ -25,7 +25,7 @@ import {
   type PruneReceipt,
 } from '../services/switchboard/transcriptPruneDoor.js';
 import { sessionIdOfListing } from '../utils/sessionStorage.js';
-import { renderModelChip } from '../utils/model/model.js';
+import { renderModelChip } from '../services/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';

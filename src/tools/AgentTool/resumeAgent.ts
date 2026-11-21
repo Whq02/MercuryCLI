@@ -2,7 +2,7 @@
 import { rebuildSeenLinesFromTranscript } from '../../services/changeTransaction/seenLines.js'
 import { processOwnerForLane } from '../../utils/run/resolveOwner.js'
 import { stat, utimes } from 'node:fs/promises'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import { getAgentModel } from '../../services/model/agent.js'
 import { crewmateModelOverride } from '../../services/crew/crewmateModelWord.js'
 import { recordAfterResume } from '../../services/crew/crewmateRecord.js'

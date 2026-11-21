@@ -32,7 +32,7 @@ const { encodeTranscriptLine } = await import('../../src/utils/sessionStorage/vn
 const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts')
 const { restingStatusWords } = await import('../../src/components/SwitchboardTagBar.tsx')
 const { focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.tsx')
-const { getDefaultEngineModelSetting, parseUserSpecifiedModel, renderModelChip } = await import('../../src/utils/model/model.ts')
+const { getDefaultEngineModelSetting, parseUserSpecifiedModel, renderModelChip } = await import('../../src/services/model/model.ts')
 const model = parseUserSpecifiedModel(getDefaultEngineModelSetting())
 const project = getProjectDir(workers.canonicalWorkspaceId(work))
 mkdirSync(project, { recursive: true })

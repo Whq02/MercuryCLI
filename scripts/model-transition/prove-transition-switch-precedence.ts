@@ -30,7 +30,7 @@ enableConfigs()
 const { settleModelSelection, settlePendingAtBoundary } = await import(
   '../../src/services/model/modelTransition.ts'
 )
-const { getUserSpecifiedModelSetting } = await import('../../src/utils/model/model.ts')
+const { getUserSpecifiedModelSetting } = await import('../../src/services/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const {
   decideCapAction,

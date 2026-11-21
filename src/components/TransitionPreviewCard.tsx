@@ -7,7 +7,7 @@ import { Dialog } from './design-system/Dialog.js'
 import { AMBER, FAINT, TEAL } from './mercuryPalette.js'
 import { GLYPH } from '../utils/glyphs.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
-import { renderModelName } from '../utils/model/model.js'
+import { renderModelName } from '../services/model/model.js'
 import { TRANSITION_CARRIED_WORDS, transitionLossRows } from '../services/providers/transitionPreview.js'
 
 const fmtTokens = (n: number): string => n.toLocaleString('en-US')

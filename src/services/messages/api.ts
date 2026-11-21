@@ -6,7 +6,7 @@ import {
   resolveModelCapabilities,
   toolDeferralEnabled,
 } from '../../utils/model/capabilities.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import { deferralWireFormFor, toolReferenceWireAccepted } from '../providers/deferralWire.js'
 import { localPromptProfileApplies, localToolForm } from '../../constants/localPromptProfile.js'

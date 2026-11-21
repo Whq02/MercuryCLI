@@ -56,7 +56,7 @@ section('the rows: the alias row and the previous generation\'s literal row are 
   const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   const { FAMILY_GENERATIONS, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
   const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-  const { renderModelName } = await import('../../src/utils/model/model.ts')
+  const { renderModelName } = await import('../../src/services/model/model.ts')
   const strings = getModelStrings()
   const newestId = strings[FAMILY_GENERATIONS.fable[0]]
   const previousId = strings[previousGenerationKeys('fable')[0]!]

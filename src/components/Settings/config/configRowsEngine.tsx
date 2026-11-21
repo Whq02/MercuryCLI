@@ -6,7 +6,7 @@ import { describeSessionPermissionMode } from '../../../utils/permissions/permis
 import { clearInstructionFileCaches } from '../../../services/instructions/engine.js'
 import { setSessionInstructionProfile, isInstructionProfile } from '../../../services/instructions/profile.js'
 import { type PERMISSION_MODES, permissionModeTitle } from '../../../utils/permissions/PermissionMode.js'
-import { getEngineModel } from '../../../utils/model/model.js'
+import { getEngineModel } from '../../../services/model/model.js'
 import { customPatienceSetting, patienceEnvPins, patienceOf, patienceWords } from '../../../services/providers/patience.js'
 import { ENGINE_SESSION_CEILING_DEFAULT, endEngineSession, engineSessionCeilingPinned, resetShellEngineResolution, resolveEngineSessionCeiling, resolveShellEngine } from '../../../utils/shell/engineSession.js'
 import { windowsBashAbsent } from '../../../utils/shell/windowsShellRoad.js'

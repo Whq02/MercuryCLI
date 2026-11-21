@@ -101,7 +101,7 @@ const check = (name: string, value: unknown): void => { assert.ok(value, name); 
 const section = (name: string): void => console.log(`\n── ${name}`)
 try {
   const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
-  const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
+  const { parseUserSpecifiedModel } = await import('../../src/services/model/model.ts')
   section('routing')
   check('the bare Model Studio ids and the family word route to Qwen before any request', ['qwen3.8-max', 'qwen4-max', 'Qwen4-Max', 'qwen3.7-plus', 'qwen3-coder-flash', 'qwen-plus', 'qwq-plus', 'qwen', 'Qwen3.8-Max'].every(id => classifyModelRoute(parseUserSpecifiedModel(id)).route === 'qwen'))
   check('the qualified namespaces keep their own Qwen rows and a bare vendor slug stays carrier-shaped', classifyModelRoute('zen/qwen3.8-max').route === 'zen' && classifyModelRoute('groq/qwen/qwen3.8-27b').route === 'groq' && classifyModelRoute('together/Qwen/Qwen3.7-Plus').route === 'together' && classifyModelRoute('qwen/qwen3-coder').kind === 'unrecognised')

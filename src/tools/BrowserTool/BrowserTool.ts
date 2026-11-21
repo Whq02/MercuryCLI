@@ -1,7 +1,7 @@
 
 import { type ToolEffectOutcome, type ToolUseContext, buildTool } from '../../Tool.js'
 import { modelReceivesImageBlocks } from '../../utils/model/capabilities.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../../services/model/model.js'
 import {
   BROWSER_CLOSE_BOUND_MS,
   BROWSER_PROTOCOL_TIMEOUT_MS,

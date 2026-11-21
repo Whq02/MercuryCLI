@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   enableConfigs()
   const bar = await import(src('components/SwitchboardTagBar.tsx'))
   const { keyHintLabel } = await import(src('components/mercury-ui/keyHintLabel.ts'))
-  const { renderModelChip } = await import(src('utils/model/model.ts'))
+  const { renderModelChip } = await import(src('services/model/model.ts'))
   const { IDLE_LIVE } = await import(src('services/engine-connector/seatLive.ts'))
   const { noSessionConnector } = await import(src('services/engine-connector/noSessionConnector.ts'))
   const slot = await import(src('services/engine-connector/focusedConnector.ts'))

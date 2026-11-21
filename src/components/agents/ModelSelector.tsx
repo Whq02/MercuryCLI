@@ -5,7 +5,7 @@ import {
   agentModelPickOutcome,
   getAgentModelPickerRows,
 } from '../../services/model/agentModelPicker.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../services/model/model.js'
 import { AMBER } from '../mercuryPalette.js'
 import { Select } from '../CustomSelect/index.js'
 

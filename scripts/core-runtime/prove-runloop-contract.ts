@@ -29,7 +29,7 @@ const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')
 const { createAssistantMessage, createAssistantAPIErrorMessage, createUserMessage } =
   await import('../../src/services/messages.ts')
 const { FallbackTriggeredError } = await import('../../src/services/api/withRetry.ts')
-const { ImageSizeError } = await import('../../src/utils/imageValidation.ts')
+const { ImageSizeError } = await import('../../src/services/imageValidation.ts')
 const { AUTOCOMPACT_THRASH_MESSAGE } = await import('../../src/services/compact/autoCompact.ts')
 const { PROMPT_TOO_LONG_ERROR_MESSAGE } = await import('../../src/services/api/errors.ts')
 const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, turnCutResultText } = await import(

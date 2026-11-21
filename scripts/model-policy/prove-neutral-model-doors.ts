@@ -33,7 +33,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 const agent = await import('../../src/services/model/agent.ts')
-const model = await import('../../src/utils/model/model.ts')
+const model = await import('../../src/services/model/model.ts')
 
 section('§1 the sub-agent resolver follows the parent whatever its provider and substitutes nothing')
 {
@@ -77,7 +77,7 @@ section('§1 the sub-agent resolver follows the parent whatever its provider and
 
 section('§2 the model allowlist: a family word is any family the live list knows')
 {
-  const allow = await import('../../src/utils/model/modelAllowlist.ts')
+  const allow = await import('../../src/services/model/modelAllowlist.ts')
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   const settingsPath = join(scratch, 'settings.json')
@@ -123,7 +123,7 @@ section('§2 the model allowlist: a family word is any family the live list know
   withList(null, () => {})
   let words: readonly string[] = []
   try {
-    const fam = await import('../../src/utils/model/modelFamilies.ts')
+    const fam = await import('../../src/services/model/modelFamilies.ts')
     words = fam.modelFamilyWords()
     check('the family words carry every route the id-space table declares, and anthropic', ['anthropic', 'openai', 'zai', 'moonshot', 'deepseek', 'xai', 'meta', 'gemini', 'openrouter', 'huggingface', 'local', 'openai-compat'].every(w => words.includes(w)), words.join(' · '))
     check("the family words carry every family's class alias", ['gpt', 'glm', 'kimi', 'deepseek', 'grok', 'muse', 'gemini', 'compat'].every(w => words.includes(w)), words.join(' · '))

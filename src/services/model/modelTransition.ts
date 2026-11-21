@@ -1,4 +1,4 @@
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from './model.js'
 import {
   declaredRouteOf,
   providerDisplayName,

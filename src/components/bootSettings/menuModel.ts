@@ -6,7 +6,7 @@ import { motionDetailLines, motionValueWords, type readMotionSetting } from '../
 import { jevValueWords, type readJevSettings } from '../../services/jev/jevSetting.js';
 import { backgroundLaunchValueWords, type backgroundSessionsLaunchCrewmates } from '../../services/switchboard/backgroundLaunch.js';
 import type { useEngineModel } from '../../hooks/useEngineModel.js';
-import { renderModelChip } from '../../utils/model/model.js';
+import { renderModelChip } from '../../services/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAccent.js';
 import { isHelmHomeEnabled } from '../../utils/fullscreen.js';
 import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';

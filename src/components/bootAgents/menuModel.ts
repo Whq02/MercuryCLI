@@ -4,7 +4,7 @@ import { resolveEffectiveAgentRuntime } from '../../services/agents/resolver.js'
 import { computeStudioValidation, effectiveStudioRuntime, studioDestinationPath, type FieldId, type StudioEditorSnapshot, type StudioValidation } from '../agents/studio/studioEditorModel.js';
 import type { Tools } from '../../Tool.js';
 import { agentModelAvailabilityNote } from '../../services/model/agentModelPicker.js';
-import { renderModelChip } from '../../utils/model/model.js';
+import { renderModelChip } from '../../services/model/model.js';
 import { getSessionAccent, getSessionCritterKey } from '../mercury-ui/sessionAccent.js';
 import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
 import { AGENT_FACE_LEGEND_FORM, agentFormEntryOf, agentFormDetailLines, AGENT_FACE_LEGEND_TRASH, AGENT_FACE_LEGEND_PROMPT, AGENT_FACE_LEGEND_PICK, agentFaceEntryOf, AGENT_FACE_LEGEND_CONFIRM, agentDeleteConfirmLines, agentFaceSummaryRows, type FaceEntry, AGENT_FACE_LEGEND, agentTrashEntryOf, agentFaceStatusLine, agentFaceDetailLines } from './face.js';

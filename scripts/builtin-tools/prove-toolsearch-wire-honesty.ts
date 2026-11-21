@@ -27,7 +27,7 @@ const { isToolSearchEnabledOptimistic } = await import('../../src/services/messa
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.ts')
 const { deferralWireFormFor } = await import('../../src/services/providers/deferralWire.ts')
 const { renderAdmissionRecordsAsText } = await import('../../src/services/providers/toolEconomy.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 const { createUserMessage } = await import('../../src/services/messages.ts')
 
 const output = {

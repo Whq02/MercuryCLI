@@ -4,7 +4,7 @@ import { updateConcourseWorkers, type ConcourseWorkerRecordV1, workerPidAlive, r
 import type { RunnerChildSpec } from '../headlessRun.js'
 import { refreshSignInReads, describeSignInRead } from '../signInView.js'
 import { validateWorkerModelChoice } from '../../services/concourse/workerModels.js'
-import { getMarketingNameForModel } from '../../utils/model/model.js'
+import { getMarketingNameForModel } from '../../services/model/model.js'
 import { seatOf, type SeatRosterPort, liveRecordByShort, liveRecordBySession, seatBusyForSwitch } from './state.js'
 import { publishSeatFacts, requestSessionFacts } from './facts.js'
 import { SEAT_VERB_ANSWER_DEADLINE_MS, doorFailureOf, runnerAnswered, seatVerbAnswerOf, type SeatVerbOutcome, NO_DOOR_DETAIL } from './door.js'

@@ -2,7 +2,7 @@ import { loginsActionFor } from '../../services/concourse/workerModels.js'
 import { modelRefusalBeforeAnyRequest } from '../../services/providers/callModelRouter.js'
 import { compatModelRefusal } from '../../services/providers/openaicompat/compatAccounts.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../services/crew/engineDispatch.js'
-import { parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel } from '../../services/model/model.js'
 import { resetSettingsCache } from '../../utils/settings/settingsCache.js'
 
 function compatRefusalAfterReread(model: string): string | undefined {
