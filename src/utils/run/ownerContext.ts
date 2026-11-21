@@ -1,9 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import type { OwnerKey } from './ownerKey.js'
 
+export type InvocationKind = 'spawn' | 'resume'
+
 type InvocationEdge = {
   invokingRequestId?: string
-  invocationKind?: 'spawn' | 'resume'
+  invocationKind?: InvocationKind
   invocationEmitted?: boolean
 }
 
