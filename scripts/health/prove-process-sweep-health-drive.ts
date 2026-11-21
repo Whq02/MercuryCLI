@@ -207,8 +207,11 @@ try {
     console.log(`S the cockpit at ${cols}×${termRows} — the row, the action, the result`)
     const size = `${cols}x${termRows}`
     const target = await standInWindow()
+    const settled = termRows >= 26
+      ? { awaitText: `${rows.length} checks` }
+      : { awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ' }
     const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, awaitText: '↑↓ move · ↵ unfold', awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
+    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, ...settled, awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
     const onRow = { requireAwait: true, awaitText: 'Mercury processes', awaitPattern: '▸ ▲ Mercury processes', awaitSettleTicks: 3 }
     const before = capture(`row-${size}`, cols, termRows, [...walk, { ...onRow, data: '\r' }], 150 + rowIndex, `pid ${target}`)
     check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')))
