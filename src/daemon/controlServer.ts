@@ -140,6 +140,7 @@ export interface ControlServerDeps {
     sessionId?: string
     error?: string
     unconfirmed?: true
+    confirmation?: Promise<import('./concourseDispatch.js').ConcourseDispatchResult>
     replay?: string
     heldReason?: string
     heldByTitle?: string
@@ -253,7 +254,7 @@ const DISPATCH_WIRE_KEYS = [
 ] as const satisfies readonly (keyof DispatchResult)[]
 const DISPATCH_REFUSAL_WIRE_KEYS = ['state', 'stateRevision', 'heldReason', 'heldByTitle', 'moves'] as const satisfies readonly (keyof DispatchResult)[]
 const dispatchWhole: Whole<
-  Omit<DispatchResult, 'ok' | 'error' | 'unconfirmed'>,
+  Omit<DispatchResult, 'ok' | 'error' | 'unconfirmed' | 'confirmation'>,
   (typeof DISPATCH_WIRE_KEYS)[number] | (typeof DISPATCH_REFUSAL_WIRE_KEYS)[number]
 > = true
 
@@ -1080,7 +1081,7 @@ function readSessionDispatch(deps: ControlServerDeps, sock: net.Socket, raw: Con
 }
 
 async function answerSessionDispatch(deps: DepsWith<'concourseDispatch'>, sock: net.Socket, raw: ControlRequestRaw, requestedOp: string | undefined, { clientMessageId, prompt, workspaceDir, targetSessionId, isolation, named }: Exclude<ReturnType<typeof readSessionDispatch>, void>): Promise<void> {
-  const r = await deps.concourseDispatch({
+  const attempt = await deps.concourseDispatch({
     clientMessageId,
     prompt,
     workspaceDir,
@@ -1103,6 +1104,7 @@ async function answerSessionDispatch(deps: DepsWith<'concourseDispatch'>, sock: 
     ...(typeof raw.sentAt === 'string' && Number.isFinite(Date.parse(raw.sentAt)) ? { sentAt: raw.sentAt } : {}),
     ...(typeof raw.kitPreset === 'string' && raw.kitPreset !== '' ? { kitPreset: raw.kitPreset } : {}),
   })
+  const r = await (attempt.confirmation ?? attempt)
   if (!r.ok) {
     return answer(sock, {
       ok: false,

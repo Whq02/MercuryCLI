@@ -219,12 +219,16 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   mock.module('../../src/services/switchboard/ensureDaemon.ts', () => ({ ...daemon, ensureOwnedDaemon: async () => true }))
   const { DaemonSessionConnector } = await import('../../src/services/engine-connector/daemonConnector.ts')
   const submitted: Parameters<typeof handler>[0][] = []
+  let releasedLane = false
   let loseReply = false
   const sender = new DaemonSessionConnector({ sessionId: SESSION, home, workspaceId: '/ws', title: 'delivery', projectLabel: 'proof' } as never, {
     rpc: async frame => {
       const input = frame as unknown as Parameters<typeof handler>[0]
       submitted.push(input)
-      return loseReply ? { ok: false, code: 'ENOCONN', frameWritten: true } : { ...await handler(input) }
+      if (loseReply) return { ok: false, code: 'ENOCONN', frameWritten: true }
+      const attempt = await handler(input)
+      releasedLane = attempt.unconfirmed === true && attempt.confirmation !== undefined
+      return { ...await (attempt.confirmation ?? attempt) }
     },
   })
   const sending = sender.sendWords('one instruction')
@@ -235,6 +239,7 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   const repeated = sender.sendWords('one instruction')
   const again = await handler(draft)
   check('an enqueued instruction whose ACK is held past five seconds is neither failed nor delivered, and is not cancelled', unconfirmed && beforeAck?.state === 'starting' && beforeAck.deliveredAt === undefined && !waiting.cancelled, j({ unconfirmed, state: beforeAck?.state, cancelled: waiting.cancelled }))
+  check('the dispatch caller is released at the deadline while the window is still waiting for the late answer', releasedLane)
   check('the same draft and a replay of its dispatch ID produce only one queue/add', !again.ok && again.unconfirmed === true && submitted.length === 1 && stand.requests.filter(r => r.method === 'queue/add' && (r.params as { id?: string }).id === draft.clientMessageId).length === 1, j(again))
   waiting.answer({ accepted: true })
   const [first, second] = await Promise.all([sending, repeated])
@@ -258,7 +263,13 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
   const told = seatModule.relayCredentialChange({ door: roster.door, liveWorkerFacts: () => [{ short: RUNNER, kind: 'long-lived' }, { short: 'one-shot', kind: 'one-shot' }] })
   await tick()
   check('the credential poke is the credentials/changed notification to every long-lived seat', j(told) === j([RUNNER]) && stand.notifications.some(n => n.method === 'credentials/changed'), j(stand.notifications))
+  const stoppedId = '67b4f070-0a93-4072-b165-36dd8ed1520b'
+  const stopped = handler({ ...draft, clientMessageId: stoppedId, prompt: 'send before disconnect' })
+  await stand.nextRequest('queue/add')
   stand.close()
+  const attempt = await stopped
+  const final = await (attempt.confirmation ?? attempt)
+  check('closing the runner after the write settles the dispatch instead of keeping the session pending for good', !final.ok && final.state === 'failed' && final.error === 'instruction delivery failed (stdin unavailable)' && dispatch.readConcourseDispatches(daemonDir)[stoppedId]?.state === 'failed', j(final))
 }
 
 section('§5 the warm claim rides session/claim')

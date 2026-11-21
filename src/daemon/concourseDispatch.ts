@@ -693,7 +693,7 @@ export interface ConcourseDispatchDeps {
 }
 
 export interface ConcourseDispatchHandler {
-  (req: ConcourseDispatchRequest): Promise<ConcourseDispatchResult>
+  (req: ConcourseDispatchRequest): Promise<DispatchAttempt>
   withdraw(clientMessageId: string): Promise<boolean>
 }
 
@@ -724,11 +724,10 @@ async function deliverDispatch(deps: ConcourseDispatchDeps, dispatches: Record<s
     if (!(error instanceof PendingQueueAck)) throw error
     const pending = reply(rec, null)
     return { ...pending, confirmation: error.confirmed.then(accepted => {
-      if (accepted === null) return pending
       const records = readConcourseDispatches(deps.dir)
       const current = records[rec.clientMessageId]
       if (current?.state !== 'starting' || current.workerId !== runnerId) return pending
-      return settle(records, current, accepted)
+      return settle(records, current, accepted === true)
     }) }
   }
 }
@@ -1083,7 +1082,7 @@ export function makeConcourseDispatchHandler(
       () => undefined,
       passedOverAs(undefined),
     )
-    return next.then(result => result.confirmation ?? result)
+    return next
   }) as ConcourseDispatchHandler
   handler.withdraw = clientMessageId => {
     const next = tail.then(

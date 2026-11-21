@@ -190,7 +190,7 @@ export class TaskRoster {
       if (!accepted) undoStart()
       return accepted
     } catch (error) {
-      if (error instanceof PendingQueueAck) void error.confirmed.then(accepted => { if (accepted === false) undoStart() })
+      if (error instanceof PendingQueueAck) void error.confirmed.then(accepted => { if (accepted !== true) undoStart() })
       throw error
     }
   }
