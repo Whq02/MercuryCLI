@@ -12,8 +12,7 @@
 # gate-watch: src/*
 # gate-watch: src/keybindings/*
 # gate-watch: src/services/agents/*
-# gate-watch: src/tools/AgentTool/* src/tools/FileEditTool/UI.tsx
-# gate-watch: src/tools/FileWriteTool/UI.tsx
+# gate-watch: src/tools/AgentTool/*
 # gate-watch: src/services/engine-connector/types.ts
 # gate-watch: src/screens/chat/*
 set -uo pipefail

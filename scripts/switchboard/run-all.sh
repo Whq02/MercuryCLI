@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-env: MERCURY_WORK_CHIP_SIZE
-# gate-watch: src/utils/cockpit/motionSetting.ts src/utils/cockpit/motionGovernor.ts
+# gate-watch: src/utils/cockpit/motionSetting.ts
 # gate-watch: scripts/compact/overflowFixture.ts scripts/lib/*
 # gate-watch: src/rows/*
 # gate-watch: src/utils/sessionStorage/rowGraph.ts

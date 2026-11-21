@@ -3,7 +3,6 @@
 # gate-watch: src/utils/hooks/** src/utils/messages/streaming*
 # gate-watch: src/constants/prompts*
 # gate-watch: scripts/api/read-instruction-heading.ts
-# gate-watch: src/utils/shell/readOnlyCommandValidation.ts
 # gate-watch: src/cli/structuredIO.ts
 # gate-watch: src/services/instructions/projectInstructionWriter.ts src/services/lsp/** src/services/mcp/** src/services/providers/**
 # gate-watch: src/utils/bash/parser.ts src/utils/bash/bashParser.ts src/utils/bash/ParsedCommand.ts src/utils/bash/treeSitterAnalysis.ts
@@ -13,7 +12,6 @@
 # gate-watch: src/utils/settings/**
 # gate-watch: src/rows/*
 # gate-watch: src/utils/windowsPaths.ts
-# gate-watch: src/utils/sanitization.ts
 # gate-watch: src/guards/** src/utils/artifactIdentity.ts src/utils/genericProcessUtils.ts src/cli/update.ts
 # gate-watch: src/services/remoteFiles/**
 # gate-watch: src/utils/shell/engineSession.ts

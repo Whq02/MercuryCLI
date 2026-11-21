@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/components/*
-# gate-watch: src/utils/model/pins/zenPins.ts
 # gate-watch: src/utils/*
 # gate-watch: src/cli/headless/*
 set -u

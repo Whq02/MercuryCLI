@@ -6,7 +6,6 @@
 # gate-watch: scripts/lib/*
 # gate-watch: src/components/concourse/SessionMirror.tsx
 # gate-watch: src/components/tasks/*
-# gate-watch: src/utils/crashReport.ts
 # gate-watch: src/components/ScrollKeybindingHandler.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

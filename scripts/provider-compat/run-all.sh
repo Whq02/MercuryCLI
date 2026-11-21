@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/providers/temporaryStreamError.ts src/services/providers/openai/**
+# gate-watch: src/services/providers/openai/**
 # gate-watch: src/services/providers/openaicompat/**
 # gate-watch: src/services/providers/openrouter/** src/utils/settings/**
 # gate-watch: src/services/providers/huggingface/** src/services/providers/local/**
 # gate-watch: src/utils/model/pins/glmPins* src/services/providers/**
-# gate-watch: src/types/message.ts src/components/CompatConnect.tsx
+# gate-watch: src/types/message.ts
 # gate-watch: src/services/providers/gemini/** src/services/providers/xai/** src/services/providers/meta/**
 # gate-watch: src/services/providers/mistral/**
 # gate-watch: src/services/providers/zen/** src/services/providers/zen/zenAdapter.ts
@@ -14,8 +14,6 @@
 # gate-watch: src/services/providers/nous/**
 # gate-watch: src/services/providers/minimax/** src/services/providers/together/** src/services/providers/cohere/**
 # gate-watch: src/services/providers/melious/**
-# gate-watch: src/services/api/outputFit.ts
-# gate-watch: src/services/providers/cacheFieldRetry.ts
 # gate-watch: src/services/engine-connector/seatLive.ts
 # gate-watch: src/services/health/healthReport.ts
 set -u

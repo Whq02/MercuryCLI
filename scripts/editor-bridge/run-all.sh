@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/workbench/** src/services/resources/adapters/workbench.ts
+# gate-watch: src/services/workbench/**
 # gate-watch: src/services/acp/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
 # gate-watch: LICENSE.md NOTICE
@@ -12,7 +12,7 @@
 # gate-watch: src/services/messages/attachmentText.ts
 # gate-watch: src/rows/* src/runner/wire/* src/tools/AskUserQuestionTool/**
 # gate-watch: scripts/lib/ptyRecorder.ts
-# gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
+# gate-watch: src/utils/sessionStorage/*
 # gate-watch: src/cli/headless/*
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

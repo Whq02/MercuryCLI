@@ -2,7 +2,7 @@
 # gate-class: cpu
 # gate-watch: src/services/eval/** src/tools/EvalTool/**
 # gate-watch: src/services/samples/**
-# gate-watch: src/utils/hooks/** src/utils/waitCeiling.ts
+# gate-watch: src/utils/hooks/**
 # gate-watch: src/utils/permissions/**
 # gate-watch: src/services/engine-connector/daemonConnector.ts
 set -u

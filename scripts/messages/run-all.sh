@@ -3,7 +3,6 @@
 # gate-watch: src/types/message* src/rows/request.ts
 # gate-watch: src/components/*
 # gate-watch: src/query/stopHooks.ts
-# gate-watch: src/services/providers/openai/openaiWire.ts
 # gate-watch: src/utils/*
 # gate-watch: src/utils/hooks/rows.ts
 # gate-watch: src/run-core/turn/**

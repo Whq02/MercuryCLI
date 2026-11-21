@@ -3,7 +3,6 @@
 # gate-watch: src/cli/headless/**
 # gate-watch: src/cli/run* src/components/App* src/constants/oauth*
 # gate-watch: src/ink/**
-# gate-watch: src/vim/operators.ts
 # gate-watch: src/query/**
 # gate-watch: src/services/providers/anthropic/**
 # gate-watch: src/types/ids* src/utils/**

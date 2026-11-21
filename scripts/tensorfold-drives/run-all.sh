@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/tensorfold/fixtures/**
 # gate-watch: src/services/tensorfold/** src/commands/tensorfold/**
-# gate-watch: src/components/SwitchboardTagBar.tsx src/services/engine-connector/daemonConnector.ts src/services/providers/streamIdleBudget.ts
+# gate-watch: src/components/SwitchboardTagBar.tsx src/services/engine-connector/daemonConnector.ts
 # gate-watch: src/daemon/concourseWorkers.ts src/services/switchboard/bornSession.ts src/services/switchboard/hopIntoSession.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

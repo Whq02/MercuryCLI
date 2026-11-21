@@ -5,7 +5,6 @@
 # gate-watch: scripts/settings/settings-schema.json
 # gate-watch: src/components/permissions/PermissionRequest.tsx src/components/mcp/ElicitationDialog.tsx
 # gate-watch: src/components/MercuryFrame.tsx
-# gate-watch: src/components/messages/SystemTextMessage.tsx
 # gate-watch: src/commands/model/mercuryModel.tsx src/commands/model/model.tsx
 # gate-watch: src/components/HelpV2/commandDomains.ts src/components/PromptInput/PromptInput.tsx
 # gate-watch: src/components/Settings/Config.tsx src/components/concourse/ConcourseStrips.tsx

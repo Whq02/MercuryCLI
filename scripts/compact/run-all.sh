@@ -17,7 +17,7 @@
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/types/message.ts
 # gate-watch: src/mneme/*
-# gate-watch: src/services/tools/toolOrchestration.ts src/utils/fileReadLimits.ts
+# gate-watch: src/utils/fileReadLimits.ts
 # gate-watch: src/commands/context/context-noninteractive.ts
 # gate-watch: src/cli/headless/*
 set -u

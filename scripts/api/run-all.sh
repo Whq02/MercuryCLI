@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # gate-class: pure
-# gate-watch: src/services/attachments/toolManuals.ts
 # gate-watch: src/services/providers/anthropic/**
 # gate-watch: src/services/providers/openai/** src/services/providers/zai/** src/services/providers/gemini/** src/services/providers/openrouter/**
 # gate-watch: src/services/api/**
@@ -15,7 +14,6 @@
 # gate-watch: src/services/crewBoard/seam.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/attachments/types.ts
-# gate-watch: src/services/health/sections/memory.ts
 # gate-watch: src/run-core/turn/**
 # gate-watch: src/cli/headless/*
 set -uo pipefail

@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/ink/** src/services/agentResults/** src/services/changeTransaction/**
-# gate-watch: src/services/resources/adapters/service.ts
 # gate-watch: src/services/run/**
 # gate-watch: src/tools/**
 # gate-watch: src/services/messages/attachmentText*

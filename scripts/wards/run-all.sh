@@ -3,7 +3,7 @@
 # gate-watch: src/utils/hooks/sessionHooks*
 # gate-watch: src/utils/* src/utils/hooks/fire.ts src/guards/**
 # gate-watch: src/skills/bundled/**
-# gate-watch: src/utils/permissions/runtimeProtection.ts src/utils/permissions/protectedPaths.ts
+# gate-watch: src/utils/permissions/protectedPaths.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

@@ -3,9 +3,8 @@
 # gate-watch: src/ink/input/**
 # gate-watch: src/components/PromptInput/**
 # gate-watch: src/input-core/**
-# gate-watch: src/components/InlineChangeView.tsx src/tools/StructureTool/**
+# gate-watch: src/tools/StructureTool/**
 # gate-watch: src/services/structure/** src/tools/LSPTool/**
-# gate-watch: src/utils/inputRange.ts
 # gate-watch: src/commands/model/mercuryModel.tsx
 # gate-watch: src/components/MercuryModelPicker.tsx
 # gate-watch: src/components/HelmLanesRail.tsx

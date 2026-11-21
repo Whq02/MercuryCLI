@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: src/services/providers/mistral/**
 # gate-watch: src/services/providers/zen/**
-# gate-watch: src/services/providers/patience.ts
 # gate-watch: src/services/model/providerFrontier.ts
 # gate-watch: src/bootstrap/runtime/posture.ts
 # gate-watch: src/utils/settings/**

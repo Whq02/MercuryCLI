@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/terminal-boundary/**
-# gate-watch: src/cli/run* src/utils/process.ts src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx src/ink/launcherAltHold.ts src/entrypoints/cli.tsx
-# gate-watch: src/utils/gracefulShutdown.ts src/utils/sessionStorage/clearedSessions.ts
+# gate-watch: src/cli/run* src/ink/components/ErrorOverview* src/ink/components/App.tsx src/main.tsx
+# gate-watch: src/utils/sessionStorage/clearedSessions.ts
 # gate-watch: src/rows/* src/runner/wire/* scripts/lib/rows.ts
 # gate-watch: scripts/lib/runnerHost.ts
 set -uo pipefail

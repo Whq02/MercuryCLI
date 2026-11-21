@@ -2,7 +2,6 @@
 # gate-class: pure
 # gate-watch: src/prompt/**
 # gate-watch: src/utils/cockpit/repoSurfaceMap.ts src/utils/config/trust.ts
-# gate-watch: src/components/mercury-ui/TrimChip.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

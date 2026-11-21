@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # gate-class: cpu
-# gate-watch: src/services/projectIntel/** src/services/resources/adapters/project.ts
+# gate-watch: src/services/projectIntel/**
 # gate-watch: src/utils/cockpit/repoSurfaceMap*
 # gate-watch: src/commands/orient/orient.ts
-# gate-watch: src/services/resources/adapters/transcript.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

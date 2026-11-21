@@ -2,9 +2,9 @@
 # gate-watch: src/services/providers/local/ollamaChatTransport.ts src/services/providers/openaicompat/compatChatCallModel.ts
 # gate-watch: src/substrate/operationJournal.ts
 # gate-class: cpu
-# gate-watch: src/services/agentResults/summaryRoom.ts src/types/textInputTypes.ts src/types/messageQueueTypes.ts
+# gate-watch: src/types/textInputTypes.ts src/types/messageQueueTypes.ts
 # gate-watch: src/tools/SendMessageTool/** src/tools/ResumeAgentTool/** src/commands/swarm/** src/components/prompts-panel/** src/utils/settings/** scripts/ui/gridToPng.ts scripts/ui/renderScenarios.ts
-# gate-watch: src/services/providers/toolEconomy.ts src/services/providers/anthropic/boundPrefixRecord.ts
+# gate-watch: src/services/providers/toolEconomy.ts
 # gate-watch: src/daemon/**
 # gate-watch: src/utils/daemonBreaker*
 # gate-watch: src/run-core/project-legacy.ts

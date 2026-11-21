@@ -3,7 +3,6 @@
 # gate-watch: src/daemon/**
 # gate-watch: src/services/run/** src/substrate/** src/utils/**
 # gate-watch: build.ts src/mneme/*
-# gate-watch: src/services/lsp/LSPClient.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

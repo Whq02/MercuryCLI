@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # gate-class: cpu
 # gate-watch: src/utils/**
-# gate-watch: src/cli/handlers/auth.ts
 # gate-watch: src/daemon/*
 # gate-watch: src/services/instructions/adapters/index.ts
 # gate-watch: src/services/providers/local/tensorfoldState.ts

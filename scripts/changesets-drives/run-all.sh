@@ -2,7 +2,7 @@
 # gate-class: pty
 # gate-watch: scripts/changesets/**
 # gate-watch: src/services/changeTransaction/** src/tools/ChangeSetTool/**
-# gate-watch: src/components/permissions/ChangeSetPermissionRequest/** src/components/InlineChangeView.tsx
+# gate-watch: src/components/permissions/ChangeSetPermissionRequest/**
 # gate-watch: src/substrate/recoveryOrchestrator.ts
 # gate-watch: src/tools/AstEditTool/AstEditTool.ts
 set -uo pipefail

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pure
 # gate-watch: src/services/changeTransaction/** src/tools/ChangeSetTool/**
-# gate-watch: src/components/permissions/ChangeSetPermissionRequest/** src/components/InlineChangeView.tsx
+# gate-watch: src/components/permissions/ChangeSetPermissionRequest/**
 # gate-watch: src/substrate/recoveryOrchestrator.ts
 # gate-watch: scripts/lib/captureDriver.ts scripts/ui/renderScenarios.ts scripts/ui/vshot.py
 set -u

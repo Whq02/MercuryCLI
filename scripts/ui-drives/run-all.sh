@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: src/services/kitMenu/** src/ink/** src/services/engine-connector/queuedNotices.ts src/components/LiveStreamingTail.tsx
-# gate-watch: src/components/StructuredDiff/** src/components/StructuredDiffList.tsx src/tools/FileWriteTool/UI.tsx
+# gate-watch: src/components/StructuredDiff/**
 # gate-watch: scripts/crew/crew-world.ts
 # gate-watch: scripts/lib/*
 # gate-watch: scripts/ui/*
 # gate-watch: src/utils/cockpit/popupOwnsKeys.ts
-# gate-watch: src/components/CrewmateCard.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

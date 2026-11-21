@@ -6,7 +6,6 @@
 # gate-watch: src/components/messages/AssistantTextMessage.tsx
 # gate-watch: scripts/ui/render-tui.ts src/rows/turn.ts
 # gate-watch: src/components/Message.tsx
-# gate-watch: src/components/messages/SystemTextMessage.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

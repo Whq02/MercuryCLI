@@ -5,7 +5,6 @@
 # gate-watch: src/components/*
 # gate-watch: src/utils/*
 # gate-watch: src/services/providers/local/localDiscovery.ts
-# gate-watch: src/services/health/sections/memory.ts
 set -u
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

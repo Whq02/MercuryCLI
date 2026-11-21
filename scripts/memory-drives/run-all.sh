@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/memory/**
-# gate-watch: src/mneme/** src/tools/JournalTool/** src/utils/settings/types.ts
+# gate-watch: src/mneme/** src/tools/JournalTool/**
 # gate-watch: docs/MNEME.md docs/MEMORY-FINDINGS.md
 # gate-watch: src/services/compact/compact.ts
 # gate-watch: src/services/eval/evalBridge.ts src/services/instructions/sourceText.ts

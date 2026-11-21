@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/motion/**
-# gate-watch: src/ink/hooks/** src/ink/components/MotionParkContext.ts src/hooks/useArrowKeyHistory.tsx src/components/PromptInput/** assets/splash/**
+# gate-watch: src/ink/hooks/** src/ink/components/MotionParkContext.ts src/components/PromptInput/** assets/splash/**
 # gate-watch: src/ink/ink.tsx src/interactiveHelpers.tsx src/main.tsx src/components/MercuryFrame.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"

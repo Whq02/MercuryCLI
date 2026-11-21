@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gate-class: pty
 # gate-watch: scripts/editor-bridge/** scripts/lib/nodeBin.ts
-# gate-watch: src/services/workbench/** src/services/resources/adapters/workbench.ts
+# gate-watch: src/services/workbench/**
 # gate-watch: src/services/acp/**
 # gate-watch: src/utils/artifacts/** src/components/diff/** src/components/prompts-panel/**
 # gate-watch: integrations/vscode/extension.js integrations/vscode/package.json integrations/vscode/LICENSE.txt LICENSE.md NOTICE
@@ -18,7 +18,7 @@
 # gate-watch: scripts/consistency-census/prove-worktree-settlement.ts
 # gate-watch: scripts/lib/processGroup.ts
 # gate-watch: scripts/lib/toolShellTree.ts
-# gate-watch: src/services/engine-connector/midTurnText.ts src/utils/sessionStorage/*
+# gate-watch: src/utils/sessionStorage/*
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78
