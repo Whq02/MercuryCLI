@@ -19,13 +19,13 @@ mock.module('../../src/utils/execFileNoThrow.js', () => ({
     assert.equal(options.env.HOME, options.cwd)
     assert.equal(options.env.USERPROFILE, options.cwd)
     if (binary.endsWith('soffice')) {
-      assert.ok(args.includes('--headless'))
+      assert.ok(args.includes('--headless'), `src/tools/DocumentTool/convert.ts soffice args missing --headless: ${args.join(' ')}`)
       assert.match(args[0]!, /^-env:UserInstallation=file:/)
       assert.equal(args[args.indexOf('--outdir') + 1], options.cwd)
       assert.match(readFileSync(join(options.cwd, 'office-profile', 'registrymodifications.xcu'), 'utf8'), /MacroSecurityLevel/)
       writeFileSync(join(options.cwd, 'input.pdf'), pdfBytes)
     } else {
-      assert.ok(args.includes('--sandbox'))
+      assert.ok(args.includes('--sandbox'), `src/tools/DocumentTool/convert.ts pandoc args missing --sandbox: ${args.join(' ')}`)
       writeFileSync(args[args.indexOf('--output') + 1]!, '<h1>Converted fixture</h1>')
     }
     return { code: 0, stdout: '', stderr: '' }
@@ -40,7 +40,7 @@ try {
   for (const [renderer, ext, road] of [['libreoffice', 'pdf', 'LibreOffice'], ['pandoc', 'html', 'pandoc']] as const) {
     const product = await convertDocument({ op: 'convert', source, output: join(proofHome, `result.${ext}`), renderer }, io)
     assert.equal(product.road, road)
-    assert.ok(product.files[0]!.bytes.length)
+    assert.ok(product.files[0]!.bytes.length, `src/tools/DocumentTool/convert.ts ${renderer} conversion to ${ext} returned 0 bytes`)
     assert.equal(existsSync(calls[calls.length - 1]!.options.cwd), false)
   }
   assert.equal(calls.length, 2)

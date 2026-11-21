@@ -41,7 +41,7 @@ try {
   const seatAfter = buildSubagentMercurySections({ agentDefinition: { agentType: 'mercury-crew' } } as never).find(section => section.startsWith('# Memory')) ?? ''
   assert.equal(seatAfter, seatBefore, 'a crewmate rebuilt after the main left its note presents the memory page its first request carried')
   const child = renderFrontPage({ dir: origin, topics: [doc], archives: [], pins: readPins(origin), usage: {}, now: new Date(now), role: 'child' } as never).text
-  assert.ok(child.includes('shared vessel') && child.includes('without checking'))
+  assert.ok(child.includes('shared vessel') && child.includes('without checking'), 'renderFrontPage(role="child") in src/mneme/mnemeFrontPage.ts must include both global safety and honesty rules')
   assert.ok(child.includes('unclassified rule'), 'unknown scope keeps conservative visibility')
   assert.ok(!child.includes('launch register'), 'a source-supported main-only rule is not projected into a child')
   const global = loadMemoryPrompt({ dir: sibling } as never) ?? ''

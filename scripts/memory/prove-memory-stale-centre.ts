@@ -34,9 +34,9 @@ const frames = framesAt >= 0 ? process.argv[framesAt + 1] : undefined
 if (frames) mkdirSync(frames, { recursive: true })
 const m = await mountOffscreen(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(KeybindingSetup, null, h(MemoryCentreView, { onClose: () => {}, width: 88, rowBudget: 30 }))), 100, 38)
 try {
-  assert(await waitFor(() => m.screen().includes('facts and decisions'), 6000))
+  assert(await waitFor(() => m.screen().includes('facts and decisions'), 6000), `MemoryCentreView in src/components/memory/MemoryCentreView.tsx must render "facts and decisions" within 6000ms: ${m.screen().slice(0, 240)}`)
   m.push(KEY.enter)
-  assert(await waitFor(() => m.screen().includes('memory › facts'), 6000))
+  assert(await waitFor(() => m.screen().includes('memory › facts'), 6000), `MemoryCentreView in src/components/memory/MemoryCentreView.tsx must open "memory › facts" after Enter: ${m.screen().slice(0, 240)}`)
   assert(m.lines().some(line => line.includes('stale') && line.includes('The backup uses')), m.screen())
   assert(m.lines().some(line => line.includes('pinned') && line.includes('Always keep') && !line.includes('stale')), m.screen())
   assert.deepEqual(readUsage(dir), {})

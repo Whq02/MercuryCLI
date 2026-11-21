@@ -58,7 +58,7 @@ const textOf = (request: ChatRequest): string => JSON.stringify(request.messages
 const MOVED = ['# Lineage', '# Scratchpad', '# gitStatus']
 const VOLATILE_IN_SYSTEM = ['# Lineage', 'Scratchpad directory:', 'gitStatus:']
 
-check('the built product is present', existsSync(dist), dist)
+check('the built product is present', existsSync(dist), `${dist} — run: bun run build.ts`)
 if (!existsSync(dist)) process.exit(1)
 
 function mainScript(): (request: ChatRequest) => ScriptedReply {

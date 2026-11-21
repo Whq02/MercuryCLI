@@ -14,12 +14,13 @@ mk_suite() {
 out="$work/out"; mkdir -p "$out"
 
 mk_suite green 'echo hello-from-green; exit 0'
-if bash "$helper" "$work/green/run-all.sh" 30 "$out" \
+bash "$helper" "$work/green/run-all.sh" 30 "$out"; green_rc=$?
+if [ "$green_rc" = "0" ] \
    && [ "$(cat "$out/green.rc")" = "0" ] \
    && grep -q hello-from-green "$out/green.out"; then
   echo "  ✓ green: rc 0 propagated, output captured"
 else
-  echo "  ✗ green case broken"; fail=1
+  echo "  ✗ green case broken in scripts/gate/run-suite.sh (rc=$green_rc, file=$(cat "$out/green.rc" 2>/dev/null), out=$(head -c 120 "$out/green.out" 2>/dev/null))"; fail=1
 fi
 
 mk_suite red 'echo boom >&2; exit 3'

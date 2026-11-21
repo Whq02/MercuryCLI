@@ -36,7 +36,7 @@ if (windowHome) {
     ink.unmount()
     process.exit(0)
   }, 100)
-  setTimeout(() => { ink.unmount(); process.exit(1) }, 120_000).unref()
+  setTimeout(() => { process.stderr.write('prove-computer-terminal-drive --window watchdog: timed out after 120000ms waiting for stop marker; check llmhost popup or terminal driver teardown\n'); ink.unmount(); process.exit(1) }, 120_000).unref()
   await new Promise(() => {})
 }
 if (process.platform !== 'darwin' || !process.argv.includes('--live')) {

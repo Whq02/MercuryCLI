@@ -60,7 +60,7 @@ try {
   assert.deepEqual(turns[0]!.cited, ['seq:1'])
   const offeredFeatures = turns[0]!.queries[0]!.features
   assert.equal(Object.keys(offeredFeatures).length, 3, 'actual Recall offerings carry scored features')
-  assert(Object.values(offeredFeatures).every(features => features.bm25 > 0 && features.kind === 'fact'))
+  assert(Object.values(offeredFeatures).every(features => features.bm25 > 0 && features.kind === 'fact'), 'mnemeSignal in src/mneme/mnemeSignal.ts must record bm25 > 0 and kind="fact" on offered Recall features')
   const { readUsage } = await import('../../src/mneme/mnemeUsage.js')
   const usage = readUsage(dir)
   assert.equal(usage['1']?.count, 1, 'a query does not increment the open count')

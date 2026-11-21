@@ -80,7 +80,7 @@ try {
   await assert.rejects(compactConversation([createUserMessage({ content: 'Keep these source bytes.' }), createAssistantMessage({ content: 'Source observed.' })], ctx, { systemPrompt: ['fixture'], userContext: {}, systemContext: {}, toolUseContext: ctx, forkContextMessages: [] }, true), APIUserAbortError)
   assert.equal(reads.get('unwritten-fixture.ts')?.content, 'original')
   assert.deepEqual([...nested], ['original'])
-  assert.ok(api.messageRequests().length > 0)
+  assert.ok(api.messageRequests().length > 0, 'cancelled compactConversation sent 0 summary requests before aborting at restoring stage; check compact.ts stage order')
   console.log('PASS cancellation after the real summary keeps the original context state')
 } finally {
   await api.close()

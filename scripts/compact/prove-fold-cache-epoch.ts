@@ -40,7 +40,7 @@ const verdict = judgeAndRecordPrefix(owner, 'after', { system, tools, messages: 
 assert.equal(verdict.compared, false)
 assert.equal(verdict.fixedPrefix?.unchanged, true)
 assert.equal(verdict.fixedPrefix?.previous, verdict.fixedPrefix?.current)
-assert.ok(verdict.fixedPrefix!.bytes > 0)
+assert.ok(verdict.fixedPrefix!.bytes > 0, `judgeAndRecordPrefix reported fixedPrefix.bytes=${verdict.fixedPrefix?.bytes}, expected >0; check prefix cache epoch recorder`)
 const rewritten = judgeAndRecordPrefix(owner, 'next', { system: [{ type: 'text', text: 'changed system' }], tools, messages: [] })
 assert.equal(rewritten.fixedPrefix?.unchanged, false)
 assert.equal(foldCacheUsage({ input_tokens: 100, output_tokens: 5, cache_read_input_tokens: 0, cache_creation_input_tokens: 50 } as never)?.write1h, null)

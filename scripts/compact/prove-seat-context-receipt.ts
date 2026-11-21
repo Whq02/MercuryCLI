@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 import type { ContextFillView } from '../../src/services/context/contextFill.ts'
 
-assert.ok(process.env.MERCURY_CONFIG_DIR)
+assert.ok(process.env.MERCURY_CONFIG_DIR, 'prove-seat-context-receipt requires a scratch MERCURY_CONFIG_DIR; run via bin/proof or set scratch home')
 delete process.env.MERCURY_HOME
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'

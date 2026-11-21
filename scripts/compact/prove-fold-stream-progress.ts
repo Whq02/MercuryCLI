@@ -57,7 +57,7 @@ let failure: unknown
 let pending: Promise<void> | undefined
 try {
   pending = withFoldStatus(context, scoped => compactConversation(messages, scoped, cache as never, false), { trigger: 'manual', sessionMemory: false, microcompaction: false }).then(value => { result = value }, error => { failure = error })
-  assert.ok(await waitFor(() => response !== undefined && fold?.stage === 'summarising', 10000))
+  assert.ok(await waitFor(() => response !== undefined && fold?.stage === 'summarising', 10000), `compaction did not reach summarising stage within 10000ms (hasResponse=${response !== undefined}, stage=${fold?.stage}); check withFoldStatus/compactConversation`)
   assert.ok(await waitFor(() => mounted.screen().includes('compacting context') && !mounted.screen().includes('↓'), 3000), mounted.screen())
   assert.ok(await waitFor(() => /compacting context[^\n]*[1-4]s/.test(mounted.screen()), 3000), 'the compaction row clock must advance before a token arrives')
   console.log('WAIT FRAME ' + mounted.lines().filter(Boolean).join('\n'))
@@ -66,16 +66,16 @@ try {
   assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) >= Math.floor(thought.length / 4), 3000), 'reasoning-only deltas must move compact progress')
   const first = fold!.summaryTokens
   response!.write(chunk({ reasoning_content: thought }))
-  assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) > first, 3000))
+  assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) > first, 3000), `second reasoning delta did not advance summaryTokens past ${first} (got=${fold?.summaryTokens}); check compact stream progress`)
   assert.ok(await waitFor(() => /compacting context[^\n]*↓ ~?[\d.]+k?/.test(mounted.screen()), 3000), mounted.screen())
   console.log('THINK FRAME ' + mounted.lines().filter(Boolean).join('\n'))
   const summary = 'The parser accepts quoted commas and all 14 checks passed. Preserve the test command and continue with CLI verification.'
   response!.write(chunk({ content: summary }))
-  assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) >= Math.floor((thought.length * 2 + summary.length) / 4), 3000))
+  assert.ok(await waitFor(() => (fold?.summaryTokens ?? 0) >= Math.floor((thought.length * 2 + summary.length) / 4), 3000), `summary text delta did not advance summaryTokens=${fold?.summaryTokens} to expected >=${Math.floor((thought.length * 2 + summary.length) / 4)}; check compact stream progress`)
   response!.end(chunk({}, 'stop') + 'data: [DONE]\n\n')
   await pending
   assert.equal(failure, undefined)
-  assert.ok(JSON.stringify(result.summaryMessages).includes(summary))
+  assert.ok(JSON.stringify(result.summaryMessages).includes(summary), `compactConversation summaryMessages missing streamed summary text (count=${result.summaryMessages?.length ?? 0}); check compact.ts`)
   assert.equal(fixture.captured.length, 1)
   assert.equal(fold!.exit, 'landed')
   console.log('PASS waiting, reasoning-only growth, text growth and summary settlement travel through the actual compact runner and FoldStatusRow')

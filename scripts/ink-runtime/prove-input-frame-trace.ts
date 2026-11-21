@@ -52,7 +52,7 @@ for (const key of ['a', 'b', 'c', 'd', 'e']) {
   const writes = stdout.writes.slice(marker)
   assert.ok(writes.length > 0, 'the real input owner must produce an echo frame')
   const trace = readFrameTrace()
-  assert.ok(trace.some(row => row.inputToFrameMs !== null))
+  assert.ok(trace.some(row => row.inputToFrameMs !== null), `frame trace recorded no inputToFrameMs after key=${key} (rows=${trace.length}); check src/ink/root/frame-trace.ts`)
   samples.push({ firstMs: writes[0]!.at - started, lastMs: writes[writes.length - 1]!.at - started, bytes: writes.reduce((sum, write) => sum + Buffer.byteLength(write.bytes), 0), frames: trace.length, engineMs: trace.reduce((sum, row) => sum + row.totalMs, 0) })
   const settled = stdout.writes.length
   ink.onRender()

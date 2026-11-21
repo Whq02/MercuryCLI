@@ -82,7 +82,7 @@ try {
   const before = calls.length
   assert.deepEqual(await files.getChangedFiles(context as never), [])
   assert.equal(calls.length, before)
-  assert(context.readFileState.has(path))
+  assert(context.readFileState.has(path), 'getChangedFiles evicted partial-view file entry from readFileState in src/services/attachments/fileAttachments.ts')
   context.readFileState.set(path, { content: 'old\n', timestamp: 1, offset: 2 })
   const windowed = await files.getChangedFiles(context as never)
   assert.equal(calls.length, before + 1)
@@ -90,13 +90,13 @@ try {
   assert.equal(windowed.length, 1)
   assert.equal(windowed[0].type, 'edited_text_file')
   assert.match(windowed[0].snippet, /^\s*2\tnew$/)
-  assert(!context.readFileState.has(path))
+  assert(!context.readFileState.has(path), 'getChangedFiles retained stale readFileState entry after emitting edited_text_file in src/services/attachments/fileAttachments.ts')
   context.readFileState.set(path, { content: 'old\n', timestamp: 1 })
   ioFailure = 'EACCES'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
-  assert(context.readFileState.has(path))
+  assert(context.readFileState.has(path), 'getChangedFiles evicted readFileState entry on non-ENOENT EACCES error in src/services/attachments/fileAttachments.ts')
   ioFailure = 'ENOENT'
   assert.deepEqual(await files.getChangedFiles(context as never), [])
-  assert(!context.readFileState.has(path))
+  assert(!context.readFileState.has(path), 'getChangedFiles did not evict readFileState entry on ENOENT in src/services/attachments/fileAttachments.ts')
   console.log('PASS PDF threshold/fallback, denied and cached reads, exact mtime, overflow policy, the window an overflow names, the row of a mention no window fits, the windowed refresh and ENOENT-only eviction')
 } finally { for (const spy of spies) spy.mockRestore() }

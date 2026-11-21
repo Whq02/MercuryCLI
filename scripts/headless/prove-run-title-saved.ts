@@ -17,7 +17,7 @@ try {
   assert.ok(listed.stdout.includes('Renamed session'), listed.stdout)
   const ephemeral = await run(['--ephemeral', '--title', 'Do not save me'])
   assert.equal(ephemeral.code, 0, ephemeral.stderr)
-  assert.ok(!JSON.stringify(ephemeral.sessionRows).includes('Do not save me'))
+  assert.ok(!JSON.stringify(ephemeral.sessionRows).includes('Do not save me'), 'headless --ephemeral --title must not persist title in sessionRows')
   console.log('PASS run titles saved, resumed title replaced, ephemeral title not saved')
 } finally {
   rmSync(paths.root, { recursive: true, force: true })
