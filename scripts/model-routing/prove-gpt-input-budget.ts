@@ -200,7 +200,7 @@ try {
     assert.deepEqual(gptDisplayPin(id)?.supportedReasoningEfforts, sixWords)
     assert.equal(gptDisplayPin(id)?.defaultReasoningEffort, 'medium')
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed: ${JSON.stringify(row).slice(0, 140)}`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, sixWords)
     assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'medium')
     for (const word of sixWords) {
@@ -215,7 +215,7 @@ try {
     assert.equal(getContextWindowForModel(`${id}[served]`), 272_000)
     assert.equal(getAutoCompactThreshold(`${id}[served]`), 229_000)
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed on codexList: ${JSON.stringify(row).slice(0, 140)}`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, ['low', 'medium'])
     assert.equal(catalogue.resolveGptReasoningProfile('max', row.candidate.live).wireEffort, 'medium')
   })

@@ -121,7 +121,7 @@ try {
     const got = await startsOn(['gpt-5.4-nano', 'gpt-5.4-mini'])
     assert.equal(got.setting, 'gpt-5.4-mini')
     const row = getModelOptions().find(option => option.value === 'gpt-5.4-nano')
-    assert.ok(row)
+    assert.ok(row, 'src/utils/model/modelOptions.ts getModelOptions missing deprecated gpt-5.4-nano row')
     assert.equal(row.unavailable, undefined)
   })
   await check('the reason line is true of the row it stands on: the recorded release and that row\'s own date, on Sol, on Astra and on GPT-5.5 alike, and the word frontier is on none', async () => {
