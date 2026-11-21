@@ -33,7 +33,7 @@ try {
     const run = runJobControlHost({
       tag: `vte-${version}`, argv: base.argv, cwd: base.cwd, cols: 120, rows: 40, budgetSeconds: 90,
       env: { ...process.env, VTE_VERSION: version, MERCURY_CONFIG_DIR: cfg, MERCURY_DAEMON_DIR: join(cfg, 'daemon'), MERCURY_CREDENTIAL_STORE: 'file' },
-      steps: [{ wait: 'host$', timeout: 15 }, { launch: true }, { wait: 'Health Check', timeout: 45 },
+      steps: [{ wait: 'host$', timeout: 15 }, { launch: true }, { wait: 'New Session', timeout: 45 },
         { send: '\r' }, { wait: 'Type a prompt', timeout: 30 }, { sleep: 1 }, { signal: 'SIGTERM' },
         { sleep: 3 }, { typeline: 'echo done-$((40+2))' }, { wait: 'done-42', timeout: 25 }],
     })

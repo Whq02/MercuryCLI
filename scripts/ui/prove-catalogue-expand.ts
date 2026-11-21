@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { focusedRowPattern, rowPattern } from '../lib/pickerCells.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
@@ -330,7 +331,7 @@ type FamilySpec = { family: 'openrouter' | 'huggingface'; word: string; door: nu
 
 function familySends(spec: FamilySpec, settle: { atTick: number; settleTicks: number }): unknown[] {
   return [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: settle.atTick, data: '/model', awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: settle.settleTicks },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
@@ -366,7 +367,7 @@ function familyDrive(spec: FamilySpec): void {
   console.log(`[${spec.family}] the door: expand · filter · esc clears · esc collapses · esc closes · select a deep row`)
   let home = seededHome(`home-${spec.family}`)
   let res = drive(spec.family, home, familySends(spec, { atTick: 130, settleTicks: 15 }), 460)
-  if (res.status !== 0 && /first stuck: '(Mercury · model|❯ \/model|Type a prompt|↑↓ choose)'/.test(res.stderr)) {
+  if (res.status !== 0 && /first stuck: '(Mercury · model|❯ \/model|Type a prompt|↑↓)'/.test(res.stderr)) {
     console.log(`  (the picker never opened on the first boot — ${/first stuck: '[^']*'/.exec(res.stderr)?.[0] ?? ''}; one more boot)`)
     dumpHomeLogs(home)
     home = seededHome(`home-${spec.family}-2`)

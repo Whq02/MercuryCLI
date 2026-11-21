@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -288,7 +289,7 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     seededHome('home-b'),
     netlog,
     [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 2, mark: 'typed', data: '' },
       { afterPrevTicks: 2, data: '\r' },
@@ -347,7 +348,7 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
     seededHome('home-c'),
     netlog,
     [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { afterPrevTicks: 4, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitStableTicks: 3, mark: 'open', data: '' },
@@ -391,7 +392,7 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
     seededHome('home-d'),
     netlog,
     [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true },
       { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
       { afterPrevTicks: 2, data: '\r' },
