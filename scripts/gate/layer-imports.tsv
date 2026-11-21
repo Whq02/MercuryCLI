@@ -2,23 +2,7 @@ src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSu
 src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/oasisBg.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
 src/utils/cockpit/runtimePosture.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
-src/utils/imageResizer.ts	src/services/providers/idSpaces.ts	load	low-level utils checking provider route, env spelling or usage type without owning a service
 src/utils/mercuryTokens.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
-src/utils/model/model.ts	src/services/model/bareFamilyWords.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/model.ts	src/services/model/computedDefault.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/model.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/model.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/model.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelAllowlist.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelAllowlist.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelFamilies.ts	src/services/providers/disabledProviders.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelFamilies.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelNames.ts	src/services/providers/idSpaces.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelOverrides.ts	src/services/model/bareFamilyWords.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelOverrides.ts	src/services/providers/melious/meliousCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelOverrides.ts	src/services/providers/orcarouter/orcarouterCatalogue.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelOverrides.ts	src/services/providers/routeLaw.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
-src/utils/model/modelSpellingFold.ts	src/services/model/modelOptions.ts	load	shared model-id and capability lookup used across src/utils; reads live provider catalogues
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
 src/utils/theme.ts	src/components/mercury-ui/sessionAccent.ts	load	its path is the hex exemption of src/utils/wards/wards.ts

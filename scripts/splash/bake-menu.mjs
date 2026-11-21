@@ -8,7 +8,7 @@ const ROW = {
   assets: 'assets/splash/splash-core.mjs',
   generator: 'bun scripts/splash/bake-menu.mjs',
   check: 'bun scripts/splash/bake-menu.mjs --check',
-  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/utils/model/model.ts src/utils/model/pins/xaiPins.ts src/utils/model/pins/metaPins.ts src/utils/model/pins/mistralPins.ts src/utils/model/pins/minimaxPins.ts src/utils/model/pins/coherePins.ts src/utils/model/pins/groqPins.ts src/utils/model/pins/cerebrasPins.ts src/utils/model/pins/fireworksPins.ts src/utils/model/pins/qwenPins.ts src/utils/model/pins/deepseekPins.ts src/utils/model/pins/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
+  sources: 'src/substrate/startupMenu.ts src/utils/model/configs.ts src/utils/model/aliases.ts src/services/model/model.ts src/utils/model/pins/xaiPins.ts src/utils/model/pins/metaPins.ts src/utils/model/pins/mistralPins.ts src/utils/model/pins/minimaxPins.ts src/utils/model/pins/coherePins.ts src/utils/model/pins/groqPins.ts src/utils/model/pins/cerebrasPins.ts src/utils/model/pins/fireworksPins.ts src/utils/model/pins/qwenPins.ts src/utils/model/pins/deepseekPins.ts src/utils/model/pins/kimiPins.ts src/services/providers/zai/zaiAdapter.ts',
   build: true,
 }
 if (registerOnlyRequested(ROW)) process.exit(0)
@@ -32,7 +32,7 @@ const { STARTUP_MENU, menuRowChoices } = await import('../../src/substrate/start
 const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
 const { MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
 const { getMarketingNameForModel, parseUserSpecifiedModel } =
-  await import('../../src/utils/model/model.ts')
+  await import('../../src/services/model/model.ts')
 const { XAI_DISPLAY_PINS } = await import('../../src/utils/model/pins/xaiPins.ts')
 const { DEEPSEEK_DISPLAY_PINS, DEEPSEEK_RETIRED_ALIASES, deepseekDisplayName } =
   await import('../../src/utils/model/pins/deepseekPins.ts')

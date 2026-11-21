@@ -384,10 +384,9 @@ function armFallbackClock(entry: OutputWatchEntry): void {
   if (entry.closed || entry.fallbackStop !== null) return
   entry.fallbackStop = subscribeUiClock(TASK_OUTPUT_FALLBACK_POLL_MS, () => {
     if (entry.closed) return
-    if (tryArmFileWatcher(entry)) {
+    if (entry.fileWatcher === null && tryArmFileWatcher(entry)) {
       closeWatcher(entry.dirWatcher)
       entry.dirWatcher = null
-      stopFallback(entry)
     }
     emitTaskOutput(entry)
   })
@@ -436,7 +435,6 @@ function armTaskOutputWatcher(entry: OutputWatchEntry): void {
   if (tryArmFileWatcher(entry)) {
     closeWatcher(entry.dirWatcher)
     entry.dirWatcher = null
-    stopFallback(entry)
     return
   }
   let isDanglingLink = false
@@ -464,7 +462,6 @@ function armTaskOutputWatcher(entry: OutputWatchEntry): void {
       if (tryArmFileWatcher(entry)) {
         closeWatcher(entry.dirWatcher)
         entry.dirWatcher = null
-        stopFallback(entry)
         emitTaskOutput(entry)
       } else if (watchDir !== parentDir) {
         const deeper = nearestExistingDir(entry.path)
@@ -486,7 +483,6 @@ function armTaskOutputWatcher(entry: OutputWatchEntry): void {
     if (fs.existsSync(entry.path) && tryArmFileWatcher(entry)) {
       closeWatcher(entry.dirWatcher)
       entry.dirWatcher = null
-      stopFallback(entry)
       emitTaskOutput(entry)
     }
   } catch (error) {
@@ -518,6 +514,7 @@ export function subscribeTaskOutputPath(path: string, listener: () => void): () 
     }
     outputWatchers.set(key, entry)
     armTaskOutputWatcher(entry)
+    armFallbackClock(entry)
   }
   entry.listeners.add(listener)
   return () => {

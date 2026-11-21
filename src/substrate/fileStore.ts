@@ -11,7 +11,7 @@ import * as lockfile from '../utils/lockfile.js'
 import { groupCommitLane } from './groupCommit.js'
 import { jsonParse, jsonStringify } from '../utils/slowOperations.js'
 import { durableAtomicPublish, durableAtomicPublishSync, durableTempName, type DurablePublishOptions, type DurablePublishReport } from './durablePublish.js'
-export { renameWithWin32RetrySync } from './durablePublish.js'
+export { faultPoint, fsyncEnabled, renameWithWin32RetrySync } from './durablePublish.js'
 import { quarantineDamagedStore } from './storeRecovery.js'
 import {
   nextRevision,
@@ -109,7 +109,7 @@ export async function publishAtomic(
 
 export function publishAtomicSync(
   path: string,
-  contents: string | Uint8Array,
+  contents: string | Uint8Array | Iterable<Uint8Array>,
   opts?: DurablePublishOptions,
 ): DurablePublishReport {
   return durableAtomicPublishSync(path, contents, opts)

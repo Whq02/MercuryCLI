@@ -19,7 +19,7 @@ export type ModelHookEnd =
   | { kind: 'cancelled'; durationMs: number }
   | { kind: 'failed'; detail: string; durationMs: number }
 
-export interface ModelHookRunners {
+interface ModelHookRunners {
   runCrewmateHook(run: ModelHookRun): Promise<ModelHookEnd>
   runQuestionHook(run: ModelHookRun): Promise<ModelHookEnd>
 }

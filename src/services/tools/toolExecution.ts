@@ -52,7 +52,7 @@ import { isDeferredToolFor, TOOL_SEARCH_TOOL_NAME } from '../../tools/ToolSearch
 import { deferralSearchIsServerSide, deferralWireFormFor } from '../providers/deferralWire.js'
 import { repairToolInput, toolCallRefusalResultText } from '../providers/toolCallGate.js'
 import { outputSchemaMismatch } from './toolOutputCheck.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { FILE_EDIT_TOOL_NAME } from '../../constants/tools/fileEdit.js'
 import { FILE_READ_TOOL_NAME } from '../../constants/tools/fileRead.js'
 import { FILE_WRITE_TOOL_NAME } from '../../constants/tools/fileWrite.js'

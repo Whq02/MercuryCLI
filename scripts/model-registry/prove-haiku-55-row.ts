@@ -23,7 +23,7 @@ function check(label: string, condition: boolean, detail?: unknown): void {
 const close = (actual: number, expected: number): boolean => Math.abs(actual - expected) < 1e-10
 
 try {
-  const model = await import('../../src/utils/model/model.ts')
+  const model = await import('../../src/services/model/model.ts')
   const configs = await import('../../src/utils/model/configs.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const effort = await import('../../src/utils/effort.ts')

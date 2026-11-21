@@ -68,7 +68,7 @@ section('§3 a live keyless home — the unnamed session admits keyless; the cre
   const unnamed = await wm.validateWorkerModelChoice(undefined, 'session')
   check('an UNNAMED session launch admits KEYLESS (no family refused)', unnamed.ok && unnamed.keyless === true, text(unnamed))
   check('…the row wears the keyless words', unnamed.ok && unnamed.entry.displayName === NO_SIGN_IN_ROW, text(unnamed))
-  const { getEngineModel } = await import('../../src/utils/model/model.ts')
+  const { getEngineModel } = await import('../../src/services/model/model.ts')
   const placeholder = getEngineModel()
   const named = await wm.validateWorkerModelChoice(placeholder, 'session')
   check(`the keyless entry spelled out ('${placeholder}') is the "choose a model" dud — no family to name, so it keeps the two-door sentence (no product door spells it: bornSession drops every model there)`, placeholder === 'choose-a-model' && !named.ok && named.reason === wm.NO_ACCOUNT_REFUSAL && String(named.action).includes('/logins to choose an account'), text(named))

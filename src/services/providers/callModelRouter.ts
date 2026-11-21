@@ -35,7 +35,7 @@ import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
 import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../model/computedDefault.js'
-import { rosterRefusal } from '../../utils/model/modelAllowlist.js'
+import { rosterRefusal } from '../model/modelAllowlist.js'
 
 export {
   classifyModelRoute,

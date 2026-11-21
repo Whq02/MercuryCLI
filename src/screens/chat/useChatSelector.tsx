@@ -16,7 +16,7 @@ import type { Message, NormalizedUserMessage, UserMessage } from '../../types/me
 import type { PromptInputMode } from '../../types/textInputTypes.js';
 import { getCwd } from '../../utils/cwd.js';
 import { textForResubmit } from '../../services/messages.js';
-import { modelDisplayString } from '../../utils/model/model.js';
+import { modelDisplayString } from '../../services/model/model.js';
 import { transcriptMessageIndex } from '../../utils/sessionStorage/materialize.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';

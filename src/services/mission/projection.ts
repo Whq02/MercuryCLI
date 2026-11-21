@@ -147,7 +147,7 @@ export async function gatherMissionView(): Promise<MissionView | null> {
 
   let model: string | null = null
   try {
-    const { getEngineModel } = await import('../../utils/model/model.js')
+    const { getEngineModel } = await import('../model/model.js')
     model = String(getEngineModel())
   } catch {
     model = null

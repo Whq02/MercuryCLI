@@ -1,5 +1,4 @@
 import memoize from 'lodash-es/memoize.js'
-import { modelHasRecordedFacts, operatorModelFacts } from './modelOverrides.js'
 import { flagEnabled, flagEnv } from 'src/substrate/flagRegistry.js'
 import { EFFORT_LEVELS, type EffortLevel } from '../effortLadder.js'
 import { getSdkBetas } from '../../bootstrap/state.js'
@@ -16,7 +15,7 @@ import { isChooseAModel } from './chooseAModel.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
 import type { CallModelRoute } from '../../types/providerRoute.js'
-import { providerCapabilities } from './capabilityRegistry.js'
+import { providerCapabilities, type OperatorModelFacts } from './capabilityRegistry.js'
 import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
@@ -58,6 +57,8 @@ import { tellWhatClearsTheBetas } from './betasClearing.js'
 
 const isCarrierShapedId = (model: string): boolean => providerCapabilities()?.isCarrierShapedId(model) ?? false
 const declaredRouteOf = (model: string): CallModelRoute | null => providerCapabilities()?.declaredRouteOf(model) ?? null
+const modelHasRecordedFacts = (model: string): boolean => providerCapabilities().modelHasRecordedFacts(model)
+const operatorModelFacts = (model: string, recorded?: OperatorModelFacts): OperatorModelFacts | undefined => providerCapabilities().operatorModelFacts(model, recorded)
 const classifyModelRoute = (model: string) => providerCapabilities()?.classifyModelRoute(model) ?? ({ kind: 'unrecognised' } as const)
 const qualifiedWireId = (model: string): string => providerCapabilities()?.qualifiedWireId(model) ?? model
 const isMeliousModelId = (model: string): boolean => providerCapabilities()?.isMeliousModelId(model) ?? false

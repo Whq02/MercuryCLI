@@ -28,7 +28,7 @@ const { FILE_UNCHANGED_STUB } = await import(`${SRC}/constants/tools/fileRead.ts
 const { getChangedFiles } = await import(`${SRC}/services/attachments/fileAttachments.ts`)
 const { getDefaultAppState } = await import(`${SRC}/state/AppStateStore.ts`)
 const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileStateCache.ts`)
-const { getEngineModel } = await import(`${SRC}/utils/model/model.ts`)
+const { getEngineModel } = await import(`${SRC}/services/model/model.ts`)
 
 const tally = makeTally('prove-read-stub-truth')
 const guard = setTimeout(() => {

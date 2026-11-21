@@ -1,5 +1,5 @@
 import { getSettingsWithSources } from '../../../utils/settings/settings.js'
-import { parseUserSpecifiedModel, getEngineModel } from '../../../utils/model/model.js'
+import { parseUserSpecifiedModel, getEngineModel } from '../../../services/model/model.js'
 import { commandOutputRow } from '../../../rows/project.js'
 import { recordTranscript } from '../../../utils/sessionStorage/writer.js'
 import { logForDebugging } from '../../../utils/debug.js'

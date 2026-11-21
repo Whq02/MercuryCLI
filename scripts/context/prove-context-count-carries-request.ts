@@ -50,7 +50,7 @@ const { ask } = await import('../../src/rows/turn.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { createFileStateCacheWithSizeLimit, READ_FILE_STATE_CACHE_SIZE } = await import('../../src/utils/fileStateCache.ts')
 const { collectContextData } = await import('../../src/commands/context/context-noninteractive.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 const { countTokensWithAPI } = await import('../../src/services/tokenEstimation.ts')
 const { mcpContentNeedsTruncation, getMaxMcpOutputTokens } = await import('../../src/services/mcp/mcpValidation.ts')
 

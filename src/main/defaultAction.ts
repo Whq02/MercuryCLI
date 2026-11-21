@@ -1,4 +1,4 @@
-import { getIsInteractive, setInitialEngineModel, setEngineModelOverride } from '../bootstrap/state.js'
+import { getIsInteractive, setEngineModelOverride } from '../bootstrap/state.js'
 import { getCommands } from '../commands.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { getSystemContext, getUserContext } from '../context.js'
@@ -11,7 +11,7 @@ import { getAgentDefinitionsWithOverrides } from '../tools/AgentTool/loadAgentsD
 import { binaryName } from '../utils/config.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
 import { startCapturingEarlyInput } from '../utils/earlyInput.js'
-import { getDefaultEngineModelSetting, getEngineModel } from '../utils/model/model.js'
+import { getDefaultEngineModelSetting, getEngineModel } from '../services/model/model.js'
 import { profileCheckpoint } from '../utils/startupProfiler.js'
 import { checkHasTrustDialogAccepted } from '../utils/config.js'
 import { registerCleanup } from '../utils/cleanupRegistry.js'
@@ -120,7 +120,6 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
     userSpecifiedModel = mainThreadAgentDefinition.model
   }
   if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
-  setInitialEngineModel(userSpecifiedModel ?? null)
   if (runMode) {
     const { readComputedDefaultCatalogue } = await import('../services/model/computedDefault.js')
     await readComputedDefaultCatalogue()

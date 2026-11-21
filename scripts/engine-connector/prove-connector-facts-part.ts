@@ -18,7 +18,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { FactsPart } = await import('../../src/services/engine-connector/daemon/facts.ts')
 const { publishSessionFacts, readSessionFacts, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
-const { getEngineModel } = await import('../../src/utils/model/model.ts')
+const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 const PART = 'src/services/engine-connector/daemon/facts.ts'
 let failures = 0

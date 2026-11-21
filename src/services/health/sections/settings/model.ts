@@ -1,6 +1,6 @@
 import { flagEnv } from '../../../../substrate/flagRegistry.js'
-import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, renderModelChip } from '../../../../utils/model/model.js'
-import { describeFrontierDecision, frontierOperatorDecision } from '../../../../utils/model/frontierPolicy.js'
+import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, renderModelChip } from '../../../model/model.js'
+import { describeFrontierDecision, frontierOperatorDecision } from '../../../model/frontierPolicy.js'
 import { CHOOSE_A_MODEL_WORDS, computedDefault, describeComputedDefault, isChooseAModel } from '../../../model/computedDefault.js'
 import { providerDisplayName } from '../../../providers/routeLaw.js'
 import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'

@@ -5,7 +5,7 @@ import { useCompactWorkCounts, compactWorkSummaryText } from '../useFocusedWork.
 import { countOperatorTurns } from '../../../utils/messages/operatorTurns.js'
 import { formatSessionCost } from '../../../services/providers/spendSpelling.js'
 import { contextFillView, contextPercentLabel } from '../../../services/context/contextFill.js'
-import { renderModelName } from '../../../utils/model/model.js'
+import { renderModelName } from '../../../services/model/model.js'
 import { hasSeatLive } from '../../../services/engine-connector/seatLive.js'
 import { statusLine } from '../../SwitchboardTagBar.js'
 import { formatTokens } from '../../../utils/format.js'

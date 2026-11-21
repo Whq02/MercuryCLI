@@ -45,7 +45,7 @@ interface ClassifiedModelRefusal extends ModelRefusal {
 
 export function modelRefusalId(id: string): string {
   const { normalizeModelStringForAPI } =
-    require('../../../utils/model/model.js') as typeof import('../../../utils/model/model.js')
+    require('../../model/model.js') as typeof import('../../model/model.js')
   return normalizeModelStringForAPI(id).trim().toLowerCase()
 }
 
@@ -78,7 +78,7 @@ export function modelRefusalFix(refusal: Pick<ClassifiedModelRefusal, 'kind' | '
 
 export function modelRefusalSentence(refusal: ClassifiedModelRefusal): string {
   const { renderModelName } =
-    require('../../../utils/model/model.js') as typeof import('../../../utils/model/model.js')
+    require('../../model/model.js') as typeof import('../../model/model.js')
   const name = renderModelName(refusal.id)
   if (refusal.kind === 'contract-floor') {
     const presents = refusal.contractStory ?? `Mercury presents ${refusal.presented}${refusal.presentedSource !== undefined ? ` (${refusal.presentedSource})` : ''}`

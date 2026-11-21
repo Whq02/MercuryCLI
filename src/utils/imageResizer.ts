@@ -4,7 +4,8 @@ import {
   type ImageLimitFamily,
   type ImageLimits,
 } from '../constants/apiLimits.js'
-import { classifyModelRoute } from '../services/providers/idSpaces.js'
+import type { CallModelRoute } from '../types/providerRoute.js'
+import { providerCapabilities } from './model/capabilityRegistry.js'
 import { getImageProcessor, imageProcessorState, type SharpFunction } from './imageProcessor/imageProcessor.js'
 import { imageDimensionsFromHeader } from './imageProcessor/imageProcessorJs.js'
 import type { Base64ImageSource, ImageBlockParam } from '../types/wire.js'
@@ -56,8 +57,10 @@ export function imageLimitFamilyForRoute(route: string | undefined): ImageLimitF
   return 'generic'
 }
 
-export function imageLimitsForModel(model: string | undefined): ImageLimits {
-  const verdict = classifyModelRoute(model)
+export function imageLimitsForModel(model: string | undefined, route?: CallModelRoute): ImageLimits {
+  if (route !== undefined) return IMAGE_LIMITS_BY_FAMILY[imageLimitFamilyForRoute(route)]
+  if (model === undefined || model.trim() === '') return IMAGE_LIMITS_BY_FAMILY.generic
+  const verdict = providerCapabilities().classifyModelRoute(model)
   return IMAGE_LIMITS_BY_FAMILY[imageLimitFamilyForRoute(verdict.kind === 'route' ? verdict.route : undefined)]
 }
 
@@ -70,9 +73,9 @@ export function anthropicResolutionTier(model: string | undefined): 'standard' |
 }
 
 async function engineModel(): Promise<string | undefined> {
+  const caps = providerCapabilities()
   try {
-    const { getEngineModel } = await import('./model/model.js')
-    return getEngineModel()
+    return caps.getEngineModel()
   } catch (error) {
     passedOver(error)
     return undefined

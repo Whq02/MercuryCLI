@@ -8,7 +8,7 @@ import {
 import { declaredRouteOf } from '../providers/routeLaw.js'
 import type { ContextResolution } from '../../utils/model/capabilities.js'
 import { resolveDisplayedContextWindow } from '../context/contextFill.js'
-import { renderModelName, type ModelName } from '../../utils/model/model.js'
+import { renderModelName, type ModelName } from '../model/model.js'
 import { withState, type Snapshot } from '../../utils/cockpit/types.js'
 
 export type ModelData = {

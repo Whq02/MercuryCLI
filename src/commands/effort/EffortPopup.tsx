@@ -24,7 +24,7 @@ import { useAppState } from '../../state/AppState.js'
 import type { AppState } from '../../state/AppState.js'
 import type { CommandPopupShape } from '../../utils/cockpit/commandPopup.js'
 import { estateGroundBg } from '../../utils/mercuryTokens.js'
-import { renderModelName } from '../../utils/model/model.js'
+import { renderModelName } from '../../services/model/model.js'
 import { MODEL_PICKER_CURRENT, MODEL_PICKER_PANEL } from '../../utils/model/modelPickerGroups.js'
 import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import {

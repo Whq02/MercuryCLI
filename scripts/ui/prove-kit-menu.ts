@@ -8,6 +8,7 @@ import { assembleCardRows, createSplashCore } from '../../assets/splash/splash-c
 import { consumeKitManagerDeepLink, decideSplashReceipt } from '../../src/substrate/splashHandover.js'
 import { KIT_LEGEND_PRESET, KIT_LEGEND_PRESETS, KIT_LEGEND_PROMPT, kitEntryOf, kitStatusLine, kitSummaryRows, kitValueLabel, presetPromptLines } from '../../src/components/KitMenuScreen.js'
 import { EMPTY_KIT_CATALOGUE, KIT_SECTION_TITLE, cycleState, kitCounts, kitRowId, kitRowView, kitStateKey, sectionRows, type KitRow, type KitRowState } from '../../src/services/kitMenu/kitTypes.js'
+import { settingsEditors } from '../../src/components/bootSettings/menuModel.js'
 import { SAMPLE_CATALOGUE, SAMPLE_STATES, STILLS, composeManager, faceFacts, readStill, renderStill, stillPath } from './kit-menu-stills.ts'
 
 const t = checker()
@@ -19,46 +20,43 @@ const BASE = { cwdBase: 'proj', continueTarget: null, menuAvailable: true, proje
 const FULL = { ...BASE, concourse: { ctx: 'the live board' } }
 const CHAT = { ...BASE, concourse: null }
 
-t.section('§1 — THE ROW, BOTH HOSTS, EVERY WORLD (one owner, no world check)')
+t.section('§1 — THE FACE AND BOOT MENU DOOR, BOTH HOSTS, EVERY WORLD')
 {
   const full = keysOf(FULL)
   const chat = keysOf(CHAT)
-  t.check('the full world carries the kit row directly after the Boot Menu row', full.indexOf('kit') === full.indexOf('menu') + 1 && full.includes('menu'), full.join(' · '))
-  t.check('the --chat world carries the SAME kit row at the SAME place (identical worlds — no row-null, no chatBoot mark for it)', chat.indexOf('kit') === chat.indexOf('menu') + 1 && chat.includes('menu'), chat.join(' · '))
+  t.check('the full world carries the approved four no-history rows (new · logins · concourse · menu)', JSON.stringify(full) === JSON.stringify(['new', 'logins', 'concourse', 'menu']), full.join(' · '))
+  t.check('the --chat world carries the same rows minus concourse', JSON.stringify(chat) === JSON.stringify(['new', 'logins', 'menu']), chat.join(' · '))
   t.check('the --chat card is the full card minus exactly the concourse row (nothing else differs)', JSON.stringify(full.filter(k => k !== 'concourse')) === JSON.stringify(chat))
-  const kit = rowsOf(FULL).find(r => r.key === 'kit')
-  t.check("the row's bytes: ⊛ · 'MCPs & Skills' · 'what the next session loads'", kit?.icon === '⊛' && kit?.label === 'MCPs & Skills' && kit?.ctx === 'what the next session loads', JSON.stringify(kit))
-  t.check('the row rides the SAME fit law as the menu row (no menu ⇒ no kit; the manager needs the menu floor)', !keysOf({ ...FULL, menuAvailable: false }).includes('kit') && !keysOf({ ...FULL, menuAvailable: false }).includes('menu') && !keysOf({ ...CHAT, menuAvailable: false }).includes('kit'))
-  t.check('the existing rows stay EXACTLY as they are (their bytes are untouched by the additions)', JSON.stringify(rowsOf(FULL).filter(r => !['kit', 'agents', 'saturn', 'logins', 'sessions'].includes(r.key))) === JSON.stringify([
-    { key: 'new', icon: '✶', label: 'New Session in proj', ctx: 'start fresh here' },
+  const kitEditor = settingsEditors.find(r => r.editor === 'kit')
+  t.check("MCPs & Skills opens from Boot Menu with its ruled label and summary", kitEditor?.label === 'MCPs & Skills' && kitEditor?.summary === 'what the next session loads', JSON.stringify(kitEditor))
+  t.check('menuAvailable: false drops both logins and Boot Menu', !keysOf({ ...FULL, menuAvailable: false }).includes('menu') && !keysOf({ ...FULL, menuAvailable: false }).includes('logins') && !keysOf({ ...CHAT, menuAvailable: false }).includes('menu'))
+  t.check('the four no-history rows keep their exact bytes', JSON.stringify(rowsOf(FULL)) === JSON.stringify([
+    { key: 'new', icon: '✶', label: 'New Session', ctx: 'start fresh here' },
+    { key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: 'sign in to providers' },
+    { key: 'concourse', icon: '⊞', label: 'Session Manager (Concourse)', ctx: 'the live board' },
     { key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' },
-    { key: 'health', icon: '✓', label: 'Health Check', ctx: 'system diagnostics' },
-    { key: 'concourse', icon: '⊞', label: 'Session Concourse', ctx: 'the live board' },
   ]))
-  t.check('the merged door stays LAST (proof-leg stability — the resume slot)', full[full.length - 1] === 'sessions' && chat[chat.length - 1] === 'sessions')
+  t.check('Boot Menu stays LAST in both worlds', full[full.length - 1] === 'menu' && chat[chat.length - 1] === 'menu')
 
   const core = createSplashCore({ nocolor: false, truecolor: true })
   const chips = { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dir: 'proj', acct: { state: 'none' as const }, health: null }
   const lockup = (concourseCtx: string | null, cols: number, rows: number) =>
     core.composeLockup(cols, rows, {
-      cardRows: assembleCardRows({ ...faceFacts('full'), concourse: concourseCtx === null ? null : { ctx: concourseCtx } }),
+      cardRows: assembleCardRows({ ...faceFacts('full'), concourse: concourseCtx === null ? null : { ctx: concourseCtx } }).map(r => ({ ...r, ctx: '' })),
       cardSel: 0,
-      hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' as const }, { key: 'm', label: ' menu', tone: 'faint' as const }],
-      tinyHint: '↵ start',
+      hintSegments: [{ key: '↵', label: '', tone: 'ivory' as const }, { key: 'm', label: ' menu', tone: 'faint' as const }],
+      tinyHint: '↵',
       stripLines: (w: number) => core.composeStrip(chips, w),
     }) as { lines: string[]; actionLines: number[] }
   for (const [cols, rows] of [[120, 40], [100, 34], [80, 24]] as const) {
     const launcher = lockup('the multi-session board, once', cols, rows)
     const face = lockup('the live board', cols, rows)
     const aboveCard = (r: { lines: string[]; actionLines: number[] }) => r.lines.slice(0, Math.min(...r.actionLines) - 1).join('\n')
-    t.check(`${cols}x${rows}: the lines above the card are byte-identical across the two hosts' fact shapes (no hero shift)`, launcher.actionLines.length === 10 && face.actionLines.length === 10 && aboveCard(launcher) === aboveCard(face))
-    const kitLine = (r: { lines: string[] }) => r.lines.findIndex(l => l.includes('MCPs & Skills'))
-    t.check(`${cols}x${rows}: the kit row sits on the same line on both hosts, directly under the Boot Menu row`, kitLine(launcher) === kitLine(face) && kitLine(face) > r0(face) && kitLine(face) - r0(face) === launcher.actionLines[1]! - launcher.actionLines[0]!)
+    t.check(`${cols}x${rows}: the lines above the card are byte-identical across the two hosts' fact shapes (no hero shift)`, launcher.actionLines.length === 5 && face.actionLines.length === 5 && aboveCard(launcher) === aboveCard(face))
+    const menuLine = (r: { lines: string[] }) => r.lines.findIndex(l => l.includes('Boot Menu'))
+    t.check(`${cols}x${rows}: Boot Menu sits on the same line on both hosts, last in the card`, menuLine(launcher) === menuLine(face) && menuLine(face) === face.actionLines[face.actionLines.length - 1])
     const chatFace = lockup(null, cols, rows)
-    t.check(`${cols}x${rows}: the --chat composition carries the kit row and nine action rows (no concourse; the Saturn and Agents rows ride both worlds)`, chatFace.actionLines.length === 9 && chatFace.lines.some(l => l.includes('MCPs & Skills')) && !chatFace.lines.some(l => l.includes('Session Concourse')))
-  }
-  function r0(r: { lines: string[] }): number {
-    return r.lines.findIndex(l => l.includes('Boot Menu'))
+    t.check(`${cols}x${rows}: the --chat composition carries four action rows and no Session Manager (Concourse)`, chatFace.actionLines.length === 4 && chatFace.lines.some(l => l.includes('Boot Menu')) && !chatFace.lines.some(l => l.includes('Session Manager (Concourse)')))
   }
 }
 
@@ -163,8 +161,8 @@ t.section('§5 — THE STILLS: the face with the row (both worlds) and the manag
   }
   const fullFace = readStill('face-full-120x40') ?? ''
   const chatFace = readStill('face-chat-120x40') ?? ''
-  t.check('the full-world still carries MCPs & Skills under Boot Menu and above Health', fullFace.includes('Boot Menu') && fullFace.indexOf('Boot Menu') < fullFace.indexOf('MCPs & Skills') && fullFace.indexOf('MCPs & Skills') < fullFace.indexOf('Health Check'))
-  t.check('the --chat still carries the row too and no Session Concourse', chatFace.includes('MCPs & Skills') && !chatFace.includes('Session Concourse'))
+  t.check('the full-world still carries the five approved rows and no removed face rows', fullFace.includes('New Session') && fullFace.includes('Continue Last Session') && fullFace.includes('Logins/Keys') && fullFace.includes('Session Manager (Concourse)') && fullFace.includes('Boot Menu') && !fullFace.includes('MCPs & Skills') && !fullFace.includes('Health Check'))
+  t.check('the --chat still carries Boot Menu and no Session Manager (Concourse)', chatFace.includes('Boot Menu') && !chatFace.includes('Session Manager (Concourse)'))
   const manager = readStill('manager-120x40') ?? ''
   t.check('the manager still: two titled sections, the master row above its items in each, every state a word', manager.includes('MCPs') && manager.indexOf('MCPs') < manager.indexOf('Skills') && manager.includes('orchard-tools (extension)') && manager.indexOf('orchard-tools (extension)') < manager.indexOf('ext:orchard-tools:db') && manager.includes(' on') && manager.includes('NEXT SESSION'))
   const mid = readStill('manager-120x40-midcycle') ?? ''
@@ -440,7 +438,7 @@ t.section('§11 — THE PRESETS LAYER (`w`) + the armed wear on the face')
   }
   const armedFace = composeFace('full', 120, 40, 'writing').join('\n')
   const plainFace = composeFace('full', 120, 40).join('\n')
-  t.check("the face's kit row says \"next: preset 'writing'\" while armed and the standing ctx otherwise", armedFace.includes("next: preset 'writing'") && !plainFace.includes('next: preset') && plainFace.includes('what the next session loads'))
+  t.check('arming a preset leaves the five-row boot face unchanged (kit lives inside Boot Menu)', armedFace === plainFace && !armedFace.includes('next: preset'))
 }
 
 t.finish('prove-kit-menu')

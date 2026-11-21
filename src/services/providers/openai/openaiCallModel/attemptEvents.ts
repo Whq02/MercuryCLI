@@ -2,7 +2,7 @@ import { processOwnerForLane } from '../../../../utils/run/resolveOwner.js'
 import { streamOpenaiResponsesRoad } from '../openaiClient.js'
 import { openaiSocketRoadChosen } from '../openaiSocketTransport.js'
 import { coldPrefixOf, estimateRequestTokens, silentAfterHeadersWindowMs, streamIdleTimeoutMsForRoute } from '../../streamIdleBudget.js'
-import { getPublicModelDisplayName } from '../../../../utils/model/model.js'
+import { getPublicModelDisplayName } from '../../../model/model.js'
 import type {
   OpenaiStreamEvent,
 } from '../openaiWire.js'

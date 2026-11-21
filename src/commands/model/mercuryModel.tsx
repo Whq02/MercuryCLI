@@ -10,7 +10,7 @@ import { useAppState, useSetAppState, useAppStateStore } from '../../state/AppSt
 import type { LocalJSXCommandCall } from '../../types/command.js'
 import type { Message } from '../../types/message.js'
 import { contextFillView } from '../../services/context/contextFill.js'
-import { getDefaultEngineModel, getEngineModel, parseUserSpecifiedModel, renderModelName } from '../../utils/model/model.js'
+import { getDefaultEngineModel, getEngineModel, parseUserSpecifiedModel, renderModelName } from '../../services/model/model.js'
 import { seatWithFold, type SeatReceiptState } from '../../services/model/modelTransition.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../../services/engine-connector/focusedConnector.js'
 import { reconfirmTransitionPlan } from '../../services/providers/transitionPreview.js'

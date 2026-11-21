@@ -117,7 +117,7 @@ section('§4 — the legacy record is the untimed tiebreak (pure)')
 
 section('§5 — the live wiring (a legacy home: config deepseek + two env keys, no ledger)')
 {
-  const model = await import('../../src/utils/model/model.ts')
+  const model = await import('../../src/services/model/model.ts')
   const { keyLanePins } = await import('../../src/services/model/modelOptions.ts')
   const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
   rmSync(ledgerFile, { force: true })

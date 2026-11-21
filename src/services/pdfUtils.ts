@@ -1,4 +1,4 @@
-import { resolveModelCapabilities } from './model/capabilities.js'
+import { resolveModelCapabilities } from '../utils/model/capabilities.js'
 import { getEngineModel } from './model/model.js'
 
 

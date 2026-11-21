@@ -63,7 +63,7 @@ section("§1 the price row: the vendor's tier for claude-fable-5-2 is recorded, 
 
 section('§2 the fold and the names: claude-fable-5-2 is its own canonical, never swallowed by the fable-5 arm or the Fable 5.1 row')
 {
-  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/utils/model/model.ts')
+  const { firstPartyNameToCanonical, getCanonicalName, getMarketingNameForModel, getPublicModelName, parseUserSpecifiedModel, renderModelChip, renderModelName } = await import('../../src/services/model/model.ts')
   const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
   const { ALL_MODEL_CONFIGS } = await import('../../src/utils/model/configs.ts')
   check('its own canonical', getCanonicalName(ID) === ID, getCanonicalName(ID))
@@ -104,12 +104,12 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
 section("§3 the row: the fable family's newest generation, its class, its picker rows, its launch effort and its capability truth")
 {
   const { FAMILY_GENERATIONS, familyHeadOf, newestGenerationKey, previousGenerationKeys } = await import('../../src/utils/model/configs.ts')
-  const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/utils/model/model.ts')
+  const { getDefaultFableModel, parseUserSpecifiedModel, renderModelSetting, renderDefaultModelSetting } = await import('../../src/services/model/model.ts')
   const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
   const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
   const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
-  const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
+  const { resolveCatalogueSpelling } = await import('../../src/services/model/modelSpellingFold.ts')
   const effort = await import('../../src/utils/effort.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')
   const { foldLegacyWorkerModelKey } = await import('../../src/services/concourse/workerModels.ts')

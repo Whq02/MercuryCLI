@@ -9,7 +9,7 @@ import { writeLocalWindowSetting } from '../providers/local/localWindow.js'
 import { readLocalServerSettings } from '../localServer/localServerKnobs.js'
 import { readLocalMachineTruth, type LocalServerTruth } from '../localServer/localServerTruth.js'
 import { persistModelChoice } from '../../commands/model/persistModelChoice.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { focusedSessionModelFacts, getFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import {
   SETUP_EXEC_TIMEOUT_MS,

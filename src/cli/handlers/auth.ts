@@ -348,7 +348,7 @@ function routedProviderRows(anthropicPresent: boolean): {
 } {
   try {
     const { declaredRouteOf } = require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
-    const { getEngineModel } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
+    const { getEngineModel } = require('../../services/model/model.js') as typeof import('../../services/model/model.js')
     const { buildProviderSnapshot } = require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
     const { providerFamilyPresences } =
       require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')

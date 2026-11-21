@@ -38,7 +38,7 @@ import type { TranscriptUsageRollup } from './services/usage/usageRollup.js'
 import type { FpsMetrics } from './utils/fpsTracker.js'
 import { modelPricingBasis } from './services/usage/modelCost.js'
 import { parseFirstPartyGeneration } from './utils/model/configs.js'
-import { getCanonicalName } from './utils/model/model.js'
+import { getCanonicalName } from './services/model/model.js'
 import {
   getContextWindowForModel,
   getModelMaxOutputTokens,

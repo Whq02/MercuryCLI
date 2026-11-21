@@ -20,7 +20,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const context = await import('../../src/utils/context.ts')
-const model = await import('../../src/utils/model/model.ts')
+const model = await import('../../src/services/model/model.ts')
 
 const pairs: Array<[string, string]> = [
   ['claude-sonnet-4.6', 'claude-sonnet-4-6'],

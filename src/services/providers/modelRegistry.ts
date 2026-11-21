@@ -1,5 +1,5 @@
 import { getContextWindowForModel } from '../../utils/context.js'
-import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
+import { getCanonicalName, normalizeModelStringForAPI, parseUserSpecifiedModel } from '../model/model.js'
 import { familyDefaultsModel } from '../../utils/model/configs.js'
 import { anthropicProviderAdapter } from './anthropic/anthropicAdapter.js'
 import { geminiProviderAdapter } from './gemini/geminiAdapter.js'

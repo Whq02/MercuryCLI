@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
-import { closeSync, constants, copyFileSync, fsyncSync, linkSync, mkdirSync, openSync, readSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
+import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, readSync, rmSync, statSync, writeSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { dirFsyncErrorIsFatal } from '../../platform/files.js'
 import { sleep } from '../../sleep.js'
 import { asRecordId } from '../../../fabric/ids.js'
 import { entryToRecord, recordToEntry } from '../../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../../fabric/record.js'
-import { durableAtomicPublishSync, faultPoint, fsyncEnabled } from '../../../substrate/durablePublish.js'
+import { faultPoint, fsyncEnabled, publishAtomicSync } from '../../../substrate/fileStore.js'
 import { passedOver } from '../../passedOver.js'
 import { foldWorkerRecord } from '../mirrorRecord.js'
 import { historyHead, historyPartDir, sealedFile, type HistoryIndexRow } from '../historyParts.js'
@@ -36,6 +36,18 @@ function writeAll(fd: number, data: Buffer): void {
   for (let at = 0; at < data.length;) at += writeSync(fd, data, at, data.length - at)
 }
 
+function* fileContents(path: string): Generator<Buffer> {
+  const fd = openSync(path, 'r')
+  try {
+    const chunk = Buffer.allocUnsafe(256 * 1024)
+    for (;;) {
+      const n = readSync(fd, chunk, 0, chunk.length, null)
+      if (n === 0) return
+      yield chunk.subarray(0, n)
+    }
+  } finally { closeSync(fd) }
+}
+
 function archive(file: string, path: string): void {
   try {
     linkSync(file, path)
@@ -47,13 +59,7 @@ function archive(file: string, path: string): void {
       throw error
     }
     if (code !== 'ENOTSUP' && code !== 'EPERM' && code !== 'EXDEV' && code !== 'EMLINK') throw error
-    const staging = `${path}.${randomUUID()}.tmp`
-    try {
-      copyFileSync(file, staging, constants.COPYFILE_EXCL)
-      const fd = openSync(staging, 'r')
-      try { fsyncSync(fd) } finally { closeSync(fd) }
-      renameSync(staging, path)
-    } finally { rmSync(staging, { force: true }) }
+    publishAtomicSync(path, fileContents(file), { mode: statSync(file).mode & 0o777 })
   }
 }
 
@@ -108,7 +114,6 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
         }
       }
       if (batch) writeAll(index, Buffer.from(batch))
-      fsyncSync(index)
     } finally { closeSync(index) }
     const carry = [...metadata.values()]
     if (segment) {
@@ -143,9 +148,10 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
     const marker = JSON.stringify({ annotations: { historyPart: 1, before: end, carry: carrySize, boundary: boundary.recordId }, ...header }) + '\n'
     faultPoint('seal-part', file)
     archive(file, part)
-    renameSync(staging, `${part}.index`)
-    if (fsyncEnabled()) for (const dir of [historyPartDir(file), dirname(historyPartDir(file))]) {
-      try { const fd = openSync(dir, 'r'); try { fsyncSync(fd) } finally { closeSync(fd) } }
+    publishAtomicSync(`${part}.index`, fileContents(staging), { mode: 0o600 })
+    rmSync(staging)
+    if (fsyncEnabled()) {
+      try { const fd = openSync(dirname(historyPartDir(file)), 'r'); try { fsyncSync(fd) } finally { closeSync(fd) } }
       catch (error) { if (dirFsyncErrorIsFatal(error)) throw error }
     }
     function* contents(): Generator<Buffer> {
@@ -169,7 +175,7 @@ export async function sealHistoryPart(file: string, line: string, boundary: Merc
       } finally { closeSync(fd) }
       yield Buffer.from(line)
     }
-    durableAtomicPublishSync(file, contents(), { mode: 0o600 })
+    publishAtomicSync(file, contents(), { mode: 0o600 })
     return true
   } finally { rmSync(staging, { force: true }) }
 }

@@ -27,7 +27,7 @@ import { clearSystemPromptSections } from '../../constants/systemPromptSections.
 import { loadConversationForResume } from '../../services/resume/conversationRecovery.js'
 import { logError } from '../../utils/log.js'
 import { restoreConversationModel, restoreSessionStateFromLog } from '../../services/resume/sessionRestore.js'
-import { parseUserSpecifiedModel, getEngineModel } from '../../utils/model/model.js'
+import { parseUserSpecifiedModel, getEngineModel } from '../../services/model/model.js'
 import { noticeRow } from '../../rows/project.js'
 import type { SessionId } from '../../types/ids.js'
 import { resetSessionFilePointer, restoreSessionMetadata, saveSessionModel } from '../../utils/sessionStorage.js'

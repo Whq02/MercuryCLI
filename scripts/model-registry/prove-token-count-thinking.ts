@@ -56,7 +56,7 @@ try {
   ;(await import('../../src/utils/config.js')).enableConfigs()
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
   const { countMessagesTokensWithAPI, countTokensViaHaikuFallback } = await import('../../src/services/tokenEstimation.js')
-  const { getEngineModel, normalizeModelStringForAPI } = await import('../../src/utils/model/model.js')
+  const { getEngineModel, normalizeModelStringForAPI } = await import('../../src/services/model/model.js')
   const { modelSupportsAdaptiveThinking } = await import('../../src/utils/thinking.js')
 
   const tools = [{ name: 'proof_tool', description: 'A count-only fixture tool.', input_schema: { type: 'object', properties: {} } }]

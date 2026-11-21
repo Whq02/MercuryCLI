@@ -31,7 +31,7 @@ import { resolveEffortTruth, resolveWireRequestedEffort, type EffortValue } from
 import { floorEffort } from '../../../model/utilityModel.js'
 import { effortStampOf, type EffortStampV1 } from '../../../../utils/effortStamp.js'
 import { compatEffortWireFact } from '../compatWire.js'
-import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from '../../../model/modelOverrides.js'
 import { logForDebugging } from '../../../../utils/debug.js'
 import {
   renderGenericInstructions,

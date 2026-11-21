@@ -130,7 +130,7 @@ export async function runHostJob(id: string, generation: string, options: { runn
   const checkStop = (current: HostRecord | undefined): void => {
     if (!current || current.generation !== generation || current.jobState === 'stopped') controller.abort()
   }
-  const stopRecordWatch = subscribeHostRecord(id, checkStop)
+  const stopRecordWatch = subscribeHostRecord(id, checkStop, initial.jobKind !== 'setup' ? Math.min(pause, 100) : pause)
   checkStop(readHostRecord(id))
   const logTailController = new AbortController()
   const logTailSignal = AbortSignal.any([signal, logTailController.signal])

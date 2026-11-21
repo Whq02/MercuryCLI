@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import type { EffortLevel } from '../../utils/effortLadder.js'
-import type { ModelSetting } from '../../utils/model/model.js'
+import type { ModelSetting } from '../../services/model/model.js'
 import { displayConfigHome, getMercuryHome } from '../../utils/envUtils.js'
 import { compatModelEndpoint } from '../../services/providers/openaicompat/compatAccounts.js'
 import { getInitialSettings, getSettingsWriteFilePathForSource, updateSettingsForSource } from '../../utils/settings/settings.js'

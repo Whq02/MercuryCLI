@@ -42,7 +42,7 @@ try {
   else process.env.MERCURY_DAEMON_DIR = prevEnv
 }
 
-section('2. RATCHET: daemon-home composition exists ONLY in controlSocket.ts')
+section('2. RATCHET: daemon-home composition exists ONLY in src/utils/daemonState.ts')
 
 function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -59,7 +59,7 @@ function walk(dir: string, out: string[] = []): string[] {
 }
 
 const srcFiles = walk(join(ROOT, 'src'))
-const composeRe = /configHome\s*(\(\s*\))?\s*,\s*['"]daemon['"]/
+const composeRe = /(?:configHome|getMercuryHome)\s*(\(\s*\))?\s*,\s*['"]daemon['"]/
 const composeHits: string[] = []
 const cloneHits: string[] = []
 for (const f of srcFiles) {
@@ -67,19 +67,19 @@ for (const f of srcFiles) {
   if (composeRe.test(text)) composeHits.push(f)
   if (
     f.includes(sep + 'daemon' + sep) &&
-    !f.endsWith('controlSocket.ts') &&
     /function configHome\s*\(/.test(text)
   ) {
     cloneHits.push(f)
   }
 }
+const seamSuffix = join('src', 'utils', 'daemonState.ts')
 check(
-  "join(configHome…, 'daemon') composed only by controlSocket.ts",
-  composeHits.length === 1 && composeHits[0].endsWith('controlSocket.ts'),
+  "join(configHome|getMercuryHome…, 'daemon') composed only by src/utils/daemonState.ts",
+  composeHits.length === 1 && composeHits[0].endsWith(seamSuffix),
   composeHits.map(f => f.slice(ROOT.length + 1)).join(', ') || 'no hits at all (seam moved? update this proof)',
 )
 check(
-  'no private configHome() clone in src/daemon outside controlSocket.ts',
+  'no private configHome() clone in src/daemon',
   cloneHits.length === 0,
   cloneHits.map(f => f.slice(ROOT.length + 1)).join(', '),
 )

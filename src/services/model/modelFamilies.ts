@@ -1,6 +1,6 @@
-import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { PROVIDER_ID_SPACES, type CallModelRoute } from '../../services/providers/idSpaces.js'
-import { FAMILY_GENERATIONS } from './configs.js'
+import { isProviderDisabled } from '../providers/disabledProviders.js'
+import { PROVIDER_ID_SPACES, type CallModelRoute } from '../providers/idSpaces.js'
+import { FAMILY_GENERATIONS } from '../../utils/model/configs.js'
 
 export const FIRST_PARTY_FAMILY_WORDS: ReadonlySet<string> = new Set(Object.keys(FAMILY_GENERATIONS))
 

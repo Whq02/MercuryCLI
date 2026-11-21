@@ -221,7 +221,7 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
   {
     const { openStatusPart } = await import('../ui/chatScenarios.ts')
     const { crossProviderNote, providerFamilyOfSetting } = await import('../../src/services/model/modelTransition.ts')
-    const { renderModelName } = await import('../../src/utils/model/model.ts')
+    const { renderModelName } = await import('../../src/services/model/model.ts')
     const status = await openStatusPart('switch-settle-boundary', { keepHome: true })
     const settle = async (setting: string | null): Promise<string> => {
       status.notices.length = 0

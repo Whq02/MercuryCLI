@@ -1,7 +1,7 @@
 import { HOST_RECIPES } from '../../host/recipes.js'
 import { isRankedWireEffort } from '../../../utils/model/pins/gptPins.js'
 import { currentHostRecipes } from '../../host/recipesFile.js'
-import { operatorModelFacts } from '../../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from '../../model/modelOverrides.js'
 import { compatModelEndpoint } from './compatAccounts.js'
 import { cachedCompatCatalogue } from './compatCatalogue.js'
 import type { CompatDialect } from './compatProbe.js'

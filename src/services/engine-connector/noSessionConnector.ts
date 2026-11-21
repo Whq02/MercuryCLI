@@ -1,5 +1,5 @@
 import type { Message } from '../../types/message.js'
-import { getEngineModel } from '../../utils/model/model.js'
+import { getEngineModel } from '../model/model.js'
 import { getCwd } from '../../utils/cwd.js'
 import type {
   AgentControlReceiptV1,

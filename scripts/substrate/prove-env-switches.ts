@@ -21,7 +21,7 @@ enableConfigs()
 const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')
 const { getPrivacyLevel } = await import('../../src/utils/privacyLevel.ts')
 const { getPromptCachingEnabled } = await import('../../src/services/providers/anthropic/requestParams.ts')
-const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/utils/model/model.ts')
+const { getDefaultHaikuModel, getDefaultSonnetModel, getDefaultOpusModel } = await import('../../src/services/model/model.ts')
 const { isAutoCompactEnabled } = await import('../../src/services/compact/autoCompact.ts')
 const feedback = (await import('../../src/commands/feedback/index.ts')).default as { isEnabled?: () => boolean }
 const health = (await import('../../src/commands/health/index.ts')).default as { isEnabled?: () => boolean }

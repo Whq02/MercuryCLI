@@ -36,7 +36,7 @@ import {
 import { type EffortAdjustedV1 } from '../../../../utils/effort.js'
 import { openaiCacheRetention } from '../openaiCacheRetention.js'
 import { getModelMaxOutputTokens, modelSupportsPDF } from '../../../../utils/model/capabilities.js'
-import { operatorModelFacts } from '../../../../utils/model/modelOverrides.js'
+import { operatorModelFacts } from '../../../model/modelOverrides.js'
 import {
   buildOpenaiResponsesRequest,
 } from '../responsesBridge.js'

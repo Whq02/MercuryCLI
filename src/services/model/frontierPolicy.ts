@@ -4,12 +4,12 @@ import {
   getRateLimitTier,
   isClaudeAISubscriber,
   isMaxSubscriber,
-} from '../auth.js'
-import { getContextWindowForModel, is1mContextDisabled } from './capabilities.js'
-import { declaredMirrorsNewestFirst, previousGenerationKeys } from './configs.js'
+} from '../../utils/auth.js'
+import { getContextWindowForModel, is1mContextDisabled } from '../../utils/model/capabilities.js'
+import { declaredMirrorsNewestFirst, previousGenerationKeys } from '../../utils/model/configs.js'
 import { isModelAllowed } from './modelAllowlist.js'
-import { getModelStrings } from './modelStrings.js'
-import { getInitialSettings } from '../settings/settings.js'
+import { getModelStrings } from '../../utils/model/modelStrings.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 
 import {
   getDefaultFableModel,
@@ -18,7 +18,7 @@ import {
   getDefaultSonnetModel,
   isOpus1mMergeEnabled,
   normalizeModelStringForAPI,
-} from './modelNames.js'
+} from '../../utils/model/modelNames.js'
 
 export const FRONTIER_MAX_20X_TIER = 'default_claude_max_20x'
 

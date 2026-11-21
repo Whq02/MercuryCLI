@@ -39,7 +39,7 @@ enableConfigs()
 
 const status = await import('../../src/components/status.js')
 const config = await import('../../src/components/Settings/Config.js')
-const model = await import('../../src/utils/model/model.js')
+const model = await import('../../src/services/model/model.js')
 
 function textOf(node: unknown): string {
   if (node === null || node === undefined || typeof node === 'boolean') return ''

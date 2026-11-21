@@ -1,6 +1,6 @@
 import { queryModelWithStreaming } from '../providers/anthropic/index.js'
 import type { CallModel } from './callModelContract.js'
-import { normalizeModelStringForAPI } from '../../utils/model/model.js'
+import { normalizeModelStringForAPI } from '../model/model.js'
 import { resolveZaiApiKey } from './providerDiscovery.js'
 import { parseGptModelId } from '../../utils/model/pins/gptPins.js'
 import { resolveOpenaiAccount } from './openai/openaiAccounts.js'

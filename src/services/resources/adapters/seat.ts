@@ -3,7 +3,7 @@ import { stampLocal } from '../../../mneme/entryPage.js'
 import { ledgerEntryOf } from '../../../mneme/ledger.js'
 import { mnemeProjectKey } from '../../../mneme/paths.js'
 import type { LedgerEngine } from '../../../mneme/types.js'
-import { getMarketingNameForModel, normalizeModelStringForAPI } from '../../../utils/model/model.js'
+import { getMarketingNameForModel, normalizeModelStringForAPI } from '../../model/model.js'
 import type { ParsedRef, ResourceAdapter, ResourceContext, ResourceResult } from '../contracts.js'
 
 export const SEAT_REF = 'mercury://seat'

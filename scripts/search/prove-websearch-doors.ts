@@ -189,7 +189,7 @@ section('§2 NATIVE-OPENAI + THE REGISTRATION CENSUS — the anthropic spy sees 
   seedHome('claude-opus-4-8')
   check('an anthropic home lists BOTH tools', WebSearchTool.isEnabled() === true && ProviderSearchTool.isEnabled() === true)
   seedHome(NEMOTRON)
-  const { getEngineModel } = await import('../../src/utils/model/model.js')
+  const { getEngineModel } = await import('../../src/services/model/model.js')
   check('a nemotron home lists the vendored tool ALONE', WebSearchTool.isEnabled() === true && ProviderSearchTool.isEnabled() === false, `mainModel=${getEngineModel()}`)
   seedHome('local/qwen3-coder')
   check('a local home lists the vendored tool ALONE', ProviderSearchTool.isEnabled() === false, `mainModel=${getEngineModel()}`)
