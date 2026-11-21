@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useMemo, useState } from 'react'
-import { useDerivedState, useLoad } from '../../hooks/effects.js'
+import { useLoad } from '../../hooks/effects.js'
 import {
   formatDescriptionWithSource,
   getCommandName,
@@ -107,9 +107,8 @@ export function PaletteView({
       .filter((r): r is PaletteRow => r !== undefined)
   }, [rows, index, byName, query])
 
-  useDerivedState(() => {
-    setSel(s => Math.max(0, Math.min(s, Math.max(0, results.length - 1))))
-  }, [results.length])
+  const clampedSel = Math.max(0, Math.min(sel, Math.max(0, results.length - 1)))
+  if (sel !== clampedSel) setSel(clampedSel)
 
   useInput((input, key) => {
     if (key.escape || key.leftArrow) return onClose()
@@ -123,7 +122,7 @@ export function PaletteView({
     }
     if (!pastOpenEvent()) return
     if (key.return) {
-      const pick = results[sel]
+      const pick = results[clampedSel]
       if (pick) onPick(pick.name)
       return
     }
@@ -185,7 +184,7 @@ export function PaletteView({
         />
       ) : (
         results.map((r, i) => {
-          const selected = i === sel
+          const selected = i === clampedSel
           const desc = truncateToWidth(r.description, Math.max(16, cols - 9 - stringWidth(r.name)))
           return (
             <Text key={r.name + ':' + r.command.type}>
