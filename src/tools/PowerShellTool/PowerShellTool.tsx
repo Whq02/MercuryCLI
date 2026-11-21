@@ -137,8 +137,12 @@ const READ = new Set(['get-content', 'get-item', 'test-path', 'resolve-path', 'g
 function isSearchOrRead(command: string): { isSearch: boolean; isRead: boolean } {
   const trimmed = command.trim()
   if (trimmed === '') return { isSearch: false, isRead: false }
+  if (hasSyncSecurityConcerns(trimmed)) return { isSearch: false, isRead: false }
+  const unquoted = trimmed.replace(/'(?:''|[^'])*'|"(?:`[\s\S]|""|[^"])*"/g, '_')
+  const withoutSafeRedirects = unquoted.replace(/[0-9*]?>>?(?:&\d|[ \t]*\$null(?=$|[\s;|\r\n&]))/gi, '')
+  if (withoutSafeRedirects.includes('>')) return { isSearch: false, isRead: false }
   let isSearch = false, isRead = false, sawReal = false
-  for (const fragment of trimmed.split(/[;|]/)) {
+  for (const fragment of withoutSafeRedirects.split(/[;|\r\n]|&&|\|\|/)) {
     const first = fragment.trim().split(/\s+/)[0]
     if (!first) continue
     const canonical = resolveToCanonical(first)
