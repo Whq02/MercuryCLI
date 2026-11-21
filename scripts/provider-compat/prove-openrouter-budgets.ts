@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { mountOffscreen, waitFor } from '../lib/settingsPopupHarness.ts'
 
 const parent = process.env.MERCURY_CONFIG_DIR
-assert.ok(parent)
+assert.ok(parent, 'set scratch MERCURY_CONFIG_DIR before running prove-openrouter-budgets.ts')
 mkdirSync(parent, { recursive: true })
 const home = mkdtempSync(join(parent, 'openrouter-budgets-'))
 process.env.MERCURY_CONFIG_DIR = home

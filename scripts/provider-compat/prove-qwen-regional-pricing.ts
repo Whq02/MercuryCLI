@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 const parent = process.env.MERCURY_CONFIG_DIR
-assert.ok(parent)
+assert.ok(parent, 'set scratch MERCURY_CONFIG_DIR before running prove-qwen-regional-pricing.ts')
 mkdirSync(parent, { recursive: true })
 const home = mkdtempSync(join(parent, 'qwen-regions-'))
 process.env.MERCURY_CONFIG_DIR = home

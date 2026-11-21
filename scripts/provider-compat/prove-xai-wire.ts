@@ -26,10 +26,10 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   if (path === '/proxy/v1/responses') {
     const body = await req.json() as Record<string, any>
     captures.push({ path, body, bearer: req.headers.get('authorization') === 'Bearer fixture-subscription-access', headers: Object.fromEntries(req.headers.entries()) })
-    assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''))
+    assert.ok(!/opencode|openclaw|hermes/i.test(req.headers.get('user-agent') ?? ''), 'xAI subscription user-agent in src/services/providers/xai/ must not carry foreign agent tokens')
     assert.equal(req.headers.get('X-XAI-Token-Auth'), 'xai-grok-cli')
     assert.equal(req.headers.get('x-grok-model-override'), body.model)
-    assert.ok(req.headers.get('x-grok-client-version'))
+    assert.ok(req.headers.get('x-grok-client-version'), 'xAI subscription request in src/services/providers/xai/ must send x-grok-client-version header')
     const item = mode === 'tools'
       ? { type: 'function_call', id: 'fc_sub', call_id: 'call_sub', name: 'FixtureEcho', arguments: '{"text":"subscription"}', status: 'completed' }
       : { type: 'message', id: 'msg_sub', role: 'assistant', content: [{ type: 'output_text', text: 'GROK-SUBSCRIPTION-SETTLED', annotations: [] }], status: 'completed' }
@@ -45,7 +45,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.XAI_API_KEY!))
+  assert.ok(!raw.includes(process.env.XAI_API_KEY!), 'xAI chat request body in src/services/providers/xai/ must never contain XAI_API_KEY')
   const body = JSON.parse(raw)
   assert.equal(req.headers.has('X-XAI-Token-Auth'), false)
   captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.XAI_API_KEY}`, headers: Object.fromEntries(req.headers.entries()) })
