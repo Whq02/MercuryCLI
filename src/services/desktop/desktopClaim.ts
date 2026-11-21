@@ -1,6 +1,6 @@
 import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, sep } from 'node:path'
 import { getSessionId } from '../../bootstrap/state.js'
 import { conversationIdHere, subscribeFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { daemonDir } from '../../daemon/controlSocket.js'
@@ -334,10 +334,12 @@ function watchDesktopClaimFile(): () => void {
     closeWatcher()
     const target = nearestExistingDir(dir)
     const watchingDir = target === dir
+    const nextChild = watchingDir ? null : relative(target, dir).split(sep)[0] ?? null
     try {
       const next = watch(resolveWatchRoot(target), { persistent: false }, (_event, filename) => {
         if (closed) return
         if (!watchingDir) {
+          if (filename !== null && nextChild !== null && String(filename) !== nextChild) return
           const deeper = nearestExistingDir(dir)
           if (deeper !== target) {
             armWatch()
