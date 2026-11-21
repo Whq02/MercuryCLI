@@ -52,7 +52,7 @@ enableConfigs()
 const catalogue = await import('../../src/services/providers/gemini/geminiCatalogue.js')
 const { __resetGeminiCatalogueForTest, getGeminiAvailability, getGeminiModelOptions, refreshGeminiCatalogue, geminiListedModel, geminiContextWindowFor } = catalogue
 const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.js')
-const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
+const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
 const { GEMINI_MODEL_GROUP } = catalogue
 
 type LiveIds = (env?: NodeJS.ProcessEnv) => ReadonlySet<string>

@@ -20,10 +20,13 @@ import { useTerminalSize } from '../../../hooks/useTerminalSize.js'
 import { CursorCell } from '../LiveGlyphs.js'
 import { useSessionAccent } from '../sessionAccent.js'
 import { useOpenEventGate } from '../useOpenEventGate.js'
+import { daemonStatePath } from '../../../daemon/controlSocket.js'
 import { getMercuryDaemonStatus, type MercuryDaemonStatus } from '../../../daemon/status.js'
 import { daemonSnapshot } from '../../../services/cockpit/daemonSnapshot.js'
 import { deriveDaemonRows } from '../../../services/cockpit/daemonRows.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../../utils/timers.js'
+import { defineStore } from '../../../substrate/fileStore.js'
+import { subscribeUiClock } from '../../../utils/cockpit/uiClock.js'
+import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 
 const MAX_ROWS = 12
@@ -100,9 +103,22 @@ export function DaemonView({ onClose }: { onClose: () => void }): React.ReactNod
   }, [loadId])
 
   useTimer(() => {
-    if (!pollEnabled) return
-    const id = startInterval(() => setLoadId(n => n + 1), COCKPIT_POLL_MS)
-    return () => stopInterval(id)
+    const bump = () => setLoadId(n => n + 1)
+    const stopClock = pollEnabled ? subscribeUiClock(COCKPIT_POLL_MS, bump) : undefined
+    const daemonStateStore = defineStore<object | null, []>({
+      name: 'daemon-state',
+      path: daemonStatePath,
+      schemaVersion: 1,
+      decode: raw => (raw && typeof raw === 'object' ? raw : null),
+      empty: () => null,
+      onReadFailure: 'empty',
+      pollFloorMs: COCKPIT_POLL_MS,
+    })
+    const stopWatch = daemonStateStore().subscribe(bump, { immediate: false })
+    return () => {
+      stopClock?.()
+      stopWatch()
+    }
   }, [pollEnabled])
 
   const probing = status === null

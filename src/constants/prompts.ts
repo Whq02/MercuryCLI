@@ -1,4 +1,5 @@
-import { platform, release, type as osType, version as osVersion } from 'node:os'
+import { platform } from 'node:os'
+import { platformKernelLine } from '../utils/platform/words.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { canAnswerAsks, getOriginalCwd, getProjectRoot, getSessionId, getSessionKind } from '../bootstrap/state.js'
 import { getCwd } from '../utils/cwd.js'
@@ -41,7 +42,7 @@ import { RECORD_CONVENTION_TOOL_NAME } from '../tools/RecordConventionTool/promp
 import { RETAIN_TOOL_NAME } from './tools/memory.js'
 import { getRuntimePostureSection, isUnattendedRun } from '../utils/cockpit/runtimePosture.js'
 import { listCapabilityKills } from '../utils/permissions/capabilityGate.js'
-import { isMcpPolicyActive } from '../services/mcp/toolPolicy.js'
+import { isMcpPolicyActive } from '../utils/mcp/toolPolicy.js'
 import { isAutoCompactEnabled } from '../services/compact/autoCompact.js'
 import {
   LOCAL_CREWMATE_NOTES,
@@ -102,8 +103,7 @@ async function shellLine(): Promise<string> {
 }
 
 function getUnameSR(): string {
-  if (process.platform === 'win32') return `${osVersion()} ${release()}`
-  return `${osType()} ${release()}`
+  return platformKernelLine()
 }
 
 function knowledgeCutoffSentence(modelId: string): string | null {

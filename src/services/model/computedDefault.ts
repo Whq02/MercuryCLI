@@ -1,9 +1,9 @@
-import type { CallModelRoute } from '../../services/providers/routeLaw.js'
-import { readSignInRefusal, signInRefusalWords } from '../accounts/signInRefusal.js'
+import type { CallModelRoute } from '../providers/routeLaw.js'
+import { readSignInRefusal, signInRefusalWords } from '../../utils/accounts/signInRefusal.js'
 import type { ModelOption } from './modelOptions.js'
-import { catalogueEpoch } from '../../services/providers/catalogueEpoch.js'
-import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../accounts/signInLedger.js'
-import { passedOver } from '../passedOver.js'
+import { catalogueEpoch } from '../providers/catalogueEpoch.js'
+import { readSignInLedger, signInLedgerEpoch, type SignInKind } from '../../utils/accounts/signInLedger.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type ComputedDefaultSource = 'sign-in' | 'fallthrough' | 'keyless'
 
@@ -11,13 +11,13 @@ export const NO_SIGN_IN_ROW = 'no sign-in yet'
 export const NO_SIGN_IN_REASON = 'no sign-in yet — /logins signs a provider in'
 export const NO_USABLE_ROW = 'no usable row yet'
 
-export const CHOOSE_A_MODEL_ID = 'choose-a-model'
-export const CHOOSE_A_MODEL_WORDS = 'choose a model'
-export const CHOOSE_A_MODEL_DOOR = `${CHOOSE_A_MODEL_WORDS} · /model`
-
-export function isChooseAModel(model: string | null | undefined): boolean {
-  return typeof model === 'string' && model.trim().toLowerCase() === CHOOSE_A_MODEL_ID
-}
+export {
+  CHOOSE_A_MODEL_ID,
+  CHOOSE_A_MODEL_WORDS,
+  CHOOSE_A_MODEL_DOOR,
+  isChooseAModel,
+} from '../../utils/model/chooseAModel.js'
+import { CHOOSE_A_MODEL_ID } from '../../utils/model/chooseAModel.js'
 
 export interface CredentialFact {
   family: string
@@ -218,8 +218,8 @@ const FIRST_PARTY_GATE: Record<string, string> = {
 
 function liveFirstPartyRow(): LaneRowVerdict {
   const { frontierOperatorDecision } =
-    require('./frontierPolicy.js') as typeof import('./frontierPolicy.js')
-  const { renderModelName } = require('./model.js') as typeof import('./model.js')
+    require('../../utils/model/frontierPolicy.js') as typeof import('../../utils/model/frontierPolicy.js')
+  const { renderModelName } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   const decision = frontierOperatorDecision()
   const row = renderModelName(decision.setting)
   if (decision.source === 'frontier') {
@@ -285,10 +285,10 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
   try {
     const { isProviderActionRow } = require('./modelOptions.js') as typeof import('./modelOptions.js')
     const { declaredRouteOf } =
-      require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
+      require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
     const { providerFrontierFact, openaiSessionDefault } =
       require('./providerFrontier.js') as typeof import('./providerFrontier.js')
-    const { normalizeModelStringForAPI } = require('./model.js') as typeof import('./model.js')
+    const { normalizeModelStringForAPI } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
     const familyRows = rows.filter(
       option =>
         typeof option.value === 'string' &&
@@ -303,7 +303,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
         return { usable: false, why: `${first.label}: ${first.unavailable}`, ...(familyRows.every(option => option.cataloguePending === true) ? { unfetched: true } : {}) }
       }
       const { catalogueTrafficVerdict } =
-        require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+        require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
       const gatedFamilies: readonly string[] = ['huggingface', 'openrouter', 'gemini', 'openai', 'local', 'nous']
       const gate = gatedFamilies.includes(family)
         ? catalogueTrafficVerdict(family as Parameters<typeof catalogueTrafficVerdict>[0])
@@ -318,7 +318,7 @@ function pickerRowFor(family: string, rows: ModelOption[] | null): LaneRowVerdic
       : providerFrontierFact(family as CallModelRoute)
     const preferred = fact !== undefined ? selectable.find(option => sameId(option.value as string, fact.modelId)) : undefined
     const { newestGeminiGenerationFirst, geminiGeneration } =
-      require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
+      require('../providers/gemini/geminiCatalogue.js') as typeof import('../providers/gemini/geminiCatalogue.js')
     const byGeneration = newestGeminiGenerationFirst(selectable, option => normalizeModelStringForAPI(option.value as string))
     const newest = byGeneration[0] as (typeof selectable)[number]
     const generationKnown = geminiGeneration(normalizeModelStringForAPI(newest.value as string))[0] > 0
@@ -344,11 +344,11 @@ function liveKeyless(): KeylessFact {
 
 export function recentSignIns(): CredentialFact[] {
   const { providerFamilyPresences } =
-    require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
+    require('../providers/providerUsage.js') as typeof import('../providers/providerUsage.js')
   const { buildProviderSnapshot } =
-    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
+    require('../providers/modelRegistry.js') as typeof import('../providers/modelRegistry.js')
   const { configuredDefaultProvider } =
-    require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
+    require('../../utils/model/defaultProviderRung.js') as typeof import('../../utils/model/defaultProviderRung.js')
   const providers = buildProviderSnapshot().providers
   const ledger = readSignInLedger()
   const credentials: CredentialFact[] = providerFamilyPresences(providers)
@@ -381,13 +381,13 @@ export function mostRecentSignInFamily(): string | undefined {
 
 export function gatherComputedDefaultFacts(): ComputedDefaultFacts & { degraded: boolean } {
   const { providerFamilyPresences } =
-    require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
+    require('../providers/providerUsage.js') as typeof import('../providers/providerUsage.js')
   const { buildProviderSnapshot } =
-    require('../../services/providers/modelRegistry.js') as typeof import('../../services/providers/modelRegistry.js')
+    require('../providers/modelRegistry.js') as typeof import('../providers/modelRegistry.js')
   const { configuredDefaultProvider } =
-    require('./defaultProviderRung.js') as typeof import('./defaultProviderRung.js')
+    require('../../utils/model/defaultProviderRung.js') as typeof import('../../utils/model/defaultProviderRung.js')
   const { providerDisplayName } =
-    require('../../services/providers/routeLaw.js') as typeof import('../../services/providers/routeLaw.js')
+    require('../providers/routeLaw.js') as typeof import('../providers/routeLaw.js')
   const providers = buildProviderSnapshot().providers
   const ledger = readSignInLedger()
   const credentials: CredentialFact[] = providerFamilyPresences(providers)
@@ -429,11 +429,11 @@ const MEMO_TTL_MS = 2_000
 let memo: { at: number; epoch: number; catalogue: number; decision: ComputedDefault } | null = null
 
 export async function readComputedDefaultCatalogue(): Promise<void> {
-  const { getUserSpecifiedModelSetting } = require('./model.js') as typeof import('./model.js')
+  const { getUserSpecifiedModelSetting } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   if (getUserSpecifiedModelSetting() !== null) return
   const family = mostRecentSignInFamily()
   if (family === undefined) return
-  const { isKeyedCatalogueFamily, readCatalogueIfPending } = await import('../../services/providers/catalogueOnDemand.js')
+  const { isKeyedCatalogueFamily, readCatalogueIfPending } = await import('../providers/catalogueOnDemand.js')
   if (!isKeyedCatalogueFamily(family)) return
   if (await readCatalogueIfPending(family, { force: true })) resetComputedDefaultMemo()
 }

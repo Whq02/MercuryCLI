@@ -15,7 +15,7 @@ import {
   resolvesToExistingOption,
   stripContext1m,
   withContext1m,
-} from '../utils/model/modelOptions.js'
+} from '../services/model/modelOptions.js'
 import { getPublicModelDisplayName } from '../utils/model/model.js'
 import {
   type EffortLevel,

@@ -267,7 +267,7 @@ section('5 · the dead base: the door reads error, no row of the static picker m
 if (catalogue) {
   catalogue.__resetAnthropicCatalogueForTest()
   process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
-  const { getModelOptions, ANTHROPIC_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, ANTHROPIC_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
   const anthropicRows = (): string[] =>
     getModelOptions({ anthropicCredentialed: () => true })
       .filter(o => o.group === undefined || o.group === ANTHROPIC_MODEL_GROUP)

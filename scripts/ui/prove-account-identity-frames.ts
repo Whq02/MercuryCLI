@@ -148,7 +148,7 @@ try {
   }
   if (surface === undefined || surface === 'submodels') {
     const { SubModelPicker } = await import(join(ROOT, 'src/components/SubModelPicker.tsx'))
-    const { composeSubModelRegistry } = await import(join(ROOT, 'src/utils/model/subModelSlots.ts'))
+    const { composeSubModelRegistry } = await import(join(ROOT, 'src/services/model/subModelSlots.ts'))
     const model = composeSubModelRegistry().entries.find((entry: { source: string; kind: string }) => entry.source === 'huggingface' && entry.kind === 'model')
     check('the real submodel registry has a signed-in Hugging Face model', model !== undefined)
     let absent = ''

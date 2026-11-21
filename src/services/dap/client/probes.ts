@@ -6,6 +6,7 @@ import { subprocessEnv } from '../../../utils/subprocessEnv.js'
 import { passedOver } from '../../../utils/passedOver.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 import { executableSuffixes, isExecutablePath } from '../../../utils/platform/programs.js'
+import { gdbInstallHintWords } from '../../../utils/platform/words.js'
 
 export const GDB_DAP_MIN_MAJOR = 14
 
@@ -259,7 +260,5 @@ export const ELIXIR_DEBUG_ADAPTER_BINARIES = ['elixir-ls-debugger', 'debug_adapt
 export const ELIXIR_DEBUG_ADAPTER_HINT = 'brew install elixir-ls (ships elixir-ls-debugger) or unpack the elixir-ls release (debug_adapter.sh) onto PATH'
 
 export function gdbInstallHint(platform: string = process.platform): string {
-  return platform === 'win32'
-    ? 'install gdb 14+ from MSYS2 (pacman -S mingw-w64-ucrt-x86_64-gdb) — the first release with the native -i=dap interpreter'
-    : 'install gdb 14+ (the first release with the native -i=dap interpreter)'
+  return gdbInstallHintWords(platform)
 }

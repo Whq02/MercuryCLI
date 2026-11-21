@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import type { ModelOption } from '../../../utils/model/modelOptions.js'
+import type { ModelOption } from '../../model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { credentialFingerprint } from '../../../utils/accounts/credentialIdentity.js'
 import { getProductUserAgent } from '../../../utils/http.js'

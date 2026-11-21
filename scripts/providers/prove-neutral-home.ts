@@ -279,7 +279,7 @@ section('§5 a carrier-shaped id never reaches the first-party wire verbatim (w3
 
 section('§6 a home with no first-party credential lands its default on a credentialed lane — any lane, by sign-in recency')
 const { getDefaultEngineModel } = await import('../../src/utils/model/model.js')
-const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+const { evaluateComputedDefault, orderCredentials, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
 {
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local'] as const
   type Verdict = { usable: true; setting: string; row: string; why: string } | { usable: false; why: string }
@@ -376,10 +376,10 @@ section("§8 the operator's sighting: a fresh box's New Session is born keyless;
   check('…while the keyless CREW seat keeps the ruled two-door sentence (naming no family)', !freshCrew.ok && freshCrew.reason === 'no-credential:any' && !/anthropic|claude|openai/i.test(`${freshCrew.detail} ${freshCrew.action}`), JSON.stringify(freshCrew))
 
   const facts = await import('../../src/services/switchboard/bootBirthFacts.js')
-  ;(await import('../../src/utils/model/computedDefault.js')).resetComputedDefaultMemo()
+  ;(await import('../../src/services/model/computedDefault.js')).resetComputedDefaultMemo()
   check("LIVE: the face's road sends NO model on the fresh box (screenBirthModel is nothing while the default reads keyless)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))
   const { setEngineModelOverride } = await import('../../src/bootstrap/state.js')
-  const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+  const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
   process.env.OPENAI_API_KEY = 'fixture-openai-key-for-the-birth'
   resetComputedDefaultMemo()
   check("LIVE: an OpenAI key alone with no catalogue fetched still reads keyless at the face's road with no explicit choice (the verdict itself stands)", facts.screenBirthModel() === undefined, String(facts.screenBirthModel()))

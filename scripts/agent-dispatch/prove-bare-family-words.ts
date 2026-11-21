@@ -72,7 +72,7 @@ console.log(' the bare family words: one resolver, two roads, one row')
 console.log('============================================================')
 
 ;(await import('../../src/utils/config.ts')).enableConfigs()
-const table = await import('../../src/utils/model/bareFamilyWords.ts').catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
+const table = await import('../../src/services/model/bareFamilyWords.ts').catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
 check('the shared bare-family-word table exists (src/utils/model/bareFamilyWords.ts)', typeof table !== 'string', typeof table === 'string' ? table : '')
 if (typeof table === 'string') {
   rmSync(scratch, { recursive: true, force: true })
@@ -82,9 +82,9 @@ if (typeof table === 'string') {
 const words = table
 const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/idSpaces.ts')
 const model = await import('../../src/utils/model/model.ts')
-const agent = await import('../../src/utils/model/agent.ts')
+const agent = await import('../../src/services/model/agent.ts')
 const engine = await import('../../src/services/crew/engineDispatch.ts')
-const { keyLanePins, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
 const discovery = await import('../../src/services/providers/providerDiscovery.ts')
 const xai = await import('../../src/services/providers/xai/xaiCatalogue.ts')
 const deepseek = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')

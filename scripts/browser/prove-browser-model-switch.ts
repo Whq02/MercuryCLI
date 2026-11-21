@@ -10,7 +10,7 @@ process.env.MERCURY_BROWSER_PATH = process.execPath
 const browser = await import('../../src/services/browser/browserSession.ts')
 const { BrowserTool } = await import('../../src/tools/BrowserTool/BrowserTool.ts')
 const { ownerFromToolUseContext } = await import('../../src/utils/run/resolveOwner.ts')
-const { settleModelSelection } = await import('../../src/utils/model/modelTransition.ts')
+const { settleModelSelection } = await import('../../src/services/model/modelTransition.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let pressed = 0
 const page = { url: () => 'https://example.test/', on: () => {}, viewport: () => ({ width: 1280, height: 800 }), title: async () => 'fixture', evaluate: async () => undefined, keyboard: { press: async () => { pressed++ } } }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 ;(globalThis as Record<string, unknown>)['MACRO'] = { VERSION: '1.0.0' }
-import { isMcpPolicyActive, describeMcpPolicy, getMaxExposedRisk } from '../../src/services/mcp/toolPolicy.js'
+import { isMcpPolicyActive, describeMcpPolicy, getMaxExposedRisk } from '../../src/utils/mcp/toolPolicy.js'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

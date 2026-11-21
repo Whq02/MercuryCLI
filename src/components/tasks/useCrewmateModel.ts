@@ -5,10 +5,10 @@ import { getFocusedSessionConnector } from '../../services/engine-connector/focu
 import { isLocalAgentTask } from '../../tasks/LocalAgentTask/LocalAgentTask.js'
 import { getContextWindowForModel } from '../../utils/model/capabilities.js'
 import { normalizeModelStringForAPI, parseUserSpecifiedModel } from '../../utils/model/model.js'
-import { crewmateTranscriptFile, CREWMATE_TRANSCRIPT_TICK_MS } from './useCrewmateTranscript.js'
+import { crewmateTranscriptFile } from './useCrewmateTranscript.js'
 import type { CrewmateInView } from './useCrewmateView.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
+import { subscribeAgentMetadataPath } from '../../utils/sessionStorage/paths.js'
 
 type CrewmateModel = { model: string | null; effort: string | null; next: { model: string | null; effort: string | null } | null }
 type CrewmateRecord = { model: string | null; effort: string | null; effortOverride: string | null }
@@ -42,8 +42,12 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
     if (file === null) return
     let alive = true
     let reading = false
+    let pending = false
     const read = async (): Promise<void> => {
-      if (reading) return
+      if (reading) {
+        pending = true
+        return
+      }
       reading = true
       let identity: CrewmateRecord = { model: null, effort: null, effortOverride: null }
       try {
@@ -55,13 +59,16 @@ export function useCrewmateModel(crewmate: CrewmateInView | null): CrewmateModel
         reading = false
       }
       if (alive) setRecorded(previous => previous?.file === file && previous.identity.model === identity.model && previous.identity.effort === identity.effort && previous.identity.effortOverride === identity.effortOverride ? previous : { file, identity })
+      if (pending && alive) {
+        pending = false
+        void read()
+      }
     }
     void read()
-    const timer = startInterval(() => { void read() }, CREWMATE_TRANSCRIPT_TICK_MS)
-    timer.unref?.()
+    const stop = subscribeAgentMetadataPath(file, () => { void read() })
     return () => {
       alive = false
-      stopInterval(timer)
+      stop()
     }
   }, [file, startedAt])
   if (crewmate === null) return null

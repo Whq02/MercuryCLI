@@ -15,7 +15,7 @@ import {
 import {
   getAgentModel,
   getDefaultSubagentModel,
-} from '../../utils/model/agent.js'
+} from '../model/agent.js'
 import type { AgentOverrideProvenance } from './overrides.js'
 
 type AgentShadowReason =

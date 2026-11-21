@@ -15,9 +15,9 @@ for (const key of ['MERCURY_HOME', 'MERCURY_AUTH_SCOPE_DIR', 'OPENAI_API_KEY', '
 
 const { GPT_DISPLAY_PINS, gptDisplayPin } = await import('../../src/utils/model/pins/gptPins.js')
 const catalogue = await import('../../src/services/providers/openai/openaiCatalogue.js')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
-const { openaiSessionDefault } = await import('../../src/utils/model/providerFrontier.js')
-const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
+const { openaiSessionDefault } = await import('../../src/services/model/providerFrontier.js')
+const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.js')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.js')
 

@@ -1,7 +1,7 @@
 import { providerDisplayName } from '../routeLaw.js'
 import type { ScopeIdentityState } from '../../../utils/accounts/accountIdentity.js'
 import type { AccountSlot } from './shapes.js'
-import { PROVIDER_CREDENTIAL_ENV_VARS } from '../credentialEnvSpellings.js'
+import { PROVIDER_CREDENTIAL_ENV_VARS } from '../../../constants/credentialEnvSpellings.js'
 
 export function familyDisplayName(id: string): string {
   return providerDisplayName(id)
@@ -97,7 +97,7 @@ export function scopeSlotTail(
 export function familyRouteWords(family: string): string {
   if (family === 'local') return 'Ollama · LM Studio · vLLM · llama.cpp, or MERCURY_LOCAL_BASE_URL'
   const { subModelConnectHome } =
-    require('../../../utils/model/subModelSlots.js') as typeof import('../../../utils/model/subModelSlots.js')
+    require('../../model/subModelSlots.js') as typeof import('../../model/subModelSlots.js')
   const home = subModelConnectHome(family)
   if (home.command === undefined) return home.note
   const envKey = (PROVIDER_CREDENTIAL_ENV_VARS as Partial<Record<string, readonly string[]>>)[family]?.[0]

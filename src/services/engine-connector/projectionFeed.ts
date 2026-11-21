@@ -5,6 +5,19 @@ import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../ut
 
 export const HEARTBEAT_MS = 400
 
+export interface ProjectionFeedHandle {
+  armWatcher(): void
+  armTimer(): void
+  hasWatcher(): boolean
+  heartbeatMs(): number
+  stop(): void
+}
+
+type ProjectionFeedOptions = {
+  createDir?: boolean
+  filename?: string
+}
+
 export function projectionChangeKey(stat: { mtimeMs: number; size: number; ino: number }): string {
   return `${stat.mtimeMs}:${stat.size}:${stat.ino}`
 }
@@ -23,6 +36,7 @@ export class ProjectionFeed {
     private readonly path: string,
     private readonly onChange: () => void,
     private readonly idleFloorMs: () => number = () => HEARTBEAT_MS,
+    private readonly opts: ProjectionFeedOptions = {},
   ) {}
   private readonly tick = (): boolean => {
     let key = PROJECTION_ABSENT
@@ -81,11 +95,14 @@ export class ProjectionFeed {
   heartbeatMs(): number {
     return this.timer === null ? 0 : this.timerMs
   }
-  start(): void {
-    if (this.timer !== null) return
+  armWatcher(): void {
+    if (this.watcher !== null) return
     try {
-      mkdirSync(this.dir, { recursive: true })
-      const watcher = watch(resolveWatchRoot(this.dir), this.report)
+      if (this.opts.createDir !== false) mkdirSync(this.dir, { recursive: true })
+      const watcher = watch(resolveWatchRoot(this.dir), (_event, name) => {
+        if (this.opts.filename !== undefined && name !== undefined && name !== null && String(name) !== this.opts.filename) return
+        this.report()
+      })
       watcher.on('error', () => {
         try {
           watcher.close()
@@ -99,9 +116,23 @@ export class ProjectionFeed {
     } catch (error) {
       passedOver(error)
     }
+  }
+  armTimer(): void {
+    if (this.timer !== null) {
+      this.rearm()
+      return
+    }
     this.timerMs = this.cadenceMs()
     this.timer = startInterval(this.tick, this.timerMs)
     this.timer.unref?.()
+  }
+  hasWatcher(): boolean {
+    return this.watcher !== null
+  }
+  start(): void {
+    if (this.timer !== null) return
+    this.armWatcher()
+    this.armTimer()
     this.tick()
   }
   stop(): void {
@@ -127,4 +158,14 @@ export class ProjectionFeed {
     this.lastKey = PROJECTION_ABSENT
     this.settleUntilMs = 0
   }
+}
+
+export function createProjectionFeed(
+  dir: string,
+  path: string,
+  onChange: () => void,
+  idleFloorMs: () => number = () => HEARTBEAT_MS,
+  opts: ProjectionFeedOptions = {},
+): ProjectionFeedHandle {
+  return new ProjectionFeed(dir, path, onChange, idleFloorMs, opts)
 }

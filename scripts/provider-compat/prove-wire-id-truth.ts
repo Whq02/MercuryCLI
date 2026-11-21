@@ -113,7 +113,7 @@ const { refreshOpenrouterCatalogue, getOpenrouterModelOptions } = await import(
   '../../src/services/providers/openrouter/openrouterCatalogue.ts'
 )
 const { focusedOptionSupports1m, withContext1m } = await import(
-  '../../src/utils/model/modelOptions.ts'
+  '../../src/services/model/modelOptions.ts'
 )
 const { getCanonicalName, getEngineModel, parseUserSpecifiedModel } = await import(
   '../../src/utils/model/model.ts'

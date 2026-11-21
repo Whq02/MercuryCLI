@@ -10,7 +10,7 @@ process.env.ANTHROPIC_API_KEY = 'fixture-key'
 
 const { buildTransitionPlan, transitionSourceRevision, transitionCapabilityEpoch } =
   await import('../../src/services/providers/transitionPreview.ts')
-const { confirmTransitionPlan } = await import('../../src/utils/model/modelTransition.ts')
+const { confirmTransitionPlan } = await import('../../src/services/model/modelTransition.ts')
 const { toBridgeMessages } = await import('../../src/services/providers/openai/openaiCallModel.ts')
 const { mapMessagesToOpenaiInput } = await import('../../src/services/providers/openai/responsesBridge.ts')
 

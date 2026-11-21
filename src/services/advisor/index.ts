@@ -32,7 +32,7 @@ export {
   type AdvisorFacts,
   type AdvisorSeat,
   type AdvisorSettings,
-} from '../../utils/advisor/advisorSettings.js'
+} from './advisorSettings.js'
 export {
   ADVISOR_BYTES_PER_TOKEN,
   ADVISOR_COMPACT_KEEP,

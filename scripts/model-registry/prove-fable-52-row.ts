@@ -87,7 +87,7 @@ section('§2 the fold and the names: claude-fable-5-2 is its own canonical, neve
   check("the word 'mythos' names the row's mirror, the counterpart of what 'fable' names, and 'mythos[1m]' keeps its rider", parseUserSpecifiedModel('mythos') === MIRROR && getCanonicalName(parseUserSpecifiedModel('mythos')) === parseUserSpecifiedModel('fable') && parseUserSpecifiedModel('mythos[1m]') === `${MIRROR}[1m]`, `${parseUserSpecifiedModel('mythos')} / ${parseUserSpecifiedModel('mythos[1m]')}`)
   {
     const { isModelAlias } = await import('../../src/utils/model/aliases.ts')
-    const { matchReachableModelName } = await import('../../src/utils/model/modelNameRoad.ts')
+    const { matchReachableModelName } = await import('../../src/services/model/modelNameRoad.ts')
     check("the typed word 'mythos[1m]' is a word like 'fable[1m]': the typed roads hand it to the parser and never to the name matcher", isModelAlias('mythos[1m]') && isModelAlias('fable[1m]') && matchReachableModelName('mythos[1m]') === null && matchReachableModelName('MYTHOS[1M]') === null && MODEL_NAMES['mythos[1m]'] === MODEL_NAMES['fable[1m]']?.replace('Fable', 'Mythos'), `${isModelAlias('mythos[1m]')} / ${String(MODEL_NAMES['mythos[1m]'])} / ${String(MODEL_NAMES['fable[1m]'])}`)
   }
   check("the mirror displays as 'Mythos 5.2' and its [1m] twin as 'Mythos 5.2 (1M context)', as the row's does", renderModelName(MIRROR) === 'Mythos 5.2' && renderModelName(`${MIRROR}[1m]`) === 'Mythos 5.2 (1M context)' && renderModelName('claude-mythos-5-1[1m]') === 'Mythos 5.1 (1M context)', `${renderModelName(MIRROR)} / ${renderModelName(`${MIRROR}[1m]`)} / ${renderModelName('claude-mythos-5-1[1m]')}`)
@@ -108,7 +108,7 @@ section("§3 the row: the fable family's newest generation, its class, its picke
   const { AGENT_DISPATCH_MODELS, MODEL_ALIASES } = await import('../../src/utils/model/aliases.ts')
   const { classOfModel } = await import('../../src/services/providers/modelRegistry.ts')
   const { listAnthropicModels, resolveAnthropicModel, routeEffortsFor } = await import('../../src/services/providers/anthropic/anthropicAdapter.ts')
-  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { focusedOptionSupports1m, getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
   const effort = await import('../../src/utils/effort.ts')
   const caps = await import('../../src/utils/model/capabilities.ts')

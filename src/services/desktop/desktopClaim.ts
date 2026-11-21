@@ -1,5 +1,6 @@
+import { existsSync, watch, type FSWatcher } from 'node:fs'
 import { mkdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { getSessionId } from '../../bootstrap/state.js'
 import { conversationIdHere, subscribeFocusedSessionConnector } from '../engine-connector/focusedConnector.js'
 import { daemonDir } from '../../daemon/controlSocket.js'
@@ -27,8 +28,10 @@ import {
   type DesktopDrivingAppInput,
   type DesktopSnapshot,
 } from './desktopSession.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { resolveWatchRoot } from '../../utils/watchRoot.js'
 
 export const DESKTOP_CLAIM_FILE = 'desktop.lock'
 export const DESKTOP_CLAIM_IDLE_RELEASE_MS = 30_000
@@ -242,8 +245,8 @@ export async function readDesktopClaimFile(): Promise<DesktopSnapshot> {
 
 let fileView: DesktopSnapshot = IDLE_DESKTOP_SNAPSHOT
 const fileListeners = new Set<() => void>()
-let poll: ReturnType<typeof setInterval> | null = null
-let reading = false
+let poll: (() => void) | null = null
+let reading = 0
 let pollGeneration = 0
 
 function sameSnapshot(a: DesktopSnapshot, b: DesktopSnapshot): boolean {
@@ -263,16 +266,25 @@ function publishFileView(next: DesktopSnapshot): void {
 }
 
 async function readFileView(): Promise<void> {
-  if (reading) return
-  reading = true
-  const generation = pollGeneration
+  if (reading > 0) {
+    reading = 2
+    return
+  }
+  reading = 1
   try {
-    const view = await readDesktopClaimFile()
-    if (generation === pollGeneration && poll !== null) publishFileView(view)
-  } catch (error) {
-    logForDebugging(`desktop claim: the file view read failed — ${error instanceof Error ? error.message : String(error)}`)
+    for (;;) {
+      const generation = pollGeneration
+      try {
+        const view = await readDesktopClaimFile()
+        if (generation === pollGeneration && poll !== null) publishFileView(view)
+      } catch (error) {
+        logForDebugging(`desktop claim: the file view read failed — ${error instanceof Error ? error.message : String(error)}`)
+      }
+      if (reading < 2 || poll === null) break
+      reading = 1
+    }
   } finally {
-    reading = false
+    reading = 0
   }
 }
 
@@ -287,19 +299,92 @@ export function desktopClaimFileSnapshot(): DesktopSnapshot {
   return fileView
 }
 
+function nearestExistingDir(dir: string): string {
+  let target = dir
+  while (target !== dirname(target) && !existsSync(target)) target = dirname(target)
+  return target
+}
+
+function watchDesktopClaimFile(): () => void {
+  const dir = daemonDir()
+  let watcher: FSWatcher | null = null
+  let stopFallback: (() => void) | null = null
+  let closed = false
+
+  const closeWatcher = (): void => {
+    if (watcher === null) return
+    const active = watcher
+    watcher = null
+    try {
+      active.close()
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+
+  const startFallback = (): void => {
+    if (closed || stopFallback !== null) return
+    stopFallback = subscribeUiClock(DESKTOP_CLAIM_POLL_MS, () => {
+      void readFileView()
+    })
+  }
+
+  const armWatch = (): void => {
+    if (closed) return
+    closeWatcher()
+    const target = nearestExistingDir(dir)
+    const watchingDir = target === dir
+    try {
+      const next = watch(resolveWatchRoot(target), { persistent: false }, (_event, filename) => {
+        if (closed) return
+        if (!watchingDir) {
+          const deeper = nearestExistingDir(dir)
+          if (deeper !== target) {
+            armWatch()
+            if (deeper === dir) void readFileView()
+          }
+          return
+        }
+        if (filename !== null && filename !== DESKTOP_CLAIM_FILE) return
+        void readFileView()
+      })
+      next.on('error', error => {
+        passedOver(error)
+        if (watcher === next) closeWatcher()
+        startFallback()
+      })
+      watcher = next
+      if (!watchingDir && nearestExistingDir(dir).length > target.length) {
+        armWatch()
+        if (existsSync(dir)) void readFileView()
+      }
+    } catch (error) {
+      passedOver(error)
+      startFallback()
+    }
+  }
+
+  armWatch()
+  return () => {
+    closed = true
+    closeWatcher()
+    if (stopFallback !== null) {
+      stopFallback()
+      stopFallback = null
+    }
+  }
+}
+
 export function armDesktopClaimPoll(active: boolean): void {
   if (active) {
     if (poll !== null) return
-    poll = startInterval(() => {
-      void readFileView()
-    }, DESKTOP_CLAIM_POLL_MS)
-    poll.unref?.()
+    poll = watchDesktopClaimFile()
     void readFileView()
     return
   }
   pollGeneration++
   if (poll !== null) {
-    stopInterval(poll)
+    poll()
     poll = null
   }
   publishFileView(IDLE_DESKTOP_SNAPSHOT)

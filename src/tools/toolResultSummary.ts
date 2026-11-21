@@ -1,7 +1,7 @@
 
-import { displayWidth } from './glyphs.js'
-import { resultResolvedNames } from '../tools/FileReadTool/FileReadTool.js'
-import { passedOver } from './passedOver.js'
+import { displayWidth } from '../utils/glyphs.js'
+import { resultResolvedNames } from './FileReadTool/FileReadTool.js'
+import { passedOver } from '../utils/passedOver.js'
 
 export const MAX_INLINE_SUMMARY = 64
 

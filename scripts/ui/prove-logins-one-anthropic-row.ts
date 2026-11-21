@@ -36,7 +36,7 @@ async function stub(path: string, overrides: Record<string, unknown>): Promise<v
 }
 await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
-await stub('../../src/utils/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
+await stub('../../src/services/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
 await stub('../../src/components/mercury-ui/screens/anthropicLoginModel.js', {
   useAnthropicLoginModel: () => ({
     flow: { name: 'idle' },

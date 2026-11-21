@@ -1,6 +1,6 @@
 import { getModelUsage, getUnpricedTurns, getWorkloadUnpricedTurns, getWorkloadUsage, type ModelUsage } from '../../../bootstrap/state.js'
 import type { ModelSpendRowV1, UsageFactsV1 } from '../../engine-connector/types.js'
-import { formatLaneSpend } from '../../../utils/spendSpelling.js'
+import { formatLaneSpend } from '../spendSpelling.js'
 import { formatTokens } from '../../../utils/format.js'
 import { WORKLOAD_ADVISOR, WORKLOAD_CRON } from '../../../utils/workloadContext.js'
 import { modelPricingBasis } from '../../usage/modelCost.js'

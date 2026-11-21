@@ -54,16 +54,7 @@ export async function* cohereCallModel(params: CallModelParams): CallModelStream
     yield* compatChatCallModel(cohereLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('cohere'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('cohere', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedCohereCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)

@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/services/providers/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL']) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 let failures = 0
@@ -66,7 +66,7 @@ const { resolveEngineDispatch } = await import(`${root}/src/services/crew/engine
 const { readSignInRefusal } = await import(`${root}/src/utils/accounts/signInRefusal.ts`)
 const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
 const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const { getModelOptions } = await import(`${root}/src/utils/model/modelOptions.ts`)
+const { getModelOptions } = await import(`${root}/src/services/model/modelOptions.ts`)
 const { loginFamilyRows } = await import(`${root}/src/components/loginFamilyRows.ts`)
 const { liveModelsReference } = await import(`${root}/src/services/resources/adapters/models.ts`)
 const catalogue = existsSync(join(root, 'src/services/providers/openaicompat/compatCatalogue.ts')) ? await import(`${root}/src/services/providers/openaicompat/compatCatalogue.ts`) : null

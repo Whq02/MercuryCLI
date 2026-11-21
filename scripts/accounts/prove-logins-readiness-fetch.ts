@@ -63,7 +63,7 @@ const { catalogueEpoch } = await import('../../src/services/providers/catalogueE
 const openaiCatalogue = await import('../../src/services/providers/openai/openaiCatalogue.ts')
 const geminiCatalogue = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
-const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
 const PENDING = 'live catalogue not fetched yet — retry shortly'
 
 section('§1 a ChatGPT/OpenAI sign-in on a Claude seat: the passive read asks nothing and says not fetched; the card\'s read fetches once; the row flips')

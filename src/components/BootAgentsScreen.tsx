@@ -10,7 +10,7 @@ import { isFileBacked, type StudioRow } from './agents/studio/studioData.js';
 import type { FieldId } from './agents/studio/studioEditorModel.js';
 import { getAllBaseTools } from '../tools.js';
 import type { Tools } from '../Tool.js';
-import { getAgentModelPickerRows } from '../utils/model/agentModelPicker.js';
+import { getAgentModelPickerRows } from '../services/model/agentModelPicker.js';
 import { renderSceneLine } from './mercury-ui/SceneCanvas.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList } from './mercury-ui/useInteractiveList.js';

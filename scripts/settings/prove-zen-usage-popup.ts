@@ -14,7 +14,7 @@ import { startZenFixture } from '../providers/lib/zen-fixture.ts'
 process.env.MERCURY_RECESS = '0'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 const originalNow = Date.now
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const KEY = 'sk-proof-key-zen-fixture-popup-not-a-real-key-000000000000000000000000000'
 const fixture = startZenFixture({ key: KEY })

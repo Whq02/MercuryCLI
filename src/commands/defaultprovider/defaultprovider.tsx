@@ -15,7 +15,7 @@ import {
   computedDefault,
   describeComputedDefault,
   type ComputedDefault,
-} from '../../utils/model/computedDefault.js'
+} from '../../services/model/computedDefault.js'
 import type {
   LocalJSXCommandCall,
   LocalJSXCommandOnDone,

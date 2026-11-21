@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs'
 import { release } from 'node:os'
 import { MERCURY_VERSION } from '../../../constants/product.js'
 import { getLinuxDistroInfo } from '../../../utils/platform.js'
+import { platformDisplayName } from '../../../utils/platform/words.js'
 import { ADAPTER_SENTENCE, llamaCppWords, servedByAdapter, tensorFoldEngineLabel } from '../../tensorfold/adapter/identity.js'
 import { adapterCheckpointOf } from '../../tensorfold/adapter/models.js'
 import type { TensorFoldEngineFound } from '../../tensorfold/engine.js'
@@ -45,8 +46,7 @@ function osVersionWords(platform: NodeJS.Platform = process.platform, kernel: st
     const pretty = reads?.productVersion?.() ?? readLinuxPrettyName()
     return pretty !== undefined ? `${pretty} (Linux ${kernel})` : `Linux ${kernel}`
   }
-  if (platform === 'win32') return `Windows ${kernel}`
-  return `${platform} ${kernel}`
+  return `${platformDisplayName(platform)} ${kernel}`
 }
 
 let macProductVersion: string | undefined | null = null

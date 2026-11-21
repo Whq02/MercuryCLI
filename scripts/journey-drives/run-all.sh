@@ -10,7 +10,7 @@
 # gate-watch: src/state/AppStateStore.ts
 # gate-watch: src/rows/* src/runner/wire/*
 # gate-watch: src/utils/platform.ts
-# gate-watch: src/commands/model/model.tsx src/utils/model/modelTransition.ts src/components/PromptInput/useComposerModelDoors.tsx
+# gate-watch: src/commands/model/model.tsx src/services/model/modelTransition.ts src/components/PromptInput/useComposerModelDoors.tsx
 set -uo pipefail
 . "$(dirname "$0")/../lib/suite-env.sh" || exit 78; suite_env_guard "$0"
 . "$(dirname "$0")/../lib/drive-members.sh" || exit 78

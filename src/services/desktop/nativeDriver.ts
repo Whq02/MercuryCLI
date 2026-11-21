@@ -8,6 +8,7 @@ import { logForDebugging } from '../../utils/debug.js'
 import { pollUntil } from '../../utils/deadline.js'
 import { sleep } from '../../utils/sleep.js'
 import { voiceCheckoutRoot } from '../../utils/voice/voicePack.js'
+import { desktopGrantWordsForPlatform } from '../../utils/platform/words.js'
 import { computerAccessWords } from './computerAccess.js'
 import { bundleWebEngine } from './webEngine.js'
 import {
@@ -102,9 +103,7 @@ const QUERY_PLATFORMS: Record<DesktopQuery, readonly string[]> = {
 }
 
 export function desktopGrantWords(platform: string = process.platform): string {
-  if (platform === 'darwin') return 'allow your terminal application under System Settings → Privacy & Security → Screen Recording and → Accessibility, then restart the terminal application'
-  if (platform === 'win32') return 'run Mercury from an interactive desktop session (not a service, not a locked desktop); input into an elevated window needs an elevated terminal'
-  return 'an X11 session with DISPLAY set; Wayland sessions are refused'
+  return desktopGrantWordsForPlatform(platform)
 }
 
 const fail = <T>(error: DesktopError): DesktopAnswer<T> => ({ ok: false, error })

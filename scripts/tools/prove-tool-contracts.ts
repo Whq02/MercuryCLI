@@ -59,8 +59,8 @@ t('the model parameter\'s description enumerates no per-boot id list (prompt-cac
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.ts')
-const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')
+const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
 const options = getAgentModelPickerRows()
 t(
   'picker offers the full fable id as its saved value and label',
@@ -79,7 +79,7 @@ t(
   options[0]?.value === 'inherit',
 )
 
-const { getAgentModel } = await import('../../src/utils/model/agent.ts')
+const { getAgentModel } = await import('../../src/services/model/agent.ts')
 const pinned = getAgentModel('haiku', 'claude-opus-4-8', undefined, 'default')
 t('a haiku agent-def pin resolves to the haiku row', /haiku/i.test(pinned), `resolved=${pinned}`)
 

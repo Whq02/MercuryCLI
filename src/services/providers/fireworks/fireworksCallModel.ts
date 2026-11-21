@@ -60,10 +60,7 @@ export async function* fireworksCallModel(params: CallModelParams): CallModelStr
     return
   }
   if (!resolveFireworksApiKey()) { yield* compatChatCallModel(fireworksLaneProfile, params); return }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => { onAbort = resolve; params.signal.addEventListener('abort', onAbort, { once: true }) })
-  try { await Promise.race([readCatalogueIfPending('fireworks'), cancelled]) }
-  finally { params.signal.removeEventListener('abort', onAbort) }
+  await readCatalogueIfPending('fireworks', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedFireworksCatalogue()
   const listed = fireworksListedModel(snapshot, verdict.wireId)

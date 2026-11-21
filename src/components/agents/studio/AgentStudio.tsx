@@ -39,7 +39,7 @@ import { useEngineModel } from '../../../hooks/useEngineModel.js'
 import { usePublish } from '../../../hooks/effects.js'
 import TextInput from '../../TextInput.js'
 import { getAgentSourceDisplayName } from '../utils.js'
-import { agentModelAvailabilityNote } from '../../../utils/model/agentModelPicker.js'
+import { agentModelAvailabilityNote } from '../../../services/model/agentModelPicker.js'
 import {
   buildStudioRows,
   isFileBacked,

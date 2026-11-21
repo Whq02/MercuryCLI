@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util'
-import type { ModelOption } from '../../../utils/model/modelOptions.js'
+import type { ModelOption } from '../../model/modelOptions.js'
 import { fetchWithProviderDeadline } from '../fetchDeadline.js'
 import { getUserAgent } from '../../../utils/http.js'
 import { getApiFetch, getProxyFetchOptions } from '../../../utils/proxy.js'

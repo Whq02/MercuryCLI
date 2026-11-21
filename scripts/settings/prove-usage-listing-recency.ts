@@ -34,7 +34,7 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const discovery = await import('../../src/services/providers/providerDiscovery.js')
 const ledger = await import('../../src/utils/accounts/signInLedger.ts')
-const { recentSignIns } = await import('../../src/utils/model/computedDefault.ts')
+const { recentSignIns } = await import('../../src/services/model/computedDefault.ts')
 const { providerFamilyPresences } = await import('../../src/services/providers/providerUsage.ts')
 const { usageSectionPlan, orderUsageSections, usageColumns } = await import('../../src/components/Settings/Usage.tsx')
 

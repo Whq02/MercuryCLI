@@ -20,6 +20,7 @@ import { join } from 'node:path'
 import { getMercuryHome } from '../utils/envUtils.js'
 import { escapeRegExp } from '../utils/stringUtils.js'
 import { toPosixSeparators } from '../utils/platform/paths.js'
+import { platformDisplayName } from '../utils/platform/words.js'
 import { durableAtomicPublishSync } from '../substrate/durablePublish.js'
 import { utilityCallFor } from '../utils/model/utilityModel.js'
 import { routedCallModelSettled } from '../services/providers/callModelRouter.js'
@@ -40,9 +41,9 @@ import { checkIssueAccess, fileIssue, issueRepoSlug, type IssueAccess } from '..
 import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
-import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
+import { providerFamilyOfSetting } from '../services/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
-import { CREDENTIAL_VALUE_PASSES } from '../services/providers/credentialEnvSpellings.js'
+import { CREDENTIAL_VALUE_PASSES } from '../constants/credentialEnvSpellings.js'
 import { feedbackView, type Step } from './feedback/feedbackView.js'
 import { getErrnoCode } from '../utils/errors.js'
 import { passedOver } from '../utils/passedOver.js'
@@ -188,15 +189,7 @@ function productVersion(): string {
 }
 
 function platformLine(): string {
-  const name =
-    process.platform === 'darwin'
-      ? 'macOS'
-      : process.platform === 'win32'
-        ? 'Windows'
-        : process.platform === 'linux'
-          ? 'Linux'
-          : process.platform
-  return `${name} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
+  return `${platformDisplayName()} · ${osType()} ${release()} · ${process.arch} · ${envDynamic.terminal ?? 'unknown terminal'}`
 }
 
 function installLine(): string {
@@ -475,7 +468,7 @@ export function Feedback({
       const values: Record<string, string> = {
         ...words,
         version: `Mercury ${productVersion()}`,
-        os: process.platform === 'darwin' ? 'macOS' : process.platform === 'win32' ? 'Windows' : process.platform === 'linux' ? 'Linux' : process.platform,
+        os: platformDisplayName(),
         platform: platformLine(),
         install: installLine(),
         family: facts.family,

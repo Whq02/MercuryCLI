@@ -11,7 +11,7 @@ import { HELPER_JOB_WORDS, helperChoiceWords, helperJobsWords, helperModelChoice
 import { localServerConfigItems, type LocalServerConfigState } from '../LocalServer.js'
 import { advisorConfigItems } from '../Advisor.js'
 import { swarmMasterEnabled } from '../../../services/crewBoard/seam.js'
-import { setAdvisorEnabled, setAdvisorMinutes } from '../../../utils/advisor/advisorSettings.js'
+import { setAdvisorEnabled, setAdvisorMinutes } from '../../../services/advisor/advisorSettings.js'
 import type { SettingsItem, ConfigRowKit } from './configItems.js'
 import { mainLoopPointerText, localModelWindowRow, configProviderRows } from './configRowFacts.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

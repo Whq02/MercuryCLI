@@ -8,7 +8,7 @@ import { nousFixture, NOUS_FIXTURE_API_KEY, NOUS_FIXTURE_FILLER_ROWS, NOUS_FIXTU
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_TOOL_DEFER = '1'
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_MODEL', 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC', 'MERCURY_DISABLE_1M_CONTEXT']) delete process.env[name]
 const fixture = nousFixture()
 Object.assign(process.env, fixture.env)
@@ -31,7 +31,7 @@ const usageState = await import('../../src/services/providers/nous/nousUsageStat
 const { storeNousApiKeyLogin } = await import('../../src/services/providers/nous/nousLogin.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const { resolveProviderUsability } = await import('../../src/services/providers/providerUsability.ts')
-const { getModelOptions, isCatalogueDoorRow } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, isCatalogueDoorRow } = await import('../../src/services/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor, modelReceivesImageBlocks, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { validateModel } = await import('../../src/services/providers/validateModel.ts')

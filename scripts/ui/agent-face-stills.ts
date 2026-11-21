@@ -219,7 +219,7 @@ async function captureFaceFrames(): Promise<Record<string, string>> {
   }
   machine.dispose()
 
-  const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
+  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
   const fixtureCatalogue = [
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'gpt-6.2', label: 'GPT-6.2', description: '', group: 'Mercury — OpenAI models', unavailable: 'no OpenAI account connected' },

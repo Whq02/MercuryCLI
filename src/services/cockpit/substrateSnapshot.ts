@@ -1,5 +1,5 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { isMcpPolicyActive, describeMcpPolicy } from '../mcp/toolPolicy.js'
+import { isMcpPolicyActive, describeMcpPolicy } from '../../utils/mcp/toolPolicy.js'
 import { isMercuryServerEnabled } from '../mcp/mercuryServer.js'
 import { isSaturnSchedulingEnabled } from '../../tools/ScheduleCronTool/prompt.js'
 import { isMercurySubstrateProfileOn } from '../../utils/config.js'

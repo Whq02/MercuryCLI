@@ -31,7 +31,7 @@ const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 await stub('../../src/context/notifications.js', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })
 await stub('../../src/hooks/useCatalogueEpoch.js', { useCatalogueEpoch: () => 0 })
-await stub('../../src/utils/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
+await stub('../../src/services/model/computedDefault.js', { mostRecentSignInFamily: () => undefined })
 await stub('../../src/utils/browser.js', { openBrowser: async () => { throw new Error('Unexpected browser') } })
 await stub('../../src/components/tasks/useFocusedWork.js', { focusedRunnerPresence: () => 'live' })
 const ids = ['anthropic', 'openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'local', 'openai-compat', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen']

@@ -59,7 +59,7 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   openaiObservedWindowViews: () => [],
 }))
 await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
-await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
 await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
 await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
 await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))

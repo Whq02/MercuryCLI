@@ -9,7 +9,7 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 
 const { isProviderActionRow, keyConnectValue, GPT_CONNECT_OPTION_VALUE } = (await import(
-  '../../src/utils/model/modelOptions.ts'
+  '../../src/services/model/modelOptions.ts'
 )) as unknown as {
   isProviderActionRow: (v: string) => boolean
   keyConnectValue: (p: string) => string

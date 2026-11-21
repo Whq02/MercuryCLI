@@ -17,7 +17,7 @@ process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${server.port}/v1beta`
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest, newestGeminiGenerationFirst, geminiGeneration } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
-const { computedDefault, resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+const { computedDefault, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 
 let failures = 0

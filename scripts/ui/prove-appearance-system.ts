@@ -194,7 +194,7 @@ section('§7 — the default appearance: True Black, and a saved choice wins')
   const schema = await import('../../src/utils/config/schema.js')
   const cfg = await import('../../src/utils/config.js')
   const provider = await import('../../src/components/design-system/ThemeProvider.js')
-  const snapshot = await import('../../src/utils/profile/appearanceSnapshot.js')
+  const snapshot = await import('../../src/components/mercury-ui/appearanceSnapshot.js')
   const appearanceCmd = (await import('../../src/commands/appearance/index.js')).default
   const reachable = themeMod.REACHABLE_THEME_SETTINGS as readonly string[]
 

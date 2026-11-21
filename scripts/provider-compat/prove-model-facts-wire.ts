@@ -13,7 +13,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/services/providers/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 const captures: Array<{ path: string; body: any }> = []
@@ -47,7 +47,7 @@ const { resetSettingsCache } = await import(`${root}/src/utils/settings/settings
 const { routedCallModel } = await import(`${root}/src/services/providers/callModelRouter.ts`)
 const { createUserMessage } = await import(`${root}/src/utils/messages.ts`)
 const { asSystemPrompt } = await import(`${root}/src/utils/systemPromptType.ts`)
-const { getModelOptions } = await import(`${root}/src/utils/model/modelOptions.ts`)
+const { getModelOptions } = await import(`${root}/src/services/model/modelOptions.ts`)
 const { liveModelsReference } = await import(`${root}/src/services/resources/adapters/models.ts`)
 const { getUsageForModel } = await import(`${root}/src/cost-tracker.ts`)
 const { getModelMaxOutputTokens } = await import(`${root}/src/utils/model/capabilities.ts`)

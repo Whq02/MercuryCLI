@@ -1,6 +1,6 @@
 import { flagEnv } from '../../substrate/flagRegistry.js'
-import { META_SIGN_IN_ROADS } from './loginWords.js'
-import { getInitialSettings } from '../settings/settings.js'
+import { META_SIGN_IN_ROADS } from '../../utils/model/loginWords.js'
+import { getInitialSettings } from '../../utils/settings/settings.js'
 import {
   evaluateGptCandidate,
   getGptSeatAvailability,
@@ -8,32 +8,32 @@ import {
   GPT_DISPLAY_PINS,
   type GptDisqualification,
   type GptSeatAvailability,
-} from '../../services/providers/openai/openaiCatalogue.js'
-import { gptDisplayName } from './pins/gptPins.js'
-import { kimiDisplayName } from './pins/kimiPins.js'
-import { deepseekDisplayPin } from './pins/deepseekPins.js'
+} from '../providers/openai/openaiCatalogue.js'
+import { gptDisplayName } from '../../utils/model/pins/gptPins.js'
+import { kimiDisplayName } from '../../utils/model/pins/kimiPins.js'
+import { deepseekDisplayPin } from '../../utils/model/pins/deepseekPins.js'
 import {
   GEMINI_MODEL_GROUP,
   getGeminiModelOptions,
-} from '../../services/providers/gemini/geminiCatalogue.js'
+} from '../providers/gemini/geminiCatalogue.js'
 import {
   OPENROUTER_MODEL_GROUP,
   getOpenrouterModelOptions,
-} from '../../services/providers/openrouter/openrouterCatalogue.js'
-import { connectToBrowseReason } from '../../services/providers/catalogueGate.js'
-import { isCarrierShapedId, recognizeModelId } from '../../services/providers/idSpaces.js'
-import { NOUS_MODEL_GROUP, getNousModelOptions } from '../../services/providers/nous/nousCatalogue.js'
+} from '../providers/openrouter/openrouterCatalogue.js'
+import { connectToBrowseReason } from '../providers/catalogueGate.js'
+import { isCarrierShapedId, recognizeModelId } from '../providers/idSpaces.js'
+import { NOUS_MODEL_GROUP, getNousModelOptions } from '../providers/nous/nousCatalogue.js'
 import {
   HUGGINGFACE_MODEL_GROUP,
   getHuggingfaceModelOptions,
-} from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../../services/providers/local/localCatalogue.js'
-import { kickMoonshotCatalogue } from '../../services/providers/moonshot/moonshotCatalogue.js'
-import { kickDeepseekCatalogue } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { getContextWindowForModel } from './capabilities.js'
-import { operatorModelFacts } from './modelOverrides.js'
-import { isProviderDisabled } from '../../services/providers/disabledProviders.js'
-import { declaredRouteOf } from '../../services/providers/routeLaw.js'
+} from '../providers/huggingface/huggingfaceCatalogue.js'
+import { LOCAL_MODEL_GROUP, getLocalModelOptions } from '../providers/local/localCatalogue.js'
+import { kickMoonshotCatalogue } from '../providers/moonshot/moonshotCatalogue.js'
+import { kickDeepseekCatalogue } from '../providers/deepseek/deepseekCatalogue.js'
+import { getContextWindowForModel } from '../../utils/model/capabilities.js'
+import { operatorModelFacts } from '../../utils/model/modelOverrides.js'
+import { isProviderDisabled } from '../providers/disabledProviders.js'
+import { declaredRouteOf } from '../providers/routeLaw.js'
 import {
   getBestModel,
   getMarketingNameForModel,
@@ -41,14 +41,14 @@ import {
   parseUserSpecifiedModel,
   parseUserSpecifiedModelRaw,
   renderModelName,
-} from './model.js'
-import { getModelStrings } from './modelStrings.js'
-import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, mirrorTwinOf, parseFirstPartyGeneration, previousGenerationKeys } from './configs.js'
-import { isModelAllowed } from './modelAllowlist.js'
-import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../auth.js'
-import { modelRefusalWords } from '../../services/providers/anthropic/modelRefusal.js'
-import type { AnthropicLiveRow } from '../../services/providers/anthropic/anthropicCatalogue.js'
-import { passedOver } from '../passedOver.js'
+} from '../../utils/model/model.js'
+import { getModelStrings } from '../../utils/model/modelStrings.js'
+import { CANONICAL_ID_TO_KEY, DECLARED_GENERATION_STEMS, familyDefaultsModel, mirrorTwinOf, parseFirstPartyGeneration, previousGenerationKeys } from '../../utils/model/configs.js'
+import { isModelAllowed } from '../../utils/model/modelAllowlist.js'
+import { isClaudeAISubscriber, isMaxSubscriber, isCrewPremiumSubscriber } from '../../utils/auth.js'
+import { modelRefusalWords } from '../providers/anthropic/modelRefusal.js'
+import type { AnthropicLiveRow } from '../providers/anthropic/anthropicCatalogue.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export type ModelOption = {
   value: string
@@ -75,14 +75,14 @@ export interface ModelOptionReads {
 
 function liveAnthropicCredentialed(): boolean {
   const { anthropicCredentialPresence } =
-    require('../../services/providers/providerUsage.js') as typeof import('../../services/providers/providerUsage.js')
+    require('../providers/providerUsage.js') as typeof import('../providers/providerUsage.js')
   return anthropicCredentialPresence().credentialed
 }
 
 function liveAnthropicRows(): readonly AnthropicLiveRow[] {
   try {
     const { anthropicLiveUnion } =
-      require('../../services/providers/anthropic/anthropicCatalogue.js') as typeof import('../../services/providers/anthropic/anthropicCatalogue.js')
+      require('../providers/anthropic/anthropicCatalogue.js') as typeof import('../providers/anthropic/anthropicCatalogue.js')
     return anthropicLiveUnion()
   } catch (error) {
     passedOver(error)
@@ -540,132 +540,132 @@ export type KeyLaneListState =
 
 export function keyLaneListState(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLaneListState {
   if (provider === 'qwen') {
-    const owner = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+    const owner = require('../providers/qwen/qwenCatalogue.js') as typeof import('../providers/qwen/qwenCatalogue.js')
     const { source } = owner.qwenCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'pins' || source.kind === 'plan') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('qwen')
     const error = !gate.allowed ? gate.reason : owner.getCachedQwenCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'minimax' || provider === 'together' || provider === 'cohere') {
     const read = provider === 'minimax'
-      ? (() => { const owner = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js'); return { snapshot: owner.getCachedMinimaxCatalogue(), source: owner.minimaxCatalogueRows().source } })()
+      ? (() => { const owner = require('../providers/minimax/minimaxCatalogue.js') as typeof import('../providers/minimax/minimaxCatalogue.js'); return { snapshot: owner.getCachedMinimaxCatalogue(), source: owner.minimaxCatalogueRows().source } })()
       : provider === 'together'
-        ? (() => { const owner = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js'); return { snapshot: owner.getCachedTogetherCatalogue(), source: owner.togetherCatalogueRows().source } })()
-        : (() => { const owner = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js'); return { snapshot: owner.getCachedCohereCatalogue(), source: owner.cohereCatalogueRows().source } })()
+        ? (() => { const owner = require('../providers/together/togetherCatalogue.js') as typeof import('../providers/together/togetherCatalogue.js'); return { snapshot: owner.getCachedTogetherCatalogue(), source: owner.togetherCatalogueRows().source } })()
+        : (() => { const owner = require('../providers/cohere/cohereCatalogue.js') as typeof import('../providers/cohere/cohereCatalogue.js'); return { snapshot: owner.getCachedCohereCatalogue(), source: owner.cohereCatalogueRows().source } })()
     if (read.source.kind === 'live') return { kind: 'live', count: read.source.count }
     if (read.source.kind === 'pins') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict(provider)
     const error = !gate.allowed ? gate.reason : read.snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'groq') {
-    const owner = require('../../services/providers/groq/groqCatalogue.js') as typeof import('../../services/providers/groq/groqCatalogue.js')
+    const owner = require('../providers/groq/groqCatalogue.js') as typeof import('../providers/groq/groqCatalogue.js')
     const { source } = owner.groqCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'pins') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('groq')
     const error = !gate.allowed ? gate.reason : owner.getCachedGroqCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'melious') {
-    const owner = require('../../services/providers/melious/meliousCatalogue.js') as typeof import('../../services/providers/melious/meliousCatalogue.js')
+    const owner = require('../providers/melious/meliousCatalogue.js') as typeof import('../providers/melious/meliousCatalogue.js')
     const { source } = owner.meliousCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('melious')
     const error = !gate.allowed ? gate.reason : owner.getCachedMeliousCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'orcarouter') {
-    const owner = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    const owner = require('../providers/orcarouter/orcarouterCatalogue.js') as typeof import('../providers/orcarouter/orcarouterCatalogue.js')
     const { source } = owner.orcarouterCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'pins') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('orcarouter')
     const error = !gate.allowed ? gate.reason : owner.getCachedOrcarouterCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'cerebras') {
-    const owner = require('../../services/providers/cerebras/cerebrasCatalogue.js') as typeof import('../../services/providers/cerebras/cerebrasCatalogue.js')
+    const owner = require('../providers/cerebras/cerebrasCatalogue.js') as typeof import('../providers/cerebras/cerebrasCatalogue.js')
     const { source } = owner.cerebrasCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'pins') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('cerebras')
     const error = !gate.allowed ? gate.reason : owner.getCachedCerebrasCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'fireworks') {
-    const owner = require('../../services/providers/fireworks/fireworksCatalogue.js') as typeof import('../../services/providers/fireworks/fireworksCatalogue.js')
+    const owner = require('../providers/fireworks/fireworksCatalogue.js') as typeof import('../providers/fireworks/fireworksCatalogue.js')
     const { source } = owner.fireworksCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'pins') return { kind: 'pin' }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('fireworks')
     const error = !gate.allowed ? gate.reason : owner.getCachedFireworksCatalogue()?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'zai') {
-    const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
+    const { zaiCatalogueRows } = require('../providers/zai/zaiCatalogue.js') as typeof import('../providers/zai/zaiCatalogue.js')
     const { source } = zaiCatalogueRows()
     return source.kind === 'live' ? { kind: 'live', count: source.count } : { kind: 'pin' }
   }
   if (provider === 'xai') {
-    const { getCachedXaiCatalogue, xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+    const { getCachedXaiCatalogue, xaiCatalogueRows } = require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')
     const snapshot = getCachedXaiCatalogue()
     const { source } = xaiCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('xai')
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'meta') {
-    const { getCachedMetaCatalogue, metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
+    const { getCachedMetaCatalogue, metaCatalogueRows } = require('../providers/meta/metaCatalogue.js') as typeof import('../providers/meta/metaCatalogue.js')
     const snapshot = getCachedMetaCatalogue()
     const { source } = metaCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('meta')
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'mistral') {
-    const { getCachedMistralCatalogue, mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+    const { getCachedMistralCatalogue, mistralCatalogueRows } = require('../providers/mistral/mistralCatalogue.js') as typeof import('../providers/mistral/mistralCatalogue.js')
     const snapshot = getCachedMistralCatalogue()
     const { source } = mistralCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('mistral')
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'zen') {
-    const { getCachedZenCatalogue, zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
+    const { getCachedZenCatalogue, zenCatalogueRows } = require('../providers/zen/zenCatalogue.js') as typeof import('../providers/zen/zenCatalogue.js')
     const snapshot = getCachedZenCatalogue()
     const { source } = zenCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
-    const { catalogueTrafficVerdict } = require('../../services/providers/catalogueGate.js') as typeof import('../../services/providers/catalogueGate.js')
+    const { catalogueTrafficVerdict } = require('../providers/catalogueGate.js') as typeof import('../providers/catalogueGate.js')
     const gate = catalogueTrafficVerdict('zen')
     const error = !gate.allowed ? gate.reason : snapshot?.lastError
     return { kind: 'unread', reading: error === undefined, ...(error ? { error } : {}) }
   }
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
-      require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
+      require('../providers/moonshot/moonshotCatalogue.js') as typeof import('../providers/moonshot/moonshotCatalogue.js')
     const { source } = moonshotCatalogueRows()
     if (source.kind === 'live') return { kind: 'live', count: source.count }
     if (source.kind === 'unread') return { kind: 'unread', reading: source.reading, ...(source.error !== undefined ? { error: source.error } : {}) }
     return { kind: 'pin' }
   }
   const { deepseekCatalogueRows } =
-    require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
+    require('../providers/deepseek/deepseekCatalogue.js') as typeof import('../providers/deepseek/deepseekCatalogue.js')
   const { source } = deepseekCatalogueRows()
   return source.kind === 'live' ? { kind: 'live', count: source.count } : { kind: 'pin' }
 }
@@ -695,75 +695,75 @@ function liveKeyLaneReads(): KeyLaneReads {
   return {
     zaiKeyPresent: () => {
       const { resolveZaiApiKey } =
-        require('../../services/providers/providerDiscovery.js') as typeof import('../../services/providers/providerDiscovery.js')
+        require('../providers/providerDiscovery.js') as typeof import('../providers/providerDiscovery.js')
       return resolveZaiApiKey() !== undefined
     },
     moonshotCredentialPresent: () => {
       const { resolveMoonshotAccount } =
-        require('../../services/providers/moonshot/moonshotAccounts.js') as typeof import('../../services/providers/moonshot/moonshotAccounts.js')
+        require('../providers/moonshot/moonshotAccounts.js') as typeof import('../providers/moonshot/moonshotAccounts.js')
       return resolveMoonshotAccount() !== undefined
     },
     xaiKeyPresent: () => {
-      const { resolveXaiCredentialSnapshot } = require('../../services/providers/xai/xaiAccounts.js') as typeof import('../../services/providers/xai/xaiAccounts.js')
+      const { resolveXaiCredentialSnapshot } = require('../providers/xai/xaiAccounts.js') as typeof import('../providers/xai/xaiAccounts.js')
       return resolveXaiCredentialSnapshot() !== undefined
     },
     metaKeyPresent: () => {
-      const { resolveMetaApiKey } = require('../../services/providers/meta/metaAccounts.js') as typeof import('../../services/providers/meta/metaAccounts.js')
+      const { resolveMetaApiKey } = require('../providers/meta/metaAccounts.js') as typeof import('../providers/meta/metaAccounts.js')
       return resolveMetaApiKey() !== undefined
     },
     mistralKeyPresent: () => {
-      const { resolveMistralApiKey } = require('../../services/providers/mistral/mistralAccounts.js') as typeof import('../../services/providers/mistral/mistralAccounts.js')
+      const { resolveMistralApiKey } = require('../providers/mistral/mistralAccounts.js') as typeof import('../providers/mistral/mistralAccounts.js')
       return resolveMistralApiKey() !== undefined
     },
     zenKeyPresent: () => {
-      const { resolveZenApiKey } = require('../../services/providers/zen/zenAccounts.js') as typeof import('../../services/providers/zen/zenAccounts.js')
+      const { resolveZenApiKey } = require('../providers/zen/zenAccounts.js') as typeof import('../providers/zen/zenAccounts.js')
       return resolveZenApiKey() !== undefined
     },
     minimaxKeyPresent: () => {
-      const { resolveMinimaxApiKey } = require('../../services/providers/minimax/minimaxAccounts.js') as typeof import('../../services/providers/minimax/minimaxAccounts.js')
+      const { resolveMinimaxApiKey } = require('../providers/minimax/minimaxAccounts.js') as typeof import('../providers/minimax/minimaxAccounts.js')
       return resolveMinimaxApiKey() !== undefined
     },
     togetherKeyPresent: () => {
-      const { resolveTogetherApiKey } = require('../../services/providers/together/togetherAccounts.js') as typeof import('../../services/providers/together/togetherAccounts.js')
+      const { resolveTogetherApiKey } = require('../providers/together/togetherAccounts.js') as typeof import('../providers/together/togetherAccounts.js')
       return resolveTogetherApiKey() !== undefined
     },
     cohereKeyPresent: () => {
-      const { resolveCohereApiKey } = require('../../services/providers/cohere/cohereAccounts.js') as typeof import('../../services/providers/cohere/cohereAccounts.js')
+      const { resolveCohereApiKey } = require('../providers/cohere/cohereAccounts.js') as typeof import('../providers/cohere/cohereAccounts.js')
       return resolveCohereApiKey() !== undefined
     },
     groqKeyPresent: () => {
-      const { resolveGroqApiKey } = require('../../services/providers/groq/groqAccounts.js') as typeof import('../../services/providers/groq/groqAccounts.js')
+      const { resolveGroqApiKey } = require('../providers/groq/groqAccounts.js') as typeof import('../providers/groq/groqAccounts.js')
       return resolveGroqApiKey() !== undefined
     },
     meliousKeyPresent: () => {
-      const { resolveMeliousApiKey } = require('../../services/providers/melious/meliousAccounts.js') as typeof import('../../services/providers/melious/meliousAccounts.js')
+      const { resolveMeliousApiKey } = require('../providers/melious/meliousAccounts.js') as typeof import('../providers/melious/meliousAccounts.js')
       return resolveMeliousApiKey() !== undefined
     },
     orcarouterKeyPresent: () => {
-      const { resolveOrcarouterApiKey } = require('../../services/providers/orcarouter/orcarouterAccounts.js') as typeof import('../../services/providers/orcarouter/orcarouterAccounts.js')
+      const { resolveOrcarouterApiKey } = require('../providers/orcarouter/orcarouterAccounts.js') as typeof import('../providers/orcarouter/orcarouterAccounts.js')
       return resolveOrcarouterApiKey() !== undefined
     },
     cerebrasKeyPresent: () => {
-      const { resolveCerebrasApiKey } = require('../../services/providers/cerebras/cerebrasAccounts.js') as typeof import('../../services/providers/cerebras/cerebrasAccounts.js')
+      const { resolveCerebrasApiKey } = require('../providers/cerebras/cerebrasAccounts.js') as typeof import('../providers/cerebras/cerebrasAccounts.js')
       return resolveCerebrasApiKey() !== undefined
     },
     fireworksKeyPresent: () => {
-      const { resolveFireworksApiKey } = require('../../services/providers/fireworks/fireworksAccounts.js') as typeof import('../../services/providers/fireworks/fireworksAccounts.js')
+      const { resolveFireworksApiKey } = require('../providers/fireworks/fireworksAccounts.js') as typeof import('../providers/fireworks/fireworksAccounts.js')
       return resolveFireworksApiKey() !== undefined
     },
     qwenKeyPresent: () => {
-      const { resolveQwenCredentialSnapshot } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
+      const { resolveQwenCredentialSnapshot } = require('../providers/qwen/qwenAccounts.js') as typeof import('../providers/qwen/qwenAccounts.js')
       return resolveQwenCredentialSnapshot() !== undefined
     },
     deepseekKeyPresent: () => {
       const { resolveDeepseekApiKey } =
-        require('../../services/providers/deepseek/deepseekAccounts.js') as typeof import('../../services/providers/deepseek/deepseekAccounts.js')
+        require('../providers/deepseek/deepseekAccounts.js') as typeof import('../providers/deepseek/deepseekAccounts.js')
       return resolveDeepseekApiKey() !== undefined
     },
-    namedCompat: () => (require('../../services/providers/openaicompat/compatCatalogue.js') as typeof import('../../services/providers/openaicompat/compatCatalogue.js')).namedCompatModelOptions(),
+    namedCompat: () => (require('../providers/openaicompat/compatCatalogue.js') as typeof import('../providers/openaicompat/compatCatalogue.js')).namedCompatModelOptions(),
     compat: () => {
       const { resolveCompatSlotConfig, resolveCompatApiKey } =
-        require('../../services/providers/openaicompat/compatAccounts.js') as typeof import('../../services/providers/openaicompat/compatAccounts.js')
+        require('../providers/openaicompat/compatAccounts.js') as typeof import('../providers/openaicompat/compatAccounts.js')
       const config = resolveCompatSlotConfig()
       if (!config) return undefined
       return {
@@ -777,66 +777,66 @@ function liveKeyLaneReads(): KeyLaneReads {
 
 export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 'meta' | 'mistral' | 'zen' | 'minimax' | 'together' | 'cohere' | 'groq' | 'orcarouter' | 'melious' | 'cerebras' | 'fireworks' | 'qwen'): KeyLanePin[] {
   if (provider === 'qwen') {
-    const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
-    const { qwenDisplayPin } = require('./pins/qwenPins.js') as typeof import('./pins/qwenPins.js')
+    const { qwenCatalogueRows } = require('../providers/qwen/qwenCatalogue.js') as typeof import('../providers/qwen/qwenCatalogue.js')
+    const { qwenDisplayPin } = require('../../utils/model/pins/qwenPins.js') as typeof import('../../utils/model/pins/qwenPins.js')
     return qwenCatalogueRows().rows.map(row => ({ ...row, ...(qwenDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'minimax') {
-    const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
-    const { minimaxDisplayPin } = require('./pins/minimaxPins.js') as typeof import('./pins/minimaxPins.js')
+    const { minimaxCatalogueRows } = require('../providers/minimax/minimaxCatalogue.js') as typeof import('../providers/minimax/minimaxCatalogue.js')
+    const { minimaxDisplayPin } = require('../../utils/model/pins/minimaxPins.js') as typeof import('../../utils/model/pins/minimaxPins.js')
     return minimaxCatalogueRows().rows.map(row => ({ ...row, ...(minimaxDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'together') {
-    const { togetherCatalogueRows } = require('../../services/providers/together/togetherCatalogue.js') as typeof import('../../services/providers/together/togetherCatalogue.js')
-    const { togetherDisplayPin } = require('./pins/togetherPins.js') as typeof import('./pins/togetherPins.js')
+    const { togetherCatalogueRows } = require('../providers/together/togetherCatalogue.js') as typeof import('../providers/together/togetherCatalogue.js')
+    const { togetherDisplayPin } = require('../../utils/model/pins/togetherPins.js') as typeof import('../../utils/model/pins/togetherPins.js')
     return togetherCatalogueRows().rows.map(row => ({ id: row.id, displayName: row.free && !row.displayName.endsWith('(free)') ? `${row.displayName} (free)` : row.displayName, observedAt: row.observedAt, ...(row.contextWindow !== undefined ? { contextWindow: row.contextWindow } : {}), listedLive: row.listedLive, ...(togetherDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'cohere') {
-    const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
-    const { cohereDisplayPin } = require('./pins/coherePins.js') as typeof import('./pins/coherePins.js')
+    const { cohereCatalogueRows } = require('../providers/cohere/cohereCatalogue.js') as typeof import('../providers/cohere/cohereCatalogue.js')
+    const { cohereDisplayPin } = require('../../utils/model/pins/coherePins.js') as typeof import('../../utils/model/pins/coherePins.js')
     return cohereCatalogueRows().rows.map(row => ({ ...row, ...(cohereDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'groq') {
-    const { groqCatalogueRows } = require('../../services/providers/groq/groqCatalogue.js') as typeof import('../../services/providers/groq/groqCatalogue.js')
-    const { groqDisplayPin } = require('./pins/groqPins.js') as typeof import('./pins/groqPins.js')
+    const { groqCatalogueRows } = require('../providers/groq/groqCatalogue.js') as typeof import('../providers/groq/groqCatalogue.js')
+    const { groqDisplayPin } = require('../../utils/model/pins/groqPins.js') as typeof import('../../utils/model/pins/groqPins.js')
     return groqCatalogueRows().rows.map(row => ({ ...row, ...(groqDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'melious') {
-    const { meliousCatalogueRows } = require('../../services/providers/melious/meliousCatalogue.js') as typeof import('../../services/providers/melious/meliousCatalogue.js')
+    const { meliousCatalogueRows } = require('../providers/melious/meliousCatalogue.js') as typeof import('../providers/melious/meliousCatalogue.js')
     return meliousCatalogueRows().rows
   }
   if (provider === 'orcarouter') {
-    const { orcarouterCatalogueRows } = require('../../services/providers/orcarouter/orcarouterCatalogue.js') as typeof import('../../services/providers/orcarouter/orcarouterCatalogue.js')
+    const { orcarouterCatalogueRows } = require('../providers/orcarouter/orcarouterCatalogue.js') as typeof import('../providers/orcarouter/orcarouterCatalogue.js')
     return orcarouterCatalogueRows().rows
   }
   if (provider === 'cerebras') {
-    const { cerebrasCatalogueRows } = require('../../services/providers/cerebras/cerebrasCatalogue.js') as typeof import('../../services/providers/cerebras/cerebrasCatalogue.js')
-    const { cerebrasDisplayPin } = require('./pins/cerebrasPins.js') as typeof import('./pins/cerebrasPins.js')
+    const { cerebrasCatalogueRows } = require('../providers/cerebras/cerebrasCatalogue.js') as typeof import('../providers/cerebras/cerebrasCatalogue.js')
+    const { cerebrasDisplayPin } = require('../../utils/model/pins/cerebrasPins.js') as typeof import('../../utils/model/pins/cerebrasPins.js')
     return cerebrasCatalogueRows().rows.map(row => ({ ...row, ...(cerebrasDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'fireworks') {
-    const { fireworksCatalogueRows } = require('../../services/providers/fireworks/fireworksCatalogue.js') as typeof import('../../services/providers/fireworks/fireworksCatalogue.js')
-    const { fireworksDisplayPin } = require('./pins/fireworksPins.js') as typeof import('./pins/fireworksPins.js')
+    const { fireworksCatalogueRows } = require('../providers/fireworks/fireworksCatalogue.js') as typeof import('../providers/fireworks/fireworksCatalogue.js')
+    const { fireworksDisplayPin } = require('../../utils/model/pins/fireworksPins.js') as typeof import('../../utils/model/pins/fireworksPins.js')
     return fireworksCatalogueRows().rows.map(row => ({ ...row, ...(fireworksDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'xai') {
-    const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
-    const { xaiDisplayPin } = require('./pins/xaiPins.js') as typeof import('./pins/xaiPins.js')
+    const { xaiCatalogueRows } = require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')
+    const { xaiDisplayPin } = require('../../utils/model/pins/xaiPins.js') as typeof import('../../utils/model/pins/xaiPins.js')
     return xaiCatalogueRows().rows.map(row => ({ ...row, ...(xaiDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'meta') {
-    const { metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
-    const { metaDisplayPin } = require('./pins/metaPins.js') as typeof import('./pins/metaPins.js')
+    const { metaCatalogueRows } = require('../providers/meta/metaCatalogue.js') as typeof import('../providers/meta/metaCatalogue.js')
+    const { metaDisplayPin } = require('../../utils/model/pins/metaPins.js') as typeof import('../../utils/model/pins/metaPins.js')
     return metaCatalogueRows().rows.map(row => ({ ...row, ...(metaDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'mistral') {
-    const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
-    const { mistralDisplayPin } = require('./pins/mistralPins.js') as typeof import('./pins/mistralPins.js')
+    const { mistralCatalogueRows } = require('../providers/mistral/mistralCatalogue.js') as typeof import('../providers/mistral/mistralCatalogue.js')
+    const { mistralDisplayPin } = require('../../utils/model/pins/mistralPins.js') as typeof import('../../utils/model/pins/mistralPins.js')
     return mistralCatalogueRows().rows.map(row => ({ ...row, ...(mistralDisplayPin(row.id) ? {} : { liveUnknown: true }) }))
   }
   if (provider === 'zen') {
-    const { zenCatalogueRows } = require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')
-    const { zenDisplayPin, zenQualifiedId, zenPinObservedAt } = require('./pins/zenPins.js') as typeof import('./pins/zenPins.js')
+    const { zenCatalogueRows } = require('../providers/zen/zenCatalogue.js') as typeof import('../providers/zen/zenCatalogue.js')
+    const { zenDisplayPin, zenQualifiedId, zenPinObservedAt } = require('../../utils/model/pins/zenPins.js') as typeof import('../../utils/model/pins/zenPins.js')
     return zenCatalogueRows().rows.map(row => {
       const pin = zenDisplayPin(row.id)
       return {
@@ -850,7 +850,7 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
     })
   }
   if (provider === 'zai') {
-    const { zaiCatalogueRows } = require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')
+    const { zaiCatalogueRows } = require('../providers/zai/zaiCatalogue.js') as typeof import('../providers/zai/zaiCatalogue.js')
     return zaiCatalogueRows().rows.map(row => ({
       id: row.id,
       displayName: row.displayName,
@@ -862,11 +862,11 @@ export function keyLanePins(provider: 'zai' | 'moonshot' | 'deepseek' | 'xai' | 
   }
   if (provider === 'moonshot') {
     const { moonshotCatalogueRows } =
-      require('../../services/providers/moonshot/moonshotCatalogue.js') as typeof import('../../services/providers/moonshot/moonshotCatalogue.js')
+      require('../providers/moonshot/moonshotCatalogue.js') as typeof import('../providers/moonshot/moonshotCatalogue.js')
     return moonshotCatalogueRows().rows.map(row => (row.listedLive && kimiDisplayName(row.id) === undefined ? { ...row, liveUnknown: true } : row))
   }
   const { deepseekCatalogueRows } =
-    require('../../services/providers/deepseek/deepseekCatalogue.js') as typeof import('../../services/providers/deepseek/deepseekCatalogue.js')
+    require('../providers/deepseek/deepseekCatalogue.js') as typeof import('../providers/deepseek/deepseekCatalogue.js')
   return deepseekCatalogueRows().rows.map(row => ({
     id: row.id,
     displayName: row.displayName,
@@ -1084,7 +1084,7 @@ export function keyLaneProviderRows(reads: KeyLaneReads = liveKeyLaneReads()): M
   const qwenRows = keyLanePins('qwen')
   const qwenState = keyLaneListState('qwen')
   const qwenCredentialed = reads.qwenKeyPresent?.() ?? false
-  const { qwenBoundConsole, qwenConsoleWords } = require('../../services/providers/qwen/qwenAccounts.js') as typeof import('../../services/providers/qwen/qwenAccounts.js')
+  const { qwenBoundConsole, qwenConsoleWords } = require('../providers/qwen/qwenAccounts.js') as typeof import('../providers/qwen/qwenAccounts.js')
   const qwenConsole = qwenConsoleWords(qwenBoundConsole())
   if (qwenCredentialed && qwenRows.length === 0 && qwenState.kind === 'live') {
     out.push({ value: keyConnectValue('qwen'), label: 'Qwen — no models listed', group: QWEN_MODEL_GROUP, description: "the bound endpoint's live list serves no text model — /logins qwen checks the key", descriptionForModel: `The bound ${qwenConsole} endpoint returned an empty text model list; no Qwen model is selectable.` })
@@ -1156,10 +1156,10 @@ export function getModelOptions(reads: ModelOptionReads = {}): ModelOption[] {
     pushIfAbsent(options, row)
   }
   kickDeepseekCatalogue()
-  ;(require('../../services/providers/zai/zaiCatalogue.js') as typeof import('../../services/providers/zai/zaiCatalogue.js')).kickZaiCatalogue()
-  ;(require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')).kickXaiCatalogue()
-  ;(require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')).kickMetaCatalogue()
-  ;(require('../../services/providers/zen/zenCatalogue.js') as typeof import('../../services/providers/zen/zenCatalogue.js')).kickZenCatalogue()
+  ;(require('../providers/zai/zaiCatalogue.js') as typeof import('../providers/zai/zaiCatalogue.js')).kickZaiCatalogue()
+  ;(require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')).kickXaiCatalogue()
+  ;(require('../providers/meta/metaCatalogue.js') as typeof import('../providers/meta/metaCatalogue.js')).kickMetaCatalogue()
+  ;(require('../providers/zen/zenCatalogue.js') as typeof import('../providers/zen/zenCatalogue.js')).kickZenCatalogue()
   kickMoonshotCatalogue()
   for (const row of keyLaneProviderRows()) {
     pushIfAbsent(options, row)

@@ -7,7 +7,10 @@ import { getCwd } from '../cwd.js'
 import { execFileNoThrowWithCwd } from '../execFileNoThrow.js'
 import { whichSync } from '../which.js'
 import { passedOver } from '../passedOver.js'
-import { hostEnv } from '../hostEnv.js'
+import {
+  asepriteSteamInstallCandidates,
+  asepriteWindowsInstallCandidates,
+} from '../platform/vendors.js'
 
 export const SPRITE_FILE_CAP = 50
 const DIR_VISIT_CAP = 4_000
@@ -81,44 +84,6 @@ function asepriteAppBundleCandidates(home: string = homedir()): string[] {
   ]
 }
 
-function asepriteSteamCandidates(
-  platform: NodeJS.Platform = process.platform,
-  home: string = homedir(),
-): string[] {
-  const tail = ['steamapps', 'common', 'Aseprite']
-  if (platform === 'darwin') {
-    return [
-      path.join(home, 'Library', 'Application Support', 'Steam', ...tail, 'Aseprite.app', 'Contents', 'MacOS', 'aseprite'),
-    ]
-  }
-  if (platform === 'win32') {
-    const pf86 = hostEnv()['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
-    const pf = hostEnv().ProgramFiles ?? 'C:\\Program Files'
-    return [
-      path.join(pf86, 'Steam', ...tail, 'Aseprite.exe'),
-      path.join(pf, 'Steam', ...tail, 'Aseprite.exe'),
-    ]
-  }
-  return [
-    path.join(home, '.steam', 'steam', ...tail, 'aseprite'),
-    path.join(home, '.local', 'share', 'Steam', ...tail, 'aseprite'),
-  ]
-}
-
-function asepriteWin32Candidates(home: string = homedir()): Array<{
-  candidate: string
-  source: 'program-files' | 'itch'
-}> {
-  const pf = hostEnv().ProgramFiles ?? 'C:\\Program Files'
-  const pf86 = hostEnv()['ProgramFiles(x86)'] ?? 'C:\\Program Files (x86)'
-  const localAppData = hostEnv().LOCALAPPDATA ?? path.join(home, 'AppData', 'Local')
-  return [
-    { candidate: path.join(pf, 'Aseprite', 'Aseprite.exe'), source: 'program-files' as const },
-    { candidate: path.join(pf86, 'Aseprite', 'Aseprite.exe'), source: 'program-files' as const },
-    { candidate: path.join(localAppData, 'itch', 'apps', 'aseprite', 'Aseprite.exe'), source: 'itch' as const },
-  ]
-}
-
 export function locateAseprite(testOpts?: {
   appBundles?: string[]
   steamCandidates?: string[]
@@ -144,13 +109,11 @@ export function locateAseprite(testOpts?: {
       if (isFile(candidate)) return { aseprite: { path: candidate, source: 'app-bundle' } }
     }
   }
-  for (const candidate of testOpts?.steamCandidates ?? asepriteSteamCandidates(platform)) {
+  for (const candidate of testOpts?.steamCandidates ?? asepriteSteamInstallCandidates(platform)) {
     if (isFile(candidate)) return { aseprite: { path: candidate, source: 'steam' } }
   }
-  if (platform === 'win32') {
-    for (const { candidate, source } of testOpts?.win32Candidates ?? asepriteWin32Candidates()) {
-      if (isFile(candidate)) return { aseprite: { path: candidate, source } }
-    }
+  for (const { candidate, source } of asepriteWindowsInstallCandidates(platform, testOpts?.win32Candidates)) {
+    if (isFile(candidate)) return { aseprite: { path: candidate, source } }
   }
   return {}
 }

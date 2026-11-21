@@ -14,7 +14,7 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/services/providers/credentialEnvSpellings.ts`)
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
 for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_/.test(key)) delete process.env[key]
 
@@ -47,9 +47,9 @@ enableConfigs()
 await import(`${root}/src/services/resources/registry.ts`)
 const { resetSettingsCache } = await import(`${root}/src/utils/settings/settingsCache.ts`)
 const { SettingsSchema } = await import(`${root}/src/utils/settings/types.ts`)
-const { getModelOptions } = await import(`${root}/src/utils/model/modelOptions.ts`)
+const { getModelOptions } = await import(`${root}/src/services/model/modelOptions.ts`)
 const { liveModelsReference } = await import(`${root}/src/services/resources/adapters/models.ts`)
-const { isBareFamilyWord, resolveBareFamilyWord } = await import(`${root}/src/utils/model/bareFamilyWords.ts`)
+const { isBareFamilyWord, resolveBareFamilyWord } = await import(`${root}/src/services/model/bareFamilyWords.ts`)
 const { parseUserSpecifiedModel } = await import(`${root}/src/utils/model/model.ts`)
 const { isModelAllowed } = await import(`${root}/src/utils/model/modelAllowlist.ts`)
 const { validateModel } = await import(`${root}/src/services/providers/validateModel.ts`)

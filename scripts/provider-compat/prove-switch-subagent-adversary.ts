@@ -202,7 +202,7 @@ await import('../../src/tools.ts')
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const { getBuiltInAgents } = await import('../../src/tools/AgentTool/builtInAgents.ts')
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/utils/model/modelTransition.ts'
+  '../../src/services/model/modelTransition.ts'
 )
 type Message = import('../../src/types/message.ts').Message
 

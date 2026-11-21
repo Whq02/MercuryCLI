@@ -82,10 +82,7 @@ export async function* groqCallModel(params: CallModelParams): CallModelStream {
     return
   }
   if (!resolveGroqApiKey()) { yield* compatChatCallModel(groqLaneProfile, params); return }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => { onAbort = resolve; params.signal.addEventListener('abort', onAbort, { once: true }) })
-  try { await Promise.race([readCatalogueIfPending('groq'), cancelled]) }
-  finally { params.signal.removeEventListener('abort', onAbort) }
+  await readCatalogueIfPending('groq', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedGroqCatalogue()
   const listed = groqListedModel(snapshot, verdict.wireId)

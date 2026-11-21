@@ -23,7 +23,7 @@ import { publishTurnSignals, turnEndedInError } from '../../utils/cockpit/turnSi
 import type { FileStateCache } from '../../utils/fileStateCache.js';
 import { extractTag, getUserMessageText } from '../../utils/messages.js';
 import { renderModelName } from '../../utils/model/model.js';
-import { crossProviderNote, settlePendingAtBoundary } from '../../utils/model/modelTransition.js';
+import { crossProviderNote, settlePendingAtBoundary } from '../../services/model/modelTransition.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import type { ToolJSXState } from './useChatDialogs.js';
 import { passedOver } from '../../utils/passedOver.js';

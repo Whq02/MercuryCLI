@@ -8,7 +8,7 @@ import type { CompatCallModelParams } from '../../src/services/providers/openaic
 import type { AssistantMessage, Message } from '../../src/types/message.ts'
 import { COHERE_FIXTURE_MODELS } from '../providers/lib/openweights-fixture.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_DISABLE_NONESSENTIAL_TRAFFIC']) delete process.env[key]
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.MERCURY_BUSY_RETRY_SCALE = '0.2'
@@ -75,7 +75,7 @@ const { laneBillingState } = await import('../../src/services/providers/laneBill
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
-const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
 const { readStoredCohereApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { modelSupportsThinking, effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never

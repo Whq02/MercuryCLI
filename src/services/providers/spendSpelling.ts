@@ -1,4 +1,4 @@
-import type { ProviderSessionSpend } from '../services/providers/providerUsage.js'
+import type { ProviderSessionSpend } from './providerUsage.js'
 
 const DEFAULT_COST_DECIMAL_PLACES = 4
 

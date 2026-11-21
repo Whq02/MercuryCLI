@@ -53,7 +53,7 @@ if (process.argv[2] === '--compose') {
   const hf = await import('../../src/services/providers/huggingface/huggingfaceCatalogue.ts')
   const orSnapshot = await or.refreshOpenrouterCatalogue('env', { force: true })
   const hfSnapshot = await hf.refreshHuggingfaceCatalogue({ force: true })
-  const { getModelOptions, ANTHROPIC_MODEL_GROUP, applyModelAllowlist, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, ANTHROPIC_MODEL_GROUP, applyModelAllowlist, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
   const { hostRunModelRows } = await import('../../src/services/host/door.ts')
   const picker = await import('../../src/utils/model/modelPickerGroups.ts')
   const options = getModelOptions()
@@ -75,7 +75,7 @@ if (process.argv[2] === '--compose') {
   }
   const fullRows = (group: string) => (wholeCatalogues[group] === undefined ? undefined : applyModelAllowlist(wholeCatalogues[group]()).map(rowOf))
   const { getEngineModel } = await import('../../src/utils/model/model.ts')
-  const { providerFamilyOfSetting } = await import('../../src/utils/model/modelTransition.ts')
+  const { providerFamilyOfSetting } = await import('../../src/services/model/modelTransition.ts')
   const served = getEngineModel()
   const seatFamily = providerFamilyOfSetting(served)
   const seatGroup = rows.find(row => row.id === served)?.group ?? (seatFamily === 'openrouter' ? or.OPENROUTER_MODEL_GROUP : seatFamily === 'huggingface' ? hf.HUGGINGFACE_MODEL_GROUP : ANTHROPIC_MODEL_GROUP)

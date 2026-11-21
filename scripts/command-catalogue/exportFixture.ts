@@ -12,7 +12,7 @@ export async function exportFixture(extra = '') {
   const scratch = mkdtempSync(join(tmpdir(), 'export-proof-'))
   process.env.MERCURY_CONFIG_DIR = scratch
   process.env.MERCURY_CREDENTIAL_STORE = 'file'
-  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.js')
+  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.js')
   for (const key of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[key]
   process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
   ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
