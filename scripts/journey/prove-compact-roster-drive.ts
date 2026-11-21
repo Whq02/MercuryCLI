@@ -176,7 +176,7 @@ async function startFixture(port: number, cwd: string): Promise<{ base: string; 
       if (seat !== null) route = 'seat'
       else if (lastUserText.includes('Reply with prose only')) route = 'summary'
       else if (lastUserText.includes('task-notification')) route = 'note'
-      else if (firstUserText.includes('The context window turned over')) route = 'post'
+      else if (firstUserText.includes('The context window turned over') && offersTool(body, 'Crewmate')) route = 'post'
       else if (answered.includes('Crewmate')) route = 'launched'
       else if (lastUserText.includes(ASK) && offersTool(body, 'Crewmate')) route = 'launch'
       else if (lastUserText.includes(WARM) && offersTool(body, 'Crewmate')) route = 'warm'
