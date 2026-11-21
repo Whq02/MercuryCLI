@@ -17,6 +17,7 @@ type Words = { values: string[]; inner: number[] }
 
 const WORD_KINDS = new Set(['word', 'number', 'raw_string', 'string', 'concatenation', 'ansi_c_string', 'translated_string', 'simple_expansion', 'expansion', 'command_substitution', 'process_substitution', 'arithmetic_expansion', 'brace_expression'])
 const WRITE_KEEPERS = new Set(['file_redirect', 'heredoc_redirect', 'herestring_redirect'])
+const COVERED_IN_EXPANSION = new Set(['command_substitution', 'process_substitution', 'regex', 'string', 'translated_string', 'expansion'])
 
 function cross(left: string[], right: string[]): string[] {
   const out: string[] = []
@@ -31,6 +32,7 @@ function lastOf(list: Node): Node {
 
 export class PosixWalk {
   readonly late = new Map<Node, () => void>()
+  inDoubleQuotes = 0
 
   constructor(
     readonly reading: Reading,
@@ -65,11 +67,11 @@ export class PosixWalk {
     return { ...frame, maybes: [...(frame.maybes ?? []), ++this.reading.contexts] }
   }
 
-  buried(node: Node, frame: Frame, quoted: boolean): number[] {
-    const scripts = buriedScripts(node.text, quoted)
+  buried(node: Node, frame: Frame, quoted: boolean, text = node.text): number[] {
+    const scripts = buriedScripts(text, quoted)
     if (scripts.length === 0) return []
     const at = this.reading.push({ argv: [], env: [], redirects: [], text: node.text, line: this.lineOf(node, frame), cwd: this.reading.cwd, background: frame.background, stages: frame.stages, input: undefined, inner: [], inputInner: [], body: frame.body, dialect: frame.dialect, around: frame.around, gates: frame.gates, maybes: frame.maybes, substituted: true })
-    for (const text of scripts) this.reading.pending.push({ text, dialect: 'posix', from: at })
+    for (const script of scripts) this.reading.pending.push({ text: script, dialect: 'posix', from: at })
     return [at]
   }
 
@@ -126,6 +128,28 @@ export class PosixWalk {
       }
     }
     within(node)
+    if (node.type === 'expansion' && (node.text.includes('`') || (this.inDoubleQuotes > 0 && node.text.includes('$(')))) {
+      const covered: Array<readonly [number, number]> = []
+      const markCovered = (part: Node): void => {
+        for (const child of part.children) {
+          if (COVERED_IN_EXPANSION.has(child.type) || (child.type === 'raw_string' && this.inDoubleQuotes === 0)) covered.push([child.startIndex, child.endIndex])
+          else markCovered(child)
+        }
+      }
+      markCovered(node)
+      covered.sort((a, b) => a[0] - b[0])
+      let uncovered = ''
+      let cursor = node.startIndex
+      for (const [start, end] of covered) {
+        if (start > cursor) uncovered += this.source.slice(cursor, start)
+        if (end > cursor) {
+          uncovered += ' '
+          cursor = end
+        }
+      }
+      if (node.endIndex > cursor) uncovered += this.source.slice(cursor, node.endIndex)
+      inner.push(...this.buried(node, frame, this.inDoubleQuotes === 0, uncovered))
+    }
     const known = name === undefined ? undefined : this.reading.scope.get(name)
     if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
     if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
@@ -428,7 +452,13 @@ function posixWord(this: PosixWalk, node: Node, frame: Frame): Words {
     case 'command_substitution':
     case 'process_substitution': {
       const before = this.reading.commands.length
-      this.node(node, frame)
+      const saved = this.inDoubleQuotes
+      this.inDoubleQuotes = 0
+      try {
+        this.node(node, frame)
+      } finally {
+        this.inDoubleQuotes = saved
+      }
       const inner: number[] = []
       for (let i = before; i < this.reading.commands.length; i++) inner.push(i)
       const named = node.type === 'command_substitution' ? this.userPrintedBy(inner) : undefined
@@ -442,17 +472,22 @@ function posixWord(this: PosixWalk, node: Node, frame: Frame): Words {
       let values = ['']
       const inner: number[] = []
       let cursor: number | undefined
-      for (const child of node.children) {
-        if (cursor !== undefined && child.startIndex > cursor) values = cross(values, [this.source.slice(cursor, child.startIndex).replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
-        cursor = child.endIndex
-        if (child.type === '"' || child.type === '$"') continue
-        if (child.type === 'string_content') {
-          values = cross(values, [child.text.replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
-          continue
+      this.inDoubleQuotes++
+      try {
+        for (const child of node.children) {
+          if (cursor !== undefined && child.startIndex > cursor) values = cross(values, [this.source.slice(cursor, child.startIndex).replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
+          cursor = child.endIndex
+          if (child.type === '"' || child.type === '$"') continue
+          if (child.type === 'string_content') {
+            values = cross(values, [child.text.replace(/\\([$`"\\\n])/g, (_all, ch: string) => (ch === '\n' ? '' : ch))])
+            continue
+          }
+          const part = WORD_KINDS.has(child.type) ? this.word(child, frame) : { values: [child.text], inner: [] }
+          values = cross(values, part.values)
+          inner.push(...part.inner)
         }
-        const part = WORD_KINDS.has(child.type) ? this.word(child, frame) : { values: [child.text], inner: [] }
-        values = cross(values, part.values)
-        inner.push(...part.inner)
+      } finally {
+        this.inDoubleQuotes--
       }
       return { values, inner }
     }
