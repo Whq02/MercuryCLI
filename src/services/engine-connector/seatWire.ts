@@ -22,6 +22,21 @@ interface ListSpec {
 
 type WireSpec = ObjectSpec | ListSpec
 
+interface CompiledObjectSpec {
+  readonly kind: 'object'
+  readonly keys: KeyTable | undefined
+  readonly children: readonly (readonly [string, CompiledSpec])[]
+  readonly alwaysOwn: readonly string[] | undefined
+  readonly accept?: (raw: Row) => boolean
+}
+
+interface CompiledListSpec {
+  readonly kind: 'list'
+  readonly item: CompiledSpec
+}
+
+type CompiledSpec = CompiledObjectSpec | CompiledListSpec
+
 interface WireCodec<T, W, R> {
   readonly toWire: (value: T) => W
   readonly fromWire: (raw: unknown) => R
@@ -32,32 +47,45 @@ type SeatCodecName = Exclude<NonNullable<SessionVerbRow['codec']>, 'mcpTools'>
 const isRow = (value: unknown): value is Row => typeof value === 'object' && value !== null && !Array.isArray(value)
 const list = (item: WireSpec): ListSpec => ({ kind: 'list', item })
 
-const flippedCache = new WeakMap<KeyTable, KeyTable>()
-
 function flip(table: KeyTable): KeyTable {
-  let cached = flippedCache.get(table)
-  if (cached === undefined) {
-    const out: Record<string, string> = {}
-    for (const [key, wire] of Object.entries(table)) out[wire] = key
-    cached = out
-    flippedCache.set(table, cached)
-  }
-  return cached
+  const out: Record<string, string> = {}
+  for (const [key, wire] of Object.entries(table)) out[wire] = key
+  return out
 }
 
-function applySpec(value: unknown, spec: WireSpec, dir: 'to' | 'from'): unknown {
+function compile(spec: WireSpec, dir: 'to' | 'from'): CompiledSpec {
+  if (spec.kind === 'list') return { kind: 'list', item: compile(spec.item, dir) }
+  const keys = spec.keys === undefined ? undefined : dir === 'to' ? spec.keys : flip(spec.keys)
+  const children: [string, CompiledSpec][] = []
+  if (spec.children !== undefined) {
+    for (const [camelKey, child] of Object.entries(spec.children)) {
+      const outKey = dir === 'to' && spec.keys !== undefined && Object.hasOwn(spec.keys, camelKey) ? spec.keys[camelKey]! : camelKey
+      children.push([outKey, compile(child, dir)])
+    }
+  }
+  return {
+    kind: 'object',
+    keys,
+    children,
+    alwaysOwn: spec.alwaysOwn,
+    accept: dir === 'from' ? spec.accept : undefined,
+  }
+}
+
+function applyCompiled(value: unknown, spec: CompiledSpec): unknown {
   if (spec.kind === 'list') {
-    return Array.isArray(value) ? value.map(item => applySpec(item, spec.item, dir)) : value
+    return Array.isArray(value) ? value.map(item => applyCompiled(item, spec.item)) : value
   }
   if (!isRow(value)) return value
-  const table = spec.keys === undefined ? undefined : dir === 'to' ? spec.keys : flip(spec.keys)
-  const children = spec.children
+  const table = spec.keys
   const out: Row = {}
   for (const [key, inner] of Object.entries(value)) {
-    const targetKey = table !== undefined && Object.hasOwn(table, key) ? table[key]! : key
-    const camelKey = dir === 'to' ? key : targetKey
-    const child = children !== undefined && Object.hasOwn(children, camelKey) ? children[camelKey] : undefined
-    out[targetKey] = child !== undefined ? applySpec(inner, child, dir) : inner
+    out[table !== undefined && Object.hasOwn(table, key) ? table[key]! : key] = inner
+  }
+  for (const [outKey, child] of spec.children) {
+    if (Object.hasOwn(out, outKey)) {
+      out[outKey] = applyCompiled(out[outKey], child)
+    }
   }
   if (spec.alwaysOwn !== undefined) {
     for (const key of spec.alwaysOwn) {
@@ -68,11 +96,13 @@ function applySpec(value: unknown, spec: WireSpec, dir: 'to' | 'from'): unknown 
 }
 
 function wireCodec<T, W, R>(spec: WireSpec): WireCodec<T, W, R> {
+  const toSpec = compile(spec, 'to')
+  const fromSpec = compile(spec, 'from')
   return {
-    toWire: value => applySpec(value, spec, 'to') as W,
+    toWire: value => applyCompiled(value, toSpec) as W,
     fromWire: raw => {
-      if (spec.kind !== 'list' && spec.accept !== undefined && (!isRow(raw) || !spec.accept(raw))) return null as R
-      return applySpec(raw, spec, 'from') as R
+      if (fromSpec.kind !== 'list' && fromSpec.accept !== undefined && (!isRow(raw) || !fromSpec.accept(raw))) return null as R
+      return applyCompiled(raw, fromSpec) as R
     },
   }
 }
