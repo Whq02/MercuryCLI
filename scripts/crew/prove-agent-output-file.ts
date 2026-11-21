@@ -32,6 +32,8 @@ const queue = await import('../../src/input-core/command-queue.ts')
 const diskOutput = await import('../../src/utils/task/diskOutput.ts')
 const { getTaskOutputPath, getTaskOutputDelta, initTaskOutputAsSymlink } = diskOutput
 const { getAgentTranscriptPath, recordSidechainTranscript, flushSessionStorage } = await import('../../src/utils/sessionStorage.ts')
+const { randomUUID } = await import('node:crypto')
+const { historyHead, historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
 const { createUserMessage } = await import('../../src/services/messages.ts')
 const { readTailWindow } = await import('../../src/services/resources/adapters/agent.ts')
 const { SendMessageTool } = await import('../../src/tools/SendMessageTool/SendMessageTool.ts')
@@ -285,6 +287,37 @@ for (const { id: racer, delay } of racers) {
     check(`outside Windows the file stays the plain empty file (${delay} ms)`, isEmptyPlainFile(getTaskOutputPath(racer)))
   }
 }
+
+section('A7 · a crewmate transcript sealed by its own fold reads across sealed parts and reports cut truthfully')
+const id7 = generateTaskId('local_agent')
+const transcript7 = transcriptOf(id7)
+const beforeCrew = createUserMessage({ content: 'CREWMATE_BEFORE_FOLD_NEEDLE ' + 'x'.repeat(2048) })
+const boundaryCrew = {
+  type: 'system',
+  subtype: 'compact_boundary',
+  uuid: randomUUID(),
+  timestamp: new Date().toISOString(),
+  content: 'Conversation compacted',
+  level: 'info',
+  isMeta: false,
+  compactMetadata: { trigger: 'manual', preTokens: 10000 },
+}
+const afterCrew = createUserMessage({ content: 'CREWMATE_AFTER_FOLD_NEEDLE' })
+await recordSidechainTranscript([beforeCrew], id7)
+await flushSessionStorage()
+await recordSidechainTranscript([beforeCrew, boundaryCrew as never, afterCrew], id7)
+await flushSessionStorage()
+const head7 = historyHead(transcript7)
+const live7 = read(transcript7)
+const logical7 = Buffer.concat([...historyLines(transcript7)]).toString('utf8')
+const logicalBytes7 = Buffer.byteLength(logical7)
+const liveBytes7 = statSync(transcript7).size
+check('the product writer sealed the crewmate pre-fold row out of the live head', head7.before > 0 && !live7.includes('CREWMATE_BEFORE_FOLD_NEEDLE'), `before=${head7.before}`)
+const fullWindow7 = readTailWindow(transcript7)
+check('readTailWindow reads sealed pre-fold and live post-fold rows identically to historyLines', fullWindow7.text === logical7 && fullWindow7.total === logicalBytes7 && fullWindow7.cut === false, `len=${fullWindow7.text.length}/${logical7.length} total=${fullWindow7.total}/${logicalBytes7} cut=${fullWindow7.cut}`)
+const smallCap7 = liveBytes7 + 64
+const cappedWindow7 = readTailWindow(transcript7, smallCap7)
+check('readTailWindow reports cut: true and logical total when total exceeds cap even though the live head is under cap', smallCap7 < logicalBytes7 && cappedWindow7.cut === true && cappedWindow7.total === logicalBytes7 && cappedWindow7.text.includes('CREWMATE_AFTER_FOLD_NEEDLE'), `cap=${smallCap7} live=${liveBytes7} logical=${logicalBytes7} total=${cappedWindow7.total} cut=${cappedWindow7.cut}`)
 
 rmSync(scratch, { recursive: true, force: true })
 

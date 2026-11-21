@@ -307,6 +307,53 @@ console.log('\nFeedback — failed getIsGit records undefined + error instead of
   }
 }
 
+console.log('\nFeedback — gatherReport reads sealed pre-fold history through the history door')
+{
+  const r = runCase(`
+    process.env.NODE_ENV = 'development'
+    const { randomUUID } = await import('node:crypto')
+    const { enableConfigs } = await import(${JSON.stringify(join(SRC, 'utils/config.ts'))})
+    enableConfigs()
+    const { setOriginalCwd, setProjectRoot, getSessionId } = await import(${JSON.stringify(join(SRC, 'bootstrap/state.ts'))})
+    setOriginalCwd(PROJECT)
+    setProjectRoot(PROJECT)
+    const { getTranscriptPathForSession, recordTranscript, flushSessionStorage } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage.ts'))})
+    const { historyHead, historyLines } = await import(${JSON.stringify(join(SRC, 'utils/sessionStorage/historyParts.ts'))})
+    const { createUserMessage } = await import(${JSON.stringify(join(SRC, 'services/messages.ts'))})
+    const beforeMsg = createUserMessage({ content: 'FEEDBACK_BEFORE_FOLD_NEEDLE' })
+    const boundaryMsg = {
+      type: 'system',
+      subtype: 'compact_boundary',
+      uuid: randomUUID(),
+      timestamp: new Date().toISOString(),
+      content: 'Conversation compacted',
+      level: 'info',
+      isMeta: false,
+      compactMetadata: { trigger: 'manual', preTokens: 10000 },
+    }
+    const afterMsg = createUserMessage({ content: 'FEEDBACK_AFTER_FOLD_NEEDLE' })
+    await recordTranscript([beforeMsg])
+    await flushSessionStorage()
+    await recordTranscript([beforeMsg, boundaryMsg, afterMsg])
+    await flushSessionStorage()
+    const transcriptFile = getTranscriptPathForSession(getSessionId())
+    const head = historyHead(transcriptFile)
+    const liveRaw = fs.readFileSync(transcriptFile, 'utf8')
+    const logical = Buffer.concat([...historyLines(transcriptFile)]).toString('utf8')
+    const { gatherReport } = await import(${JSON.stringify(join(SRC, 'components/Feedback.tsx'))})
+    const gathered = await gatherReport('sealed transcript bug', [], {})
+    const raw = typeof gathered.report.raw_transcript === 'string' ? gathered.report.raw_transcript : ''
+    out.sealedBefore = head.before
+    out.liveHasBefore = liveRaw.includes('FEEDBACK_BEFORE_FOLD_NEEDLE')
+    out.rawHasBefore = raw.includes('FEEDBACK_BEFORE_FOLD_NEEDLE')
+    out.rawHasAfter = raw.includes('FEEDBACK_AFTER_FOLD_NEEDLE')
+    out.rawMatchesLogical = raw === logical
+    out.hasTranscriptErr = gathered.errors.some(e => e.error.includes('session transcript'))
+  `)
+  check('product writer sealed the pre-fold row out of the live head', typeof r.sealedBefore === 'number' && r.sealedBefore > 0 && r.liveHasBefore === false, JSON.stringify(r))
+  check('gatherReport raw_transcript includes sealed pre-fold and live post-fold rows identically to historyLines', r.rawHasBefore === true && r.rawHasAfter === true && r.rawMatchesLogical === true && r.hasTranscriptErr === false, JSON.stringify(r))
+}
+
 console.log('\nFileEditToolDiff — colliding remote multi-edits fall back to per-edit hunks instead of empty no-visible-change')
 {
   const r = runCase(`
