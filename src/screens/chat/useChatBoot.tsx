@@ -23,7 +23,7 @@ import { hasSeatLive } from '../../services/engine-connector/seatLive.js';
 import type { EngineConnectorV1 } from '../../services/engine-connector/types.js';
 import { scheduleQuietUpdateNotice, UPDATE_NOTICE_KEY } from '../../services/privateChannel/quietUpdateNotice.js';
 import { takeResumeFoldNotice } from '../../services/run/runCoordinator.js';
-import { startBackgroundHousekeeping } from '../../utils/backgroundHousekeeping.js';
+import { startBackgroundHousekeeping } from '../../services/backgroundHousekeeping.js';
 import { crashReportDirDisplay, markCrashReportsNoticed, resolveCrashTranscript, unnoticedCrashReports } from '../../utils/crashReport.js';
 import { getCwd } from '../../utils/cwd.js';
 import { logForDebugging } from '../../utils/debug.js';

@@ -760,7 +760,7 @@ export async function runAndRecordHealthReport(opts?: RunHealthReportOptions): P
   }
   if (!isReadOnlyDiagnostic()) {
     try {
-      const { runLifecycleVerbOpportunity } = await import('../../utils/backgroundHousekeeping.js')
+      const { runLifecycleVerbOpportunity } = await import('../backgroundHousekeeping.js')
       await runLifecycleVerbOpportunity('health')
     } catch (error) { passedOver(error) }
   }
