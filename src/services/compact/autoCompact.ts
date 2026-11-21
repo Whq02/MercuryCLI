@@ -9,6 +9,7 @@ import { logError } from '../../utils/log.js'
 import { awaitContextWindowSource } from '../context/contextWindowWarmup.js'
 import { getTokenUsage, tokenCountWithEstimation, usageAnchorModel } from '../context/tokens.js'
 import { flagEnabled, flagEnv } from '../../substrate/flagRegistry.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
 import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
 import { readRequestGauge } from '../run/requestGauge.js'
 import { ownerFromToolUseContext } from '../../utils/run/resolveOwner.js'
@@ -253,11 +254,13 @@ const advanceState = new OwnerScopedStore<CompactionState>({
   name: 'autocompact-advance',
   create: () => ({ lastFiredTurn: null, rearmed: true }),
 })
+registerOwnerScopedStore(advanceState)
 
 const fixedMaterialSkipState = new OwnerScopedStore<{ noted: boolean }>({
   name: 'autocompact-fixed-material-skip',
   create: () => ({ noted: false }),
 })
+registerOwnerScopedStore(fixedMaterialSkipState)
 
 
 export async function autoCompactIfNeeded(

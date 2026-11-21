@@ -1,3 +1,8 @@
+import { makeOwnerKey, parseOwnerKey, type OwnerKey } from '../../utils/run/ownerKey.js'
+import { registerOwnerScopedStore } from '../../utils/run/ownerLifecycle.js'
+import { OwnerScopedStore } from '../../utils/run/ownerScopedStore.js'
+import { currentOwner, processMainOwner } from '../../utils/run/resolveOwner.js'
+
 export function scrubbedSessionEnvNotice(scrubbed: readonly string[] | undefined): string {
   if (scrubbed === undefined || scrubbed.length === 0) return ''
   return `[session env scrubbed: ${scrubbed.join(', ')} — Mercury's own stamps, not the operator's; inherit_session_env: true keeps them]`
@@ -8,7 +13,34 @@ export function shortScrubbedSessionEnvNotice(named: readonly string[]): string 
   return `[session env scrubbed: ${named.join(', ')}]`
 }
 
-let fullSessionEnvNoticeShown = false
+function noticeKey(owner: OwnerKey): OwnerKey {
+  const id = parseOwnerKey(owner)
+  return makeOwnerKey({ workspace: '', sessionId: id.sessionId, lane: id.lane })
+}
+
+const sessionEnvNoticeShown = new OwnerScopedStore<{ shown: boolean }>({
+  name: 'session-env-notice',
+  retain: (_state, owner) => parseOwnerKey(owner).sessionId === parseOwnerKey(processMainOwner()).sessionId,
+  create: () => ({ shown: false }),
+})
+registerOwnerScopedStore({
+  name: sessionEnvNoticeShown.name,
+  dispose(owner) {
+    sessionEnvNoticeShown.dispose(noticeKey(owner))
+  },
+  disposeAsync(owner) {
+    return sessionEnvNoticeShown.disposeAsync(noticeKey(owner))
+  },
+  drainPending() {
+    return sessionEnvNoticeShown.drainPending()
+  },
+  clearAllForShutdown() {
+    sessionEnvNoticeShown.clearAllForShutdown()
+  },
+  get size() {
+    return sessionEnvNoticeShown.size
+  },
+})
 
 export function sessionEnvNoticeForResult(args: {
   scrubbed: readonly string[] | undefined
@@ -16,8 +48,9 @@ export function sessionEnvNoticeForResult(args: {
 }): string {
   const scrubbed = args.scrubbed
   if (scrubbed === undefined || scrubbed.length === 0) return ''
-  if (!fullSessionEnvNoticeShown) {
-    fullSessionEnvNoticeShown = true
+  const state = sessionEnvNoticeShown.get(noticeKey(currentOwner()))
+  if (!state.shown) {
+    state.shown = true
     return scrubbedSessionEnvNotice(scrubbed)
   }
   const text = args.commandText ?? ''
@@ -26,9 +59,5 @@ export function sessionEnvNoticeForResult(args: {
 }
 
 export function resetSessionEnvNoticeOnCompaction(): void {
-  fullSessionEnvNoticeShown = false
-}
-
-export function resetSessionEnvNoticeForTesting(): void {
-  fullSessionEnvNoticeShown = false
+  sessionEnvNoticeShown.dispose(noticeKey(currentOwner()))
 }
