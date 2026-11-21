@@ -48,7 +48,7 @@ import {
   remoteRulePattern,
   remoteSessionRule,
 } from '../remoteFiles/target.js'
-import { remoteLocalForms } from '../../services/remoteFiles/thisMachine.js'
+import { remoteLocalForms } from '../thisMachine.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { startTimeout, stopTimeout } from '../timers.js'
