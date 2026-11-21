@@ -69,6 +69,7 @@ const AREAS: Record<string, string> = {
   'src/services/saturn/': 'daemon.ts',
   'src/services/switchboard/': 'daemon.ts',
   'src/utils/daemonBreaker.ts': 'daemon.ts',
+  'src/utils/daemonState.ts': 'daemon.ts',
   'src/services/browser/': 'desktop.ts',
   'src/services/desktop/': 'desktop.ts',
   'src/services/voice/': 'desktop.ts',
@@ -130,6 +131,7 @@ const AREAS: Record<string, string> = {
   'src/utils/proofHomeGuard.ts': 'proofs.ts',
   'src/services/host/': 'providers.ts',
   'src/services/providers/': 'providers.ts',
+  'src/utils/settings/compatEndpoints.ts': 'providers.ts',
   'src/components/': 'screen.ts',
   'src/constants/spinnerVerbs.ts': 'screen.ts',
   'src/context/': 'screen.ts',
@@ -156,7 +158,7 @@ const AREAS: Record<string, string> = {
   'src/utils/ripgrep.ts': 'tools.ts',
   'src/utils/shell/': 'tools.ts',
   'src/utils/timeouts.ts': 'tools.ts',
-  'src/utils/toolSearch.ts': 'tools.ts',
+  'src/services/messages/toolSearch.ts': 'tools.ts',
   'src/utils/windowsPaths.ts': 'tools.ts',
 }
 
