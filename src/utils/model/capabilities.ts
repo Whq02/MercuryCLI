@@ -15,18 +15,13 @@ import { getCanonicalName } from './modelNames.js'
 import { isChooseAModel } from './chooseAModel.js'
 import { familyDefaultsModel, familyHeadOf } from './configs.js'
 import { getModelCapability } from './modelCapabilities.js'
-import { isCarrierShapedId } from '../../services/providers/idSpaces.js'
+import type { CallModelRoute } from '../../types/providerRoute.js'
+import { providerCapabilities } from './capabilityRegistry.js'
 import {
   gptDisplayPin,
   hasGptServedWindowSuffix,
   parseGptModelId,
 } from './pins/gptPins.js'
-import {
-  liveGptContextWindow,
-  liveGptContextCeiling,
-  liveGptDefaultEffort,
-  liveGptEffortCatalogue,
-} from '../../services/providers/openai/openaiCatalogue.js'
 import {
   glmDisplayPin,
   glmEffortsFor,
@@ -40,43 +35,56 @@ import {
   kimiDisplayPin,
   kimiEffortsFor,
 } from './pins/kimiPins.js'
-import { thinkingOffWireEffort } from '../../services/providers/openaicompat/compatWire.js'
 import { isXaiModelId } from './pins/xaiPins.js'
-import { xaiModelFacts, getCachedXaiCatalogue } from '../../services/providers/xai/xaiCatalogue.js'
 import { isMetaModelId, metaDisplayPin } from './pins/metaPins.js'
 import { isMistralModelId } from './pins/mistralPins.js'
-import { mistralModelFacts } from '../../services/providers/mistral/mistralCatalogue.js'
 import { isZenModelId, zenDisplayPin } from './pins/zenPins.js'
 import { isMinimaxModelId, minimaxDisplayPin } from './pins/minimaxPins.js'
 import { isTogetherModelId, togetherDisplayPin, togetherEffortVocabulary, togetherThinkingDial } from './pins/togetherPins.js'
-import { togetherContextWindowFor } from '../../services/providers/together/togetherCatalogue.js'
-import { cohereModelFacts } from '../../services/providers/cohere/cohereCatalogue.js'
 import { isCohereModelId } from './pins/coherePins.js'
 import { isGroqModelId, groqDisplayPin, groqEffortVocabulary } from './pins/groqPins.js'
-import { groqContextWindowFor, groqOutputMaxFor } from '../../services/providers/groq/groqCatalogue.js'
-import { isMeliousModelId, meliousListedModel, meliousEffortVocabulary, meliousContextWindowFor, meliousOutputMaxFor } from '../../services/providers/melious/meliousCatalogue.js'
-import { isOrcarouterModelId, orcarouterListedModel, orcarouterEffortVocabulary } from '../../services/providers/orcarouter/orcarouterCatalogue.js'
 import { isCerebrasModelId, cerebrasDisplayPin, cerebrasEffortVocabulary } from './pins/cerebrasPins.js'
-import { cerebrasContextWindowFor, cerebrasOutputMaxFor } from '../../services/providers/cerebras/cerebrasCatalogue.js'
 import { isFireworksModelId, fireworksDisplayPin, fireworksEffortVocabulary } from './pins/fireworksPins.js'
-import { fireworksContextWindowFor, fireworksOutputMaxFor } from '../../services/providers/fireworks/fireworksCatalogue.js'
 import { isQwenModelId, qwenDisplayPin } from './pins/qwenPins.js'
 import { QWEN_TEMPLATE_EFFORT_STEPS } from './pins/qwenTemplate.js'
-import { qwenModelFacts } from '../../services/providers/qwen/qwenCatalogue.js'
 import {
   deepseekDisplayPin,
   DEEPSEEK_EFFORTS,
   isDeepseekModelId,
 } from './pins/deepseekPins.js'
-import { deepseekLiveModel, deepseekModelFacts } from '../../services/providers/deepseek/deepseekCatalogue.js'
 import { isHuggingfaceModelId } from './pins/huggingfacePins.js'
-import { classifyModelRoute, declaredRouteOf, qualifiedWireId } from '../../services/providers/routeLaw.js'
-import type { CallModelRoute } from '../../services/providers/idSpaces.js'
-import { openrouterListedModel } from '../../services/providers/openrouter/openrouterCatalogue.js'
-import { huggingfaceLiveModel } from '../../services/providers/huggingface/huggingfaceCatalogue.js'
-import { localRecordFor } from '../../services/providers/local/localCatalogue.js'
 import { isFirstPartyAnthropicBaseUrl } from './providers.js'
 import { tellWhatClearsTheBetas } from './betasClearing.js'
+
+const isCarrierShapedId = (model: string): boolean => providerCapabilities()?.isCarrierShapedId(model) ?? false
+const declaredRouteOf = (model: string): CallModelRoute | null => providerCapabilities()?.declaredRouteOf(model) ?? null
+const classifyModelRoute = (model: string) => providerCapabilities()?.classifyModelRoute(model) ?? ({ kind: 'unrecognised' } as const)
+const qualifiedWireId = (model: string): string => providerCapabilities()?.qualifiedWireId(model) ?? model
+const isMeliousModelId = (model: string): boolean => providerCapabilities()?.isMeliousModelId(model) ?? false
+const isOrcarouterModelId = (model: string): boolean => providerCapabilities()?.isOrcarouterModelId(model) ?? false
+const thinkingOffWireEffort = (vocabulary: readonly string[]): string | undefined => providerCapabilities()?.thinkingOffWireEffort(vocabulary)
+const liveGptContextWindow = (model: string): number | undefined => providerCapabilities()?.liveGptContextWindow(model)
+const liveGptContextCeiling = (model: string): number | undefined => providerCapabilities()?.liveGptContextCeiling(model)
+const liveGptDefaultEffort = (canonicalId: string): string | undefined => providerCapabilities()?.liveGptDefaultEffort(canonicalId)
+const liveGptEffortCatalogue = (canonicalId: string) => providerCapabilities()?.liveGptEffortCatalogue(canonicalId)
+const xaiModelFacts = (model: string) => providerCapabilities()?.xaiModelFacts(model)
+const mistralModelFacts = (model: string) => providerCapabilities()?.mistralModelFacts(model) ?? { efforts: [] as readonly string[] }
+const cohereModelFacts = (model: string) => providerCapabilities()?.cohereModelFacts(model) ?? { efforts: [] as readonly string[] }
+const qwenModelFacts = (model: string) => providerCapabilities()?.qwenModelFacts(model) ?? { efforts: [] as readonly string[] }
+const togetherContextWindowFor = (id: string): number | undefined => providerCapabilities()?.togetherContextWindowFor(id)
+const groqContextWindowFor = (id: string): number | undefined => providerCapabilities()?.groqContextWindowFor(id)
+const groqOutputMaxFor = (model: string): number | undefined => providerCapabilities()?.groqOutputMaxFor(model)
+const meliousListedModel = (model: string) => providerCapabilities()?.meliousListedModel(model)
+const meliousEffortVocabulary = (model: string): readonly string[] => providerCapabilities()?.meliousEffortVocabulary(model) ?? []
+const meliousContextWindowFor = (id: string): number | undefined => providerCapabilities()?.meliousContextWindowFor(id)
+const meliousOutputMaxFor = (model: string): number | undefined => providerCapabilities()?.meliousOutputMaxFor(model)
+const orcarouterListedModel = (model: string) => providerCapabilities()?.orcarouterListedModel(model)
+const orcarouterEffortVocabulary = (model: string): readonly string[] => providerCapabilities()?.orcarouterEffortVocabulary(model) ?? []
+const cerebrasContextWindowFor = (id: string): number | undefined => providerCapabilities()?.cerebrasContextWindowFor(id)
+const cerebrasOutputMaxFor = (model: string): number | undefined => providerCapabilities()?.cerebrasOutputMaxFor(model)
+const fireworksContextWindowFor = (id: string): number | undefined => providerCapabilities()?.fireworksContextWindowFor(id)
+const fireworksOutputMaxFor = (model: string): number | undefined => providerCapabilities()?.fireworksOutputMaxFor(model)
+const deepseekModelFacts = (normalizedId: string) => providerCapabilities()?.deepseekModelFacts(normalizedId)
 
 
 export function modelSupportsTemperature(model: string): boolean {
@@ -435,60 +443,31 @@ function baseEffortVocabularyFor(model: string): EffortVocabularyView {
       : { kind: 'none', source: 'qwen' }
   }
   if (route === 'openrouter') {
-    const { openrouterEffortVocabularyFor } =
-      require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
-    const vocabulary = openrouterEffortVocabularyFor(model)
+    const vocabulary = providerCapabilities()?.openrouterEffortVocabularyFor(model) ?? []
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'openrouter', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'openrouter' }
   }
   if (route === 'nous') {
-    const { nousEffortVocabularyFor } =
-      require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
-    const vocabulary = nousEffortVocabularyFor(model)
+    const vocabulary = providerCapabilities()?.nousEffortVocabularyFor(model) ?? []
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'nous', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'nous' }
   }
   if (route === 'gemini') {
-    const { geminiEffortVocabularyFor } =
-      require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
-    const vocabulary = geminiEffortVocabularyFor(model)
+    const vocabulary = providerCapabilities()?.geminiEffortVocabularyFor(model) ?? []
     return vocabulary.length > 0
       ? { kind: 'provider', source: 'gemini', vocabulary, thinkingGated: true, thinkingOffWire: thinkingOffWireEffort(vocabulary) }
       : { kind: 'none', source: 'gemini' }
   }
   if (route === 'openai-compat') {
-    const { compatModelEfforts, compatModelThinkingOffWire } = require('../../services/providers/openaicompat/compatEffort.js') as typeof import('../../services/providers/openaicompat/compatEffort.js')
-    const vocabulary = compatModelEfforts(model)
-    const thinkingOffWire = compatModelThinkingOffWire(model)
+    const compat = providerCapabilities()?.compatEffortFor(model)
+    const vocabulary = compat?.vocabulary ?? []
+    const thinkingOffWire = compat?.thinkingOffWire
     return vocabulary.length > 0 ? { kind: 'provider', source: 'compat', vocabulary, thinkingGated: thinkingOffWire !== undefined, ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}) } : { kind: 'none', source: 'compat' }
   }
   if (model.trim().toLowerCase().startsWith('local/')) {
-    const { localRecordFor } =
-      require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
-    const { localModelAcceptsEffort, localServedEfforts } =
-      require('../../services/providers/local/localCallModel.js') as typeof import('../../services/providers/local/localCallModel.js')
-    const { LOCAL_SERVER_STATES_THINKING, TENSORFOLD_DIAL, localThinkingOffWireEffort } =
-      require('../../services/providers/openaicompat/compatWire.js') as typeof import('../../services/providers/openaicompat/compatWire.js')
-    const record = localRecordFor(model)
-    if (record?.server === 'tensorfold') {
-      return localModelAcceptsEffort(record)
-        ? { kind: 'provider', source: 'local', vocabulary: TENSORFOLD_DIAL, thinkingGated: true, thinkingOffWire: 'none' }
-        : { kind: 'none', source: 'local' }
-    }
-    if (record?.thinking !== undefined) {
-      const vocabulary = record.thinking.values.filter((value): value is string => typeof value === 'string')
-      return vocabulary.length > 0
-        ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: false, ...(typeof record.thinking.default === 'string' ? { defaultEffort: record.thinking.default } : {}) }
-        : { kind: 'none', source: 'local' }
-    }
-    const served = record && localModelAcceptsEffort(record) ? localServedEfforts(record) : undefined
-    const vocabulary = served?.vocabulary ?? []
-    const thinkingOffWire = record ? localThinkingOffWireEffort(record.server) : undefined
-    return record && vocabulary.length > 0
-      ? { kind: 'provider', source: 'local', vocabulary, thinkingGated: LOCAL_SERVER_STATES_THINKING[record.server], ...(thinkingOffWire !== undefined ? { thinkingOffWire } : {}), ...(served?.steps !== undefined ? { steps: served.steps } : {}) }
-      : { kind: 'none', source: 'local' }
+    return providerCapabilities()?.localEffortFor(model) ?? { kind: 'none', source: 'local' }
   }
   if (isCarrierShapedId(model)) return { kind: 'none', source: 'carrier' }
   const m = familyDefaultsModel(model).toLowerCase()
@@ -712,18 +691,7 @@ function baseResolveContextWindow(
 
   const carrierRoute = declaredRouteOf(model)
   if (carrierRoute === 'openrouter' || carrierRoute === 'gemini' || carrierRoute === 'nous') {
-    const stated =
-      carrierRoute === 'openrouter'
-        ? (
-            require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
-          ).openrouterContextWindowFor(normalizeForEnginePins(model))
-        : carrierRoute === 'nous'
-          ? (
-              require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
-            ).nousContextWindowFor(normalizeForEnginePins(model))
-        : (
-            require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
-          ).geminiContextWindowFor(normalizeForEnginePins(model))
+    const stated = providerCapabilities()?.carrierContextWindowFor(carrierRoute, normalizeForEnginePins(model))
     if (stated) {
       if (stated.window > MODEL_CONTEXT_WINDOW_DEFAULT && is1mContextDisabled()) {
         return finish({
@@ -799,9 +767,7 @@ function baseResolveContextWindow(
   }
 
   if (isHuggingfaceModelId(model)) {
-    const { huggingfaceContextWindowFor } =
-      require('../../services/providers/huggingface/huggingfaceCatalogue.js') as typeof import('../../services/providers/huggingface/huggingfaceCatalogue.js')
-    const stated = huggingfaceContextWindowFor(normalizeForEnginePins(model))
+    const stated = providerCapabilities()?.huggingfaceContextWindowFor(normalizeForEnginePins(model))
     if (stated) {
       const pinned = stated.source === 'static-pin' ? { pinAwaitingLive: true } : {}
       if (stated.window > MODEL_CONTEXT_WINDOW_DEFAULT && is1mContextDisabled()) {
@@ -818,15 +784,10 @@ function baseResolveContextWindow(
   }
 
   if (model.trim().toLowerCase().startsWith('local/')) {
-    const { localRecordFor, localUnloadedWindowWords } =
-      require('../../services/providers/local/localCatalogue.js') as typeof import('../../services/providers/local/localCatalogue.js')
-    const { localPlannedWindow } =
-      require('../../services/providers/local/localWindow.js') as typeof import('../../services/providers/local/localWindow.js')
-    const record = localRecordFor(normalizeForEnginePins(model))
-    const planned = record ? localPlannedWindow(record) : undefined
-    if (planned !== undefined) {
-      const window = planned.tokens
-      const note = `local server context: ${planned.sourceWords}`
+    const localWindow = providerCapabilities()?.localContextWindowFor(normalizeForEnginePins(model))
+    if (localWindow?.kind === 'planned') {
+      const window = localWindow.tokens
+      const note = `local server context: ${localWindow.sourceWords}`
       if (window > MODEL_CONTEXT_WINDOW_DEFAULT && is1mContextDisabled()) {
         return finish({
           effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
@@ -839,26 +800,25 @@ function baseResolveContextWindow(
         effectiveWindow: window,
         source: 'live-current',
         staticDefault: window,
-        ...(planned.source === 'served' ? {} : { fallbackReason: note }),
+        ...(localWindow.source === 'served' ? {} : { fallbackReason: note }),
       })
     }
     return finish({
       effectiveWindow: MODEL_CONTEXT_WINDOW_DEFAULT,
       source: 'fallback',
-      fallbackReason: record
-        ? `local server context: ${localUnloadedWindowWords(record)} — conservative default until then`
+      fallbackReason: localWindow?.unloadedWords !== undefined
+        ? `local server context: ${localWindow.unloadedWords} — conservative default until then`
         : 'local model not discovered yet — conservative default until a probe answers',
     })
   }
 
   if (carrierRoute === 'deepseek') {
-    const window = deepseekLiveModel(normalizeForEnginePins(model))?.contextWindow
+    const window = providerCapabilities()?.deepseekLiveContextWindow(normalizeForEnginePins(model))
     if (window !== undefined) return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
   }
   if (isXaiModelId(model)) {
-    const live = getCachedXaiCatalogue()?.models.find(row => row.id.toLowerCase() === normalizeForEnginePins(model))
-    if (live?.contextWindow !== undefined) {
-      const window = live.contextWindow
+    const window = providerCapabilities()?.xaiLiveContextWindow(normalizeForEnginePins(model))
+    if (window !== undefined) {
       return finish({ effectiveWindow: is1mContextDisabled() ? Math.min(window, MODEL_CONTEXT_WINDOW_DEFAULT) : window, source: 'live-current', catalogueCurrent: window })
     }
   }
@@ -867,8 +827,7 @@ function baseResolveContextWindow(
     if (window !== undefined) return finish({ effectiveWindow: window, source: 'live-current', catalogueCurrent: window })
   }
   if (carrierRoute === 'openai-compat') {
-    const { compatContextWindowFor } = require('../../services/providers/openaicompat/compatCatalogue.js') as typeof import('../../services/providers/openaicompat/compatCatalogue.js')
-    const window = compatContextWindowFor(model)
+    const window = providerCapabilities()?.compatContextWindowFor(model)
     if (window !== undefined) return finish({ effectiveWindow: window, source: 'live-current', catalogueCurrent: window })
   }
   const enginePinnedWindow = (() => {
@@ -997,18 +956,7 @@ function baseGetModelMaxOutputTokens(model: string): {
 
   const outputRoute = declaredRouteOf(model)
   if (outputRoute === 'openrouter' || outputRoute === 'gemini' || outputRoute === 'nous') {
-    const statedOut =
-      outputRoute === 'openrouter'
-        ? (
-            require('../../services/providers/openrouter/openrouterCatalogue.js') as typeof import('../../services/providers/openrouter/openrouterCatalogue.js')
-          ).openrouterMaxCompletionTokensFor(normalizeForEnginePins(model))
-        : outputRoute === 'nous'
-          ? (
-              require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
-            ).nousMaxCompletionTokensFor(normalizeForEnginePins(model))
-        : (
-            require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
-          ).geminiOutputTokenLimitFor(normalizeForEnginePins(model))
+    const statedOut = providerCapabilities()?.carrierOutputMaxFor(outputRoute, normalizeForEnginePins(model))
     if (statedOut !== undefined && statedOut >= 1_024) {
       return statedOutputTokens(statedOut)
     }
@@ -1256,26 +1204,17 @@ function catalogueDeclaresImages(model: string, route: CallModelRoute): boolean 
     case 'zai':
       return glmTakesImages(model)
     case 'openrouter':
-      return modalitiesAdmitImages(openrouterListedModel(model)?.inputModalities)
+      return modalitiesAdmitImages(providerCapabilities()?.openrouterInputModalities(model))
     case 'huggingface':
-      return modalitiesAdmitImages(huggingfaceLiveModel(qualifiedWireId(model))?.inputModalities)
+      return modalitiesAdmitImages(providerCapabilities()?.huggingfaceInputModalities(qualifiedWireId(model)))
     case 'local':
-      return localRecordFor(model)?.visionDeclared === true
-    case 'nous': {
-      const { nousListedModel } =
-        require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
-      return modalitiesAdmitImages(nousListedModel(model)?.inputModalities)
-    }
-    case 'openai': {
-      const { liveGptInputModalities } =
-        require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
-      return modalitiesAdmitImages(liveGptInputModalities(normalizeForEnginePins(model)))
-    }
-    case 'gemini': {
-      const { geminiListedModel } =
-        require('../../services/providers/gemini/geminiCatalogue.js') as typeof import('../../services/providers/gemini/geminiCatalogue.js')
-      return geminiListedModel(model)?.images ?? true
-    }
+      return providerCapabilities()?.localVisionDeclared(model) ?? false
+    case 'nous':
+      return modalitiesAdmitImages(providerCapabilities()?.nousInputModalities(model))
+    case 'openai':
+      return modalitiesAdmitImages(providerCapabilities()?.liveGptInputModalities(normalizeForEnginePins(model)))
+    case 'gemini':
+      return providerCapabilities()?.geminiDeclaresImages(model) ?? true
     default:
       return true
   }
@@ -1387,9 +1326,7 @@ export function modelReceivesImageBlocks(model: string): boolean {
   const recordedImages =
     routeVerdict.kind === 'route' && routeVerdict.route === 'openai'
       ? (() => {
-          const { liveGptInputModalities } =
-            require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
-          const mods = liveGptInputModalities(normalizeForEnginePins(model))
+          const mods = providerCapabilities()?.liveGptInputModalities(normalizeForEnginePins(model))
           return mods !== undefined ? mods.includes('image') : undefined
         })()
       : undefined

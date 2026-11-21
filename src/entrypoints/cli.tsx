@@ -166,6 +166,11 @@ async function main(): Promise<void> {
   }
 
   {
+    const { registerDefaultProviderCapabilities } = await import('../services/providers/registerCapabilities.js')
+    registerDefaultProviderCapabilities()
+  }
+
+  {
     const { fluxProbeEnabled } = await import('../utils/flux/fluxProbe.js')
     fluxProbeEnabled()
   }
