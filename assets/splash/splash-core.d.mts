@@ -40,11 +40,7 @@ export interface SplashAccentFamily {
 
 export interface SplashStripChips {
   model: string
-  critter: string
-  critterHue: string | null
   dir: string
-  acct: { state: 'email' | 'none' | 'unreadable'; text?: string }
-  health: { verdict: string; age: string | null } | null
 }
 
 export interface SplashProjectRow {
@@ -112,6 +108,7 @@ export interface SplashCompactOpts {
   cardSel: number
   hintSegments: SplashHintSegment[]
   keyMap?: string
+  stripLines?: (width: number) => string[]
   reserveKeyMap?: boolean
   pointer?: string
   glowWord?: GlowPhase | null

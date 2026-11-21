@@ -22,22 +22,17 @@ import { useAppStateMaybeOutsideOfProvider } from '../state/AppState.js';
 import { getSessionId } from '../bootstrap/state.js';
 import { getUserSpecifiedModelSetting, renderModelChip } from '../utils/model/model.js';
 import { computedDefault, readComputedDefaultCatalogue } from '../utils/model/computedDefault.js';
-import { getSessionAccent, getSessionCritterKey } from './mercury-ui/sessionAccent.js';
 import { takeFaceUpdateNotice, UPDATE_NOTICE_STAY_MS } from '../services/privateChannel/quietUpdateNotice.js';
 import { deriveFamilySlotGroups } from '../services/providers/accountSlots.js';
-import { sessionAccountWords } from '../services/accounts/sessionAccount.js';
 import { useSignInEpoch } from '../utils/accounts/useSignInEpoch.js';
 import { useCatalogueEpoch } from '../hooks/useCatalogueEpoch.js';
-import { healthCertSnapshot } from '../services/health/healthCertSnapshot.js';
 import { projectDisplayName, scanBootCardFacts, type BootProjectFact } from '../utils/bootCardFacts.js';
 import { plainWorldWhy, stripFacts, type PlainWorldWhy } from '../context/surfaceRoute.js';
 import { consumeFaceDoorDeepLink, consumeKitManagerDeepLink, peekFaceDoorOpener } from '../substrate/splashHandover.js';
-import { peekWornPresetKit } from '../services/switchboard/bootBirthFacts.js';
 import { enterBootSettings, settleAbsentChat } from '../context/surfaceRoute.js';
 import { recordLaunchMilestone } from '../substrate/launchMilestones.js';
 import { hasQueuedWarningReceipt, latestWarningSnapshot, mintImmediateReceipt, recentWarningReceipt, subscribeWarningReceipts } from '../utils/model/seatReceipts.js';
 import { loginsGlance } from './BootLoginsScreen.js';
-import { fireDeltaWords } from './BootSaturnScreen.js';
 import { SESSION_DEFAULTS_KEY_HINT, sessionDefaultsKeyOn } from '../services/switchboard/sessionDefaultsKey.js';
 import { useGreetingShimmer } from './mercury-ui/useGreetingShimmer.js';
 import { useInteractiveList, type AsyncListNote } from './mercury-ui/useInteractiveList.js';
@@ -211,48 +206,6 @@ export function BootSplashScreen(): React.ReactNode {
     }
   };
 
-  const [saturnCtx, setSaturnCtx] = useState<string | null>(null);
-  useLoad(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const [sup, saturn, box] = await Promise.all([
-          import('../daemon/concourseWorkers.js'),
-          import('../daemon/saturn.js'),
-          import('../daemon/saturnBoxSchedules.js'),
-        ]);
-        const records = Object.values(sup.readSessionWorkers()).filter(r => r.endedAt === undefined);
-        const glance = saturn.saturnWakeGlanceOf([...records, box.readBoxSchedules()]);
-        if (!cancelled && glance.count > 0) {
-          setSaturnCtx(
-            `${glance.count} schedule${glance.count === 1 ? '' : 's'}${glance.nextFireMs !== null ? ` · next ${fireDeltaWords(glance.nextFireMs, Date.now())}` : ''}${glance.held > 0 ? ` · ${glance.held} held` : ''}`,
-          );
-        }
-      } catch (error) {
-        passedOver(error)
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const [agentsCtx, setAgentsCtx] = useState<string | null>(null);
-  const [agentsEpoch, setAgentsEpoch] = useState(0);
-  useLoad(() => {
-    let cancelled = false;
-    void import('../tools/AgentTool/loadAgentsDir.js')
-      .then(async loader => {
-        const defs = await loader.getAgentDefinitionsWithOverrides(getCwd());
-        const n = defs.activeAgents.length;
-        if (!cancelled && n > 0) setAgentsCtx(`${n} agent${n === 1 ? '' : 's'}`);
-      })
-      .catch(passedOver);
-    return () => {
-      cancelled = true;
-    };
-  }, [agentsEpoch]);
-
   const loginsCtx = useMemo(() => {
     try {
       return loginsGlance(deriveFamilySlotGroups());
@@ -262,9 +215,6 @@ export function BootSplashScreen(): React.ReactNode {
     }
   }, [presenceEpoch, signInEpoch]);
 
-  const repoCount = facts.pickerProjects.length + (facts.cwdProject !== null ? 1 : 0);
-  const sessionsCtx = repoCount > 0 ? `${repoCount} repo${repoCount === 1 ? '' : 's'} · pick a session` : null;
-
   const goHome = (): void => {
     if (!leaveCurrentSurface().ok) enterRootChat();
   };
@@ -272,8 +222,6 @@ export function BootSplashScreen(): React.ReactNode {
   const openProject = (p: BootProjectFact): AsyncListNote => {
     return openProjectOf({ flipFirstBirth }, p);
   };
-
-  const armedPresetName = peekWornPresetKit()?.name;
 
   const composedRows: BootRow[] = useMemo(
     () =>
@@ -292,13 +240,9 @@ export function BootSplashScreen(): React.ReactNode {
               ctx: concourseRowCtx({ live: concourseLive, why: plainWhy, liveCount }),
               ...(concourseLive ? {} : { dim: true }),
             },
-        ...(armedPresetName !== undefined ? { kitArmedPreset: armedPresetName } : {}),
-        ...(saturnCtx !== null ? { saturnCtx } : {}),
-        ...(agentsCtx !== null ? { agentsCtx } : {}),
         ...(loginsCtx !== null ? { loginsCtx } : {}),
-        ...(sessionsCtx !== null ? { sessionsCtx } : {}),
       }) as BootRow[],
-    [facts, concourseLive, plainWhy, chatBoot, liveCount, armedPresetName, saturnCtx, agentsCtx, loginsCtx, sessionsCtx],
+    [facts, concourseLive, plainWhy, chatBoot, liveCount, loginsCtx],
   );
 
   const runRow = (row: BootRow | null): AsyncListNote | null => {
@@ -377,16 +321,6 @@ export function BootSplashScreen(): React.ReactNode {
     void readComputedDefaultCatalogue().catch(passedOver);
   }, [signInEpoch, catalogueEpoch]);
   const chips = useMemo(() => {
-    let acct: { state: 'email' | 'none' | 'unreadable'; text?: string };
-    try {
-      const fit = (text: string): string => (text.length > 26 ? text.slice(0, 25) + '…' : text);
-      const words = sessionAccountWords(mainModel);
-      acct = words.state === 'email' ? { state: 'email', text: fit(words.text) } : { state: 'none' };
-    } catch {
-      acct = { state: 'unreadable' };
-    }
-    const cert = healthCertSnapshot();
-    const critterKey = getSessionCritterKey();
     let keylessRow: string | null = null;
     try {
       const decision = computedDefault();
@@ -396,14 +330,7 @@ export function BootSplashScreen(): React.ReactNode {
     }
     return {
       model: keylessRow ?? renderModelChip(mainModel),
-      critter: critterKey.charAt(0).toUpperCase() + critterKey.slice(1),
-      critterHue: getSessionAccent().accent,
       dir: projectDisplayName(getCwd()),
-      acct,
-      health:
-        cert.state === 'live' && cert.data.verdict
-          ? { verdict: cert.data.verdict, age: cert.data.ageLabel }
-          : null,
     };
   }, [mainModel, presenceEpoch, catalogueEpoch, signInEpoch]);
 
@@ -413,5 +340,5 @@ export function BootSplashScreen(): React.ReactNode {
   }, [core, columns, rows, isCompact, plainWhy, stripHint, keyMapHint, modelDefaultDoor, updateLine, selectedIndex, composedRows, chips, wordGlow?.peakCell, wordGlow?.gainLevel, rowGlow?.peakCell, rowGlow?.gainLevel]);
 
 
-  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, setAgentsEpoch, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
+  return bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack });
 }

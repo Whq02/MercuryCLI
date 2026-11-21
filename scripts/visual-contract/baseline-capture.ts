@@ -35,7 +35,7 @@ const SIZES: Array<[number, number]> = [
   [150, 45],
 ]
 
-const SPLASH_READY: Record<string, string> = { lockup: '↵ start', menu: 's launch', projects: '↑↓ choose' }
+const SPLASH_READY: Record<string, string | string[]> = { lockup: ['>_', '↵'], menu: 's launch', projects: '↑↓ choose' }
 const SURFACE_NEEDLES: Record<string, string[]> = { 'model-picker-home': ['Mercury · model', 'closes'] }
 const SURFACE_STILL_REGION: Record<string, (cols: number, rows: number) => [number, number, number, number]> = {
   'cockpit-mission': (cols, rows) => [0, 0, cols, rows - 2],
@@ -212,7 +212,7 @@ async function runPool(captures: Capture[], jobs: number): Promise<Map<string, {
 const captures: Capture[] = []
 const skipped: string[] = []
 
-if (!only || only === 'splash') {
+if (!only || only === 'splash' || only === 'splash-lockup') {
   const base: Record<string, string> = {
     MERCURY_SPLASH_ONESHOT: '1',
     TERM: 'xterm-256color',
@@ -226,6 +226,7 @@ if (!only || only === 'splash') {
 
   for (const [cols, rows] of SIZES) {
     captures.push(splashCapture(`splash-lockup-${cols}x${rows}`, 'lockup', cols, rows, base))
+    if (only === 'splash-lockup') continue
     if (cols >= 64 && rows >= 13) {
       captures.push(splashCapture(`splash-menu-${cols}x${rows}`, 'menu', cols, rows, { ...base, MERCURY_SPLASH_VIEW: 'menu' }))
     } else skipped.push(`— splash-menu-${cols}x${rows}: menu cannot fit (needs cols≥64 ∧ rows≥13) — skipped by contract`)
