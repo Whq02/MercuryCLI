@@ -60,6 +60,7 @@ export interface SessionVerbRow {
   readonly runner?: RunnerFaceSpec
   readonly codec?: VerbCodecName
   readonly detailJson?: true
+  readonly carrier?: 'empty-detail'
 }
 
 export const capabilitiesShape = (k: RunnerSchemaKit) =>
@@ -324,12 +325,14 @@ export const SESSION_VERBS = {
     daemon: { op: 'sessionControl', action: 'background-shell', bornAt: 11 },
     runner: { name: 'shell/background', from: 'host', kind: 'request', scope: 'none', deadlineMs: 10_000, params: k => k.empty(), result: k => k.z.object({ taken: k.z.number().int().positive() }) },
     detailJson: true,
+    carrier: 'empty-detail',
   },
   sendNow: {
     connector: 'sendNow',
     daemon: { op: 'sessionControl', action: 'send-now', bornAt: 18 },
     runner: { name: 'session/send_now', from: 'host', kind: 'request', scope: 'none', deadlineMs: 10_000, params: k => k.empty(), result: k => k.z.object({ queued: k.z.number().int().min(0), released: k.z.number().int().min(0), crewmates: k.z.number().int().min(0), shells: k.z.number().int().min(0) }) },
     detailJson: true,
+    carrier: 'empty-detail',
   },
   scheduleEdit: {
     runner: { name: 'schedule/edit', from: 'runner', kind: 'request', scope: 'none', deadlineMs: 10_000, params: k => k.z.object({ edit: k.z.unknown() }), result: scheduleEditResultShape },

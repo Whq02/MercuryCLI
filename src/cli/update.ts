@@ -356,7 +356,7 @@ export async function update(options: UpdateCliOptions = {}): Promise<never> {
   const openWindowsLineText = openWindows === null ? '' : `\n${openWindows}`
   const shellCommand = result.state === 'updated' ? commandOnPath(roots) : null
   try {
-    const { runLifecycleVerbOpportunity } = await import('../utils/backgroundHousekeeping.js')
+    const { runLifecycleVerbOpportunity } = await import('../services/backgroundHousekeeping.js')
     await runLifecycleVerbOpportunity('update')
   } catch (error) {
     passedOver(error)
