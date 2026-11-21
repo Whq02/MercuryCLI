@@ -1,4 +1,5 @@
 import type { ToolUseContext } from '../../Tool.js'
+import { queuedCompactRequest } from '../../input-core/command-queue.js'
 import type { AssistantMessage, Message } from '../../types/message.js'
 import { isMercurySubstrateProfileOn } from '../../utils/config/derived.js'
 import { logForDebugging } from '../../utils/debug.js'
@@ -307,6 +308,8 @@ export async function autoCompactIfNeeded(
     slot.noted = true
     logForDebugging(message)
   }
+  const queued = toolUseContext.agentId === undefined && (querySource === 'sdk' || querySource?.startsWith('main_thread'))
+    ? queuedCompactRequest(ownerFromToolUseContext(toolUseContext)) : undefined
   const askedByOperator = operatorCompactionAsked(toolUseContext)
   if (askedByOperator) {
     takeOperatorCompactionAsk(toolUseContext)
@@ -401,7 +404,8 @@ export async function autoCompactIfNeeded(
     querySource,
   }
 
-  const sessionMemoryArmed = shouldUseSessionMemoryCompaction()
+  const instructions = queued?.instructions
+  const sessionMemoryArmed = instructions === undefined && shouldUseSessionMemoryCompaction()
   const foldModel = foldModelFor(messages, model, { forced })
   if (foldModel.source === 'history') {
     logForDebugging(
@@ -409,9 +413,9 @@ export async function autoCompactIfNeeded(
     )
   }
   try {
-    return await withFoldStatus(toolUseContext, async scoped => {
+    const folded = await withFoldStatus(toolUseContext, async scoped => {
     if (sessionMemoryArmed) scoped.onCompactProgress?.({ type: 'stage', stage: 'session-memory' })
-    const viaMemory = await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped)
+    const viaMemory = instructions === undefined ? await trySessionMemoryCompaction(messages, scoped.agentId, threshold, scoped) : null
     if (viaMemory !== null) {
       setLastSummarizedMessageId(undefined)
       runPostCompactCleanup({ querySource, owner: toolUseContext.owner, agentId: toolUseContext.agentId }, buildPostCompactMessages(viaMemory))
@@ -423,7 +427,7 @@ export async function autoCompactIfNeeded(
       scoped,
       cacheSafeParams,
       true,
-      undefined,
+      instructions,
       !asked,
       recompactionInfo,
       overflowSignal,
@@ -439,6 +443,8 @@ export async function autoCompactIfNeeded(
       ...breaker,
     }
     }, { trigger: asked ? 'manual' : 'auto', sessionMemory: sessionMemoryArmed, microcompaction: false })
+    queued?.complete()
+    return folded
   } catch (err) {
     if (err instanceof APIUserAbortError) {
       return forced ? { ...notCompacted, refusal: ERROR_MESSAGE_USER_ABORT } : notCompacted

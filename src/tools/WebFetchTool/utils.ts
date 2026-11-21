@@ -17,7 +17,7 @@ import { fetchPage, type RawResponse, type RedirectResult } from './fetchTranspo
 import { pageAccessNotice } from './pageAccess.js'
 import { arxivPaperUrl, resetStructuredFetchPacing, tryStructuredFetch } from './structuredHosts.js'
 import { extractPdfText, renderPdfText } from '../../utils/pdfText.js'
-import { recognisePdfPage, renderOcr } from '../../utils/ocr.js'
+import { recognisePdfPage, renderOcr } from '../../services/ocr.js'
 import { passedOver } from '../../utils/passedOver.js'
 export { EgressBlockedError } from './fetchErrors.js'
 

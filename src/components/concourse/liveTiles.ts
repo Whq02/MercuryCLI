@@ -1,7 +1,6 @@
 import { statSync, watch, type FSWatcher } from 'node:fs'
 import { basename } from 'node:path'
-import { useRef, useState } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
+import { useCallback, useSyncExternalStore } from 'react'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import {
   readSessionFacts,
@@ -30,6 +29,9 @@ type LiveTileNow =
   | { kind: 'phase'; line: string }
   | { kind: 'settled'; line: string }
   | { kind: 'still' }
+
+const STILL: LiveTileNow = { kind: 'still' }
+const noopUnsub = (): void => {}
 
 type LiveTileTail = Pick<SessionTailV1, 'atMs' | 'text'> & Partial<Pick<SessionTailV1, 'streamBlock' | 'stateWord' | 'waitingOnAgents' | 'wait'>>
 
@@ -135,7 +137,7 @@ export class LiveTileStore {
         workspaceId,
         tailFile: basename(this.deps.tailPath(sessionId)),
         listeners: new Set(),
-        now: { kind: 'still' },
+        now: STILL,
         dirty: true,
         transcriptStamp: '',
         tailStamp: '',
@@ -160,8 +162,8 @@ export class LiveTileStore {
   }
 
   readTile(sessionId: string): LiveTileNow {
-    if (this.degraded) return { kind: 'still' }
-    return this.entries.get(sessionId)?.now ?? { kind: 'still' }
+    if (this.degraded) return STILL
+    return this.entries.get(sessionId)?.now ?? STILL
   }
 
   isDegraded(): boolean {
@@ -247,7 +249,7 @@ export class LiveTileStore {
       if (act.kind === 'tool') return act.settled === true ? { kind: 'phase', line: MODEL_TURN_NOW_WORD } : { kind: 'tool', line: act.label }
       return { kind: 'settled', line: act.label }
     }
-    return { kind: 'still' }
+    return STILL
   }
 
   private drain(probe = false): void {
@@ -355,26 +357,32 @@ export class LiveTileStore {
 
 const theStore = new LiveTileStore()
 
+const subscribeDegraded = (onStoreChange: () => void): (() => void) => theStore.onDegradeChange(onStoreChange)
+const readDegraded = (): boolean => theStore.isDegraded()
+
 export function useLiveTile(
   sessionId: string,
   workspaceId: string | undefined,
   live: boolean,
 ): { now: LiveTileNow; degraded: boolean } {
-  const [, bump] = useState(0)
   const active = live && workspaceId !== undefined && !sessionId.startsWith('dispatch:')
-  useSubscription(() => {
-    if (!active) return
-    const unsub = theStore.register(sessionId, workspaceId ?? '', () => bump(v => v + 1))
-    const unsubDeg = theStore.onDegradeChange(() => bump(v => v + 1))
-    return () => {
-      unsub()
-      unsubDeg()
-    }
-  }, [sessionId, workspaceId, active])
-  return {
-    now: active ? theStore.readTile(sessionId) : { kind: 'still' },
-    degraded: theStore.isDegraded(),
-  }
+  const subscribeTile = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      active ? theStore.register(sessionId, workspaceId ?? '', onStoreChange) : noopUnsub,
+    [active, sessionId, workspaceId],
+  )
+  const readTile = useCallback(
+    (): LiveTileNow => (active ? theStore.readTile(sessionId) : STILL),
+    [active, sessionId],
+  )
+  const subscribeActiveDegraded = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      active ? theStore.onDegradeChange(onStoreChange) : noopUnsub,
+    [active],
+  )
+  const now = useSyncExternalStore(subscribeTile, readTile, readTile)
+  const degraded = useSyncExternalStore(subscribeActiveDegraded, readDegraded, readDegraded)
+  return { now, degraded }
 }
 
 
@@ -406,35 +414,20 @@ export function workChipStoreDeps(nowMs: () => number = () => Date.now()): Parti
 const theChipStore = new LiveTileStore(workChipStoreDeps())
 
 export function useWorkChip(sessionId: string, active: boolean): string | null {
-  const [, bump] = useState(0)
   const on = active && sessionId !== '' && !sessionId.startsWith('dispatch:')
-  useSubscription(() => {
-    if (!on) return
-    const unsub = theChipStore.register(sessionId, '', () => bump(v => v + 1))
-    const unsubDeg = theChipStore.onDegradeChange(() => bump(v => v + 1))
-    return () => {
-      unsub()
-      unsubDeg()
-    }
-  }, [sessionId, on])
-  if (!on) return null
-  const now = theChipStore.readTile(sessionId)
-  return now.kind === 'still' ? null : now.line
+  const subscribeChip = useCallback(
+    (onStoreChange: () => void): (() => void) =>
+      on ? theChipStore.register(sessionId, '', onStoreChange) : noopUnsub,
+    [on, sessionId],
+  )
+  const readChip = useCallback((): string | null => {
+    if (!on) return null
+    const now = theChipStore.readTile(sessionId)
+    return now.kind === 'still' ? null : now.line
+  }, [on, sessionId])
+  return useSyncExternalStore(subscribeChip, readChip, readChip)
 }
 
 export function useLiveTilesDegraded(): boolean {
-  const [v, setV] = useState(theStore.isDegraded())
-  const mounted = useRef(true)
-  useSubscription(() => {
-    mounted.current = true
-    const unsub = theStore.onDegradeChange(() => {
-      if (mounted.current) setV(theStore.isDegraded())
-    })
-    setV(theStore.isDegraded())
-    return () => {
-      mounted.current = false
-      unsub()
-    }
-  }, [])
-  return v
+  return useSyncExternalStore(subscribeDegraded, readDegraded, readDegraded)
 }

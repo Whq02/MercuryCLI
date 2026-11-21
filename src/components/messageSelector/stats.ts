@@ -1,6 +1,7 @@
 import { basename } from 'path'
 import { isRemotePath } from '../../utils/remoteFiles/target.js'
-import type { Tool } from '../../Tool.js'
+import { safeSearchOrReadClassification, type Tool } from '../../Tool.js'
+import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { getAllBaseTools } from '../../tools.js'
 import { isSqliteRowTarget } from '../../tools/FileWriteTool/structuredTargets.js'
 import type { Message } from '../../types/message.js'
@@ -8,7 +9,8 @@ import { passedOver } from '../../utils/passedOver.js'
 
 export type CodeStats = { filesChanged: string[]; insertions: number; deletions: number }
 
-const SHELL_TOOL_NAMES = new Set(['Bash', 'PowerShell'])
+const SHELL_TOOL_NAMES = new Set(['Bash', POWERSHELL_TOOL_NAME])
+const PS_REWIND_UNSAFE_RE = /[({]|(?<![>&])&(?!&)/
 
 type ShellCall = {
   id: string
@@ -82,7 +84,16 @@ export async function findMutatingShellToolUseIds(messages: Message[]): Promise<
       }
     }
     try {
-      if (tool.isReadOnly(call.input) !== true) mutating.add(call.id)
+      if (tool.isReadOnly(call.input) === true) continue
+      if (
+        call.tool === POWERSHELL_TOOL_NAME &&
+        typeof call.input.command === 'string' &&
+        !PS_REWIND_UNSAFE_RE.test(call.input.command)
+      ) {
+        const classified = safeSearchOrReadClassification(tool, call.input)
+        if (classified?.isRead || classified?.isSearch) continue
+      }
+      mutating.add(call.id)
     } catch (error) {
       passedOver(error)
       mutating.add(call.id)

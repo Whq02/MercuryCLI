@@ -52,6 +52,8 @@ const BY_THE_TIMER_DOOR = `a timer that is started by hand all the same goes thr
 const BY_THE_EFFECT_DOOR = `an effect that stays takes its name from ${EFFECT_DOOR}, the hook that says what it is for`
 const TYPE_IT = 'narrow the value with a type guard or parse it with its schema; a declared type that is wrong is corrected where it is declared; satisfies checks a literal against a type with no cast'
 
+const SCREEN_EFFECTS = { useSubscription: RENDER, useLayoutSubscription: RENDER, useDerivedState: RENDER, useLayoutDerivedState: RENDER, useMeasure: 'use the geometry already supplied by the renderer; do not add a second layout pass' } as const
+
 const HABITS = {
   setTimeout: `to wait, ${SLEEP}; to bound a call, AbortSignal.timeout(ms) or the inactivity deadline in utils/deadline.ts; ${TICK}; ${CLOCK}; ${BY_THE_TIMER_DOOR}`,
   setInterval: `${TICK}; off the screen, a loop that awaits sleep(ms, signal) from ${SLEEP_DOOR} and ends with its signal; ${CLOCK}; ${BY_THE_TIMER_DOOR}`,
@@ -63,6 +65,7 @@ const HABITS = {
   [ALIAS]: `import the door under its own name, import { sleep } from ${SLEEP_DOOR}: a local that holds a sleep handed in through a seam takes another name (pause), and the argument of the seam keeps the name sleep for its callers`,
   useEffect: `${RENDER}; a repeating tick is useInterval or useAnimationFrame from ink/hooks; ${BY_THE_EFFECT_DOOR}`,
   useLayoutEffect: `${RENDER}; a size is read from the layout the renderer already measured (useTerminalSize, useTerminalViewport), not measured again after the paint; ${BY_THE_EFFECT_DOOR}`,
+  ...SCREEN_EFFECTS,
   useInsertionEffect: `${RENDER}; a write to the terminal belongs to the renderer, not to a component`,
   useImperativeHandle: `${RENDER}; a parent that must act on a child hands it the state, not a handle to call`,
   'lifecycle-method': `a function component: ${RENDER}`,
@@ -227,6 +230,20 @@ function ofDoor(e: ts.Expression, door: string): string | undefined {
   return decl && ref && ref.module.startsWith('.') && resolve(dirname(decl.getSourceFile().fileName), ref.module).replace(/\.js$/, '.ts') === resolve(ROOT, door) ? ref.name : undefined
 }
 
+function screenEffect(e: ts.Expression): keyof typeof SCREEN_EFFECTS | undefined {
+  const x = unwrap(e)
+  let name: string | undefined
+  if (ts.isIdentifier(x)) name = ofDoor(x, EFFECT_DOOR)
+  else if (ts.isPropertyAccessExpression(x) || ts.isElementAccessExpression(x)) {
+    const receiver = unwrap(x.expression)
+    const decl = ts.isIdentifier(receiver) && declarationOf(receiver)
+    if (decl && ts.isNamespaceImport(decl)) {
+      const spec = decl.parent.parent.moduleSpecifier
+      if (ts.isStringLiteralLike(spec) && spec.text.startsWith('.') && resolve(dirname(decl.getSourceFile().fileName), spec.text).replace(/\.js$/, '.ts') === resolve(ROOT, EFFECT_DOOR)) name = ts.isPropertyAccessExpression(x) ? x.name.text : ts.isStringLiteralLike(x.argumentExpression) ? x.argumentExpression.text : undefined
+    }
+  }
+  return name && Object.hasOwn(SCREEN_EFFECTS, name) ? name as keyof typeof SCREEN_EFFECTS : undefined
+}
 const ofFailureDoor = (e: ts.Expression): string | undefined => ofDoor(e, FAILURE_DOOR)
 
 const handsOver = (s: ts.Statement | undefined): boolean => s !== undefined && ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && ofFailureDoor(s.expression.expression) === PASS
@@ -596,6 +613,8 @@ function habitsIn(file: string, text: string, prints = false, beyond?: Map<strin
       if (spec && ts.isStringLiteralLike(spec) && opensDoor(spec.text)) hit(ALIAS, n, `const { sleep } = await import('${spec.text}')`)
     }
     if (ts.isCallExpression(n)) {
+      const effect = screenEffect(n.expression)
+      if (effect) hit(effect, n.expression)
       if (ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'race' && ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'Promise' && !declarationOf(n.expression.expression)) hit(RACE, n.expression.name)
       else if (ts.isIdentifier(n.expression) && ofDoor(n.expression, TIMER_DOOR) === INTERVAL) hit(INTERVAL, n.expression)
       const waited = n.arguments.find(a => ts.isObjectLiteralExpression(unwrap(a)))
@@ -956,6 +975,11 @@ function plantedEstate(): void {
   const deadlineDoorLines = ['export function withDeadline<T>(work: Promise<T>, limit: Promise<never>): Promise<T> { return Promise.race([work, limit]) }', 'export const home = process.env.HOME']
   const planted: Array<{ file: string; lines: string[]; seen: Array<[number, Habit]> }> = [
     {
+      file: 'src/planted/screen.ts',
+      lines: ["import { useSubscription as hear, useDerivedState, useLayoutDerivedState } from '../hooks/effects.js'", "import * as effects from '../hooks/effects.js'", 'hear(fn, [])', 'useDerivedState(fn)', 'useLayoutDerivedState(fn)', 'effects.useLayoutSubscription(fn)', "effects['useMeasure'](fn)", 'function local(hear: () => void) { hear() }', 'other.useMeasure(fn)'],
+      seen: [[3, 'useSubscription'], [4, 'useDerivedState'], [5, 'useLayoutDerivedState'], [6, 'useLayoutSubscription'], [7, 'useMeasure']],
+    },
+    {
       file: 'src/planted/timers.ts',
       lines: [
         "import { setTimeout as delay, setInterval as every } from 'node:timers/promises'",
@@ -1269,6 +1293,7 @@ function plantedEstate(): void {
     of('src/planted/lookalikes.ts') === '',
     of('src/planted/lookalikes.ts'),
   )
+  check('screen effects from the hook door are counted under their imported or qualified name, but not when shadowed or on a different object', stands('src/planted/screen.ts'), differs)
   check(`every habit of the fence is seen on the planted estate (${NAMES.length})`, NAMES.every(habit => hits.some(h => h.habit === habit)), NAMES.filter(habit => !hits.some(h => h.habit === habit)).join(', '))
   check(
     `each of the ${BEYOND.length} forms that stay out of reach is counted where it is planted: a wrapper, an exported alias, the environment handed on whole, a cast in two statements, the any keyword, a computed member, a child sleep, a loop on the clock, a dropped allSettled, a useMemo callback and a useState initialiser that change what is outside them (one that fills its own list is not counted), a catch and a handler that hold only calls, and a catch and two handlers that hand the failure to the door first`,
