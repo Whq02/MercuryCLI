@@ -25,7 +25,7 @@ import { useMercuryTokens } from './mercury-ui/useMercuryTokens.js';
 import { useSplashCoreAccent } from './mercury-ui/useSplashCoreAccent.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import { jevBootDetailLines } from './bootSettings/detailLines.js';
-import { type WorkerApplySummary, type ApplyState, settingsMenuModel } from './bootSettings/menuModel.js';
+import { type WorkerApplySummary, type ApplyState, type SettingsEditor, type SettingsRow, settingsEditors, settingsMenuModel } from './bootSettings/menuModel.js';
 import { commitBackgroundLaunchOf, commitMotionOf, commitJevOf, commitSeatsOf, commitRowOf, cycleRowOf } from './bootSettings/commits.js';
 import { settingsRowLine } from './bootSettings/rows.js';
 import type { SettingsContext } from './bootSettings/context.js';
@@ -142,9 +142,11 @@ function gitTailProbe(onTail: (tail: string) => void): () => void {
 
 export function BootSettingsScreen({
   onClose,
+  onOpenEditor,
   fullScene,
 }: {
   onClose?: () => void;
+  onOpenEditor?: (editor: SettingsEditor) => void;
   fullScene?: { columns: number; rows: number };
 } = {}): React.ReactNode {
   const t = useMercuryTokens();
@@ -181,7 +183,8 @@ export function BootSettingsScreen({
   const jevDetailLines = useMemo(() => jevBootDetailLines(), [jevTick, saveTick]);
   const [backgroundLaunchTick, setBackgroundLaunchTick] = useState(0);
   const backgroundLaunchOn = useMemo(() => backgroundSessionsLaunchCrewmates(), [backgroundLaunchTick, saveTick]);
-  const menuRows = useMemo<readonly MenuRow[]>(() => [...withJevRow(STARTUP_MENU), SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], []);
+  const hasEditors = onOpenEditor !== undefined;
+  const menuRows = useMemo<readonly SettingsRow[]>(() => [...(hasEditors ? settingsEditors : []), ...withJevRow(STARTUP_MENU), SEATS_MENU_ROW as MenuRow, MOTION_MENU_ROW as MenuRow], [hasEditors]);
   const isSeatsRow = (row: MenuRow): boolean => row.env === SEATS_MENU_ROW.env;
   const isMotionRow = (row: MenuRow): boolean => row.env === MOTION_MENU_ROW.env;
   const isJevRow = (row: MenuRow): boolean => row.env === JEV_MENU_ROW.env;
@@ -267,9 +270,17 @@ export function BootSettingsScreen({
   const plainWorld = chatOnlyBoot();
   const chatBoot = stripFacts().chatBoot;
 
-  const list = useInteractiveList<MenuRow>({
+  const activate = (row: SettingsRow | null) => {
+    if (row === null) return null;
+    if ('editor' in row) {
+      onOpenEditor?.(row.editor);
+      return null;
+    }
+    return { pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) };
+  };
+  const list = useInteractiveList<SettingsRow>({
     rows: menuRows,
-    rowId: r => r.env,
+    rowId: r => 'editor' in r ? r.editor : r.env,
     idNamespace: 'boot-settings',
     onClose: () => {
       if (apply.phase !== 'closed') {
@@ -283,7 +294,7 @@ export function BootSettingsScreen({
       {
         key: 'return',
         hint: 'cycle',
-        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) } : null),
+        run: activate,
       },
       ...(concourseLive && !chatBoot
         ? [{
@@ -299,7 +310,7 @@ export function BootSettingsScreen({
       {
         key: 'backspace',
         hint: 'default',
-        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => commitRow(row, null)) } : null),
+        run: row => (row && !('editor' in row) ? { pending: 'saving…', result: afterMicrotask(() => commitRow(row, null)) } : null),
       },
       {
         key: 'a',
@@ -312,7 +323,7 @@ export function BootSettingsScreen({
       {
         key: ' ',
         hint: 'cycle',
-        run: row => (row ? { pending: 'saving…', result: afterMicrotask(() => cycleRow(row, 1)) } : null),
+        run: activate,
       },
     ],
   });
@@ -322,7 +333,7 @@ export function BootSettingsScreen({
     (_input, key, event) => {
       if (apply.phase !== 'closed') return;
       if (!key.leftArrow && !key.rightArrow) return;
-      if (selectedRow == null) return;
+      if (selectedRow == null || 'editor' in selectedRow) return;
       event.stopImmediatePropagation();
       void afterMicrotask(() => cycleRow(selectedRow, key.leftArrow ? -1 : 1));
     },

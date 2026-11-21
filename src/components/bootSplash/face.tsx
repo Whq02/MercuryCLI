@@ -82,11 +82,12 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
 }
 
 export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack }: { settingsOpen: boolean; columns: number; rows: number; setSettingsOpen: Dispatch<SetStateAction<boolean>>; kitOpen: boolean; setKitOpen: Dispatch<SetStateAction<boolean>>; healthOpen: boolean; setHealthOpen: Dispatch<SetStateAction<boolean>>; saturnOpen: boolean; setSaturnOpen: Dispatch<SetStateAction<boolean>>; agentsOpen: boolean; loginsOpen: boolean; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setAgentsOpen: Dispatch<SetStateAction<boolean>>; closeLogins: () => void; loginsFamily: string | undefined; loginsBack: 'route' | 'picker' | null; resumeOpen: boolean; setResumeOpen: Dispatch<SetStateAction<boolean>>; facts: ReturnType<typeof scanBootCardFacts>; runningOf: (dir: string) => number; openProject: (p: BootProjectFact) => AsyncListNote; composition: ReturnType<typeof bootSplashCompositionOf>; list: ReturnType<typeof useInteractiveList<BootRow>>; birthReceipt: string | null; core: ReturnType<typeof createSplashCore>; isCompact: boolean; keyMapHint: string; updateLine: string | null; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; KEY_MAP_ROW: (core: ReturnType<typeof createSplashCore>, hint: string) => string; composedRows: BootRow[]; t: ReturnType<typeof useMercuryTokens>; modelDefaultOpen: boolean; setModelDefaultOpen: Dispatch<SetStateAction<boolean>>; setLoginsFamily: Dispatch<SetStateAction<string | undefined>>; setLoginsBack: Dispatch<SetStateAction<'route' | 'picker' | null>> }) {
-  if (settingsOpen) {
+  if (settingsOpen && !kitOpen && !agentsOpen) {
     return (
       <BootSettingsScreen
         fullScene={{ columns, rows }}
         onClose={() => setSettingsOpen(false)}
+        onOpenEditor={editor => editor === 'kit' ? setKitOpen(true) : setAgentsOpen(true)}
       />
     );
   }
