@@ -263,8 +263,8 @@ console.log('6. src/services/cockpit/mcpGauge.ts — policy or project MCP read 
 {
   const rPolicy = runIsolated(`
     const { mock } = await import('bun:test')
-    const realPolicy = await import(SRC + '/services/mcp/toolPolicy.ts')
-    mock.module(SRC + '/services/mcp/toolPolicy.js', () => ({
+    const realPolicy = await import(SRC + '/utils/mcp/toolPolicy.ts')
+    mock.module(SRC + '/utils/mcp/toolPolicy.js', () => ({
       ...realPolicy,
       getMaxExposedRisk: () => { throw new Error('policy read failed') },
     }))
