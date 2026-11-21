@@ -78,8 +78,8 @@ export async function createMercuryServer(): Promise<{
     {
       capabilities: { tools: {} },
       instructions:
-        'In-process tools: project file/directory leases (take, list, release; live holders are named and refused) ' +
-        'and TUI capture (render_tui). Prefer lease tools over Bash when sharing files.',
+        'In-process tools: file and directory leases (take, list, release; another live holder is named and refused) ' +
+        'and TUI capture (render_tui). Prefer lease tools over Bash when agents share files.',
     },
   )
 
