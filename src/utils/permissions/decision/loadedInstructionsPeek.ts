@@ -3,7 +3,7 @@ export type LoadedInstructionEntry = {
   parent?: string
 }
 
-export type LoadedInstructionsPeek = () => Promise<readonly LoadedInstructionEntry[]> | undefined
+type LoadedInstructionsPeek = () => Promise<readonly LoadedInstructionEntry[]> | undefined
 
 let registered: LoadedInstructionsPeek | undefined
 
