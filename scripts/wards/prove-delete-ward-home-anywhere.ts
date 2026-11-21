@@ -37,11 +37,12 @@ if (process.argv[2] !== '--home') {
   const configScratch = realpathSync(mkdtempSync(join(tmpdir(), 'ward-home-config-')))
   mkdirSync(join(configScratch, 'home'), { recursive: true })
   const relocatedHome = mkdtempOutsideProfiles('ward-home-')
+  const rootHome = process.platform === 'win32' ? parse(tmpdir()).root : '/'
   const shapes: Array<[string, string | undefined]> = [
     ['relocated', relocatedHome],
     ['unlisted', '/srv/homes/proof'],
     ['unlisted-slash', '/srv/homes/proof/'],
-    ['root', '/'],
+    ['root', rootHome],
     ['unset', undefined],
     ['win32-standin', undefined],
   ]
@@ -191,8 +192,15 @@ if (shape === 'unlisted-slash') {
 }
 
 if (shape === 'root') {
-  check('with HOME=/ the door names the root and the engine adds no spelling: temp and double-slash deletes stay allowed', homeSpellings()[0] === '/' && autonomous('rm -rf /tmp/ops-proof-x').allow && autonomous('rm -rf //tmp/ops-proof-x').allow && autonomous('find //tmp/x -name "*.log" -delete').allow, `${homeSpellings().join(' · ')} · ${ruleOf(autonomous('rm -rf /tmp/ops-proof-x'))} · ${ruleOf(autonomous('rm -rf //tmp/ops-proof-x'))}`)
-  check('rm -rf / is still refused', wardedBy(refusal('rm -rf /'), 'no-root-recursive-delete'))
+  if (process.platform === 'win32') {
+    const driveRoot = parse(tmpdir()).root
+    const driveSlashed = driveRoot.replace(/\\/g, '/')
+    check(`with HOME=${driveRoot} the door names the root and the engine adds no spelling: temp and double-slash deletes stay allowed`, homeSpellings()[0] === driveRoot && wardHomes().length === 0 && autonomous(`rm -rf ${driveSlashed}tmp/ops-proof-x`).allow && autonomous('rm -rf /tmp/ops-proof-x').allow && autonomous('rm -rf //tmp/ops-proof-x').allow && autonomous('find //tmp/x -name "*.log" -delete').allow, `${homeSpellings().join(' · ')} · ${wardHomes().join(' · ')} · ${ruleOf(autonomous(`rm -rf ${driveSlashed}tmp/ops-proof-x`))} · ${ruleOf(autonomous('rm -rf /tmp/ops-proof-x'))}`)
+    check(`rm -rf ${driveSlashed} and rm -rf / are still refused`, wardedBy(refusal(`rm -rf ${driveSlashed}`), 'no-root-recursive-delete') && wardedBy(refusal('rm -rf /'), 'no-root-recursive-delete'), `${holeOf(refusal(`rm -rf ${driveSlashed}`))} · ${holeOf(refusal('rm -rf /'))}`)
+  } else {
+    check('with HOME=/ the door names the root and the engine adds no spelling: temp and double-slash deletes stay allowed', homeSpellings()[0] === '/' && autonomous('rm -rf /tmp/ops-proof-x').allow && autonomous('rm -rf //tmp/ops-proof-x').allow && autonomous('find //tmp/x -name "*.log" -delete').allow, `${homeSpellings().join(' · ')} · ${ruleOf(autonomous('rm -rf /tmp/ops-proof-x'))} · ${ruleOf(autonomous('rm -rf //tmp/ops-proof-x'))}`)
+    check('rm -rf / is still refused', wardedBy(refusal('rm -rf /'), 'no-root-recursive-delete'))
+  }
 }
 
 if (shape === 'unset') {
@@ -251,8 +259,8 @@ if (shape === 'win32-standin') {
     check('win32 standin: refusal list refuses whole drive home and leaves subfolders alone', wardedBy(refusal('rm -rf D:/work/home'), 'no-root-recursive-delete') && refusal('rm -rf D:/work/home/outside').allow)
 
     setHomeSpellings(() => ['D:\\'])
-    check('win32 standin: bare drive root D:\\ adds no spelling and leaves D:/tmp/x allowed', wardHomes().length === 0 && autonomous('rm -rf D:/tmp/x').allow, wardHomes().join(' · '))
-
+    check('win32 standin: bare drive root D:\\ adds no spelling and leaves temp and double-slash deletes allowed', wardHomes().length === 0 && autonomous('rm -rf D:/tmp/x').allow && autonomous('rm -rf /tmp/ops-proof-x').allow && autonomous('rm -rf //tmp/ops-proof-x').allow && autonomous('find //tmp/x -name "*.log" -delete').allow, wardHomes().join(' · '))
+    check('win32 standin: rm -rf D:/ and rm -rf / are still refused', wardedBy(refusal('rm -rf D:/'), 'no-root-recursive-delete') && wardedBy(refusal('rm -rf /'), 'no-root-recursive-delete'), `${holeOf(refusal('rm -rf D:/'))} · ${holeOf(refusal('rm -rf /'))}`)
     const hexBackslash = evaluateWards(BUILTIN_WARDS, {
       toolName: 'Write',
       input: { file_path: 'C:\\proj\\src\\components\\New.tsx', content: 'export const c = "#ff0000"\n' },
