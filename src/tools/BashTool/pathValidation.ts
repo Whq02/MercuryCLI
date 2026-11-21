@@ -30,7 +30,7 @@ import { sedCommandIsAllowedByAllowlist } from '../../utils/shell/sedValidation.
 import { scanCeiling } from '../../utils/verification/scanCeiling.js'
 import { gitSubcommandIndex } from '../../utils/git/spawnArgs.js'
 import { errorMessage, getErrnoCode, isFsInaccessible } from '../../utils/errors.js'
-import { stripSafeWrappers } from './safeWrappers.js'
+import { stripSafeWrappers } from '../../utils/permissions/safeWrappers.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 

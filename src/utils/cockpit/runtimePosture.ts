@@ -56,7 +56,7 @@ const HUMAN_CALLS = 'a question to the operator (AskUserQuestion), a review appr
 
 function pushVerdictAtBoot(context: ToolPermissionContext): PermissionResult | null {
   try {
-    const bash = require('../../tools/BashTool/bashPermissions.js') as typeof import('../../tools/BashTool/bashPermissions.js')
+    const bash = require('../permissions/bashRuleVerdict.js') as typeof import('../permissions/bashRuleVerdict.js')
     return bash.readBashRuleVerdict({ command: PUSH_PROBE }, context)
   } catch (error) {
     passedOver(error)
