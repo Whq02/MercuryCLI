@@ -143,6 +143,24 @@ console.log('\n── rewind list and card after shell commands ──')
     toolResult('tr-ps-1', { stdout: '', stderr: '' }),
   ] as never[]
 
+  const psReadOnlyMsgs = [
+    userMsg('u-ps-ro-1', 'read a.txt through powershell'),
+    assistantTool('a-ps-ro-1', 'PowerShell', { command: 'Get-Content a.txt' }),
+    toolResult('tr-ps-ro-1', { stdout: 'hello\n', stderr: '' }),
+  ] as never[]
+
+  const psRemoveMsgs = [
+    userMsg('u-ps-rm-1', 'remove a.txt through powershell'),
+    assistantTool('a-ps-rm-1', 'PowerShell', { command: 'Remove-Item a.txt' }),
+    toolResult('tr-ps-rm-1', { stdout: '', stderr: '' }),
+  ] as never[]
+
+  const psRedirectMsgs = [
+    userMsg('u-ps-redir-1', 'redirect get-content through powershell'),
+    assistantTool('a-ps-redir-1', 'PowerShell', { command: 'Get-Content a.txt > out.txt' }),
+    toolResult('tr-ps-redir-1', { stdout: '', stderr: '' }),
+  ] as never[]
+
   const mountSelector = async (msgs: never[], preselect?: never, restorableIds: string[] = []): Promise<string> => {
     const facts = { capture: 'on' as const, restorable: new Set(restorableIds), files: [] }
     const base = noSessionConnector()
@@ -219,6 +237,31 @@ console.log('\n── rewind list and card after shell commands ──')
         !psCard.includes('The files already match this point.') &&
         psCard.includes('No Edit or Write changes to restore; shell commands ran after this point and what they changed is not put back.'),
       `list=${psList.slice(0, 250)} card=${psCard.slice(0, 250)}`,
+    )
+
+    const psRoList = await mountSelector(psReadOnlyMsgs, undefined, ['u-ps-ro-1'])
+    const psRoCard = await mountSelector(psReadOnlyMsgs, psReadOnlyMsgs[0], ['u-ps-ro-1'])
+    check(
+      'read-only PowerShell command lists "no code changes" and confirm card says "The files already match this point."',
+      psRoList.includes('no code changes') &&
+        !psRoList.includes('shell command ran') &&
+        psRoCard.includes('The files already match this point.') &&
+        !psRoCard.includes('shell commands ran after this point'),
+      `list=${psRoList.slice(0, 250)} card=${psRoCard.slice(0, 250)}`,
+    )
+
+    const psRmList = await mountSelector(psRemoveMsgs, undefined, ['u-ps-rm-1'])
+    const psRedirList = await mountSelector(psRedirectMsgs, undefined, ['u-ps-redir-1'])
+    const psRedirCard = await mountSelector(psRedirectMsgs, psRedirectMsgs[0], ['u-ps-redir-1'])
+    check(
+      'Remove-Item and redirected PowerShell commands still report shell changes are not put back',
+      !psRmList.includes('no code changes') &&
+        psRmList.includes('1 shell command ran — changes it made are not put back') &&
+        !psRedirList.includes('no code changes') &&
+        psRedirList.includes('1 shell command ran — changes it made are not put back') &&
+        !psRedirCard.includes('The files already match this point.') &&
+        psRedirCard.includes('No Edit or Write changes to restore; shell commands ran after this point and what they changed is not put back.'),
+      `rm=${psRmList.slice(0, 200)} redir=${psRedirList.slice(0, 200)}`,
     )
 
     const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

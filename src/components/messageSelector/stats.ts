@@ -1,8 +1,10 @@
 import { basename } from 'path'
 import { isRemotePath } from '../../utils/remoteFiles/target.js'
-import type { Tool } from '../../Tool.js'
+import { safeSearchOrReadClassification, type Tool } from '../../Tool.js'
+import { POWERSHELL_TOOL_NAME } from '../../constants/tools/powershell.js'
 import { getAllBaseTools } from '../../tools.js'
 import { isSqliteRowTarget } from '../../tools/FileWriteTool/structuredTargets.js'
+import { PowerShellTool } from '../../tools/PowerShellTool/PowerShellTool.js'
 import type { Message } from '../../types/message.js'
 import { passedOver } from '../../utils/passedOver.js'
 
@@ -67,6 +69,9 @@ export async function findMutatingShellToolUseIds(messages: Message[]): Promise<
   for (const tool of getAllBaseTools()) {
     if (SHELL_TOOL_NAMES.has(tool.name)) toolsByName.set(tool.name, tool)
   }
+  if (!toolsByName.has(POWERSHELL_TOOL_NAME)) {
+    toolsByName.set(POWERSHELL_TOOL_NAME, PowerShellTool)
+  }
   const mutating = new Set<string>()
   for (const call of calls) {
     const tool = toolsByName.get(call.tool)
@@ -82,7 +87,12 @@ export async function findMutatingShellToolUseIds(messages: Message[]): Promise<
       }
     }
     try {
-      if (tool.isReadOnly(call.input) !== true) mutating.add(call.id)
+      if (tool.isReadOnly(call.input) === true) continue
+      if (call.tool === POWERSHELL_TOOL_NAME) {
+        const classified = safeSearchOrReadClassification(tool, call.input)
+        if (classified?.isRead || classified?.isSearch) continue
+      }
+      mutating.add(call.id)
     } catch (error) {
       passedOver(error)
       mutating.add(call.id)
