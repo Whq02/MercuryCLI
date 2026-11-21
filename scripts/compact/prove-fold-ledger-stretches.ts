@@ -66,7 +66,7 @@ try {
       assert.equal(JSON.stringify(legacy), snapshot)
       assert.equal(renderFoldLedger(migrated), fixture.golden)
     })
-    check('the base model index is byte-identical on the same uninterrupted history', () => {
+    check('the uninterrupted model index matches the approved golden byte for byte', () => {
       const first = buildFoldLedger(fixture.first, owner, 1)
       const previous = first.version === 2 ? withKeptLedgerRows(first, [fixture.first[0]]) : first
       const second = buildFoldLedger(input(previous), owner, 2)
