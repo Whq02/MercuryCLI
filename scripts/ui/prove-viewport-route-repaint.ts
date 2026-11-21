@@ -8,6 +8,8 @@ if (!process.env.MERCURY_CONFIG_DIR || process.env.MERCURY_CREDENTIAL_STORE !== 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0' }
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
+const { registerBootDoors } = await import('../../src/services/boot/registerDoors.js')
+registerBootDoors()
 
 const React = (await import('react')).default
 const { Box, Text } = await import('../../src/ink.js')
