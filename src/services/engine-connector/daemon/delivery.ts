@@ -12,6 +12,7 @@ import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 import { controlFrame } from './controlCarrier.js'
 
 const PENDING_WITHDRAW_WAIT_MS = 10_000
+const UNCONFIRMED_LINE = 'Delivery is not confirmed. Sending the same draft again checks the original message.'
 
 interface DeliveryNeeds {
   sessionId(): string
@@ -104,7 +105,7 @@ export class DeliveryPart {
     const echo = createUserMessage({ uuid: provisionalId, content: mode === 'bash' ? `<${BASH_INPUT_TAG}>${expanded}</${BASH_INPUT_TAG}>` : expanded, ...(meta ? { isMeta: true } : {}) })
     this.needs.echo(provisionalId, this.needs.factsBusy() ? ({ ...echo, queued: true } as Message) : echo)
     this.needs.paint()
-    const answering = meta ? null : await this.needs.openQuestion()
+    const answering = meta || unconfirmed !== undefined ? null : await this.needs.openQuestion()
     const clientMessageId = answering !== null ? `obl-answer:${answering}` : provisionalId
     if (clientMessageId !== provisionalId) this.needs.rekeyEcho(provisionalId, clientMessageId)
     submitTrace('connector-deliver', expanded, { mode, clientMessageId, ...(meta ? { metaFrom: opts.metaFrom!.command } : {}) })
@@ -173,7 +174,7 @@ export class DeliveryPart {
         this.noteSettled(clientMessageId)
         this.needs.dress(clientMessageId, 'unconfirmed')
         this.needs.wakeLive()
-        return { state: 'pending', detail: 'Delivery is not confirmed. Sending the same draft again checks the original message.' }
+        return { state: 'pending', detail: UNCONFIRMED_LINE }
       }
       if (reply.ok === true) return settle('delivered')
       const held = typeof reply.heldReason === 'string' || (detail ?? '').startsWith('session-paused')
@@ -244,6 +245,7 @@ export class DeliveryPart {
         this.needs.dress(clientMessageId, 'taken')
         return taken
       }
+      if (send.state === 'unconfirmed') return { withdrawn: false, reason: 'unknown', detail: UNCONFIRMED_LINE }
       this.needs.retireUnknown(clientMessageId)
       return { withdrawn: false, reason: 'unknown', detail: this.needs.lostLine(send.source?.text ?? send.text), retired: true }
     } catch (e) {

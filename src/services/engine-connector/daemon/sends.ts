@@ -191,7 +191,7 @@ export class SendsPart {
     }
     for (const s of this.sends) {
       if (landed.has(s.clientMessageId)) continue
-      if (now - s.sentAtMs > ECHO_RETIRE_MS && s.state !== 'queued' && s.state !== 'unconfirmed') {
+      if (now - s.sentAtMs > ECHO_RETIRE_MS && (s.state === 'delivered' || s.state === 'taken')) {
         landed.add(s.clientMessageId)
         continue
       }
