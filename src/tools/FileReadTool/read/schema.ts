@@ -1,11 +1,10 @@
 import { z } from 'zod/v4'
 import { lineAnchorsEnabled } from '../../../services/changeTransaction/lineAnchors.js'
-import type { ImageDimensions } from '../../../utils/imageResizer.js'
 import { lazySchema } from '../../../utils/lazySchema.js'
 import { semanticBoolean } from '../../../utils/semanticBoolean.js'
 import { semanticNumber } from '../../../utils/semanticNumber.js'
 import type { Message } from '../../../types/message.js'
-import type { NotebookCellSource } from '../../../types/notebook.js'
+import type { FileReadToolOutput as Output, OverCapNote } from '../../../types/fileReadOutput.js'
 import { MAX_LINES_TO_READ, MAX_PDF_PAGES_PER_REQUEST } from '../../../constants/tools/fileRead.js'
 
 export const MAX_RANGES_PER_READ = 32
@@ -73,41 +72,7 @@ export function selectedCrop(crop: readonly number[] | undefined): CropBox | und
 
 export type Input = z.infer<WidestReadSchema>
 
-export type OverCapNote = { tokens: number; maxTokens: number; next: { offset: number; limit: number }; room?: true }
-
-export type Output =
-  | {
-      type: 'text'
-      file: {
-        filePath: string
-        content: string
-        numLines: number
-        startLine: number
-        totalLines: number
-        overCap?: OverCapNote
-        lossless?: boolean
-        reminder?: string
-        anchor?: string
-        memoryUpdatedAt?: number
-      }
-    }
-  | {
-      type: 'image'
-      file: {
-        base64: string
-        type: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'
-        originalSize: number
-        dimensions?: ImageDimensions
-        caption?: string
-      }
-    }
-  | { type: 'notebook'; file: { filePath: string; cells: NotebookCellSource[] } }
-  | { type: 'pdf'; file: { filePath: string; base64: string; originalSize: number } }
-  | {
-      type: 'parts'
-      file: { filePath: string; originalSize: number; count: number; outputDir: string }
-    }
-  | { type: 'file_unchanged'; file: { filePath: string; anchor?: string } }
+export type { Output, OverCapNote }
 
 export const outputSchema = z.discriminatedUnion('type', [
   z.object({

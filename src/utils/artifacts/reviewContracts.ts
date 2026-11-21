@@ -1,5 +1,5 @@
 
-import type { ActorRefV1 } from '../../services/crew/identity.js'
+import type { ActorRefV1 } from '../../types/crewIdentity.js'
 
 export type ReviewActorRef = ActorRefV1
 
