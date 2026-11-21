@@ -1,5 +1,5 @@
 import { posix } from 'node:path'
-import { layersOf } from '../decision/commandAnalysis.js'
+import { layersOf, moveOf } from '../decision/commandAnalysis.js'
 import { credentialStorePath } from './paths.js'
 import { OTHER_WRITERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, spelledTargetWord, unreadWords, verb, writeOperands, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
@@ -50,7 +50,7 @@ function netWrites(text: string): string[] {
   return out
 }
 
-function credentialWriteWalked(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+function credentialWriteWalked(command: string, powershell: boolean, cwd: string, still = false): Promise<string | null> {
   return walkShellCommands(command, powershell, ({ argv, cwd: here, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Copy|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -70,7 +70,7 @@ function credentialWriteWalked(command: string, powershell: boolean, cwd: string
       }
     }
     return null
-  }, cwd)
+  }, cwd, still)
 }
 
 async function credentialWritePowerShell(command: string, cwd: string): Promise<string | null> {
@@ -124,10 +124,11 @@ async function credentialWritePowerShell(command: string, cwd: string): Promise<
 
 export async function readCredentialWrite(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   if (powershell) return credentialWritePowerShell(command, cwd)
+  const named = await credentialWriteWalked(command, false, cwd)
   const read = await readForFloors(command, false, cwd)
-  if (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command)) {
-    const walked = await credentialWriteWalked(command, false, cwd)
-    if (walked !== null) return walked
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await credentialWriteWalked(command, false, cwd, true)) !== null) return named
   }
   if (read === null) return null
   const anchored = (path: string): boolean => /^(?:[/~$%]|[A-Za-z]:)/.test(path)

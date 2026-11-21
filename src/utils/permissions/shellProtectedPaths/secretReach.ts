@@ -41,7 +41,7 @@ function plainTrackedCwd(read: ShellRead, at: number, cwd: string): string {
   return current
 }
 
-async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+async function namedMercurySecretPath(command: string, powershell: boolean, cwd: string, still = false): Promise<string | null> {
   const literal = literalSecretToken(expandShellConstants(command, powershell), cwd)
   if (literal !== null) return literal
   return walkShellCommands(command, powershell, ({ argv, cwd: here, text, powershell: ps }) => {
@@ -63,7 +63,7 @@ async function namedMercurySecretPath(command: string, powershell: boolean, cwd:
       }
     }
     return null
-  }, cwd)
+  }, cwd, still)
 }
 
 export async function readSecretReach(command: string, powershell: boolean, cwd: string): Promise<string | null> {
@@ -71,15 +71,11 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
     const named = await namedMercurySecretPath(command, true, cwd)
     if (named !== null) return named
   }
+  const named = powershell ? null : await namedMercurySecretPath(command, false, cwd)
   const read = await readForFloors(command, powershell, cwd)
-  if (!powershell) {
-    if (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command)) {
-      const named = await namedMercurySecretPath(command, false, cwd)
-      if (named !== null) return named
-    } else {
-      const literal = literalSecretToken(command, cwd)
-      if (literal !== null) return literal
-    }
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await namedMercurySecretPath(command, false, cwd, true)) !== null) return named
   }
   if (read === null) return null
   if (!powershell) {

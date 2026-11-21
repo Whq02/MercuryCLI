@@ -1,6 +1,6 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type Layer, type ReadCommand, UNREAD_PART, layersOf } from '../decision/commandAnalysis.js'
+import { type Layer, type ReadCommand, UNREAD_PART, layersOf, moveOf } from '../decision/commandAnalysis.js'
 import { namesMercuryProcess, runtimeProcessRefusal, runtimeWritePath } from '../runtimeProtection.js'
 import { protectedPathForms } from './paths.js'
 import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
@@ -102,7 +102,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
   return protectedPathForms(word, cwd).some(form => homes.some(home => form === home || form.startsWith(`${home}/`)))
 }
 
-async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
+async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string, still = false): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
     if (ps) {
       for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
@@ -128,7 +128,7 @@ async function namedSelfProtectionReason(command: string, powershell: boolean, c
       }
     }
     return null
-  }, cwd)
+  }, cwd, still)
 }
 
 export async function readSelfProtection(command: string, powershell: boolean, cwd: string): Promise<string | null> {
@@ -136,10 +136,11 @@ export async function readSelfProtection(command: string, powershell: boolean, c
     const named = await namedSelfProtectionReason(command, true, cwd)
     if (named !== null) return named
   }
+  const named = powershell ? null : await namedSelfProtectionReason(command, false, cwd)
   const read = await readForFloors(command, powershell, cwd)
-  if (!powershell && (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command))) {
-    const named = await namedSelfProtectionReason(command, false, cwd)
-    if (named !== null) return named
+  if (named !== null) {
+    const placed = read !== null && read.exact.kind !== 'parse-unavailable' && placesCertain(read, command) && read.commands.some(turn => moveOf(turn) !== undefined)
+    if (!placed || (await namedSelfProtectionReason(command, false, cwd, true)) !== null) return named
   }
   if (read === null) return null
   const homes = [...mercuryHomes(), ...protectedPathForms(flagEnv('MERCURY_DAEMON_DIR') || getMercuryHome())]
