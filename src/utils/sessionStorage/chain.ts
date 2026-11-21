@@ -1,6 +1,5 @@
 import type { UUID } from 'crypto'
 import { COMMAND_NAME_TAG } from '../../constants/xml.js'
-import { projectForTranscript } from '../../services/desktop/screenshotRetention.js'
 import type {
   AttributionSnapshotEntry,
   FileHistorySnapshotEntry,
@@ -16,10 +15,11 @@ import type {
 } from '../../types/message.js'
 import { logForDebugging } from '../debug.js'
 import type { FileHistorySnapshot } from '../../types/fileHistory.js'
-import { extractTag, normalizeAttachmentForAPI } from '../messages.js'
+import { extractTag } from '../messages/text.js'
 import { stripTerminalControls } from '../stringUtils.js'
 import { transcriptRows } from './rowGraph.js'
 import { isBuiltInCommandName } from './builtInCommands.js'
+import { transcriptProjector } from './transcriptProjector.js'
 
 const SKIP_FIRST_PROMPT_PATTERN =
   /^(?:\s*<[a-z][\w-]*[\s>]|\[Request (?:interrupted by user|cut off)[^\]]*\])/
@@ -160,7 +160,7 @@ export function cleanForTranscript(
   allMessages: readonly Message[] = messages,
 ): Transcript {
   return transformMessagesForExternalTranscript(messages.filter(isTranscribable) as Transcript)
-    .map(message => projectForTranscript(message, allMessages))
+    .map(message => transcriptProjector().projectForTranscript(message, allMessages))
 }
 
 export type Transcript = (
@@ -188,7 +188,7 @@ export function isTranscribable(m: Message): boolean {
     case 'images_left_out':
       return true
     default:
-      return Boolean((att as { capsuleReceipt?: unknown }).capsuleReceipt) || normalizeAttachmentForAPI(att).length > 0
+      return Boolean((att as { capsuleReceipt?: unknown }).capsuleReceipt) || transcriptProjector().hasApiAttachment(att)
   }
 }
 
