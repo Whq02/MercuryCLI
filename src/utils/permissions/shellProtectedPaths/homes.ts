@@ -7,6 +7,7 @@ import { type CommandReading, type ReadWorld, UNREAD_PART, readCommand, wordKnow
 import { mercurySecretPath, protectedPathForms, spelling } from './paths.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
+import { readWorldUsesWindowsForms } from '../../platform/commandForms.js'
 
 export const SECRET_NAME_SAMPLES = ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'x-auth.json', 'browser-secrets.json', '.credentials.json.corrupt.1', '.provider-secrets.json.corrupt.1']
 export const CONVENTIONAL_USER_HOME = '(?:\\/(?:users|home)\\/[^/]+|\\/root|[a-z]:\\/users\\/[^/]+)'
@@ -27,7 +28,7 @@ function currentUser(): { user?: string; uid?: string } {
 
 export function floorsWorld(cwd: string): ReadWorld {
   const home = (hostEnv().HOME || hostEnv().USERPROFILE || homedir()).replace(/\\/g, '/')
-  return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: process.platform === 'win32' }
+  return { cwd: cwd.replace(/\\/g, '/'), home, homesRoot: posix.dirname(home), ownNames: [], ...currentUser(), windows: readWorldUsesWindowsForms() }
 }
 
 let homeUnknownSaid = false

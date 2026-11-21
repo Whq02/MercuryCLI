@@ -10,6 +10,7 @@ import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
 import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globNotCompiled, mercuryHomes, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
+import { isCmdDriveSwitchCd } from '../../platform/commandForms.js'
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
@@ -98,7 +99,7 @@ export function foldersAfter(read: ShellRead, at: number, cwd: string): { folder
     const move = moveOf(turn)
     if (move === undefined || !CD_PROGRAMS.has(move.program) || turn.cwd === undefined) continue
     const operands = move.operands
-    const switched = process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)
+    const switched = isCmdDriveSwitchCd(operands)
     const target = switched ? operands[1] : operands[0]
     const bare = target === undefined && turn.dialect === 'powershell' && move.program !== 'pushd' && move.program !== 'push-location' ? (read.homes.at(-1) ?? floorsWorld(turn.cwd).home) : undefined
     if (bare === undefined && (target === undefined || target === '-' || !wordKnown(target))) continue
