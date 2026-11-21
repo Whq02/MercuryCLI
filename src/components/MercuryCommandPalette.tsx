@@ -1,7 +1,6 @@
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js';
 import * as React from 'react'
 import { useMemo, useState } from 'react'
-import { useDerivedState } from '../hooks/effects.js'
 import type { Command } from '../commands.js'
 import { useTerminalSize } from '../hooks/useTerminalSize.js'
 import { CockpitActiveContext } from '../context/cockpitActiveContext.js'
@@ -116,9 +115,6 @@ export function MercuryCommandPalette({
   const [query, setQuery] = useState('')
   const [sel, setSel] = useState(0)
   const [unreachable, setUnreachable] = useState<string | null>(null)
-  useDerivedState(() => {
-    setUnreachable(null)
-  }, [query, sel])
   const [cursorOffset, setCursorOffset] = useState(0)
 
   const items = useMemo<PaletteItem[]>(() => {
@@ -212,12 +208,20 @@ export function MercuryCommandPalette({
     return [...acts, ...nameHits, ...descHits, ...graphHits]
   }, [items, actionItems, graphItems, query])
 
+  const clampedSel = Math.min(sel, Math.max(0, filtered.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
+  const [unreachableKey, setUnreachableKey] = useState({ query, sel: clampedSel })
+  if (unreachableKey.query !== query || unreachableKey.sel !== clampedSel) {
+    setUnreachableKey({ query, sel: clampedSel })
+    if (unreachable !== null) setUnreachable(null)
+  }
+
   const listRows = filtered.length > rowCap ? Math.max(1, rowCap - 1) : rowCap
-  const winStart = paneWindow(filtered.length, sel, listRows).start
+  const winStart = paneWindow(filtered.length, clampedSel, listRows).start
   const shown = useMemo(() => filtered.slice(winStart, winStart + listRows), [filtered, winStart, listRows])
   const noun = filtered.length === 1 ? 'command' : 'commands'
   const recentCount = query.trim() === '' ? items.filter(i => i.recent).length : 0
-  const selVerb = filtered[Math.min(sel, Math.max(0, filtered.length - 1))]?.run ? 'run' : 'insert'
+  const selVerb = filtered[clampedSel]?.run ? 'run' : 'insert'
   const footer =
     items.length === 0
       ? 'no commands'
@@ -226,10 +230,6 @@ export function MercuryCommandPalette({
         : `${filtered.length} ${noun} · ↑↓ move · pgup/pgdn page · ↵ ${selVerb}`
 
   const pastOpenEvent = useOpenEventGate()
-
-  useDerivedState(() => {
-    setSel(s => Math.min(s, Math.max(0, filtered.length - 1)))
-  }, [filtered.length])
 
   const activateSelected = (abs: number): void => {
     const it = filtered[Math.min(abs, Math.max(0, filtered.length - 1))]
@@ -254,7 +254,7 @@ export function MercuryCommandPalette({
         action === 'pageNext'
       ) {
         event.stopImmediatePropagation()
-        const target = applyNavMotion(action, sel, filtered.length, {
+        const target = applyNavMotion(action, clampedSel, filtered.length, {
           orientation: 'vertical',
           pageSize: listRows,
         })
@@ -278,7 +278,7 @@ export function MercuryCommandPalette({
           }}
           onSubmit={() => {
             if (!pastOpenEvent()) return
-            activateSelected(sel)
+            activateSelected(clampedSel)
           }}
           focus={isActive}
           showCursor={true}
@@ -307,7 +307,7 @@ export function MercuryCommandPalette({
           <PopupListViewport above={winStart} below={filtered.length - winStart - shown.length} rows={shown.length}>
           {shown.map((it, i) => {
             const abs = winStart + i
-            const here = abs === sel
+            const here = abs === clampedSel
             return (
               <InteractiveRow
                 key={`${it.name}-${abs}`}
@@ -342,7 +342,7 @@ export function MercuryCommandPalette({
           })}
           </PopupListViewport>
           {filtered.length > listRows ? (
-            <Text color={tokens.textMuted}>  {sel + 1}/{filtered.length} · ↑↓ walks the full list</Text>
+            <Text color={tokens.textMuted}>  {clampedSel + 1}/{filtered.length} · ↑↓ walks the full list</Text>
           ) : null}
           {unreachable ? (
             <Text color={tokens.warning}>
