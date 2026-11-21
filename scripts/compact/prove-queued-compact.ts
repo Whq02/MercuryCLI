@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { recordToEntry } from '../../src/fabric/entryCodec.ts'
+import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
 import { withInactivityDeadline } from '../../src/utils/deadline.ts'
 import { SendsPart } from '../../src/services/engine-connector/daemon/sends.ts'
 import { liveFactsOf, withFixtureRunner, withLiveRunner } from '../lib/builtProduct.ts'
@@ -72,7 +73,7 @@ async function drive(fails: boolean, commands: string[], early = false): Promise
       await runner.stop()
     }, { model: 'claude-opus-4-6', argv: ['--session-id', session], env })
     const file = transcriptFiles(join(home, 'projects')).find(path => path.endsWith(`${session}.jsonl`))!
-    const entries = readFileSync(file, 'utf8').trim().split('\n').map(line => recordToEntry(JSON.parse(line)))
+    const entries = Array.from(historyLines(file), line => recordToEntry(JSON.parse(line.toString('utf8'))))
     const boundaries = entries.filter(row => row.type === 'system' && row.subtype === 'compact_boundary')
     if (!fails) check('one persisted fold boundary with its original trigger', boundaries.length === 1 && (boundaries[0]?.compactMetadata as { trigger?: string })?.trigger === trigger, boundaries.map(b => b.compactMetadata))
     if (!fails) {

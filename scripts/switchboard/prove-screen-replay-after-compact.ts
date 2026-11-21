@@ -157,18 +157,20 @@ function textOf(row: { type?: string; message?: { content?: unknown } }): string
   return (content as Array<{ type?: string; text?: string }>).map(b => (b.type === 'text' && typeof b.text === 'string' ? b.text : '')).join('\n')
 }
 
-async function paintBoardRows(rows: DisplayRow[], columns: number): Promise<string> {
+async function paintScreenRows(rows: DisplayRow[], columns: number): Promise<string> {
   const { render, Box, flushPendingSyncWork } = await import('../../src/ink.ts')
   const { TerminalSizeContext } = await import('../../src/ink/components/TerminalSizeContext.tsx')
+  const { AppStateProvider } = await import('../../src/state/AppState.tsx')
   const { CrewChatRow } = await import('../../src/components/messages/CrewChatRow.tsx')
+  const { UserTextMessage } = await import('../../src/components/messages/UserTextMessage.tsx')
   const stdin = Object.assign(new EventEmitter(), { isTTY: true, isRaw: false, setRawMode() { return this }, setEncoding() { return this }, read() { return null }, unref() { return this }, ref() { return this }, pause() { return this }, resume() { return this } }) as unknown as NodeJS.ReadStream
   const stream = new PassThrough()
   stream.resume()
   const stdout = Object.assign(stream, { columns, rows: 24 }) as unknown as NodeJS.WriteStream
   let painted = (): void => {}
   const first = new Promise<void>(resolve => { painted = resolve })
-  const view = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: 24 } }, React.createElement(Box, { width: columns, flexDirection: 'column' }, rows.map(row => React.createElement(CrewChatRow, { key: row.uuid, message: row as never }))))
-  const instance = await render(view, { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
+  const view = React.createElement(TerminalSizeContext.Provider, { value: { columns, rows: 24 } }, React.createElement(Box, { width: columns, flexDirection: 'column' }, rows.map(row => row.subtype === 'local_command' ? React.createElement(UserTextMessage, { key: row.uuid, addMargin: false, verbose: false, param: { type: 'text', text: String(row.content) } }) : React.createElement(CrewChatRow, { key: row.uuid, message: row as never }))))
+  const instance = await render(React.createElement(AppStateProvider, { children: view }), { stdin, stdout, patchConsole: false, exitOnCtrlC: false, onFrame: () => painted() })
   try {
     await first
     flushPendingSyncWork()
@@ -574,6 +576,10 @@ pointBoth('X')
 
 const FOLD_MARKER = 'Write the running record of this conversation'
 const AUTO_FOLD_PROBE = 'run the probe tool'
+const QUEUED_FOLD_PROBE = 'read the next note for the receipt'
+let receiptStep = 'idle'
+const releaseTool = Promise.withResolvers<void>()
+const releaseReply = Promise.withResolvers<void>()
 ;(await import(join(SRC, 'utils/config/globalConfig.ts'))).enableConfigs()
 const autoCompactMod = await import(join(SRC, 'services/compact/autoCompact.ts'))
 const HEAVY_INPUT_TOKENS = Math.floor((autoCompactMod.getAutoCompactThreshold('claude-sonnet-5') + autoCompactMod.getBlockingLimit('claude-sonnet-5')) / 2)
@@ -595,7 +601,7 @@ const requestBodies: string[] = []
 const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
   const chunks: Buffer[] = []
   req.on('data', c => chunks.push(c as Buffer))
-  req.on('end', () => {
+  req.on('end', async () => {
     const url = (req.url ?? '').split('?')[0] ?? ''
     if (req.method !== 'POST' || !url.endsWith('/v1/messages')) {
       res.writeHead(200, { 'content-type': 'application/json' })
@@ -616,8 +622,19 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     const fold = raw.includes(FOLD_MARKER)
     const finalContent = items.at(-1)?.content
     const afterTool = Array.isArray(finalContent) && (finalContent as Array<{ type?: string }>).some(part => part.type === 'tool_result')
-    if (!fold && !afterTool && ask.includes(AUTO_FOLD_PROBE)) {
-      const heavy = { ...usage, input_tokens: HEAVY_INPUT_TOKENS }
+    const resumed = !fold && receiptStep === 'tool'
+    if (resumed) {
+      receiptStep = 'resumed'
+      await releaseReply.promise
+    }
+    const manual = !fold && !afterTool && receiptStep === 'idle' && ask.includes(QUEUED_FOLD_PROBE)
+    if (manual || (!fold && !afterTool && ask.includes(AUTO_FOLD_PROBE))) {
+      if (manual) {
+        receiptStep = 'holding'
+        await releaseTool.promise
+        receiptStep = 'tool'
+      }
+      const heavy = { ...usage, input_tokens: manual ? Math.ceil(raw.length / 4) : HEAVY_INPUT_TOKENS }
       res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
       res.end(
         [
@@ -633,7 +650,7 @@ const fixture = createServer((req: IncomingMessage, res: ServerResponse) => {
     }
     const text = fold
       ? '<analysis>the walk</analysis><summary>1. Operator Intent: the operator kept talking. 2. Technical Ground: none. 3. Files and Code Touched: none. 4. Errors and Corrections: none. 5. Problems Worked: none. 6. Operator Messages: the words so far. 7. Open Work: none. 8. Where Work Stands: idle. 9. Next Move (optional): none. 10. Agents in flight: none.</summary>'
-      : `heard ${ask.trim().split('\n').pop()} (#${n})${ask.trim().split('\n').pop()?.startsWith('carry ') || ask.trim().split('\n').pop() === WORDS[0] ? ` ${Array.from({ length: 400 }, (_, k) => `fact ${n}-${k} of the carried log reads ${(k * 7919 + n * 104729).toString(36)}.`).join(' ')}` : ''}`
+      : resumed ? 'the receipt turn is complete' : `heard ${ask.trim().split('\n').pop()} (#${n})${ask.trim().split('\n').pop()?.startsWith('carry ') || ask.trim().split('\n').pop() === WORDS[0] ? ` ${Array.from({ length: 400 }, (_, k) => `fact ${n}-${k} of the carried log reads ${(k * 7919 + n * 104729).toString(36)}.`).join(' ')}` : ''}`
     if (!fold) replies.push(text)
     const measured = { ...usage, input_tokens: Math.ceil(raw.length / 4), output_tokens: Math.ceil(text.length / 4) }
     res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' })
@@ -685,7 +702,7 @@ const paths = await import(join(SRC, 'utils/sessionStorage/paths.ts'))
 const { isProcessAlive } = await import(join(SRC, 'utils/ownerWatch.ts'))
 const { restartSessionOnInstalledBuild } = await import(join(SRC, 'commands/restart/restart.ts'))
 const connectorModule = await import(join(SRC, 'services/engine-connector/daemonConnector.ts'))
-const { DaemonSessionConnector } = connectorModule as { DaemonSessionConnector: new (record: Record<string, unknown>) => { attach(): Promise<void>; detach(): void; records(): ReadonlyArray<{ uuid: string; type?: string; message?: { content?: unknown } }>; transcriptFile(): string } }
+const { DaemonSessionConnector } = connectorModule as { DaemonSessionConnector: new (record: Record<string, unknown>) => { attach(): Promise<void>; detach(): void; sendWords(text: string): Promise<{ state: string }>; records(): ReadonlyArray<{ uuid: string; type?: string; message?: { content?: unknown } }>; transcriptFile(): string } }
 
 const read = (p: string): string => {
   try {
@@ -830,7 +847,7 @@ try {
         check(`${label}: receipt=${flag} never puts idle rows inside a turn receipt`, projected.every(row => !(row.board ?? []).some(post => idleIds.includes(post.uuid))))
         if (rows.length === 0) continue
         for (const columns of [120, 80]) {
-          const painted = await paintBoardRows(rows, columns)
+          const painted = await paintScreenRows(rows, columns)
           check(`${label}: receipt=${flag} paints the ${rows.length} kept idle message(s) once at ${columns} columns`, words.every(word => painted.split(word).length === 2) && (words.length < 2 || painted.indexOf(words[0]!) < painted.indexOf(words[1]!)), painted)
         }
       }
@@ -963,7 +980,34 @@ try {
   judgeScreen('the attached screen after the mid-turn fold', screen.records(), transcript, [])
   await idleOn('after the automatic compact', screen)
   check('the idle posts reached the lead as whole board rows (every post reaches every enrolled seat at its next boundary)', requestBodies.some(body => idleWords.every(word => body.includes(word))))
+  section('§H a queued manual fold prints its receipt in the attached session before the turn ends')
+  for (let step = 1; step <= 6; step++) await say(`carry receipt history ${step}`)
+  const isReceipt = (row: DisplayRow): boolean => row.type === 'system' && row.subtype === 'local_command' && String(row.content).includes('Compacted — ')
+  const previous = new Set(entriesOf(transcript).filter(isReceipt).map(r => r.uuid))
+  const freshReceipts = (rows: readonly DisplayRow[]): DisplayRow[] => rows.filter(row => isReceipt(row) && !previous.has(row.uuid))
+  const beforeManual = boundariesOnDisk()
+  await dispatch(QUEUED_FOLD_PROBE, { targetSessionId: sid })
+  if (!await untilAsync(() => receiptStep === 'holding', 30_000)) throw new Error('the hosted runner never began the receipt probe')
+  const sent = await screen.sendWords('/compact keep the receipt note')
+  check('the attached screen queued /compact while the runner was in its first step', sent.state === 'accepted', j(sent))
+  releaseTool.resolve()
+  if (!await untilAsync(() => receiptStep === 'resumed', 60_000)) throw new Error('the hosted turn never reached its step after the fold')
+  const during = entriesOf(transcript)
+  const boundary = during.filter(row => row.type === 'system' && row.subtype === 'compact_boundary').at(-1)
+  check('a manual fold landed and the same turn is still running', boundariesOnDisk() === beforeManual + 1 && (boundary?.compactMetadata as { trigger?: string })?.trigger === 'manual' && facts(sid)?.busy === true)
+  const persisted = freshReceipts(during)
+  if (persisted.length === 1) await untilAsync(() => screen.records().some(row => row.uuid === persisted[0]!.uuid), 10_000)
+  const shown = freshReceipts(screen.records())
+  const painted = await paintScreenRows(shown, 180)
+  check('the attached screen paints the one persisted receipt before the next reply', persisted.length === 1 && shown.length === 1 && shown[0]?.uuid === persisted[0]?.uuid && /Compacted — folded \d+ messages? into the summary · context \S+ → \S+ tokens/.test(painted), j({ persisted: persisted.length, shown: shown.length, painted }))
+  releaseReply.resolve()
+  check('the hosted turn continued to its answer', await untilAsync(() => facts(sid)?.busy === false && read(transcript).includes('the receipt turn is complete'), 30_000))
+  await screenSettled(screen)
+  const ended = freshReceipts(entriesOf(transcript))
+  check('turn end added no second receipt on disk or on the attached screen', ended.length === 1 && ended[0]?.uuid === persisted[0]?.uuid && j(freshReceipts(screen.records()).map(row => row.uuid)) === j(ended.map(row => row.uuid)), j(ended.map(row => row.uuid)))
 } finally {
+  releaseTool.resolve()
+  releaseReply.resolve()
   replayBoard?.close()
   await cleanup()
 }
