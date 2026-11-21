@@ -400,11 +400,10 @@ export function fmtAge(ms) {
 
 export function assembleCardRows(facts) {
   const rows = []
-  const cwdBase = facts.cwdBase
   rows.push({
     key: 'new',
     icon: '✶',
-    label: `New Session in ${cwdBase.length > 24 ? cwdBase.slice(0, 23) + '…' : cwdBase}`,
+    label: 'New Session',
     ctx: 'start fresh here',
   })
   if (facts.continueTarget) {
@@ -413,29 +412,23 @@ export function assembleCardRows(facts) {
       key: 'continue',
       icon: '↳',
       label: 'Continue Last Session',
-      ctx: ct.cross ? `in ${ct.base} — via Sessions · Projects` : `${ct.base} · ${fmtAge(ct.ageMs)}`,
+      ctx: ct.cross ? `in ${ct.base}` : `${ct.base} · ${fmtAge(ct.ageMs)}`,
       ...(ct.dim ? { dim: true } : {}),
     })
   }
   if (facts.menuAvailable) {
-    rows.push({ key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' })
-    rows.push({ key: 'kit', icon: '⊛', label: 'MCPs & Skills', ctx: facts.kitArmedPreset ? `next: preset '${facts.kitArmedPreset}'` : 'what the next session loads' })
-    rows.push({ key: 'agents', icon: '◈', label: 'Agents', ctx: facts.agentsCtx ?? 'create and edit agents' })
+    rows.push({ key: 'logins', icon: '⚿', label: 'Logins/Keys', ctx: facts.loginsCtx ?? 'sign in to providers' })
   }
-  rows.push({ key: 'health', icon: '✓', label: 'Health Check', ctx: 'system diagnostics' })
-  if (facts.menuAvailable) rows.push({ key: 'saturn', icon: '◷', label: 'Saturn Scheduler', ctx: facts.saturnCtx ?? 'sessions born on the clock' })
-  if (facts.menuAvailable)
-    rows.push({ key: 'logins', icon: '⚿', label: 'Logins', ctx: facts.loginsCtx ?? 'sign in to providers' })
   if (facts.concourse) {
     rows.push({
       key: 'concourse',
       icon: '⊞',
-      label: 'Session Concourse',
+      label: 'Session Dashboard (Concourse)',
       ctx: facts.concourse.ctx,
       ...(facts.concourse.dim ? { dim: true } : {}),
     })
   }
-  rows.push({ key: 'sessions', icon: '↺', ctx: facts.sessionsCtx ?? 'pick a session or a repo', label: 'Sessions · Projects' })
+  if (facts.menuAvailable) rows.push({ key: 'menu', icon: '⊞', label: 'Boot Menu', ctx: 'configure boot env' })
   return rows
 }
 
@@ -615,11 +608,11 @@ function composeHint(segments, withCard) {
   const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
   const faint = hexFg(FAINT, T256.faint)
-  let s = red + '>_ ' + R + ivory + 'ready' + R
+  let s = red + '>_' + R
   for (const seg of segments) {
     s += faint + '  ·  ' + R + red + seg.key + R + (seg.tone === 'ivory' ? ivory : faint) + seg.label + R
   }
-  if (withCard) s += faint + '  ·  ' + R + red + '↑↓' + R + faint + ' choose' + R
+  if (withCard) s += faint + '  ·  ' + R + red + '↑↓' + R
   return s
 }
 
@@ -645,7 +638,7 @@ function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
     if (vis(ctx) > ctxBudget) ctx = ctxBudget > 1 ? clipVis(ctx, ctxBudget) : '…'
     const gap = Math.max(0, inner - vis(left) - vis(ctx) - 3)
     rowLines.push(lines.length)
-    lines.push(boxRow(left + ' '.repeat(gap) + faint + ctx + R + ' ' + arrow + ' ', inner, bc))
+    lines.push(boxRow(r2.ctx ? left + ' '.repeat(gap) + faint + ctx + R + ' ' + arrow + ' ' : left, inner, bc))
     if (seps && i < rows.length - 1) lines.push(boxSep(inner, bc))
   })
   lines.push(boxBot(inner, bc))
@@ -653,51 +646,13 @@ function composeCard(rows, selIdx, w, seps = true, glowRow = null) {
 }
 
 function composeStrip(chips, w) {
-  const bc = paint(DUNE)
   const faint = hexFg(FAINT, T256.faint)
-  const red = accentFg()
   const ivory = hexFg(IVORY, T256.cream)
-  const inner = w - 2
-  const dirShown = chips.dir.length > 24 ? chips.dir.slice(0, 23) + '…' : chips.dir
-  const mk = (label, sgr, txt) => ({
-    vis: label.length + 1 + txt.length,
-    s: faint + label + ' ' + R + sgr + txt + R,
-  })
-  const sepVis = 5
-  const sep = faint + '  │  ' + R
-  const fitRow = segs => {
-    const totalVis = n => segs.slice(0, n).reduce((a, s) => a + s.vis, 0) + (n - 1) * sepVis + 2
-    let keep = segs.length
-    while (keep > 1 && totalVis(keep) > inner) keep--
-    return ' ' + segs.slice(0, keep).map(s => s.s).join(sep)
-  }
-  const row1 = [
-    mk('Model', red, chips.model),
-    mk('Critter', chips.critterHue ? hexFg(chips.critterHue, ACC.t256) : accentFg(), chips.critter),
-    mk('Dir', ivory, dirShown),
-  ]
-  const row2 = [
-    chips.acct.state === 'unreadable'
-      ? mk('Acct', paint(AMBERC), 'unreadable')
-      : mk('Acct', chips.acct.state === 'email' ? ivory : paint(AMBERC), chips.acct.state === 'email' ? chips.acct.text : 'not signed in'),
-  ]
-  if (chips.health) {
-    const tone =
-      chips.health.verdict === 'certified'
-        ? paint(TEALC)
-        : chips.health.verdict === 'caution'
-          ? paint(AMBERC)
-          : paint(CRIMSONC)
-    const glyph =
-      chips.health.verdict === 'certified' ? '✓' : chips.health.verdict === 'caution' ? '▲' : '✕'
-    row2.push(mk('Health', tone, glyph + ' ' + chips.health.verdict + (chips.health.age ? ' · ' + chips.health.age : '')))
-  }
-  return [
-    boxTop(inner, bc),
-    boxRow(fitRow(row1), inner, bc),
-    boxRow(fitRow(row2), inner, bc),
-    boxBot(inner, bc),
-  ]
+  const budget = Math.max(2, w - 16)
+  const model = clipVis(chips.model, Math.max(1, budget - Math.min(vis(chips.dir), Math.floor(budget / 2))))
+  const dir = clipVis(chips.dir, Math.max(1, budget - vis(model)))
+  const line = faint + 'Model ' + R + accentFg() + model + R + '   ' + faint + 'Dir: ' + R + ivory + dir + R
+  return [clipVis(line, w)]
 }
 
 function composeProjects(projects, selIdx, w) {
@@ -1099,12 +1054,14 @@ function composeLockup(cols, rows, opts) {
   const blank = ''
 
   const nCardRows = opts.cardRows.length
-  const cardHFull = nCardRows > 0 ? nCardRows * 2 + 1 : 0
+  const cardHFull = nCardRows > 0 ? nCardRows + 2 : 0
   const cardHTight = nCardRows > 0 ? nCardRows + 2 : 0
-  const stackOf = ch => (ch > 0 ? ch + 4 + 2 : 0)
-  const cardW = Math.max(46, Math.min(84, cols - 36))
+  const strip = opts.stripLines(Math.min(cols - 2, 84))
+  const stripHeight = strip.length + 1
+  const stackOf = ch => (ch > 0 ? ch + stripHeight + 2 : 0)
+  const cardW = Math.min(cols - 2, opts.cardRows.some(r => r.ctx) ? 84 : Math.max(34, ...opts.cardRows.map(r => vis(r.label) + 12)))
   const baseNeed = std.lines.length + word.lines.length + 8
-  const cardStack = ch => std.lines.length + word.lines.length + 6 + 1 + ch + 4
+  const cardStack = ch => std.lines.length + word.lines.length + 6 + 1 + ch + stripHeight
   const wantFull =
     head !== null && nCardRows > 0 && cols >= cardW + 2 && rows >= cardStack(cardHFull)
   const wantTight =
@@ -1112,7 +1069,7 @@ function composeLockup(cols, rows, opts) {
   const wantBare =
     head !== null && !wantFull && !wantTight && nCardRows > 0 && cols >= cardW + 2 &&
     rows >= baseNeed + cardHTight + 1
-  const hlCardW = Math.max(46, Math.min(84, cols - 4))
+  const hlCardW = cardW
   const wordBase = word.lines.length + 8
   const hlColsOk = nCardRows > 0 && cols >= hlCardW + 2 && cols >= word.width + 4
   const headStackFits = wantFull || wantTight || wantBare
@@ -1141,17 +1098,17 @@ function composeLockup(cols, rows, opts) {
       hintFor(wantCard),
     ]
     if (wantCard) {
-      const card = composeCard(opts.cardRows, opts.cardSel, cardW, wantFull, opts.glowRow ?? null)
+      const card = composeCard(opts.cardRows, opts.cardSel, cardW, false, opts.glowRow ?? null)
       block.push(blank)
       cardAt = block.length
       cardIdx = card.rowLines
       block.push(...card.lines)
-      if (!wantBare) block.push(...opts.stripLines(cardW))
+      if (!wantBare) block.push(blank, ...strip)
     }
     wordRow = head.lines.length + 4 + wordCentre
   } else if (headlessCard) {
     cardShown = true
-    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, hlFull, opts.glowRow ?? null)
+    const card = composeCard(opts.cardRows, opts.cardSel, hlCardW, false, opts.glowRow ?? null)
     block = [
       blank,
       dividerLine(word.width + 2),
@@ -1164,7 +1121,7 @@ function composeLockup(cols, rows, opts) {
     cardAt = block.length
     cardIdx = card.rowLines
     block.push(...card.lines)
-    if (!hlBare) block.push(...opts.stripLines(hlCardW))
+    if (!hlBare) block.push(blank, ...strip)
     wordRow = 3 + wordCentre
   } else if (rows >= 11 && cols >= word.width + 4) {
     cardShown = false
@@ -1229,14 +1186,16 @@ function composeCompactFace(cols, rows, opts) {
   const sel = opts.cardSel
   const keyMap = opts.keyMap ?? ''
   const keyRows = rows > 2 && (keyMap !== '' || opts.reserveKeyMap === true) ? 1 : 0
-  const avail = Math.max(1, rows - keyRows)
+  const strip = opts.stripLines?.(Math.max(1, cols - 2)) ?? []
+  const showStrip = strip.length > 0 && rows - keyRows >= strip.length + 4
+  const avail = Math.max(1, rows - keyRows - (showStrip ? strip.length + 1 : 0))
   const hintRows = avail >= 2 && opts.hintSegments.length > 0 ? 1 : 0
   const word = rasterHard(WORD, wordToneGlow(opts.glowWord ?? null))
   const rule = dividerLine(word.width - 2)
   const textOf = (r, withCtx) => r.label + (withCtx && r.ctx !== '' ? ' · ' + r.ctx : '')
   const widest = withCtx => Math.max(0, ...cardRows.map(r => 3 + vis(textOf(r, withCtx))))
   const withCtx = widest(true) + 1 <= cols - 2
-  const inner = Math.min(cols - 2, Math.max(COMPACT_FRAME_INNER, widest(withCtx) + 1))
+  const inner = Math.min(cols - 2, Math.max(cardRows.some(r => r.ctx) ? COMPACT_FRAME_INNER : 34, widest(withCtx) + 5))
   const frameByWidth = widest(withCtx) + 1 <= inner
   const frame = frameByWidth && 2 + n + hintRows <= avail
   const banner = cols >= word.width && 5 + (frame ? 2 : 0) + n + hintRows <= avail
@@ -1290,16 +1249,17 @@ function composeCompactFace(cols, rows, opts) {
     })
     if (bareHint !== null) block.push(pad + bareHint)
   }
-  const { placed, top } = placeBlock(block, avail)
+  if (showStrip) block.push('', ...strip.map(l => centre(l, vis(l))))
+  const { placed, top } = placeBlock(block, rows - keyRows)
   const lines = placed.slice(0, rows)
   while (lines.length < rows) lines.push('')
   if (keyRows && keyMap !== '') {
     const shown = vis(keyMap) + 2 <= cols ? keyMap : clipVis(keyMap, cols)
     lines[rows - 1] = ' '.repeat(Math.max(0, cols - vis(shown) - 2)) + faint + shown + R
   }
-  const ready = red + '►_ ' + R + ivory + 'ready' + R + faint + '  ·  ' + R + red + '↵ ' + R + ivory + 'start' + R
-  const tiny = red + '(>_) ' + ivory + 'MERCURY' + R + '  ' + faint + '↵ start' + R
-  const heroLine = banner || vis(tiny) > cols ? ready : tiny
+  const signs = red + '>_  ·  ↵' + R
+  const tiny = red + '(>_) ' + ivory + 'MERCURY' + R + '  ' + red + '↵' + R
+  const heroLine = banner || vis(tiny) > cols ? signs : tiny
   const hero = placed.slice(0, top + cardAt)
   hero.push(centre(heroLine, vis(heroLine)))
   return {

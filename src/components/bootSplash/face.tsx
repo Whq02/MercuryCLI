@@ -25,17 +25,17 @@ import type { BootRow } from './rowActions.js';
 
 export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex, core, columns, rows, modelDefaultDoor, stripHint, wordGlow, rowGlow, bottomRowWithNotice, updateLine, chips, plainWhy, keyMapHint }: { isCompact: boolean; composedRows: BootRow[]; selectedIndex: number; core: ReturnType<typeof createSplashCore>; columns: number; rows: number; modelDefaultDoor: boolean; stripHint: string; wordGlow: ReturnType<typeof useGreetingShimmer>; rowGlow: ReturnType<typeof useGreetingShimmer>; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; updateLine: string | null; chips: SplashStripChips; plainWhy: PlainWorldWhy | null; keyMapHint: string }) {
   if (isCompact) {
-    const selected = composedRows[Math.max(0, selectedIndex)];
-    const verb = selected && ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(selected.key) ? 'open' : 'start';
     const compact = core.composeCompactFace(columns, rows, {
-      cardRows: composedRows.map(r => ({ label: r.label, ctx: r.ctx, ...(r.dim ? { dim: true } : {}) })),
+      cardRows: composedRows.map(r => ({ label: r.label, ctx: '', ...(r.dim ? { dim: true } : {}) })),
       cardSel: selectedIndex,
       hintSegments: [
-        { key: '↵ ', label: verb, tone: 'ivory' as const },
-        { key: '↑↓', label: ' choose', tone: 'faint' as const },
+        { key: '>_', label: '', tone: 'faint' as const },
+        { key: '↵', label: '', tone: 'ivory' as const },
+        { key: '↑↓', label: '', tone: 'faint' as const },
         ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
       ],
       keyMap: stripHint,
+      stripLines: w => core.composeStrip(chips, w),
       pointer: figures.pointer,
       glowWord: wordGlow,
       glowRow: rowGlow,
@@ -53,25 +53,15 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
     cardRows: composedRows.map(r => ({
       icon: r.icon,
       label: r.label,
-      ctx: r.ctx,
+      ctx: '',
       ...(r.dim ? { dim: true } : {}),
     })),
     cardSel: selectedIndex,
     hintSegments: [
-      {
-        key: '↵ ',
-        label:
-          composedRows[Math.max(0, selectedIndex)] !== undefined &&
-          ['menu', 'kit', 'agents', 'health', 'saturn', 'logins'].includes(
-            composedRows[Math.max(0, selectedIndex)]!.key,
-          )
-            ? 'open'
-            : 'start',
-        tone: 'ivory' as const,
-      },
+      { key: '↵', label: '', tone: 'ivory' as const },
       ...(modelDefaultDoor ? [] : [{ key: 'm', label: ' menu', tone: 'faint' as const }]),
     ],
-    tinyHint: '↵ start',
+    tinyHint: '↵',
     stripLines: (w: number) => core.composeStrip(chips, w) as string[],
     glowWord: wordGlow,
     glowRow: rowGlow,
@@ -91,7 +81,7 @@ export function bootSplashCompositionOf({ isCompact, composedRows, selectedIndex
   };
 }
 
-export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, setAgentsEpoch, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack }: { settingsOpen: boolean; columns: number; rows: number; setSettingsOpen: Dispatch<SetStateAction<boolean>>; kitOpen: boolean; setKitOpen: Dispatch<SetStateAction<boolean>>; healthOpen: boolean; setHealthOpen: Dispatch<SetStateAction<boolean>>; saturnOpen: boolean; setSaturnOpen: Dispatch<SetStateAction<boolean>>; agentsOpen: boolean; loginsOpen: boolean; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setAgentsOpen: Dispatch<SetStateAction<boolean>>; setAgentsEpoch: Dispatch<SetStateAction<number>>; closeLogins: () => void; loginsFamily: string | undefined; loginsBack: 'route' | 'picker' | null; resumeOpen: boolean; setResumeOpen: Dispatch<SetStateAction<boolean>>; facts: ReturnType<typeof scanBootCardFacts>; runningOf: (dir: string) => number; openProject: (p: BootProjectFact) => AsyncListNote; composition: ReturnType<typeof bootSplashCompositionOf>; list: ReturnType<typeof useInteractiveList<BootRow>>; birthReceipt: string | null; core: ReturnType<typeof createSplashCore>; isCompact: boolean; keyMapHint: string; updateLine: string | null; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; KEY_MAP_ROW: (core: ReturnType<typeof createSplashCore>, hint: string) => string; composedRows: BootRow[]; t: ReturnType<typeof useMercuryTokens>; modelDefaultOpen: boolean; setModelDefaultOpen: Dispatch<SetStateAction<boolean>>; setLoginsFamily: Dispatch<SetStateAction<string | undefined>>; setLoginsBack: Dispatch<SetStateAction<'route' | 'picker' | null>> }) {
+export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpen, kitOpen, setKitOpen, healthOpen, setHealthOpen, saturnOpen, setSaturnOpen, agentsOpen, loginsOpen, setLoginsOpen, setAgentsOpen, closeLogins, loginsFamily, loginsBack, resumeOpen, setResumeOpen, facts, runningOf, openProject, composition, list, birthReceipt, core, isCompact, keyMapHint, updateLine, bottomRowWithNotice, KEY_MAP_ROW, composedRows, t, modelDefaultOpen, setModelDefaultOpen, setLoginsFamily, setLoginsBack }: { settingsOpen: boolean; columns: number; rows: number; setSettingsOpen: Dispatch<SetStateAction<boolean>>; kitOpen: boolean; setKitOpen: Dispatch<SetStateAction<boolean>>; healthOpen: boolean; setHealthOpen: Dispatch<SetStateAction<boolean>>; saturnOpen: boolean; setSaturnOpen: Dispatch<SetStateAction<boolean>>; agentsOpen: boolean; loginsOpen: boolean; setLoginsOpen: Dispatch<SetStateAction<boolean>>; setAgentsOpen: Dispatch<SetStateAction<boolean>>; closeLogins: () => void; loginsFamily: string | undefined; loginsBack: 'route' | 'picker' | null; resumeOpen: boolean; setResumeOpen: Dispatch<SetStateAction<boolean>>; facts: ReturnType<typeof scanBootCardFacts>; runningOf: (dir: string) => number; openProject: (p: BootProjectFact) => AsyncListNote; composition: ReturnType<typeof bootSplashCompositionOf>; list: ReturnType<typeof useInteractiveList<BootRow>>; birthReceipt: string | null; core: ReturnType<typeof createSplashCore>; isCompact: boolean; keyMapHint: string; updateLine: string | null; bottomRowWithNotice: (core: ReturnType<typeof createSplashCore>, columns: number, keyMapHint: string, notice: string | null, compact: boolean) => string | null; KEY_MAP_ROW: (core: ReturnType<typeof createSplashCore>, hint: string) => string; composedRows: BootRow[]; t: ReturnType<typeof useMercuryTokens>; modelDefaultOpen: boolean; setModelDefaultOpen: Dispatch<SetStateAction<boolean>>; setLoginsFamily: Dispatch<SetStateAction<string | undefined>>; setLoginsBack: Dispatch<SetStateAction<'route' | 'picker' | null>> }) {
   if (settingsOpen) {
     return (
       <BootSettingsScreen
@@ -131,10 +121,7 @@ export function bootSplashFaceView({ settingsOpen, columns, rows, setSettingsOpe
           suspended={loginsOpen}
           onOpenLogins={() => setLoginsOpen(true)}
           fullScene={{ columns, rows }}
-          onClose={() => {
-            setAgentsOpen(false);
-            setAgentsEpoch(e => e + 1);
-          }}
+          onClose={() => setAgentsOpen(false)}
         />
         {loginsOpen ? (
           <BootLoginsScreen
