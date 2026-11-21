@@ -63,7 +63,7 @@ try {
   assert.match(done, /Effort set to high/)
   mounted.unmount(); mounted = undefined
   const high = await f.run(id, undefined, undefined, selected)
-  assert.ok(high.every(row => !row.isApiErrorMessage))
+  assert.ok(high.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts hosted llamacpp high-effort turn failed: ${JSON.stringify(high.map(r => r.error)).slice(0, 140)}`)
   assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.reasoning_effort, 'high')
   assert.equal(f.captures.at(-1)!.body.reasoning_effort, undefined)
   assert.equal(high.at(-1).effort.wire, 'chat_template_kwargs.reasoning_effort=high')
@@ -79,7 +79,7 @@ try {
     f.state.dialect = dialect
     assert.deepEqual(selectableEffortLevels(model), ['low', 'high', 'max'])
     const replies = await f.run(model, undefined, undefined, 'high')
-    assert.ok(replies.every(row => !row.isApiErrorMessage))
+    assert.ok(replies.every(row => !row.isApiErrorMessage), `src/services/providers/callModelRouter.ts ${dialect} high-effort turn failed: ${JSON.stringify(replies.map(r => r.error)).slice(0, 140)}`)
     assert.equal(f.captures.at(-1)!.body.reasoning_effort, 'high', dialect)
     if (dialect === 'sglang') assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.clear_thinking, false)
     if (dialect === 'chat-completions') {
@@ -133,8 +133,8 @@ try {
     assert.equal(replies[0].effort.applied, 'high')
     const sent = f.captures[before]!.body
     assert.equal(sent.reasoning_effort ?? sent.chat_template_kwargs?.reasoning_effort, 'high')
-    assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'))
-    if (dialect === 'llamacpp') assert.ok(Number.isInteger(sent.id_slot))
+    assert.ok(sent.tools.some((tool: any) => tool.function.name === 'FixtureEcho'), `src/services/providers/openaicompat/compatChatClient.ts ${dialect} rejected-effort request missing FixtureEcho tool`)
+    if (dialect === 'llamacpp') assert.ok(Number.isInteger(sent.id_slot), `src/services/providers/openaicompat/compatChatClient.ts llamacpp rejected-effort request missing integer id_slot: got ${String(sent.id_slot)}`)
     if (dialect === 'sglang') assert.equal(sent.chat_template_kwargs.clear_thinking, false)
   }
   f.state.dialect = 'llamacpp'
@@ -142,7 +142,7 @@ try {
   const containerStart = f.captures.length
   const containerReplies = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - containerStart, 1)
-  assert.ok(containerReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'))
+  assert.ok(containerReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/services/providers/callModelRouter.ts reject-template expected invalid_request: got ${JSON.stringify(containerReplies.map(r => r.error))}`)
   assert.match(JSON.stringify(containerReplies[0].message.content), /chat_template_kwargs.*selected effort and thinking are unchanged/)
   assert.equal(f.captures.at(-1)!.body.chat_template_kwargs.reasoning_effort, 'high')
   assert.equal(containerReplies[0].effort.applied, 'high')
@@ -150,7 +150,7 @@ try {
   const persistentStart = f.captures.length
   const persistentReplies = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - persistentStart, 1, 'a named 400 is terminal, never an effort downgrade')
-  assert.ok(persistentReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'))
+  assert.ok(persistentReplies.some(row => row.isApiErrorMessage && row.error === 'invalid_request'), `src/services/providers/callModelRouter.ts reject-persistent expected invalid_request: got ${JSON.stringify(persistentReplies.map(r => r.error))}`)
   assert.equal(persistentReplies[0].effort.applied, 'high')
   f.state.mode = 'reply'
   f.state.dialect = 'ollama'
@@ -184,7 +184,7 @@ try {
   const before = f.captures.length
   const refused = await f.run(id, undefined, undefined, 'high')
   assert.equal(f.captures.length - before, 1, 'unrelated 400 is not hidden by an effort retry')
-  assert.ok(refused.some(row => row.isApiErrorMessage))
+  assert.ok(refused.some(row => row.isApiErrorMessage), `src/services/providers/callModelRouter.ts reject-other 400 did not return isApiErrorMessage`)
   f.state.mode = 'reply'
   f.state.dialect = 'llamacpp'
   await f.run(id, undefined, undefined, 'high')
