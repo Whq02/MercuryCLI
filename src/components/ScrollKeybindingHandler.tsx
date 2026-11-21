@@ -1,6 +1,6 @@
 
 import React, { useCallback, useRef } from 'react'
-import { useClaim, useSubscription } from '../hooks/effects.js'
+import { useClaim } from '../hooks/effects.js'
 import { WHEEL_ROWS_PER_NOTCH } from './mercury-ui/composerFloor.js'
 import type { ScrollBoxHandle } from '../ink/components/ScrollBox.js'
 import { InkInstanceContext } from '../ink/components/InkInstanceContext.js'
@@ -454,7 +454,7 @@ export function ScrollKeybindingHandler({
 
   const autoscrollDirRef = useRef<-1 | 0 | 1>(0)
   const autoscrollTicksRef = useRef(0)
-  useSubscription(() => {
+  useClaim(() => {
     if (!isActive) return
     const stopTick = subscribeUiClock(AUTOSCROLL_TICK_MS, () => {
       const handle = activeHandle()
