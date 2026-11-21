@@ -25,7 +25,7 @@ try {
     assert.equal(readFileSync(file, 'utf8'), stored)
     assert.deepEqual(readdirSync(home), ['.openai-auth.json'])
     if (expires !== undefined && expires > Date.now()) {
-      assert.ok(auth)
+      assert.ok(auth, 'src/services/providers/openai/openaiAccounts.ts resolveOpenaiRequestAuth returned undefined for fresh stored token')
       assert.equal(auth.baseUrl, 'http://127.0.0.1:9')
       assert.equal(auth.headers.authorization, 'Bearer fixture-access')
       assert.equal(auth.headers['ChatGPT-Account-Id'], 'fixture-account')
@@ -46,7 +46,8 @@ try {
   assert.equal(resolveEffortTruth(model, undefined).wire, 'low')
   assert.equal(resolveEffortTruth(model, 'max').label, 'max')
   assert.equal(resolveStampedEffortTruth(model, 'max').wire, 'max')
-  assert.ok(!(resolveEffortTruth(model, undefined).selectable as readonly string[]).includes('ultra'))
+  const selectableEfforts = resolveEffortTruth(model, undefined).selectable as readonly string[]
+  assert.ok(!selectableEfforts.includes('ultra'), `src/utils/effort.ts resolveEffortTruth(${model}) unexpectedly offered unranked 'ultra': ${selectableEfforts.join(',')}`)
   console.log('PASS subscription catalogue shape read 2026-10-28: source window and default win, max stays max, unranked list word is not offered')
   const chunks = Array.from({ length: 11 }, (_, i) => ({ type: 'reasoning' as const, id: `rs_fixture_${i}`, summary: [], content: [], encrypted_content: `fixture-opaque-${i}` }))
   const answer = { type: 'message' as const, role: 'assistant' as const, phase: 'final_answer' as const, content: [{ type: 'output_text' as const, text: 'Fixture complete.' }] }

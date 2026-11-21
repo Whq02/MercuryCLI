@@ -29,7 +29,7 @@ try {
     assert.match(r.data.file.content, /--- page 1 ---/)
     assert.match(r.data.file.content, /Mercury\t42/)
     assert.equal(r.data.file.numLines, 4)
-    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')))
+    assert.ok(!r.newMessages?.some((m: any) => JSON.stringify(m).includes('"type":"document"')), `FileReadTool(${model}) with offset/limit unexpectedly attached raw PDF document block in src/tools/FileReadTool/FileReadTool.ts`)
   }
   const selected = await read({ file_path: path, pages: '200' })
   assert.match(selected.data.file.content, /--- page 200 ---\nResearch page 200/)

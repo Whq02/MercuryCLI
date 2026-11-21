@@ -32,8 +32,9 @@ const originalPath = process.env.PATH
 try {
   const source = fileURLToPath(new URL('../voice/fixtures/on-device-take.wav', import.meta.url))
   const wav = readWav(readFileSync(source))
-  assert.ok(wav.ok)
-  assert.ok(wav.header.dataBytes / 32000 < 10)
+  assert.ok(wav.ok, `readWav rejected voice fixture on-device-take.wav in src/services/voice/wav.ts`)
+  const wavSeconds = wav.header.dataBytes / 32000
+  assert.ok(wavSeconds < 10, `fixture WAV duration ${wavSeconds.toFixed(2)}s >= 10s in scripts/voice/fixtures/on-device-take.wav`)
   const path = join(root, 'speech.wav')
   copyFileSync(source, path)
   process.env.PATH = ''

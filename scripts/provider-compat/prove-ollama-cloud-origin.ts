@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 
 const parent = process.env.MERCURY_CONFIG_DIR
-assert.ok(parent)
+assert.ok(parent, 'set scratch MERCURY_CONFIG_DIR before running prove-ollama-cloud-origin.ts')
 mkdirSync(parent, { recursive: true })
 const home = mkdtempSync(join(parent, 'ollama-origin-'))
 process.env.MERCURY_CONFIG_DIR = home

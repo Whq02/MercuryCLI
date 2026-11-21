@@ -15,6 +15,6 @@ for (const code of ['insufficient_quota', 'billing_hard_limit_reached', 'exceede
 for (const code of ['rate_limit_exceeded', 'RESOURCE_EXHAUSTED']) {
   const result = await turn(attempt => attempt === 1 ? Response.json({ error: { code, message: 'Quota exceeded for a request window' } }, { status: 429 }) : answer())
   assert.equal(result.requests.length, 2, code)
-  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage))
+  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), `compat 429 throttle (${code}) in src/services/providers/openaicompat/compatChatCallModel.ts must retry and settle with a non-error assistant reply`)
 }
 console.log('P04 billing quota refusals stop once; request-window throttles retry and serve')

@@ -43,11 +43,11 @@ try {
   assert.ok(await waitFor(() => typed === 'fixture/Any-GGUF' && mounted.screen().includes('Any-Q6_K.gguf'), 4000), mounted.screen())
   mounted.push(KEY.enter)
   await settle(100)
-  assert.ok(!aborted)
+  assert.ok(!aborted, 'src/components/LocalSetupDialog.tsx Enter on pre-selection step unexpectedly aborted road')
   mounted.push(KEY.down)
   mounted.push(KEY.enter)
   await settle(100)
   mounted.push(KEY.esc)
-  assert.ok(await waitFor(() => aborted, 2000))
+  assert.ok(await waitFor(() => aborted, 2000), 'src/components/LocalSetupDialog.tsx Escape did not abort local setup road within 2000ms')
   console.log('PASS repository editing, Enter selection, no preselection and Escape cancellation in rendered dialog')
 } finally { mounted.unmount(); await releaseScratchHome(home) }

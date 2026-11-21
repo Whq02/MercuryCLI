@@ -108,7 +108,8 @@ try {
   await assert.rejects(closing.request('session/leave', {}, { deadlineMs: null }), MercuryConnectionError)
   assert.throws(() => closing.notifyCredentialsChanged(), MercuryConnectionError)
   await close
-  assert((await Promise.all(waiting)).every(row => row.done))
+  const settledWaiters = await Promise.all(waiting)
+  assert(settledWaiters.every(row => row.done), `closing session left row iterator waiter(s) unfinished in sdk/src/runner.ts: ${JSON.stringify(settledWaiters)}`)
   await assert.rejects(closing.prompt('closed'), MercuryConnectionError)
   console.log('PASS requests during close reject immediately and all iterators end normally')
   const py = spawnSync(PYTHON, [join(root, 'scripts/sdk/python-hardening.py'), fixture], { cwd: root, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 30000 })

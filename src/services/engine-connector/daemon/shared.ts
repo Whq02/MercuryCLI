@@ -11,8 +11,9 @@ export type Listeners = Set<() => void>
 export interface SeatSend {
   clientMessageId: string
   text: string
+  draftKey?: string
   sentAtMs: number
-  state: 'pending' | 'delivered' | 'queued' | 'taken'
+  state: 'pending' | 'unconfirmed' | 'delivered' | 'queued' | 'taken'
   heldFor?: 'compaction'
   crossedRunner?: true
   mode: 'prompt' | 'bash'

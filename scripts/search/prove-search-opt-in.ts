@@ -25,12 +25,12 @@ assert.equal(getFlagSpec('MERCURY_SEARCH_KEYLESS').kind, 'default-on')
 assert.equal(flagEnabled('MERCURY_SEARCH_KEYLESS'), true)
 const freshPlan = resolveSearchDoorPlan(liveSearchDoorReads({}), 'what is a compiler')
 assert.deepEqual(freshPlan.doors.map(d => d.kind), ['official', 'keyless'])
-assert.ok(!freshPlan.closed.some(line => line.includes('DuckDuckGo')))
+assert.ok(!freshPlan.closed.some(line => line.includes('DuckDuckGo')), `resolveSearchDoorPlan in src/services/search/searchDoor.js must keep DuckDuckGo open by default (closed=${JSON.stringify(freshPlan.closed)})`)
 for (const spelling of ['0', 'false', 'off', 'no', '"0"', ' Off ']) { process.env.MERCURY_SEARCH_KEYLESS = spelling; assert.equal(setting.duckduckgoScrapingEnabled(), false, spelling) }
 process.env.MERCURY_SEARCH_KEYLESS = '0'
 assert.equal(liveSearchDoorReads({}).keylessAllowed, false)
 assert.deepEqual(resolveSearchDoorPlan(liveSearchDoorReads({}), 'what is a compiler').doors.map(d => d.kind), ['official'])
-assert.ok(resolveSearchDoorPlan(liveSearchDoorReads({}), 'what is a compiler').closed.some(line => line.includes('DuckDuckGo page scraping is off') && line.includes('MERCURY_SEARCH_KEYLESS=0')))
+assert.ok(resolveSearchDoorPlan(liveSearchDoorReads({}), 'what is a compiler').closed.some(line => line.includes('DuckDuckGo page scraping is off') && line.includes('MERCURY_SEARCH_KEYLESS=0')), 'resolveSearchDoorPlan in src/services/search/searchDoor.js must report MERCURY_SEARCH_KEYLESS=0 closed reason')
 delete process.env.MERCURY_SEARCH_KEYLESS
 let requests = 0, status = 200, paths: string[] = []
 const html = readFileSync(join(import.meta.dir, 'fixtures/ddg-html-results.html'), 'utf8')
@@ -51,7 +51,7 @@ try {
   const fell = await performWebSearch({ query: 'what is a compiler' }, { ...freshHome, backends: { ...freshHome.backends, official: official([]) } })
   assert.equal(fell.via, 'duckduckgo'); assert.equal(requests, 1)
   assert.equal(fell.notes.filter(n => n === setting.DUCKDUCKGO_TERMS).length, 1)
-  assert.ok(fell.notes.some(n => n.includes('Wikipedia found no matching links')))
+  assert.ok(fell.notes.some(n => n.includes('Wikipedia found no matching links')), `performWebSearch fallback in src/services/search/searchDoor.js must note empty Wikipedia leg (got ${JSON.stringify(fell.notes)})`)
   resetSearchPacing()
   process.env.MERCURY_SEARCH_KEYLESS = '0'
   const pinnedOff = { ...freshHome, reads: liveSearchDoorReads({}), backends: { ...freshHome.backends, official: official([]) } }
@@ -73,16 +73,16 @@ try {
   const first = await performWebSearch({ query: 'test' }, io)
   assert.equal(first.notes.filter(n => n === setting.DUCKDUCKGO_TERMS).length, 1)
   const payload = mapSearchResult({ query: 'test', results: [{ tool_use_id: 'g', content: first.hits }], notes: first.notes, via: first.via, tier: first.tier, durationSeconds: 0 }, 't').content
-  assert.ok(payload.includes(setting.DUCKDUCKGO_TERMS)); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING)
+  assert.ok(payload.includes(setting.DUCKDUCKGO_TERMS), 'mapSearchResult in src/tools/WebSearchTool/searchOutput.js must include DUCKDUCKGO_TERMS on first keyless search'); assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `searchTokenEstimate must stay below ${SEARCH_PAYLOAD_TOKEN_CEILING}`)
   const cached = await performWebSearch({ query: 'test' }, io)
-  assert.equal(cached.cached, true); assert.ok(!cached.notes.includes(setting.DUCKDUCKGO_TERMS)); assert.equal(requests, 2)
+  assert.equal(cached.cached, true); assert.ok(!cached.notes.includes(setting.DUCKDUCKGO_TERMS), 'cached DuckDuckGo replay must not repeat DUCKDUCKGO_TERMS'); assert.equal(requests, 2)
   const second = await performWebSearch({ query: 'other' }, io)
-  assert.ok(!second.notes.includes(setting.DUCKDUCKGO_TERMS)); assert.equal(requests, 3)
+  assert.ok(!second.notes.includes(setting.DUCKDUCKGO_TERMS), 'second DuckDuckGo search in session must not repeat DUCKDUCKGO_TERMS'); assert.equal(requests, 3)
   resetSearchPacing(); status = 429; paths = []
   const before = requests
   const refusal = await keylessSearch({ query: 'refused' }, { fetchImpl, clock })
   assert.equal(refusal.ok, false)
-  if (!refusal.ok) { assert.match(refusal.message, /no retry or host swap/); assert.ok(refusal.message.includes(setting.DUCKDUCKGO_TERMS)) }
+  if (!refusal.ok) { assert.match(refusal.message, /no retry or host swap/); assert.ok(refusal.message.includes(setting.DUCKDUCKGO_TERMS), 'DuckDuckGo 429 refusal in src/services/search/duckduckgo.js must include DUCKDUCKGO_TERMS') }
   await keylessSearch({ query: 'different query' }, { fetchImpl, clock })
   assert.equal(requests, before + 1); assert.deepEqual(paths, ['/html/'])
   now += 90_000; status = 200
@@ -96,13 +96,13 @@ try {
   if (!aborted.ok) assert.equal(aborted.kind, 'aborted')
   const afterCancel = await keylessSearch({ query: 'after cancel' }, { clock, fetchImpl })
   assert.equal(afterCancel.ok, true)
-  if (afterCancel.ok) assert.ok(afterCancel.notes?.includes(setting.DUCKDUCKGO_TERMS))
+  if (afterCancel.ok) assert.ok(afterCancel.notes?.includes(setting.DUCKDUCKGO_TERMS), 'first successful DuckDuckGo search after aborted attempt must emit DUCKDUCKGO_TERMS')
   setting.setDuckduckgoScraping(false)
   assert.equal(setting.duckduckgoScrapingEnabled(), false)
   const finalCount = requests
   const off = await keylessSearch({ query: 'off' }, { fetchImpl, clock })
   assert.equal(off.ok, false)
-  if (!off.ok) assert.ok(off.message.includes('turned off in /config'))
+  if (!off.ok) assert.ok(off.message.includes('turned off in /config'), `disabled keylessSearch in src/services/search/duckduckgo.js must mention "turned off in /config" (got ${off.message})`)
   assert.equal(requests, finalCount)
   console.log('PASS scraping default: on for a fresh home and knocked only after the official doors found nothing, =0 and the saved off make no request, =1 overrides a saved off, terms once including failure, no host evasion')
 } finally { setting.setDuckduckgoScraping(false); await new Promise<void>(r => server.close(() => r())); rmSync(home, { recursive: true, force: true }) }

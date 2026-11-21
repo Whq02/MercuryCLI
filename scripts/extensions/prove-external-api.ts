@@ -79,20 +79,21 @@ writeFileSync(join(plan.path, 'chat.jinja'), files['chat.jinja'])
 const registered = await call({ op: 'bank.register', folder, recipe: bankRecipe })
 assert.equal(registered.registered, true)
 assert.equal(registered.path, plan.path)
-assert.ok(readBankRegistry().models[registered.key])
+assert.ok(readBankRegistry().models[registered.key], `src/services/host/bank.ts registry missing registered key ${registered.key}`)
 await assert.rejects(call({ op: 'bank.register', folder, recipe: bankRecipe }), /already exists/)
 const gguf = await bankGgufModel(bankRecipe, folder, 64 * 1024 ** 3, process.platform, signal)
 const local = await ggufServerPlan(gguf, folder, { serverCommand: 'fixture-server', cwd: proofHome })
 assert.equal(local.args[local.args.indexOf('--chat-template-file') + 1], join(plan.path, 'chat.jinja'))
-assert.ok(!local.args.includes('--lora'))
+assert.ok(!local.args.includes('--lora'), `src/services/localSetup/ggufServer.ts local args must not include --lora: ${local.args.join(' ')}`)
 const commands: string[] = []
 const runner = { async run(_command: string, args: string[]) { commands.push(args.at(-1)!); return 'MERCURY_PREBUILT_ENGINE yes' }, tunnel(): never { throw new Error('no tunnel') } }
 for (const kept of [undefined, '/fixture/kept']) {
   commands.length = 0
   await startHostEngine({ host: 'fixture' }, bankRecipe, runner, signal, false, true, kept ? undefined : plan.path, kept)
   const script = commands.findLast(text => text.includes('nohup setsid'))!.replaceAll("'\\''", "'")
-  assert.ok(script.includes("'--chat-template-file' '" + (kept ?? '/workspace/mercury-host/' + bankRecipe.id + '/weights') + "/chat.jinja'"))
-  assert.ok(!script.includes('--lora'))
+  const expectedTemplateArg = "'--chat-template-file' '" + (kept ?? '/workspace/mercury-host/' + bankRecipe.id + '/weights') + "/chat.jinja'"
+  assert.ok(script.includes(expectedTemplateArg), `src/services/host/ssh.ts host launch script missing ${expectedTemplateArg}`)
+  assert.ok(!script.includes('--lora'), 'src/services/host/ssh.ts host launch script must not include --lora')
 }
 console.log('PASS Bank JSON: plan, checksum refusal without registry write, registration, duplicate refusal and both template readers')
 
@@ -107,7 +108,7 @@ assert.equal(context.status, 0, context.stderr)
 const reading = JSON.parse(context.stdout)
 assert.equal(reading.version, 1)
 assert.equal(reading.ok, true)
-assert.ok(reading.result.tools.some((tool: any) => tool.function.name === 'Read'))
+assert.ok(reading.result.tools.some((tool: any) => tool.function.name === 'Read'), 'src/cli/extensionApi.ts context response missing Read tool')
 assert.match(reading.result.engine.revision, /^[a-f0-9]{40}$/)
 assert.equal(typeof reading.result.projectDir, 'string')
 writeFileSync(join(proofHome, '.provider-secrets.json'), JSON.stringify({ fixture: { apiKey: 'fixture-opaque-credential' } }))

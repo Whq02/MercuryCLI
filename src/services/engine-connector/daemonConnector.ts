@@ -717,6 +717,7 @@ export class DaemonSessionConnector extends ConnectorOwnWork implements EngineCo
     drop: clientMessageId => this.sendsPart.drop(clientMessageId),
     withdrawn: clientMessageId => this.sendsPart.withdrawn(clientMessageId),
     dress: (clientMessageId, state) => this.sendsPart.dressSend(clientMessageId, state),
+    unconfirmedDraft: key => this.sendsPart.unconfirmedDraft(key),
     sendOf: clientMessageId => this.sendsPart.sendOf(clientMessageId),
     markWithdrawing: (clientMessageId, on) => this.sendsPart.markWithdrawing(clientMessageId, on),
     retireUnknown: clientMessageId => this.sendsPart.retireSendUnknownToRunner(clientMessageId),

@@ -3,7 +3,7 @@ import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { Capabilities, HostNotificationName, HostRequestName, InitializeResult, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf, SessionAppliedParams } from '../runner/wire/methods.js'
 import { SESSION_VERBS } from '../runner/wire/sessionVerbs.js'
-import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.js'
+import { createPeer, PeerClosed, type Peer, type RequestOptions } from '../runner/wire/peer.js'
 import type { RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
 import { startTimeout, stopTimeout } from '../utils/timers.js'
@@ -18,6 +18,12 @@ type SlowMarkWait = 'answered initialize' | 'loaded its claimed session'
 
 function slowBootLine(elapsedMs: number, wait: SlowMarkWait = 'answered initialize'): string {
   return `the runner has not ${wait} after ${Math.round(elapsedMs / 1000)} s — waiting while it lives`
+}
+
+export class PendingQueueAck extends Error {
+  constructor(readonly confirmed: Promise<boolean | null>) {
+    super('the runner has not confirmed this message')
+  }
 }
 
 export type Verb = Exclude<HostRequestName, typeof SESSION_VERBS.initialize.runner.name>
@@ -145,14 +151,18 @@ export class RunnerConnection implements RunnerDoor {
     if (this.peer.closed) return false
     if ((await this.initialized) === null) return false
     if (!(await this.loaded)) return false
-    try {
-      const answer = await this.peer.request(SESSION_VERBS.sendWords.runner.name, row)
-      if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
-      return answer.accepted
-    } catch (error) {
-      this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
-      return false
-    }
+    return new Promise<boolean>((resolve, reject) => {
+      const onWrittenDeadline = (): void => reject(new PendingQueueAck(confirmed))
+      const confirmed: Promise<boolean | null> = this.peer.request(SESSION_VERBS.sendWords.runner.name, row, row.id === undefined ? {} : { onWrittenDeadline }).then(answer => {
+        if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
+        return answer.accepted
+      }, (error: unknown) => {
+        if (error instanceof PeerClosed && error.frameWritten) return null
+        this.hooks.log(`queue/add was not accepted: ${error instanceof Error ? error.message : String(error)}`)
+        return false
+      })
+      void confirmed.then(accepted => accepted === null ? onWrittenDeadline() : resolve(accepted))
+    })
   }
 
   close(reason: string): void {

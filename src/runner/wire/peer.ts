@@ -30,7 +30,7 @@ type PeerSide = 'host' | 'runner'
 
 export class PeerClosed extends Error {
   readonly method: string
-  constructor(method: string, reason: string) {
+  constructor(method: string, reason: string, readonly frameWritten = false) {
     super(`${method}: the peer closed (${reason})`)
     this.name = 'PeerClosed'
     this.method = method
@@ -73,11 +73,13 @@ type RequestHandler<M extends MethodName> = (params: ParamsOf<M>, ctx: HandlerCo
 type NotificationHandler<M extends MethodName> = (params: ParamsOf<M>) => void | Promise<void>
 
 export interface RequestOptions {
+  onWrittenDeadline?: () => void
   deadlineMs?: number | null
   signal?: AbortSignal
 }
 
 type Pending = {
+  trackWrite: boolean
   method: string
   resolve: (value: unknown) => void
   reject: (error: Error) => void
@@ -352,12 +354,18 @@ export class Peer {
       const timer =
         deadlineMs !== null
           ? startTimeout(() => {
-              if (!this.pending.delete(id)) return
-              if (!this.writer.withdraw(id)) this.notify(SESSION_VERBS.cancelRequest.runner.name, { request_id: id, reason: 'deadline' })
+              if (!this.pending.has(id)) return
+              const withdrawn = this.writer.withdraw(id)
+              if (!withdrawn && opts.onWrittenDeadline) {
+                opts.onWrittenDeadline()
+                return
+              }
+              this.pending.delete(id)
+              if (!withdrawn) this.notify(SESSION_VERBS.cancelRequest.runner.name, { request_id: id, reason: 'deadline' })
               reject(new PeerDeadline(method, id, deadlineMs))
             }, deadlineMs)
           : null
-      this.pending.set(id, { method, resolve: resolve as (value: unknown) => void, reject, timer })
+      this.pending.set(id, { method, trackWrite: opts.onWrittenDeadline !== undefined, resolve: resolve as (value: unknown) => void, reject, timer })
     })
     if (opts.signal !== undefined) {
       const signal = opts.signal
@@ -416,7 +424,7 @@ export class Peer {
     for (const [id, entry] of this.pending) {
       if (entry.timer !== null) stopTimeout(entry.timer)
       this.pending.delete(id)
-      entry.reject(new PeerClosed(entry.method, reason))
+      entry.reject(new PeerClosed(entry.method, reason, entry.trackWrite && !this.writer.withdraw(id)))
     }
     for (const [id, entry] of this.inFlight) {
       entry.answered = true

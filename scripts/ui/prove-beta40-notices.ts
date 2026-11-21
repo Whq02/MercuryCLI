@@ -34,7 +34,7 @@ try {
   const args = { sessionId: 'fixture-chat', work: [], tell: () => { throw new Error('No restart is allowed in this words proof') }, resume: async () => { throw new Error('No resume is allowed in this words proof') } }
   const busy = await restartSessionOnInstalledBuild({ ...args, turnActive: true })
   const current = await restartSessionOnInstalledBuild({ ...args, turnActive: false })
-  assert.ok(!busy.ok && !current.ok)
+  assert.ok(!busy.ok && !current.ok, `src/commands/restart/restart.ts expected both busy and current restarts refused: busy=${JSON.stringify(busy)} current=${JSON.stringify(current)}`)
   const watch = { toolUseId: 'watch-use', taskId: 'watch-fixture', description: 'stock watch', command: 'tail -F stock.log', persistent: true, armedAt: 0 }
   const shell = { toolUseId: 'shell-use', taskId: 'shell-fixture', description: 'build log', command: 'tail -F build.log', outputPath: 'build.output', armedAt: 0 }
   resetCommandQueue()
@@ -43,7 +43,7 @@ try {
     { type: 'user', message: { content: [{ type: 'tool_result', tool_use_id: shell.toolUseId, content: 'Running in the background (ID: shell-fixture). Output: build.output' }] } },
   ] as never, new Set(), 'update')
   const shellLine = String(getCommandQueue()[0]?.value ?? '')
-  assert.ok(shellLine.includes('shell-fixture'))
+  assert.ok(shellLine.includes('shell-fixture'), `src/tools/MonitorTool/watchReceipts.ts reconciled shell notice missing 'shell-fixture': ${shellLine.slice(0, 140)}`)
   const idle = await readSelfHostedLiveness({ baseUrl: 'http://127.0.0.1:30000/v1', dialect: 'llamacpp' }, 'llamacpp', 2, { fetchImpl: (async () => Response.json(Array.from({ length: 4 }, (_, id) => ({ id, is_processing: id !== 2 })))) as typeof fetch })
   assert.equal(idle.state, 'dead')
   const lines = [
@@ -70,7 +70,7 @@ try {
     for (const [name, text] of lines) {
       const m = await mountOffscreen(React.createElement(ThemeProvider, {}, React.createElement(Box, { width: cols, height: 24, flexDirection: 'column' }, React.createElement(UserTextMessage, { addMargin: false, param: { type: 'text', text }, verbose: true, notice: true }))), cols, 24)
       try {
-        assert.ok(await waitFor(() => m.screen().trim().length > 0, 5000))
+        assert.ok(await waitFor(() => m.screen().trim().length > 0, 5000), `src/components/messages/UserTextMessage.tsx ${name} at ${cols} cols rendered empty frame after 5000ms`)
         check(cols + ': ' + name + ' renders without losing its final words', !m.screen().includes('RENDER ERROR') && m.screen().replace(/\s+/g, ' ').includes(text.replace(/<[^>]+>/g, '').trim().slice(-16).replace(/\]$/, '').replace(/\s+/g, ' ')))
         if (frames) {
           writeFileSync(join(frames, name + '-' + cols + '.txt'), m.screen())

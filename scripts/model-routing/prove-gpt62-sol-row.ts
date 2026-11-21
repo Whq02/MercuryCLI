@@ -46,7 +46,7 @@ function requestFor(effort: string | undefined) {
 try {
   check('dated model-page pin: the window, the output ceiling, the input kinds and the cutoff the page states', () => {
     const pin = gptDisplayPin(id)
-    assert.ok(pin)
+    assert.ok(pin, `src/utils/model/pins/gptPins.ts gptDisplayPin(${id}) returned undefined`)
     assert.equal(pin.source, source)
     assert.equal(pin.observedAt, '2026-11-17')
     assert.equal(pin.displayName, name)
@@ -58,7 +58,7 @@ try {
   })
   check('the row states the ladder low to max and the default medium', () => {
     const pin = gptDisplayPin(id)
-    assert.ok(pin)
+    assert.ok(pin, `src/utils/model/pins/gptPins.ts gptDisplayPin(${id}) returned undefined`)
     assert.deepEqual(pin.supportedReasoningEfforts, listed)
     assert.equal(pin.defaultReasoningEffort, 'medium')
   })
@@ -104,16 +104,16 @@ try {
   await seed({ data: [{ id: sibling, priority: 1 }, { id, priority: 2 }, { id: 'gpt-6.1-sol', priority: 3 }] })
   check('a bare API list takes the input kinds and the ladder from the row', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed`)
     assert.equal(row.candidate.pin?.id, id)
     assert.deepEqual(row.candidate.live.inputModalities, ['text', 'image'])
-    assert.ok(modelReceivesImageBlocks(id))
+    assert.ok(modelReceivesImageBlocks(id), `src/utils/model/capabilities.ts modelReceivesImageBlocks(${id}) returned false`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, listed)
     assert.equal(row.candidate.live.defaultReasoningEffort, 'medium')
   })
   for (const word of asked) check(`on a bare API list ${word} asked sends ${listed.includes(word) ? word : 'low'}, so the refused word none cannot ride`, () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for ${word}`)
     const profile = catalogue.resolveGptReasoningProfile(word, row.candidate.live)
     const sent = listed.includes(word) ? word : 'low'
     assert.equal(profile.wireEffort, sent)
@@ -121,23 +121,23 @@ try {
   })
   check('a bare API list with nothing asked sends the default medium', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for default effort`)
     assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'medium')
   })
   check('the picker row: the page name, the OpenAI group, selectable, in the live order', () => {
     const rows = getModelOptions()
     const row = rows.find(r => r.value === id)
-    assert.ok(row)
+    assert.ok(row, `src/utils/model/modelOptions.ts getModelOptions missing ${id}`)
     assert.equal(row.label, name)
     assert.equal(row.group, OPENAI_MODEL_GROUP)
     assert.equal(row.unavailable, undefined)
-    assert.ok(rows.findIndex(r => r.value === sibling) < rows.findIndex(r => r.value === id))
-    assert.ok(rows.findIndex(r => r.value === id) < rows.findIndex(r => r.value === 'gpt-6.1-sol'))
+    assert.ok(rows.findIndex(r => r.value === sibling) < rows.findIndex(r => r.value === id), `src/utils/model/modelOptions.ts expected ${sibling} before ${id}`)
+    assert.ok(rows.findIndex(r => r.value === id) < rows.findIndex(r => r.value === 'gpt-6.1-sol'), `src/utils/model/modelOptions.ts expected ${id} before gpt-6.1-sol`)
   })
   await seed({ models: [{ slug: id, display_name: name, visibility: 'list', priority: 1, supported_reasoning_levels: listed.map(effort => ({ effort, description: effort })), default_reasoning_level: 'medium', context_window: 500_000, max_context_window: 872_000, input_modalities: ['text', 'image'], supported_in_api: true }] })
   for (const word of listed) check(`a list that states its levels sends ${word} as asked`, () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for stated ${word}`)
     const profile = catalogue.resolveGptReasoningProfile(word, row.candidate.live)
     assert.deepEqual([profile.wireEffort, profile.source], [word, 'user'])
     const request = requestFor(profile.wireEffort)
@@ -145,13 +145,13 @@ try {
   })
   for (const word of ['none', 'minimal']) check(`a list that states its levels answers ${word} with low, the word the 6.2 guide names`, () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for fallback ${word}`)
     const profile = catalogue.resolveGptReasoningProfile(word, row.candidate.live)
     assert.deepEqual([profile.wireEffort, profile.source, profile.adjustedFrom], ['low', 'unsupported-fallback', word])
   })
   check('a list that states its levels names the default it states and the windows it serves', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for stated windows`)
     assert.equal(catalogue.resolveGptReasoningProfile(undefined, row.candidate.live).wireEffort, 'medium')
     assert.equal(getContextWindowForModel(id), 872_000)
     assert.equal(getContextWindowForModel(`${id}[served]`), 500_000)
@@ -159,7 +159,7 @@ try {
   await seed({ data: [{ id, supported_reasoning_levels: [], input_modalities: ['text'] }] })
   check('explicit source facts outrank the page', () => {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
-    assert.ok(row.ok)
+    assert.ok(row.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${id}, api-key) failed for explicit source facts`)
     assert.deepEqual(row.candidate.live.supportedReasoningEfforts, [])
     assert.deepEqual(row.candidate.live.inputModalities, ['text'])
   })
@@ -168,9 +168,9 @@ try {
     const row = catalogue.evaluateGptCandidate(id, 'api-key')
     assert.equal(row.ok, false)
     const option = getModelOptions().find(r => r.value === id)
-    assert.ok(option)
+    assert.ok(option, `src/utils/model/modelOptions.ts unlisted ${id} missing from picker options`)
     assert.equal(option.label, name)
-    assert.ok(typeof option.unavailable === 'string' && option.unavailable.includes('not served by the connected'))
+    assert.ok(typeof option.unavailable === 'string' && option.unavailable.includes('not served by the connected'), `src/utils/model/modelOptions.ts unlisted ${id} unavailable message mismatch: ${String(option.unavailable)}`)
   })
 } finally {
   rmSync(home, { recursive: true, force: true })

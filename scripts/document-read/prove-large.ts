@@ -15,7 +15,7 @@ try {
       assert.equal(child.status, 0, `${ext}: ${child.error ?? child.signal ?? 'proof failed'}`)
     }
   } else {
-    assert.ok(['pdf', 'xlsx'].includes(kind))
+    assert.ok(['pdf', 'xlsx'].includes(kind), `prove-large child argument must be pdf or xlsx, got ${JSON.stringify(kind)}`)
     const path = join(root, `large.${kind}`), size = 50 * 1024 * 1024
     const fd = openSync(path, 'w')
     try {
@@ -63,7 +63,8 @@ try {
       writeFileSync(lines, zip({ 'word/document.xml': '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + '<w:p><w:r><w:t>x</w:t></w:r></w:p>'.repeat(2100) + '</w:body></w:document>' }))
       const result = await FileReadTool.call({ file_path: lines }, context, undefined as any, { uuid: crypto.randomUUID() } as any)
       assert.equal(result.data.type, 'text')
-      assert.ok((result.data as any).file.numLines <= 2000)
+      const numLines = (result.data as any).file.numLines
+      assert.ok(numLines <= 2000, `FileReadTool returned ${numLines} lines (> 2000 default window) for window.docx in src/tools/FileReadTool/FileReadTool.ts`)
       assert.match(JSON.stringify(FileReadTool.mapToolResultToToolResultBlockParam(result.data, 'window')), /Read\(offset:|Read.*limit|read.*offset/i)
       const { parsePdfText } = await import('../../src/utils/pdfText.ts')
       const { pdfFixture, textPage } = await import('./fixtures.ts')
@@ -84,7 +85,7 @@ try {
     const elapsed = performance.now() - start
     const peakBytes = process.resourceUsage().maxRSS * (process.versions.bun && process.platform === 'darwin' ? 1 : 1024)
     console.log(JSON.stringify({ kind, bytes: statSync(path).size, elapsedMs: Math.round(elapsed), peakRSSBytes: peakBytes, peakRSSMiB: Math.round(peakBytes / 1024 / 1024) }))
-    assert.ok(elapsed < 60_000)
+    assert.ok(elapsed < 60_000, `large ${kind} read took ${Math.round(elapsed)}ms (>= 60000ms ceiling) in src/tools/FileReadTool/FileReadTool.ts`)
     assert.ok(peakBytes < 1536 * 1024 ** 2, 'peak RSS exceeds 1.5 GiB')
     console.log(`PASS large ${kind}: bounded read and healthy session`)
   }

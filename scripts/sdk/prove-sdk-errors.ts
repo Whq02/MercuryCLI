@@ -48,8 +48,8 @@ const requests = await startFixtureServer({ methods: {
 } })
 try {
   const session = await sdk.connect({ mercury: requests.mercury, onPermissionRequest: async (_, context) => new Promise(resolve => context.signal.addEventListener('abort', () => { aborted = true; resolve({ outcome: 'deny' }) }, { once: true })) })
-  try { await session.facts(); assert(aborted) } finally { await session.close() }
-  assert(!requests.received.some(m => m.id === 9 && 'result' in m))
+  try { await session.facts(); assert(aborted, '$/cancel_request did not abort in-flight onPermissionRequest signal in sdk/src/runner.ts') } finally { await session.close() }
+  assert(!requests.received.some(m => m.id === 9 && 'result' in m), 'cancelled permission/request id=9 still sent a JSON-RPC result in sdk/src/runner.ts')
 } finally { await requests.close() }
 
 const scratch = mkdtempSync(join(tmpdir(), 'sdk-errors-'))

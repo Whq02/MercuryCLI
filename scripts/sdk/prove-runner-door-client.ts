@@ -42,10 +42,10 @@ try {
       const id = '11111111-1111-4111-8111-111111111111'
       assert.equal((await session.sendPrompt('a prompt mid-turn', { id, priority: 'next' })).accepted, true)
       assert.equal((await session.withdraw(id)).withdrawn, true)
-      const facts = await session.facts(); assert('usage' in facts && 'queue' in facts)
+      const facts = await session.facts(); assert('usage' in facts && 'queue' in facts, `session.facts() missing usage/queue fields in sdk/src/runner.ts: ${Object.keys(facts).join(',')}`)
       assert.equal((await session.interrupt()).interrupted, true)
       assert.equal((await second).status, 'interrupted')
-      assert(session.rows.some(r => r.type === 'tool_result' && r.output.includes('SDK host refused')))
+      assert(session.rows.some(r => r.type === 'tool_result' && r.output.includes('SDK host refused')), 'session.rows missing denied Write tool_result from onPermissionRequest in sdk/src/runner.ts')
     } finally { await session.close() }
     console.log('PASS TypeScript live runner initialize, permission, mid-turn prompt, withdrawal, interrupt, facts, typed refusal')
   } finally { await c.close() }
@@ -79,12 +79,13 @@ try {
   } finally { await streaming.close() }
 
   const inline = await context(() => [{ kind: 'tool_use', name: 'mcp__sdk-tools__echo', input: { text: 'inline result' } }, { kind: 'text', text: 'Inline finished.' }])
-  const echo = defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (p: { text: string }, context) => { assert(context.signal instanceof AbortSignal); return p.text } })
+  const echo = defineTool({ name: 'echo', description: 'Echo', inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] }, execute: (p: { text: string }, context) => { assert(context.signal instanceof AbortSignal, 'defineTool execute context.signal was not an AbortSignal in sdk/src/tools.ts'); return p.text } })
   try {
     const task = run({ mercury, cwd: inline.cwd, env: inline.env, prompt: 'Use echo', mode: 'default', ephemeral: true, tools: [echo], agent: 'sdk-reader', agentDefs: { 'sdk-reader': defineAgent({ description: 'SDK reader', prompt: 'Use the echo tool.', tools: ['Read'] }) } })
     assert.equal((await task.outcome).status, 'completed')
-    assert(task.rows.some(r => r.type === 'tool_result' && r.output.includes('inline result')))
-    assert((await task.session).agents.includes('sdk-reader'))
+    assert(task.rows.some(r => r.type === 'tool_result' && r.output.includes('inline result')), 'inline MCP tool result missing from task.rows in sdk/src/tools.ts')
+    const sessionAgents = (await task.session).agents
+    assert(sessionAgents.includes('sdk-reader'), `task.session.agents omitted inline agent sdk-reader in sdk/src/client.ts: ${sessionAgents.join(',')}`)
     console.log('PASS live inline MCP tool and inline agent definition')
   } finally { await inline.close() }
 

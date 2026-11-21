@@ -48,7 +48,7 @@ try {
   const uncachedRow = (value: string) => ({ key: uncached.toLowerCase(), label: 'Uncached prompt TPM limit', value })
   const adjustedRow = (value: string) => ({ key: adjusted.toLowerCase(), label: 'Cache-adjusted prompt TPM limit', value })
   const both = await run()
-  assert.ok(both.some(row => !row.isApiErrorMessage))
+  assert.ok(both.some(row => !row.isApiErrorMessage), 'Fireworks turn with usage headers must yield a non-error assistant reply')
   assert.deepEqual(figures(), [uncachedRow('9000'), adjustedRow('5000')], 'different headers retain different meanings in /usage')
   console.log('[PASS] both headers reach the usage reader with distinct labels and values')
 
@@ -74,7 +74,7 @@ try {
   ] as Array<[Record<string, string>, Array<{ key: string; label: string; value: string }>]>) {
     headers = next
     const before = requests
-    assert.ok((await run()).some(row => !row.isApiErrorMessage))
+    assert.ok((await run()).some(row => !row.isApiErrorMessage), `Fireworks turn with header subset ${JSON.stringify(next)} must settle without API error`)
     assert.equal(requests, before + 1, 'absent or zero readings never gate inference')
     assert.deepEqual(figures(), expected, 'omitted headers do not alias or retain stale values')
   }
@@ -84,16 +84,16 @@ try {
   const before = requests
   const refused = await run()
   assert.equal(requests, before + 1)
-  assert.ok(refused.some(row => row.error === 'rate_limit'))
-  assert.ok(JSON.stringify(refused).includes('asks for a 1 h 0 min wait'))
+  assert.ok(refused.some(row => row.error === 'rate_limit'), 'Fireworks 429 must settle with error=rate_limit')
+  assert.ok(JSON.stringify(refused).includes('asks for a 1 h 0 min wait'), 'Fireworks 429 with Retry-After: 3600 must report "asks for a 1 h 0 min wait"')
   const reading = owner.usageForProvider('fireworks')
   assert.deepEqual(figures()?.slice(0, 2), [uncachedRow('9000'), adjustedRow('5000')])
   const retry = reading.figures?.find(row => row.key === 'retry')
   assert.equal(retry!.resetsAtMs! - retry!.observedAtMs!, 3_600_000)
-  assert.ok(reading.readerNote?.includes('rate limited'))
+  assert.ok(reading.readerNote?.includes('rate limited'), `usageForProvider("fireworks") readerNote in src/services/providers/providerUsage.ts must note "rate limited" (got ${reading.readerNote})`)
   status = 200
   headers = {}
-  assert.ok((await run()).some(row => !row.isApiErrorMessage))
+  assert.ok((await run()).some(row => !row.isApiErrorMessage), 'manual Fireworks retry after 429 must settle without API error')
   assert.equal(requests, before + 2, 'manual retry reaches Fireworks despite the preceding refusal')
   assert.equal(owner.usageForProvider('fireworks').readerNote, undefined)
   assert.deepEqual(figures(), [])

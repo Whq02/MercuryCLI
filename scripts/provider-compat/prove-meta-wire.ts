@@ -25,7 +25,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.MODEL_API_KEY!))
+  assert.ok(!raw.includes(process.env.MODEL_API_KEY!), 'Meta chat request body in src/services/providers/meta/ must never contain MODEL_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer: req.headers.get('authorization') === `Bearer ${process.env.MODEL_API_KEY}` })
   if (mode === 'auth' || mode === 'billing' || mode === 'busy') {

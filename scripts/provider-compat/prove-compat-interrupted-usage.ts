@@ -65,10 +65,10 @@ try {
             assert.equal(tail.message.usage.output_tokens, usage.outputTokens)
           }
           if (mode.startsWith('cancel') || measured) {
-            assert.ok(rows.every(row => !row.isApiErrorMessage))
-            assert.ok(assistants.every(row => row.message.stop_reason === null))
+            assert.ok(rows.every(row => !row.isApiErrorMessage), `${dialect}/${mode}: cancelled turn must not emit synthetic API error row`)
+            assert.ok(assistants.every(row => row.message.stop_reason === null), `${dialect}/${mode}: cancelled assistant rows must leave stop_reason null`)
           }
-          if (mode === 'cut') assert.ok(rows.some(row => row.isApiErrorMessage))
+          if (mode === 'cut') assert.ok(rows.some(row => row.isApiErrorMessage), `${dialect}/cut: truncated stream must emit an API error row`)
         }
         console.log(`PASS ${dialect}/${mode}: usage settles exactly once with honest cache and completion state`)
       }
