@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { posix } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type ShellRead, UNREAD_PART, absolutePath, moveOf, printedBy, wordKnown } from '../../wards/wardsShellRead.js'
+import { type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, wordKnown } from '../../wards/wardsShellRead.js'
 import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
@@ -160,4 +160,36 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
     return { folders: [...named, ...(named.includes(pattern) ? [] : [pattern]), ...(named.length > 0 || gated ? [] : [before])], lost: false }
   }
   return { folders: [cwd], lost: true }
+}
+
+const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|trap)\b/
+const PLAIN_CD = new Set(['cd', 'chdir', 'set-location', 'sl'])
+const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
+const PLAIN_POPD = new Set(['popd', 'pop-location'])
+const ALLOWED_MOVE_OPTION = /^-[LPe@]+$/
+const STACK_INDEX = /^[+-]\d+$/
+
+export function placesCertain(read: ShellRead, text: string): boolean {
+  if (UNCERTAIN_PLACE_WORDS.test(text)) return false
+  for (const turn of read.commands) {
+    const move = moveOf(turn)
+    if (move === undefined) continue
+    if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.body !== undefined || turn.background || turn.stages.length > 0 || turn.substituted === true) return false
+    const { program, operands } = move
+    if (PLAIN_CD.has(program)) {
+      if (operands.length > 1) return false
+    } else if (PLAIN_PUSHD.has(program)) {
+      if (operands.length !== 1 || STACK_INDEX.test(operands[0]!)) return false
+    } else if (PLAIN_POPD.has(program)) {
+      if (operands.length !== 0) return false
+    } else return false
+    const layer = layersOf(turn.argv).find(found => found.program === program)
+    if (layer === undefined) return false
+    for (const word of layer.argv.slice(1)) {
+      if (word === '--') break
+      if (word === '-') continue
+      if (word.startsWith('-') && !ALLOWED_MOVE_OPTION.test(word)) return false
+    }
+  }
+  return true
 }

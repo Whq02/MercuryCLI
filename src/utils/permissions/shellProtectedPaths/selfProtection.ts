@@ -7,7 +7,7 @@ import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WR
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { walkShellCommands } from './walk.js'
 import { mercuryHomes, readForFloors } from './homes.js'
-import { foldersAfter } from './folders.js'
+import { foldersAfter, placesCertain } from './folders.js'
 import { GIT_OPTION_VALUED, sharesEarlierStage } from './listings.js'
 import { TREE_REMOVERS } from './credentialWrite.js'
 
@@ -137,7 +137,7 @@ export async function readSelfProtection(command: string, powershell: boolean, c
     if (named !== null) return named
   }
   const read = await readForFloors(command, powershell, cwd)
-  if (!powershell && (read === null || read.exact.kind === 'parse-unavailable')) {
+  if (!powershell && (read === null || read.exact.kind === 'parse-unavailable' || !placesCertain(read, command))) {
     const named = await namedSelfProtectionReason(command, false, cwd)
     if (named !== null) return named
   }
