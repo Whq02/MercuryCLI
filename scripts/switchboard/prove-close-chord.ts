@@ -9,6 +9,7 @@ import { resolveExecutionProfile } from '../lib/executionProfile.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { afterBootFace } from '../lib/bootFace.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -192,8 +193,7 @@ const api = await startFixtureApi([
 const ESC = String.fromCharCode(27)
 const CTRL_X = String.fromCharCode(24)
 const BACKSPACE = String.fromCharCode(127)
-const N = '↑↓ choose'
-const after = (ms: number, payload: string): string => `after:${N}:${ms}:${payload}`
+const after = (ms: number, payload: string): string => afterBootFace(ms, payload)
 const sendList: string[] = []
 const mark: Record<string, number> = {}
 const send = (name: string | undefined, ms: number, payload: string): void => {

@@ -8,6 +8,7 @@ import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { driveWallSeconds, driverClosed, unfiredDetail } from '../lib/ptydriveReport.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { afterBootFace } from '../lib/bootFace.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO = join(HERE, '..', '..')
@@ -88,8 +89,7 @@ const api = await startFixtureApi([
   { kind: 'text', text: 'Spare.', whenModel: 'opus' },
 ])
 const ESC = String.fromCharCode(27)
-const N = '↑↓ choose'
-const after = (ms: number, payload: string): string => `after:${N}:${ms}:${payload}`
+const after = (ms: number, payload: string): string => afterBootFace(ms, payload)
 const sends = [
   after(1200, '\r'),
   after(3600, 'stream slowly'),
