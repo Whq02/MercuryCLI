@@ -165,9 +165,6 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
 
 const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|CDPATH|trap)\b/
 const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly|unset)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
-const PLAIN_CD = new Set(['cd', 'chdir', 'set-location', 'sl'])
-const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
-const PLAIN_POPD = new Set(['popd', 'pop-location'])
 const UNCERTAIN_MOVE_WORD = /[`$*?[\]{}\\<>()!'"]/
 const PLAIN_SEP = /^[ \t]*(?:;|\r?\n)[ \t]*/
 const AFTER_RETURN = /^[ \t]*(?:$|;(?!;)|\r?\n|&&(?!&))/
@@ -209,21 +206,21 @@ function plainMoveKind(turn: ReadCommand): MoveKind | undefined | null {
   if (raw === undefined || raw.length !== turn.argv.length) return null
   const layer = layersOf(turn.argv).find(found => found.program === move.program)
   if (layer === undefined || layer.wrappers.length > 0 || layer.argv.length !== turn.argv.length) return null
-  if (UNCERTAIN_MOVE_WORD.test(raw[0]!)) return null
-  if (PLAIN_CD.has(move.program)) {
+  const written = raw[0]!
+  if (written === 'cd') {
     if (raw.length !== 2) return null
     const arg = raw[1]!
     if (arg === '-') return 'cd-return'
     if (arg.startsWith('-') || !plainLiteralOperand(arg)) return null
     return 'cd-entry'
   }
-  if (PLAIN_PUSHD.has(move.program)) {
+  if (written === 'pushd') {
     if (raw.length !== 2) return null
     const arg = raw[1]!
     if (arg.startsWith('-') || arg.startsWith('+') || !plainLiteralOperand(arg)) return null
     return 'pushd-entry'
   }
-  if (PLAIN_POPD.has(move.program)) return raw.length === 1 ? 'popd-return' : null
+  if (written === 'popd') return raw.length === 1 ? 'popd-return' : null
   return null
 }
 
