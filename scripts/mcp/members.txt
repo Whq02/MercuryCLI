@@ -69,3 +69,4 @@ prove-stdio-message-limit.ts
 prove-structured-content-blocks.ts
 prove-tool-call-meta-key.ts
 prove-tool-discovery-retry.ts
+prove-mcp-trust-reset.ts
