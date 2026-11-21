@@ -1088,14 +1088,31 @@ export async function probeJourneyLoop(): Promise<CheckResult> {
   const { runJourney } = await import('../journeys/runner.js')
   const { getExecution } = await import('../../utils/primitives/executionPlane.js')
 
-  const owner = fixtureOwnerKey(ownerMod, 'journey')
   const root = fs.mkdtempSync(pathMod.join(os.tmpdir(), 'health-journey-'))
-  const PORT = 42_733
+  const owner = fixtureOwnerKey(ownerMod, pathMod.basename(root))
+  const portFile = pathMod.join(root, 'port')
+  let boundPort: number | undefined
+  const fixtureUrl = (): string => {
+    if (boundPort === undefined && fs.existsSync(portFile)) {
+      const parsed = Number(fs.readFileSync(portFile, 'utf8').trim())
+      if (Number.isInteger(parsed) && parsed > 0 && parsed <= 65_535) {
+        boundPort = parsed
+      }
+    }
+    return `http://127.0.0.1:${boundPort ?? 0}/health`
+  }
   fs.writeFileSync(
     pathMod.join(root, 'server.mjs'),
     `import { createServer } from 'node:http'
-createServer((req, res) => { console.log('hit ' + req.url); res.writeHead(200, {'content-type':'application/json'}); res.end(JSON.stringify({ok:true})) })
-  .listen(${PORT}, '127.0.0.1', () => console.log('HEALTH FIXTURE READY'))
+import { renameSync, writeFileSync } from 'node:fs'
+const server = createServer((req, res) => { console.log('hit ' + req.url); res.writeHead(200, {'content-type':'application/json'}); res.end(JSON.stringify({ok:true})) })
+server.listen(0, '127.0.0.1', () => {
+  const addr = server.address()
+  const port = typeof addr === 'object' && addr !== null ? addr.port : 0
+  writeFileSync('port.tmp', String(port))
+  renameSync('port.tmp', 'port')
+  console.log('HEALTH FIXTURE READY')
+})
 `,
   )
   try {
@@ -1113,7 +1130,9 @@ createServer((req, res) => { console.log('hit ' + req.url); res.writeHead(200, {
           { kind: 'service.wait', name: 'health-journey-fixture' },
           {
             kind: 'http.request',
-            url: `http://127.0.0.1:${PORT}/health`,
+            get url() {
+              return fixtureUrl()
+            },
             expect: { status: 200, bodyIncludes: '"ok":true' },
           },
           { kind: 'log.match', service: 'health-journey-fixture', pattern: 'hit /health' },
