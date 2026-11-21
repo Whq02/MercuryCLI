@@ -8,6 +8,7 @@ export type AcceptedInput =
 export type InputVerdict = { accepted: true } | { accepted: false; reason: 'duplicate' }
 import type { QueuedCommand } from '../../types/textInputTypes.js'
 import type { ParamsOf } from '../../runner/wire/methods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { Base64ImageSource, ContentBlockParam } from '../../types/wire.js'
 import { getSessionId } from '../../bootstrap/state.js'
 import { doesMessageExistInSession } from '../../utils/sessionStorage.js'
@@ -46,7 +47,7 @@ export const taskNotificationPayloads = (command: QueuedCommand): string[] => {
   return texts.flatMap(text => text.match(/<task-notification>[\s\S]*?<\/task-notification>/g) ?? [text])
 }
 
-const promptContentOf = (content: Extract<ParamsOf<'queue/add'>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
+const promptContentOf = (content: Extract<ParamsOf<typeof SESSION_VERBS.sendWords.runner.name>, { type: 'prompt' }>['content']): string | ContentBlockParam[] => {
   if (typeof content === 'string') return content
   return content.map(block =>
     block.type === 'image'
@@ -150,9 +151,9 @@ export async function acceptInput(input: AcceptedInput, ports: RunnerPorts): Pro
 export async function acceptInputRow(row: InputRow, ports: RunnerPorts): Promise<InputVerdict> {
   const { acceptInput } = ports
   const empty = emptyInputRow(row)
-  if (empty !== null) throw invalidParams('queue/add', [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
+  if (empty !== null) throw invalidParams(SESSION_VERBS.sendWords.runner.name, [{ path: [row.type === 'shell' ? 'command' : 'content'], message: empty }])
   const schemaRefusal = promptSchemaRefusal(row)
-  if (schemaRefusal !== null) throw invalidParams('queue/add', [{ path: ['schema'], message: schemaRefusal }])
+  if (schemaRefusal !== null) throw invalidParams(SESSION_VERBS.sendWords.runner.name, [{ path: ['schema'], message: schemaRefusal }])
   if (row.type === 'outside-report') return acceptInput({ kind: 'outside-report', sender: row.sender, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
   if (row.type === 'note') return acceptInput({ kind: 'note', to: row.to, content: row.content, ...(row.id !== undefined ? { id: row.id } : {}) })
   const stamp = {

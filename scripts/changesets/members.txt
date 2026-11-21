@@ -8,3 +8,4 @@ prove-changeset-repeated-target.ts
 prove-changeset-zero-write.ts
 prove-compensation-isolation.ts
 prove-drift-before-rename.ts
+prove-changeset-permission-card.ts

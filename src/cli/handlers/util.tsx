@@ -29,6 +29,7 @@ export async function setupTokenHandler(root: Root): Promise<void> {
               </Text>
             ) : null}
             <ConsoleOAuthFlow
+              mode="setup-token"
               onDone={() => resolve()}
               startingMessage={
                 'This creates a long-lived authentication token for your Claude account. The token is valid for one year and requires an active subscription.'

@@ -1,5 +1,6 @@
 
 import { OwnerScopedStore, type OwnerKey } from '../primitives/owner.js'
+import { registerOwnerScopedStore } from '../run/ownerLifecycle.js'
 
 interface ContextMarks {
   pins: Set<string>
@@ -11,6 +12,7 @@ const marks = new OwnerScopedStore<ContextMarks>({
   create: () => ({ pins: new Set(), drops: new Set() }),
   cap: 32,
 })
+registerOwnerScopedStore(marks)
 
 export function getContextMarks(owner: OwnerKey): { pins: string[]; drops: string[] } {
   const m = marks.get(owner)

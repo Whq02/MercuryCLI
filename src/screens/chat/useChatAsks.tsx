@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { useDerivedState, useLayoutPublish, useSubscription } from '../../hooks/effects.js';
+import { useCallback, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useClaim, useLayoutPublish } from '../../hooks/effects.js';
 import { CardQueuedWords } from '../../components/permissions/CardQueuedWords.js';
 import { PermissionQueueContext, permissionQueueStatus } from '../../components/permissions/PermissionQueueContext.js';
 import { PermissionRequest, type ToolUseConfirm } from '../../components/permissions/PermissionRequest.js';
@@ -15,6 +15,12 @@ import { recordModeTransition } from '../../utils/permissions/modeTransitions.js
 import { registerPermissionFocusNotifier } from '../../utils/permissions/permissionFocus.js';
 import { permissionModeTitle } from '../../utils/permissions/PermissionMode.js';
 import { transitionPermissionMode } from '../../utils/permissions/permissionSetup.js';
+import {
+  type ChatScreenStore,
+  createChatScreenStore,
+  recordChatConsentResolved,
+  selectResolvedConsentCount,
+} from './chatStore.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
 import { startTimeout } from '../../utils/timers.js';
@@ -26,29 +32,33 @@ const subscribeFocusedPermissionMode = subscribeThroughFocused((connector, liste
 export function useChatAsks({
   setAppState,
   addNotification,
+  chatStore,
 }: {
   setAppState: (updater: (prev: AppState) => AppState) => void;
   addNotification: ReturnType<typeof useNotifications>['addNotification'];
+  chatStore?: ChatScreenStore;
 }) {
-  useSubscription(
+  useClaim(
     () =>
       registerPermissionFocusNotifier(text =>
         addNotification({ key: 'permission-focus-refusal', text, priority: 'high', timeoutMs: 4000 }),
       ),
     [addNotification],
   );
+  const localStoreRef = useRef<ChatScreenStore | null>(null);
+  const consentStore = chatStore ?? (localStoreRef.current ??= createChatScreenStore());
   const sessionAsks = useSyncExternalStore(subscribeFocusedAsks, getFocusedAsks, getFocusedAsks);
   const toolUseConfirmQueue = useMemo(() => sessionAsks.map(ask => ask.confirm), [sessionAsks]);
-  const [resolvedConsentCount, setResolvedConsentCount] = useState(0);
-  useDerivedState(() => {
-    if (toolUseConfirmQueue.length === 0) setResolvedConsentCount(0);
-  }, [toolUseConfirmQueue.length]);
+  const toolUseIds = useMemo(() => toolUseConfirmQueue.map(confirm => confirm.toolUseID), [toolUseConfirmQueue]);
+  const readResolvedConsentCount = (): number => selectResolvedConsentCount(consentStore.getState(), toolUseIds);
+  const resolvedConsentCount = useSyncExternalStore(consentStore.subscribe, readResolvedConsentCount, readResolvedConsentCount);
   const resolveHeadPermission = useCallback(() => {
-    setResolvedConsentCount(c => c + 1);
     const focused = getFocusedSessionConnector();
-    const head = focused.asks()[0];
+    const asks = focused.asks();
+    recordChatConsentResolved(consentStore, asks.map(ask => ask.confirm.toolUseID));
+    const head = asks[0];
     if (head !== undefined) focused.settleAsk(head.id);
-  }, []);
+  }, [consentStore]);
 
   const adoptRunnerMode = useCallback(() => {
     const held = getFocusedSessionConnector().permissionMode();
@@ -65,7 +75,7 @@ export function useChatAsks({
       return { ...prev, toolPermissionContext: { ...next, mode: held } };
     });
   }, [setAppState]);
-  useSubscription(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
+  useClaim(() => subscribeFocusedPermissionMode(adoptRunnerMode), [adoptRunnerMode]);
 
   const setToolPermissionContext = useCallback(
     (context: ToolPermissionContext, options?: { preserveMode?: boolean }) => {
@@ -121,11 +131,14 @@ export function useChatAsks({
   return { sessionAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting };
 }
 
+const noopSubscribe = (): (() => void) => () => {};
+
 export function useChatAsksCard({
   focusedInputDialog,
   repinToBottom,
   toolUseConfirmQueue,
   resolvedConsentCount,
+  chatStore,
   resolveHeadPermission,
   chatSurfaceCovered,
   verbose,
@@ -133,11 +146,17 @@ export function useChatAsksCard({
   focusedInputDialog: FocusedInputDialog | undefined;
   repinToBottom: () => void;
   toolUseConfirmQueue: ToolUseConfirm[];
-  resolvedConsentCount: number;
+  resolvedConsentCount?: number;
+  chatStore?: ChatScreenStore;
   resolveHeadPermission: () => void;
   chatSurfaceCovered: boolean;
   verbose: boolean;
 }) {
+  const toolUseIds = useMemo(() => toolUseConfirmQueue.map(confirm => confirm.toolUseID), [toolUseConfirmQueue]);
+  const subscribeConsent = chatStore ? chatStore.subscribe : noopSubscribe;
+  const readConsentCount = (): number =>
+    chatStore ? selectResolvedConsentCount(chatStore.getState(), toolUseIds) : (resolvedConsentCount ?? 0);
+  const effectiveResolvedConsentCount = useSyncExternalStore(subscribeConsent, readConsentCount, readConsentCount);
   const previousPermissionFocusRef = useRef(false);
   useLayoutPublish(() => {
     const now = focusedInputDialog === 'tool-permission';
@@ -146,7 +165,7 @@ export function useChatAsksCard({
   }, [focusedInputDialog, repinToBottom]);
   const permissionOverlay =
     focusedInputDialog === 'tool-permission' && toolUseConfirmQueue[0] && !chatSurfaceCovered ? (
-      <PermissionQueueContext.Provider value={permissionQueueStatus(resolvedConsentCount, toolUseConfirmQueue.length)}>
+      <PermissionQueueContext.Provider value={permissionQueueStatus(effectiveResolvedConsentCount, toolUseConfirmQueue.length)}>
         <Box flexDirection="column">
           <PermissionRequest
             key={toolUseConfirmQueue[0].toolUseID}

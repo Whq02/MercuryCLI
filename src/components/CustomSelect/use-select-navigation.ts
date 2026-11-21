@@ -1,6 +1,6 @@
 
 import React, { useCallback, useReducer, useRef } from 'react'
-import { useDerivedState, usePublish } from '../../hooks/effects.js'
+import { usePublish } from '../../hooks/effects.js'
 import OptionMap, {
   isInputOption,
   optionsEquivalent,
@@ -401,9 +401,11 @@ export function useSelectNavigation<T>({
     onFocusRef.current?.(validatedFocusedValue)
   }, [validatedFocusedValue])
 
-  useDerivedState(() => {
+  const previousFocusValueRef = useRef<T | undefined>(undefined)
+  if (!Object.is(previousFocusValueRef.current, focusValue)) {
+    previousFocusValueRef.current = focusValue
     dispatch({ type: 'focus-value', value: focusValue })
-  }, [focusValue])
+  }
 
   const focusNextOption = useCallback(() => {
     dispatch({ type: 'focus-next-option' })

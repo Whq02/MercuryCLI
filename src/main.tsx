@@ -1,3 +1,4 @@
+import { featureReached } from './substrate/featureReached.js'
 import { Command as CommanderCommand } from 'commander'
 import {
   getSessionId,
@@ -298,6 +299,7 @@ async function run(): Promise<void> {
     }
   })
 
+  program.hook('preAction', (_, action) => featureReached('verb', action === program ? 'interactive' : action.parent === program ? action.name() : `${action.parent!.name()} ${action.name()}`))
   const runCommand = registerSessionDoors(program, sessionOptions)
 
   const parseProgram = () => program.parseAsync(process.argv)

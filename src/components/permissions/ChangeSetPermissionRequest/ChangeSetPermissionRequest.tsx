@@ -72,7 +72,7 @@ export function ChangeSetPermissionRequest(props: PermissionRequestProps): React
   const input = toolUseConfirm.input as ChangeSetInput;
   const owner = ownerFromToolUseContext(toolUseContext);
 
-  usePermissionRequestLogging(toolUseConfirm);
+  usePermissionRequestLogging(toolUseConfirm, 'ChangeSetPermissionRequest');
 
   const preview = React.useMemo(() => computePreview(input, owner), [input, owner]);
 

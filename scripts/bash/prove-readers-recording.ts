@@ -409,6 +409,7 @@ const ROOT = process.env.READERS_RECORDING_ROOT
 const HOME = join(ROOT, 'home', 'Users', FAKE_USER)
 const CONFIG = join(ROOT, 'config')
 const PROJECT = join(ROOT, 'work', 'outer', 'middle', 'project')
+const TMP = join(ROOT, 'tmp')
 const SRC = join(TREE, 'src')
 const PAD = ` #${'x'.repeat(10_050)}`
 const LONG_NAME = 'n'.repeat(300)
@@ -430,6 +431,7 @@ for (const file of ['.ssh/authorized_keys', '.ssh/id_ed25519', '.aws/credentials
 for (const file of ['.credentials.json', '.provider-secrets.json', 'mcp-auth.json', 'browser-secrets.json']) put(CONFIG, file, '{"secret":"STAND-IN"}\n')
 put(CONFIG, 'runtime/current/mercury.mjs', 'export {}\n')
 mkdirSync(join(CONFIG, 'daemon'), { recursive: true })
+mkdirSync(TMP, { recursive: true })
 if (process.platform !== 'win32') {
   symlinkSync(join(PROJECT, 'secrets', 'k.txt'), join(PROJECT, 'link-to-k'))
   symlinkSync(join(PROJECT, 'secrets'), join(PROJECT, 'link-to-dir'))
@@ -501,7 +503,7 @@ function cutPathsNamed(text: string): string {
 
 const named = (text: string): string => cutPathsNamed(NAMED.reduce((out, [path, word]) => out.replaceAll(path, word), text))
 const filled = (line: string): string =>
-  line.replaceAll('<HOME>', HOME).replaceAll('<USER>', FAKE_USER).replaceAll('<PROJECT>', PROJECT).replaceAll('<CONFIG>', CONFIG).replaceAll('<DAEMON_PID>', String(OWN_PID)).replaceAll('<OWN_PID>', String(OWN_PID)).replaceAll('<PAD>', PAD).replaceAll('<LONG>', LONG_NAME)
+  line.replaceAll('<HOME>', HOME).replaceAll('<USER>', FAKE_USER).replaceAll('<PROJECT>', PROJECT).replaceAll('<CONFIG>', CONFIG).replaceAll('<TMP>', TMP).replaceAll('<DAEMON_PID>', String(OWN_PID)).replaceAll('<OWN_PID>', String(OWN_PID)).replaceAll('<PAD>', PAD).replaceAll('<LONG>', LONG_NAME)
 const asLists = (_key: string, value: unknown): unknown => (value instanceof Map ? { entries: [...value] } : value instanceof Set ? { values: [...value] } : value)
 
 const spent: Record<string, number> = {}

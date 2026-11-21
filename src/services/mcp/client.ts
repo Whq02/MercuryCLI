@@ -920,6 +920,16 @@ export async function prefetchAllMcpResources(
   return { clients, tools, commands }
 }
 
+export function supplementaryToolsForMcpClient(client: MCPServerConnection): Tool[] {
+  if (client.type === 'connected') {
+    return client.capabilities.resources ? [ListMcpResourcesTool, ReadMcpResourceTool] : []
+  }
+  if (client.type === 'needs-auth') {
+    return [createMcpAuthTool(client.name, client.config)]
+  }
+  return []
+}
+
 export async function reconnectMcpServerImpl(
   name: string,
   config: ScopedMcpServerConfig,
@@ -929,7 +939,7 @@ export async function reconnectMcpServerImpl(
     clearKeychainCache()
     await clearServerCache(name, config)
     const connection = await connectToServer(name, config)
-    if (connection.type !== 'connected') return { client: connection, tools: [], commands: [] }
+    if (connection.type !== 'connected') return { client: connection, tools: supplementaryToolsForMcpClient(connection), commands: [] }
     return discoverFor(connection, Boolean(connection.capabilities.resources))
   } catch (err) {
     logMCPError(name, err)

@@ -2,6 +2,7 @@ import type { Readable, Writable } from 'node:stream'
 import type { LooseRow } from '../rows/read.js'
 import type { InputRow } from '../rows/vocabulary.js'
 import type { Capabilities, HostNotificationName, HostRequestName, InitializeResult, ParamsOf, PermissionAnswer, PermissionRequestParams, ResultOf, SessionAppliedParams } from '../runner/wire/methods.js'
+import { SESSION_VERBS } from '../runner/wire/sessionVerbs.js'
 import { createPeer, type Peer, type RequestOptions } from '../runner/wire/peer.js'
 import type { RpcError } from '../runner/wire/errors.js'
 import { MERCURY_VERSION } from '../constants/product.js'
@@ -19,7 +20,7 @@ function slowBootLine(elapsedMs: number, wait: SlowMarkWait = 'answered initiali
   return `the runner has not ${wait} after ${Math.round(elapsedMs / 1000)} s — waiting while it lives`
 }
 
-export type Verb = Exclude<HostRequestName, 'initialize'>
+export type Verb = Exclude<HostRequestName, typeof SESSION_VERBS.initialize.runner.name>
 
 export type HeldAsk = { answer: Promise<PermissionAnswer>; withdraw: (cause?: string) => void }
 
@@ -27,7 +28,7 @@ export type RunnerConnectionHooks = {
   onRow: (row: LooseRow) => void
   onAsk: (params: PermissionRequestParams) => HeldAsk
   onApplied: (params: SessionAppliedParams) => void
-  onScheduleEdit?: (params: ParamsOf<'schedule/edit'>) => ResultOf<'schedule/edit'> | Promise<ResultOf<'schedule/edit'>>
+  onScheduleEdit?: (params: ParamsOf<typeof SESSION_VERBS.scheduleEdit.runner.name>) => ResultOf<typeof SESSION_VERBS.scheduleEdit.runner.name> | Promise<ResultOf<typeof SESSION_VERBS.scheduleEdit.runner.name>>
   onProtocolError: (error: RpcError) => void
   log: (line: string) => void
 }
@@ -55,9 +56,9 @@ export class RunnerConnection implements RunnerDoor {
     this.hooks = hooks
     this.startedAt = Date.now()
     this.peer = createPeer({ input: ends.input, output: ends.output, side: 'host', log: hooks.log, onProtocolError: error => hooks.onProtocolError(error) })
-    this.peer.onNotification('row', row => hooks.onRow(row as LooseRow))
-    this.peer.onNotification('session/applied', params => hooks.onApplied(params))
-    this.peer.onRequest('permission/request', (params, ctx) => {
+    this.peer.onNotification(SESSION_VERBS.row.runner.name, row => hooks.onRow(row as LooseRow))
+    this.peer.onNotification(SESSION_VERBS.sessionApplied.runner.name, params => hooks.onApplied(params))
+    this.peer.onRequest(SESSION_VERBS.answerAsk.runner.name, (params, ctx) => {
       const held = hooks.onAsk(params)
       ctx.signal.addEventListener(
         'abort',
@@ -70,10 +71,10 @@ export class RunnerConnection implements RunnerDoor {
       )
       return held.answer
     })
-    if (hooks.onScheduleEdit) this.peer.onRequest('schedule/edit', params => hooks.onScheduleEdit!(params))
+    if (hooks.onScheduleEdit) this.peer.onRequest(SESSION_VERBS.scheduleEdit.runner.name, params => hooks.onScheduleEdit!(params))
     this.armBootMark(0)
     this.initialized = this.peer
-      .request('initialize', { protocol: 1, host: { name: 'mercury-daemon', version: MERCURY_VERSION }, capabilities })
+      .request(SESSION_VERBS.initialize.runner.name, { protocol: 1, host: { name: 'mercury-daemon', version: MERCURY_VERSION }, capabilities })
       .catch((error: unknown) => {
         hooks.log(`the runner did not answer initialize: ${error instanceof Error ? error.message : String(error)}`)
         return null
@@ -111,7 +112,7 @@ export class RunnerConnection implements RunnerDoor {
     this.clearBootMark()
     this.armBootMark(0, since, 'loaded its claimed session')
     const loaded = this.peer
-      .request('session/facts', {}, { deadlineMs: null })
+      .request(SESSION_VERBS.sessionFacts.runner.name, {}, { deadlineMs: null })
       .then(
         () => true,
         (error: unknown) => {
@@ -145,7 +146,7 @@ export class RunnerConnection implements RunnerDoor {
     if ((await this.initialized) === null) return false
     if (!(await this.loaded)) return false
     try {
-      const answer = await this.peer.request('queue/add', row)
+      const answer = await this.peer.request(SESSION_VERBS.sendWords.runner.name, row)
       if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
       return answer.accepted
     } catch (error) {

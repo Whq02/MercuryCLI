@@ -1,3 +1,4 @@
+import { featureReached } from '../substrate/featureReached.js'
 
 import { flagSpellings } from '../substrate/flagRegistry.js'
 import { currentInputEventSeq, markInputConsumedThroughCurrentSeq } from '../ink/events/input-event.js'
@@ -92,6 +93,7 @@ let lastTransition: SurfaceTransitionRecord = {
 const listeners = new Set<() => void>()
 
 function commitTransition(verb: SurfaceTransitionVerb, from: SurfaceRoute, to: SurfaceRoute): void {
+  featureReached('screen', to.kind)
   generation += 1
   lastTransition = {
     verb,

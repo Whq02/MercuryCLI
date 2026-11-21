@@ -28,7 +28,6 @@ const LAYERS: Rule = {
     ['src/utils/artifacts/reviewContracts.ts', 'a type only: CrewActorRef of src/services/crew/identity.ts'],
     ['src/utils/attachments/types.ts', "a type only: FileReadTool's output in the attachment union"],
     ['src/utils/auth.ts', 'shared credential and sign-in state used across src/utils; checks live provider accounts'],
-    ['src/utils/backgroundHousekeeping.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/bash/', 'row 8'],
     ['src/utils/capability/manifest.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
     ['src/utils/cockpit/harnessMap.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
@@ -55,9 +54,7 @@ const LAYERS: Rule = {
     ['src/utils/model/subModelSlots.ts', 'shared model-id and capability lookup used across src/utils; reads live provider catalogues'],
     ['src/utils/model/utilityModel.ts', 'the utility-model picker reads route law and the local helper id for the hook runners'],
     ['src/utils/normalizeToolSchema.ts', 'low-level utils checking provider route, env spelling or usage type without owning a service'],
-    ['src/utils/ocr.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/permissions/decision/', 'row 8'],
-    ['src/utils/permissions/filesystem.ts', 'remoteFiles/thisMachine.ts goes down once row 11 releases this file, its importer'],
     ['src/utils/permissions/flowLaw.ts', 'row 8'],
     ['src/utils/permissions/runtimeProtection.ts', "self-protection reads the live daemon pid and script; row 8's floors call it"],
     ['src/utils/permissions/shellProtectedPaths/', 'row 8'],
@@ -204,6 +201,55 @@ function hold(table: string, rule: Rule): void {
 
 hold(LAYERS_TABLE, LAYERS)
 hold(ENGINE_TABLE, ENGINE)
+
+async function holdVerbSpellings(): Promise<void> {
+  const { default: ts } = await import('typescript')
+  const { SESSION_VERBS } = await import('../../src/runner/wire/sessionVerbs.ts')
+  type SessionVerbRow = import('../../src/runner/wire/sessionVerbs.ts').SessionVerbRow
+  const registry = 'src/runner/wire/sessionVerbs.ts'
+  const table = 'scripts/gate/session-verb-spellings.tsv'
+  section(`${table}: files outside the registry that spell a wire name as a string`)
+  const refs = new Map<string, Set<string>>()
+  for (const { daemon, runner } of Object.values(SESSION_VERBS) as readonly SessionVerbRow[]) {
+    for (const name of [daemon?.op, daemon?.legacyOp, daemon?.action, daemon?.action && `${daemon.op}/${daemon.action}`, runner?.name]) {
+      if (name !== undefined && !refs.has(name)) refs.set(name, new Set())
+    }
+  }
+  for (const file of files) {
+    if (file === registry) continue
+    const source = ts.createSourceFile(file, readFileSync(join(ROOT, file), 'utf8'), ts.ScriptTarget.ESNext, false)
+    const visit = (node: import('typescript').Node): void => {
+      if (ts.isStringLiteralLike(node)) refs.get(node.text)?.add(file)
+      ts.forEachChild(node, visit)
+    }
+    visit(source)
+  }
+  const path = join(ROOT, table)
+  const first = !existsSync(path) && !stoodInGit(table)
+  const saved = new Map<string, number>()
+  const invalid: string[] = []
+  if (existsSync(path)) {
+    let previous = ''
+    for (const [i, line] of readFileSync(path, 'utf8').split('\n').entries()) {
+      if (!line) continue
+      const [name = '', count = '', ...rest] = line.split('\t')
+      if (name <= previous || !/^[1-9]\d*$/.test(count) || !Number.isSafeInteger(Number(count)) || rest.length) invalid.push(`${table}:${i + 1}: expected a wire name and positive count, once in name order`)
+      saved.set(name, Number(count))
+      previous = name
+    }
+  } else if (!first || !WRITE) invalid.push(first ? `run bun ${SELF} --write to write the first count` : `restore ${table} from git; --write cannot replace a missing table`)
+  check(`${table} reads as sorted rows of a name and a file count`, invalid.length === 0, invalid.slice(0, 12))
+  if (invalid.length) return
+  const rows = [...refs.keys()].sort().map(name => [name, refs.get(name)!] as const).filter(([, paths]) => paths.size > 0)
+  const raised = first ? [] : rows.filter(([name, paths]) => paths.size > (saved.get(name) ?? 0))
+  check(`wire name/file pairs outside ${registry}: ${rows.reduce((n, [, paths]) => n + paths.size, 0)}; no name reaches more files`, raised.length === 0, [
+    ...raised.slice(0, 12).map(([name, paths]) => `${name}: ${saved.get(name) ?? 0} → ${paths.size} (${[...paths].join(', ')})`),
+    `use the matching row of SESSION_VERBS in those files; bun ${SELF} --write only lowers counts`,
+  ])
+  if (WRITE && failures === 0) writeFileSync(path, rows.map(([name, paths]) => `${name}\t${paths.size}\n`).join(''))
+}
+
+await holdVerbSpellings()
 
 console.log('')
 console.log(failures === 0 ? `prove-layer-imports: ALL HOLD — ${checks} checks` : `prove-layer-imports: ${failures} FAILURE(S) of ${checks}`)

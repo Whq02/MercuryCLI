@@ -1,4 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { updateConcourseWorkers, type ConcourseWorkerRecordV1, workerPidAlive, reviveConcourseWorker } from '../concourseWorkers.js'
 import type { RunnerChildSpec } from '../headlessRun.js'
 import { refreshSignInReads, describeSignInRead } from '../signInView.js'
@@ -27,7 +28,7 @@ function unparkModel(rec: ConcourseWorkerRecordV1, dir?: string): void {
 }
 
 export function landModel(rec: ConcourseWorkerRecordV1, model: string, roster: SeatRosterPort, dir: string | undefined, settle: boolean, served?: string): void {
-  console.error(`[daemon] seat set-model applied: ${rec.runnerId} → ${model}`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} applied: ${rec.runnerId} → ${model}`)
   const seat = seatOf(rec.runnerId)
   if (settle) {
     const from = seat.lastAnswer?.model.effective ?? rec.modelKey
@@ -51,10 +52,10 @@ export async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, 
   const queued: SeatVerbOutcome = { outcome: 'queued', detail: `${model} applies when this turn ends` }
   const door = roster.door(rec.runnerId)
   if (door === undefined || door.closed) return opts.parked ? queued : respawnOnModel(rec, model, roster, dir)
-  const sent = door.send('session/set_model', { model, ...(opts.words === undefined ? {} : { words: opts.words }) }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
+  const sent = door.send(SESSION_VERBS.setModel.runner.name, { model, ...(opts.words === undefined ? {} : { words: opts.words }) }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
   const seat = seatOf(rec.runnerId)
   seat.heldModel = { requestId: sent.id, model }
-  const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, 'set-model', SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
+  const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, SESSION_VERBS.setModel.daemon.action, SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   const word = seatVerbAnswerOf(asked)
   if ('at' in word && word.at === 'turn_end') {
@@ -62,7 +63,7 @@ export async function forwardModel(rec: ConcourseWorkerRecordV1, model: string, 
       parkModel(rec, model, dir)
       publishSeatFacts(rec.runnerId, dir, roster)
     }
-    logForDebugging(`[daemon] seat set-model held by the runner for its turn boundary: ${rec.runnerId} → ${model}`)
+    logForDebugging(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} held by the runner for its turn boundary: ${rec.runnerId} → ${model}`)
     return queued
   }
   if (seat.heldModel !== null && seat.heldModel.requestId === sent.id) seat.heldModel = null
@@ -92,7 +93,7 @@ export async function setSessionModel(sessionId: string, model: string, roster: 
   const parked = !gone && seatBusyForSwitch(rec.runnerId, roster)
   if (parked) {
     parkModel(rec, model, dir)
-    console.error(`[daemon] seat set-model parked (the session is mid-turn): ${rec.runnerId} → ${model}`)
+    console.error(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} parked (the session is mid-turn): ${rec.runnerId} → ${model}`)
     publishSeatFacts(rec.runnerId, dir, roster)
   }
   return forwardModel(rec, model, roster, dir, { parked, settle: false, ...(words === undefined ? {} : { words }) })
@@ -142,7 +143,7 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
       }
     }, dir)
     const receipt = `${goneRunnerWords(rec, row)} — restarting on ${name}`
-    console.error(`[daemon] seat set-model rides the respawn: ${rec.runnerId} → ${model} (${receipt})`)
+    console.error(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} rides the respawn: ${rec.runnerId} → ${model} (${receipt})`)
     publishSeatFacts(rec.runnerId, dir, roster)
     return { outcome: 'applied', detail: receipt, respawned: true }
   }
@@ -151,7 +152,7 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
     has: (short: string): { present: boolean } => roster.has!(short),
     registerLongLived: (short: string, spec: RunnerChildSpec): { ok: boolean; pid?: number; error?: string } => roster.registerLongLived!(short, spec),
   }
-  const revived = reviveConcourseWorker(rec.sessionId, 'operator:set-model', reviveRoster, { clearCrash: true, modelOverride: model }, dir)
+  const revived = reviveConcourseWorker(rec.sessionId, `operator:${SESSION_VERBS.setModel.daemon.action}`, reviveRoster, { clearCrash: true, modelOverride: model }, dir)
   if (revived.outcome === 'noop') {
     return { outcome: 'refused', detail: `the runner's door is closed while its process (pid ${rec.pid ?? '?'}) still stands — retry in a moment` }
   }
@@ -159,7 +160,7 @@ async function respawnOnModel(rec: ConcourseWorkerRecordV1, model: string, roste
     return { outcome: 'refused', detail: `${goneRunnerWords(rec, row)} and could not restart on ${model}: ${revived.detail ?? revived.reason}` }
   }
   const receipt = `${goneRunnerWords(rec, row)} — restarted on ${name}`
-  console.error(`[daemon] seat set-model respawned: ${rec.runnerId} → ${model} (${receipt})`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setModel.daemon.action} respawned: ${rec.runnerId} → ${model} (${receipt})`)
   onSeatSpawned(rec.runnerId, roster, dir)
   return { outcome: 'applied', detail: receipt, respawned: true }
 }

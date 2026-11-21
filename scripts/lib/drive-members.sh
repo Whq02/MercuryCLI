@@ -28,6 +28,7 @@ drive_member_run() {
   done
   local p="$f" leave="${MERCURY_SUITE_LEAVE_OUT:-}"
   case "$p" in */scripts/*) p="scripts/${p##*/scripts/}";; ./*) p="${p#./}";; esac
+  local trace_proof="$p"
   p="$p${tell:+ ($tell)}"
   if [ -n "$leave" ] && grep -qxF -- "$p" "$leave" 2>/dev/null; then
     printf 'second look: %s was green in the first attempt and is not run again\n' "$p"
@@ -40,8 +41,14 @@ drive_member_run() {
     (*) start=("$bun" ${form:+"$form"} "$f") ;;
   esac
   [ -n "$leave" ] && start=(env -u MERCURY_SUITE_LEAVE_OUT "${start[@]}")
+  if [ -n "${MERCURY_GATE_FEATURE_TRACE_DIR:-}" ]; then
+    start=(env "MERCURY_FEATURE_TRACE_PROOF=$trace_proof" "${start[@]}")
+  fi
   printf '── %s: %s\n' "$suite" "$name${rest:+ $rest}"
   "${start[@]}" ${words[@]+"${words[@]}"} || rc=$?
+  if [ "$rc" = 0 ] && [ -n "${MERCURY_GATE_FEATURE_TRACE_DIR:-}" ]; then
+    printf 'complete\t%s\n' "$trace_proof" >>"$MERCURY_FEATURE_TRACE" || return 1
+  fi
   printf '── %s  %ss rc=%s\n' "$p" "$(( SECONDS - t0 ))" "$rc"
   if [ -n "$skip" ] && [ "$rc" = "$skip" ]; then
     printf '⏭  %s SKIP — machine gate honoured (exit %s is the skip code of %s)\n' "$name" "$rc" "$suite"

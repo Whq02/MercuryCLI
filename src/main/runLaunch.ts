@@ -8,8 +8,10 @@ import {
   connectToServer,
   fenceMcpPrefixCollisions,
   fetchCommandsForClient,
+  fetchResourcesForClient,
   fetchToolsForClient,
   mcpLaunchBudgetMs,
+  supplementaryToolsForMcpClient,
   withMcpLaunchBudget,
 } from '../services/mcp/client.js'
 import { getMcpPrefix } from '../utils/mcp/mcpStringUtils.js'
@@ -20,7 +22,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { getTools } from '../tools.js'
 import type { AgentDefinition } from '../types/agent.js'
 import { validateForceLoginOrg } from '../utils/auth.js'
-import { startBackgroundHousekeeping } from '../utils/backgroundHousekeeping.js'
+import { startBackgroundHousekeeping } from '../services/backgroundHousekeeping.js'
 import { getGlobalConfig } from '../utils/config.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logError } from '../utils/log.js'
@@ -67,17 +69,23 @@ async function connectMcpBatch(
     members.map(async ([name, config]) => {
       try {
         const client = await connectToServer(name, config)
-        const [tools, commands] = await Promise.all([
+        const [tools, commands, resources] = await Promise.all([
           fetchToolsForClient(client),
           fetchCommandsForClient(client),
+          fetchResourcesForClient(client),
         ])
+        const supplementary = supplementaryToolsForMcpClient(client)
         setAppState(previous => ({
           ...previous,
           mcp: {
             ...previous.mcp,
             clients: previous.mcp.clients.map(entry => (entry.name === name ? client : entry)),
-            tools: dedupeByName([...previous.mcp.tools, ...tools]),
+            tools: dedupeByName([...previous.mcp.tools, ...tools, ...supplementary]),
             commands: dedupeByName([...previous.mcp.commands, ...commands]),
+            resources:
+              resources.length > 0
+                ? { ...previous.mcp.resources, [name]: resources }
+                : previous.mcp.resources,
           },
         }))
       } catch (error) {

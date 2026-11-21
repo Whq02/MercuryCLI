@@ -1,5 +1,4 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { useDerivedState } from '../hooks/effects.js';
 import { basename } from 'node:path';
 import { getCwd } from '../utils/cwd.js';
 import { useInput } from '../ink.js';
@@ -406,23 +405,11 @@ export function BootResumeScreen({ onClose, fullScene, model: given, initialScop
     ],
   });
   const selected = list.selectedRow;
-
-  const selectedId = selected !== null ? selectableIdOf(selected) : null;
-  useDerivedState(() => {
-    if (selected?.kind === 'project') {
-      if (projectFilter?.dir !== selected.project.dir) setProjectFilter(selected.project);
-    } else if (selected !== null && projectFilter !== null) {
-      setProjectFilter(null);
-    }
-  }, [selectedId]);
-  const anchorIdRef = useRef<string | null>(null);
-  anchorIdRef.current = selectedId;
-  useDerivedState(() => {
-    const want = anchorIdRef.current;
-    if (want === null) return;
-    const at = selectable.findIndex(r => selectableIdOf(r) === want);
-    if (at !== -1 && at !== list.selectedIndex) list.moveTo(at);
-  }, [selectable]);
+  if (selected?.kind === 'project') {
+    if (projectFilter?.dir !== selected.project.dir) setProjectFilter(selected.project);
+  } else if (selected !== null && projectFilter !== null) {
+    setProjectFilter(null);
+  }
 
   useInput(
     (_input, key, event) => {

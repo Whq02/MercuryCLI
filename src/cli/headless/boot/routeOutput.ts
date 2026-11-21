@@ -2,6 +2,7 @@ import { type OutboundLine, isRowLine } from '../../structuredIO.js'
 import type { Row, OutcomeRow } from '../../../rows/vocabulary.js'
 import { isOutcome } from '../../../rows/read.js'
 import { logError } from '../../../utils/log.js'
+import { SESSION_VERBS } from '../../../runner/wire/sessionVerbs.js'
 import type { BootMade, BootStep, RunnerPorts } from '../runnerPorts.js'
 
 function run(ports: RunnerPorts): BootMade<'writeLine' | 'routeOutbound'> {
@@ -12,10 +13,10 @@ function run(ports: RunnerPorts): BootMade<'writeLine' | 'routeOutbound'> {
     if (io.stdoutPipeBroken) return Promise.resolve(null)
     if (isRowLine(message)) {
       const row = io.rows.stamp(message)
-      peer.notify('row', row)
+      peer.notify(SESSION_VERBS.row.runner.name, row)
       return peer.flush().then(() => row)
     }
-    if (message.method === 'elicitation/complete') {
+    if (message.method === SESSION_VERBS.elicitationComplete.runner.name) {
       if (live.capabilities.elicitation) peer.notify(message.method, message.params)
     } else peer.notify(message.method, message.params)
     return peer.flush().then(() => null)

@@ -1,12 +1,13 @@
-import { memoize } from 'lodash-es'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { composedGuideFilesAt } from './services/instructions/adapters/index.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
 import { getCwd } from './utils/cwd.js'
+import { memoizeByCwd } from './utils/cwdMemo.js'
 import { getFsImplementation } from './utils/fsOperations.js'
 import { passedOver } from './utils/passedOver.js'
 
 const ONBOARDING_SEEN_COUNT_LIMIT = 4
+const ONBOARDING_MEMO_CAP = 50
 
 export type Step = {
   key: string
@@ -68,7 +69,7 @@ export function maybeMarkProjectOnboardingComplete(): void {
   }
 }
 
-export const shouldShowProjectOnboarding = memoize((): boolean => {
+export const shouldShowProjectOnboarding = memoizeByCwd((): boolean => {
   const config = getCurrentProjectConfig()
   if (config.hasCompletedProjectOnboarding) {
     return false
@@ -80,7 +81,7 @@ export const shouldShowProjectOnboarding = memoize((): boolean => {
     return false
   }
   return !isProjectOnboardingComplete()
-})
+}, ONBOARDING_MEMO_CAP)
 
 export function incrementProjectOnboardingSeenCount(): void {
   saveCurrentProjectConfig(currentConfig => ({
@@ -89,11 +90,11 @@ export function incrementProjectOnboardingSeenCount(): void {
   }))
 }
 
-export const projectOnboardingHint = memoize((): string | undefined => {
+export const projectOnboardingHint = memoizeByCwd((): string | undefined => {
   if (!shouldShowProjectOnboarding()) return undefined
   const step = getSteps().find(s => s.isEnabled && s.isCompletable && !s.isComplete)
   return step?.text
-})
+}, ONBOARDING_MEMO_CAP)
 
 let seenBumpedThisProcess = false
 

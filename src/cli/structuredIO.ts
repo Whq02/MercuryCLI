@@ -6,6 +6,7 @@ import { createRowStamper, type RowDraft } from '../rows/project.js'
 import { InputRowSchema, type InputRow, type PromptRow, type Row } from '../rows/vocabulary.js'
 import { MAX_LINE_BYTES } from '../runner/wire/errors.js'
 import type { ParamsOf } from '../runner/wire/methods.js'
+import type { SESSION_VERBS } from '../runner/wire/sessionVerbs.js'
 import { compileJsonSchema } from '../services/schema/jsonSchemaEngine.js'
 import { logForDebugging } from '../utils/debug.js'
 import { logForDiagnosticsNoPII } from '../utils/diagLogs.js'
@@ -33,7 +34,8 @@ export function isBrokenPipeError(error: unknown): boolean {
 
 export const INPUT_REFUSED_CODE = 'input_refused'
 
-export type OutboundNotification = { [M in 'session/applied' | 'elicitation/complete']: { method: M; params: ParamsOf<M> } }['session/applied' | 'elicitation/complete']
+type OutboundNotificationMethod = typeof SESSION_VERBS.sessionApplied.runner.name | typeof SESSION_VERBS.elicitationComplete.runner.name
+export type OutboundNotification = { [M in OutboundNotificationMethod]: { method: M; params: ParamsOf<M> } }[OutboundNotificationMethod]
 export type OutboundLine = RowDraft | OutboundNotification
 
 export function isRowLine(line: OutboundLine): line is RowDraft {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useDerivedState, useLayoutPublish } from '../../../hooks/effects.js'
+import { useLayoutPublish } from '../../../hooks/effects.js'
 import { usePopupMarker } from '../../../context/popupFormContext.js'
 import { settingsPopupMarker } from '../../../utils/cockpit/settingsPopup.js'
 import { usePopupListPaging } from '../../CustomSelect/popup-list.js'
@@ -76,10 +76,8 @@ export function useConfigList({
     return filtered.length > beside ? beside : Math.max(1, listRows - configWarningRows(warning, width))
   }
   const win = configListWindow(selected, offset, filtered.length, windowFor(Math.max(0, Math.min(selected, filtered.length - 1))))
-  useDerivedState(() => {
-    if (win.sel !== selected) setSelected(win.sel)
-    if (win.off !== offset) setOffset(win.off)
-  }, [win.sel, win.off, selected, offset])
+  if (win.sel !== selected) setSelected(win.sel)
+  if (win.off !== offset) setOffset(win.off)
   usePopupMarker(compact && subMenu === null && filtered.length > 0 ? settingsPopupMarker(win.sel + 1, filtered.length) : null)
 
   const moveTo = (next: number): void => {

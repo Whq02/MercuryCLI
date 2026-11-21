@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js'
 
 import * as React from 'react'
 import { randomUUID, type UUID } from 'node:crypto'
@@ -209,6 +210,7 @@ async function executePromptCommand(
   canUseToolForFork?: CanUseToolFn,
 ): Promise<ProcessUserInputBaseResult> {
   try {
+    featureReached('command', command.name)
     const hookMessages: Message[] = []
 
     if (command.context === 'fork') {
@@ -458,6 +460,7 @@ export async function processSlashCommand(
         }
         try {
           const module = await registered.load()
+          featureReached('command', registered.name)
           const result = await module.call(args, context)
           const text = result.type === 'text' ? result.value : ''
           return { messages: [], shouldQuery: false, ...(text !== '' ? { resultText: text } : {}) }
@@ -647,6 +650,7 @@ async function runLocalJsxCommand(
       try {
         markTransitionStart(getCommandName(command) === 'model' ? 'picker-open' : 'screen-switch')
         const module = await command.load()
+        featureReached('command', command.name)
         const element = await module.call(done, context, args, commandName)
         if ((context as { options?: { isNonInteractiveSession?: boolean } }).options
           ?.isNonInteractiveSession === true && element) {
@@ -717,6 +721,7 @@ async function runLocalCommand(
   })
   try {
     const module = await command.load()
+    featureReached('command', command.name)
     const result = await module.call(args, context)
     if (command.userPrivate === true) {
       const text = result.type === 'text' ? result.value : ''

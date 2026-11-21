@@ -1,6 +1,6 @@
 import type React from 'react'
 import { useRef, useState } from 'react'
-import { useClaim, usePublish, useSubscription } from '../../hooks/effects.js'
+import { useClaim, usePublish } from '../../hooks/effects.js'
 import type { DOMElement } from '../../ink/dom.js'
 import { nodeCache, type CachedLayout } from '../../ink/node-cache.js'
 import { useSelection } from '../../ink/hooks/use-selection.js'
@@ -56,7 +56,7 @@ export function useComposerSelectionState(): ComposerSelectionState {
     if (ownSelectionRef.current === null) return
     setOwnSelection(null)
   }
-  useSubscription(
+  useClaim(
     () =>
       selectionApi.subscribe(() => {
         const state = selectionApi.getState()
