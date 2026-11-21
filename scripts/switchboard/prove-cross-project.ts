@@ -369,7 +369,7 @@ console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the 
   const strip = (s: string): string => s.split(ESC).map((seg, i) => (i === 0 ? seg : seg.replace(/^\[[0-9;]*m/, ""))).join("")
   const vis = (s: string): number => c.vis(s) as number
   const recut = core.assembleCardRows({ cwdBase: 'here', continueTarget: null, menuAvailable: true, concourse: { ctx: 'x' } }) as Array<{ key: string; ctx: string }>
-  check('the card composes NO standalone project row (the merged door carries the estate)', !recut.some(r => r.key === 'project') && recut.some(r => r.key === 'sessions'))
+  check('the card composes NO standalone project row (the Session Manager carries the estate)', !recut.some(r => r.key === 'project') && !recut.some(r => r.key === 'sessions') && recut.some(r => r.key === 'concourse'))
   const { resumeProjectEntryOf } = await import('../../src/components/BootResumeScreen.js')
   const mergedRow = resumeProjectEntryOf({ dir: '/p/foo', base: 'foo', ageMs: 5 * 60_000, sessionId: 'a', transcriptPath: null, firstChatAt: 1, firstSessionId: 'a', running: 3 })
   check('the merged screen\'s project row wears "5m · 3 running"', mergedRow.valueLabel === '5m · 3 running', mergedRow.valueLabel)
