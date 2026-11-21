@@ -38,6 +38,7 @@ const { buildRunnerInvocation } = await import('../../src/daemon/headlessRun.ts'
 const { transcriptExport, transcriptExportText, truncateExportResults } = await import('../../src/commands/export/transcript.ts')
 const { createSecretRedactor, redactSecretValues } = await import('../../src/utils/redactSecrets.ts')
 const { sessionPromptFromWindow } = await import('../../src/utils/sessionStorage/sessionIndex.ts')
+const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
 
 let failures = 0
 let checks = 0
@@ -142,8 +143,8 @@ type Line = { kind: string; metaKind?: string; fields?: Record<string, unknown>;
 const linesOf = (file: string): Line[] =>
   file === '' || !existsSync(file)
     ? []
-    : readFileSync(file, 'utf8')
-        .split('\n')
+    : [...historyLines(file)]
+        .map(bytes => bytes.toString('utf8').trimEnd())
         .filter(line => line.trim() !== '')
         .map(raw => {
           const payload = ((JSON.parse(raw) as { payload?: Record<string, unknown> }).payload ?? {}) as Record<string, unknown>
