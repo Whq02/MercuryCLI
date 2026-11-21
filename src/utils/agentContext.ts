@@ -1,29 +1,18 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
+import {
+  getOwnerContext,
+  withOwnerContext,
+  type AgentContext,
+  type SubagentContext,
+} from './run/ownerContext.js'
 
-
-type InvocationEdge = {
-  invokingRequestId?: string
-  invocationKind?: 'spawn' | 'resume'
-  invocationEmitted?: boolean
-}
-
-export type SubagentContext = InvocationEdge & {
-  agentType: 'subagent'
-  agentId: string
-  subagentName?: string
-  isBuiltIn?: boolean
-}
-
-export type AgentContext = SubagentContext
-
-const storage = new AsyncLocalStorage<AgentContext>()
+export type { SubagentContext, AgentContext }
 
 export function getAgentContext(): AgentContext | undefined {
-  return storage.getStore()
+  return getOwnerContext()?.agent
 }
 
 export function runWithAgentContext<T>(context: AgentContext, fn: () => T): T {
-  return storage.run(context, fn)
+  return withOwnerContext({ agent: context }, fn)
 }
 
 

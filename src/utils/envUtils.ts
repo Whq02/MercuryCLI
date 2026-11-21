@@ -1,4 +1,3 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
 import { chmodSync, existsSync, mkdirSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, sep } from 'node:path'
@@ -9,6 +8,7 @@ import { flagEnv } from '../substrate/flagRegistry.js'
 import { readSessionOption } from './sessionArgs.js'
 import { hostEnv } from './hostEnv.js'
 import { canonicalHomePathSpelling, posixFileModesApply } from './platform/files.js'
+import { getOwnerContext, withOwnerContext } from './run/ownerContext.js'
 
 
 export function defaultMercuryHome(): string {
@@ -36,8 +36,7 @@ export function rawConfigHomePinSpelling(): string | null {
 
 
 let authScope: string | undefined
-const scopedAuthHome = new AsyncLocalStorage<string>()
-export function withAuthScope<T>(dir: string, work: () => T): T { return scopedAuthHome.run(dir, work) }
+export function withAuthScope<T>(dir: string, work: () => T): T { return withOwnerContext({ authHome: dir }, work) }
 
 export function setAuthScope(dir: string): void {
   authScope = dir
@@ -52,7 +51,7 @@ export function getAuthScope(): string | undefined {
 }
 
 export function getAuthConfigHomeDir(): string {
-  return scopedAuthHome.getStore() ?? authScope ?? getMercuryHome()
+  return getOwnerContext()?.authHome ?? authScope ?? getMercuryHome()
 }
 
 export function ensurePrivateConfigHome(): void {

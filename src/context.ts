@@ -1,5 +1,6 @@
-import { memoize } from 'lodash-es'
+import { resolve } from 'node:path'
 import {
+  getCwdState,
 } from './bootstrap/state.js'
 import {
   composeInstructionPrompt,
@@ -12,6 +13,7 @@ import { logForDiagnosticsNoPII } from './utils/diagLogs.js'
 import { isBareMode } from './utils/envUtils.js'
 import { execFileNoThrow } from './utils/execFileNoThrow.js'
 import { getCwd } from './utils/cwd.js'
+import { memoizeByCwd } from './utils/cwdMemo.js'
 import { getBranch, getDefaultBranch, getIsGit, gitExe } from './utils/git.js'
 import { projectScopePathspec } from './utils/projectBoundary.js'
 import { shouldIncludeGitInstructions } from './utils/gitSettings.js'
@@ -20,7 +22,7 @@ import { logError } from './utils/log.js'
 import { INSTRUCTIONS_CONTEXT_KEY } from './utils/userContextReminder.js'
 
 const GIT_STATUS_MAX_LENGTH = 2000
-
+const CONTEXT_MEMO_CAP = 64
 export function isInstructionDiscoveryDisabled(): boolean {
   return isBareMode()
 }
@@ -35,7 +37,7 @@ async function gitOutcome(args: string[]): Promise<{ stdout: string; code: numbe
   return outcome.code === 0 ? { stdout: outcome.stdout.trim(), code: 0 } : { stdout: '', code: outcome.code, ...(outcome.error !== undefined ? { error: outcome.error } : {}) }
 }
 
-export const getGitStatus = memoize(async (): Promise<string | null> => {
+export const getGitStatus = memoizeByCwd(async (): Promise<string | null> => {
   if (process.env.NODE_ENV === 'test') {
     return null
   }
@@ -53,11 +55,13 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
       return null
     }
 
+    const cwd = getCwd()
+    const branchCwd = resolve(cwd) === resolve(getCwdState()) ? undefined : cwd
     const commandsStartedAt = Date.now()
     const [branch, mainBranch, statusOutcome, log, userName] = await Promise.all([
-      getBranch(),
-      getDefaultBranch(),
-      gitOutcome(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(getCwd())]),
+      getBranch(branchCwd),
+      getDefaultBranch(branchCwd),
+      gitOutcome(['--no-optional-locks', 'status', '--short', ...projectScopePathspec(cwd)]),
       rawGit(['--no-optional-locks', 'log', '--oneline', '-5']),
       rawGit(['config', 'user.name']),
     ])
@@ -97,7 +101,7 @@ export const getGitStatus = memoize(async (): Promise<string | null> => {
     logError(error)
     return null
   }
-})
+}, CONTEXT_MEMO_CAP)
 
 let instructionInvalidationArmed = false
 function armInstructionInvalidation(): void {
@@ -110,7 +114,7 @@ function armInstructionInvalidation(): void {
 }
 
 
-export const getSystemContext = memoize(
+export const getSystemContext = memoizeByCwd(
   async (): Promise<Record<string, string>> => {
     armInstructionInvalidation()
     logForDiagnosticsNoPII('info', 'system_context_started')
@@ -129,6 +133,7 @@ export const getSystemContext = memoize(
       ...(gitRules ? { gitRules } : {}),
     }
   },
+  CONTEXT_MEMO_CAP,
 )
 
 function localIsoDate(): string {
@@ -138,7 +143,7 @@ function localIsoDate(): string {
   return `${now.getFullYear()}-${month}-${day}`
 }
 
-export const getUserContext = memoize(
+export const getUserContext = memoizeByCwd(
   async (): Promise<Record<string, string>> => {
     armInstructionInvalidation()
     logForDiagnosticsNoPII('info', 'user_context_started')
@@ -164,4 +169,5 @@ export const getUserContext = memoize(
       currentDate: `Today's date is ${localIsoDate()}.`,
     }
   },
+  CONTEXT_MEMO_CAP,
 )

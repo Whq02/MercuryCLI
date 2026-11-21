@@ -16,3 +16,4 @@ prove-ref-observability.ts
 prove-task-ordering.ts
 prove-terminal-outcome.ts
 prove-transcript-destination.ts
+prove-large-session-history.ts

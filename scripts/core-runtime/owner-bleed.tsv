@@ -1,0 +1,3 @@
+id	fault
+shell-cwd-unscoped-agent	Shell cursor is shared without a working-directory override
+first-conversation-notice	The first conversation consumes the notice for both
