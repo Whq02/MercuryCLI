@@ -1,4 +1,3 @@
-src/runner/wire/methods.ts	table	METHODS	40
 src/services/browser/session/stealth.ts	unit	pageStealthInit	380
 src/services/eval/jsCellTransform.ts	unit	createJsCellTransformer	527
 src/services/eval/jsRunnerSource.ts	text	JS_RUNNER_SOURCE	440
