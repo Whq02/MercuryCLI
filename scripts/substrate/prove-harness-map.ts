@@ -13,7 +13,7 @@ delete process.env.MERCURY_WORKFLOWS
 delete process.env.MERCURY_GODOT
 
 const { getHarnessMapDelta, getHarnessMapSection, harnessMapEnabled, resetHarnessMapForTest } =
-  await import('../../src/utils/cockpit/harnessMap.js')
+  await import('../../src/services/cockpit/harnessMap.js')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
@@ -80,7 +80,7 @@ delete process.env.MERCURY_WORKFLOWS
 
 {
   const { getHarnessMapDelta, getHarnessMapSection, resetHarnessMapForTest } = await import(
-    '../../src/utils/cockpit/harnessMap.ts'
+    '../../src/services/cockpit/harnessMap.ts'
   )
   const landed = (d: { added: string[]; removed: string[] }) => ({
     type: 'attachment',

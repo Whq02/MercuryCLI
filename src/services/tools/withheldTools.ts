@@ -3,7 +3,7 @@ import { debugToolWithholding } from '../dap/dapClient.js'
 import { resolveDesktopDriver } from '../desktop/resolveDriver.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { searchToolsAvailability } from '../../utils/ripgrep.js'
-import { godotToolWithholding } from '../../utils/vulcan/vulcanGates.js'
+import { godotToolWithholding } from '../vulcan/vulcanGates.js'
 
 export interface WithheldTool {
   tool: string

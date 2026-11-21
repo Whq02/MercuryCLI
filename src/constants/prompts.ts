@@ -16,7 +16,7 @@ import {
 import { getAntiSycophancyAlwaysOnSection } from '../utils/antiSycophancy.js'
 import { isEnvTruthy } from '../utils/envUtils.js'
 import { isMcpInstructionsDeltaEnabled } from '../utils/mcpInstructionsDelta.js'
-import { getVulcanSection } from '../utils/vulcan/vulcanGates.js'
+import { getVulcanSection } from '../services/vulcan/vulcanGates.js'
 import { getModelKnowledgeCutoff } from '../utils/model/capabilities.js'
 import { declaredRouteOf } from '../services/providers/routeLaw.js'
 import { getInitialSettings } from '../utils/settings/settings.js'
@@ -53,7 +53,7 @@ import {
   localPromptProfileApplies,
   localServerKind,
 } from './localPromptProfile.js'
-import { getHarnessMapSection } from '../utils/cockpit/harnessMap.js'
+import { getHarnessMapSection } from '../services/cockpit/harnessMap.js'
 import { missionSection, missionSectionKey, type ServedMission } from '../services/mission/served.js'
 import type { Tools } from '../Tool.js'
 import type { MCPServerConnection } from '../utils/mcp/types.js'

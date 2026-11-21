@@ -8,7 +8,7 @@ import { findGodotProjectRoot } from '../../services/lsp/godotLane.js'
 import type { ChangeRecordRoad } from '../../services/vulcan/addonInstaller.js'
 import { resolveVulcanClient, type VulcanResult } from '../../services/vulcan/vulcanClient.js'
 import { fileHistoryEnabled, fileHistoryTrackEdit } from '../../services/changeTransaction/fileHistory.js'
-import { vulcanLiteMode } from '../../utils/vulcan/vulcanGates.js'
+import { vulcanLiteMode } from '../../services/vulcan/vulcanGates.js'
 import { VULCAN_STEP_WALL_MS_PER_FRAME, vulcanOp, vulcanCategories } from '../../utils/vulcan/optable.generated.js'
 import { GODOT_TOOL_NAME, getGodotToolDescription } from './prompt.js'
 import {

@@ -80,7 +80,7 @@ const ALLOW: Row[] = [
   { path: 'src/utils/crew/', fragment: null, why: "the team system's own road — roster, mailbox, charter, panes, governance — rebuilt by the crew and renamed last" },
   { path: 'src/utils/messages/attachmentText.ts', fragment: null, why: 'attachment text is the model\'s' },
   { path: 'src/utils/cockpit/runtimePosture.ts', fragment: null, why: "the runtime-posture block is the model's system prompt" },
-  { path: 'src/utils/cockpit/harnessMap.ts', fragment: 'mercury://<kind>/<id>', why: 'the ref kinds it lists are the wire' },
+  { path: 'src/services/cockpit/harnessMap.ts', fragment: 'mercury://<kind>/<id>', why: 'the ref kinds it lists are the wire' },
   { path: 'src/utils/tasks.ts', fragment: 'reassign them to', why: "a task tool's result is the model's" },
   { path: 'src/utils/permissions/filesystem.ts', fragment: null, why: 'permission rule patterns are paths' },
   { path: 'src/utils/vulcan/optable.generated.ts', fragment: null, why: 'generated from the coordination tools\' descriptions; follows its source' },

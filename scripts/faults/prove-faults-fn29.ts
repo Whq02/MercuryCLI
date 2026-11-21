@@ -181,7 +181,7 @@ console.log('3. src/services/cockpit/daemonSnapshot.ts — EPERM on pid probe re
   )
 }
 
-console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not claim Debug tool is withheld')
+console.log('4. src/services/cockpit/harnessMap.ts — throwing DAP probe does not claim Debug tool is withheld')
 {
   const r = runIsolated(`
     const { mock } = await import('bun:test')
@@ -196,7 +196,7 @@ console.log('4. src/utils/cockpit/harnessMap.ts — throwing DAP probe does not 
         return []
       },
     }))
-    const { computeHarnessMapLines } = await import(SRC + '/utils/cockpit/harnessMap.ts')
+    const { computeHarnessMapLines } = await import(SRC + '/services/cockpit/harnessMap.ts')
     out.onThrow = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
     shouldThrow = false
     out.onEmpty = computeHarnessMapLines().some(l => l.includes('The Debug tool is withheld'))
