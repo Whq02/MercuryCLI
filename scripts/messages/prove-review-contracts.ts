@@ -97,9 +97,9 @@ test('prepareUserContent', () => {
   assert.equal(prefix.length, 1)
   const sparse = new Array(1)
   const projected = F.prepareUserContent({ inputString: 'tail', precedingInputBlocks: sparse })
-  assert(0 in projected)
+  assert(0 in projected, 'prepareUserContent in src/utils/messages/factories.ts must materialize sparse hole at index 0')
   assert.equal(projected[0], undefined)
-  assert(!(0 in sparse))
+  assert(!(0 in sparse), 'prepareUserContent in src/utils/messages/factories.ts must not mutate caller sparse array')
 })
 
 test('createUserInterruptionMessage', () => {
@@ -124,15 +124,15 @@ test('createModelSwitchBreadcrumbs', () => {
   const rows = F.createModelSwitchBreadcrumbs('requested', 'Resolved')
   assert.equal(rows.length, 3)
   assert.equal(new Set(rows.map((row: { uuid: string }) => row.uuid)).size, 3)
-  assert(rows.every((row: { isVirtual: boolean }) => row.isVirtual === true))
+  assert(rows.every((row: { isVirtual: boolean }) => row.isVirtual === true), 'createModelSwitchBreadcrumbs in src/utils/messages/factories.ts must set isVirtual=true on every breadcrumb row')
   assert.equal(rows[0].isMeta, true)
   assert.equal(rows[1].isMeta, undefined)
   assert.equal(rows[2].isMeta, undefined)
   assert.equal(rows[0].message.content, F.createSyntheticUserCaveatMessage().message.content)
   assert.equal(rows[1].message.content, F.formatCommandInputTags('model', 'requested'))
   const stdout = rows[2].message.content as string
-  assert(stdout.startsWith(`<${X.LOCAL_COMMAND_STDOUT_TAG}>`))
-  assert(stdout.endsWith(`Resolved</${X.LOCAL_COMMAND_STDOUT_TAG}>`))
+  assert(stdout.startsWith(`<${X.LOCAL_COMMAND_STDOUT_TAG}>`), `createModelSwitchBreadcrumbs stdout in src/utils/messages/factories.ts must start with <${X.LOCAL_COMMAND_STDOUT_TAG}>`)
+  assert(stdout.endsWith(`Resolved</${X.LOCAL_COMMAND_STDOUT_TAG}>`), `createModelSwitchBreadcrumbs stdout in src/utils/messages/factories.ts must end with Resolved</${X.LOCAL_COMMAND_STDOUT_TAG}>`)
   if (process.argv.includes('--base-words')) assert.equal(stdout, `<${X.LOCAL_COMMAND_STDOUT_TAG}>Set model to Resolved</${X.LOCAL_COMMAND_STDOUT_TAG}>`)
   else assert.equal(stdout, `<${X.LOCAL_COMMAND_STDOUT_TAG}>Model now: Resolved</${X.LOCAL_COMMAND_STDOUT_TAG}>`)
 })
@@ -147,7 +147,7 @@ test('createAssistantMessage', () => {
     assert.equal(row.isApiErrorMessage, false)
     assert.equal(row.message.usage.input_tokens, 0)
     assert.equal(row.message.usage.output_tokens, 0)
-    assert(!Object.hasOwn(row, 'overflowSignal'))
+    assert(!Object.hasOwn(row, 'overflowSignal'), 'createAssistantMessage in src/utils/messages/factories.ts must not define overflowSignal')
   }
   const usage = answer('x').message.usage
   assert.equal(F.createAssistantMessage({ content: [], usage }).message.usage, usage)
@@ -209,11 +209,11 @@ test('apiErrorDetailOf', () => {
     Date.now = () => 1100
     const timeout = S.apiErrorDetailOf({ name: 'APIConnectionTimeoutError', message: 'Request timed out.' })
     assert.deepEqual(timeout, { name: 'APIConnectionTimeoutError', message: 'Request timed out.', transport: { code: 'ETIMEDOUT', errno: 0, syscall: 'connect', via: 'recent-failure', ageMs: 100 } })
-    assert(!Object.hasOwn(S.apiErrorDetailOf(new Error('other')), 'transport'))
+    assert(!Object.hasOwn(S.apiErrorDetailOf(new Error('other')), 'transport'), 'apiErrorDetailOf in src/utils/messages/systemMessages.ts must not attach transport to unrelated error')
     Date.now = () => 999
     assert.equal(S.apiErrorDetailOf(new Error('request timed out')).transport.ageMs, 0)
     Date.now = () => 30_000
-    assert(!Object.hasOwn(S.apiErrorDetailOf(new Error('request timed out')), 'transport'))
+    assert(!Object.hasOwn(S.apiErrorDetailOf(new Error('request timed out')), 'transport'), 'apiErrorDetailOf in src/utils/messages/systemMessages.ts must expire stale transport evidence at 30000ms')
   } finally {
     Date.now = now
     T._resetTransportEvidenceForTesting()
@@ -237,7 +237,7 @@ test('createSystemAPIErrorMessage', () => {
 test('isCompactBoundaryMessage', () => {
   const boundary = S.createCompactBoundaryMessage('auto', 42)
   for (const value of [undefined, null, { type: 'user' }, { type: 'system', subtype: 'informational' }]) assert.equal(S.isCompactBoundaryMessage(value), false)
-  assert(S.isCompactBoundaryMessage(boundary))
+  assert(S.isCompactBoundaryMessage(boundary), 'isCompactBoundaryMessage in src/utils/messages/systemMessages.ts must accept createCompactBoundaryMessage output')
   const plain = [user('x'), answer('y')]
   assert.equal(S.getMessagesAfterCompactBoundary(plain), plain)
   const rows = [undefined, ...plain, boundary, user('tail')]
@@ -286,7 +286,7 @@ test('compact_operator_messages', () => {
   assert.equal(rows.length, 1)
   assert.equal(rows[0].isMeta, true)
   assert.equal(rows[0].message.content, O.operatorMessagesBlockText(item))
-  assert(!(rows[0].message.content as string).startsWith('<system-reminder>'))
+  assert(!(rows[0].message.content as string).startsWith('<system-reminder>'), 'normalizeAttachmentForAPI(compact_operator_messages) in src/utils/messages/attachmentText.ts must not wrap in <system-reminder>')
 })
 
 test('stripTargetsOf', () => {
@@ -299,7 +299,7 @@ test('stripTargetsOf', () => {
   assert.deepEqual([...P.errorDrivenStripTargets([meta, stamped]).get(meta.uuid)], ['image'])
   assert.equal(meta.message.content.length, 3)
   assert.deepEqual(P.applyStripTargets(meta, new Map([[meta.uuid, new Set(['image', 'document'])]])).message.content, [{ type: 'text', text: I.IMAGE_ELIDED_TEXT }, { type: 'text', text: 'keep' }], 'a stripped image leaves its visible marker; a stripped document leaves nothing')
-  assert.ok(I.IMAGE_ELIDED_TEXT.includes('Read it again'))
+  assert.ok(I.IMAGE_ELIDED_TEXT.includes('Read it again'), 'IMAGE_ELIDED_TEXT in src/utils/messages/imageRequestFit.ts must instruct "Read it again"')
 })
 
 test('context_capsule', () => {

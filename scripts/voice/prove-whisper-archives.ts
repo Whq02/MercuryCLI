@@ -70,8 +70,8 @@ try {
   }
   const workflow = readFileSync(join(root, '.github/workflows/private-release.yml'), 'utf8')
   const step = workflow.split('- name: Build the on-device transcriber pack')[1]?.split('- name:')[0] ?? ''
-  assert.ok(step.includes('build-whisper.ts --check --target'))
-  assert.ok(!step.includes('continue-on-error'))
+  assert.ok(step.includes('build-whisper.ts --check --target'), '.github/workflows/private-release.yml on-device transcriber step must run build-whisper.ts --check --target')
+  assert.ok(!step.includes('continue-on-error'), '.github/workflows/private-release.yml on-device transcriber step must not set continue-on-error')
   assert.match(workflow, /LLVM toolchain for the on-device transcriber/)
   assert.match(workflow, /windows-11-arm/)
   assert.doesNotMatch(readFileSync(join(root, 'scripts/release/package.mjs'), 'utf8'), /new Set\(\[[^\]]*'on-device-transcriber'/)
@@ -79,7 +79,7 @@ try {
   const probe = parse(probeText)
   const release = parse(workflow)
   assert.deepEqual(Object.keys(probe.on), ['workflow_dispatch'])
-  assert.ok(probe.jobs.probe.strategy.matrix.include.includes("[inputs.target || 'windows-arm64']"))
+  assert.ok(probe.jobs.probe.strategy.matrix.include.includes("[inputs.target || 'windows-arm64']"), '.github/workflows/whisper-pack-probe.yml matrix include must default to windows-arm64')
   assert.deepEqual([...probe.on.workflow_dispatch.inputs.target.options].sort(), [...RELEASE_TARGETS].sort())
   assert.equal(probe.on.workflow_dispatch.inputs.target.default, 'windows-arm64')
   assert.deepEqual(probe.permissions, { contents: 'read' })

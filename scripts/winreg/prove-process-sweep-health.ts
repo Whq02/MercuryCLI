@@ -33,7 +33,7 @@ try {
   const table = await collectWindowsProcesses()
   assert.equal(table.complete, true, table.error)
   const [live, stale] = children.map(child => table.observations.find(row => row.process.pid === child.pid))
-  assert.ok(live && stale)
+  assert.ok(live && stale, 'collectWindowsProcesses in src/daemon/processSweepWindows.js must observe both attached and detached fixture children')
   assert.equal(live.terminalAlive, true)
   assert.equal(stale.terminalAlive, false)
   const old = Date.now() - 86_400_000

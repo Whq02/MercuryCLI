@@ -44,7 +44,8 @@ try {
         assert.equal(run.record.exitCode, 0)
         assert.equal(run.record.counts.passed, 1)
         assert.deepEqual(run.record.command.slice(0, 2), [process.execPath, entry])
-        assert.ok(run.record.outputTail.join('\n').includes(JSON.stringify(selection)))
+        const tail = run.record.outputTail.join('\n')
+        assert.ok(tail.includes(JSON.stringify(selection)), `${runner}: runRunnerProfile altered shell metacharacters in selection in src/services/ide/projectRunners.ts: ${tail.slice(0, 200)}`)
       }
     })
     rmSync(`${bin}.cmd`)
