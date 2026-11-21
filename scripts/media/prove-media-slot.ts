@@ -23,7 +23,7 @@ try {
   const { tools } = await client.listTools()
   for (const name of ['image_generate', 'video_generate']) {
     const tool = tools.find(tool => tool.name === name)!
-    assert.ok(tool)
+    assert.ok(tool, `media MCP server tool list missing ${name} (tools=${tools.map(t => t.name).join(',')}); check media server.js`)
     assert.match(tool.description ?? '', /omit model to use the default/i)
     assert.match(tool.description ?? '', /name a model only when the user asks for a specific one/i)
     assert.equal(tool.inputSchema.required?.includes('model') ?? false, false)
@@ -60,7 +60,7 @@ try {
       const context: any = { abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: permission }), options: {} }
       for (const kind of ['image', 'video'] as const) {
         const tool = discovered.find(tool => mediaGenerationKind(tool) === kind)!
-        assert.ok(tool)
+        assert.ok(tool, `discovered extension tools missing mediaGenerationKind=${kind} (count=${discovered.length}); check mediaGenerationKind`)
         const { decision } = await decideToolPermission(tool, { prompt: 'fixture' }, context)
         assert.equal(decision.behavior, 'ask')
       }

@@ -56,15 +56,15 @@ try {
   assert.equal(await pullMedia(plan, async () => true, run, () => {}), true)
   assert.equal((await readMediaHostSnapshot(settings, runner)).runtimeInstalled, true)
   const scp = calls.find(call => call.command === 'scp')!.args
-  assert.ok(scp.includes('-P') && scp.includes('2222'))
-  assert.ok(!scp.includes('-l'))
+  assert.ok(scp.includes('-P') && scp.includes('2222'), `scp upload args missing -P 2222 (args=${scp.join(' ')}); check media host setup scp args`)
+  assert.ok(!scp.includes('-l'), `scp upload args unexpectedly passed -l (args=${scp.join(' ')}); check media host setup scp args`)
   assert.match(scp.at(-1)!, /^render@gpu.example:\/workspace\/mercury-media\/bundles\//)
   assert.equal(JSON.parse(readFileSync(mediaHostStatePath(settings.host), 'utf8')).name, snapshot.location)
   const script = mediaHostInstallScript('/workspace/mercury-media/bundles/fixture', 'a'.repeat(64))
   assert.match(script, /sha256sum -c/)
   assert.match(script, /remote-server\.js/)
   assert.match(script, /"port":30080/)
-  assert.ok(!calls.some(call => /terminate|stopPod|createPod/.test(call.args.join(' '))))
+  assert.ok(!calls.some(call => /terminate|stopPod|createPod/.test(call.args.join(' '))), 'media host setup unexpectedly invoked pod lifecycle mutation; check pullMedia host setup')
   console.log('media host setup: consent, rented-machine facts, Linux CUDA plan, bundle hashes, private tunnel and installed reread')
 } finally {
   closeHostTunnel('media-fixture-rental')

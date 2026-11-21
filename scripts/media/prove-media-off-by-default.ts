@@ -25,7 +25,7 @@ try {
   set = read()
   assert.equal(set.roster.entries.filter(row => row.id === MEDIA_EXTENSION_ID).length, 1)
   const server = getExtensionMcpServers()[MEDIA_SERVER_NAME]
-  assert.ok(server && server.type === 'stdio')
+  assert.ok(server && server.type === 'stdio', `enabled mercury-media extension missing stdio MCP server config (got=${JSON.stringify(server)}); check extensions/load/servers.ts`)
   assert.equal(server.command, process.execPath)
   assert.deepEqual(server.args, [serverPath])
   assert.equal(server.env?.MEDIA_ROOT, root)
