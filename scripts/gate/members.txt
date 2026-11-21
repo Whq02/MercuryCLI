@@ -1,4 +1,5 @@
 prove-gate-runner.sh
+prove-feature-map.ts
 prove-suite-stall.ts
 prove-proof-scratch.ts
 prove-proof-guard.ts
