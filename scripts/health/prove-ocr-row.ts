@@ -4,7 +4,7 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const { ocrReadinessCheck } = await import('../../src/services/health/healthReport.ts')
 const { renderPlainCertificate } = await import('../../src/cli/healthPresentation.ts')
-const { ocrInstallHint } = await import('../../src/utils/ocr.ts')
+const { ocrInstallHint } = await import('../../src/services/ocr.ts')
 let recognitions = 0
 for (const fixture of [
   { platform: 'darwin', native: true, tesseract: false, languages: ['en-US'], name: 'macOS Vision' },

@@ -24,7 +24,7 @@ delete process.env.MERCURY_DELIVERY_ARTIFACT
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 const lifecycle = await import('../../src/substrate/stateLifecycle.ts')
-const housekeeping = await import('../../src/utils/backgroundHousekeeping.ts')
+const housekeeping = await import('../../src/services/backgroundHousekeeping.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0

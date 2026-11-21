@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { useDerivedState } from '../../../hooks/effects.js'
 import type { ConcourseRowV1 } from '../contracts.js'
 import { newDraftUndo, type LineDraft } from '../lineDraft.js'
 import type { ConcourseRegion } from '../ConcourseLayout.js'
@@ -28,18 +27,25 @@ export function useConcourseDraft({ snapshot, callbacks, reducedStage, boardSel,
     setLiveDraft(liveDraftRef.current)
     liveUndoRef.current = newDraftUndo()
   }
-  const [broadcastArmed, setBroadcastArmed] = useState(false)
+  const [rawBroadcastArmed, setBroadcastArmed] = useState(false)
+  const [broadcastKey, setBroadcastKey] = useState({ text: liveDraft.text, markedIds })
+  let broadcastArmed = rawBroadcastArmed
+  if (broadcastKey.text !== liveDraft.text || broadcastKey.markedIds !== markedIds) {
+    setBroadcastKey({ text: liveDraft.text, markedIds })
+    if (rawBroadcastArmed) {
+      setBroadcastArmed(false)
+      broadcastArmed = false
+    }
+  }
   const broadcastArmedRef = useRef(false)
   broadcastArmedRef.current = broadcastArmed
-  useDerivedState(() => {
-    if (broadcastArmedRef.current) setBroadcastArmed(false)
-  }, [liveDraft.text, markedIds])
 
-  const [note, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
-  useDerivedState(() => {
-    if (note?.row === undefined) return
-    if (boardSel !== note.row || !sessionRows.some(r => r.sessionId === note.row)) setNote(null)
-  }, [note, boardSel, sessionRows])
+  const [rawNote, setNote] = useState<{ tone: 'muted' | 'warning'; text: string; row?: string } | null>(null)
+  const staleRowNote =
+    rawNote?.row !== undefined &&
+    (boardSel !== rawNote.row || !sessionRows.some(r => r.sessionId === rawNote.row))
+  const note = staleRowNote ? null : rawNote
+  if (staleRowNote) setNote(null)
   const [liveNote, setLiveNote] = useState<{ tone: 'muted' | 'warning'; text: string } | null>(null)
   const [composeContext, setComposeContext] = useState<ComposeContext>({ kind: 'chat' })
   const composeContextRef = useRef<ComposeContext>(composeContext)

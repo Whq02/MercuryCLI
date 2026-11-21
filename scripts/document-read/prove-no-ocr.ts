@@ -11,7 +11,7 @@ process.env.PATH = join(root, 'empty-bin')
 mkdirSync(process.env.PATH)
 try {
   const { read, healthy } = await reader(root)
-  const { resolveOcrEngine } = await import('../../src/utils/ocr.ts')
+  const { resolveOcrEngine } = await import('../../src/services/ocr.ts')
   const path = join(root, 'scan.pdf')
   writeFileSync(path, pdfFixture(['q 20 0 0 20 40 600 cm /Im1 Do Q'], { width: 1, height: 1, rgb: Buffer.from([0, 0, 0]) }))
   let message = ''
