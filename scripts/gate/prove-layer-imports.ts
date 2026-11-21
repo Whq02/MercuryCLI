@@ -28,7 +28,6 @@ const LAYERS: Rule = {
     ['src/utils/artifacts/reviewContracts.ts', 'a type only: CrewActorRef of src/services/crew/identity.ts'],
     ['src/utils/attachments/types.ts', "a type only: FileReadTool's output in the attachment union"],
     ['src/utils/auth.ts', 'shared credential and sign-in state used across src/utils; checks live provider accounts'],
-    ['src/utils/backgroundHousekeeping.ts', 'its move up rewrites src/services/health/healthReport.ts, which row 11 holds'],
     ['src/utils/bash/', 'row 8'],
     ['src/utils/capability/manifest.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],
     ['src/utils/cockpit/harnessMap.ts', 'prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness'],

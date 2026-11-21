@@ -1,15 +1,15 @@
 import * as fs from 'fs/promises'
 import { join } from 'path'
 import { scheduleMnemeMaintenance } from '../mneme/mnemeMaintenance.js'
-import { initMagicDocs } from '../services/MagicDocs/magicDocs.js'
-import { getMercuryHome } from './envUtils.js'
+import { initMagicDocs } from './MagicDocs/magicDocs.js'
+import { getMercuryHome } from '../utils/envUtils.js'
 
 import { getIsInteractive, getLastInteractionTime } from '../bootstrap/state.js'
 import { runLifecyclePass } from '../substrate/stateLifecycle.js'
-import { cleanupOldMessageFilesInBackground } from './cleanup.js'
-import { logForDebugging } from './debug.js'
-import { passedOver } from './passedOver.js'
-import { startTimeout } from './timers.js'
+import { cleanupOldMessageFilesInBackground } from '../utils/cleanup.js'
+import { logForDebugging } from '../utils/debug.js'
+import { passedOver } from '../utils/passedOver.js'
+import { startTimeout } from '../utils/timers.js'
 
 const RECURRING_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000
 
