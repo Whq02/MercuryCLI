@@ -22,7 +22,8 @@ const { updateSettingsForSource } = await import('../../src/utils/settings/setti
 updateSettingsForSource('userSettings', { swarm: { enabled: true } })
 const { runSwarmCommand } = await import('../../src/commands/swarm/swarm.ts')
 const seam = await import('../../src/services/crewBoard/seam.ts')
-assert(runSwarmCommand('on').startsWith('Swarm on'))
+const swarmOnText = runSwarmCommand('on')
+assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in src/commands/swarm/swarm.ts: ${swarmOnText}`)
 await seam.latchSwarmAgent('reader', 'Reader')
 await seam.latchSwarmAgent('writer', 'Writer')
 const board = seam.swarmStore()!
@@ -43,7 +44,8 @@ async function run(withTool: boolean): Promise<any[]> {
     requests.push(request)
     request.options.onStreamActivity?.(Date.now())
     if (requests.length === 1) {
-      assert(board.post(writer, { clientOpId: `during-${++serial}`, kind: 'message', text: withTool ? 'The next tool boundary sees this.' : 'Keep this for the next active turn.', mentions: ['reader'] }).ok)
+      const posted = board.post(writer, { clientOpId: `during-${++serial}`, kind: 'message', text: withTool ? 'The next tool boundary sees this.' : 'Keep this for the next active turn.', mentions: ['reader'] })
+      assert(posted.ok, `board.post during inference failed in src/services/crewBoard/store.ts: ${JSON.stringify(posted)}`)
       if (withTool) {
         const row = createAssistantMessage({ content: [{ type: 'tool_use', id: `echo-${serial}`, name: 'Echo', input: {} }] as never })
         row.message.stop_reason = 'tool_use'
@@ -59,12 +61,12 @@ async function run(withTool: boolean): Promise<any[]> {
 }
 const working = await run(true)
 assert.equal(working.length, 2)
-assert(!JSON.stringify(working[0].messages).includes('The next tool boundary sees this.'))
+assert(!JSON.stringify(working[0].messages).includes('The next tool boundary sees this.'), 'board post made during first inference leaked into first request in src/query.ts')
 assert.equal(JSON.stringify(working[1].messages).split('The next tool boundary sees this.').length, 2)
 console.log('PASS a post during inference reaches only the next tool boundary, once')
 const ending = await run(false)
 assert.equal(ending.length, 1)
-assert(board.boundary(seam.swarmPrincipal('reader')!, new Set())?.text.includes('Keep this for the next active turn.'))
+assert(board.boundary(seam.swarmPrincipal('reader')!, new Set())?.text.includes('Keep this for the next active turn.'), 'unread board post did not stay queued for next active turn in src/services/crewBoard/store.ts')
 console.log('PASS a final reply does not start a peer-only follow-up')
 const driverArg = process.argv.indexOf('--driver')
 const { createTurnDriver } = driverArg < 0 ? await import('../../src/cli/headless/turnDriver.ts') : await import(pathToFileURL(process.argv[driverArg + 1]!).href)
@@ -87,7 +89,7 @@ const driver = createTurnDriver({
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 150))
 assert(!fault, String(fault))
-assert(sleeps > 0 && peeks < 20000 && turns.length === 0)
+assert(sleeps > 0 && peeks < 20000 && turns.length === 0, `turnDriver spun or ran premature turn (sleeps=${sleeps}, peeks=${peeks}, turns=${turns.length}) in src/cli/headless/turnDriver.ts`)
 queue.push({ value: 'Stop waiting.', mode: 'prompt', priority: 'next' })
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 30))
@@ -95,7 +97,7 @@ running = 0
 driver.kick()
 await new Promise(resolve => setTimeout(resolve, 20))
 assert.equal(turns.length, 1)
-assert(board.view().peerTurns === 0)
+assert(board.view().peerTurns === 0, `expected 0 peerTurns, got ${board.view().peerTurns} in src/services/crewBoard/store.ts`)
 console.log('PASS seven active seats, an outside report and unread board posts leave timers and operator work responsive')
 board.close()
 process.exit(0)

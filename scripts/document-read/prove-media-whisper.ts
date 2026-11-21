@@ -29,8 +29,9 @@ try {
     console.log(`SKIP real Whisper media: ${!existsSync(source) ? 'speech fixture absent' : !existsSync(model) ? 'offline base.en-q5_1 model absent' : load.state === 'unavailable' ? load.note : 'driver absent'}`)
   } else {
     const wav = readWav(readFileSync(source))
-    assert.ok(wav.ok)
-    assert.ok(wav.header.dataBytes / 32000 < 10)
+    assert.ok(wav.ok, 'readWav rejected voice fixture on-device-take.wav in src/services/voice/wav.ts')
+    const wavSeconds = wav.header.dataBytes / 32000
+    assert.ok(wavSeconds < 10, `fixture WAV duration ${wavSeconds.toFixed(2)}s >= 10s in scripts/voice/fixtures/on-device-take.wav`)
     const signal = new AbortController().signal
     let decodes = 0
     const cpu: typeof transcribeWav = async (bytes, options) => {
@@ -63,7 +64,7 @@ try {
         const exportResult = spawnSync('ffmpeg', ['-nostdin', '-hide_banner', '-loglevel', 'error', ...args, encoded], { encoding: 'utf8', windowsHide: true })
         assert.equal(exportResult.status, 0, exportResult.stderr)
         const format = mediaFileFormat(encoded)
-        assert.ok(format)
+        assert.ok(format, `mediaFileFormat failed to sniff encoded speech.${extension} in src/services/voice/fileTranscript.ts`)
         const decoded = await extractMediaTranscript(encoded, format, signal, cpu)
         assert.match(decoded, /\[00:00:0[0-2]\]/)
         assert.ok(['lighthouse', 'seven', 'ships'].filter(word => decoded.toLowerCase().includes(word)).length >= 2, decoded)
@@ -78,7 +79,7 @@ try {
       await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
       try {
         const address = server.address()
-        assert.ok(address && typeof address !== 'string')
+        assert.ok(address && typeof address !== 'string', 'loopback HTTP fixture server returned no TCP port address')
         writeFileSync(playlist, `#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nhttp://127.0.0.1:${address.port}/speech.ts\n#EXT-X-ENDLIST\n`)
         await assert.rejects(extractMediaTranscript(playlist, 'mp4', signal, cpu), /Cannot decode the audio in this MP4 file/)
         assert.equal(requests, 0)

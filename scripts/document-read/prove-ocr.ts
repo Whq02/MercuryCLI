@@ -58,7 +58,8 @@ try {
     writeFileSync(join(renderer, 'pdftoppm'), `#!${process.execPath}\nimport { copyFileSync } from 'node:fs'; if (!process.argv.includes('-v')) copyFileSync(${JSON.stringify(jpegPath)}, process.argv.at(-1) + '-1.jpg');\n`, { mode: 0o755 })
     process.env.PATH = `${renderer}:${process.env.PATH}`
     const pageVision = await FileReadTool.call({ file_path: pdfPath, pages: '1' }, ctx('claude-sonnet-5-5'))
-    assert.ok(JSON.stringify(pageVision.newMessages).includes('MERCURY RESEARCH 42'))
+    const pageVisionJson = JSON.stringify(pageVision.newMessages)
+    assert.ok(pageVisionJson.includes('MERCURY RESEARCH 42'), `FileReadTool(pages: '1') newMessages omitted OCR text MERCURY RESEARCH 42 in src/tools/FileReadTool/FileReadTool.ts: ${pageVisionJson.slice(0, 200)}`)
     console.log('PASS real macOS Vision OCR: PNG, explicit OCR on a vision model and scanned PDF')
   }
 } finally { rmSync(root, { recursive: true, force: true }) }

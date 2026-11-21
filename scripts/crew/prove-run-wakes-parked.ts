@@ -69,9 +69,9 @@ async function journey(kind: 'captain' | 'held' | 'deadline'): Promise<void> {
     const metaFile = findFiles(home, `agent-${captain.agent}.meta.json`)[0]
     assert(metaFile, 'captain metadata is recorded before its completion notice')
     const metadata = JSON.parse(readFileSync(metaFile, 'utf8'))
-    assert(typeof metadata.worktreePath === 'string')
+    assert(typeof metadata.worktreePath === 'string', `captain agent metadata omitted worktreePath string in src/tools/AgentTool/: ${JSON.stringify(metadata).slice(0, 160)}`)
     const within = relative(cwd, metadata.worktreePath)
-    assert(within && !within.startsWith('..'))
+    assert(within && !within.startsWith('..'), `captain worktreePath escaped workspace cwd in src/tools/AgentTool/: ${within}`)
     moved = { from: metadata.worktreePath, to: `${metadata.worktreePath}.away` }
     renameSync(moved.from, moved.to)
   }
@@ -187,7 +187,8 @@ async function pendingLiveness(): Promise<void> {
   const { getCommandQueue, dequeue, peek } = await import(join(source, 'input-core/command-queue.ts'))
   const { createTurnDriver } = await import(join(source, 'cli/headless/turnDriver.ts'))
   const { runSwarmCommand } = await import(join(source, 'commands/swarm/swarm.ts'))
-  assert(runSwarmCommand('on').startsWith('Swarm on'))
+  const swarmOnText = runSwarmCommand('on')
+  assert(swarmOnText.startsWith('Swarm on'), `runSwarmCommand('on') failed in pendingLiveness: ${swarmOnText}`)
   await seam.latchSwarmAgent('target', 'Target')
   await seam.latchSwarmAgent('poster', 'Poster')
   const board = seam.swarmStore()!
@@ -207,8 +208,10 @@ async function pendingLiveness(): Promise<void> {
   const pending = (): boolean => watcher.hasPending?.() === true
   try {
     tally.check('the dispatcher exposes liveness without keeping an empty board alive', typeof watcher.hasPending === 'function' && !pending())
-    assert(board.post(target, { clientOpId: 'wait', kind: 'ask', text: '@main wake me when kind result' }).ok)
-    assert(board.post(poster, { clientOpId: 'trigger', kind: 'result', text: 'PENDING-WAKE' }).ok)
+    const waitPost = board.post(target, { clientOpId: 'wait', kind: 'ask', text: '@main wake me when kind result' })
+    assert(waitPost.ok, `target wait declaration failed in src/services/crewBoard/store.ts: ${JSON.stringify(waitPost)}`)
+    const triggerPost = board.post(poster, { clientOpId: 'trigger', kind: 'result', text: 'PENDING-WAKE' })
+    assert(triggerPost.ok, `poster trigger post failed in src/services/crewBoard/store.ts: ${JSON.stringify(triggerPost)}`)
     seam.settleSwarmAgent('target')
     seam.mirrorSwarmNotice('target', 'completed', 'Target completed', 'completed')
     await flushSessionStorage()
