@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { spawn } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DIST, FRAMES, argAfter, makeTally } from '../daemon/dupline-world.ts'
@@ -68,6 +69,35 @@ function seedWorld(name: string, view: Record<string, unknown>): { home: string;
   return { home, cwd }
 }
 
+const COUNT_HOLD_MS = 10_000
+const pendingCountTimers = new Set<ReturnType<typeof setTimeout>>()
+const slowCountServer = createServer((req: IncomingMessage, res: ServerResponse) => {
+  const path = (req.url ?? '').split('?')[0] ?? ''
+  req.resume()
+  if (req.method === 'POST' && path.endsWith('/messages/count_tokens')) {
+    const timer = setTimeout(() => {
+      pendingCountTimers.delete(timer)
+      if (!res.writableEnded && !res.destroyed) {
+        res.writeHead(200, { 'content-type': 'application/json' })
+        res.end(JSON.stringify({ input_tokens: 128 }))
+      }
+    }, COUNT_HOLD_MS)
+    timer.unref()
+    pendingCountTimers.add(timer)
+    const cancel = (): void => {
+      clearTimeout(timer)
+      pendingCountTimers.delete(timer)
+    }
+    req.on('close', cancel)
+    res.on('close', cancel)
+    return
+  }
+  res.writeHead(404, { 'content-type': 'application/json' })
+  res.end('{}')
+})
+await new Promise<void>(resolve => slowCountServer.listen(0, '127.0.0.1', resolve))
+const SLOW_COUNT_BASE = `http://127.0.0.1:${(slowCountServer.address() as { port: number }).port}`
+
 function driveEnv(home: string): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = {
     ...process.env,
@@ -91,7 +121,7 @@ function driveEnv(home: string): NodeJS.ProcessEnv {
     MERCURY_OASIS_BG: '0',
     MERCURY_JEV_BASE: 'http://127.0.0.1:1',
     MERCURY_ANTHROPIC_OAUTH_BASE: 'http://127.0.0.1:1',
-    ANTHROPIC_BASE_URL: DEAD,
+    ANTHROPIC_BASE_URL: SLOW_COUNT_BASE,
     ANTHROPIC_API_KEY: FIXTURE_API_KEY,
     MERCURY_OPENAI_API_BASE: DEAD,
     MERCURY_OPENAI_CHATGPT_BASE: DEAD,
@@ -237,8 +267,15 @@ async function concourseLeg(): Promise<void> {
   if (KEEP) console.log(`world kept: ${home} ${cwd}`)
 }
 
-if (LEGS.has('doors')) await doorsLeg()
-if (LEGS.has('concourse')) await concourseLeg()
+try {
+  if (LEGS.has('doors')) await doorsLeg()
+  if (LEGS.has('concourse')) await concourseLeg()
+} finally {
+  for (const timer of pendingCountTimers) clearTimeout(timer)
+  pendingCountTimers.clear()
+  slowCountServer.closeAllConnections?.()
+  slowCountServer.close()
+}
 
 if (tally.failed() === 0 && !KEEP) rmSync(scratch, { recursive: true, force: true })
 else console.log(`scratch kept: ${scratch}`)
