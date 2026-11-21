@@ -1,6 +1,6 @@
 import { ReadStream } from 'node:tty'
 import { useContext, useRef } from 'react'
-import { useLayoutSubscription, usePublish, useSubscription } from '../../hooks/effects.js'
+import { useClaim, useLayoutClaim, usePublish } from '../../hooks/effects.js'
 import { useStdin } from '../../ink.js'
 import { InkInstanceContext } from '../../ink/components/InkInstanceContext.js'
 import { type InputEvent, markInputConsumedThroughCurrentSeq } from '../../ink/events/input-event.js'
@@ -30,7 +30,7 @@ export function useKeysHeldUntilFirstPaint(): void {
   const { stdin, internal_eventEmitter } = useStdin()
   const painted = useRef(false)
 
-  useLayoutSubscription(() => {
+  useLayoutClaim(() => {
     if (!ink) return undefined
     painted.current = false
     const typedAheadRead = (): void => {
@@ -45,7 +45,7 @@ export function useKeysHeldUntilFirstPaint(): void {
     return stop
   }, [ink, stdin])
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!ink) return undefined
     const hold = (event: InputEvent): void => {
       if (painted.current) return
