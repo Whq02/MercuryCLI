@@ -11,6 +11,7 @@ import { MORE_BELOW_ROW, READINESS_ROWS, signInCardFit, type SignInCardFit } fro
 import { SIGN_IN_LATER_ROW, loginFamilyRows } from '../../src/components/loginFamilyRows.ts'
 import { SIGN_IN_WORDS } from '../../src/components/Onboarding.tsx'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const arg = (name: string): string | undefined => {
   const at = process.argv.indexOf(name)
@@ -435,7 +436,7 @@ try {
     mkdirSync(home, { recursive: true })
     seedFirstRun(home, [work])
     const sends: Send[] = [
-      { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, awaitStableTicks: 3, data: '' },
       { afterPrevTicks: 1, data: '/logins' },
       { afterPrevTicks: 2, data: '\r' },

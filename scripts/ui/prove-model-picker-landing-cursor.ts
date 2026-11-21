@@ -7,6 +7,7 @@ import { join } from 'node:path'
 import { PassThrough } from 'node:stream'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { resolveProofHome } from '../lib/proofHome.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -130,7 +131,7 @@ if (driver.kind !== 'posix-pty') {
     JSON.stringify({
       argv: ['node', BIN],
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: CR },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: CR },
         { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
         { afterPrevTicks: 1, data: CR },
         { afterPrevTicks: 8, awaitText: WORDS.slice(0, 28), minTick: 1, data: '', mark: 'opened' },

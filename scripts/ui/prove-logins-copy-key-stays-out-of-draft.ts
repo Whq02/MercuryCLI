@@ -28,6 +28,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
@@ -44,7 +45,6 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOLDER])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const ROSTER_LEGEND = '↑↓ move · pgup/pgdn page · ↵ sign in · esc back'
 const CARD_FIELD = 'Paste code here if prompted >'
@@ -57,7 +57,7 @@ const HANDLES_WAY_OUT = 'c copy · d device · esc cancel'
 const HANDLES_EMPTY_PASTE = 'paste: ▌'
 const FACE_ROWS = 80
 const WARM_TICKS = 25
-const LOGINS_ROW_DOWNS = 6
+const LOGINS_ROW_DOWNS = 1
 const DOWN = '\x1b[B'
 const ESC = '\x1b'
 const ENTER = '\r'
@@ -228,12 +228,12 @@ const QUIT: Send[] = [
   { afterPrevTicks: 2, data: '\x03' },
 ]
 const FACE_TO_ROSTER = (): Send[] => [
-  g(READY_LINE, '', { mark: 'face' }),
+  g('↑↓', '', { awaitPattern: BOOT_FACE_READY, mark: 'face' }),
   ...Array.from({ length: LOGINS_ROW_DOWNS }, (): Send => ({ afterPrevTicks: 2, data: DOWN })),
   { afterPrevTicks: 3, data: ENTER, mark: 'logins-row' },
 ]
 const FACE_TO_CARD = (family: string): Send[] => [
-  g(READY_LINE, '', { mark: 'face' }),
+  g('↑↓', '', { awaitPattern: BOOT_FACE_READY, mark: 'face' }),
   { afterPrevTicks: WARM_TICKS, data: ENTER },
   g(COMPOSER, `/logins ${family}`, { mark: 'chat' }),
   { afterPrevTicks: 4, data: ENTER },
