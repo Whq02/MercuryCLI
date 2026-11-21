@@ -1190,13 +1190,19 @@ check('cwd-with-history: no plain twin beside the action (BM-30 — retired)',
 fresh_cwd = tempfile.mkdtemp(prefix='splash-proof-freshcwd.')
 raw = run_pty(120, 50, {'MERCURY_HOME': k2_home, **INLINE}, cwd=fresh_cwd,
               send=[(0.6, b'\x1b[B'), (1.2, b'\r')], oneshot=False)
+plain = STRIP.sub('', raw)
 act = None
 if os.path.exists(k2_act):
     with open(k2_act) as f:
         act = json.load(f)
+check('history-less cwd: Continue ctx NAMES the crossing (in other-proj)',
+      'in other-proj' in plain)
 check('history-less cwd: continue action carries the cross-repo dir',
       bool(act) and act.get('action') == 'continue' and act.get('dir') == k2_dirs['other-proj'],
       json.dumps(act) if act else 'no file')
+narrow_plain = STRIP.sub('', run_pty(80, 24, {'MERCURY_HOME': k2_home, **INLINE}, cwd=fresh_cwd))
+check('history-less cwd (narrow 80×24): Continue ctx NAMES the crossing (in other-proj)',
+      'in other-proj' in narrow_plain)
 print('\n── gates')
 raw = run_pty(120, 44, {'MERCURY_SPLASH': 'off'})
 check('MERCURY_SPLASH=off ⇒ zero output', raw.strip() == '')
