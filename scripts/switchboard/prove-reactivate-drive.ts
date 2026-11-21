@@ -4,6 +4,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-reactivate-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -49,7 +50,7 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(TEMPLATE, [CWD])
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
-const READY_LINE = '↵ start  ·  ↑↓ choose'
+const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const COMPOSER = 'Type a prompt'
 const BOARD = 'SESSIONS'
 const EMPTY_BOARD = 'no sessions yet'
@@ -149,7 +150,7 @@ function printFrame(id: string, lines: string[]): void {
   console.log('└──')
 }
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
-const isFace = (frame: string): boolean => frame.includes(READY_LINE)
+const isFace = (frame: string): boolean => paintsBootFaceReady(frame)
 const isBoard = (frame: string): boolean => frame.includes(BOARD)
 const isChat = (frame: string): boolean => frame.includes(COMPOSER)
 const firstRows = (frame: string): string => frame.split('\n').filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')
@@ -214,7 +215,7 @@ console.log('D1 — the only session: x-x ends it, the board stays with two stop
     id: 'd1-only-session',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, `/model ${SWITCH_MODEL}`, { awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: '\r' },
@@ -256,7 +257,7 @@ console.log('D2 — park, reactivate in place, park again, x-x: gone')
     id: 'd2-park-reactivate',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, WORDS, { awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: '\r' },
@@ -309,7 +310,7 @@ console.log('D3 — the screen dies: records stand, the daemon goes down, the ne
     id: 'd3-quit-parks-all',
     home,
     sends: [
-      g(READY_LINE, ''),
+      gFace(''),
       { afterPrevTicks: WARM_TICKS, data: '\r' },
       g(COMPOSER, WORDS, { awaitSettleTicks: 3 }),
       { afterPrevTicks: 2, data: '\r' },
@@ -335,7 +336,7 @@ console.log('D3 — the screen dies: records stand, the daemon goes down, the ne
   const boot = await capture({
     id: 'd3-boot-after-quit',
     home,
-    sends: [g(READY_LINE, SHIFT_RIGHT, { awaitSettleTicks: 4 }), g(BOARD, '', { awaitSettleTicks: 4, mark: 'board' })],
+    sends: [gFace(SHIFT_RIGHT, { awaitSettleTicks: 4 }), g(BOARD, '', { awaitSettleTicks: 4, mark: 'board' })],
     stableTicks: 4,
     total: 160,
   })
