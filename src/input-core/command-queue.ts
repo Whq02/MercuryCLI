@@ -13,6 +13,8 @@ import { recordQueueOperation } from '../utils/sessionStorage.js'
 import { createSignal } from '../utils/signal.js'
 import { consumeNotices, queuedNoticeKeys, recordQueuedNotice, retireNotices } from '../services/notices/unreadLedger.js'
 import { passedOver } from '../utils/passedOver.js'
+import { MAIN_LANE, parseOwnerKey, type OwnerKey } from '../utils/run/ownerKey.js'
+import { parseSlashCommand } from '../utils/slashCommandParsing.js'
 
 export type SetAppState = (f: (prev: AppState) => AppState) => void
 
@@ -165,6 +167,24 @@ export function markDraining(commands: readonly QueuedCommand[]): void {
 let owningSessionId: string | null = null
 const parkedQueues = new Map<string, QueuedCommand[]>()
 
+export function queuedCompactRequest(owner: OwnerKey): { instructions?: string; complete: () => void } | undefined {
+  if (queue.length === 0) return undefined
+  const { sessionId, lane } = parseOwnerKey(owner)
+  if (lane !== MAIN_LANE || sessionId !== (owningSessionId ?? getSessionId())) return undefined
+  const ids = new Set<string>()
+  let instructions: string | undefined
+  for (const cmd of queue) {
+    if (cmd.queueId === undefined || cmd.localCommand !== true || cmd.agentId !== undefined || cmd.mode !== 'prompt' || cmd.skipSlashCommands || cmd.isMeta) continue
+    const line = typeof cmd.value === 'string' ? cmd.value : cmd.value.find(block => block.type === 'text')?.text
+    const parsed = line?.startsWith('/') ? parseSlashCommand(line) : null
+    if (parsed?.commandName !== 'compact') continue
+    ids.add(cmd.queueId)
+    const args = parsed.args.trim()
+    if (args !== '') instructions = args
+  }
+  if (ids.size === 0) return undefined
+  return { instructions, complete: () => { dequeueAllMatching(cmd => cmd.queueId !== undefined && ids.has(cmd.queueId)) } }
+}
 export function rekeyCommandQueueToSession(sessionId: string | null, opts?: { landing?: boolean }): void {
   const prevKey = owningSessionId ?? getSessionId()
   const nextKey = sessionId ?? getSessionId()

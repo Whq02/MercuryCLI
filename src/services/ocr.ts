@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
 import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { loadDesktopAddon } from '../services/desktop/pack.js'
-import { execFileNoThrow } from './execFileNoThrow.js'
-import { ensureToolResultsDir, getToolResultsDir } from './toolResultStorage.js'
-import { extractPDFPages, removePDFPages } from './pdf.js'
-import { passedOver } from './passedOver.js'
+import { loadDesktopAddon } from './desktop/pack.js'
+import { execFileNoThrow } from '../utils/execFileNoThrow.js'
+import { ensureToolResultsDir, getToolResultsDir } from '../utils/toolResultStorage.js'
+import { extractPDFPages, removePDFPages } from '../utils/pdf.js'
+import { passedOver } from '../utils/passedOver.js'
 
 type OcrResult = { ok: true; engine: string; languages: string[]; text: string } | { ok: false; message: string }
 type NativeOcr = { recognise: (bytes: Buffer, page?: number) => Promise<string>; languages: string[] }
