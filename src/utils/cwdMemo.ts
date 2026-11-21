@@ -18,9 +18,10 @@ type CwdMemoCache<V> = {
 export function memoizeByCwd<T>(
   compute: () => T,
   cap: number = DEFAULT_CWD_MEMO_CAP,
+  readDir: () => string = getCwd,
 ): (() => T) & { cache: CwdMemoCache<T> } {
   const entries = new LRUCache<string, Box<T>>({ max: cap })
-  const keyOf = (key: unknown): string => (key === undefined ? resolve(getCwd()) : resolve(String(key)))
+  const keyOf = (key: unknown): string => (key === undefined ? resolve(readDir()) : resolve(String(key)))
   const cache: CwdMemoCache<T> = {
     has: (key: unknown) => entries.has(keyOf(key)),
     get: (key: unknown) => entries.peek(keyOf(key))?.value,
@@ -37,7 +38,7 @@ export function memoizeByCwd<T>(
     },
   }
   const memo = (): T => {
-    const key = resolve(getCwd())
+    const key = resolve(readDir())
     const hit = entries.get(key)
     if (hit !== undefined) return hit.value
     const value = compute()
