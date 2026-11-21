@@ -86,8 +86,8 @@ writeFileSync(join(process.env.MERCURY_CONFIG_DIR!, 'result.json'), JSON.stringi
   }
   assert.equal(result.result.length, 1)
   assert.equal(result.result[0].type, 'text')
-  assert.ok(result.result[0].text.endsWith(result.prompt))
-  assert.ok(result.result[0].text.startsWith('Base directory for this skill: '))
+  assert.ok(result.result[0].text.endsWith(result.prompt), `src/skills/bundled/mercuryDocs.ts getPromptForCommand output did not end with mercuryDocsPrompt: tail=${result.result[0].text.slice(-120)}`)
+  assert.ok(result.result[0].text.startsWith('Base directory for this skill: '), `src/skills/bundled/mercuryDocs.ts getPromptForCommand output missing 'Base directory for this skill: ' prefix: head=${result.result[0].text.slice(0, 120)}`)
   console.log('PASS: no idle pages; first use preserves every page, prompt and extraction')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
