@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useRef } from 'react'
-import { useDerivedState, useLayoutDerivedState, useLayoutPublish, usePublish, useSubscription } from '../../hooks/effects.js'
+import { useLayoutPublish, usePublish } from '../../hooks/effects.js'
 import { Box, Text, useInput, wrapText, type DOMElement } from '../../ink.js'
 import type { ScrollBoxHandle } from '../../ink/components/ScrollBox.js'
 import { useTerminalSize } from '../../hooks/useTerminalSize.js'
@@ -256,7 +256,6 @@ export function NavigablePanes<Row>({
   const { columns: cols, rows: termRows } = useTerminalSize()
   const layout = pickLayout(cols)
   const tokens = useMercuryTokens()
-  const [footerRows, setFooterRows] = React.useState(1)
   const accent = tokens.accent
   const idBase = `np:${view}`
 
@@ -333,9 +332,7 @@ export function NavigablePanes<Row>({
   prevNavSelRef.current = nav.sel
   const selectedRow = sectionRows[sel]
   selKeyRef.current = selectedRow ? rowKey(selectedRow) : null
-  useDerivedState(() => {
-    if (sel !== nav.sel) nav.selectRow(sel)
-  })
+  if (sel !== nav.sel) nav.selectRow(sel)
 
   useInput(
     (input, key) => {
@@ -389,15 +386,23 @@ export function NavigablePanes<Row>({
       scrollRef.current.scrollToElement(nav.rowRef.current, SELECTED_ROW_OFFSET)
     }
   }, [sel, nav.section, nav.rowRef])
-  const [, followScroll] = React.useReducer((n: number) => n + 1, 0)
   const listMounted = !loading && !emptyState && sectionRows.length > 0
-  useSubscription(() => {
+  const subscribeScroll = React.useCallback(
+    (onStoreChange: () => void) => {
+      const handle = scrollRef.current
+      if (!listMounted || !handle) return () => {}
+      return handle.subscribe(() => {
+        if (handle.getPendingDelta() !== 0) onStoreChange()
+      })
+    },
+    [listMounted],
+  )
+  const readScrollKey = (): string => {
     const handle = scrollRef.current
-    if (!listMounted || !handle) return
-    return handle.subscribe(() => {
-      if (handle.getPendingDelta() !== 0) followScroll()
-    })
-  }, [listMounted])
+    if (!listMounted || !handle) return '0:0'
+    return `${handle.getScrollTop()}:${handle.getPendingDelta()}`
+  }
+  React.useSyncExternalStore(subscribeScroll, readScrollKey, readScrollKey)
 
   const detailVisible = nav.drilled && !!selectedRow
   const regionInner = Math.max(0, cols - 4)
@@ -417,43 +422,8 @@ export function NavigablePanes<Row>({
   const innerWidth = regionChrome ? regionInner : innerPaneWidth(cols, { border: true, paddingX: 1 })
   const mainWidth = Math.max(0, innerWidth - navW - sideDetailW - sideInfoW - (regionChrome ? 5 : 0))
 
-  const viewportBudget = viewportRows(termRows, {
-    reserve:
-      (regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE + Math.max(0, footerRows - 1)) +
-      (composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0),
-    min: 3,
-  })
   const detailBaseRows = nav.detailRows + 1
-  const listCap =
-    detailVisible && (layout === 'fold' || layout === 'inline')
-      ? viewportRows(viewportBudget, { reserve: detailBaseRows + 1, min: 3 })
-      : viewportBudget
   const contentRows = Math.max(sectionRows.length, showNav ? safeSections.length : 0, 1)
-  const listHeight = Math.max(Math.min(1, listCap), Math.min(listCap, contentRows))
-  const slackRows =
-    detailVisible && (layout === 'fold' || layout === 'inline')
-      ? Math.max(0, viewportBudget - listHeight - detailBaseRows - 2)
-      : 0
-  const splitDetailHeight = detailBaseRows + slackRows
-  const idleSlack =
-    !detailVisible && (layout === 'fold' || layout === 'inline') && !!sideInfo
-      ? Math.max(0, viewportBudget - listHeight - 3)
-      : 0
-
-  const N = sectionRows.length
-  const winSpan = listHeight + 2 * ROW_OVERSCAN
-  const maxTop = Math.max(0, N - listHeight)
-  const anchoredTop = Math.min(Math.max(0, sel + SELECTED_ROW_OFFSET), maxTop)
-  const restingTop = Math.min(Math.max(0, scrollRef.current?.getScrollTop() ?? anchoredTop), maxTop)
-  const settlingTop = Math.min(Math.max(0, restingTop + (scrollRef.current?.getPendingDelta() ?? 0)), maxTop)
-  const winStart =
-    N <= winSpan
-      ? 0
-      : Math.min(Math.max(0, Math.min(anchoredTop, restingTop, settlingTop) - ROW_OVERSCAN), N - winSpan)
-  const winEnd = Math.min(N, Math.max(winStart + winSpan, Math.max(anchoredTop, restingTop, settlingTop) + listHeight + ROW_OVERSCAN))
-
-  const resizeActive =
-    expandable && (layout === 'fold' || layout === 'inline') && slackRows === 0
   const listNavLive = !loading && !emptyState && safeSections.length > 0
   const composerOwnsInput = !!composerSlot?.active
   const actionHints =
@@ -473,23 +443,65 @@ export function NavigablePanes<Row>({
     footerHeadText || undefined,
     actionHints,
   ]
-  const footerTailText =
-    composerSlot?.active
-      ? 'esc composer'
-      : nav.level === 'detail'
-        ? ['↑↓ select · pgup/pgdn page', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']
+  const computeGeometry = (reservedFooterRows: number) => {
+    const viewportBudget = viewportRows(termRows, {
+      reserve:
+        (regionChrome ? regionChrome.chromeRows : VIEWPORT_RESERVE + Math.max(0, reservedFooterRows - 1)) +
+        (composerSlot?.node ? (composerSlot.rows ?? COMPOSER_SLOT_RESERVE) : 0),
+      min: 3,
+    })
+    const listCap =
+      detailVisible && (layout === 'fold' || layout === 'inline')
+        ? viewportRows(viewportBudget, { reserve: detailBaseRows + 1, min: 3 })
+        : viewportBudget
+    const listHeight = Math.max(Math.min(1, listCap), Math.min(listCap, contentRows))
+    const slackRows =
+      detailVisible && (layout === 'fold' || layout === 'inline')
+        ? Math.max(0, viewportBudget - listHeight - detailBaseRows - 2)
+        : 0
+    const resizeActive =
+      expandable && (layout === 'fold' || layout === 'inline') && slackRows === 0
+    const footerTailText =
+      composerSlot?.active
+        ? 'esc composer'
+        : nav.level === 'detail'
+          ? ['↑↓ select · pgup/pgdn page', resizeActive ? '+/- size' : undefined, detailFooterHints, '←/esc back']
+              .filter(Boolean)
+              .join(' · ')
+          : [
+            listNavLive && showNav ? 'tab/1-9 section' : undefined,
+            footerHints,
+            closeHint ?? 'esc close',
+          ]
             .filter(Boolean)
             .join(' · ')
-        : [
-          listNavLive && showNav ? 'tab/1-9 section' : undefined,
-          footerHints,
-          closeHint ?? 'esc close',
-        ]
-          .filter(Boolean)
-          .join(' · ')
-  const footerText = [...footerFullParts, footerTailText].filter(Boolean).join(' · ')
-  const measuredFooterRows = regionChrome ? 0 : wrapText(footerText, Math.max(1, innerWidth), 'wrap').split('\n').length
-  useLayoutDerivedState(() => { setFooterRows(measuredFooterRows) }, [measuredFooterRows])
+    const footerText = [...footerFullParts, footerTailText].filter(Boolean).join(' · ')
+    const measuredFooterRows = regionChrome ? 0 : wrapText(footerText, Math.max(1, innerWidth), 'wrap').split('\n').length
+    return { viewportBudget, listHeight, slackRows, footerTailText, footerText, measuredFooterRows }
+  }
+  let geo = computeGeometry(1)
+  if (!regionChrome && geo.measuredFooterRows !== 1) {
+    const next = computeGeometry(geo.measuredFooterRows)
+    geo = next.measuredFooterRows !== geo.measuredFooterRows ? computeGeometry(next.measuredFooterRows) : next
+  }
+  const { viewportBudget, listHeight, slackRows, footerTailText, footerText, measuredFooterRows } = geo
+  const splitDetailHeight = detailBaseRows + slackRows
+  const idleSlack =
+    !detailVisible && (layout === 'fold' || layout === 'inline') && !!sideInfo
+      ? Math.max(0, viewportBudget - listHeight - 3)
+      : 0
+
+  const N = sectionRows.length
+  const winSpan = listHeight + 2 * ROW_OVERSCAN
+  const maxTop = Math.max(0, N - listHeight)
+  const anchoredTop = Math.min(Math.max(0, sel + SELECTED_ROW_OFFSET), maxTop)
+  const restingTop = Math.min(Math.max(0, scrollRef.current?.getScrollTop() ?? anchoredTop), maxTop)
+  const settlingTop = Math.min(Math.max(0, restingTop + (scrollRef.current?.getPendingDelta() ?? 0)), maxTop)
+  const winStart =
+    N <= winSpan
+      ? 0
+      : Math.min(Math.max(0, Math.min(anchoredTop, restingTop, settlingTop) - ROW_OVERSCAN), N - winSpan)
+  const winEnd = Math.min(N, Math.max(winStart + winSpan, Math.max(anchoredTop, restingTop, settlingTop) + listHeight + ROW_OVERSCAN))
 
   const body = panesBodyOf({ loading, tokens, emptyState, maxContentWidth, mainWidth, layout, infoVisible, showNav, TabStrip, safeSections, nav, idBase, accent, section, view, sectionRows, ColumnHeader, columns, scrollRef, listHeight, winStart, winEnd, PaneRow, rowKey, sel, N, selectedRow, detailTitle, viewportBudget, renderDetail, sideInfo, detailWidth, regionChrome, splitDetailHeight, SectionNav, NAV_WIDTH, detailVisible, idleSlack })
 
