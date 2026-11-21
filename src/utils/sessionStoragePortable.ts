@@ -1,3 +1,4 @@
+import { historyHead, historyRange } from './sessionStorage/historyParts.js'
 import { createHash, type UUID } from 'node:crypto'
 import { open, stat } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
@@ -225,6 +226,15 @@ export async function readHeadAndTail(
   onReadError?: (path: string, error: unknown) => void,
 ): Promise<{ head: string; tail: string }> {
   try {
+    const extent = historyHead(filePath)
+    if (extent.before) {
+      const size = extent.before + extent.end - extent.start
+      const window = Math.min(buf.length, LITE_READ_BUF_SIZE)
+      const first = historyRange(extent, 0, Math.min(window, size))
+      const head = decodeWindow(first, first.length, false, first.length < size)
+      const last = size > window ? historyRange(extent, size - window, size) : null
+      return { head, tail: last ? decodeWindow(last, last.length, true, false) : head }
+    }
     const handle = await open(filePath, 'r')
     try {
       const window = Math.min(buf.length, LITE_READ_BUF_SIZE)
@@ -257,6 +267,12 @@ export async function readSessionLite(
     try {
       const stats = await handle.stat()
       const buf = Buffer.allocUnsafe(LITE_READ_BUF_SIZE)
+      const extent = historyHead(filePath)
+      if (extent.before) {
+        const size = extent.before + extent.end - extent.start
+        const { head, tail } = await readHeadAndTail(filePath, size, buf, onReadError)
+        return { mtime: stats.mtimeMs, size, head, tail }
+      }
       const headRead = await handle.read(buf, 0, Math.min(LITE_READ_BUF_SIZE, stats.size), 0)
       if (headRead.bytesRead === 0) return null
       const moreFollows = stats.size > headRead.bytesRead

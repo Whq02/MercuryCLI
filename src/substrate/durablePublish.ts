@@ -360,7 +360,7 @@ export async function durableAtomicPublish(
 
 export function durableAtomicPublishSync(
   path: string,
-  contents: string | Uint8Array,
+  contents: string | Uint8Array | Iterable<Uint8Array>,
   opts?: DurablePublishOptions,
 ): DurablePublishReport {
   const startedAt = Date.now()
@@ -375,9 +375,11 @@ export function durableAtomicPublishSync(
     fd = openSync(tmp, 'wx', opts?.mode ?? 0o666)
     phase = 'write'
     faultPoint('write', path)
-    const buf = typeof contents === 'string' ? Buffer.from(contents, 'utf8') : contents
-    let off = 0
-    while (off < buf.length) off += writeSync(fd, buf, off, buf.length - off)
+    const pieces = typeof contents === 'string' ? [Buffer.from(contents, 'utf8')] : contents instanceof Uint8Array ? [contents] : contents
+    for (const buf of pieces) {
+      let off = 0
+      while (off < buf.length) off += writeSync(fd, buf, off, buf.length - off)
+    }
     phase = 'flush-file'
     faultPoint('flush-file', path)
     if (fsyncEnabled()) fsyncSync(fd)

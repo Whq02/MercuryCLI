@@ -16,7 +16,7 @@ import type { PromptInputMode } from '../../types/textInputTypes.js';
 import { getCwd } from '../../utils/cwd.js';
 import { textForResubmit } from '../../utils/messages.js';
 import { modelDisplayString } from '../../utils/model/model.js';
-import { readAllTranscriptEntries } from '../../utils/sessionStorage/materialize.js';
+import { transcriptMessageIndex } from '../../utils/sessionStorage/materialize.js';
 import { sleep } from '../../utils/sleep.js';
 import type { FocusedInputDialog } from './focusedDialog.js';
 import { RECEIPT_TIMEOUT_MS } from './limits.js';
@@ -187,8 +187,7 @@ export function useChatSelectorView({
           const focused = getFocusedSessionConnector() as PaintsRows;
           const sourceTranscriptPath = typeof focused.transcriptFile === 'function' ? focused.transcriptFile() : null;
           if (!sourceTranscriptPath) return { ok: false as const, reason: 'no transcript file to branch from — the chat owns no session yet' };
-          const entries = await readAllTranscriptEntries(sourceTranscriptPath);
-          const idx = entries.findIndex(entry => (entry as { uuid?: string }).uuid === message.uuid);
+          const idx = transcriptMessageIndex(sourceTranscriptPath, message.uuid);
           if (idx === -1) return { ok: false as const, reason: 'that message is not in the committed transcript' };
           const branch = createBranchSession({
             sourceTranscriptPath,

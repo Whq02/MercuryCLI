@@ -1,5 +1,7 @@
 import type { UUID } from 'crypto'
-import { readFile } from 'fs/promises'
+import { scheduler } from 'node:timers/promises'
+import { historyHead, sealedExtents, historyIndex } from './historyParts.js'
+import { transcriptLineBytes } from './transcriptBytes.js'
 import { dirname } from 'path'
 import memoize from 'lodash-es/memoize.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
@@ -76,9 +78,20 @@ const reportedAgentReadFailures = new Set<string>()
 
 const getAgentFileMessages = memoize(
   async (filePath: string): Promise<Set<string>> => {
-    let raw: string
     try {
-      raw = await readFile(filePath, 'utf8')
+      const head = historyHead(filePath)
+      const set = new Set<string>()
+      for (const part of sealedExtents(head)) for (const [, id] of historyIndex(part)) if (id !== null) set.add(id)
+      let added = 0
+      for (const row of transcriptLineBytes(filePath, { end: head.end })) {
+        added += row.length
+        if (added >= 1024 * 1024) { await scheduler.yield(); added = 0 }
+        try {
+          const id = JSON.parse(row.toString('utf8'))?.annotations?.uuid
+          if (typeof id === 'string') set.add(id)
+        } catch (error) { passedOver(error) }
+      }
+      return set
     } catch (error) {
       const code = getErrnoCode(error)
       if (code !== 'ENOENT' && code !== 'ENOTDIR') {
@@ -94,20 +107,7 @@ const getAgentFileMessages = memoize(
       }
       return new Set()
     }
-    const set = new Set<string>()
-    for (const line of raw.split('\n')) {
-      if (!line) continue
-      try {
-        const e = JSON.parse(line) as {
-          annotations?: { uuid?: string }
-        }
-        const uuid = e.annotations?.uuid
-        if (typeof uuid === 'string') set.add(uuid)
-      } catch (error) {
-        passedOver(error)
-      }
-    }
-    return set
+
   },
   (filePath: string) => filePath,
 )
@@ -363,7 +363,7 @@ class Project {
   private readonly filesPart = new FilesPart(this, { shouldSkipPersistence: () => this.shouldSkipPersistence() })
   private readonly queuePart = new QueuePart()
   private readonly settlePart = new SettlePart({
-    enqueueRawLine: (filePath, line, capture) => this.queuePart.enqueueRawLine(filePath, line, capture),
+    enqueueRawLine: (...args) => this.queuePart.enqueueRawLine(...args),
     writeQueues: () => this.queuePart.writeQueues,
     shouldSkipPersistence: () => this.shouldSkipPersistence(),
   })

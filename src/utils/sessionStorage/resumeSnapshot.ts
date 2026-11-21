@@ -1,3 +1,4 @@
+import { historyHead } from './historyParts.js'
 import { createHash } from 'node:crypto'
 import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
@@ -109,6 +110,7 @@ export function writeResumeSnapshot(
     const payload = jsonStringify({
       schemaVersion: SNAPSHOT_SCHEMA,
       byteCursor,
+      historyPart: historyHead(transcriptPath).boundary,
       prefixDigest: digestPrefixTail(transcriptPath, byteCursor),
       fold: serializeFold(fold),
       order: transcriptRowOrder(fold.messages),
@@ -134,6 +136,7 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     const raw = jsonParse(await readFile(snapPath, 'utf8')) as {
       schemaVersion?: number
       byteCursor?: number
+      historyPart?: string
       prefixDigest?: string
       fold?: SerializedFold
       order?: unknown
@@ -143,6 +146,7 @@ export async function tryLoadResumeSnapshot(transcriptPath: string): Promise<Sna
     if (typeof cursor !== 'number' || cursor <= 0 || !raw.fold || !raw.prefixDigest) return null
     if (!Array.isArray(raw.order) || !raw.order.every(id => typeof id === 'string')) return null
     const order = raw.order as string[]
+    if (raw.historyPart !== historyHead(transcriptPath).boundary) return null
     const { size } = statSync(transcriptPath)
     if (size < cursor) return null
     if (digestPrefixTail(transcriptPath, cursor) !== raw.prefixDigest) return null

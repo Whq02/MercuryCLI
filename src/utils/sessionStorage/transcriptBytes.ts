@@ -1,8 +1,19 @@
-import { closeSync, openSync, readSync, statSync } from 'node:fs'
+import { closeSync, fstatSync, openSync, readSync, statSync } from 'node:fs'
 
 interface TranscriptReaderIo {
   statSync(path: string): { size: number; ino: number } | null
   readRangeSync(path: string, start: number, end: number): Buffer
+}
+
+export function rangeFromFd(fd: number, start: number, end: number): Buffer {
+  const buf = Buffer.allocUnsafe(Math.max(0, end - start))
+  let read = 0
+  while (read < buf.length) {
+    const n = readSync(fd, buf, read, buf.length - read, start + read)
+    if (n === 0) break
+    read += n
+  }
+  return buf.subarray(0, read)
 }
 
 export const nodeTranscriptReaderIo: TranscriptReaderIo = {
@@ -17,17 +28,9 @@ export const nodeTranscriptReaderIo: TranscriptReaderIo = {
     }
   },
   readRangeSync(path, start, end) {
-    const len = Math.max(0, end - start)
-    const buf = Buffer.allocUnsafe(len)
     const fd = openSync(path, 'r')
     try {
-      let read = 0
-      while (read < len) {
-        const n = readSync(fd, buf, read, len - read, start + read)
-        if (n === 0) break
-        read += n
-      }
-      return buf.subarray(0, read)
+      return rangeFromFd(fd, start, end)
     } finally {
       closeSync(fd)
     }
@@ -86,28 +89,61 @@ export function readTranscriptBytesAfter(path: string, cursor: TranscriptByteCur
 
 export function* transcriptLineBytes(
   path: string,
-  { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024 } = {},
+  { start = 0, end = transcriptIo.statSync(path)?.size ?? 0, pieceBytes = 256 * 1024, ino = 0 } = {},
 ): Generator<Buffer> {
   if (!Number.isSafeInteger(pieceBytes) || pieceBytes < 1) throw new RangeError('pieceBytes must be a positive integer')
-  let pending: Buffer[] = []
-  for (let from = start; from < end;) {
-    const to = Math.min(from + pieceBytes, end)
-    const chunk = transcriptIo.readRangeSync(path, from, to)
-    transcriptReaderCensus.bytesRead += chunk.length
-    if (chunk.length !== to - from) throw new Error('Transcript changed during the read')
-    from = to
-    let at = 0
-    for (let nl = chunk.indexOf(0x0a); nl !== -1; nl = chunk.indexOf(0x0a, at)) {
-      const part = chunk.subarray(at, nl + 1)
-      if (pending.length === 0) yield part
-      else {
-        pending.push(part)
-        yield Buffer.concat(pending)
-        pending = []
+  if (start >= end) return
+  const fd = transcriptIo === nodeTranscriptReaderIo ? openSync(path, 'r') : undefined
+  try {
+    if (fd !== undefined && ino && fstatSync(fd).ino !== ino) throw new Error(`History changed during the read: ${path}`)
+    let pending: Buffer[] = []
+    for (let from = start; from < end;) {
+      const to = Math.min(from + pieceBytes, end)
+      const chunk = fd === undefined ? transcriptIo.readRangeSync(path, from, to) : rangeFromFd(fd, from, to)
+      transcriptReaderCensus.bytesRead += chunk.length
+      if (chunk.length !== to - from) throw new Error('Transcript changed during the read')
+      from = to
+      let at = 0
+      for (let nl = chunk.indexOf(0x0a); nl !== -1; nl = chunk.indexOf(0x0a, at)) {
+        const part = chunk.subarray(at, nl + 1)
+        if (pending.length === 0) yield part
+        else {
+          pending.push(part)
+          yield Buffer.concat(pending)
+          pending = []
+        }
+        at = nl + 1
       }
-      at = nl + 1
+      if (at < chunk.length) pending.push(chunk.subarray(at))
     }
-    if (at < chunk.length) pending.push(chunk.subarray(at))
+    if (pending.length > 0) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending)
+  } finally {
+    if (fd !== undefined) closeSync(fd)
   }
-  if (pending.length > 0) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending)
+}
+
+export function* transcriptLinesInReverse(path: string, start: number, end: number, opened?: number): Generator<Buffer> {
+  if (end <= start) return
+  const fd = opened ?? (transcriptIo === nodeTranscriptReaderIo ? openSync(path, 'r') : undefined)
+  let pending: Buffer[] = []
+  try {
+    for (let to = end; to > start;) {
+      const from = Math.max(start, to - 64 * 1024)
+      const chunk = fd === undefined ? transcriptIo.readRangeSync(path, from, to) : rangeFromFd(fd, from, to)
+      transcriptReaderCensus.bytesRead += chunk.length
+      if (chunk.length !== to - from) throw new Error(`History changed during the read: ${path}`)
+      let right = chunk.length
+      for (let nl = chunk.lastIndexOf(10); nl >= 0; nl = nl === 0 ? -1 : chunk.lastIndexOf(10, nl - 1)) {
+        const endOfLine = chunk.subarray(nl + 1, right)
+        if (endOfLine.length || pending.length) {
+          if (pending.length === 0) yield endOfLine
+          else { pending.push(endOfLine); yield Buffer.concat(pending.reverse()); pending = [] }
+        }
+        right = nl + 1
+      }
+      if (right) pending.push(chunk.subarray(0, right))
+      to = from
+    }
+    if (pending.length) yield pending.length === 1 ? pending[0]! : Buffer.concat(pending.reverse())
+  } finally { if (opened === undefined && fd !== undefined) closeSync(fd) }
 }

@@ -1,6 +1,6 @@
 
 import { existsSync } from 'node:fs'
-import { readFile, stat, open } from 'node:fs/promises'
+import { historyHead, historyRange } from '../../utils/sessionStorage/historyParts.js'
 import path from 'node:path'
 
 import { decodeTranscriptBuffer } from '../../fabric/transcriptDecode.js'
@@ -139,25 +139,15 @@ export async function readAgentTranscript(
   let raw: string
   let truncatedRead = false
   try {
-    const st = await stat(file)
-    if (st.size <= MAX_FULL_READ_BYTES) {
-      raw = await readFile(file, 'utf8')
-    } else {
+    const head = historyHead(file)
+    if (!head.end && !existsSync(file)) return undefined
+    const size = head.before + head.end - head.start
+    if (size <= MAX_FULL_READ_BYTES) raw = historyRange(head, 0, size).toString('utf8')
+    else {
       truncatedRead = true
-      const fh = await open(file, 'r')
-      try {
-        const head = Buffer.alloc(HEAD_READ_BYTES)
-        const tail = Buffer.alloc(TAIL_READ_BYTES)
-        await fh.read(head, 0, HEAD_READ_BYTES, 0)
-        await fh.read(tail, 0, TAIL_READ_BYTES, st.size - TAIL_READ_BYTES)
-        const headStr = head.toString('utf8')
-        const tailStr = tail.toString('utf8')
-        raw = `${headStr.slice(0, headStr.lastIndexOf('\n') + 1)}${tailStr.slice(
-          tailStr.indexOf('\n') + 1,
-        )}`
-      } finally {
-        await fh.close()
-      }
+      const first = historyRange(head, 0, HEAD_READ_BYTES).toString('utf8')
+      const last = historyRange(head, size - TAIL_READ_BYTES, size).toString('utf8')
+      raw = first.slice(0, first.lastIndexOf('\n') + 1) + last.slice(last.indexOf('\n') + 1)
     }
   } catch (error) {
     passedOver(error)

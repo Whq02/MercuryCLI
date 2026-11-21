@@ -1,6 +1,6 @@
 import type { UUID } from 'crypto'
 import { open, readFile } from 'node:fs/promises'
-import { decodeTranscriptBuffer, type DecodedTranscript, type InvalidShape, type MalformedLine } from '../../fabric/transcriptDecode.js'
+import { decodeTranscriptBuffer, type MalformedLine } from '../../fabric/transcriptDecode.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import type { Entry, SerializedMessage, TranscriptMessage } from '../../types/logs.js'
 import { logForDebugging } from '../debug.js'
@@ -22,7 +22,8 @@ import {
   tryLoadResumeSnapshot,
   writeResumeSnapshot,
 } from './resumeSnapshot.js'
-import { transcriptIo as io, transcriptReaderCensus } from './transcriptBytes.js'
+import { transcriptIo as io, transcriptReaderCensus, transcriptLinesInReverse } from './transcriptBytes.js'
+import { historyHead, historyIndex, historyLines, sealedExtents } from './historyParts.js'
 import { passedOver, passedOverAs } from '../passedOver.js'
 
 export { nodeTranscriptReaderIo, readTranscriptBytesAfter, setTranscriptReaderIoForTesting, transcriptReaderCensus } from './transcriptBytes.js'
@@ -31,7 +32,6 @@ const WINDOW_BYTES = 4096
 const RECENT_MAX = 2
 const SNAPSHOT_REFRESH_BYTES = 1024 * 1024
 const BACKWARD_WINDOW_BYTES = 64 * 1024
-const FORWARD_WINDOW_BYTES = 1024 * 1024
 const FRAGMENT_SCAN_MAX = 16 * 1024 * 1024
 const NEWLINE = 0x0a
 const EMPTY = Buffer.alloc(0)
@@ -621,6 +621,7 @@ async function scanRecordIds(path: string): Promise<Set<string>> {
   let scan = recordIdScans.get(path)
   if (scan === undefined || !scanStillCovers(path, scan, st)) {
     scan = { ino: st.ino, offset: 0, window: EMPTY, parts: [], ids: new Set() }
+    for (const part of sealedExtents(historyHead(path))) for (const [id] of historyIndex(part)) if (id) scan.ids.add(id)
     recordIdScans.set(path, scan)
   }
   if (st.size > scan.offset) {
@@ -677,90 +678,34 @@ export function readTranscriptTailSync(path: string, bytes: number): string {
 export function scanTranscriptLinesBackward(path: string, visit: (line: string) => boolean | void): void {
   const st = io.statSync(path)
   if (st === null || st.size === 0) return
-  const size = st.size
-  let visitedFrom = size
-  for (let len = Math.min(size, BACKWARD_WINDOW_BYTES); ; len = Math.min(size, len * 4)) {
-    const from = size - len
-    const buf = io.readRangeSync(path, from, size)
-    transcriptReaderCensus.bytesRead += buf.length
-    if (buf.length < len) return
-    const region = buf.subarray(0, visitedFrom - from)
-    const firstNl = from > 0 ? region.indexOf(NEWLINE) : -1
-    const whole = from > 0 ? (firstNl === -1 ? EMPTY : region.subarray(firstNl + 1)) : region
-    const pieces = whole.toString('utf8').split('\n')
-    for (let i = pieces.length - 1; i >= 0; i--) {
-      const line = pieces[i]!
-      if (line.length === 0) continue
-      if (visit(line) === true) return
+  const walk = (path: string, start: number, end: number): boolean => {
+    for (const bytes of transcriptLinesInReverse(path, start, end)) {
+      const line = bytes.toString('utf8').replace(/\n$/, '')
+      if (line && visit(line) === true) return true
     }
-    visitedFrom = from > 0 && firstNl !== -1 ? from + firstNl + 1 : visitedFrom
-    if (from === 0) return
+    return false
   }
+  const head = historyHead(path)
+  if (walk(path, 0, st.size)) return
+  for (const part of sealedExtents(head).reverse()) if (walk(part.path, part.start, part.end)) return
 }
 
 export function scanTranscriptEntriesForward(path: string, visit: (entry: Entry) => void): TranscriptRead {
   const st = io.statSync(path)
   if (st === null) return { kind: 'none', accounting: ZERO_ACCOUNTING, refusal: null }
   const accounting: TranscriptReadAccounting = { malformed: 0, invalid: 0, totalLines: 0 }
-  let carry: Buffer = EMPTY
   let first = true
-  let from = 0
-  while (from < st.size) {
-    const buf = io.readRangeSync(path, from, Math.min(st.size, from + FORWARD_WINDOW_BYTES))
-    transcriptReaderCensus.bytesRead += buf.length
-    if (buf.length === 0) break
-    from += buf.length
-    const joined = carry.length === 0 ? buf : Buffer.concat([carry, buf])
-    const last = from >= st.size
-    const nl = joined.lastIndexOf(NEWLINE)
-    let whole: Buffer
-    if (last) {
-      whole = joined
-      carry = EMPTY
-    } else if (nl === -1) {
-      carry = joined
-      continue
-    } else {
-      whole = joined.subarray(0, nl + 1)
-      carry = Buffer.from(joined.subarray(nl + 1))
-    }
-    if (whole.length === 0) continue
-    let decoded = decodeTranscriptBuffer<Entry>(whole)
-    if (decoded.refusal) {
-      if (first) return { kind: 'cold', accounting: { ...accounting, totalLines: accounting.totalLines + decoded.totalLines }, refusal: decoded.refusal }
-      decoded = decodeLineByLine(whole)
-    }
-    first = false
-    accounting.malformed += decoded.malformed.length
-    accounting.invalid += decoded.invalid.length
+  for (const line of historyLines(path)) {
+    const decoded = decodeTranscriptBuffer<Entry>(line)
     accounting.totalLines += decoded.totalLines
+    if (decoded.refusal && first) return { kind: 'cold', accounting, refusal: decoded.refusal }
+    if (decoded.refusal || decoded.entries.length || decoded.invalid.length) first = false
+    accounting.malformed += decoded.malformed.length
+    accounting.invalid += decoded.invalid.length + Number(Boolean(decoded.refusal))
     for (const entry of decoded.entries) visit(entry)
   }
   return { kind: 'cold', accounting, refusal: null }
 }
-
-function decodeLineByLine(whole: Buffer): DecodedTranscript<Entry> {
-  const entries: Entry[] = []
-  const malformed: MalformedLine[] = []
-  const invalid: InvalidShape[] = []
-  let totalLines = 0
-  let lineNo = 0
-  for (const line of whole.toString('utf8').split('\n')) {
-    lineNo++
-    if (line.trim().length === 0) continue
-    totalLines++
-    const one = decodeTranscriptBuffer<Entry>(line)
-    if (one.refusal) {
-      invalid.push({ index: lineNo, kind: 'not-a-record', reason: one.refusal })
-      continue
-    }
-    for (const m of one.malformed) malformed.push({ line: lineNo, snippet: m.snippet })
-    invalid.push(...one.invalid)
-    entries.push(...one.entries)
-  }
-  return { entries, malformed, invalid, totalLines }
-}
-
 
 export function computeResumeLeaves(messages: Map<UUID, TranscriptMessage>): Set<UUID> {
   return transcriptRows(messages).resumeLeaves()
