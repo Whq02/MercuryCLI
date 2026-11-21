@@ -1,4 +1,4 @@
-import { appendFileSync, existsSync, readFileSync, statSync } from 'node:fs'
+import { appendFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { recordToEntry } from '../../fabric/entryCodec.js'
 import type { MercuryRecord } from '../../fabric/record.js'
@@ -10,7 +10,7 @@ import { NOTEBOOK_EDIT_TOOL_NAME } from '../../tools/NotebookEditTool/constants.
 import { AST_EDIT_TOOL_NAME } from '../../tools/AstEditTool/prompt.js'
 import type { SystemSeatReceiptMessage } from '../../types/message.js'
 import { createSeatReceiptMessage } from '../../utils/messages/systemMessages.js'
-import { readTranscriptBytesAfter } from '../../utils/sessionStorage/transcriptBytes.js'
+import { readTranscriptBytesAfter, transcriptLineBytes } from '../../utils/sessionStorage/transcriptBytes.js'
 import { passedOver } from '../../utils/passedOver.js'
 
 export interface SessionReceiptEntry {
@@ -69,7 +69,8 @@ export function readSessionReceipts(home: string, sessionId: string): SessionRec
   const p = receiptsPathOf(home, sessionId)
   if (!existsSync(p)) return []
   const out: SessionReceiptEntry[] = []
-  for (const line of readFileSync(p, 'utf8').split('\n')) {
+  for (const bytes of transcriptLineBytes(p, { end: statSync(p).size })) {
+    const line = bytes.toString('utf8')
     if (line.trim().length === 0) continue
     try {
       out.push(JSON.parse(line) as SessionReceiptEntry)
