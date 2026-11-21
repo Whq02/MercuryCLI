@@ -8,6 +8,7 @@ import { pickAndProve, proveRecordFor, proveRequestOf, proveTimingWords, proveWi
 import { modelListed, pullModel } from './setupPull.js'
 import { planStart, readOllamaVersion, startServer } from './setupStart.js'
 import { normalizedOsPlatform } from '../../utils/platform/programs.js'
+import { ollamaProbeCommandWords } from '../../utils/platform/words.js'
 import {
   SETUP_KEYS_LINE,
   SETUP_MODEL_LIBRARY,
@@ -86,10 +87,7 @@ async function proveWillRunFor(tag: string, root: string, server: LocalServerKin
 async function findLine(io: ResolvedSetupIo): Promise<string> {
   const brew = io.platform === 'darwin' || io.platform === 'linux' ? await io.which('brew') : undefined
   const brewWords = brew ? ` · ${brew} list --formula ollama` : ''
-  if (io.platform === 'darwin') return `which ollama · ls /Applications/Ollama.app ${io.home}/Applications/Ollama.app${brewWords}`
-  if (io.platform === 'linux') return `which ollama · systemctl status ollama · ls /usr/local/bin/ollama /usr/bin/ollama${brewWords}`
-  if (io.platform === 'win32') return `where ollama · dir "${windowsAppExe(io.env)}"`
-  return 'which ollama'
+  return ollamaProbeCommandWords(io.platform, io.home, brewWords, windowsAppExe(io.env))
 }
 
 export async function* streamed<T, R>(run: (emit: (item: T) => void) => Promise<R>): AsyncGenerator<T, R, void> {
