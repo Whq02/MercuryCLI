@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { posix } from 'node:path'
 import { REFUSAL_WARDS, countWardWork, evaluateWards, ownHomeNames, shellTextOutsideFileHeredocs, wardHomes, type PendingToolCall, type ResolvedPath, type WardVerdict, type WardWork } from './wards.js'
 import { UNREAD_PART, absolutePath, layersOf, printedBy, programOf, readShellCommands, readShellCommandsFromText, stdinProgram, wordKnown, type Layer, type ReadCommand, type ReadWorld, type ShellRead } from './wardsShellRead.js'
+import { oldFolderReturn } from '../permissions/decision/commandAnalysis.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { withDeadline } from '../deadline.js'
@@ -788,13 +789,35 @@ function worldOf(pending: PendingToolCall, cwd: string): RefusalWorld {
   }
 }
 
-async function windowsStanding(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead): Promise<ReadonlyMap<ReadCommand, string> | undefined> {
+const OLD_FOLDER_PLACE_CAP = 8
+
+function oldFolderPlaces(
+  start: string | undefined,
+  home: string | undefined,
+  written: readonly string[] | undefined,
+  resolve: (word: string) => string | undefined,
+  entered: Iterable<string | undefined>,
+): string[] {
+  const places: string[] = []
+  const add = (folder: string | undefined): void => {
+    if (folder !== undefined && !places.includes(folder) && places.length < OLD_FOLDER_PLACE_CAP) places.push(folder)
+  }
+  add(start)
+  if (written !== undefined) {
+    add(home)
+    for (const word of written) add(resolve(word))
+  }
+  for (const folder of entered) add(folder)
+  return places
+}
+
+async function windowsStanding(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead, returnsTo?: string): Promise<ReadonlyMap<ReadCommand, string> | undefined> {
   if (!wardTracksWindowsStandingFolder(world.platform) || !read.commands.some(command => layersOf(command.argv).some(layer => DELETE_PROGRAMS.has(layer.program) || layer.program === 'find' || layer.program === 'rsync'))) return undefined
   const folderOf = (word: string): string | undefined => (word.includes(UNREAD_PART) ? undefined : windowsPath(word, world))
   const home = world.windowsHome === undefined ? undefined : folderOf(world.windowsHome)
   try {
     const again = await withDeadline(
-      readShellCommands(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf }),
+      readShellCommands(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf, ...(returnsTo === undefined ? {} : { windows: true, returnsTo }) }),
       READ_DEADLINE_MS,
       () => undefined,
     )
@@ -810,12 +833,13 @@ async function windowsStanding(text: string, dialect: ReadCommand['dialect'], wo
     return undefined
   }
 }
-function windowsStandingFromText(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead): ReadonlyMap<ReadCommand, string> | undefined {
+
+function windowsStandingFromText(text: string, dialect: ReadCommand['dialect'], world: RefusalWorld, cwd: string, read: ShellRead, returnsTo?: string): ReadonlyMap<ReadCommand, string> | undefined {
   if (!wardTracksWindowsStandingFolder(world.platform) || !read.commands.some(command => layersOf(command.argv).some(layer => DELETE_PROGRAMS.has(layer.program) || layer.program === 'find' || layer.program === 'rsync'))) return undefined
   const folderOf = (word: string): string | undefined => (word.includes(UNREAD_PART) ? undefined : windowsPath(word, world))
   const home = world.windowsHome === undefined ? undefined : folderOf(world.windowsHome)
   try {
-    const again = readShellCommandsFromText(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf })
+    const again = readShellCommandsFromText(text, dialect, { cwd: folderOf(cwd), home, homesRoot: home === undefined ? world.homesRoot : posix.dirname(home), ownNames: world.ownNames, folderOf, ...(returnsTo === undefined ? {} : { windows: true, returnsTo }) })
     if (again.commands.length !== read.commands.length) return undefined
     const standing = new Map<ReadCommand, string>()
     read.commands.forEach((command, at) => {
@@ -827,6 +851,20 @@ function windowsStandingFromText(text: string, dialect: ReadCommand['dialect'], 
     passedOver(error)
     return undefined
   }
+}
+
+function judgeVerdict(pending: PendingToolCall, text: string, dialect: ReadCommand['dialect'], effective: ShellRead, world: RefusalWorld, work?: WardWork): WardVerdict {
+  const unread = effective.unread
+  const textReading = (part: string): WardVerdict => evaluateWards(REFUSAL_WARDS, { ...pending, shellCommand: part }, work)
+  if (unread === undefined) return verdictOf(judgeShellRead(effective, world, textReading, work), pending.toolName)
+  const byText = evaluateWards(REFUSAL_WARDS, pending, work)
+  if (!byText.allow) return byText
+  const outside = unread.text === text && dialect === 'posix' ? shellTextOutsideFileHeredocs(text) : unread.text
+  const named = mention(outside)
+  if (named === undefined) return verdictOf(judgeShellRead(effective, world, textReading, work), pending.toolName)
+  const at = outside.indexOf(named.word)
+  const excerpt = outside.slice(Math.max(0, at - 30), at + 50).replace(/\s+/g, ' ').trim()
+  return verdictOf({ ward: named.ward, at: 0, excerpt, line: outside.slice(0, Math.max(0, at)).split('\n').length, unread: `${unread.why}, and it mentions "${named.word}"` }, pending.toolName)
 }
 
 export async function refusalOfShellCommand(pending: PendingToolCall, cwd: string, work?: WardWork): Promise<WardVerdict> {
@@ -842,19 +880,56 @@ export async function refusalOfShellCommand(pending: PendingToolCall, cwd: strin
   const late = read === undefined
   const effective = read ?? readShellCommandsFromText(text, dialect, world)
   world.standing = late ? windowsStandingFromText(text, dialect, world, cwd, effective) : await windowsStanding(text, dialect, world, cwd, effective)
+  let first: WardVerdict
   try {
-    const unread = effective.unread
-    const textReading = (part: string): WardVerdict => evaluateWards(REFUSAL_WARDS, { ...pending, shellCommand: part }, work)
-    if (unread === undefined) return verdictOf(judgeShellRead(effective, world, textReading, work), pending.toolName)
-    const byText = evaluateWards(REFUSAL_WARDS, pending, work)
-    if (!byText.allow) return byText
-    const outside = unread.text === text && dialect === 'posix' ? shellTextOutsideFileHeredocs(text) : unread.text
-    const named = mention(outside)
-    if (named === undefined) return verdictOf(judgeShellRead(effective, world, textReading, work), pending.toolName)
-    const at = outside.indexOf(named.word)
-    const excerpt = outside.slice(Math.max(0, at - 30), at + 50).replace(/\s+/g, ' ').trim()
-    return verdictOf({ ward: named.ward, at: 0, excerpt, line: outside.slice(0, Math.max(0, at)).split('\n').length, unread: `${unread.why}, and it mentions "${named.word}"` }, pending.toolName)
+    first = judgeVerdict(pending, text, dialect, effective, world, work)
   } catch {
     return evaluateWards(REFUSAL_WARDS, pending, work)
   }
+  if (!first.allow) return first
+  const returned = oldFolderReturn(effective.commands, text)
+  if (returned === undefined) return first
+  if (wardTracksWindowsStandingFolder(world.platform)) {
+    const firstStanding = world.standing
+    if (firstStanding === undefined) return first
+    const folderOf = (word: string): string | undefined => (word.includes(UNREAD_PART) ? undefined : windowsPath(word, world))
+    const places = oldFolderPlaces(
+      folderOf(cwd),
+      world.windowsHome === undefined ? undefined : windowsPath(world.windowsHome, world),
+      returned.written,
+      word => windowsPath(word, world),
+      firstStanding.values(),
+    )
+    for (const returnsTo of places) {
+      try {
+        const standing = late ? windowsStandingFromText(text, dialect, world, cwd, effective, returnsTo) : await windowsStanding(text, dialect, world, cwd, effective, returnsTo)
+        if (standing === undefined) continue
+        const second = judgeVerdict(pending, text, dialect, effective, { ...world, standing }, work)
+        if (!second.allow) return second
+      } catch (error) {
+        passedOver(error)
+      }
+    }
+    return first
+  }
+  const places = oldFolderPlaces(
+    world.cwd,
+    world.home,
+    returned.written,
+    word => absolutePath(word, world.cwd, world),
+    effective.commands.map(command => command.cwd),
+  )
+  for (const returnsTo of places) {
+    const againWorld: RefusalWorld = { ...world, returnsTo }
+    try {
+      const again = late
+        ? readShellCommandsFromText(text, dialect, againWorld)
+        : ((await withDeadline(readShellCommands(text, dialect, againWorld), READ_DEADLINE_MS, () => undefined)) ?? readShellCommandsFromText(text, dialect, againWorld))
+      const second = judgeVerdict(pending, text, dialect, again, againWorld, work)
+      if (!second.allow) return second
+    } catch (error) {
+      passedOver(error)
+    }
+  }
+  return first
 }
