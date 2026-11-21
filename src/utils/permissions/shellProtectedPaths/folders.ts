@@ -163,7 +163,7 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
 }
 
 const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|CDPATH|trap)\b/
-const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
+const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly|unset)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
 const PLAIN_CD = new Set(['cd', 'chdir', 'set-location', 'sl'])
 const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
 const PLAIN_POPD = new Set(['popd', 'pop-location'])
