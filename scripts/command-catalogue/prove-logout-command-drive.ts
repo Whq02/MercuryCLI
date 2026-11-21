@@ -9,6 +9,7 @@ import { FLAG_REGISTRY } from '../../src/substrate/flagRegistry.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 import { recordPty } from '../lib/ptyRecorder.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const DIST = process.env.MERCURY_PROOF_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
@@ -182,7 +183,7 @@ const reapDaemon = (): void => {
 }
 
 try {
-  const bootReady = await waitFor(() => plainOutput().includes('⇧→ concourse') || plainOutput().includes('↵ start'), 30_000)
+  const bootReady = await waitFor(() => plainOutput().includes('⇧→ concourse') || paintsBootFaceReady(plainOutput()), 30_000)
   check('boot face paints in built terminal', bootReady, plainOutput().slice(-300))
 
   let chatReady = false

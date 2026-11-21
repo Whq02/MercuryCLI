@@ -6,6 +6,7 @@ import { homedir, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { FAKE_OLLAMA_MODEL, FAKE_OLLAMA_REPLY_PREFIX } from './fixtures/fake-ollama.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -390,7 +391,7 @@ async function drive(size: string): Promise<void> {
   const world = await makeWorld(size)
   const quietBefore = !(await portAnswers(world.port))
   const sends: Send[] = [
-    { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, awaitStableTicks: 2, data: COMMAND },
     { requireAwait: true, awaitText: `❯ ${COMMAND}`, awaitStableTicks: 2, data: '\r' },
     { requireAwait: true, awaitText: 'Ollama / running server', awaitStableTicks: 2, mark: 'source-choice', data: DOWN },

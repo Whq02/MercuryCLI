@@ -6,6 +6,7 @@ import { basename, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
@@ -56,12 +57,11 @@ const requestClock = setInterval(() => {
   if (firstRequestTs === null && api.messageRequests().length > 0) firstRequestTs = Date.now()
 }, 5)
 
-const READY = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const ASK = 'census: hello'
 const sends = [
-  { awaitText: READY, atTick: 150, data: '', mark: 'face-ready' },
-  { awaitText: READY, awaitSettleTicks: 30, atTick: 230, data: '\r', mark: 'enter' },
+  { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, atTick: 150, data: '', mark: 'face-ready' },
+  { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 30, atTick: 230, data: '\r', mark: 'enter' },
   { awaitText: COMPOSER, awaitSettleTicks: 5, atTick: 310, data: ASK, mark: 'chat-ready' },
   { awaitText: ASK, awaitSettleTicks: 3, atTick: 350, data: '\r', mark: 'submit' },
   { awaitText: REPLY, awaitSettleTicks: 5, atTick: 470, data: '', mark: 'replied' },
@@ -121,7 +121,7 @@ const markTs = new Map<string, number>()
   const receipt = payload.sendReceipts?.[i]
   if (receipt) markTs.set(m.label, receipt.ts)
 })
-check('the face painted (the ready line is on the face-ready frame)', (marks.get('face-ready') ?? '').includes(READY), (marks.get('face-ready') ?? '').slice(0, 300))
+check('the face painted (the ready line is on the face-ready frame)', paintsBootFaceReady(marks.get('face-ready') ?? ''), (marks.get('face-ready') ?? '').slice(0, 300))
 check('the chat opened (the composer is on the chat-ready frame)', (marks.get('chat-ready') ?? '').includes(COMPOSER))
 check('the turn was submitted and answered (the reply is on the replied frame)', (marks.get('replied') ?? '').includes(REPLY), (marks.get('replied') ?? '').slice(-600))
 const readyTs = markTs.get('face-ready') ?? Number.POSITIVE_INFINITY

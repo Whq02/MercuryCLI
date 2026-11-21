@@ -44,6 +44,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { expandTabs } = await import('../../src/ink/tabstops.ts')
 
 let failures = 0
@@ -65,7 +66,6 @@ writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ guardrails: { sovere
 
 const COLS = 178
 const ROWS = 51
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CLOSING = 'Done.'
 const TABLE = 'jobs.tsv'
@@ -104,7 +104,7 @@ async function capture(): Promise<Capture> {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
+        { atTick: 120, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
         { afterPrevTicks: 25, data: '\r', mark: 'enter' },
         { atTick: 400, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: 'hello', mark: 'composer' },
         { afterPrevTicks: 2, data: '\r', mark: 'sent' },

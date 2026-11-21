@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import {
   INITIAL_STATE,
   type KeyParseState,
@@ -144,7 +145,7 @@ if (driver.kind !== 'posix-pty') {
   type Cell = { c: string }
   type Mark = { label: string; grid: Cell[][] }
   const opening: Record<string, unknown>[] = [
-    { atTick: 80, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
+    { atTick: 80, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r' },
     { atTick: 160, awaitText: 'Type a prompt', minTick: 5, awaitStableTicks: 2, requireAwait: true, data: '' },
   ]
   const CHAT = 'shift + ← boot face'

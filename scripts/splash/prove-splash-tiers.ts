@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '../..')
 const PROBE = join(import.meta.dir, 'screen-probe.mjs')
 const RENDER = join(import.meta.dir, 'render-final-screen.py')
-const FIXTURE = join(import.meta.dir, 'fixtures', 'final-screens-0d08117e8.json')
+const FIXTURE = join(import.meta.dir, 'fixtures', 'final-screens-1.0.12.json')
 const PY = '/usr/bin/python3'
 const GEOMETRIES: ReadonlyArray<readonly [number, number]> = [[80, 24], [100, 34], [120, 40], [120, 44], [160, 50]]
 const TIERS = ['truecolor', '256', 'nocolor'] as const
@@ -40,15 +40,6 @@ function cellAt(screen: Screen, x: number, y: number): Cell {
 const sameCell = (a: Cell, b: Cell): boolean => a.ch === b.ch && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold && a.reverse === b.reverse
 const lowerHalfOf = (base: Cell, now: Cell): boolean =>
   base.ch === '▀' && base.bg !== 'default' && now.ch === '▄' && now.fg === base.bg && now.bg === base.fg && now.bold === base.bold && now.reverse === base.reverse
-
-function twoColourCells(base: Screen): number {
-  let n = 0
-  for (let y = 0; y < base.rows; y++) for (let x = 0; x < base.cols; x++) {
-    const cell = cellAt(base, x, y)
-    if (cell.ch === '▀' && cell.bg !== 'default') n++
-  }
-  return n
-}
 
 function compareToRecord(base: Screen, now: Screen): { equal: boolean; lowerHalf: number; detail: string } {
   if (base.cols !== now.cols || base.rows !== now.rows) return { equal: false, lowerHalf: 0, detail: `geometry ${base.cols}x${base.rows} vs ${now.cols}x${now.rows}` }
@@ -124,20 +115,19 @@ function capture(splashDir: string, cols: number, rows: number, tier: Tier, mode
 const recordAt = process.argv.indexOf('--record')
 if (recordAt >= 0) {
   const splashDir = resolve(process.argv[recordAt + 1] ?? '')
-  if (!existsSync(join(splashDir, 'mercury-splash.mjs'))) throw new Error('--record needs the base tree\'s assets/splash directory')
+  if (!existsSync(join(splashDir, 'mercury-splash.mjs'))) throw new Error('--record needs the assets/splash directory')
   if (existsSync(FIXTURE)) throw new Error(`the record is write-once: ${FIXTURE}`)
-  const sha = spawnSync('git', ['-C', splashDir, 'rev-parse', 'HEAD'], { encoding: 'utf8' }).stdout.trim()
   const screens: Record<string, Screen> = {}
   for (const [cols, rows] of GEOMETRIES) for (const mode of MODES) for (const tier of TIERS) screens[keyOf(cols, rows, tier, mode)] = capture(splashDir, cols, rows, tier, mode).screen
   mkdirSync(join(import.meta.dir, 'fixtures'), { recursive: true })
-  const fixture: Fixture = { recordedFrom: sha, probe: 'scripts/splash/screen-probe.mjs', renderer: 'scripts/splash/render-final-screen.py', screens }
+  const fixture: Fixture = { recordedFrom: '1.0.12', probe: 'scripts/splash/screen-probe.mjs', renderer: 'scripts/splash/render-final-screen.py', screens }
   writeFileSync(FIXTURE, JSON.stringify(fixture) + '\n', { flag: 'wx' })
-  console.log(`recorded ${Object.keys(screens).length} final screens from ${sha} into ${FIXTURE}`)
+  console.log(`recorded ${Object.keys(screens).length} final screens for 1.0.12 into ${FIXTURE}`)
   process.exit(0)
 }
 
 console.log('============================================================')
-console.log(' splash — the final screen across tiers and against the .27 base (recorded at its jellyfish default, which the capture pins), oneshot and cinematic')
+console.log(' splash — the final screen across tiers and against the 1.0.12 approved face (recorded at its jellyfish default, which the capture pins), oneshot and cinematic')
 console.log('============================================================')
 
 section('§1 the comparators\' teeth (synthetic screens)')
@@ -163,12 +153,12 @@ section('§1 the comparators\' teeth (synthetic screens)')
 }
 
 if (!existsSync(FIXTURE)) {
-  check('the .27 base record exists (bun scripts/splash/prove-splash-tiers.ts --record <base>/assets/splash)', false, FIXTURE)
+  check('the 1.0.12 record exists (bun scripts/splash/prove-splash-tiers.ts --record assets/splash)', false, FIXTURE)
   console.log(`\n❌ splash tiers RED — ${failures} failure(s)`)
   process.exit(1)
 }
 const fixture = JSON.parse(readFileSync(FIXTURE, 'utf8')) as Fixture
-check(`the record was taken from the .27 base (${fixture.recordedFrom.slice(0, 9)}) with this probe and renderer`, fixture.recordedFrom.startsWith('0d08117e8') && fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py')
+check(`the record was taken for 1.0.12 (${fixture.recordedFrom}) with this probe and renderer`, fixture.recordedFrom === '1.0.12' && fixture.probe === 'scripts/splash/screen-probe.mjs' && fixture.renderer === 'scripts/splash/render-final-screen.py')
 
 const now = new Map<string, { raw: Buffer; screen: Screen }>()
 const dirAt = process.argv.indexOf('--splash-dir')
@@ -177,7 +167,7 @@ console.log(`splash under proof: ${splashDir}`)
 for (const [cols, rows] of GEOMETRIES) for (const mode of MODES) for (const tier of TIERS) now.set(keyOf(cols, rows, tier, mode), capture(splashDir, cols, rows, tier, mode))
 
 for (const mode of MODES) {
-  section(mode === 'oneshot' ? '§2 the painted frame (oneshot) against the .27 base\'s recorded screen' : '§3 the cinematic run\'s final screen (the trace, the fade and the hold) against the .27 base\'s recorded screen')
+  section(mode === 'oneshot' ? '§2 the painted frame (oneshot) against the 1.0.12 recorded screen' : '§3 the cinematic run\'s final screen (the trace, the fade and the hold) against the 1.0.12 recorded screen')
   for (const [cols, rows] of GEOMETRIES) {
     for (const tier of TIERS) {
       const key = keyOf(cols, rows, tier, mode)
@@ -185,10 +175,7 @@ for (const mode of MODES) {
       check(`${key}: recorded`, base !== undefined)
       if (base === undefined) continue
       const verdict = compareToRecord(base, now.get(key)!.screen)
-      check(`${key}: every cell equal to the .27 base, the two-colour cells' lower half excepted (${verdict.lowerHalf} such cells)`, verdict.equal, verdict.detail)
-      const pairs = twoColourCells(base)
-      if (tier === 'truecolor') check(`${key}: every two-colour cell of the .27 base (${pairs}) is a lower-half cell now, and only those`, verdict.lowerHalf === pairs, `${verdict.lowerHalf} of ${pairs}`)
-      else check(`${key}: no lower-half cell outside truecolor (the rule is truecolor's)`, verdict.lowerHalf === 0, `${verdict.lowerHalf}`)
+      check(`${key}: every cell equal to the 1.0.12 record`, verdict.equal && verdict.lowerHalf === 0, verdict.detail)
     }
   }
 }

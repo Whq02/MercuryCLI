@@ -83,7 +83,7 @@ section('(1) the rows the next request carries, hand-over by hand-over')
 
   const folded = await t.runScripted({ seed: f.history(), autocompact: [{ wasCompacted: false }, f.folded()], script: [f.yields(f.overflowed(f.providerOverflow())), f.yields(f.says('after the fold'))] })
   const afterFold = rowsOf(folded.requests[1])
-  check('overflow_recovery: the next request is the folded conversation with the operator\'s last line carried behind it', folded.transitions[0] === 'overflow_recovery' && afterFold.length === 3 && textOf(afterFold[0]).includes('[rig boundary]') && textOf(afterFold[1]).includes('RIG SUMMARY') && textOf(afterFold[2]).includes('hello there rig'), `${j(folded.transitions)} · ${afterFold.map(textOf).join(' | ').slice(0, 200)}`)
+  check('overflow_recovery: the next request is the folded conversation with the operator\'s last line carried behind it', folded.transitions[0] === 'overflow_recovery' && afterFold.length === 3 && afterFold[0]?.type === 'system' && afterFold[0]?.subtype === 'compact_boundary' && textOf(afterFold[1]).includes('RIG SUMMARY') && textOf(afterFold[2]).includes('hello there rig'), `${j(folded.transitions)} · ${afterFold.map(textOf).join(' | ').slice(0, 200)}`)
 }
 
 section('(2) what is counted across a hand-over, and what starts again')

@@ -16,6 +16,7 @@ import {
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-unify-')))
 const TEMPLATE = join(SCRATCH, 'home-template')
@@ -99,12 +100,12 @@ function g(needle: string, data: string, extra: Send = {}): Send {
   return { requireAwait: true, awaitText: needle, awaitSettleTicks: 2, data, ...extra }
 }
 const composerLive: Send = { atTick: 200, awaitRaw: `${ESC}[?2004h`, minTick: 30, awaitSettleTicks: 6, data: '' }
-const READY_LINE = '↵ start  ·  ↑↓ choose'
+const gFace = (data: string, extra: Send = {}): Send => g('↑↓', data, { awaitPattern: BOOT_FACE_READY, ...extra })
 const BASE_AB = process.env.MERCURY_UNIFY_BASE === '1'
 const enterNewChat: Send[] =
   BASE_AB
     ? [composerLive]
-    : [g(READY_LINE, '\r', { awaitSettleTicks: 4 }), g('Type a prompt', '', { awaitSettleTicks: 6 })]
+    : [gFace('\r', { awaitSettleTicks: 4 }), g('Type a prompt', '', { awaitSettleTicks: 6 })]
 
 const resumedSids = new Map<string, string>()
 async function runDrive(drive: Drive): Promise<DriveResult> {
@@ -367,7 +368,7 @@ for (const [cols, rows] of [
       printFrame(`u3 ${cols}x${rows} (resumed, continued)`, r.lines)
       const marks = (r.payload.marks as Array<{ label: string; grid: Array<Array<{ c: string }>> }> | undefined) ?? []
       const first = (marks.find(m => m.label === 'first-frame')?.grid ?? []).map(row => row.map(c => c.c).join('')).join('\n')
-      check(`u3 ${cols}x${rows}: --resume paints the transcript from its file (no menu — an explicit journey)`, first.includes('hello from the boot chat') && first.includes(REPLY_1) && !first.includes(READY_LINE))
+      check(`u3 ${cols}x${rows}: --resume paints the transcript from its file (no menu — an explicit journey)`, first.includes('hello from the boot chat') && first.includes(REPLY_1) && !paintsBootFaceReady(first))
       const sid = resumedSids.get(`${cols}x${rows}`)
       const live = Object.values(liveRecords(r.home))
       check(`u3 ${cols}x${rows}: the daemon admitted the SAME durable session (the record names its id)`, sid !== undefined && live.length === 1 && live[0]!.sessionId === sid, `${sid} vs ${JSON.stringify(live.map(x => x.sessionId))}`)
@@ -477,11 +478,11 @@ for (const [cols, rows] of [
   })
 }
 
-const FACE_ROWS = ['New Session', 'Boot Menu', 'MCPs & Skills', 'Health Check', 'Session Concourse', 'Sessions · Projects']
+const FACE_ROWS = ['New Session', 'Logins/Keys', 'Session Manager (Concourse)', 'Boot Menu']
 const KEY_MAP = keyHintLabel('⇧→ concourse')
 function assertFace(id: string, r: DriveResult, opts: { births?: boolean } = {}): void {
   for (const row of FACE_ROWS) check(`${id}: the face carries '${row}'`, r.text.includes(row))
-  check(`${id}: the ready line keeps its canon bytes`, r.text.includes(READY_LINE))
+  check(`${id}: the ready line keeps its canon bytes`, paintsBootFaceReady(r.text))
   const last = r.lines[r.lines.length - 1] ?? ''
   check(`${id}: the dim key-map row sits on the face's LAST row and names the concourse alone (the strip's one present move from a fresh face)`, last.includes(KEY_MAP) && !last.includes('chat'), last.trim().slice(0, 60))
   check(`${id}: the key-map row appears exactly once, outside the card`, r.text.split(KEY_MAP).length - 1 === 1)
@@ -495,7 +496,7 @@ for (const [cols, rows] of [
     id: `u6-direct-boot-lands-on-face-${cols}x${rows}`,
     cols,
     rows,
-    sends: [g(READY_LINE, '\r', { awaitSettleTicks: 6, mark: 'face' })],
+    sends: [gFace('\r', { awaitSettleTicks: 6, mark: 'face' })],
     ready: 'Type a prompt',
     total: 200,
     assert: async r => {
@@ -516,7 +517,7 @@ for (const [cols, rows] of [
     prepare: home => {
       writeFileSync(join(home, 'splash-action.json'), JSON.stringify({ version: 1, ts: Date.now(), screen: 'held' }) + '\n')
     },
-    sends: [g(READY_LINE, '', { awaitSettleTicks: 6, mark: 'face' })],
+    sends: [gFace('', { awaitSettleTicks: 6, mark: 'face' })],
     stableTicks: 8,
     total: 200,
     assert: async r => {

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -38,6 +39,9 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 function gate(awaitText: string, data: string, mark?: string): Send {
   return { requireAwait: true, awaitText, awaitSettleTicks: 3, data, ...(mark ? { mark } : {}) }
+}
+function faceGate(data: string, mark?: string): Send {
+  return { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data, ...(mark ? { mark } : {}) }
 }
 function after(ticks: number, data: string, mark?: string): Send {
   return { afterPrevTicks: ticks, data, ...(mark ? { mark } : {}) }
@@ -138,12 +142,12 @@ try {
       const geminiRow = 'Google Gemini — Google sign-in, API key'
       const family = kind === 'signin' ? `❯ ${geminiRow}` : '❯ OpenAI — ChatGPT subscription or API key'
       const keyLeg = [gate('the easiest: create one', `${ESC}[B`, 'pick'), after(2, '\r'), gate('↵ store key', FIXTURE_KEY, 'key'), after(3, '\r'), gate('Gemini API key stored', '', 'receipt'), after(2, '\r'), after(12, '', 'returned')]
-      const sends: Send[] = kind === 'face' || kind === 'roster' ? [] : [gate('↑↓ choose', SHIFT_RIGHT), gate('+ new session · n', kind === 'session' ? 'n' : 'm')]
+      const sends: Send[] = kind === 'face' || kind === 'roster' ? [] : [faceGate(SHIFT_RIGHT), gate('+ new session · n', kind === 'session' ? 'n' : 'm')]
       if (kind === 'session') sends.push(gate('contract?', ESC), gate('← back', SHIFT_LEFT), gate('STATUS & TITLE', 'm'))
       if (kind === 'roster') {
-        sends.push({ ...gate('↑↓ choose', click, 'face'), targetText: '⚿ Logins' }, after(4, '\r'), { ...gate('↵ sign in · esc back', click, 'landed'), targetText: geminiRow }, after(4, '\r'), ...keyLeg)
+        sends.push({ ...faceGate(click, 'face'), targetText: '⚿ Logins' }, after(4, '\r'), { ...gate('↵ sign in · esc back', click, 'landed'), targetText: geminiRow }, after(4, '\r'), ...keyLeg)
       } else {
-        if (kind === 'face') sends.push(gate('↑↓ choose', 'm'))
+        if (kind === 'face') sends.push(faceGate('m'))
         sends.push({ ...gate(row, click, 'picker'), targetText: row })
         sends.push(after(4, '\r', 'selected'), after(12, '', 'landed'))
         if (kind === 'signin') sends.push(gate('↵ sign in · esc back', '\r'), ...keyLeg)

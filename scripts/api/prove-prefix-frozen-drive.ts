@@ -5,6 +5,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const REPO = path.resolve(HERE, '..', '..')
@@ -97,7 +98,7 @@ if (process.argv[2] === '--serve') {
   await drive()
 }
 
-type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitSettleTicks?: number; data: string; mark?: string }
+type Send = { atTick: number; minTick?: number; afterPrevTicks?: number; awaitText?: string; awaitPattern?: string; awaitSettleTicks?: number; data: string; mark?: string }
 type Grid = Array<Array<{ c: string }>>
 type Payload = { grid: Grid; sendReceipts?: Array<{ atTick?: number }>; marks?: Array<{ label: string; atTick: number; grid: Grid }>; endReason?: string }
 function gridText(grid: Grid): string {
@@ -319,7 +320,7 @@ process.stdin.on('end', () => process.exit(0))
   const CYCLE: Send[] = Array.from({ length: 7 }, (_, i) => ({ atTick: 700 + i * 4, afterPrevTicks: 4, data: '\x1b[Z', mark: `mode-${i + 1}` }))
   const sends1: Send[] = [
     { atTick: 120, minTick: 3, awaitText: 'Yes, I accept', awaitSettleTicks: 2, data: '\x1b[B\r', mark: 'consent' },
-    { atTick: 300, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
+    { atTick: 300, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { atTick: 540, minTick: 10, awaitText: 'Type a prompt', awaitSettleTicks: 3, data: 'drive turn 1\r', mark: 'chat' },
     { atTick: 680, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: '', mark: 't1' },
     ...CYCLE,
@@ -370,7 +371,7 @@ process.stdin.on('end', () => process.exit(0))
 
   section('2D — leg 2 (the induced edit): the fixture refuses the edited request; the ledger names the part')
   const sends2: Send[] = [
-    { atTick: 200, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r' },
+    { atTick: 200, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r' },
     { atTick: 540, minTick: 10, awaitText: '? for shortcuts', awaitSettleTicks: 3, data: 'drive turn 1\r', mark: 'chat' },
     { atTick: 680, minTick: 10, awaitText: 'TURN-1-DONE', awaitSettleTicks: 4, data: 'drive turn 2\r', mark: 't1' },
     { atTick: 800, afterPrevTicks: 40, data: '', mark: 'after' },

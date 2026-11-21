@@ -7,6 +7,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startDaemonClientBeat } from '../lib/daemonClientBeat.ts'
 import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/configs.ts'
 import { removeScratch } from '../lib/removeScratch.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 const DEFAULT_OPUS = ALL_MODEL_CONFIGS[newestGenerationKey('opus')].firstParty
 
@@ -122,7 +123,7 @@ const TAG = keyHintLabel('⇧← back')
 const tagLine = (lines: string[]): string | undefined => lines.find(l => l.includes(TAG))
 const has = (lines: string[], needle: string): boolean => lines.some(l => l.includes(needle))
 const isBoard = (lines: string[]): boolean => has(lines, 'SESSIONS') && has(lines, 'STATUS & TITLE')
-const isFace = (lines: string[]): boolean => has(lines, 'New Session') && has(lines, '↵ start')
+const isFace = (lines: string[]): boolean => has(lines, 'New Session') && paintsBootFaceReady(lines.join('\n'))
 
 const SHIFT_LEFT = '\x1b[1;2D'
 const SHIFT_RIGHT = '\x1b[1;2C'
@@ -257,11 +258,11 @@ try {
   check('R2 the roster is empty', await untilAsync(() => liveIds().length === 0, 15_000), liveIds().join(','))
 
   console.log('R3 the honesty leg — ⇧← from the board')
-  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['↵ start'], settle: 5 })
-  const r3Face = has(r3, '↵ start') ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
+  const r3 = drive('board-shift-left', [{ atTick: 999, awaitText: 'SESSIONS', minTick: 5, awaitSettleTicks: 3, data: SHIFT_LEFT }], 150, { text: ['New Session'], settle: 5 })
+  const r3Face = isFace(r3) ? 'the Boot face' : has(r3, 'SESSIONS') ? 'the board (no-op)' : has(r3, TAG) ? 'A SESSION TAG BAR' : 'another surface'
   console.log(`  [INFO] ⇧← from the board lands on: ${r3Face} — first rows: ${r3.filter(l => l.trim()).slice(0, 3).map(l => l.trim().slice(0, 60)).join(' | ')}`)
   check('R3 ⇧← from the board never opens a dead session', tagLine(r3) === undefined)
-  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', has(r3, '↵ start') && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '))
+  check('R3 ⇧← from the board lands the Boot face (the strip\'s left stop)', isFace(r3) && !has(r3, 'SESSIONS'), r3.filter(l => l.trim()).slice(0, 3).join(' | '))
 } finally {
   clientBeat.stop()
   try {

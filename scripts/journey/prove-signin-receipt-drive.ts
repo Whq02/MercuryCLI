@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = path.resolve(import.meta.dir, '../..')
 const argAfter = (flag: string): string | undefined => {
@@ -235,7 +236,7 @@ const composerGate = { requireAwait: true, awaitText: 'Type a prompt', awaitSett
 
 function chatSends(): Send[] {
   return [
-    { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'face' },
+    { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r', mark: 'face' },
     { minTick: 10, ...composerGate, data: '/logins anthropic', mark: 'composer' },
     { afterPrevTicks: 4, data: '\r' },
     { requireAwait: true, awaitText: 'Sign in', awaitSettleTicks: 3, data: '\r', mark: 'menu' },
@@ -247,14 +248,8 @@ function chatSends(): Send[] {
 }
 
 function faceSends(): Send[] {
-  const down = (mark?: string): Send => ({ afterPrevTicks: 2, data: '\x1b[B', ...(mark ? { mark } : {}) })
   return [
-    { requireAwait: true, minTick: 3, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\x1b[B', mark: 'face-before' },
-    down(),
-    down(),
-    down(),
-    down(),
-    down(),
+    { requireAwait: true, minTick: 3, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\x1b[B', mark: 'face-before' },
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'CONTROL PLANE', awaitSettleTicks: 4, data: '\r', mark: 'roster-before' },
     { requireAwait: true, awaitText: 'Claude subscription — browser sign-in', awaitSettleTicks: 3, data: '\r', mark: 'pick' },
@@ -284,7 +279,7 @@ async function runLeg(leg: 'chat' | 'face'): Promise<{
     argv: [NODE, DIST, '--model', 'claude-opus-5'],
     cwd: FIXTURE_CWD,
     sends: leg === 'chat' ? chatSends() : faceSends(),
-    readyText: leg === 'chat' ? ['Login successful'] : ['↑↓ choose'],
+    readyText: leg === 'chat' ? ['Login successful'] : ['↑↓'],
     readySettleTicks: 6,
     stableTicks: 8,
     total: 800,

@@ -262,6 +262,10 @@ export async function* modelTurnRows(this: ConversationState, needs: ModelNeeds)
             })
             break
           }
+          if (systemMessage.subtype === 'local_command') {
+            shouldRecord = true
+            break
+          }
           if (systemMessage.subtype !== 'compact_boundary') {
             const level = (systemMessage as { level?: string }).level
             if (systemMessage.subtype === 'informational' && (level === 'warning' || level === 'error')) {

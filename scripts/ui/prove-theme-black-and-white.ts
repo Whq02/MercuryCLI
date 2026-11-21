@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { colorSgrSequences, readTeeFrames } from './appleTerminalReading.ts'
 import { fixture, ROOT } from './viewportFixture.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'theme-black-and-white-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
@@ -157,7 +158,7 @@ const gate = { requireAwait: true, minTick: 2, awaitSettleTicks: 3 }
 
 section('§3 the built product with the theme stored: a terminal that advertises 24-bit colour receives none')
 const stored = await capture('stored-mono', 'mono', [
-  { ...gate, awaitText: '↑↓ choose', awaitSettleTicks: 5, data: '\r', mark: 'boot' },
+  { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 5, data: '\r', mark: 'boot' },
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/help' },
   { ...gate, awaitText: '❯ /help', awaitStableTicks: 2, data: '\r' },
@@ -216,7 +217,7 @@ section('§3b the one distinction that carries meaning survives: the /help tab b
 
 section('§4 the built product on True Black: the row previews live, enter saves it, and the next boot is plain')
 const chosen = await capture('chosen-mono', 'true-black', [
-  { ...gate, awaitText: '↑↓ choose', awaitSettleTicks: 5, data: '\r', mark: 'boot' },
+  { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 5, data: '\r', mark: 'boot' },
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },
@@ -243,7 +244,7 @@ writeFrames(chosen)
 
 section('§5 the fallback itself: NO_COLOR on True Black paints no colour anywhere, the picker’s demo diff included')
 const noColor = await capture('no-color', 'true-black', [
-  { ...gate, awaitText: '↑↓ choose', awaitSettleTicks: 5, data: '\r', mark: 'boot' },
+  { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 5, data: '\r', mark: 'boot' },
   { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, awaitStableTicks: 3, data: '', mark: 'session' },
   { ...gate, awaitText: 'Type a prompt', data: '/appearance' },
   { ...gate, awaitText: '❯ /appearance', awaitStableTicks: 2, data: '\r' },

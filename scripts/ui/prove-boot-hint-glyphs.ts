@@ -2,6 +2,7 @@
 import { mkdtempSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 process.env.MERCURY_CONFIG_DIR = realpathSync(mkdtempSync(join(tmpdir(), 'boot-hint-glyphs-home-')))
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
@@ -33,19 +34,24 @@ console.log('§2 the composed ready line, both faces, through the splash core')
     composeCompactFace: (...a: unknown[]) => { lines: string[] }
   }
   const plainSegments = [
-    { key: '↵ ', label: 'start', tone: 'ivory' },
+    { key: '↵', label: '', tone: 'ivory' },
     { key: 'm', label: ' menu', tone: 'faint' },
   ]
-  const compactSegments = [plainSegments[0], { key: '↑↓', label: ' choose', tone: 'faint' }, plainSegments[1]]
+  const compactSegments = [
+    { key: '>_', label: '', tone: 'faint' },
+    plainSegments[0],
+    { key: '↑↓', label: '', tone: 'faint' },
+    plainSegments[1],
+  ]
   const cardRows = [
-    { icon: '▸', label: 'New Session', ctx: 'fresh chat in this repo' },
-    { icon: '↻', label: 'Continue Last Session', ctx: '5m ago' },
+    { icon: '▸', label: 'New Session', ctx: '' },
+    { icon: '↻', label: 'Continue Last Session', ctx: '' },
   ]
   const keyMap = keyHintLabel(stripKeyMapHintOf('boot-settings', ['boot-settings', 'concourse']), 'windows')
-  const plain = core.composeLockup(100, 30, { cardRows, cardSel: 0, hintSegments: plainSegments, tinyHint: '↵ start', stripLines: () => [], keyMap }).lines.map(strip)
+  const plain = core.composeLockup(100, 30, { cardRows, cardSel: 0, hintSegments: plainSegments, tinyHint: '↵', stripLines: () => [], keyMap }).lines.map(strip)
   const compact = core.composeCompactFace(80, 24, { cardRows: cardRows.map(r => ({ label: r.label, ctx: r.ctx })), cardSel: 0, hintSegments: compactSegments, keyMap }).lines.map(strip)
-  const hintRows = (lines: string[]): string[] => lines.filter(l => l.includes('↵ start') || l.includes('↑↓ choose'))
-  check(`the plain face paints one hint row — "${hintRows(plain)[0]?.trim()}"`, hintRows(plain).length === 1 && hintRows(plain)[0]!.includes('ready'), plain.join('\n'))
+  const hintRows = (lines: string[]): string[] => lines.filter(l => paintsBootFaceReady(l))
+  check(`the plain face paints one hint row — "${hintRows(plain)[0]?.trim()}"`, hintRows(plain).length === 1 && hintRows(plain)[0]!.includes('>_'), plain.join('\n'))
   check(`the compact face paints one hint row — "${hintRows(compact)[0]?.trim()}"`, hintRows(compact).length === 1, compact.join('\n'))
   const rows = [...hintRows(plain), ...hintRows(compact)].map(r => r.replace(/^\s*│|│\s*$/g, ''))
   check('the hint rows carry nothing beyond ASCII, the middle dot and the arrows', rows.length === 2 && rows.every(r => notPlain(r).length === 0), hex(rows.flatMap(notPlain)))

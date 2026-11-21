@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const repo = resolve(import.meta.dir, '../..')
 const arg = (name: string): string | undefined => {
@@ -65,7 +66,7 @@ const env: NodeJS.ProcessEnv = {
   NODE_OPTIONS: `--import=${pathToFileURL(join(import.meta.dir, 'cap-facts-window.mjs')).href}`,
 }
 const sends = [
-  { requireAwait: true, awaitText: '↑↓ choose', awaitSettleTicks: 2, data: '\r', mark: 'boot' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, data: '\r', mark: 'boot' },
   { requireAwait: true, awaitText: '← back', awaitSettleTicks: 4, data: 'hello sol\r', mark: 'home' },
   { requireAwait: true, awaitText: 'OpenAI usage window', awaitSettleTicks: 4, data: '\r', mark: 'offer' },
   { requireAwait: true, awaitText: 'Set model to', awaitSettleTicks: 2, data: '', mark: 'confirm' },

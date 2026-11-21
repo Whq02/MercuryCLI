@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { MODEL_PICKER_TITLE } from '../../src/utils/model/modelPickerGroups.ts'
 import { keyHintLabel } from '../../src/components/mercury-ui/keyHintLabel.ts'
 
@@ -69,7 +70,7 @@ try {
       const ready = { requireAwait: true, awaitText: 'ready ·', awaitPattern: '(?:^|\\n) ?ready ·', targetText: keyHintLabel('⇧← back'), awaitSettleTicks: 6 }
       const panelReady = { requireAwait: true, awaitText: needle, awaitSettleTicks: 8 }
       writeFileSync(config, JSON.stringify({ argv: [node, dist], cwd, cols, rows, out, total: 400, stableTicks: 4, sends: [
-        { requireAwait: true, awaitText: '↑↓ choose', minTick: 10, awaitSettleTicks: 6, data: '\r' },
+        { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 10, awaitSettleTicks: 6, data: '\r' },
         { ...ready, data: `/${panel}\r`, mark: 'chat' },
         { ...panelReady, targetText: title, targetDx: panel === 'model' ? -2 : -8, data: click('{X}', '{Y}'), mark: 'open' },
         panel === 'model'

@@ -40,6 +40,7 @@ const FACTS_HOLD_MS = 2_000
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 const { readSessionFacts, sessionFactsPath } = await import('../../src/services/engine-connector/seatProjections.ts')
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
@@ -58,7 +59,6 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [WORK])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CONSENT_ACCEPT = 'Yes, I accept'
 const BOARD_EMPTY = 'no sessions running'
@@ -228,7 +228,7 @@ const acceptConsent = (): Send[] => [
   { atTick: 90, awaitText: CONSENT_ACCEPT, minTick: 3, awaitSettleTicks: 2, data: '\x1b[B' },
   { afterPrevTicks: 2, data: '\r', mark: 'consent' },
 ]
-const awaitFace = (first: boolean): Send => (first ? { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' } : { afterPrevTicks: 120, awaitText: READY_LINE, awaitSettleTicks: 3, data: '', mark: 'face' })
+const awaitFace = (first: boolean): Send => (first ? { atTick: 120, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' } : { afterPrevTicks: 120, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: '', mark: 'face' })
 const faceDoor = (): Send[] => [{ afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }]
 const boardDoor = (): Send[] => [
   { afterPrevTicks: WARM_TICKS, data: 'o', mark: 'face-o' },

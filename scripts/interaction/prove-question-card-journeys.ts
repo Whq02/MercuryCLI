@@ -10,6 +10,7 @@ import { GLYPH } from '../../src/utils/glyphs.js'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { startFixtureApi, type ScriptedTurn } from '../lib/fixtureApi.ts'
 import { DIST, nodeBinPath, requireDist } from '../streaming/artifactArena.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const VSHOT = join(import.meta.dir, '..', 'ui', 'vshot.py')
 const API_KEY = 'fixture-key-000'
@@ -307,7 +308,7 @@ const only = process.argv[2]?.toUpperCase()
 const wants = (leg: string): boolean => only === undefined || only === leg
 
 const opening = (directive: string): Send[] => [
-  awaits('↑↓ choose', '\r', { awaitSettleTicks: 4 }),
+  awaits('↑↓', '\r', { awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 4 }),
   awaits('ype a prompt', directive, { minTick: 8, awaitSettleTicks: 5 }),
   then('\r', { afterPrevTicks: 3 }),
 ]

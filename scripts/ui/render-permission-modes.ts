@@ -7,6 +7,7 @@ import { startFixtureApi } from '../lib/fixtureApi.ts'
 import { compactModeChip } from '../../src/components/mercury-ui/compactModeChip.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import type { PermissionMode } from '../../src/types/permissions.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -43,7 +44,7 @@ async function shoot(mode: PermissionMode, cols: number): Promise<string> {
         { afterPrevTicks: 2, requireAwait: true, awaitText: '❯ 2. Yes, I accept', data: '\r' },
       ]
     : []
-  sends.push({ atTick: 120, afterPrevTicks: 120, requireAwait: true, awaitText: '↵ start', awaitSettleTicks: 5, data: '\r' })
+  sends.push({ atTick: 120, afterPrevTicks: 120, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 5, data: '\r' })
   const cfgPath = join(tmpdir(), `vshot-pm-${mode}-${cols}.json`)
   writeFileSync(cfgPath, JSON.stringify({
     argv: ['node', BIN, ...args],

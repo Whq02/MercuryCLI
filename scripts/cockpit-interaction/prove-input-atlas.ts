@@ -7,6 +7,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import {
   actionAffordance,
   atlasMatches,
@@ -295,7 +296,7 @@ t.section('§7 — REAL BINARY: /keys renders the live table')
       cols: 120, rows: 40, total: 200,
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 60, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: '/keys\r' },
         { atTick: 110, awaitText: 'input atlas', minTick: 5, awaitSettleTicks: 8, data: 'toggleTa' },
       ],
