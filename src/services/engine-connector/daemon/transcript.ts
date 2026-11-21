@@ -248,6 +248,7 @@ export class TranscriptPart {
       if (this.needs.admissionAwaiting() || this.needs.facts()?.runner?.state === 'starting') this.needs.readFacts()
       this.needs.recomputeLive()
     } catch (error) {
+      this.feed.forgetKey()
       if (fpNow !== null) this.transcriptUnreadableFp = fpNow
       connectorTrace({ ev: 'tick-error', sid: this.needs.record().sessionId, message: error instanceof Error ? error.message : String(error) })
       if (this.needs.attached()) this.needs.recomputeLive()

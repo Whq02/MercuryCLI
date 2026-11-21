@@ -118,6 +118,7 @@ startInterval	src/services/unity/bridgeClient.ts	1	heartbeat 1
 startInterval	src/services/vulcan/engine/liveness.ts	1	heartbeat 1
 startInterval	src/services/vulcan/engine/service.ts	1	periodic 1
 startInterval	src/services/vulcan/vulcanClient.ts	1	heartbeat 1
+startInterval	src/services/workbench/projection.ts	1	heartbeat 1
 startInterval	src/substrate/fileStore.ts	1	periodic 1
 startInterval	src/tools/AgentTool/runAgent/watch.ts	1	heartbeat 1
 startInterval	src/tools/EvalTool/EvalTool.ts	1	clock 1
