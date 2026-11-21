@@ -9,14 +9,10 @@ useSubscription	src/components/BootSplashScreen.tsx	1
 useSubscription	src/components/MercuryFilesMenu.tsx	1
 useSubscription	src/components/PromptInput/useComposerSelection.ts	1
 useSubscription	src/components/ScrollKeybindingHandler.tsx	1
-useSubscription	src/components/concourse/liveTiles.ts	3
 useSubscription	src/components/design-system/Tabs.tsx	1
-useSubscription	src/components/mcp/ElicitationDialog.tsx	2
 useSubscription	src/components/mercury-ui/NavigablePanes.tsx	1
 useSubscription	src/components/mercury-ui/components.tsx	1
 useSubscription	src/components/mercury-ui/useCursorFollow.ts	1
-useSubscription	src/components/permissions/hooks.ts	1
-useSubscription	src/components/prompts-panel/PromptsPanel.tsx	1
 useSubscription	src/context/stats.tsx	1
 useSubscription	src/costHook.ts	1
 useSubscription	src/hooks/useCopyOnSelect.ts	2
@@ -41,7 +37,6 @@ useSubscription	src/services/anthropicLimitsHook.ts	1
 useSubscription	src/state/AppState.tsx	1
 useSubscription	src/utils/accounts/useSignInEpoch.ts	1
 useLayoutSubscription	src/components/CustomSelect/popup-list.tsx	2
-useLayoutSubscription	src/components/permissions/hooks.ts	1
 useDerivedState	src/components/BootAgentsScreen.tsx	1
 useDerivedState	src/components/BootLoginsScreen.tsx	2
 useDerivedState	src/components/BootResumeScreen.tsx	2
@@ -59,12 +54,6 @@ useDerivedState	src/components/PromptInput/useMaybeTruncateInput.ts	1
 useDerivedState	src/components/Settings/config/useConfigList.ts	1
 useDerivedState	src/components/Settings/usage/compact.tsx	1
 useDerivedState	src/components/VimTextInput.tsx	1
-useDerivedState	src/components/concourse/SessionMirror.tsx	1
-useDerivedState	src/components/concourse/screen/useConcourseDraft.ts	2
-useDerivedState	src/components/concourse/screen/useConcourseMarks.ts	4
-useDerivedState	src/components/concourse/screen/useConcourseRail.ts	1
-useDerivedState	src/components/concourse/screen/useConcourseRegions.ts	5
-useDerivedState	src/components/concourse/screen/useConcourseSelection.ts	1
 useDerivedState	src/components/diff/DiffDialog.tsx	1
 useDerivedState	src/components/extensions/ExtensionsBoard.tsx	1
 useDerivedState	src/components/memory/MemoryCentreView.tsx	1
@@ -73,7 +62,6 @@ useDerivedState	src/components/mercury-ui/PaletteView.tsx	1
 useDerivedState	src/components/mercury-ui/parity/DaemonView.tsx	1
 useDerivedState	src/components/mercury-ui/useGreetingShimmer.ts	1
 useDerivedState	src/components/mercury-ui/useNavigablePanes.ts	1
-useDerivedState	src/components/prompts-panel/PromptsPanel.tsx	1
 useDerivedState	src/components/tasks/BackgroundTasksDialog.tsx	1
 useDerivedState	src/screens/chat/useChatAsks.tsx	1
 useDerivedState	src/screens/chat/useChatDialogs.tsx	2
