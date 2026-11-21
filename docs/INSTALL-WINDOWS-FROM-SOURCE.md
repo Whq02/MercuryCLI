@@ -410,10 +410,10 @@ size; `node dist\mercury.mjs health --json` names the image processor in
 its `iface-image-processor` row.
 
 Where you land: every start with no explicit journey lands on the home screen
-(the card of New Session · Continue Last Session, once session history
-exists · Boot Menu · MCPs & Skills · Agents · Health Check ·
-Saturn Scheduler · Logins · Session Concourse · Sessions · Projects)
-whether Mercury was started as
+(New Session · Continue Last Session, once session history exists ·
+Logins/Keys · Session Manager (Concourse) · Boot Menu, where MCPs & Skills and
+Agents live for the next session; inside a chat, use `/health`, `/saturn`, and
+`/sessions`) whether Mercury was started as
 `node dist\mercury.mjs` or through the `mercury` launcher of a release
 install. Starting with a prompt argument, `--continue`, or `--resume` goes
 straight into the chat. Inside the chat, shift+← walks back to the concourse
