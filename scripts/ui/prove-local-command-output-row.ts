@@ -15,7 +15,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — to fix: the row component in src/components/messages/UserLocalCommandOutputMessage.tsx (stream parsing, cloud-launch lead, no-content line); the fold line comes from earlierReleasesLine in src/utils/releaseNotes.ts'}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

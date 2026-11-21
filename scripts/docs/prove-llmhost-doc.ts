@@ -22,7 +22,10 @@ const root = resolve(import.meta.dir, '../..')
 const doc = readFileSync(join(root, 'docs/LLM-HOST.md'), 'utf8')
 const norm = (text: string): string => text.replaceAll('’', "'").replace(/\s+/g, ' ')
 let failures = 0, checks = 0
-const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
+const llmhostDocFixHint = (name: string): string => name.startsWith('poison')
+  ? ' — facts() in this proof no longer notices the changed bank key; fix the Bank keys fact so it compares the doc keys to BANK_KEYS'
+  : ' — to fix, edit the matching line of docs/LLM-HOST.md to the live value from src/commands/llmhost/words.ts or src/services/host/ (index.ts, bank.ts, fastLoad.ts, hfRecipes.ts, recipes.ts, vendors/client.ts)'
+const check = (name: string, truth: unknown): void => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (truth ? '' : llmhostDocFixHint(name))) }
 let whereRows: string[] = []
 let paidLabel = ''
 let menuLabel = ''

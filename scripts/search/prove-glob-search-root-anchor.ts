@@ -8,7 +8,10 @@ import { dirname, join, resolve, sep } from 'node:path'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    fix: anchoring a slash-bearing pattern at the search root is done by the call of src/tools/GlobTool/GlobTool.ts and glob in src/utils/glob.ts; the engine door checks (section 6) exercise ripGrepAnswer in src/utils/ripgrep.ts; the section above this line names the behaviour that broke')
+  }
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -193,7 +196,7 @@ try {
   check('a Glob call leaves the process folder where it stood', process.cwd() === before && before === elsewhere, process.cwd())
 } catch (error) {
   failures++
-  console.log(`  [FAIL] the proof threw: ${error instanceof Error ? error.message : String(error)}`)
+  console.log(`  [FAIL] the proof threw: ${error instanceof Error ? error.message : String(error)}; the throw came from GlobTool.call in src/tools/GlobTool/GlobTool.ts, glob in src/utils/glob.ts or ripGrepAnswer in src/utils/ripgrep.ts, so read the message for the failing call`)
 } finally {
   process.chdir(previousCwd)
   rmSync(scratch, { recursive: true, force: true })

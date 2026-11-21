@@ -3,9 +3,11 @@
 
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+let ladderHint = ''
+function check(label: string, cond: boolean, detail = '', hint = ladderHint): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? '' : [detail, hint].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const LADDER: Array<[number, number]> = [
@@ -20,6 +22,7 @@ const LADDER: Array<[number, number]> = [
 ]
 
 console.log('§1 the face: every ladder size + the shed to one honest line')
+ladderHint = 'change composeLockup in assets/splash/splash-core.mjs so it never returns no lines or a line wider than the terminal, and keeps the (>_) mark at the smallest size'
 {
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' }) as {
@@ -50,6 +53,7 @@ console.log('§1 the face: every ladder size + the shed to one honest line')
 }
 
 console.log('§2 the menu: warn iff below its floor; the exit named; fits by construction')
+ladderHint = 'change composeBootMenu in assets/splash/splash-core.mjs so the wants-at-least warning shows only below 64x13, lines fit the terminal and the esc exit stays named'
 {
   const { createSplashCore } = await import('../../assets/splash/splash-core.mjs')
   const core = createSplashCore({ nocolor: true, truecolor: false, accent: 'crimson' }) as {
@@ -90,6 +94,7 @@ console.log('§2 the menu: warn iff below its floor; the exit named; fits by con
 }
 
 console.log('§3 the concourse remains functional below the former floor')
+ladderHint = 'change resolveConcourseProfile or switchboardGeometry in src/components/concourse/ConcourseLayout.tsx so every size gets a real layout with in-bounds rows'
 {
   const { CONCOURSE_TWO_PANE_MIN_COLS, resolveConcourseProfile, switchboardGeometry } = await import('../../src/components/concourse/ConcourseLayout.tsx')
   for (const [cols, rows] of [[1, 1], [2, 2], [40, 10], [60, 16], [79, 22], [80, 21], [80, 24], [100, 24], [120, 24]]) {
@@ -108,14 +113,16 @@ console.log('§3 the concourse remains functional below the former floor')
 console.log('§4 split, chrome and overlay commitments hold at the ladder')
 {
   const split = await import('../../src/components/concourse/splitView.ts')
-  check(`split: 121×${split.SPLIT_MIN_ROWS} is the simultaneous two-pane budget`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS))
+  check(`split: 121×${split.SPLIT_MIN_ROWS} is the simultaneous two-pane budget`, !split.splitAvailableAt(120, split.SPLIT_MIN_ROWS) && !split.splitAvailableAt(121, split.SPLIT_MIN_ROWS - 1) && split.splitAvailableAt(121, split.SPLIT_MIN_ROWS), '', 'change splitAvailableAt or SPLIT_MIN_ROWS in src/components/concourse/splitView.ts')
   const { LAYOUT_BREAKPOINTS } = await import('../../src/hooks/useLayoutTier.ts')
   check(
     'chrome: the ratified numbers stand (cockpit 100×26 · deck 22 rows · the 64 frame floor)',
     LAYOUT_BREAKPOINTS.cockpitMin === 100 && LAYOUT_BREAKPOINTS.cockpitMinRows === 26 && LAYOUT_BREAKPOINTS.deckMinRows === 22 && LAYOUT_BREAKPOINTS.frameQuotaMin === 64,
+    JSON.stringify(LAYOUT_BREAKPOINTS),
+    'restore the ratified values in LAYOUT_BREAKPOINTS in src/hooks/useLayoutTier.ts',
   )
   const { viewportRows } = await import('../../src/components/mercury-ui/geometry.ts')
-  check('overlays: min never manufactures rows the terminal lacks', viewportRows(3, { reserve: 5, min: 4 }) === 0 && viewportRows(12, { reserve: 4, min: 4 }) === 8)
+  check('overlays: min never manufactures rows the terminal lacks', viewportRows(3, { reserve: 5, min: 4 }) === 0 && viewportRows(12, { reserve: 4, min: 4 }) === 8, '', 'change viewportRows in src/components/mercury-ui/geometry.ts')
 }
 
 console.log(failures === 0 ? '\nsize-ladder: GREEN' : `\nsize-ladder: ${failures} RED`)

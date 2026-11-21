@@ -8,13 +8,14 @@ import { dist, runDoor, sceneRoot, type Row } from './lib/runDoor.ts'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
 let count = 0
+const waitHint = 'to fix, change the wait line of a slow hook: hookWaitWords, hookWaitSeconds and hookWaitLineOf in src/utils/hooks/wait.ts, and where src/services/tools/toolExecution.ts sends that line; rebuild dist with bun run build.ts because the first sections run the built bundle'
 const check = (label: string, good: boolean, detail = ''): void => {
   count++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail.slice(0, 600)} | ` : ''}${waitHint}` : ''}`)
 }
 if (!existsSync(dist)) {
-  console.log(`FAIL — ${dist} is missing; build first`)
+  console.log(`FAIL — ${dist} is missing; build first with bun run build.ts`)
   process.exit(1)
 }
 

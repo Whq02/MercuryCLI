@@ -11,7 +11,7 @@ function check(name: string, ok: boolean, detail?: string): void {
     console.log(`  ok  ${name}`)
   } else {
     failures++
-    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  RED ${name}${detail ? ` — ${detail}` : ''} — the schema comes from generateSettingsJSONSchema in src/utils/settings/schemaOutput.ts and SettingsSchema in src/utils/settings/types.ts; the local copy is written by ensureLocalSettingsSchema in src/utils/settings/localSchema.ts; after a settings change regenerate the snapshot with bun scripts/settings/gen-settings-schema.ts`)
   }
 }
 

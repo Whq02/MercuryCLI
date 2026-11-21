@@ -146,6 +146,9 @@ const toolsJson = (body: Body): string => JSON.stringify(body.tools ?? [])
 const messagesText = (body: Body): string => JSON.stringify(body.messages ?? [])
 const same = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b)
 const fmt = (n: number): string => n.toLocaleString('en-US')
+const hintForm = 'the form comes from DEFERRAL_WIRE_CAPABILITY and deferralWireFormFor in src/services/providers/deferralWire.ts'
+const hintPlan = 'what rides the wire is planned by planToolPayload and admissionRecordText in src/services/providers/toolEconomy.ts'
+const hintSend = 'the request is built behind routedCallModel in src/services/providers/callModelRouter.ts; read the error shown'
 
 async function drive(model: string, messages: Message[]): Promise<{ body: Body | undefined; chats: number; error: string | undefined }> {
   const before = hits.length
@@ -197,15 +200,15 @@ const admitted = [builtinPick, 'mcp__filesys__read_file']
 
 section('§0 the seam — the Moonshot row is text-append; kimi-k3 defers; the words spell the append form')
 {
-  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= 7)
-  check("the table's moonshot row is 'text-append'", DEFERRAL_WIRE_CAPABILITY.moonshot === 'text-append', String(DEFERRAL_WIRE_CAPABILITY.moonshot))
+  check(`the real pool assembled: ${pool.length} tools, ${coreNames.length} never-deferred, ${deferredNames.length} deferrable (${mcpTools.length} fixture MCP)`, pool.length > 40 && deferredNames.length > 20 && coreNames.length >= 7, `pool=${pool.length} deferrable=${deferredNames.length} core=${coreNames.length} | the pool is assembleToolPool in src/tools.ts and the deferral marks isDeferredToolFor in src/tools/ToolSearchTool/prompt.ts`)
+  check("the table's moonshot row is 'text-append'", DEFERRAL_WIRE_CAPABILITY.moonshot === 'text-append', `${String(DEFERRAL_WIRE_CAPABILITY.moonshot)} | change the moonshot row of DEFERRAL_WIRE_CAPABILITY in src/services/providers/deferralWire.ts`)
   const verdict = deferralWireFormFor(KIMI)
-  check(`${KIMI} reads the text-append form from the route table`, verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why}`)
+  check(`${KIMI} reads the text-append form from the route table`, verdict.form === 'text-append' && verdict.why === 'route-table', `${verdict.form}/${verdict.why} | ${hintForm}`)
   const older = deferralWireFormFor('kimi-k2.6')
-  check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form', older.form === 'text' && older.why === 'model-without-dynamic-tools', `${older.form}/${older.why}`)
+  check('kimi-k2.6 (no dynamic tool loading, the docs) keeps the text form', older.form === 'text' && older.why === 'model-without-dynamic-tools', `${older.form}/${older.why} | ${hintForm}`)
   const words = await ToolSearchTool.prompt({ model: KIMI } as never)
-  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words))
-  check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','))
+  check("the ToolSearch tool's words for kimi-k3 spell the append form (definitions appended to the conversation right after the result)", /appended to the conversation/.test(words) && !/from that request on their complete definitions are in your tool list/.test(words), `${words.slice(0, 300)} | the words are getPrompt in src/tools/ToolSearchTool/prompt.ts (text-append branch)`)
+  check('the name row rides once for a fresh Kimi transcript (the base announces nothing on this route)', nameRow !== undefined && nameRow.type === 'deferred_tools_delta' && nameRow.addedNames.join(',') === [...deferredNames].sort().join(','), 'the name row is built by getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts')
 }
 
 section('§1 the FRESH request on the Moonshot road — the core in full, the rest by name, every name present')
@@ -215,15 +218,15 @@ let freshNames: string[] = []
   clearToolRosterLatches()
   const fresh = await drive(KIMI, opening)
   freshBody = fresh.body
-  check('exactly one chat request rode the Moonshot wire, no refusal', fresh.chats === 1 && fresh.error === undefined && fresh.body !== undefined, fresh.error ?? `chats=${fresh.chats}`)
+  check('exactly one chat request rode the Moonshot wire, no refusal', fresh.chats === 1 && fresh.error === undefined && fresh.body !== undefined, `${fresh.error ?? `chats=${fresh.chats}`} | ${hintSend}`)
   const tools = fresh.body ? wireTools(fresh.body) : []
   freshNames = tools.map(t => t.name)
-  check('the tools term is exactly the never-deferred set in pool order, ToolSearch at its place', freshNames.join(',') === coreNames.join(','), freshNames.join(','))
-  check('no deferred tool has a schema on the wire', deferredNames.every(n => !freshNames.includes(n)), deferredNames.filter(n => freshNames.includes(n)).join(','))
+  check('the tools term is exactly the never-deferred set in pool order, ToolSearch at its place', freshNames.join(',') === coreNames.join(','), `${freshNames.join(',')} | want ${coreNames.join(',')} | ${hintPlan}`)
+  check('no deferred tool has a schema on the wire', deferredNames.every(n => !freshNames.includes(n)), `${deferredNames.filter(n => freshNames.includes(n)).join(',')} | ${hintPlan}`)
   const text = fresh.body ? messagesText(fresh.body) : ''
   const missing = poolNames.filter(n => !freshNames.includes(n) && !text.includes(n))
-  check('every pool tool is present on the wire — a schema for the core, a name in the row for the rest', missing.length === 0, missing.join(','))
-  check('no declaration row rides before an admission', fresh.body !== undefined && declarationRows(fresh.body).length === 0)
+  check('every pool tool is present on the wire — a schema for the core, a name in the row for the rest', missing.length === 0, `${missing.join(',')} | ${hintPlan}`)
+  check('no declaration row rides before an admission', fresh.body !== undefined && declarationRows(fresh.body).length === 0, hintPlan)
   const bytes = fresh.body ? Buffer.byteLength(toolsJson(fresh.body), 'utf8') : 0
   console.log(`  tools term: ${freshNames.length} schemas, ${fmt(bytes)} bytes (est ${fmt(Math.round(bytes / 3.9))} tokens at bytes/3.9)`)
 }
@@ -234,28 +237,28 @@ const transcript: Message[] = [...opening, ...admissionRound('toolu_ts_1', admit
 {
   const next = await drive(KIMI, transcript)
   admittedBody = next.body
-  check('the next request rode the wire, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, next.error ?? `chats=${next.chats}`)
-  check('the tools term is BYTE-IDENTICAL to the fresh request (the admission never touches the front)', freshBody !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(freshBody))
+  check('the next request rode the wire, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, `${next.error ?? `chats=${next.chats}`} | ${hintSend}`)
+  check('the tools term is BYTE-IDENTICAL to the fresh request (the admission never touches the front)', freshBody !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(freshBody), `an admission must not change the tools term | ${hintPlan}`)
   const rows = next.body ? rowsOf(next.body) : []
   const declarations = next.body ? declarationRows(next.body) : []
-  check('exactly one declaration row rides', declarations.length === 1, String(declarations.length))
+  check('exactly one declaration row rides', declarations.length === 1, `${String(declarations.length)} | ${hintPlan}`)
   const declaration = declarations[0]
-  check('…it is the LAST row of the messages (appended, never inserted)', declaration !== undefined && declaration.index === rows.length - 1, `${declaration?.index} of ${rows.length}`)
-  check("…a system row whose `tools` carry exactly the admitted definitions in admission order (the docs' shape)", declaration !== undefined && declaration.names.join(',') === admitted.join(','), declaration?.names.join(','))
-  check('…with no `content` field beside the tools (a system row carrying both is a 400 on this wire)', declaration !== undefined && !declaration.hasContent)
+  check('…it is the LAST row of the messages (appended, never inserted)', declaration !== undefined && declaration.index === rows.length - 1, `${declaration?.index} of ${rows.length} | ${hintPlan}`)
+  check("…a system row whose `tools` carry exactly the admitted definitions in admission order (the docs' shape)", declaration !== undefined && declaration.names.join(',') === admitted.join(','), `${declaration?.names.join(',')} | ${hintPlan}`)
+  check('…with no `content` field beside the tools (a system row carrying both is a 400 on this wire)', declaration !== undefined && !declaration.hasContent, `${hintPlan}; the declaration row must carry tools and no content`)
   const schemas = declaration ? (declaration.row.tools as Array<Record<string, unknown>>) : []
-  check('…each declaration is the full function definition (type, name, description, parameters)', schemas.length === admitted.length && schemas.every(t => t.type === 'function' && typeof (t.function as Record<string, unknown>)?.description === 'string' && typeof (t.function as Record<string, unknown>)?.parameters === 'object'))
+  check('…each declaration is the full function definition (type, name, description, parameters)', schemas.length === admitted.length && schemas.every(t => t.type === 'function' && typeof (t.function as Record<string, unknown>)?.description === 'string' && typeof (t.function as Record<string, unknown>)?.parameters === 'object'), `${hintPlan}; each declared tool needs type, name, description and parameters`)
   const freshRows = freshBody ? rowsOf(freshBody) : []
-  check("the fresh request's rows are an unchanged prefix of this request's rows (the cached prefix holds)", freshRows.length > 0 && same(rows.slice(0, freshRows.length), freshRows))
+  check("the fresh request's rows are an unchanged prefix of this request's rows (the cached prefix holds)", freshRows.length > 0 && same(rows.slice(0, freshRows.length), freshRows), `rows before the admission changed; ${hintPlan}`)
   const recordIndex = rows.findIndex(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_1')
-  check('the admission record rides as text naming the admitted tools, right before the declaration', recordIndex >= 0 && declaration !== undefined && recordIndex < declaration.index && String(rows[recordIndex]!.content).includes(admissionRecordText(admitted, 'text-append').split('\n')[0]!) && admitted.every(n => String(rows[recordIndex]!.content).includes(`- ${n}`)))
-  check("…and its words say the declarations follow, not 'in your tool list'", recordIndex >= 0 && /follow/.test(String(rows[recordIndex]!.content)) && !/tool list/.test(String(rows[recordIndex]!.content)))
+  check('the admission record rides as text naming the admitted tools, right before the declaration', recordIndex >= 0 && declaration !== undefined && recordIndex < declaration.index && String(rows[recordIndex]!.content).includes(admissionRecordText(admitted, 'text-append').split('\n')[0]!) && admitted.every(n => String(rows[recordIndex]!.content).includes(`- ${n}`)), `record row ${recordIndex}; ${hintPlan}`)
+  check("…and its words say the declarations follow, not 'in your tool list'", recordIndex >= 0 && /follow/.test(String(rows[recordIndex]!.content)) && !/tool list/.test(String(rows[recordIndex]!.content)), `${recordIndex >= 0 ? String(rows[recordIndex]!.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/services/providers/toolEconomy.ts`)
   const text = next.body ? messagesText(next.body) : ''
-  check('no tool_reference block reaches a wire that cannot expand one', !text.includes('tool_reference'))
-  check('every other deferred tool still has no schema anywhere on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !freshNames.includes(n) && !(declaration?.names ?? []).includes(n)))
+  check('no tool_reference block reaches a wire that cannot expand one', !text.includes('tool_reference'), `a tool_reference block was sent; ${hintPlan}`)
+  check('every other deferred tool still has no schema anywhere on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !freshNames.includes(n) && !(declaration?.names ?? []).includes(n)), `an unadmitted deferred tool has a schema on the wire; ${hintPlan}`)
   const plan = await planToolPayload({ model: KIMI, tools: pool, messages: transcript, getToolPermissionContext: async () => permissionContext, agents: [], hasPendingMcpServers: false, source: 'proof' })
-  check('the plan owner names the form and keeps the admitted tools OUT of the roster', plan.wireForm === 'text-append' && plan.enabled && admitted.every(n => !plan.roster.some(t => t.name === n)) && [...plan.admittedNames].sort().join(',') === [...admitted].sort().join(','))
-  check('the gate still knows an unadmitted deferred tool from an admitted one', plan.isDeferredUnadmitted(secondPick) === true && plan.isDeferredUnadmitted(builtinPick) === false)
+  check('the plan owner names the form and keeps the admitted tools OUT of the roster', plan.wireForm === 'text-append' && plan.enabled && admitted.every(n => !plan.roster.some(t => t.name === n)) && [...plan.admittedNames].sort().join(',') === [...admitted].sort().join(','), `wireForm=${plan.wireForm} enabled=${plan.enabled} admitted=${[...plan.admittedNames].join(',')} | change planToolPayload in src/services/providers/toolEconomy.ts`)
+  check('the gate still knows an unadmitted deferred tool from an admitted one', plan.isDeferredUnadmitted(secondPick) === true && plan.isDeferredUnadmitted(builtinPick) === false, 'change isDeferredUnadmitted in the plan from planToolPayload in src/services/providers/toolEconomy.ts')
 }
 
 section('§3 LATER TURNS — the declaration keeps its place and bytes; a second admission appends a second row; a re-admission adds nothing')
@@ -265,28 +268,28 @@ section('§3 LATER TURNS — the declaration keeps its place and bytes; a second
   const rows = turn.body ? rowsOf(turn.body) : []
   const declarations = turn.body ? declarationRows(turn.body) : []
   const previous = admittedBody ? declarationRows(admittedBody)[0] : undefined
-  check('a later turn rode the wire, no refusal', turn.chats === 1 && turn.error === undefined, turn.error ?? '')
-  check('the tools term is still byte-identical', freshBody !== undefined && turn.body !== undefined && toolsJson(turn.body) === toolsJson(freshBody))
-  check('the declaration row keeps its index and its bytes (carried unchanged, the docs\' second law)', previous !== undefined && declarations.length === 1 && declarations[0]!.index === previous.index && same(declarations[0]!.row, previous.row))
+  check('a later turn rode the wire, no refusal', turn.chats === 1 && turn.error === undefined, `${turn.error ?? ''} | ${hintSend}`)
+  check('the tools term is still byte-identical', freshBody !== undefined && turn.body !== undefined && toolsJson(turn.body) === toolsJson(freshBody), `a later turn changed the tools term; ${hintPlan}`)
+  check('the declaration row keeps its index and its bytes (carried unchanged, the docs\' second law)', previous !== undefined && declarations.length === 1 && declarations[0]!.index === previous.index && same(declarations[0]!.row, previous.row), `the carried declaration row changed; ${hintPlan}`)
   const admittedRows = admittedBody ? rowsOf(admittedBody) : []
-  check("the admitted request's rows are an unchanged prefix of the later request's rows", admittedRows.length > 0 && same(rows.slice(0, admittedRows.length), admittedRows))
+  check("the admitted request's rows are an unchanged prefix of the later request's rows", admittedRows.length > 0 && same(rows.slice(0, admittedRows.length), admittedRows), `earlier rows changed; ${hintPlan}`)
 
   const second: Message[] = [...later, ...admissionRound('toolu_ts_2', [secondPick, builtinPick])]
   const again = await drive(KIMI, second)
   const rows2 = again.body ? rowsOf(again.body) : []
   const declarations2 = again.body ? declarationRows(again.body) : []
-  check('a second admission rode the wire, no refusal', again.chats === 1 && again.error === undefined, again.error ?? '')
-  check('the tools term is still byte-identical after a second admission', freshBody !== undefined && again.body !== undefined && toolsJson(again.body) === toolsJson(freshBody))
-  check('two declaration rows ride; the first is untouched', declarations2.length === 2 && previous !== undefined && same(declarations2[0]!.row, previous.row) && declarations2[0]!.index === previous.index, String(declarations2.length))
-  check(`the second row declares only the NEW tool (${secondPick}) — a re-admitted tool is not declared twice`, declarations2[1]?.names.join(',') === secondPick, declarations2[1]?.names.join(','))
-  check('…and it is the last row, after its own record', declarations2[1] !== undefined && declarations2[1].index === rows2.length - 1 && rows2.findIndex(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_2') < declarations2[1].index)
-  check("the later request's rows are an unchanged prefix of the second-admission request's rows", rows.length > 0 && same(rows2.slice(0, rows.length), rows))
+  check('a second admission rode the wire, no refusal', again.chats === 1 && again.error === undefined, `${again.error ?? ''} | ${hintSend}`)
+  check('the tools term is still byte-identical after a second admission', freshBody !== undefined && again.body !== undefined && toolsJson(again.body) === toolsJson(freshBody), `a second admission changed the tools term; ${hintPlan}`)
+  check('two declaration rows ride; the first is untouched', declarations2.length === 2 && previous !== undefined && same(declarations2[0]!.row, previous.row) && declarations2[0]!.index === previous.index, `${String(declarations2.length)} | ${hintPlan}`)
+  check(`the second row declares only the NEW tool (${secondPick}) — a re-admitted tool is not declared twice`, declarations2[1]?.names.join(',') === secondPick, `${declarations2[1]?.names.join(',')} | ${hintPlan}`)
+  check('…and it is the last row, after its own record', declarations2[1] !== undefined && declarations2[1].index === rows2.length - 1 && rows2.findIndex(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_2') < declarations2[1].index, `the second declaration must be the last row after its own record; ${hintPlan}`)
+  check("the later request's rows are an unchanged prefix of the second-admission request's rows", rows.length > 0 && same(rows2.slice(0, rows.length), rows), `earlier rows changed; ${hintPlan}`)
 
   const repeated: Message[] = [...second, ...admissionRound('toolu_ts_3', [builtinPick])]
   const rep = await drive(KIMI, repeated)
   const declarations3 = rep.body ? declarationRows(rep.body) : []
-  check('re-admitting an admitted tool appends NO declaration row (nothing new to declare)', rep.error === undefined && declarations3.length === 2, `${rep.error ?? ''} rows=${declarations3.length}`)
-  check('the tools term never moved across the whole session', freshBody !== undefined && rep.body !== undefined && toolsJson(rep.body) === toolsJson(freshBody))
+  check('re-admitting an admitted tool appends NO declaration row (nothing new to declare)', rep.error === undefined && declarations3.length === 2, `${rep.error ?? ''} rows=${declarations3.length} | ${hintPlan}`)
+  check('the tools term never moved across the whole session', freshBody !== undefined && rep.body !== undefined && toolsJson(rep.body) === toolsJson(freshBody), `the tools term moved during the session; ${hintPlan}`)
 }
 
 section('§4 THE COMPACTION BOUNDARY — a snapshot-admitted tool rides the new conversation\'s tools term from its first request; no row hangs on a summary')
@@ -303,11 +306,11 @@ section('§4 THE COMPACTION BOUNDARY — a snapshot-admitted tool rides the new 
   const compacted: Message[] = [boundary, createUserMessage({ content: 'summary of the work so far' }) as Message]
   const after = await drive(KIMI, compacted)
   const names = after.body ? wireTools(after.body).map(t => t.name) : []
-  check('the request after a compaction rode the wire, no refusal', after.chats === 1 && after.error === undefined, after.error ?? '')
-  check(`the tools term is the core followed by the snapshot-admitted ${builtinPick} (fixed for the new conversation's life)`, names.join(',') === [...coreNames, builtinPick].join(','), names.join(','))
-  check('no declaration row rides (the new prefix carries the schema in its own tools term)', after.body !== undefined && declarationRows(after.body).length === 0)
+  check('the request after a compaction rode the wire, no refusal', after.chats === 1 && after.error === undefined, `${after.error ?? ''} | ${hintSend}`)
+  check(`the tools term is the core followed by the snapshot-admitted ${builtinPick} (fixed for the new conversation's life)`, names.join(',') === [...coreNames, builtinPick].join(','), `${names.join(',')} | preCompactDiscoveredTools of the compact_boundary row; ${hintPlan}`)
+  check('no declaration row rides (the new prefix carries the schema in its own tools term)', after.body !== undefined && declarationRows(after.body).length === 0, hintPlan)
   const later = await drive(KIMI, [...compacted, createAssistantMessage({ content: 'ok' }) as Message, createUserMessage({ content: 'go on' }) as Message])
-  check('…and the next request of the compacted conversation keeps it byte-identical', after.body !== undefined && later.body !== undefined && toolsJson(later.body) === toolsJson(after.body))
+  check('…and the next request of the compacted conversation keeps it byte-identical', after.body !== undefined && later.body !== undefined && toolsJson(later.body) === toolsJson(after.body), `the compacted conversation tools term moved; ${hintPlan}`)
   clearToolRosterLatches()
 }
 
@@ -320,27 +323,27 @@ section('§5 THE Z.AI ROAD — the table row decides: text-append rides a TEXT d
   const glmOpening: Message[] = [first, ...(glmNameRow ? (normalizeAttachmentForAPI(glmNameRow) as Message[]) : [])]
   const fresh = await drive(GLM, glmOpening)
   const freshGlmNames = fresh.body ? wireTools(fresh.body).map(t => t.name) : []
-  check('the fresh GLM request rode the Z.AI wire, no refusal', fresh.chats === 1 && fresh.error === undefined && fresh.body !== undefined, fresh.error ?? `chats=${fresh.chats}`)
+  check('the fresh GLM request rode the Z.AI wire, no refusal', fresh.chats === 1 && fresh.error === undefined && fresh.body !== undefined, `${fresh.error ?? `chats=${fresh.chats}`} | ${hintSend}`)
   const next = await drive(GLM, [...glmOpening, ...admissionRound('toolu_ts_glm', admitted)])
   const nextRows = next.body ? rowsOf(next.body) : []
-  check('the admitted GLM request rode the wire, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, next.error ?? `chats=${next.chats}`)
+  check('the admitted GLM request rode the wire, no refusal', next.chats === 1 && next.error === undefined && next.body !== undefined, `${next.error ?? `chats=${next.chats}`} | ${hintSend}`)
   if (zaiCapability === 'text-append') {
-    check(`zai is text-append: ${GLM} reads the append form`, deferralWireFormFor(GLM).form === 'text-append')
-    check('the fresh tools term is exactly the never-deferred set', freshGlmNames.join(',') === coreNames.join(','), freshGlmNames.join(','))
-    check('the tools term is byte-identical across the admission', fresh.body !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(fresh.body))
+    check(`zai is text-append: ${GLM} reads the append form`, deferralWireFormFor(GLM).form === 'text-append', hintForm)
+    check('the fresh tools term is exactly the never-deferred set', freshGlmNames.join(',') === coreNames.join(','), `${freshGlmNames.join(',')} | ${hintPlan}`)
+    check('the tools term is byte-identical across the admission', fresh.body !== undefined && next.body !== undefined && toolsJson(next.body) === toolsJson(fresh.body), `the admission changed the tools term; ${hintPlan}`)
     const last = nextRows[nextRows.length - 1]
-    check('the last row is a system row whose CONTENT carries the admitted definitions as text (Z.AI documents content on a system row, no per-message tools field)', last !== undefined && last.role === 'system' && typeof last.content === 'string' && !('tools' in last) && admitted.every(n => String(last.content).includes(`"name":"${n}"`)))
-    check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)))
+    check('the last row is a system row whose CONTENT carries the admitted definitions as text (Z.AI documents content on a system row, no per-message tools field)', last !== undefined && last.role === 'system' && typeof last.content === 'string' && !('tools' in last) && admitted.every(n => String(last.content).includes(`"name":"${n}"`)), `${last ? JSON.stringify(last).slice(0, 300) : 'no last row'} | ${hintPlan}`)
+    check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)), `earlier rows changed; ${hintPlan}`)
   } else {
-    check(`zai is '${String(zaiCapability)}': ${GLM} defers in the text form (the live measurement ruled out the text-row declaration: GLM never called a tool declared in a text row; the text form puts the admitted schema in the tools term instead)`, deferralWireFormFor(GLM).form === 'text')
-    check('the fresh tools term is exactly the never-deferred set, ToolSearch at its place', freshGlmNames.join(',') === coreNames.join(','), freshGlmNames.join(','))
+    check(`zai is '${String(zaiCapability)}': ${GLM} defers in the text form (the live measurement ruled out the text-row declaration: GLM never called a tool declared in a text row; the text form puts the admitted schema in the tools term instead)`, deferralWireFormFor(GLM).form === 'text', hintForm)
+    check('the fresh tools term is exactly the never-deferred set, ToolSearch at its place', freshGlmNames.join(',') === coreNames.join(','), `${freshGlmNames.join(',')} | ${hintPlan}`)
     const nextNames = next.body ? wireTools(next.body).map(t => t.name) : []
-    check('the request after the admission carries the fresh term followed by exactly the admitted schemas', nextNames.join(',') === [...coreNames, ...admitted].join(','), nextNames.join(','))
+    check('the request after the admission carries the fresh term followed by exactly the admitted schemas', nextNames.join(',') === [...coreNames, ...admitted].join(','), `${nextNames.join(',')} | ${hintPlan}`)
     const record = nextRows.find(r => r.role === 'tool' && r.tool_call_id === 'toolu_ts_glm')
-    check("the admission record rides as text and says the schemas are in the tool list from this request on", record !== undefined && String(record.content).includes(admissionRecordText(admitted).split('\n')[0]!) && /tool list/.test(String(record.content)) && admitted.every(n => String(record.content).includes(`- ${n}`)))
-    check('no declaration row rides (the schema travels in the tools term, never in a system row)', next.body !== undefined && declarationRows(next.body).length === 0 && !nextRows.some(r => r.role === 'system' && typeof r.content === 'string' && String(r.content).includes('"type":"function"')))
-    check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)))
-    check('every other deferred tool still has no schema on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !nextNames.includes(n)))
+    check("the admission record rides as text and says the schemas are in the tool list from this request on", record !== undefined && String(record.content).includes(admissionRecordText(admitted).split('\n')[0]!) && /tool list/.test(String(record.content)) && admitted.every(n => String(record.content).includes(`- ${n}`)), `${record ? String(record.content).slice(0, 300) : 'no record row'} | change admissionRecordText in src/services/providers/toolEconomy.ts`)
+    check('no declaration row rides (the schema travels in the tools term, never in a system row)', next.body !== undefined && declarationRows(next.body).length === 0 && !nextRows.some(r => r.role === 'system' && typeof r.content === 'string' && String(r.content).includes('"type":"function"')), `${hintPlan}; the schema must travel in the tools term only`)
+    check("the fresh request's rows are an unchanged prefix of the admitted request's rows", fresh.body !== undefined && same(nextRows.slice(0, rowsOf(fresh.body).length), rowsOf(fresh.body)), `earlier rows changed; ${hintPlan}`)
+    check('every other deferred tool still has no schema on the wire', deferredNames.filter(n => !admitted.includes(n)).every(n => !nextNames.includes(n)), `an unadmitted deferred tool has a schema on the wire; ${hintPlan}`)
   }
   clearToolRosterLatches()
 }

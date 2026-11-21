@@ -20,7 +20,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 let failures = 0
 function check(cond: boolean, label: string, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change findToolForRender in src/tools/MCPTool/absentToolShim.ts so a recorded name that left the roster still resolves, or AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx so the row still draws the name and input]'}`)
 }
 
 type OldRow = { id: string; name: string; spelling?: 'alias'; input: Record<string, unknown>; nameShape: RegExp; carries: string }

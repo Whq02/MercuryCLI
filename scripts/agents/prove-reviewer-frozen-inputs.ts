@@ -25,14 +25,14 @@ const { buildFrozenWorktreeNotice } = await import('../../src/tools/AgentTool/fr
 
 section('§1 two built-ins; the review is a launch option, not a type')
 const roster = getBuiltInAgents()
-check('the built-in roster is mercury-crew then mercury-scout, nothing else', roster.map(a => a.agentType).join(',') === 'mercury-crew,mercury-scout', roster.map(a => a.agentType).join(', '))
-check('mercury-crew carries every tool and inherits the session model by default', JSON.stringify(MERCURY_CREW_AGENT.tools) === '["*"]' && MERCURY_CREW_AGENT.disallowedTools === undefined && MERCURY_CREW_AGENT.model === undefined)
+check('the built-in roster is mercury-crew then mercury-scout, nothing else', roster.map(a => a.agentType).join(',') === 'mercury-crew,mercury-scout', roster.map(a => a.agentType).join(', ') + ' — getBuiltInAgents in src/tools/AgentTool/builtInAgents.ts must return exactly mercury-crew then mercury-scout')
+check('mercury-crew carries every tool and inherits the session model by default', JSON.stringify(MERCURY_CREW_AGENT.tools) === '["*"]' && MERCURY_CREW_AGENT.disallowedTools === undefined && MERCURY_CREW_AGENT.model === undefined, 'tools, disallowedTools and model of MERCURY_CREW_AGENT in src/tools/AgentTool/built-in/mercuryCrewAgent.ts')
 const scoutDenied = new Set(MERCURY_SCOUT_AGENT.disallowedTools ?? [])
-check('mercury-scout has no writer and no agent spawn', ['Edit', 'Write', 'NotebookEdit', 'Crewmate'].every(t => scoutDenied.has(t)) && MERCURY_SCOUT_AGENT.fixedOutputContract === true, [...scoutDenied].join(','))
-check('no built-in isolates in a worktree by definition or carries a review contract', roster.every(a => a.isolation === undefined && !/REVIEW: CLEAN/.test(a.whenToUse)))
-check("the review brief opens on the reviewer's charge and names the frozen inputs", REVIEW_BRIEF.startsWith('You are reviewing one committed change for Mercury, on frozen inputs.') && REVIEW_BRIEF.includes('detached at that commit'))
-check('the brief names the one write and the closing line', REVIEW_BRIEF.includes('section: "## Review"') && REVIEW_BRIEF.includes('REVIEW: CLEAN') && REVIEW_BRIEF.includes('REVIEW: FINDINGS <count>'))
-for (const definition of roster) check(`the agents inventory renders ${definition.agentType}`, renderAgentLine({ definition, shadowedBy: undefined }).startsWith(definition.agentType))
+check('mercury-scout has no writer and no agent spawn', ['Edit', 'Write', 'NotebookEdit', 'Crewmate'].every(t => scoutDenied.has(t)) && MERCURY_SCOUT_AGENT.fixedOutputContract === true, [...scoutDenied].join(',') + ' — MERCURY_SCOUT_AGENT in src/tools/AgentTool/built-in/mercuryScoutAgent.ts must deny Edit, Write, NotebookEdit and Crewmate and set fixedOutputContract')
+check('no built-in isolates in a worktree by definition or carries a review contract', roster.every(a => a.isolation === undefined && !/REVIEW: CLEAN/.test(a.whenToUse)), 'a built-in definition under src/tools/AgentTool/built-in sets isolation or a review contract in whenToUse')
+check("the review brief opens on the reviewer's charge and names the frozen inputs", REVIEW_BRIEF.startsWith('You are reviewing one committed change for Mercury, on frozen inputs.') && REVIEW_BRIEF.includes('detached at that commit'), 'REVIEW_BRIEF in src/tools/AgentTool/reviewerPolicy.ts must open on the reviewer charge and say the inputs are detached at that commit')
+check('the brief names the one write and the closing line', REVIEW_BRIEF.includes('section: "## Review"') && REVIEW_BRIEF.includes('REVIEW: CLEAN') && REVIEW_BRIEF.includes('REVIEW: FINDINGS <count>'), 'REVIEW_BRIEF in src/tools/AgentTool/reviewerPolicy.ts must name the section write and both closing lines')
+for (const definition of roster) check(`the agents inventory renders ${definition.agentType}`, renderAgentLine({ definition, shadowedBy: undefined }).startsWith(definition.agentType), 'renderAgentLine in src/cli/handlers/agents.ts must start the line with the agent type')
 
 section('§2 the frozen worktree on a real repository')
 const state = await import('../../src/bootstrap/state.ts')
@@ -59,7 +59,7 @@ state.setIsInteractive(true)
 config.enableConfigs()
 
 const frozen = await createAgentWorktree('agent-af000001', { at: first })
-check('the worktree stands at the named commit', existsSync(frozen.worktreePath) && execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first)
+check('the worktree stands at the named commit', existsSync(frozen.worktreePath) && execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first, 'createAgentWorktree in src/services/worktree.ts must check out the commit named by the at option')
 check('…detached (no branch)', (() => {
   try {
     execFileSync('git', ['symbolic-ref', '-q', 'HEAD'], { cwd: frozen.worktreePath, stdio: 'pipe' })
@@ -67,12 +67,12 @@ check('…detached (no branch)', (() => {
   } catch {
     return true
   }
-})() && frozen.worktreeBranch === undefined && frozen.headCommit === first)
-check('…reading the tree of that commit', readFileSync(join(frozen.worktreePath, 'a.txt'), 'utf8') === 'one\n')
+})() && frozen.worktreeBranch === undefined && frozen.headCommit === first, 'createAgentWorktree in src/services/worktree.ts must detach HEAD for an at option and leave worktreeBranch unset')
+check('…reading the tree of that commit', readFileSync(join(frozen.worktreePath, 'a.txt'), 'utf8') === 'one\n', 'createAgentWorktree in src/services/worktree.ts must check out the tree of the commit named by at')
 writeFileSync(join(repo, 'a.txt'), 'three\n')
 g('commit', '-q', '-am', 'third')
-check('a later commit on the branch does not move it', execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first && readFileSync(join(frozen.worktreePath, 'a.txt'), 'utf8') === 'one\n')
-check('no branch was made for it', !g('branch', '--list').includes('frozen01'))
+check('a later commit on the branch does not move it', execFileSync('git', ['rev-parse', 'HEAD'], { cwd: frozen.worktreePath, encoding: 'utf8' }).trim() === first && readFileSync(join(frozen.worktreePath, 'a.txt'), 'utf8') === 'one\n', 'the frozen worktree made by createAgentWorktree in src/services/worktree.ts must stay detached at the first commit')
+check('no branch was made for it', !g('branch', '--list').includes('frozen01'), 'createAgentWorktree in src/services/worktree.ts must not create a branch when at is given')
 let refused = ''
 try {
   await createAgentWorktree('agent-frozen02', { at: 'no-such-ref-anywhere' })
@@ -95,7 +95,7 @@ try {
 }
 check('the same slug at another commit refuses (a frozen tree is never silently moved)', refused.includes('already exists at'), refused)
 const again = await createAgentWorktree('agent-af000001', { at: first })
-check('the same slug at the same commit resumes it', again.existed !== false && again.worktreePath === frozen.worktreePath && again.headCommit === first)
+check('the same slug at the same commit resumes it', again.existed !== false && again.worktreePath === frozen.worktreePath && again.headCommit === first, 'createAgentWorktree in src/services/worktree.ts must resume an existing worktree of the same slug and commit')
 const left = await crewWorktreeLeftoverOf({ name: 'mate', path: frozen.worktreePath, branch: frozen.worktreeBranch, gitRoot: frozen.gitRoot }, Date.now())
 const DAY = 86_400_000
 const old = new Date(Date.now() - 9 * DAY)

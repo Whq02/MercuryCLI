@@ -16,8 +16,9 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change ${TENSORFOLD_WIRE_AT}` : ''}`)
 }
+const TENSORFOLD_WIRE_AT = 'by section: section 1 buildLocalExtras in src/services/providers/openaicompat/compatWire.ts (the dial in effortVocabularyFor, src/utils/model/capabilities.ts, and tensorFoldOutputCeiling in src/services/providers/local/localCallModel.ts); section 2 decodeTensorFoldRuntime and decodeCompatUsage in src/services/providers/openaicompat/compatChatClient.ts; section 3 the turn in src/services/providers/openaicompat/compatChatCallModel.ts and the ledger in src/services/providers/local/tensorfoldUsage.ts; the discovered record in src/services/providers/local/localDiscovery.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }

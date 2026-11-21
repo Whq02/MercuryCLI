@@ -19,18 +19,19 @@ function check(name: string, ok: boolean, detail = ''): void {
 console.log(' Visual manifest — real-binary baseline self-consistency')
 
 const manifest = readManifest()
-check('manifest exists + parses', manifest !== null, MANIFEST_PATH)
+check('manifest exists + parses', manifest !== null, MANIFEST_PATH + ' (readManifest in scripts/ui/visualBaseline.ts found no valid file there; regenerate it with scripts/ui/generate-visual-baseline.ts)')
 if (manifest) {
-  check('schema 1', manifest.schema === 1)
-  check('has entries', manifest.entries.length > 0, `${manifest.entries.length}`)
+  check('schema 1', manifest.schema === 1, `schema is ${manifest.schema} in ${MANIFEST_PATH} (regenerate with scripts/ui/generate-visual-baseline.ts)`)
+  check('has entries', manifest.entries.length > 0, `${manifest.entries.length} (the manifest in design-system/live/manifest.json lists no entries; regenerate with scripts/ui/generate-visual-baseline.ts)`)
   check(
     'generator recorded',
     manifest.generator === 'scripts/ui/generate-visual-baseline.ts',
+    `generator is ${JSON.stringify(manifest.generator)} in ${MANIFEST_PATH} (rewrite the manifest by running scripts/ui/generate-visual-baseline.ts instead of editing it by hand)`,
   )
 
   const ids = manifest.entries.map(e => e.id)
-  check('ids unique', new Set(ids).size === ids.length)
-  check('ids sorted', ids.every((id, i) => i === 0 || ids[i - 1].localeCompare(id) <= 0))
+  check('ids unique', new Set(ids).size === ids.length, `two entries in ${MANIFEST_PATH} share an id (regenerate with scripts/ui/generate-visual-baseline.ts)`)
+  check('ids sorted', ids.every((id, i) => i === 0 || ids[i - 1].localeCompare(id) <= 0), `entries in ${MANIFEST_PATH} are out of id order (regenerate with scripts/ui/generate-visual-baseline.ts)`)
 
   let sourceShaOk = false
   try {
@@ -47,7 +48,7 @@ if (manifest) {
   if (!sourceShaOk && wellFormedSha && profile.kind === 'hosted-gate') {
     console.log(`  - sourceSha ${manifest.sourceSha} is a tree id this checkout's history does not hold (the hosted gate runs the published tree, whose history is rewritten); the tree check runs where the source history lives`)
   } else {
-    check('sourceSha is a real source tree of this repo', sourceShaOk, manifest.sourceSha)
+    check('sourceSha is a real source tree of this repo', sourceShaOk, manifest.sourceSha + ' (git cannot find this tree in this repo; regenerate the baseline with scripts/ui/generate-visual-baseline.ts from a checkout that holds the source history)')
   }
 
   const REQUIRED: Array<keyof (typeof manifest.entries)[number]> = [
@@ -84,10 +85,10 @@ if (manifest) {
       console.log(`    digest mismatch: ${e.id}`)
     }
   }
-  check('every entry carries the full shape', shapeBad === 0, `${shapeBad} short`)
-  check('every gridPath is present + confined', pathBad === 0, `${pathBad} bad`)
-  check('every grid matches its recorded geometry', geometryBad === 0, `${geometryBad} drifted`)
-  check('every grid re-digests to its manifest record', digestBad === 0, `${digestBad} mismatched`)
+  check('every entry carries the full shape', shapeBad === 0, `${shapeBad} short (an entry in ${MANIFEST_PATH} lacks a required field; regenerate with scripts/ui/generate-visual-baseline.ts)`)
+  check('every gridPath is present + confined', pathBad === 0, `${pathBad} bad (see the missing grid lines above; grid files live under design-system/live/grids, regenerate with scripts/ui/generate-visual-baseline.ts)`)
+  check('every grid matches its recorded geometry', geometryBad === 0, `${geometryBad} drifted (see the geometry drift lines above; regenerate with scripts/ui/generate-visual-baseline.ts)`)
+  check('every grid re-digests to its manifest record', digestBad === 0, `${digestBad} mismatched (see the digest mismatch lines above; a grid under design-system/live/grids changed without its manifest record, regenerate with scripts/ui/generate-visual-baseline.ts)`)
 }
 
 {
@@ -118,7 +119,7 @@ if (manifest) {
       }
     }
   }
-  check('no active doc points at an archived/missing guideline card', stale.length === 0, stale.join('; '))
+  check('no active doc points at an archived/missing guideline card', stale.length === 0, stale.join('; ') + ' (point each listed doc at a design-system/guidelines card that exists, or remove the link)')
 }
 
 if (failures > 0) {

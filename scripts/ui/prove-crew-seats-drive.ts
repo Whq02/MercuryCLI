@@ -421,36 +421,36 @@ async function leg(mainDialect: Dialect): Promise<void> {
   }
   const { marks } = cap
   if (process.env.CREW_SEATS_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
-  check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  check(`${tag}: every send became due (the frames the sends waited on all painted)`, cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} · a send never found the text it waited on: run with CREW_SEATS_KEEP=1 to dump the frames, then see which awaitText in the sends list never painted`)
 
   const seatHits = fixture.hits.filter(h => h.route === 'seat').sort((a, b) => a.at - b.at)
   const starts = seatHits.map(h => `${h.seat}@${(h.at / 1000).toFixed(1)}s`)
   console.log(`  wire: ${starts.join(' · ')}`)
-  check(`${tag}: four seat requests reached the wire`, seatHits.length === 4, starts.join(','))
+  check(`${tag}: four seat requests reached the wire`, seatHits.length === 4, `${starts.join(',')} · the parent must launch four crew-seat: Crewmate calls and each must reach the fixture; check the Crewmate tool path and the model each seat is sent to`)
   const mid = marks['crew-mid'] ?? ''
   const waiter: string = seatHits.length === 4 ? seatHits[3]!.seat ?? 'seat' : SEATS[3]
   const held = SEATS.filter(s => s !== waiter)
   if (seatHits.length === 4) {
     const firstThreeSpan = seatHits[2]!.at - seatHits[0]!.at
     const fourthGap = seatHits[3]!.at - seatHits[2]!.at
-    check(`${tag}: S1 three seats start together (span ${Math.round(firstThreeSpan)} ms < ${SEAT_HOLD_MS / 2} ms)`, firstThreeSpan < SEAT_HOLD_MS / 2, `span ${firstThreeSpan} ms`)
-    check(`${tag}: S1 the fourth waits for a seat (starts ≥ ${Math.round(SEAT_HOLD_MS * 0.6)} ms after the third)`, fourthGap >= SEAT_HOLD_MS * 0.6, `gap ${fourthGap} ms`)
-    check(`${tag}: S1 the fourth on the wire is the one row that waited for a seat (the seats go to whoever reaches the gate first)`, SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join() === waiter, `wire ${seatHits.map(h => h.seat).join(',')} · waiting rows ${SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join(',') || 'none'}`)
+    check(`${tag}: S1 three seats start together (span ${Math.round(firstThreeSpan)} ms < ${SEAT_HOLD_MS / 2} ms)`, firstThreeSpan < SEAT_HOLD_MS / 2, `span ${firstThreeSpan} ms · the first three seats should start together under the seat ceiling of ${SEAT_CEILING} (switchboardCapacity.recommendedSeats seeded in seedWorld); see src/utils/switchboard/capacityCheck.ts`)
+    check(`${tag}: S1 the fourth waits for a seat (starts ≥ ${Math.round(SEAT_HOLD_MS * 0.6)} ms after the third)`, fourthGap >= SEAT_HOLD_MS * 0.6, `gap ${fourthGap} ms · the fourth seat must hold until a seat frees; see the seat gate in src/services/capacity/governor.ts`)
+    check(`${tag}: S1 the fourth on the wire is the one row that waited for a seat (the seats go to whoever reaches the gate first)`, SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join() === waiter, `wire ${seatHits.map(h => h.seat).join(',')} · waiting rows ${SEATS.filter(s => /waiting for a seat/.test(rowOf(mid, s) ?? '')).join(',') || 'none'} · the Crew view row of the seat that waited must read the seat sentence from seatWaitParts in src/services/capacity/seatWords.ts`)
   }
 
   const fourth = rowOf(mid, waiter) ?? ''
-  check(`${tag}: S2 the waiting row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), flat(fourth))
+  check(`${tag}: S2 the waiting row says why it waits — the seat sentence`, /waiting for a seat/.test(fourth) && /3 of 3 held/.test(fourth), `${flat(fourth)} · the waiting row must read waiting for a seat — 3 of 3 held; see seatWaitParts in src/services/capacity/seatWords.ts`)
   const heldWords = /(\brunning\b|first byte|request sent|streaming|reasoning|replying|retry)/
-  check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, held.every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), held.map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400))
+  check(`${tag}: S2 the three held rows run (a phase or 'running'; never a seat wait)`, held.every(s => heldWords.test(rowOf(mid, s) ?? '') && !/waiting for a seat/.test(rowOf(mid, s) ?? '')), held.map(s => flat(rowOf(mid, s) ?? '(no row)')).join(' | ').slice(0, 400) + ' · a held seat row must show a running phase, never the seat wait sentence')
 
-  check(`${tag}: S3 every seat rode the seats' wire on ${seatModel}`, seatHits.every(h => h.lane === seatLane && seatIs(h.model)), seatHits.map(h => `${h.lane}:${h.model}`).join(','))
-  if (seatModel === GPT_ID) check(`${tag}: S3 every GPT seat's request carries a reasoning effort`, seatHits.every(h => h.effort !== null), seatHits.map(h => String(h.effort)).join(','))
+  check(`${tag}: S3 every seat rode the seats' wire on ${seatModel}`, seatHits.every(h => h.lane === seatLane && seatIs(h.model)), seatHits.map(h => `${h.lane}:${h.model}`).join(',') + ` · each seat must be sent on the ${seatLane} wire with the model the parent asked for (${seatModel})`)
+  if (seatModel === GPT_ID) check(`${tag}: S3 every GPT seat's request carries a reasoning effort`, seatHits.every(h => h.effort !== null), seatHits.map(h => String(h.effort)).join(',') + ' · a seat on a GPT model must send reasoning.effort in its request')
   const parentHits = fixture.hits.filter(h => h.route === 'parent' || h.route === 'parent-search' || h.route === 'parent-ack')
-  check(`${tag}: S3 the main rode its own wire with ${mainModel}`, parentHits.length >= 2 && parentHits.every(h => h.model === mainModel), parentHits.map(h => `${h.route}:${h.lane}:${h.model}`).join(','))
-  check(`${tag}: S3 the Crew view rows name the seats' model`, SEATS.every(s => (rowOf(mid, s) ?? '').includes(seatModel)), flat(mid).slice(0, 400))
+  check(`${tag}: S3 the main rode its own wire with ${mainModel}`, parentHits.length >= 2 && parentHits.every(h => h.model === mainModel), parentHits.map(h => `${h.route}:${h.lane}:${h.model}`).join(',') + ` · the parent session must keep sending its own requests with ${mainModel}, at least two of them`)
+  check(`${tag}: S3 the Crew view rows name the seats' model`, SEATS.every(s => (rowOf(mid, s) ?? '').includes(seatModel)), flat(mid).slice(0, 400) + ` · every seat row in the Crew view must name ${seatModel}`)
 
   const landed = marks['crew-landed'] ?? ''
-  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('crew · 0 running') && landed.includes('Crewmates (4)'), flat(landed).slice(0, 400))
+  check(`${tag}: S4 all four landed with their model kept`, SEATS.every(s => /\blanded\b/.test(rowOf(landed, s) ?? '') && (rowOf(landed, s) ?? '').includes(seatModel)) && landed.includes('crew · 0 running') && landed.includes('Crewmates (4)'), flat(landed).slice(0, 400) + ` · after the seats finish, every row must read landed with ${seatModel}, the header crew · 0 running and Crewmates (4)`)
 
   if (failures > before && process.env.CREW_SEATS_KEEP !== '1') for (const [label, frame] of Object.entries(marks)) dump(`${tag} · ${label}`, frame)
   if (failures > before || process.env.CREW_SEATS_KEEP === '1') dump(`${tag} · final grid`, cap.text)

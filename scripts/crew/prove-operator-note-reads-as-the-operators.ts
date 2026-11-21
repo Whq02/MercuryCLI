@@ -28,7 +28,7 @@ const { enqueuePendingNotification, getCommandQueue } = await import('../../src/
 
 const tally = makeTally('operator-note-reads-as-the-operators')
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the operator note proof exceeded 240s')
+  console.log('\nTIMEOUT — the operator note proof exceeded 240s; the runner or the scripted fixture stalled, read the last section printed above and the rows and stderr tails')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -39,6 +39,8 @@ const OPERATOR = 'The operator sent a new message while you were working:'
 const COMPLETED = 'A background crewmate completed a task:'
 const RUNTIME = 'Mercury runtime notice:'
 const j = (value: unknown): string => JSON.stringify(value)
+const NOTE_FRAME_HINT = ' — fix the head a drained queued command is given in normalizeAttachmentForAPI (src/services/messages/attachmentText.ts) and wrapCommandText (src/utils/messages/text.ts)'
+const NOTE_WIRE_HINT = ' — the note reaches the crewmate through the queue/add path and the same frame as section 1; if section 1 passes, rebuild dist (build first) and read the requests above'
 const queued = (fields: Record<string, unknown>): Command => {
   const before = getCommandQueue().length
   enqueuePendingNotification(fields as never)
@@ -55,9 +57,9 @@ tally.section('§1 the frame: a note that carries the operator\'s mark reads as 
   const own = await drained(queued({ value: NOTE, mode: 'prompt', priority: 'next' }))
   const marked = await drained(queued({ value: NOTE, mode: 'task-notification', agentId: 'a1b2c3', origin: { kind: 'human' }, priority: 'next' }))
   const bare = await drained(queued({ value: NOTE, mode: 'task-notification', agentId: 'a1b2c3', priority: 'next' }))
-  tally.check('the operator\'s own words drained in mid-turn: the operator\'s head, the words, the tail that says how to take them', own.text.startsWith(`<system-reminder>\n${OPERATOR}\n${NOTE}\n\nIMPORTANT: Read this message before taking your next action`) && own.text.endsWith('Do not silently drop it.\n</system-reminder>'), own.text.slice(0, 200))
-  tally.check('a note to a crewmate that carries the operator\'s mark reads byte for byte the same, as a hidden reminder', marked.text === own.text && marked.hidden, marked.text.slice(0, 200))
-  tally.check('the same note without the mark is not told as the operator\'s: it takes the head that claims nothing', bare.text === `<system-reminder>\n${RUNTIME}\n${NOTE}\n</system-reminder>` && bare.hidden, bare.text.slice(0, 200))
+  tally.check('the operator\'s own words drained in mid-turn: the operator\'s head, the words, the tail that says how to take them', own.text.startsWith(`<system-reminder>\n${OPERATOR}\n${NOTE}\n\nIMPORTANT: Read this message before taking your next action`) && own.text.endsWith('Do not silently drop it.\n</system-reminder>'), own.text.slice(0, 200) + NOTE_FRAME_HINT)
+  tally.check('a note to a crewmate that carries the operator\'s mark reads byte for byte the same, as a hidden reminder', marked.text === own.text && marked.hidden, marked.text.slice(0, 200) + NOTE_FRAME_HINT)
+  tally.check('the same note without the mark is not told as the operator\'s: it takes the head that claims nothing', bare.text === `<system-reminder>\n${RUNTIME}\n${NOTE}\n</system-reminder>` && bare.hidden, bare.text.slice(0, 200) + NOTE_FRAME_HINT)
 }
 
 tally.section('§2 the wire: a note sent to a crewmate that is inside a tool, through a runner')
@@ -89,7 +91,7 @@ tally.section('§2 the wire: a note sent to a crewmate that is inside a tool, th
     await until('the crewmate was launched', () => /agentId: (\w+)/.test(raw))
     const agentId = /agentId: (\w+)/.exec(raw)![1]!
     const receipt = await host.request('queue/add', { type: 'note', to: agentId, content: NOTE } as never, 10_000)
-    tally.check('the runner takes a note addressed to the crewmate', (receipt as { accepted?: boolean }).accepted === true, j(receipt))
+    tally.check('the runner takes a note addressed to the crewmate', (receipt as { accepted?: boolean }).accepted === true, j(receipt) + NOTE_WIRE_HINT)
     await until('the lead noted the crewmate\'s end', () => raw.includes('WORKER-NOTED.'))
     host.end()
     await host.stop(30_000)
@@ -99,11 +101,11 @@ tally.section('§2 the wire: a note sent to a crewmate that is inside a tool, th
     const crewParts = requests.filter(request => request.model?.includes('opus-4-6') === true).flatMap(partsOf)
     const leadParts = requests.filter(request => request.model?.includes(LEAD_GATE) === true).flatMap(partsOf)
     const told = [...new Set(crewParts.filter(part => part.includes(NOTE)))]
-    tally.check('the crewmate\'s request after its tool carries the note once, as one reminder', told.length === 1 && told[0]!.startsWith('<system-reminder>\n') && told[0]!.endsWith('\n</system-reminder>'), j(told.map(part => part.slice(0, 160))))
-    tally.check('…headed as the operator\'s, with the operator\'s own frame (the parent heads the operator\'s words as a notice of the runtime, and the build before it as a crewmate\'s completion)', told[0]?.startsWith(`<system-reminder>\n${OPERATOR}\n${NOTE}\n\nIMPORTANT: Read this message before taking your next action`) === true && told[0]!.endsWith('Do not silently drop it.\n</system-reminder>'), j(told[0]?.slice(0, 200)))
-    tally.check('…and no request says a crewmate completed a task, or the runtime gave notice, over the operator\'s words', !crewParts.some(part => part.includes(NOTE) && (part.includes(COMPLETED) || part.includes(RUNTIME))), j(crewParts.filter(part => part.includes(NOTE)).map(part => part.slice(0, 120))))
-    tally.check('the note is the crewmate\'s alone: no request of the lead carries it', !leadParts.some(part => part.includes(NOTE)), j(leadParts.filter(part => part.includes(NOTE)).map(part => part.slice(0, 120))))
-    tally.check('the crewmate went on and the lead was told of its end as before', crewParts.length > 0 && leadParts.some(part => part.includes('<summary>Crewmate "Hold a tool open" completed</summary>') && part.includes('<result>WORKER-DONE.</result>')), j(leadParts.filter(part => part.includes('<task-notification>')).map(part => part.slice(0, 200))))
+    tally.check('the crewmate\'s request after its tool carries the note once, as one reminder', told.length === 1 && told[0]!.startsWith('<system-reminder>\n') && told[0]!.endsWith('\n</system-reminder>'), j(told.map(part => part.slice(0, 160))) + NOTE_WIRE_HINT)
+    tally.check('…headed as the operator\'s, with the operator\'s own frame (the parent heads the operator\'s words as a notice of the runtime, and the build before it as a crewmate\'s completion)', told[0]?.startsWith(`<system-reminder>\n${OPERATOR}\n${NOTE}\n\nIMPORTANT: Read this message before taking your next action`) === true && told[0]!.endsWith('Do not silently drop it.\n</system-reminder>'), j(told[0]?.slice(0, 200)) + NOTE_FRAME_HINT)
+    tally.check('…and no request says a crewmate completed a task, or the runtime gave notice, over the operator\'s words', !crewParts.some(part => part.includes(NOTE) && (part.includes(COMPLETED) || part.includes(RUNTIME))), j(crewParts.filter(part => part.includes(NOTE)).map(part => part.slice(0, 120))) + NOTE_FRAME_HINT)
+    tally.check('the note is the crewmate\'s alone: no request of the lead carries it', !leadParts.some(part => part.includes(NOTE)), j(leadParts.filter(part => part.includes(NOTE)).map(part => part.slice(0, 120))) + NOTE_WIRE_HINT)
+    tally.check('the crewmate went on and the lead was told of its end as before', crewParts.length > 0 && leadParts.some(part => part.includes('<summary>Crewmate "Hold a tool open" completed</summary>') && part.includes('<result>WORKER-DONE.</result>')), j(leadParts.filter(part => part.includes('<task-notification>')).map(part => part.slice(0, 200))) + NOTE_WIRE_HINT)
   } finally {
     host.end()
     await host.stop(10_000).catch(() => undefined)

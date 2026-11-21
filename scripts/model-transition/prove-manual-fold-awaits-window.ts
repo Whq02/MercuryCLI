@@ -8,16 +8,17 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const manualFoldHint = ' | to fix, change the /compact call (src/commands/compact/compact.ts) so it reads the seat window from its own source before sizing, or resolveAutoCompactWindow and getAutoCompactThreshold (src/services/compact/autoCompact.ts), or the local window read (src/services/providers/local/localWindow.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : manualFoldHint}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the manual-fold window prover exceeded 240s')
+  console.log('\nTIMEOUT — the manual-fold window prover exceeded 240s; a fold or a local server read never returned, so look at the /compact call in src/commands/compact/compact.ts and the fixture server serving state in this file')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

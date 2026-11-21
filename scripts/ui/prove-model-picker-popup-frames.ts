@@ -148,7 +148,7 @@ async function mount(tree: React.ReactNode, ready: () => boolean): Promise<Scene
   instances.set(stdout as never, ink)
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, tree))
   const painted = await until(() => ready() && ink.lastFrameText() !== '')
-  check('the scene painted', painted, stripAnsi(ink.lastFrameText()).slice(0, 300))
+  check('the scene painted', painted, `${stripAnsi(ink.lastFrameText()).slice(0, 300)} · no frame was painted: check the tree this script passes to mount()`)
   await sleep(300)
   return {
     lines: () => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n'),
@@ -164,11 +164,11 @@ async function mount(tree: React.ReactNode, ready: () => boolean): Promise<Scene
 async function bootScene(): Promise<{ scene: Scene; frame: string[] }> {
   const scene = await mount(h(KeybindingSetup, null, h(BootSplashScreen)), () => true)
   const face = await until(() => paintsBootFaceReady(scene.lines().join('\n')))
-  check('the Boot face painted its hint row', face, scene.lines().slice(0, 6).join(' | '))
+  check('the Boot face painted its hint row', face, `${scene.lines().slice(0, 6).join(' | ')} · the hint row is drawn by src/components/bootSplash/face.tsx and matched by paintsBootFaceReady in scripts/lib/bootFace.ts`)
   await sleep(200)
   scene.push('m')
   const opened = await until(() => scene.lines().some(line => line.includes(TITLE)), 8000)
-  check('m opens the picker over the Boot face', opened)
+  check('m opens the picker over the Boot face', opened, 'the m key did not bring up the model picker: see src/components/bootSplash/face.tsx and the ModelPickerPopupSlot it mounts (src/components/ModelPickerPopupSlot.tsx)')
   await sleep(400)
   return { scene, frame: scene.lines() }
 }
@@ -180,7 +180,7 @@ async function sessionScene(): Promise<{ scene: Scene; frame: string[]; done: ()
   pending.setMode('prompt')
   let done = 0
   const element = await modelCommand.call(() => { done++ }, { messages: [], options: {} } as never, '')
-  check('the /model command hands the session a surface to mount', element !== null && element !== undefined)
+  check('the /model command hands the session a surface to mount', element !== null && element !== undefined, 'the call in src/commands/model/mercuryModel.tsx returned no element')
   const insertRef = { current: null } as React.MutableRefObject<unknown>
   const modalScrollRef = React.createRef<null>()
   function Transcript(): React.ReactNode {
@@ -217,7 +217,7 @@ async function sessionScene(): Promise<{ scene: Scene; frame: string[]; done: ()
   }
   const scene = await mount(h(Harness), () => true)
   const painted = await until(() => scene.lines().join('\n').includes(TITLE) && scene.lines().join('\n').includes('lanes'))
-  check('the session painted the cockpit with the picker open', painted, scene.lines().slice(0, 6).join(' | '))
+  check('the session painted the cockpit with the picker open', painted, `${scene.lines().slice(0, 6).join(' | ')} · the picker title or the lanes rail never appeared: see src/components/MercuryModelPicker.tsx and the modal slot in src/components/FullscreenLayout.tsx`)
   await sleep(400)
   return { scene, frame: scene.lines(), done: () => done }
 }
@@ -227,7 +227,7 @@ const boot = await bootScene()
 save('boot-face-picker', boot.frame)
 const bootWindow = windowOf(boot.frame)
 console.log(`Boot face window: ${describe(bootWindow)}`)
-check('the Boot face draws the picker as one closed bordered window', bootWindow !== null, boot.frame.slice(0, 8).join(' | '))
+check('the Boot face draws the picker as one closed bordered window', bootWindow !== null, `${boot.frame.slice(0, 8).join(' | ')} · the window border is drawn by modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
 await boot.scene.close()
 
 section(`§2 the session at ${COLS}x${ROWS}: the same picker must be the same window`)
@@ -239,24 +239,24 @@ const composerRow = session.frame.findIndex(line => line.includes(COMPOSER))
 const lanesRow = session.frame.findIndex(line => line.includes('lanes'))
 console.log(`composer row ${composerRow} · lanes header row ${lanesRow}`)
 const sheetRule = session.frame.findIndex(line => /^▔+$/.test(line.trim()) && line.trim().length >= COLS - 2)
-check('no full-width sheet rule is drawn across the terminal', sheetRule < 0, `rule at row ${sheetRule}`)
-check('the composer stays visible around the picker', composerRow >= 0, 'the composer placeholder is not on screen')
-check('the session draws the picker as one closed bordered window', sessionWindow !== null, session.frame.slice(-10).join(' | '))
+check('no full-width sheet rule is drawn across the terminal', sheetRule < 0, `rule at row ${sheetRule} · the session should draw the picker as the popup of src/components/ModelPickerPopupSlot.tsx, not as a full-width sheet`)
+check('the composer stays visible around the picker', composerRow >= 0, 'the composer placeholder is not on screen · the popup must not cover the prompt: see modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx')
+check('the session draws the picker as one closed bordered window', sessionWindow !== null, `${session.frame.slice(-10).join(' | ')} · the window border is drawn by modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
 if (bootWindow !== null && sessionWindow !== null) {
-  check(`the window's left edge equals the Boot face's (${bootWindow.left})`, sessionWindow.left === bootWindow.left, `session ${sessionWindow.left}`)
-  check(`the window's top row equals the Boot face's (${bootWindow.top})`, sessionWindow.top === bootWindow.top, `session ${sessionWindow.top}`)
-  check(`the window's width equals the Boot face's (${bootWindow.width})`, sessionWindow.width === bootWindow.width, `session ${sessionWindow.width}`)
+  check(`the window's left edge equals the Boot face's (${bootWindow.left})`, sessionWindow.left === bootWindow.left, `session ${sessionWindow.left} · make the session use the same popup geometry as the Boot face: modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
+  check(`the window's top row equals the Boot face's (${bootWindow.top})`, sessionWindow.top === bootWindow.top, `session ${sessionWindow.top} · make the session use the same popup geometry as the Boot face: modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
+  check(`the window's width equals the Boot face's (${bootWindow.width})`, sessionWindow.width === bootWindow.width, `session ${sessionWindow.width} · make the session use the same popup geometry as the Boot face: modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
   const footer = inner(sessionWindow.rows[sessionWindow.height - 3]!)
-  check('the keys row is the window\'s second-to-last inner row, the page keys row under it', footer.startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!).trim() === PAGE_KEYS, `${footer} | ${inner(sessionWindow.rows[sessionWindow.height - 2]!)}`)
+  check('the keys row is the window\'s second-to-last inner row, the page keys row under it', footer.startsWith(KEYS) && inner(sessionWindow.rows[sessionWindow.height - 2]!).trim() === PAGE_KEYS, `${footer} | ${inner(sessionWindow.rows[sessionWindow.height - 2]!)} · the footer rows are drawn at the end of src/components/MercuryModelPicker.tsx`)
   const cells = cellsOf(session.frame[sessionWindow.top + 2] ?? '')
-  check('the lanes rail stays visible left of the window', cells.slice(0, sessionWindow.left).join('').trim() !== '', 'nothing painted left of the window')
+  check('the lanes rail stays visible left of the window', cells.slice(0, sessionWindow.left).join('').trim() !== '', 'nothing painted left of the window · the popup must leave the lanes rail uncovered: see popupCover in src/components/PopupGutter.tsx')
   const viewLeft = cellsOf(session.frame[0] ?? '').indexOf('╭')
   const viewBottom = session.frame.findIndex((line, row) => row > 0 && cellsOf(line)[viewLeft] === '╰')
   const viewRows = viewBottom - sessionWindow.top - 1
   const viewBudget = Math.min(bootWindow.height, viewRows)
   console.log(`the view's bottom border row ${viewBottom} · the window's bottom border row ${sessionWindow.bottom} · the composer's input row ${composerRow} · the Boot face's ${bootWindow.height} rows against the view's ${viewRows} inner rows from row ${sessionWindow.top}`)
-  check(`the window's height is the view's budget (${viewBudget}: the lesser of the Boot face's ${bootWindow.height} and the view's ${viewRows} inner rows from row ${sessionWindow.top})`, sessionWindow.height === viewBudget, `session ${sessionWindow.height}`)
-  check(`the window ends above the view's bottom border (row ${viewBottom}) and its bottom border paints whole`, viewBottom > 0 && sessionWindow.bottom < viewBottom && wholeBottom(sessionWindow), `window bottom ${sessionWindow.bottom} · last cell ${JSON.stringify(Array.from(sessionWindow.rows[sessionWindow.height - 1]!).at(-1))}`)
+  check(`the window's height is the view's budget (${viewBudget}: the lesser of the Boot face's ${bootWindow.height} and the view's ${viewRows} inner rows from row ${sessionWindow.top})`, sessionWindow.height === viewBudget, `session ${sessionWindow.height} · the row budget is computed in modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
+  check(`the window ends above the view's bottom border (row ${viewBottom}) and its bottom border paints whole`, viewBottom > 0 && sessionWindow.bottom < viewBottom && wholeBottom(sessionWindow), `window bottom ${sessionWindow.bottom} · last cell ${JSON.stringify(Array.from(sessionWindow.rows[sessionWindow.height - 1]!).at(-1))} · the popup rows are limited in modelPickerPopupGeometry in src/components/ModelPickerPopupSlot.tsx`)
 }
 if (sessionWindow !== null) {
   const before = session.scene.lines()
@@ -271,14 +271,14 @@ if (sessionWindow !== null) {
   save('session-picker-scrolled', after)
   const afterWindow = windowOf(after)
   console.log(`session window after ↓×60: ${describe(afterWindow)}`)
-  check('after ↓ past the last visible row the window keeps its place and its height', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width && afterWindow.height === beforeWindow.height, describe(afterWindow))
-  check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[4]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : afterWindow.rows.slice(1, 5).map(inner).join(' | '))
+  check('after ↓ past the last visible row the window keeps its place and its height', afterWindow !== null && afterWindow.top === beforeWindow.top && afterWindow.left === beforeWindow.left && afterWindow.width === beforeWindow.width && afterWindow.height === beforeWindow.height, `${describe(afterWindow)} · the window must keep its geometry while the rows scroll inside it: see the row window in src/components/MercuryModelPicker.tsx`)
+  check('the rows scrolled inside the window (the first row changed and a ↑ more line leads)', afterWindow !== null && inner(afterWindow.rows[4]!) !== firstRow && afterWindow.rows.some(row => /↑ \d+ more/.test(row)), afterWindow === null ? '' : `${afterWindow.rows.slice(1, 5).map(inner).join(' | ')} · the rows must scroll with a ↑ more marker: see the window and markers in src/components/MercuryModelPicker.tsx`)
   const footer = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 3]!)
   const pageRow = afterWindow === null ? '' : inner(afterWindow.rows[afterWindow.height - 2]!).trim()
-  check('the footer rows stay the window\'s last two inner rows while the rows scroll', footer.startsWith(KEYS) && pageRow === PAGE_KEYS, `${footer} | ${pageRow}`)
+  check('the footer rows stay the window\'s last two inner rows while the rows scroll', footer.startsWith(KEYS) && pageRow === PAGE_KEYS, `${footer} | ${pageRow} · the footer rows are drawn at the end of src/components/MercuryModelPicker.tsx`)
   session.scene.push(ESC)
   const closed = await until(() => !session.scene.lines().some(line => line.includes(TITLE)) || session.done() > 0, 5000)
-  check('esc closes the picker', closed)
+  check('esc closes the picker', closed, 'esc did not close the picker or call its done callback: see the esc handling in src/components/MercuryModelPicker.tsx and src/commands/model/mercuryModel.tsx')
 }
 await session.scene.close()
 

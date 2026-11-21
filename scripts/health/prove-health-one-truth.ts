@@ -34,6 +34,8 @@ const check = (name: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
+const SIGN_IN_FIX = 'change composeSignInView or compareSignInViews in src/daemon/signInView.ts (the unfetched mark), or the pending words of the model list in src/services/model/modelOptions.ts'
+const EDIT_ROW_FIX = 'change the edit-outcomes row in src/services/health/sections/runtime.ts, or editOutcomes() in src/services/engine-connector/daemonConnector.ts'
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -42,30 +44,30 @@ section('§1 THE SIGN-IN VIEW — a family whose live catalogue is not fetched y
   const { composeSignInView, compareSignInViews } = await import('../../src/daemon/signInView.ts')
   const view = composeSignInView({ refresh: true })
   const openai = view.families.find(f => f.family === 'openai')
-  check('the OpenAI credential is present and offers no usable row yet (the catalogue base is a closed port: nothing fetched)', openai?.credentialed === true && openai.usable === false, j(openai))
-  check(`the reason is the catalogue's own pending word: ${openai?.why ?? ''}`, /live catalogue not fetched yet/.test(openai?.why ?? ''), j(openai))
-  check('RED ON THE BASE: the family is marked unfetched (the Air read "GPT-6 Astra: live catalogue not fetched yet — retry shortly" with no such mark)', openai?.unfetched === true, j(openai))
+  check('the OpenAI credential is present and offers no usable row yet (the catalogue base is a closed port: nothing fetched)', openai?.credentialed === true && openai.usable === false, `${j(openai)} · ${SIGN_IN_FIX}`)
+  check(`the reason is the catalogue's own pending word: ${openai?.why ?? ''}`, /live catalogue not fetched yet/.test(openai?.why ?? ''), `${j(openai)} · ${SIGN_IN_FIX}`)
+  check('RED ON THE BASE: the family is marked unfetched (the Air read "GPT-6 Astra: live catalogue not fetched yet — retry shortly" with no such mark)', openai?.unfetched === true, `${j(openai)} · ${SIGN_IN_FIX}`)
   const cockpit = { ...view, families: view.families.map(f => (f.family === 'openai' ? { family: 'openai', credentialed: true, usable: true, row: 'GPT-6 Astra', why: 'the newest row this sign-in can use' } : f)) } as never
   const gaps = compareSignInViews(cockpit, view)
-  check('RED ON THE BASE: a cockpit that has fetched the catalogue and a daemon that has not disagree on nothing (the Air read FAULT: daemon ≠ client — openai)', gaps.length === 0, j(gaps))
+  check('RED ON THE BASE: a cockpit that has fetched the catalogue and a daemon that has not disagree on nothing (the Air read FAULT: daemon ≠ client — openai)', gaps.length === 0, `${j(gaps)} · ${SIGN_IN_FIX}`)
   const options = (await import('../../src/services/model/modelOptions.ts')).getModelOptions()
   const gptRows = options.filter(o => o.group !== undefined && /gpt|openai/i.test(o.group) && !String(o.value).startsWith('__'))
-  check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending])))
+  check('every pending GPT lineup row carries the typed pending mark beside its words', gptRows.length > 0 && gptRows.every(o => o.unavailable !== undefined && o.cataloguePending === true), `${j(gptRows.map(o => [o.value, o.unavailable, o.cataloguePending]))} · ${SIGN_IN_FIX}`)
 
   section('§1b THE KEY LANES — a key lane whose account list no process has read yet (xAI, Moonshot: a fresh `mercury health` never kicks the read) is the same timing gap, never a FAULT against a daemon that has read it')
   for (const [family, row] of [['xai', 'Grok 4.7'], ['moonshot', 'K3']] as const) {
     const mine = view.families.find(f => f.family === family)
-    check(`${family}: the key is present and the list is not read yet (${mine?.why ?? ''})`, mine?.credentialed === true && mine.usable === false && /model list has not been read$/.test(mine.why ?? ''), j(mine))
-    check(`RED ON THE BASE: ${family} is marked unfetched (the lead's live check read \`mercury health\` FAULT: daemon ≠ client — ${family}: client "the account's model list has not been read" vs daemon "usable (${row})")`, mine?.unfetched === true, j(mine))
+    check(`${family}: the key is present and the list is not read yet (${mine?.why ?? ''})`, mine?.credentialed === true && mine.usable === false && /model list has not been read$/.test(mine.why ?? ''), `${j(mine)} · ${SIGN_IN_FIX}`)
+    check(`RED ON THE BASE: ${family} is marked unfetched (the lead's live check read \`mercury health\` FAULT: daemon ≠ client — ${family}: client "the account's model list has not been read" vs daemon "usable (${row})")`, mine?.unfetched === true, `${j(mine)} · ${SIGN_IN_FIX}`)
     const daemon = { ...view, families: view.families.map(f => (f.family === family ? { family, credentialed: true, usable: true, row, why: 'the newest row this sign-in can use (the live catalogue)' } : f)) } as never
-    check(`RED ON THE BASE: a daemon that has read the ${family} list and a client that has not disagree on nothing`, compareSignInViews(view, daemon).length === 0, j(compareSignInViews(view, daemon)))
+    check(`RED ON THE BASE: a daemon that has read the ${family} list and a client that has not disagree on nothing`, compareSignInViews(view, daemon).length === 0, `${j(compareSignInViews(view, daemon))} · ${SIGN_IN_FIX}`)
   }
   process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC = '1'
   const refused = composeSignInView({ refresh: true }).families.find(f => f.family === 'xai')
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
-  check(`teeth: a list the gate refuses to read is not a timing gap — the mark is absent (${refused?.why ?? ''})`, refused?.credentialed === true && refused.usable === false && refused.unfetched !== true, j(refused))
+  check(`teeth: a list the gate refuses to read is not a timing gap — the mark is absent (${refused?.why ?? ''})`, refused?.credentialed === true && refused.usable === false && refused.unfetched !== true, `${j(refused)} · ${SIGN_IN_FIX}`)
   const daemonRead = { ...view, families: view.families.map(f => (f.family === 'xai' ? { family: 'xai', credentialed: true, usable: true, row: 'Grok 4.7', why: 'the newest row this sign-in can use (the live catalogue)' } : f)) } as never
-  check('teeth: that refused read still reads as a difference against a daemon with the list', compareSignInViews({ ...view, families: view.families.map(f => (f.family === 'xai' ? refused! : f)) } as never, daemonRead).length === 1)
+  check('teeth: that refused read still reads as a difference against a daemon with the list', compareSignInViews({ ...view, families: view.families.map(f => (f.family === 'xai' ? refused! : f)) } as never, daemonRead).length === 1, `compareSignInViews must still report one difference · ${SIGN_IN_FIX}`)
 }
 
 section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edits (the runner\'s ledger through the session facts), not its own process\'s')
@@ -92,19 +94,19 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
   publishSessionFacts({ ...base, editOutcomes: [{ model: 'claude-sonnet-5-5', surface: 'edit', outcome: 'applied', count: 7 }, { model: 'claude-sonnet-5-5', surface: 'edit', outcome: 'anchor-stale', count: 1 }, { model: 'claude-opus-5-5', surface: 'edit', outcome: 'applied', count: 2 }] } as never, daemonDir)
   await untilPublished(facts => Array.isArray(facts?.editOutcomes))
   const seat = new DaemonSessionConnector(record)
-  check('the connector carries the session\'s edit rows from the facts', (seat.editOutcomes?.() ?? []).length === 3, j(seat.editOutcomes?.()))
+  check('the connector carries the session\'s edit rows from the facts', (seat.editOutcomes?.() ?? []).length === 3, `${j(seat.editOutcomes?.())} · ${EDIT_ROW_FIX}`)
   setFocusedSessionConnector(seat)
   const focused = await rowOf()
-  check('RED ON THE BASE: with a daemon-hosted chat focused, the Edit outcomes row counts the session\'s nine edits (the Air read "no edit attempts this session")', focused?.status === 'info' && /claude-sonnet-5-5: 8 attempt\(s\), 7 applied, top failure anchor-stale ×1/.test(String(focused?.evidence)) && /claude-opus-5-5: 2 attempt\(s\), 2 applied/.test(String(focused?.evidence)), j(focused))
+  check('RED ON THE BASE: with a daemon-hosted chat focused, the Edit outcomes row counts the session\'s nine edits (the Air read "no edit attempts this session")', focused?.status === 'info' && /claude-sonnet-5-5: 8 attempt\(s\), 7 applied, top failure anchor-stale ×1/.test(String(focused?.evidence)) && /claude-opus-5-5: 2 attempt\(s\), 2 applied/.test(String(focused?.evidence)), `${j(focused)} · ${EDIT_ROW_FIX}`)
   publishSessionFacts(base as never, daemonDir)
   await untilPublished(facts => facts !== null && !Array.isArray(facts.editOutcomes))
   const older = new DaemonSessionConnector(record)
   setFocusedSessionConnector(older)
   const olderRow = await rowOf()
-  check('a runner that answers no ledger (an older runner) reads off and says so — never a false zero', olderRow?.status === 'off' && /no edit ledger/.test(String(olderRow?.evidence)), j(olderRow))
+  check('a runner that answers no ledger (an older runner) reads off and says so — never a false zero', olderRow?.status === 'off' && /no edit ledger/.test(String(olderRow?.evidence)), `${j(olderRow)} · ${EDIT_ROW_FIX}`)
   releaseFocusedSessionConnector()
   const plain = await rowOf()
-  check('with no chat focused the row reads this process\'s own ledger (no attempts here)', plain?.status === 'ok' && String(plain?.evidence) === 'no edit attempts this session', j(plain))
+  check('with no chat focused the row reads this process\'s own ledger (no attempts here)', plain?.status === 'ok' && String(plain?.evidence) === 'no edit attempts this session', `${j(plain)} · ${EDIT_ROW_FIX}`)
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const edits = await withFixtureRunner(
     [
@@ -121,7 +123,7 @@ section('§2 EDIT OUTCOMES — the cockpit\'s /health counts the SESSION\'s edit
       return { before, after: (await liveFactsOf(runner)).editOutcomes ?? [] }
     },
   )
-  check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, j(edits))
+  check('the runner answers its edit ledger in the session facts', j(edits.before) === '[]' && edits.after.some(row => row.model === FIXTURE_MODEL && row.outcome === 'applied' && row.count === 1) && edits.after.reduce((sum, row) => sum + row.count, 0) === 2, `${j(edits)} · the runner must publish its edit ledger in the session facts: see publishSessionFacts in src/services/engine-connector/seatProjections.ts`)
 }
 
 console.log(`\n${'═'.repeat(76)}`)

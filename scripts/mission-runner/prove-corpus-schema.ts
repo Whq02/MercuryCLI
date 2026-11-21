@@ -10,12 +10,14 @@ import { HELIX_TASKS } from './corpus/tasks.js'
 import { corpusDigest, MANIFEST_PATH } from './corpus/manifest.js'
 
 let failures = 0
+const corpusFailureHint =
+  ' | to fix, change the task rows in scripts/mission-runner/corpus/tasks.ts (families, partitions and schema version live in corpus/contracts.ts); for a manifest check, regenerate the committed manifest with bun scripts/mission-runner/corpus/manifest.ts --write'
 function check(label: string, ok: boolean, detail?: string): void {
   if (ok) {
     console.log('  ok  ' + label)
   } else {
     failures += 1
-    console.log('  FAIL ' + label + (detail ? ' — ' + detail : ''))
+    console.log('  FAIL ' + label + (detail ? ' — ' + detail : '') + corpusFailureHint)
   }
 }
 

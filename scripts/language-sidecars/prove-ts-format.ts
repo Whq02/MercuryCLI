@@ -72,8 +72,8 @@ const uri = pathToFileURL(filePath).toString()
     initializationOptions: { typescriptPath: TSPATH },
   })
   const caps = (init.result as { capabilities?: Record<string, unknown> })?.capabilities
-  check('mercury-ts advertises documentFormattingProvider', caps?.documentFormattingProvider === true)
-  check('mercury-ts advertises documentRangeFormattingProvider', caps?.documentRangeFormattingProvider === true)
+  check('mercury-ts advertises documentFormattingProvider', caps?.documentFormattingProvider === true, 'restore documentFormattingProvider: true in the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts')
+  check('mercury-ts advertises documentRangeFormattingProvider', caps?.documentRangeFormattingProvider === true, 'restore documentRangeFormattingProvider: true in the initialize capabilities in src/services/lsp/tsSidecar/sidecar.ts')
   notify('initialized', {})
 }
 
@@ -84,13 +84,13 @@ const uri = pathToFileURL(filePath).toString()
     options: { tabSize: 2, insertSpaces: true },
   })
   const edits = fmt.result as Array<{ newText: string }> | undefined
-  check('formatting returns edits for messy TS', Array.isArray(edits) && edits.length >= 1, JSON.stringify(fmt.error ?? fmt.result).slice(0, 120))
+  check('formatting returns edits for messy TS', Array.isArray(edits) && edits.length >= 1, JSON.stringify(fmt.error ?? fmt.result).slice(0, 120) + ' | fix formattingRequest in src/services/lsp/tsSidecar/sidecar/requests/formatting.ts')
   const rf = await request('textDocument/rangeFormatting', {
     textDocument: { uri },
     range: { start: { line: 0, character: 0 }, end: { line: 0, character: 47 } },
     options: { tabSize: 2, insertSpaces: true },
   })
-  check('rangeFormatting returns edits', Array.isArray(rf.result), JSON.stringify(rf.error ?? '').slice(0, 120))
+  check('rangeFormatting returns edits', Array.isArray(rf.result), JSON.stringify(rf.error ?? '').slice(0, 120) + ' | fix rangeFormattingRequest in src/services/lsp/tsSidecar/sidecar/requests/formatting.ts')
 }
 
 {

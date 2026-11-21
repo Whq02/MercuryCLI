@@ -23,10 +23,11 @@ const { getEngineModel } = await import('../../src/services/model/model.ts')
 
 let failures = 0
 let checks = 0
+const FOLD_RECEIPTS_FAILURE_HINT = ' | change renderFoldedWork in src/services/compact/prompt.ts (the block text) or compactConversation and partialCompactConversation in src/services/compact/compact.ts (where the block joins the summary)'
 const check = (label: string, condition: boolean, detail = '') => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}${condition ? '' : FOLD_RECEIPTS_FAILURE_HINT}`)
 }
 let clock = Date.UTC(2026, 9, 15)
 const user = (content: unknown): Message => ({ type: 'user', uuid: randomUUID(), timestamp: new Date(clock++).toISOString(), message: { role: 'user', content } }) as Message

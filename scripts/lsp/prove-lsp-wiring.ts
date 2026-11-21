@@ -20,7 +20,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { probeBuiltinTsServer } = await import('../../src/services/lsp/builtinServers.ts')
   const lspRow = runtimeChecks().find(row => row.id === 'lsp')
-  check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)')
+  check("health list: check id 'lsp' present", lspRow?.label === 'IDE-hands (LspRead)', 'runtimeChecks() in src/services/health/sections/runtime.ts must list a row with id lsp labelled IDE-hands (LspRead)')
   const lspFlag = process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP
   const armedSays = await lspRow?.run()
@@ -28,7 +28,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: uses the SAME probe as boot (probeBuiltinTsServer)',
     armedSays !== undefined && armedSays.status !== 'off' && (tsProbe.typescriptPath ? armedSays.evidence.includes('typescript@') : armedSays.evidence.includes('no workspace typescript') || armedSays.evidence.includes(tsProbe.reason ?? '\0')),
-    armedSays?.evidence,
+    armedSays?.evidence + ' | the lsp row in src/services/health/sections/runtime.ts must report the probeBuiltinTsServer result (src/services/lsp/builtinServers.ts) and not read off while MERCURY_LSP is unset',
   )
   process.env.MERCURY_LSP = '0'
   const offSays = await lspRow?.run()
@@ -37,7 +37,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     "health list: off state names the registered flag as it was set (flagAsSet('MERCURY_LSP'))",
     offSays?.status === 'off' && offSays.evidence === 'MERCURY_LSP=0 — IDE-hands bridge disabled by flag',
-    offSays?.evidence,
+    offSays?.evidence + ' | with MERCURY_LSP=0 the lsp row in src/services/health/sections/runtime.ts must report off with exactly this evidence text',
   )
 }
 
@@ -57,7 +57,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   }
   for (const name of LSP_TOOL_NAMES) {
     const card = truncateToLines(LSP_DESCRIPTIONS[name], 3)
-    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) matches the pinned card`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120))
+    check(`${name}: the text the Fallback permission card prints (its description cut to three lines) matches the pinned card`, createHash('sha256').update(card).digest('hex') === CARD_SHA256[name], card.slice(0, 120) + ' | the first three lines of LSP_DESCRIPTIONS[' + name + '] in src/constants/tools/lsp.ts changed; restore them, or update CARD_SHA256 here if the change is intended')
   }
 }
 
@@ -66,6 +66,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'the flag registry carries MERCURY_LSP + MERCURY_LSP_SERVERS',
     getFlagSpec('MERCURY_LSP') !== undefined && getFlagSpec('MERCURY_LSP_SERVERS') !== undefined,
+    'register the missing flag in src/substrate/flagRegistry.ts',
   )
 }
 
@@ -84,12 +85,12 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: lsp check reads the lane probes (clangd + godot)',
     says?.evidence.includes(cppWords) === true && says.evidence.includes(godotWords),
-    `${says?.evidence} · wanted: ${cppWords} · ${godotWords}`,
+    `${says?.evidence} · wanted: ${cppWords} · ${godotWords} | the lsp row in src/services/health/sections/runtime.ts must include the clangd and godot lane words`,
   )
   check(
     'health list: godot evidence probes editor reachability',
     godot.enabled && godot.projectRoot ? /godot editor (NOT )?listening :\d+/.test(says?.evidence ?? '') : says?.evidence.includes(godotWords) === true,
-    says?.evidence,
+    says?.evidence + ' | the lsp row in src/services/health/sections/runtime.ts must say whether the godot editor is listening on its port',
   )
   const net = await import('node:net')
   const { mkdtempSync, rmSync, writeFileSync } = await import('node:fs')
@@ -118,7 +119,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'health list: in a Godot project with the lane armed the row asks the port: listening while something listens there, and NOT listening, with the way to open the editor, once nothing does',
     listening?.evidence.includes(`godot editor listening :${port}`) === true && dark?.evidence.includes(`godot editor NOT listening :${port} — open the project in the Godot editor`) === true,
-    `${listening?.evidence} | ${dark?.evidence}`,
+    `${listening?.evidence} | ${dark?.evidence} | the lsp row in src/services/health/sections/runtime.ts must probe the godot editor port and say listening or NOT listening`,
   )
 }
 

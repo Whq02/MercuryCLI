@@ -2,8 +2,9 @@
 import { join } from 'node:path'
 
 let failures = 0
+const snapshotFailHint = ' · change isPosixSnapshotShell, resolveSnapshotPathValue or deriveVersionedPathParts in src/utils/bash/ShellSnapshot.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : snapshotFailHint}`)
   if (!cond) failures++
 }
 

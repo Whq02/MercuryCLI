@@ -4,9 +4,10 @@ import { KEY, settle, waitFor } from '../lib/settingsPopupHarness.ts'
 import { mountPart, openTranscriptPart } from './chatScenarios.ts'
 
 let failures = 0
+const searchPartFix = 'fix the transcript search hook, search bar and footer in src/screens/chat/useChatSearch.tsx (the editor door is src/utils/editor.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${searchPartFix}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

@@ -7,9 +7,10 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-mode-row')
 
 let failures = 0
+const MODE_ROW_WHERE = 'the Default permission mode row, its value word and its left/right step order, is built in src/components/Settings/config/configRowsEngine.tsx; the words come from permissionModeTitle in src/utils/permissions/PermissionMode.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' | ' : ' — '}${MODE_ROW_WHERE}`}`)
 }
 
 const React = await import('react')

@@ -152,10 +152,11 @@ const { getModelOptions, isProviderActionRow, OPENAI_MODEL_GROUP, MOONSHOT_MODEL
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail?: string): void {
+function check(label: string, cond: boolean, detail?: string, fixHint?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, fixHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -238,21 +239,21 @@ try {
   {
     await primeOpenai()
     const availability = catalogue.getGptSeatAvailability()
-    check('the bare list qualifies every id: the seat is ready with ten ids, the three gpt ids first', availability.state === 'ready' && availability.ids.join(',') === [...KNOWN, ...BARE].join(','), JSON.stringify(availability))
+    check('the bare list qualifies every id: the seat is ready with ten ids, the three gpt ids first', availability.state === 'ready' && availability.ids.join(',') === [...KNOWN, ...BARE].join(','), JSON.stringify(availability), 'getGptSeatAvailability in src/services/providers/openai/openaiCatalogue.ts must report ready with every id of the bare /v1/models list, the gpt ids first')
     const rows = openaiRows()
     const live = liveOpenaiRows()
     record(`the OpenAI section: ${rows.map(row => `${row.value}${row.description === '' ? '' : ` [${row.description}]`}${row.unavailable === undefined ? '' : ' (unavailable)'}`).join(' · ')}`)
-    check('nothing filtered: the seven bare ids are selectable rows, in the list\'s order, after the three gpt rows', live.map(row => row.value).join(',') === [...KNOWN, ...BARE].join(','), live.map(row => row.value).join(','))
-    check('the unserved pins still trail as visible-but-unavailable rows', rows.slice(live.length).map(row => row.label).join(',') === UNSERVED.join(',') && rows.slice(live.length).every(row => row.unavailable !== undefined), rows.slice(live.length).map(row => row.label).join(','))
+    check('nothing filtered: the seven bare ids are selectable rows, in the list\'s order, after the three gpt rows', live.map(row => row.value).join(',') === [...KNOWN, ...BARE].join(','), live.map(row => row.value).join(','), 'getModelOptions in src/services/model/modelOptions.ts must list every id of the bare list as a selectable OpenAI row, in the list order after the three gpt rows')
+    check('the unserved pins still trail as visible-but-unavailable rows', rows.slice(live.length).map(row => row.label).join(',') === UNSERVED.join(',') && rows.slice(live.length).every(row => row.unavailable !== undefined), rows.slice(live.length).map(row => row.label).join(','), 'getModelOptions in src/services/model/modelOptions.ts must keep the unserved pins after the live rows, each marked unavailable')
     const unknown = live.filter(row => BARE.includes(row.value))
-    check(`each of the seven carries the marker "${MARKER}" as its words`, unknown.length === 7 && unknown.every(row => row.description === MARKER), unknown.map(row => `${row.value}:"${row.description}"`).join(' · '))
-    check('each unknown row is named by its raw id and stays selectable', unknown.every(row => row.label === row.value && row.unavailable === undefined), unknown.map(row => `${row.value}:${row.label}`).join(','))
-    check('each unknown row carries the typed live-unknown field and states no window (the bare list states none)', unknown.every(row => row.liveUnknown === true && row.statedContextWindow === undefined), unknown.map(row => `${row.value}:${String(row.liveUnknown)}/${String(row.statedContextWindow)}`).join(' · '))
-    check('the model-facing description of an unknown row says it is listed live and unknown to the catalogue, never a GPT agent', unknown.every(row => (row.descriptionForModel ?? '').startsWith(`${row.value} (${row.value}) — listed live by the connected OpenAI API key`) && (row.descriptionForModel ?? '').includes("unknown to Mercury's catalogue") && !(row.descriptionForModel ?? '').includes('a GPT primary agent')), unknown[0]?.descriptionForModel)
+    check(`each of the seven carries the marker "${MARKER}" as its words`, unknown.length === 7 && unknown.every(row => row.description === MARKER), unknown.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must give each live id the catalogue does not know the description live · unknown to mercury (the MARKER constant in this file)')
+    check('each unknown row is named by its raw id and stays selectable', unknown.every(row => row.label === row.value && row.unavailable === undefined), unknown.map(row => `${row.value}:${row.label}`).join(','), 'getModelOptions in src/services/model/modelOptions.ts must label an unknown live row with its raw id and leave it selectable')
+    check('each unknown row carries the typed live-unknown field and states no window (the bare list states none)', unknown.every(row => row.liveUnknown === true && row.statedContextWindow === undefined), unknown.map(row => `${row.value}:${String(row.liveUnknown)}/${String(row.statedContextWindow)}`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must set liveUnknown true and no statedContextWindow on an unknown row of the bare list')
+    check('the model-facing description of an unknown row says it is listed live and unknown to the catalogue, never a GPT agent', unknown.every(row => (row.descriptionForModel ?? '').startsWith(`${row.value} (${row.value}) — listed live by the connected OpenAI API key`) && (row.descriptionForModel ?? '').includes("unknown to Mercury's catalogue") && !(row.descriptionForModel ?? '').includes('a GPT primary agent')), unknown[0]?.descriptionForModel, 'the descriptionForModel that getModelOptions (src/services/model/modelOptions.ts) builds for an unknown OpenAI row must start with the id and say it is listed live by the key and unknown to the catalogue')
     const known = live.filter(row => KNOWN.includes(row.value))
-    check('a known bare id is unmarked: the pinned rows and the grammar-only row alike carry no words', known.length === 3 && known.every(row => row.description === '' && row.liveUnknown === undefined) && known.map(row => row.label).join(',') === KNOWN.map(id => KNOWN_NAMES[id]).join(','), known.map(row => `${row.value}:"${row.description}"`).join(' · '))
+    check('a known bare id is unmarked: the pinned rows and the grammar-only row alike carry no words', known.length === 3 && known.every(row => row.description === '' && row.liveUnknown === undefined) && known.map(row => row.label).join(',') === KNOWN.map(id => KNOWN_NAMES[id]).join(','), known.map(row => `${row.value}:"${row.description}"`).join(' · '), 'getModelOptions in src/services/model/modelOptions.ts must leave the three known gpt rows with an empty description and no liveUnknown, labelled by their catalogue names')
     check('the known rows keep their model-facing description', known.every(row => (row.descriptionForModel ?? '').includes('a GPT primary agent from the live catalogue')))
-    check('the marker is the one exception to the neutral grammar: every other model row of every group stays wordless', getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '').every(o => o.description === MARKER && BARE.includes(o.value)), getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '' && o.description !== MARKER).map(o => `${o.value}:${o.description}`).join(' · '))
+    check('the marker is the one exception to the neutral grammar: every other model row of every group stays wordless', getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '').every(o => o.description === MARKER && BARE.includes(o.value)), getModelOptions().filter(o => !isProviderActionRow(o.value) && o.description !== '' && o.description !== MARKER).map(o => `${o.value}:${o.description}`).join(' · '), 'in getModelOptions (src/services/model/modelOptions.ts) only the unknown OpenAI ids may carry a description; a row listed here gained words it must not have')
   }
 
   for (const band of BANDS) {
@@ -265,8 +266,8 @@ try {
     const frame = open.frame()
     file(`open-${tag(band)}-whisper`, frame)
     record(`${tag(band)} open · heading "${headingOf(frame, OPENAI_TITLE)}" · rows ${rowNames(frame).join(',')} · card "${cardOf(frame).join(' / ')}" · cells whisper-1 "${ctxCell(frame, 'whisper-1')}" tts-1 "${ctxCell(frame, 'tts-1')}" ${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · live ${liveOf(frame, OPENAI_TITLE)}`)
-    check(`${tag(band)}: the open reads the list once and the frame fits`, requests === before + 1 && fits(frame, band.columns, band.rows), `requests ${requests - before}`)
-    check(`${tag(band)}: the heading counts every live id, the seven included`, /^[▾❯] OPENAI · .+ · 10 live$/.test(headingOf(frame, OPENAI_TITLE)), headingOf(frame, OPENAI_TITLE))
+    check(`${tag(band)}: the open reads the list once and the frame fits`, requests === before + 1 && fits(frame, band.columns, band.rows), `requests ${requests - before}`, 'opening the picker (call in src/commands/model/mercuryModel.tsx) must read the OpenAI list exactly once and draw a frame that fits the band; see the frame record above')
+    check(`${tag(band)}: the heading counts every live id, the seven included`, /^[▾❯] OPENAI · .+ · 10 live$/.test(headingOf(frame, OPENAI_TITLE)), headingOf(frame, OPENAI_TITLE), 'the OpenAI heading painted by the picker (src/commands/model/mercuryModel.tsx) must count all ten live ids, the seven unknown ones included')
     const painted = rowNames(frame)
     const order = [...KNOWN.map(id => KNOWN_NAMES[id]!), ...BARE, ...UNSERVED]
     const shown = order.slice(0, 12)
@@ -275,16 +276,16 @@ try {
     const inOrder = band.rows >= 40
       ? painted.length >= shown.length && shown.every((name, index) => sameName(painted[index]!, name)) && (hidden === 0 || frame.includes(`↓ ${hidden} more · ↵ unfolds the rest`))
       : painted.length >= 3 && painted.includes('whisper-1') && windowStart >= 0 && windowStart <= KNOWN.length && painted.every((name, index) => order[windowStart + index] !== undefined && sameName(name, order[windowStart + index]!))
-    check(`${tag(band)}: the rows paint in provenance order after the gpt rows${band.rows >= 40 ? ' (all seven, then the unserved pins; the top group shows twelve and names the rest)' : ' (the window around the current row)'}`, inOrder, painted.join(','))
+    check(`${tag(band)}: the rows paint in provenance order after the gpt rows${band.rows >= 40 ? ' (all seven, then the unserved pins; the top group shows twelve and names the rest)' : ' (the window around the current row)'}`, inOrder, painted.join(','), 'the picker rows (src/commands/model/mercuryModel.tsx) must paint the gpt rows, then the bare ids in list order, then the unserved pins; compare with order in this file')
     check(`${tag(band)}: the current mark sits on whisper-1, a selectable row under its raw id with the no-alias note`, focusOf(frame) === 'whisper-1' && cellsOf(rowText(rowLine(frame, 'whisper-1'))).includes('current') && tailOf(frame, 'whisper-1') !== '' && hasRow(frame, 'whisper-1'), `${focusOf(frame)} · ${rowText(rowLine(frame, 'whisper-1'))}`)
-    check(`${tag(band)}: the focused unknown row carries the marker as its words`, cardWords(frame) === MARKER, `card "${cardOf(frame).join(' / ')}"`)
+    check(`${tag(band)}: the focused unknown row carries the marker as its words`, cardWords(frame) === MARKER, `card "${cardOf(frame).join(' / ')}"`, 'the focused-row card of the picker (src/commands/model/mercuryModel.tsx) must show the description of an unknown row, the MARKER text')
     check(`${tag(band)}: the heading counts the seven as live`, liveOf(frame, OPENAI_TITLE) === liveOpenaiRows().length, `${liveOf(frame, OPENAI_TITLE)} vs ${liveOpenaiRows().length}`)
-    check(`${tag(band)}: an unknown row's context cell is blank, focused or not — the resolver's borrowed default never paints`, ctxCell(frame, 'whisper-1') === '' && ctxCell(frame, 'tts-1') === '', `whisper-1 "${ctxCell(frame, 'whisper-1')}" · tts-1 "${ctxCell(frame, 'tts-1')}"`)
+    check(`${tag(band)}: an unknown row's context cell is blank, focused or not — the resolver's borrowed default never paints`, ctxCell(frame, 'whisper-1') === '' && ctxCell(frame, 'tts-1') === '', `whisper-1 "${ctxCell(frame, 'whisper-1')}" · tts-1 "${ctxCell(frame, 'tts-1')}"`, 'the picker (src/commands/model/mercuryModel.tsx) must leave the context cell of a liveUnknown row blank, never the resolver default')
     check(`${tag(band)}: the known rows keep their column and the rows still align (one ctx column)`, ctxCell(frame, KNOWN_NAMES[NOVA]!) === '200k ctx' && ctxCol(frame, KNOWN_NAMES[NOVA]!) > 0 && rowNames(frame).filter(name => ctxCell(frame, name) !== '').every(name => ctxCol(frame, name) === ctxCol(frame, KNOWN_NAMES[NOVA]!)), `${KNOWN_NAMES[NOVA]} "${ctxCell(frame, KNOWN_NAMES[NOVA]!)}" · ctx columns ${rowNames(frame).filter(name => ctxCell(frame, name) !== '').map(name => `${name}:${ctxCol(frame, name)}`).join(' ')}`)
     await open.press('\x1b[B')
     const next = open.frame()
     file(`walk-${tag(band)}-tts`, next)
-    check(`${tag(band)}: the marker follows the cursor onto the next unknown row`, focusOf(next) === 'tts-1' && cardWords(next) === MARKER, `focus "${focusOf(next)}" · card "${cardOf(next).join(' / ')}"`)
+    check(`${tag(band)}: the marker follows the cursor onto the next unknown row`, focusOf(next) === 'tts-1' && cardWords(next) === MARKER, `focus "${focusOf(next)}" · card "${cardOf(next).join(' / ')}"`, 'after the down key the picker (src/commands/model/mercuryModel.tsx) must move focus to tts-1 and show the MARKER words in the card')
     check(`${tag(band)}: the focused unknown row's cell stays blank on the walk`, ctxCell(next, 'tts-1') === '' && ctxCell(next, 'whisper-1') === '', `tts-1 "${ctxCell(next, 'tts-1')}" · whisper-1 "${ctxCell(next, 'whisper-1')}"`)
     await open.press('\x1b[A')
     await open.press('\x1b[A')
@@ -313,7 +314,7 @@ try {
     const known = await settle(1, KNOWN_NAMES[TERRA]!)
     const unknown = await settle(3, 'whisper-1')
     record(`↵ on ${TERRA} settles "${known.answer}" · ↵ on whisper-1 settles "${unknown.answer}"`)
-    check('↵ on the unknown row takes the very road a known row takes: the switch road answers both with one sentence, and the picker refuses neither as gated', unknown.answer !== '' && unknown.answer === known.answer && !unknown.frame.includes('not selectable') && !known.frame.includes('not selectable'), `known "${known.answer}" · unknown "${unknown.answer}"`)
+    check('↵ on the unknown row takes the very road a known row takes: the switch road answers both with one sentence, and the picker refuses neither as gated', unknown.answer !== '' && unknown.answer === known.answer && !unknown.frame.includes('not selectable') && !known.frame.includes('not selectable'), `known "${known.answer}" · unknown "${unknown.answer}"`, 'enter on an unknown row in the picker (src/commands/model/mercuryModel.tsx) must settle through the same switch road as a known row, with the same answer and no not selectable gate')
   }
 
   section('§4 the key lanes: a live id the family\'s pins module cannot name is marked after the known rows; the Z.AI pins never are')
@@ -327,7 +328,7 @@ try {
     deepseek.__resetDeepseekCatalogueForTest()
     const kimi = await moonshot.refreshMoonshotCatalogue({ force: true })
     const seek = await deepseek.refreshDeepseekCatalogue({ force: true })
-    check('both fixture lists land', kimi?.models.length === 3 && seek?.models.length === 2 && kimi.lastError === undefined && seek.lastError === undefined, JSON.stringify([kimi, seek]))
+    check('both fixture lists land', kimi?.models.length === 3 && seek?.models.length === 2 && kimi.lastError === undefined && seek.lastError === undefined, JSON.stringify([kimi, seek]), 'refreshMoonshotCatalogue and refreshDeepseekCatalogue (src/services/providers/moonshot/moonshotCatalogue.ts and src/services/providers/deepseek/deepseekCatalogue.ts) must read the fixture lists this script serves without lastError')
     const all = getModelOptions()
     const lane = (group: string) => all.filter(o => o.group === group && !isProviderActionRow(o.value))
     const kimiRows = lane(MOONSHOT_MODEL_GROUP)

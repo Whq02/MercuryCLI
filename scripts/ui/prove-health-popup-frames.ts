@@ -83,10 +83,10 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 let checks = 0
-function check(label: string, good: boolean, detail = ''): void {
+function check(label: string, good: boolean, detail = '', fixHint = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good && fixHint ? ` — fix: ${fixHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -120,7 +120,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('health-popup-frames exceeded its deadline'); process.exit(1) }, 420_000)
+const hardLimit = setTimeout(() => { console.error('health-popup-frames exceeded its 420s deadline: a scene never painted or settled; read the last [PASS]/[FAIL] line above, then src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx'); process.exit(1) }, 420_000)
 hardLimit.unref()
 
 type Window = { top: number; bottom: number; left: number; right: number; width: number; height: number; rows: string[] }
@@ -217,13 +217,13 @@ async function openScene(cols: number, rows: number, fixture?: ReportFixture, wa
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(TITLE) && lines().join('\n').includes(COMPOSER))
-  check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '))
+  check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '), 'the health popup and the composer must both paint; see src/commands/health/health.tsx, src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx')
   if (waitForVerdict) {
     const settled = await until(() => {
       const window = windowOf(lines())
       return window !== null && VERDICT.test(window.rows[1] ?? '')
     }, 60000)
-    check(`the certificate settled with a verdict at ${cols}x${rows}`, settled, (windowOf(lines())?.rows ?? []).slice(0, 3).join(' | '))
+    check(`the certificate settled with a verdict at ${cols}x${rows}`, settled, (windowOf(lines())?.rows ?? []).slice(0, 3).join(' | '), 'the certificate must reach OK, ATTENTION or FAILED on its title row; see MercuryHealthCertificate in src/commands/health/HealthCertificate.tsx')
   }
   await sleep(400)
   return {
@@ -247,20 +247,20 @@ async function openScene(cols: number, rows: number, fixture?: ReportFixture, wa
 function frameReadsRight(label: string, lines: string[], cols: number, rows: number, cursorAt?: string): Window | null {
   const window = windowOf(lines)
   console.log(`${label}: ${describe(window)}`)
-  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), lines.slice(0, 8).join(' | '))
+  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), lines.slice(0, 8).join(' | '), 'the popup frame must be one closed bordered window; see healthPopupShape in src/commands/health/HealthCertificate.tsx and src/components/CommandPopupSlot.tsx')
   if (window === null) return null
-  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window))
-  check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!))
+  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window), 'the popup must fit inside the terminal; fix healthPopupShape in src/commands/health/HealthCertificate.tsx or the popup placement in src/components/CommandPopupSlot.tsx')
+  check(`${label}: the verdict chip sits on the title row beside the lockup`, VERDICT.test(inner(window.rows[1]!)) && inner(window.rows[1]!).includes(`${TITLE} · `), inner(window.rows[1]!), 'the title row in src/commands/health/HealthCertificate.tsx must read the lockup then a verdict chip')
   const expected = certificate.healthPopupLayout(window.height, 0, 1000)
   check(`${label}: no provenance lecture or duplicate detail hint`, !window.rows.some(row => row.includes('every claim names its evidence') || inner(row) === LEGEND))
   const countsRow = window.rows.map(inner).find(row => /^\d+ checks/.test(row))
-  check(`${label}: the ${expected.compact ? 'compact' : 'full'} chrome (${window.height} rows: ${expected.compact ? 'the provenance and counts lines yield to the rows' : 'provenance line, counts line, a blank, then the rows'})`, (countsRow !== undefined) === !expected.compact, countsRow ?? '(no counts row)')
+  check(`${label}: the ${expected.compact ? 'compact' : 'full'} chrome (${window.height} rows: ${expected.compact ? 'the provenance and counts lines yield to the rows' : 'provenance line, counts line, a blank, then the rows'})`, (countsRow !== undefined) === !expected.compact, countsRow ?? '(no counts row)', 'chrome follows healthPopupLayout in src/commands/health/HealthCertificate.tsx: the counts line shows only when not compact')
   const footer = inner(window.rows[window.height - 2]!)
-  check(`${label}: the hint footer is the window's last inner row`, footer.startsWith('↑↓ move · ↵ unfold') && footer.includes(certificate.HEALTH_POPUP_CLOSE_HINT.slice(0, 10)), footer)
-  check(`${label}: the check rows are the list and the cursor row is inside the window`, checkRows(window).length > 0 && cursorRow(window) !== undefined, `${checkRows(window).length} rows · cursor ${cursorRow(window) ?? '(none)'}`)
+  check(`${label}: the hint footer is the window's last inner row`, footer.startsWith('↑↓ move · ↵ unfold') && footer.includes(certificate.HEALTH_POPUP_CLOSE_HINT.slice(0, 10)), footer, 'the footer in src/commands/health/HealthCertificate.tsx must start with the move hint and carry HEALTH_POPUP_CLOSE_HINT')
+  check(`${label}: the check rows are the list and the cursor row is inside the window`, checkRows(window).length > 0 && cursorRow(window) !== undefined, `${checkRows(window).length} rows · cursor ${cursorRow(window) ?? '(none)'}`, 'the check rows and the cursor row must be painted inside the window; see the list in src/commands/health/HealthCertificate.tsx')
   if (cursorAt !== undefined) check(`${label}: the cursor row stays where it was left (${cursorAt})`, cursorLabel(window) === cursorAt, cursorLabel(window) ?? '(none)')
   const composerRow = lines.findIndex(line => line.includes(COMPOSER))
-  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow}`)
+  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow}`, 'the popup must end above the composer; see healthPopupShape rows in src/commands/health/HealthCertificate.tsx and src/components/FullscreenLayout.tsx')
   check(`${label}: the title paints once (nothing of the popup outside the frame)`, lines.filter(line => line.includes(TITLE)).length === 1)
   return window
 }
@@ -273,7 +273,7 @@ for (const [cols, rows] of SIZES) {
   const window = frameReadsRight(`${cols}x${rows}`, frame, cols, rows)
   if (window !== null) {
     const first = checkRows(window)[0]
-    check(`${cols}x${rows}: the cursor opens on the first check row`, first !== undefined && first.startsWith('▸ '), first ?? '(no rows)')
+    check(`${cols}x${rows}: the cursor opens on the first check row`, first !== undefined && first.startsWith('▸ '), first ?? '(no rows)', 'the cursor must open on the first check row; see the cursor state in src/commands/health/HealthCertificate.tsx')
     if (cols >= 100) check(`${cols}x${rows}: the lanes rail stays visible left of the window`, frame.findIndex(line => line.includes('lanes')) >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '')
   }
   await scene.close()
@@ -288,11 +288,11 @@ section('§2 the keys at 80x24: ↑↓, the wheel, ↵ → ← on a row, ⇞⇟,
   scene.push(DOWN)
   await sleep(300)
   const second = at()
-  check('↓ moves the cursor to the next check row', second !== first && second !== '(none)', `${first} → ${second}`)
+  check('↓ moves the cursor to the next check row', second !== first && second !== '(none)', `${first} → ${second}`, 'the down arrow handler in src/commands/health/HealthCertificate.tsx must move the cursor one check row')
   scene.push(WHEEL_DOWN)
   await sleep(300)
   const third = at()
-  check('the mouse wheel down moves the cursor one row down', third !== second && third !== '(none)', `${second} → ${third}`)
+  check('the mouse wheel down moves the cursor one row down', third !== second && third !== '(none)', `${second} → ${third}`, 'the wheel-down handler in src/commands/health/HealthCertificate.tsx must move the cursor one row')
   scene.push(WHEEL_UP)
   await sleep(300)
   check('the mouse wheel up moves the cursor one row up', at() === second, at())
@@ -301,14 +301,14 @@ section('§2 the keys at 80x24: ↑↓, the wheel, ↵ → ← on a row, ⇞⇟,
   check('↑ moves the cursor one row up', at() === first, at())
   scene.push(UP)
   await sleep(300)
-  check('↑ at the first row clamps (never wraps)', at() === first, at())
+  check('↑ at the first row clamps (never wraps)', at() === first, at(), 'the cursor in src/commands/health/HealthCertificate.tsx must clamp at the first row')
   scene.push(DOWN)
   await sleep(300)
   const beforeOpen = cursorRow(win())!
   scene.push(ENTER)
   await sleep(400)
   const opened = cursorRow(win())!
-  check('↵ unfolds the row\'s evidence in place (the evidence leaves the row\'s tail and opens beneath it)', opened.length < beforeOpen.length && win().rows.map(inner).some(row => row.startsWith('    ') && row.trim() !== ''), opened)
+  check('↵ unfolds the row\'s evidence in place (the evidence leaves the row\'s tail and opens beneath it)', opened.length < beforeOpen.length && win().rows.map(inner).some(row => row.startsWith('    ') && row.trim() !== ''), opened, 'Enter on a row in src/commands/health/HealthCertificate.tsx must unfold its evidence beneath the row')
   save('health-80x24-unfolded', scene.lines())
   scene.push(LEFT)
   await sleep(400)
@@ -324,7 +324,7 @@ section('§2 the keys at 80x24: ↑↓, the wheel, ↵ → ← on a row, ⇞⇟,
   scene.push(PAGE_DOWN)
   await sleep(400)
   const visibleAfter = checkRows(win())
-  check('⇟ pages the cursor a viewport down: the cursor row changed and the rows scrolled under it', at() !== beforePage && visibleAfter[0] !== topBefore && !visibleAfter.includes(topBefore!), `${beforePage} → ${at()} · top ${topBefore} → ${visibleAfter[0]}`)
+  check('⇟ pages the cursor a viewport down: the cursor row changed and the rows scrolled under it', at() !== beforePage && visibleAfter[0] !== topBefore && !visibleAfter.includes(topBefore!), `${beforePage} → ${at()} · top ${topBefore} → ${visibleAfter[0]}`, 'the page-down handler in src/commands/health/HealthCertificate.tsx must move the cursor a viewport and scroll the rows')
   check('the viewport follows the cursor: the cursor row is still inside the window', cursorRow(win()) !== undefined)
   check('the footer sheds its tail whole at this width (no half segment)', !/·\s*$/.test(inner(win().rows[win().height - 2]!)) && (counter(win()) !== null || inner(win().rows[win().height - 2]!).endsWith('…') || inner(win().rows[win().height - 2]!).endsWith('deep')), inner(win().rows[win().height - 2]!))
   scene.push(HOME_KEY)
@@ -332,7 +332,7 @@ section('§2 the keys at 80x24: ↑↓, the wheel, ↵ → ← on a row, ⇞⇟,
   check('Home brings the cursor back to the first check', at() === first, at())
   scene.push(ESC)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('esc closes the popup', closed, JSON.stringify(scene.done()))
+  check('esc closes the popup', closed, JSON.stringify(scene.done()), 'esc must call the popup onClose; see the key handling in src/commands/health/HealthCertificate.tsx')
   await scene.close()
 }
 
@@ -343,7 +343,7 @@ section('§3 a click outside the popup closes it')
   await sleep(300)
   scene.push(CLICK_OUTSIDE)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('a click on the chat beside the popup closes it like esc', closed, JSON.stringify(scene.done()))
+  check('a click on the chat beside the popup closes it like esc', closed, JSON.stringify(scene.done()), 'a click outside the popup must close it; see src/components/CommandPopupSlot.tsx and src/utils/cockpit/commandPopup.ts')
   await scene.close()
 }
 
@@ -398,20 +398,20 @@ section('§5 the fix card inside the popup: a destructive consent card never pus
   for (const [cols, rows] of SIZES) {
     const scene = await openScene(cols, rows, fixture)
     const before = windowOf(scene.lines())
-    check(`${cols}x${rows}: the fixture certificate paints with the fix key offered on its fixable row`, before !== null && inner(before.rows[before.height - 2]!).includes('f fix'), before === null ? 'no window' : inner(before.rows[before.height - 2]!))
+    check(`${cols}x${rows}: the fixture certificate paints with the fix key offered on its fixable row`, before !== null && inner(before.rows[before.height - 2]!).includes('f fix'), before === null ? 'no window' : inner(before.rows[before.height - 2]!), 'the footer in src/commands/health/HealthCertificate.tsx must offer f fix on a row that has a remedy')
     scene.push(FIX_KEY)
     await sleep(400)
     const frame = scene.lines()
     save(`health-fixcard-${cols}x${rows}`, frame)
     const window = windowOf(frame)
-    check(`${cols}x${rows}: f opens the destructive consent card inside the popup`, window !== null && window.rows.some(row => inner(row).includes(DESTRUCTIVE) || inner(row).includes('fix · Mercury processes')), window === null ? frame.slice(0, 12).join(' | ') : window.rows.map(inner).filter(row => row.includes('fix')).join(' | '))
+    check(`${cols}x${rows}: f opens the destructive consent card inside the popup`, window !== null && window.rows.some(row => inner(row).includes(DESTRUCTIVE) || inner(row).includes('fix · Mercury processes')), window === null ? frame.slice(0, 12).join(' | ') : window.rows.map(inner).filter(row => row.includes('fix')).join(' | '), 'the f key in src/commands/health/HealthCertificate.tsx must open the consent card inside the popup')
     const composerRow = frame.findIndex(line => line.includes(COMPOSER))
     const budget = certificate.healthPopupShape().rows(rows)
-    check(`${cols}x${rows}: with the card open the popup's bottom border is painted whole, inside its row budget, above the composer`, window !== null && wholeBottom(window) && window.height <= budget && window.bottom < composerRow, window === null ? 'the bottom border is clipped' : `height ${window.height} (budget ${budget}, was ${before?.height}) · bottom ${window.bottom} · composer ${composerRow}`)
+    check(`${cols}x${rows}: with the card open the popup's bottom border is painted whole, inside its row budget, above the composer`, window !== null && wholeBottom(window) && window.height <= budget && window.bottom < composerRow, window === null ? 'the bottom border is clipped' : `height ${window.height} (budget ${budget}, was ${before?.height}) · bottom ${window.bottom} · composer ${composerRow}`, 'with the card open, healthPopupShape and healthPopupLayout in src/commands/health/HealthCertificate.tsx must keep the frame inside its row budget')
     if (window !== null) {
       check(`${cols}x${rows}: the footer stays the last inner row above the card's frame`, inner(window.rows[window.height - 2]!).startsWith('↑↓ move') || inner(window.rows[window.height - 2]!).includes('esc'), inner(window.rows[window.height - 2]!))
       const compact = certificate.healthPopupLayout(window.height, 0, 1000).compact
-      check(`${cols}x${rows}: ${compact ? 'the compact popup gives the card its room and the rows yield (the card is modal)' : 'at least one check row stays visible beside the card'}`, compact ? window.rows.some(row => inner(row).startsWith('╰')) : checkRows(window).length >= 1, `${checkRows(window).length} rows`)
+      check(`${cols}x${rows}: ${compact ? 'the compact popup gives the card its room and the rows yield (the card is modal)' : 'at least one check row stays visible beside the card'}`, compact ? window.rows.some(row => inner(row).startsWith('╰')) : checkRows(window).length >= 1, `${checkRows(window).length} rows`, 'healthPopupLayout in src/commands/health/HealthCertificate.tsx must give the card its room: compact yields the rows, full keeps one')
     }
     scene.push(ESC)
     await sleep(300)
@@ -420,15 +420,15 @@ section('§5 the fix card inside the popup: a destructive consent card never pus
   section('§6 r re-runs at the depth last run: d sets deep, r repeats it')
   depths.length = 0
   const scene = await openScene(80, 24, fixture)
-  check('the first run is the fast certificate', depths.join(',') === 'fast', depths.join(','))
+  check('the first run is the fast certificate', depths.join(',') === 'fast', depths.join(','), 'the first run in src/commands/health/HealthCertificate.tsx must be fast depth')
   scene.push(DEEP_KEY)
   await until(() => depths.length >= 2, 5000)
   await sleep(300)
-  check('d re-runs deep', depths.join(',') === 'fast,deep', depths.join(','))
+  check('d re-runs deep', depths.join(',') === 'fast,deep', depths.join(','), 'the d key in src/commands/health/HealthCertificate.tsx must re-run at deep depth')
   scene.push(RERUN_KEY)
   await until(() => depths.length >= 3, 5000)
   await sleep(300)
-  check('r after d re-runs DEEP again (the depth last run, as before)', depths.join(',') === 'fast,deep,deep', depths.join(','))
+  check('r after d re-runs DEEP again (the depth last run, as before)', depths.join(',') === 'fast,deep,deep', depths.join(','), 'the r key in src/commands/health/HealthCertificate.tsx must repeat the depth last run')
   await scene.close()
 }
 
@@ -469,7 +469,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   sceneA.push(DOWN)
   await sleep(250)
   const beforeLateA = windowOf(sceneA.lines())
-  check('case A: cursor moved onto Extensions before late check arrives', beforeLateA !== null && cursorLabel(beforeLateA) === 'Extensions', beforeLateA ? String(cursorLabel(beforeLateA)) : 'no window')
+  check('case A: cursor moved onto Extensions before late check arrives', beforeLateA !== null && cursorLabel(beforeLateA) === 'Extensions', beforeLateA ? String(cursorLabel(beforeLateA)) : 'no window', 'the down arrow in src/commands/health/HealthCertificate.tsx must move the cursor onto the arrived Extensions row')
   releaseLateA!()
   const settledA = await until(() => {
     const w = windowOf(sceneA.lines())
@@ -477,7 +477,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   }, 5000)
   await sleep(250)
   const afterLateA = windowOf(sceneA.lines())
-  check('case A: after MCP policy arrives above Extensions, cursor stays on Extensions (position 4/4, never jumps to MCP policy)', settledA && afterLateA !== null && cursorLabel(afterLateA) === 'Extensions' && counter(afterLateA) === 4, afterLateA ? `cursor=${cursorLabel(afterLateA)} counter=${counter(afterLateA)}` : 'no window')
+  check('case A: after MCP policy arrives above Extensions, cursor stays on Extensions (position 4/4, never jumps to MCP policy)', settledA && afterLateA !== null && cursorLabel(afterLateA) === 'Extensions' && counter(afterLateA) === 4, afterLateA ? `cursor=${cursorLabel(afterLateA)} counter=${counter(afterLateA)}` : 'no window', 'the cursor in src/commands/health/HealthCertificate.tsx must follow the check id, not the row index, when a check lands above it')
   sceneA.push(ENTER)
   await sleep(300)
   const openedTextA = sceneA.lines().join('\n')
@@ -510,7 +510,7 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   }, 5000)
   await sleep(250)
   const afterLateB = windowOf(sceneB.lines())
-  check('case B: after MCP policy arrives above an open Extensions row, cursor stays on Extensions and it stays open', afterLateB !== null && cursorLabel(afterLateB) === 'Extensions' && sceneB.lines().join('\n').includes('3 on · 0 partial · 0 broken · 1 off'), afterLateB ? `cursor=${cursorLabel(afterLateB)}` : 'no window')
+  check('case B: after MCP policy arrives above an open Extensions row, cursor stays on Extensions and it stays open', afterLateB !== null && cursorLabel(afterLateB) === 'Extensions' && sceneB.lines().join('\n').includes('3 on · 0 partial · 0 broken · 1 off'), afterLateB ? `cursor=${cursorLabel(afterLateB)}` : 'no window', 'cursor and open row in src/commands/health/HealthCertificate.tsx must follow the check id when a check lands above')
   sceneB.push(ENTER)
   await sleep(250)
   const foldedTextB = sceneB.lines().join('\n')
@@ -534,13 +534,13 @@ section('§7 progressive arrival: cursor and open row follow the check id when a
   }, 5000)
   await sleep(250)
   const restingC = windowOf(sceneC.lines())
-  check('case C: at rest with no user move, cursor stays on the first row (Build, 1/4) when earlier sections settle', restingC !== null && cursorLabel(restingC) === 'Build' && counter(restingC) === 1, restingC ? `cursor=${cursorLabel(restingC)} counter=${counter(restingC)}` : 'no window')
+  check('case C: at rest with no user move, cursor stays on the first row (Build, 1/4) when earlier sections settle', restingC !== null && cursorLabel(restingC) === 'Build' && counter(restingC) === 1, restingC ? `cursor=${cursorLabel(restingC)} counter=${counter(restingC)}` : 'no window', 'with no user move the cursor in src/commands/health/HealthCertificate.tsx must stay on the first row as earlier sections settle')
   await sceneC.close()
 }
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600), 'a console.error during render matched a render fault or hook-order error; read the lines above for the component')
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\nhealth-popup-frames: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

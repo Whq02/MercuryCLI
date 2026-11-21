@@ -6,7 +6,7 @@ const { addTableRule } = await import('../../src/tools/WebFetchTool/tableRule.js
 const service = new TurndownService({ headingStyle: 'atx', codeBlockStyle: 'fenced' })
 addTableRule(service)
 let failures = 0
-const check = (name: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}`}`) }
+const check = (name: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : `\n${detail}\nfix addTableRule in src/tools/WebFetchTool/tableRule.ts (the table shape it chooses: markdown table or rows joined by " · ")`}`) }
 
 const simple = service.turndown(`<p>Before</p>
 <table><caption>Precedence</caption>

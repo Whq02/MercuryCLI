@@ -10,8 +10,9 @@ import { sessionFilesOf, type Row } from '../hooks/lib/runDoor.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
+let lookAt = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${lookAt}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -25,6 +26,7 @@ const owner = await import(join(SRC, 'utils/text/hiddenCodePoints.ts')).catch(()
 const registry = await import(join(SRC, 'utils/text/hiddenCharacterFindings.ts')).catch(() => null)
 
 section('§1 the one owner names every hidden code point with its line, column and class; emoji and real scripts are clean')
+lookAt = 'change findHiddenCodePoints or describeHiddenCodePoint in src/utils/text/hiddenCodePoints.ts'
 if (owner === null) {
   check('src/utils/text/hiddenCodePoints.ts exists', false, 'the owner module is absent')
 } else {
@@ -46,6 +48,7 @@ if (owner === null) {
 }
 
 section('§2 the findings registry tells each finding once and forgets a file that is clean again')
+lookAt = 'change the registry functions (recordHiddenCharacters, untoldHiddenCharacterLines, forgetHiddenCharacters, hiddenCharacterLine) in src/utils/text/hiddenCharacterFindings.ts'
 if (registry === null) {
   check('src/utils/text/hiddenCharacterFindings.ts exists', false, 'the registry module is absent')
 } else {
@@ -135,6 +138,7 @@ async function healthRows(project: { home: string; cwd: string }): Promise<{ row
 }
 
 section('§3 /health: the Hidden characters row names each file, line and class; a clean project reads ok; nothing is rewritten')
+lookAt = 'change the hidden-characters row in src/services/health/sections/settings/prompt.ts (needs a built dist: run bun run build.ts first)'
 {
   const project = scratchProject('hidden', true)
   const before = Object.fromEntries(Object.keys(project.files).map(name => [name, readFileSync(join(project.cwd, name))]))
@@ -166,6 +170,7 @@ section('§3 /health: the Hidden characters row names each file, line and class;
 }
 
 section('§4 the run reports each finding once, at startup or on the next turn')
+lookAt = 'change how the run tells findings once: untoldHiddenCharacterLines in src/utils/text/hiddenCharacterFindings.ts and the run path that calls it'
 {
   const project = scratchProject('chat', true)
   const fixture = await startScriptedFixture(req => [{ type: 'text', text: req.ask.includes('again') ? 'second answer' : 'first answer' }])

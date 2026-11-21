@@ -112,7 +112,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('effort-popup-frames exceeded its deadline'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('effort-popup-frames exceeded its deadline: a scene never painted or a wait never settled; read the last [FAIL] line above and see src/commands/effort/EffortPopup.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 type Window = { top: number; bottom: number; left: number; right: number; width: number; height: number; rows: string[] }
@@ -202,7 +202,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(TITLE) && lines().join('\n').includes(COMPOSER))
-  check(`the session painted the popup at ${cols}x${rows}`, painted, lines().slice(0, 6).join(' | '))
+  check(`the session painted the popup at ${cols}x${rows}`, painted, `${lines().slice(0, 6).join(' | ')} · the popup titled ${TITLE} and the composer must both paint; see src/commands/effort/effort.tsx and src/commands/effort/EffortPopup.tsx`)
   await sleep(400)
   return {
     lines,
@@ -229,19 +229,19 @@ const expectedCurrent = popup.effortPopupOpeningLevel(model, undefined)
 function frameReadsRight(label: string, lines: string[], cols: number, rows: number, envLine: boolean, cursorAt: string | undefined = expectedCurrent): Window | null {
   const window = windowOf(lines)
   console.log(`${label}: ${describe(window)}`)
-  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), lines.slice(0, 8).join(' | '))
+  check(`${label}: one closed bordered window titled ${TITLE}`, window !== null && wholeBottom(window), `${lines.slice(0, 8).join(' | ')} · EffortPopup in src/commands/effort/EffortPopup.tsx must paint a closed bordered window with the title and a bottom border`)
   if (window === null) return null
-  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, describe(window))
-  check(`${label}: the rows are the tiers the model serves, auto first, max last (${expectedRows.join(' ')})`, tierRows(window).join(' ') === expectedRows.join(' '), tierRows(window).join(' '))
+  check(`${label}: the window lies inside the terminal (${cols}x${rows})`, window.right < cols && window.bottom < rows && window.left >= 0 && window.top >= 0, `${describe(window)} · the popup must fit this terminal size; see how src/commands/effort/EffortPopup.tsx and src/components/CommandPopupSlot.tsx size and place it`)
+  check(`${label}: the rows are the tiers the model serves, auto first, max last (${expectedRows.join(' ')})`, tierRows(window).join(' ') === expectedRows.join(' '), `${tierRows(window).join(' ')} · the painted rows must equal effortPopupRows(model) in src/commands/effort/EffortPopup.tsx`)
   const current = window.rows.map(inner).find(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`))
-  check(`${label}: exactly one row carries the ${MODEL_PICKER_CURRENT} mark and it is the running tier (${expectedCurrent})`, window.rows.map(inner).filter(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`)).length === 1 && current !== undefined && current.slice(2).trim().startsWith(expectedCurrent), current ?? '(no current row)')
-  check(`${label}: the cursor row is ${cursorAt === expectedCurrent ? 'the running tier' : `where it was left (${cursorAt})`}`, cursorWord(window) === cursorAt, cursorWord(window) ?? '(no cursor row)')
+  check(`${label}: exactly one row carries the ${MODEL_PICKER_CURRENT} mark and it is the running tier (${expectedCurrent})`, window.rows.map(inner).filter(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`)).length === 1 && current !== undefined && current.slice(2).trim().startsWith(expectedCurrent), `${current ?? '(no current row)'} · only the tier from effortPopupOpeningLevel in src/commands/effort/EffortPopup.tsx may carry the current mark`)
+  check(`${label}: the cursor row is ${cursorAt === expectedCurrent ? 'the running tier' : `where it was left (${cursorAt})`}`, cursorWord(window) === cursorAt, `${cursorWord(window) ?? '(no cursor row)'} · the cursor row must start on the running tier and stay where it was left across a resize; see src/commands/effort/EffortPopup.tsx`)
   const footer = inner(window.rows[window.height - 2]!)
-  check(`${label}: the hint footer is the window's last inner row`, footer.startsWith('↑↓ move · ↵ apply') && popup.EFFORT_POPUP_HINT.startsWith(footer.replace(/…$/, '')), footer)
-  check(`${label}: the model line names the model and the ladder`, window.rows.some(row => inner(row).includes('effort ') && inner(row).includes('…') && inner(row).includes('running ')), window.rows.slice(1, 4).map(inner).join(' | '))
-  check(`${label}: the env-override line ${envLine ? 'is painted' : 'is absent'}`, window.rows.some(row => inner(row).startsWith('MERCURY_EFFORT_LEVEL=')) === envLine, window.rows.slice(1, 4).map(inner).join(' | '))
+  check(`${label}: the hint footer is the window's last inner row`, footer.startsWith('↑↓ move · ↵ apply') && popup.EFFORT_POPUP_HINT.startsWith(footer.replace(/…$/, '')), `${footer} · the last inner row must be EFFORT_POPUP_HINT from src/commands/effort/EffortPopup.tsx, cut with an ellipsis only`)
+  check(`${label}: the model line names the model and the ladder`, window.rows.some(row => inner(row).includes('effort ') && inner(row).includes('…') && inner(row).includes('running ')), `${window.rows.slice(1, 4).map(inner).join(' | ')} · the model line in src/commands/effort/EffortPopup.tsx must carry effort, the ladder with an ellipsis, and running`)
+  check(`${label}: the env-override line ${envLine ? 'is painted' : 'is absent'}`, window.rows.some(row => inner(row).startsWith('MERCURY_EFFORT_LEVEL=')) === envLine, `${window.rows.slice(1, 4).map(inner).join(' | ')} · the MERCURY_EFFORT_LEVEL= line must appear in src/commands/effort/EffortPopup.tsx only while that env variable is set`)
   const composerRow = lines.findIndex(line => line.includes(COMPOSER))
-  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow}`)
+  check(`${label}: the composer stays visible under the popup`, composerRow > window.bottom, `composer row ${composerRow} · the popup must not cover the composer; see src/components/CommandPopupSlot.tsx and src/components/FullscreenLayout.tsx`)
   return window
 }
 
@@ -253,7 +253,7 @@ for (const [cols, rows] of SIZES) {
   const window = frameReadsRight(`${cols}x${rows}`, frame, cols, rows, false)
   if (window !== null && cols >= 100) {
     const lanesRow = frame.findIndex(line => line.includes('lanes'))
-    check(`${cols}x${rows}: the lanes rail stays visible left of the window`, lanesRow >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '', 'nothing painted left of the window')
+    check(`${cols}x${rows}: the lanes rail stays visible left of the window`, lanesRow >= 0 && Array.from(frame[window.top + 2] ?? '').slice(0, window.left).join('').trim() !== '', 'nothing painted left of the window · the popup must leave the lanes rail visible at 100 columns and wider; see src/components/PopupGutter.tsx')
   }
   await scene.close()
 }
@@ -266,34 +266,34 @@ section('§2 the keys at 80x24: ↑↓, the wheel, Home/End, then esc')
   const start = index(at())
   scene.push(DOWN)
   await sleep(250)
-  check('↓ moves the cursor one row down', index(at()) === Math.min(expectedRows.length - 1, start + 1), at())
+  check('↓ moves the cursor one row down', index(at()) === Math.min(expectedRows.length - 1, start + 1), `${at()} · the down key must move the popup cursor one row; see the key handling in src/commands/effort/EffortPopup.tsx`)
   scene.push(WHEEL_DOWN)
   await sleep(250)
-  check('the mouse wheel down moves the cursor one row down', index(at()) === Math.min(expectedRows.length - 1, start + 2), at())
+  check('the mouse wheel down moves the cursor one row down', index(at()) === Math.min(expectedRows.length - 1, start + 2), `${at()} · the wheel must move the popup cursor one row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(WHEEL_UP)
   await sleep(250)
-  check('the mouse wheel up moves the cursor one row up', index(at()) === Math.min(expectedRows.length - 1, start + 1), at())
+  check('the mouse wheel up moves the cursor one row up', index(at()) === Math.min(expectedRows.length - 1, start + 1), `${at()} · the wheel must move the popup cursor one row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(UP)
   await sleep(250)
-  check('↑ moves the cursor one row up', index(at()) === start, at())
+  check('↑ moves the cursor one row up', index(at()) === start, `${at()} · the up key must move the popup cursor one row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(END_KEY)
   await sleep(250)
-  check('End reaches the last row, the model\'s max', at() === expectedRows[expectedRows.length - 1], at())
+  check('End reaches the last row, the model\'s max', at() === expectedRows[expectedRows.length - 1], `${at()} · End must jump to the last row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(DOWN)
   await sleep(250)
-  check('↓ at the last row clamps (never wraps)', at() === expectedRows[expectedRows.length - 1], at())
+  check('↓ at the last row clamps (never wraps)', at() === expectedRows[expectedRows.length - 1], `${at()} · the cursor must clamp at the last row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(HOME_KEY)
   await sleep(250)
-  check('Home reaches the first row, auto', at() === expectedRows[0], at())
+  check('Home reaches the first row, auto', at() === expectedRows[0], `${at()} · Home must jump to the first row; see src/commands/effort/EffortPopup.tsx`)
   scene.push(UP)
   await sleep(250)
-  check('↑ at the first row clamps (never wraps)', at() === expectedRows[0], at())
+  check('↑ at the first row clamps (never wraps)', at() === expectedRows[0], `${at()} · the cursor must clamp at the first row; see src/commands/effort/EffortPopup.tsx`)
   const moved = windowOf(scene.lines())!
-  check('the current mark never follows the cursor', moved.rows.map(inner).find(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`))?.slice(2).trim().startsWith(expectedCurrent) === true)
+  check('the current mark never follows the cursor', moved.rows.map(inner).find(row => row.endsWith(` ${MODEL_PICKER_CURRENT}`))?.slice(2).trim().startsWith(expectedCurrent) === true, 'the current mark moved with the cursor; it must stay on the running tier in src/commands/effort/EffortPopup.tsx')
   save('effort-80x24-cursor-auto', scene.lines())
   scene.push(ESC)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('esc closes the popup with nothing changed', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), JSON.stringify(scene.done()))
+  check('esc closes the popup with nothing changed', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), `${JSON.stringify(scene.done())} · esc must finish the command with an Effort unchanged receipt; see src/commands/effort/effort.tsx and EffortPopup.tsx`)
   await scene.close()
 }
 
@@ -306,7 +306,7 @@ section('§3 ↵ applies the row under the cursor through the apply road')
   const applied = await until(() => scene.done().length > 0, 8000)
   const receipt = scene.done()[0]
   const words = receipt === undefined ? '' : receipt[0] === undefined ? JSON.stringify(receipt[1]) : String(receipt[0])
-  check('↵ settles the pick: the command finishes with the apply road\'s receipt (or the status-row skip)', applied && (words.includes('max') || words.includes('skip')), JSON.stringify(scene.done()))
+  check('↵ settles the pick: the command finishes with the apply road\'s receipt (or the status-row skip)', applied && (words.includes('max') || words.includes('skip')), `${JSON.stringify(scene.done())} · enter must apply the row under the cursor and finish with its receipt; see src/commands/effort/effort.tsx and EffortPopup.tsx`)
   await scene.close()
 }
 
@@ -317,7 +317,7 @@ section('§4 a click outside the popup closes it with nothing changed')
   await sleep(250)
   scene.push(CLICK_OUTSIDE)
   const closed = await until(() => scene.done().length > 0, 5000)
-  check('a click on the chat beside the popup closes it like esc', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), JSON.stringify(scene.done()))
+  check('a click on the chat beside the popup closes it like esc', closed && String(scene.done()[0]?.[0]).startsWith('Effort unchanged ('), `${JSON.stringify(scene.done())} · a click outside the popup must close it like esc; see src/components/CommandPopupSlot.tsx and src/commands/effort/EffortPopup.tsx`)
   await scene.close()
 }
 
@@ -334,7 +334,7 @@ section('§5 a live resize while the popup is open, with the env pin painted')
     const frame = scene.lines()
     save(`effort-resize-${cols}x${rows}`, frame)
     frameReadsRight(`resize → ${cols}x${rows}`, frame, cols, rows, true, cursorBefore)
-    check(`resize → ${cols}x${rows}: nothing of the popup paints outside the frame (no second title)`, frame.filter(line => line.includes(TITLE)).length === 1)
+    check(`resize → ${cols}x${rows}: nothing of the popup paints outside the frame (no second title)`, frame.filter(line => line.includes(TITLE)).length === 1, 'a second popup title was painted after the resize; see src/components/FullscreenLayout.tsx and src/components/CommandPopupSlot.tsx')
   }
   delete process.env.MERCURY_EFFORT_LEVEL
   await scene.close()
@@ -342,7 +342,7 @@ section('§5 a live resize while the popup is open, with the env pin painted')
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600) + ' · a render or hook-order fault was logged to console.error while the popup ran; the first fault above names the component to fix')
 rmSync(HOME, { recursive: true, force: true })
 console.log(`\neffort-popup-frames: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

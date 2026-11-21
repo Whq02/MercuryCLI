@@ -31,6 +31,9 @@ function printFrame(label: string, rows: string[]): void {
   console.log('└──')
 }
 const ESC = '\\x1b'
+const downloadCardFix = 'the download card is drawn by src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx (title, dim lines, answers) with words from src/services/browser/browserWords.ts'
+const originCardFix = 'the origin card is drawn by src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx with its scope lines from src/services/browser/browserWords.ts'
+const cardNotDeliveredFix = 'the card never painted or the escape was not sent; look at the driver output and the Browser tool permission path that opens src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx'
 const escSends = (run: ArenaRun): number[] =>
   run.sendLog.filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\x1b').map(s => sendStamp(run, s))
 
@@ -51,23 +54,23 @@ section('provision — the card for the one-time browser download names the buil
     keep: true,
   })
   const escs = escSends(run)
-  check('a Browser card painted and the decline was delivered', escs.length === 1, `esc at ${escs.join(', ')} · driver: ${run.driverOut.slice(-400)}`)
+  check('a Browser card painted and the decline was delivered', escs.length === 1, `${cardNotDeliveredFix} · esc at ${escs.join(', ')} · driver: ${run.driverOut.slice(-400)}`)
   if (escs.length === 1) {
     const [card] = grabScreens(run, 120, 36, [escs[0]! - 700])
     const rows = card!.rows
     save('provision-card-120x36', rows)
     printFrame('provision card 120x36', rows)
-    check('the card is the download card, not the page-driving card', rowsHaving(rows, 'Browser download') && !rowsHaving(rows, 'drive this page'))
-    check('the card names the build', /Chrome for Testing \d+\.\d+\.\d+\.\d+ \(current stable\)/.test(rows.join('\n')), rowMatching(rows, /Chrome for Testing/) ?? '(no build row)')
-    check('the card names the download size', /a \d+ MB download/.test(rows.join('\n')), rowMatching(rows, /download/) ?? '(no size row)')
-    check('the card says where the build lands', rowsHaving(rows, 'unpacks to roughly twice that on disk, under') && rowsHaving(rows, join(run.paths.home, '.mercury', 'browsers').slice(0, 30)), rowMatching(rows, /under /) ?? '(no cache row)')
-    check('the card says how to remove it', /\/browser remove \d+\.\d+/.test(rows.join('\n')), rowMatching(rows, /remove/) ?? '(no remove row)')
-    check('the card asks for a download and the yes says so', rowsHaving(rows, QUESTION) && rowsHaving(rows, '1. Yes, download it'))
-    check('the card does not carry the tool description written for page driving', !rowsHaving(rows, 'Drive a real Chromium-family browser'))
-    check('the card says nothing moves before the yes', rowsHaving(rows, 'Nothing is downloaded until you say yes'))
+    check('the card is the download card, not the page-driving card', rowsHaving(rows, 'Browser download') && !rowsHaving(rows, 'drive this page'), `${downloadCardFix}; a provision op must open the dialog titled Browser download`)
+    check('the card names the build', /Chrome for Testing \d+\.\d+\.\d+\.\d+ \(current stable\)/.test(rows.join('\n')), `${downloadCardFix}; ${rowMatching(rows, /Chrome for Testing/) ?? '(no build row)'}`)
+    check('the card names the download size', /a \d+ MB download/.test(rows.join('\n')), `${downloadCardFix}; ${rowMatching(rows, /download/) ?? '(no size row)'}`)
+    check('the card says where the build lands', rowsHaving(rows, 'unpacks to roughly twice that on disk, under') && rowsHaving(rows, join(run.paths.home, '.mercury', 'browsers').slice(0, 30)), `${downloadCardFix}; ${rowMatching(rows, /under /) ?? '(no cache row)'}`)
+    check('the card says how to remove it', /\/browser remove \d+\.\d+/.test(rows.join('\n')), `${downloadCardFix}; ${rowMatching(rows, /remove/) ?? '(no remove row)'}`)
+    check('the card asks for a download and the yes says so', rowsHaving(rows, QUESTION) && rowsHaving(rows, '1. Yes, download it'), `${downloadCardFix}; the question and the first answer (Yes, download it) must both paint`)
+    check('the card does not carry the tool description written for page driving', !rowsHaving(rows, 'Drive a real Chromium-family browser'), `${downloadCardFix}; the card must not print the tool description`)
+    check('the card says nothing moves before the yes', rowsHaving(rows, 'Nothing is downloaded until you say yes'), `${downloadCardFix}; the dim line Nothing is downloaded until you say yes is missing`)
     const [final] = grabScreens(run, 120, 36, [-1])
     save('provision-declined-final-120x36', final!.rows)
-    check('the decline landed: the model heard the refusal and the turn settled', rowsHaving(final!.rows, 'Understood, nothing was downloaded.'), final!.rows.slice(-12).join(' | '))
+    check('the decline landed: the model heard the refusal and the turn settled', rowsHaving(final!.rows, 'Understood, nothing was downloaded.'), `declining the card (esc) must return a refusal to the model and let the turn settle, see the Browser permission path in src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx · ${final!.rows.slice(-12).join(' | ')}`)
     check('nothing was downloaded into the arena home', !existsSync(join(run.paths.home, '.mercury', 'browsers', 'chrome')))
   } else {
     const [final] = grabScreens(run, 120, 36, [-1])
@@ -93,22 +96,22 @@ section('first visit — the origin card says what a yes covers: the origin for 
     keep: true,
   })
   const escs = escSends(run)
-  check('the first-visit card painted and the decline was delivered', escs.length === 1, `esc at ${escs.join(', ')} · driver: ${run.driverOut.slice(-400)}`)
+  check('the first-visit card painted and the decline was delivered', escs.length === 1, `${cardNotDeliveredFix} · esc at ${escs.join(', ')} · driver: ${run.driverOut.slice(-400)}`)
   if (escs.length === 1) {
     const [card] = grabScreens(run, 120, 36, [escs[0]! - 700])
     const rows = card!.rows
     save('first-visit-card-120x36', rows)
     printFrame('first-visit card 120x36', rows)
     const text = rows.join('\n')
-    check('the card is the Browser card with the open line', rowsHaving(rows, '⦿ Browser') && rowsHaving(rows, `open ${ORIGIN}/index.html`))
-    check('the card says the yes approves the origin for the session', text.includes(`Yes approves ${ORIGIN} for this session`), rowMatching(rows, /approves/) ?? '(no scope row)')
-    check('the card says linked pages are read without asking and the first act on one asks', rowsHaving(rows, 'Pages it links or redirects to are read') && rowsHaving(rows, 'without asking; the first act'), rowMatching(rows, /links or redirects/) ?? '(no linked-pages row)')
-    check('the card says a new origin opened by address is asked by name', text.includes('A new origin opened by address is asked by name'), rowMatching(rows, /new origin/) ?? '(no new-origin row)')
-    check('the card no longer carries the page-driving description', !rowsHaving(rows, 'Drive a real Chromium-family browser'))
-    check('the three answers stand: yes, yes for this project, no', rowsHaving(rows, '1. Yes') && rowsHaving(rows, `2. Yes, and don't ask again for ${ORIGIN} in this project`) && rowsHaving(rows, '3. No, and tell Mercury what to do differently (esc)'))
+    check('the card is the Browser card with the open line', rowsHaving(rows, '⦿ Browser') && rowsHaving(rows, `open ${ORIGIN}/index.html`), `${originCardFix}; an open op must show the Browser header and the open line`)
+    check('the card says the yes approves the origin for the session', text.includes(`Yes approves ${ORIGIN} for this session`), `${originCardFix}; ${rowMatching(rows, /approves/) ?? '(no scope row)'}`)
+    check('the card says linked pages are read without asking and the first act on one asks', rowsHaving(rows, 'Pages it links or redirects to are read') && rowsHaving(rows, 'without asking; the first act'), `${originCardFix}; ${rowMatching(rows, /links or redirects/) ?? '(no linked-pages row)'}`)
+    check('the card says a new origin opened by address is asked by name', text.includes('A new origin opened by address is asked by name'), `${originCardFix}; ${rowMatching(rows, /new origin/) ?? '(no new-origin row)'}`)
+    check('the card no longer carries the page-driving description', !rowsHaving(rows, 'Drive a real Chromium-family browser'), `${originCardFix}; the card must not print the tool description`)
+    check('the three answers stand: yes, yes for this project, no', rowsHaving(rows, '1. Yes') && rowsHaving(rows, `2. Yes, and don't ask again for ${ORIGIN} in this project`) && rowsHaving(rows, '3. No, and tell Mercury what to do differently (esc)'), `${originCardFix}; the options list (Yes, Yes for this project, No) is built there`)
     const [final] = grabScreens(run, 120, 36, [-1])
     save('first-visit-declined-final-120x36', final!.rows)
-    check('the decline landed and the turn settled', rowsHaving(final!.rows, 'Understood, the page was not opened.'), final!.rows.slice(-12).join(' | '))
+    check('the decline landed and the turn settled', rowsHaving(final!.rows, 'Understood, the page was not opened.'), `declining the card (esc) must return a refusal to the model and let the turn settle, see the Browser permission path in src/components/permissions/BrowserPermissionRequest/BrowserPermissionRequest.tsx · ${final!.rows.slice(-12).join(' | ')}`)
   } else {
     const [final] = grabScreens(run, 120, 36, [-1])
     printFrame('final screen (no card)', final!.rows)

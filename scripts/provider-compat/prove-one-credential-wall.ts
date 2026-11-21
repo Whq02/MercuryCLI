@@ -20,8 +20,9 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the wall words, door or classifier in ${CREDENTIAL_WALL_AT}` : ''}`)
 }
+const CREDENTIAL_WALL_AT = 'src/services/providers/credentialWall.ts (classifyCredentialWall, credentialWallLine, reconnectDoorFor); for a section 2 or 5 row the error presenter getAssistantMessageFromError in src/services/api/errors.ts; for section 3 streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts'
 
 const { enableConfigs, saveGlobalConfig } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()

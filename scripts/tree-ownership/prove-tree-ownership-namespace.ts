@@ -26,16 +26,16 @@ section('(1) canonical-write (projectLocalPath)')
   try {
     const fresh = join(scratch, 'fresh')
     mkdirSync(fresh, { recursive: true })
-    check('fresh store resolves .mercury', projectLocalPath(fresh, 'party') === join(fresh, '.mercury', 'party'))
-    check('resolving creates nothing', !existsSync(join(fresh, '.mercury')))
+    check('fresh store resolves .mercury', projectLocalPath(fresh, 'party') === join(fresh, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must return <root>/.mercury/<name> for a fresh root')
+    check('resolving creates nothing', !existsSync(join(fresh, '.mercury')), 'projectLocalPath in src/utils/projectLocal/paths.ts must only compute the path, never create a directory')
     const compat = join(scratch, 'compat')
     mkdirSync(join(compat, '.claude', 'party'), { recursive: true })
-    check('an external .claude store is never a home: canonical returned', projectLocalPath(compat, 'party') === join(compat, '.mercury', 'party'))
-    check('…and nothing is copied out of it', !existsSync(join(compat, '.mercury', 'party')))
+    check('an external .claude store is never a home: canonical returned', projectLocalPath(compat, 'party') === join(compat, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must ignore an existing .claude store and return the .mercury path')
+    check('…and nothing is copied out of it', !existsSync(join(compat, '.mercury', 'party')), 'projectLocalPath in src/utils/projectLocal/paths.ts must not copy or migrate a .claude store into .mercury')
     const both = join(scratch, 'both')
     mkdirSync(join(both, '.mercury', 'party'), { recursive: true })
     mkdirSync(join(both, '.claude', 'party'), { recursive: true })
-    check('canonical store answers when both exist', projectLocalPath(both, 'party') === join(both, '.mercury', 'party'))
+    check('canonical store answers when both exist', projectLocalPath(both, 'party') === join(both, '.mercury', 'party'), 'projectLocalPath in src/utils/projectLocal/paths.ts must answer with the .mercury store when both exist')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -46,12 +46,12 @@ section('(2) one-spelling reader (real flagEnv over a mutated env)')
   const prev = process.env.MERCURY_OPERATOR
   try {
     process.env.MERCURY_OPERATOR = 'native'
-    check('flagEnv reads the MERCURY_* spelling', flagEnv('MERCURY_OPERATOR') === 'native')
+    check('flagEnv reads the MERCURY_* spelling', flagEnv('MERCURY_OPERATOR') === 'native', 'flagEnv in src/substrate/flagRegistry.ts must read the MERCURY_ spelling from process.env')
     delete process.env.MERCURY_OPERATOR
-    check('an unset flag reads undefined', flagEnv('MERCURY_OPERATOR') === undefined)
+    check('an unset flag reads undefined', flagEnv('MERCURY_OPERATOR') === undefined, 'flagEnv in src/substrate/flagRegistry.ts must return undefined when the variable is unset')
     const pair = flagPair('MERCURY_OPERATOR', 'x')
-    check('flagPair stamps exactly one spelling', Object.keys(pair).length === 1 && pair.MERCURY_OPERATOR === 'x')
-    check('flagSpellings names exactly one spelling', JSON.stringify(flagSpellings('MERCURY_OPERATOR')) === JSON.stringify(['MERCURY_OPERATOR']))
+    check('flagPair stamps exactly one spelling', Object.keys(pair).length === 1 && pair.MERCURY_OPERATOR === 'x', `got ${JSON.stringify(pair)} — flagPair in src/substrate/flagRegistry.ts must return only the MERCURY_ key`)
+    check('flagSpellings names exactly one spelling', JSON.stringify(flagSpellings('MERCURY_OPERATOR')) === JSON.stringify(['MERCURY_OPERATOR']), `got ${JSON.stringify(flagSpellings('MERCURY_OPERATOR'))} — flagSpellings in src/substrate/flagRegistry.ts must list only the MERCURY_ spelling`)
   } finally {
     if (prev === undefined) delete process.env.MERCURY_OPERATOR
     else process.env.MERCURY_OPERATOR = prev

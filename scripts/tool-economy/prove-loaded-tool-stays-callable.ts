@@ -18,7 +18,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the loaded-tool proof exceeded 240s')
+  console.log('\nTIMEOUT — the loaded-tool proof exceeded 240s; a drive of query in src/query.ts or a compaction (compactConversation in src/services/compact/compact.ts) never finished against the fixture server in this proof')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -408,6 +408,9 @@ interface Road {
 }
 let ids = 0
 const callId = (prefix: string): string => `${prefix}_${++ids}`
+const hintLoop = 'the request loop is query in src/query.ts; a throw or a different request count means the loaded-tool path changed there'
+const hintWire = 'which definitions reach the wire follows deferralWireFormFor in src/services/providers/deferralWire.ts and the deferral marks in src/services/providers/toolEconomy.ts'
+const hintFold = 'the fold is compactConversation and buildPostCompactMessages in src/services/compact/compact.ts; the admitted tools must cross it'
 const clientFetch = (prefix: string) => (call: Call): Turn[] => [
   { calls: [{ id: callId(`${prefix}_search`), name: TOOL_SEARCH_TOOL_NAME, args: { query: `select:${COMPUTER}` } }] },
   { calls: [call] },
@@ -461,7 +464,7 @@ for (const road of roads) {
     probe.recordGatewayProbe(probe.openaiGatewayProbeKey(`127.0.0.1:${port}`), { verdict: 'openai-native', evidence: 'http 200: fixture pass-through', status: 200, probedAt: new Date().toISOString() })
   }
   const verdict = wire.deferralWireFormFor(road.model)
-  check(`the wire form reads ${road.form}`, verdict.form === road.form, `${verdict.form}/${verdict.why}`)
+  check(`the wire form reads ${road.form}`, verdict.form === road.form, `${verdict.form}/${verdict.why} | change deferralWireFormFor in src/services/providers/deferralWire.ts`)
   const ctx = makeCtx(road.model)
   const idPrefix = road.dialect === 'anthropic' ? 'toolu' : 'call'
 
@@ -469,17 +472,17 @@ for (const road of roads) {
   scriptCursor = 0
   let history: Message[] = [createUserMessage({ content: 'List the tools you have.' }) as Message]
   const a = await drive(ctx, history)
-  check('(a) one request, no throw', a.threw === undefined && a.wire.length === 1, a.threw ?? `${a.wire.length} requests`)
+  check('(a) one request, no throw', a.threw === undefined && a.wire.length === 1, `${a.threw ?? `${a.wire.length} requests`} | ${hintLoop}`)
   const r1 = a.wire[0]
   if (r1) {
     if (road.form === 'openai-native') {
-      check('(a) the tools array carries every pool tool, the deferred ones marked, tool_search last, no ToolSearch function', CORE.every(n => r1.listed.includes(n)) && DEFERRED.every(n => r1.deferredMarks.includes(n)) && !r1.listed.includes(TOOL_SEARCH_TOOL_NAME) && toolsArrayOf(r1.body).at(-1)?.type === 'tool_search', `${r1.listed.join(',')} deferred=${r1.deferredMarks.join(',')}`)
+      check('(a) the tools array carries every pool tool, the deferred ones marked, tool_search last, no ToolSearch function', CORE.every(n => r1.listed.includes(n)) && DEFERRED.every(n => r1.deferredMarks.includes(n)) && !r1.listed.includes(TOOL_SEARCH_TOOL_NAME) && toolsArrayOf(r1.body).at(-1)?.type === 'tool_search', `${r1.listed.join(',')} deferred=${r1.deferredMarks.join(',')} | ${hintWire}`)
     } else if (road.form === 'block') {
-      check('(a) the tools array carries every pool tool, the deferred ones marked, ToolSearch in full', CORE.every(n => r1.listed.includes(n)) && DEFERRED.every(n => r1.deferredMarks.includes(n)) && r1.listed.includes(TOOL_SEARCH_TOOL_NAME), `${r1.listed.join(',')} deferred=${r1.deferredMarks.join(',')}`)
+      check('(a) the tools array carries every pool tool, the deferred ones marked, ToolSearch in full', CORE.every(n => r1.listed.includes(n)) && DEFERRED.every(n => r1.deferredMarks.includes(n)) && r1.listed.includes(TOOL_SEARCH_TOOL_NAME), `${r1.listed.join(',')} deferred=${r1.deferredMarks.join(',')} | ${hintWire}`)
     } else {
-      check('(a) the tools array carries the core and ToolSearch; no deferred schema', CORE.every(n => r1.listed.includes(n)) && r1.listed.includes(TOOL_SEARCH_TOOL_NAME) && DEFERRED.every(n => !r1.listed.includes(n)), r1.listed.join(','))
+      check('(a) the tools array carries the core and ToolSearch; no deferred schema', CORE.every(n => r1.listed.includes(n)) && r1.listed.includes(TOOL_SEARCH_TOOL_NAME) && DEFERRED.every(n => !r1.listed.includes(n)), `${r1.listed.join(',')} | ${hintWire}`)
     }
-    check('(a) no deferred definition loaded yet', r1.loaded.length === 0, r1.loaded.join(','))
+    check('(a) no deferred definition loaded yet', r1.loaded.length === 0, `${r1.loaded.join(',')} | ${hintWire}`)
   }
   history = transcriptAfter(history, a)
 
@@ -488,18 +491,18 @@ for (const road of roads) {
   history.push(createUserMessage({ content: 'Which window is in front? Use Computer.' }) as Message)
   const b = await drive(ctx, history)
   const fetchRequests = road.form === 'openai-native' ? 2 : 3
-  check(`(b) ${fetchRequests} requests, no throw`, b.threw === undefined && b.wire.length === fetchRequests, b.threw ?? `${b.wire.length} requests`)
-  check('(c) the Computer call ran and its result came back, no refusal', ranComputer(b), JSON.stringify({ results: toolResultsOf(b), refusals: refusalsOf(b) }).slice(0, 400))
+  check(`(b) ${fetchRequests} requests, no throw`, b.threw === undefined && b.wire.length === fetchRequests, `${b.threw ?? `${b.wire.length} requests`} | ${hintLoop}`)
+  check('(c) the Computer call ran and its result came back, no refusal', ranComputer(b), `${JSON.stringify({ results: toolResultsOf(b), refusals: refusalsOf(b) }).slice(0, 400)} | ${hintWire}`)
   if (road.form === 'openai-native') {
-    check('(b) the hosted search found Computer among the deferred tools of the request', b.wire[0]?.searchFound?.join(',') === COMPUTER, JSON.stringify(b.wire[0]?.searchFound))
+    check('(b) the hosted search found Computer among the deferred tools of the request', b.wire[0]?.searchFound?.join(',') === COMPUTER, `${JSON.stringify(b.wire[0]?.searchFound)} | ${hintWire}`)
     const after = b.wire[1]
     const types = after ? inputItems(after.body).map(i => String(i.type)).join(',') : ''
-    check('(c) the next request replays the loaded definition: tool_search_call, tool_search_output carrying Computer, then the call and its output', after !== undefined && after.loaded.includes(COMPUTER) && types.includes('tool_search_call,tool_search_output') && types.includes('function_call,function_call_output'), `${JSON.stringify(after?.loaded)} ${types}`)
+    check('(c) the next request replays the loaded definition: tool_search_call, tool_search_output carrying Computer, then the call and its output', after !== undefined && after.loaded.includes(COMPUTER) && types.includes('tool_search_call,tool_search_output') && types.includes('function_call,function_call_output'), `${JSON.stringify(after?.loaded)} ${types} | ${hintWire}`)
   } else {
     const callRequest = b.wire[1]
-    check('(c) the request that calls Computer carries its definition on the wire', callRequest !== undefined && callRequest.loaded.includes(COMPUTER), JSON.stringify({ loaded: callRequest?.loaded, listed: callRequest?.listed }))
+    check('(c) the request that calls Computer carries its definition on the wire', callRequest !== undefined && callRequest.loaded.includes(COMPUTER), `${JSON.stringify({ loaded: callRequest?.loaded, listed: callRequest?.listed })} | ${hintWire}`)
   }
-  check('(b)(c) no scripted call reached a wire without its definition', b.wire.every(s => s.violations.length === 0), b.wire.map(s => `${s.n}:${s.violations.join('/')}`).join(' '))
+  check('(b)(c) no scripted call reached a wire without its definition', b.wire.every(s => s.violations.length === 0), `${b.wire.map(s => `${s.n}:${s.violations.join('/')}`).join(' ')} | ${hintWire}`)
   history = transcriptAfter(history, b)
 
   for (const ask of ['Say hello.', 'Say hello again.']) {
@@ -507,7 +510,7 @@ for (const road of roads) {
     scriptCursor = 0
     history.push(createUserMessage({ content: ask }) as Message)
     const d = await drive(ctx, history)
-    check(`(d) "${ask}": one request, no throw, the loaded definition still on the wire`, d.threw === undefined && d.wire.length === 1 && d.wire[0]!.loaded.includes(COMPUTER), d.threw ?? JSON.stringify({ requests: d.wire.length, loaded: d.wire[0]?.loaded, listed: d.wire[0]?.listed }))
+    check(`(d) "${ask}": one request, no throw, the loaded definition still on the wire`, d.threw === undefined && d.wire.length === 1 && d.wire[0]!.loaded.includes(COMPUTER), `${d.threw ?? JSON.stringify({ requests: d.wire.length, loaded: d.wire[0]?.loaded, listed: d.wire[0]?.listed })} | ${hintWire}; ${hintLoop}`)
     history = transcriptAfter(history, d)
   }
 
@@ -515,9 +518,9 @@ for (const road of roads) {
   scriptCursor = 0
   history.push(createUserMessage({ content: 'Take a screenshot with Computer.' }) as Message)
   const e = await drive(ctx, history)
-  check('(e) two requests, no throw', e.threw === undefined && e.wire.length === 2, e.threw ?? `${e.wire.length} requests`)
-  check('(e) the definition was on the wire when the model called Computer again, no fetch', e.wire[0] !== undefined && e.wire[0].loaded.includes(COMPUTER) && e.wire[0].violations.length === 0, JSON.stringify({ loaded: e.wire[0]?.loaded, violations: e.wire[0]?.violations }))
-  check('(e) the call was admitted and ran', ranComputer(e), JSON.stringify({ results: toolResultsOf(e), refusals: refusalsOf(e) }).slice(0, 400))
+  check('(e) two requests, no throw', e.threw === undefined && e.wire.length === 2, `${e.threw ?? `${e.wire.length} requests`} | ${hintLoop}`)
+  check('(e) the definition was on the wire when the model called Computer again, no fetch', e.wire[0] !== undefined && e.wire[0].loaded.includes(COMPUTER) && e.wire[0].violations.length === 0, `${JSON.stringify({ loaded: e.wire[0]?.loaded, violations: e.wire[0]?.violations })} | ${hintWire}`)
+  check('(e) the call was admitted and ran', ranComputer(e), `${JSON.stringify({ results: toolResultsOf(e), refusals: refusalsOf(e) }).slice(0, 400)} | ${hintWire}`)
   history = transcriptAfter(history, e)
 
   const before = captured.length
@@ -535,14 +538,14 @@ for (const road of roads) {
     compacting = false
     delete process.env.MERCURY_COMPACT_KEEP_TAIL
   }
-  check('(f) the compaction made its summary request and landed; the fetch turn is folded away', compactThrew === undefined && compacted !== undefined && captured.length > before && !compacted.some(m => m.type === 'assistant'), compactThrew ?? `${captured.length - before} requests; rows=${compacted?.map(m => m.type).join(',')}`)
+  check('(f) the compaction made its summary request and landed; the fetch turn is folded away', compactThrew === undefined && compacted !== undefined && captured.length > before && !compacted.some(m => m.type === 'assistant'), `${compactThrew ?? `${captured.length - before} requests; rows=${compacted?.map(m => m.type).join(',')}`} | ${hintFold}`)
   const boundary = compacted?.find(m => m.type === 'system' && (m as { subtype?: string }).subtype === 'compact_boundary') as { compactMetadata?: { preCompactDiscoveredTools?: string[] } } | undefined
-  check(`(f) the boundary carries the admission (preCompactDiscoveredTools)${road.form === 'openai-native' ? ' read off the hosted search items the turn record kept' : ''}`, boundary?.compactMetadata?.preCompactDiscoveredTools?.join(',') === COMPUTER, JSON.stringify(boundary?.compactMetadata?.preCompactDiscoveredTools))
+  check(`(f) the boundary carries the admission (preCompactDiscoveredTools)${road.form === 'openai-native' ? ' read off the hosted search items the turn record kept' : ''}`, boundary?.compactMetadata?.preCompactDiscoveredTools?.join(',') === COMPUTER, `${JSON.stringify(boundary?.compactMetadata?.preCompactDiscoveredTools)} | ${hintFold}`)
   const carriedRecord = compacted?.find(m => m.type === 'attachment' && (m as { attachment?: { type?: string } }).attachment?.type === 'bound_prefix') as { attachment?: { roster?: Array<{ name: string; deferred: boolean; definition?: string }> } } | undefined
   if (carriedRecord !== undefined) {
     const mark = carriedRecord.attachment?.roster?.find(entry => entry.name === COMPUTER)
-    check('(f) the stable prefix the fold carries lists the admitted tool in full (its mark flipped, its definition without defer_loading)', mark !== undefined && mark.deferred === false && !(mark.definition ?? '').includes('defer_loading'), JSON.stringify(mark))
-    check('(f) the fold receipt says the stable prefix moved for exactly that tool', (boundary?.compactMetadata as { cacheEpoch?: { state?: string; loadedInFull?: string[] } } | undefined)?.cacheEpoch?.state === 'moved' && JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: { loadedInFull?: string[] } } | undefined)?.cacheEpoch?.loadedInFull) === JSON.stringify([COMPUTER]), JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: unknown } | undefined)?.cacheEpoch))
+    check('(f) the stable prefix the fold carries lists the admitted tool in full (its mark flipped, its definition without defer_loading)', mark !== undefined && mark.deferred === false && !(mark.definition ?? '').includes('defer_loading'), `${JSON.stringify(mark)} | ${hintFold}`)
+    check('(f) the fold receipt says the stable prefix moved for exactly that tool', (boundary?.compactMetadata as { cacheEpoch?: { state?: string; loadedInFull?: string[] } } | undefined)?.cacheEpoch?.state === 'moved' && JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: { loadedInFull?: string[] } } | undefined)?.cacheEpoch?.loadedInFull) === JSON.stringify([COMPUTER]), `${JSON.stringify((boundary?.compactMetadata as { cacheEpoch?: unknown } | undefined)?.cacheEpoch)} | ${hintFold}`)
   }
   if (compacted !== undefined) history = compacted
 
@@ -552,14 +555,14 @@ for (const road of roads) {
   history.push(createUserMessage({ content: 'Click the button with Computer.' }) as Message)
   const g = await drive(ctx, history)
   const foldRequests = road.afterFold === 'carried' ? 2 : fetchRequests
-  check(`(g) ${foldRequests} requests after the fold, no throw`, g.threw === undefined && g.wire.length === foldRequests, g.threw ?? `${g.wire.length} requests`)
+  check(`(g) ${foldRequests} requests after the fold, no throw`, g.threw === undefined && g.wire.length === foldRequests, `${g.threw ?? `${g.wire.length} requests`} | ${hintLoop}`)
   if (road.afterFold === 'carried') {
-    check('(g) the admission crossed the fold: the definition is on the wire for a direct call', g.wire[0] !== undefined && g.wire[0].loaded.includes(COMPUTER) && g.wire[0].violations.length === 0, JSON.stringify({ loaded: g.wire[0]?.loaded, listed: g.wire[0]?.listed, violations: g.wire[0]?.violations }))
+    check('(g) the admission crossed the fold: the definition is on the wire for a direct call', g.wire[0] !== undefined && g.wire[0].loaded.includes(COMPUTER) && g.wire[0].violations.length === 0, `${JSON.stringify({ loaded: g.wire[0]?.loaded, listed: g.wire[0]?.listed, violations: g.wire[0]?.violations })} | ${hintFold}`)
   } else {
     const first = g.wire[0]
-    check('(g) after the fold the tool is still offered deferred and a fresh search finds it', first !== undefined && first.deferredMarks.includes(COMPUTER) && first.loaded.length === 0 && (road.form === 'openai-native' ? first.searchFound?.join(',') === COMPUTER : g.wire[1]?.loaded.includes(COMPUTER) === true), JSON.stringify({ marks: first?.deferredMarks, loaded: first?.loaded, found: first?.searchFound, next: g.wire[1]?.loaded }))
+    check('(g) after the fold the tool is still offered deferred and a fresh search finds it', first !== undefined && first.deferredMarks.includes(COMPUTER) && first.loaded.length === 0 && (road.form === 'openai-native' ? first.searchFound?.join(',') === COMPUTER : g.wire[1]?.loaded.includes(COMPUTER) === true), `${JSON.stringify({ marks: first?.deferredMarks, loaded: first?.loaded, found: first?.searchFound, next: g.wire[1]?.loaded })} | ${hintFold}`)
   }
-  check('(g) the call was admitted and ran after the fold', ranComputer(g) && g.wire.every(s => s.violations.length === 0), JSON.stringify({ results: toolResultsOf(g), refusals: refusalsOf(g), violations: g.wire.map(s => s.violations) }).slice(0, 400))
+  check('(g) the call was admitted and ran after the fold', ranComputer(g) && g.wire.every(s => s.violations.length === 0), `${JSON.stringify({ results: toolResultsOf(g), refusals: refusalsOf(g), violations: g.wire.map(s => s.violations) }).slice(0, 400)} | ${hintFold}`)
 }
 
 if (only.length === 0 || only.includes('writer')) {
@@ -599,7 +602,7 @@ if (only.length === 0 || only.includes('writer')) {
   }
   const mine = [...Array(TICKS + 1).keys()].map(n => `00000000-0000-4000-a000-${String(100000000000 + n)}`)
   const lost = mine.filter(uuid => withRecord.get(uuid) !== true)
-  check(`${TICKS + 1} assistant rows on disk, each with its turn record (the loaded definition and the calls), at every settle timing from 0 to ${TICKS} microtasks after the record`, mine.every(uuid => withRecord.has(uuid)) && lost.length === 0, `on disk=${mine.filter(uuid => withRecord.has(uuid)).length} lost=${lost.length} (${lost.map(uuid => mine.indexOf(uuid)).join(',')})`)
+  check(`${TICKS + 1} assistant rows on disk, each with its turn record (the loaded definition and the calls), at every settle timing from 0 to ${TICKS} microtasks after the record`, mine.every(uuid => withRecord.has(uuid)) && lost.length === 0, `on disk=${mine.filter(uuid => withRecord.has(uuid)).length} lost=${lost.length} (${lost.map(uuid => mine.indexOf(uuid)).join(',')}); a settlement that lands ahead of its record is dropped: see recordTranscript and settleTranscriptMessage in src/utils/sessionStorage/writer.ts`)
 }
 
 server.close()

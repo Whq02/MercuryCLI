@@ -20,6 +20,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
+const followHint = ' (change the initialMode follow block in useVimInput in src/hooks/useVimInput.ts, which VimTextInput in src/components/VimTextInput.tsx passes initialMode to)'
 
 const { default: VimTextInput } = await import('../../src/components/VimTextInput.js')
 const { AppStoreContext } = await import('../../src/state/AppState.js')
@@ -73,22 +74,22 @@ await settle()
 const frame = (): string => stripAnsi(instance.lastFrame()).replace(/\s+$/, '')
 
 section('§1 THE OPENING — no initial mode means the field keeps its own (insert) and nothing is announced')
-check('the field paints its text', frame().includes('abc'), frame())
-check('no mode change was announced', modes.length === 0, j(modes))
+check('the field paints its text', frame().includes('abc'), frame() + ' (VimTextInput in src/components/VimTextInput.tsx should render the value text)')
+check('no mode change was announced', modes.length === 0, j(modes) + followHint)
 
 section('§2 THE FOLLOW — a supplied initial mode is applied when it differs, and re-applied whenever it changes')
 setInitial?.('NORMAL')
 await settle()
-check('NORMAL is applied and announced once', j(modes) === j(['NORMAL']), j(modes))
+check('NORMAL is applied and announced once', j(modes) === j(['NORMAL']), j(modes) + followHint)
 setInitial?.('NORMAL')
 await settle()
-check('the same mode again changes nothing', j(modes) === j(['NORMAL']), j(modes))
+check('the same mode again changes nothing', j(modes) === j(['NORMAL']), j(modes) + followHint)
 setInitial?.('INSERT')
 await settle()
-check('INSERT is applied and announced', j(modes) === j(['NORMAL', 'INSERT']), j(modes))
+check('INSERT is applied and announced', j(modes) === j(['NORMAL', 'INSERT']), j(modes) + followHint)
 setInitial?.(undefined)
 await settle()
-check('withdrawing the initial mode leaves the field where it is', j(modes) === j(['NORMAL', 'INSERT']), j(modes))
+check('withdrawing the initial mode leaves the field where it is', j(modes) === j(['NORMAL', 'INSERT']), j(modes) + followHint)
 
 instance.unmount()
 instance.cleanup()

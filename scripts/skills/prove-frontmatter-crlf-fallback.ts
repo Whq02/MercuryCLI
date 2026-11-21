@@ -21,10 +21,12 @@ const agentsMod = await import('../../src/tools/AgentTool/loadAgentsDir.ts')
 
 let failures = 0
 let checks = 0
+let hintWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const shown = [detail, hintWhere].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ' — ' + shown : ''}`)
 }
 
 const crlf = (text: string): string => text.replaceAll('\n', '\r\n')
@@ -81,6 +83,7 @@ console.log(' frontmatter fallback — the same reading on LF, CRLF and BOM+CRLF
 console.log('============================================================')
 
 console.log('[1] parseFrontmatter: the quoteSpecialValues fallback reads a value holding ": "')
+hintWhere = 'to fix, change parseFrontmatter in src/utils/frontmatterParser.ts so the fallback reads this shape the same on LF, CRLF and BOM+CRLF'
 for (const [label, shape] of endings) {
   const parsed = parseFrontmatter(shape(SKILL))
   check(`${label}: no parse error`, parsed.parseError === undefined, parsed.parseError?.message ?? '')
@@ -94,6 +97,7 @@ for (const [label, shape] of endings) {
 }
 
 console.log('[1b] parseFrontmatter: a value holding --- stays in the block; only a line-start --- closes it')
+hintWhere = 'to fix, change the block-closing rule in parseFrontmatter in src/utils/frontmatterParser.ts so only a line-start --- closes it on every line ending'
 for (const [label, shape] of endings) {
   const parsed = parseFrontmatter(shape('---\nname: probe\ndescription: Split on --- markers\nallowed-tools: Bash\nnote: a---b\n---\n\nBody.\n'))
   check(
@@ -108,12 +112,14 @@ for (const [label, shape] of endings) {
 }
 
 console.log('[2] parseFrontmatterPaths: a rule glob that starts with * keeps its paths')
+hintWhere = 'to fix, change parseFrontmatterPaths in src/services/instructions/sourceText.ts so a glob starting with * keeps its paths on every line ending'
 for (const [label, shape] of endings) {
   const rule = parseFrontmatterPaths(shape(RULE))
   check(`${label}: paths is ["**/*.ts"]`, JSON.stringify(rule.paths) === JSON.stringify(['**/*.ts']), JSON.stringify(rule))
 }
 
 console.log('[3] broken YAML still fails closed on every line ending')
+hintWhere = 'to fix, change parseFrontmatter in src/utils/frontmatterParser.ts so the fallback never rescues broken YAML'
 for (const [label, shape] of endings) {
   const parsed = parseFrontmatter(shape(BROKEN))
   check(
@@ -124,6 +130,7 @@ for (const [label, shape] of endings) {
 }
 
 console.log('[4] skills-dir: the skill loads on every line ending')
+hintWhere = 'to fix, change getSkillDirCommands in src/skills/loadSkillsDir.ts or the frontmatter reading it calls so the skill loads on this line ending'
 for (const [label, shape] of endings) {
   const cwd = freshProject()
   const file = writeProjectSkill(cwd, shape(SKILL))
@@ -134,6 +141,7 @@ for (const [label, shape] of endings) {
 }
 
 console.log('[5] agents: the agent is active on every line ending')
+hintWhere = 'to fix, change getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts or the frontmatter reading it calls so the agent loads on this line ending'
 for (const [label, shape] of endings) {
   const cwd = freshProject()
   const file = writeAgent(cwd, AGENT_NAME, shape(AGENT))

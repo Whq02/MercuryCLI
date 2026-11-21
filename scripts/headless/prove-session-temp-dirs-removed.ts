@@ -27,9 +27,10 @@ const { startFixtureApi, handoffTurn } = await import('../lib/fixtureApi.ts')
 const { FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 
 let failures = 0
+let lookAt = 'change sweepScratchpadDir or scratchpadDirFor in src/utils/scratchpad.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${lookAt}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 
@@ -143,6 +144,7 @@ async function runOnce(tag: string, turns: (world: { temp: string; session: stri
 }
 
 section('§2 the built bundle, one run to its own exit: nothing is left under the temp root')
+lookAt = 'a run left folders under its temp root at exit: change the exit sweep that calls sweepScratchpadDir in src/utils/scratchpad.ts (rebuild dist first with bun run build.ts); the listed entries are what stayed behind'
 {
   const run = await runOnce('words', () => [{ kind: 'text', text: 'Hello.' }])
   check('a turn of words only ends 0 and leaves no folder', run.code === 0 && run.left.length === 0, `exit ${run.code} · left ${run.left.join(' ')} · ${run.err}`)
@@ -162,6 +164,7 @@ section('§2 the built bundle, one run to its own exit: nothing is left under th
 }
 
 section('§3 what holds a file stays: only empty folders go')
+lookAt = 'change sweepScratchpadDir in src/utils/scratchpad.ts so it removes only empty folders and keeps created-paths.txt and task output files (rebuild dist first with bun run build.ts)'
 {
   const run = await runOnce('ledger', () => [{ kind: 'tool_use', name: 'Bash', input: { command: 'mkdir made-here && echo made', description: 'make a folder' } }, { kind: 'text', text: 'Done.' }])
   const files = run.left.filter(entry => !entry.endsWith('/'))

@@ -9,7 +9,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, 'fix preparePlan or applyPlan in src/services/gitGraph/plan.ts (how the plan stages and commits against the user index); the hunk ids come from gitDiff in src/services/gitGraph/observe.ts'].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

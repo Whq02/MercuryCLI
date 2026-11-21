@@ -43,7 +43,7 @@ try {
   }
 
   const version = execFileSync((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, '--version'], { env, encoding: 'utf8', timeout: 120_000 }).trim()
-  check('hermetic boot: --version prints the Mercury banner', /^Mercury /.test(version), version)
+  check('hermetic boot: --version prints the Mercury banner', /^Mercury /.test(version), `${version} — rebuild dist/mercury.mjs (bun run build.ts) and check what the --version path prints`)
 
   const healthRun = spawnSync((process.execPath.includes('bun') ? 'node' : process.execPath), [DIST, 'health', '--json'], {
     env,
@@ -52,18 +52,18 @@ try {
     timeout: 180_000,
   })
   const health = healthRun.stdout ?? ''
-  check('hermetic boot: health --json runs to completion (exit 0|3 — 3 is the signed-out verdict fault)', (healthRun.status === 0 || healthRun.status === 3) && health.length > 0, `status ${healthRun.status} signal ${healthRun.signal}`)
+  check('hermetic boot: health --json runs to completion (exit 0|3 — 3 is the signed-out verdict fault)', (healthRun.status === 0 || healthRun.status === 3) && health.length > 0, `status ${healthRun.status} signal ${healthRun.signal} — run node dist/mercury.mjs health --json in a fresh MERCURY_CONFIG_DIR and fix what src/commands/health makes it crash or print nothing`)
   let parsed: unknown = null
   try {
     parsed = JSON.parse(health)
   } catch {
   }
-  check('health emits valid JSON on the hermetic estate', parsed !== null)
+  check('health emits valid JSON on the hermetic estate', parsed !== null, `stdout began ${JSON.stringify(health.slice(0, 200))} — health --json (src/commands/health) must print only JSON on stdout`)
 
   check(
     'the run created nothing in the project beyond its own .mercury and the guide',
     readdirSync(project).every(name => name === '.mercury' || name === 'MERCURY.md'),
-    readdirSync(project).join(','),
+    `${readdirSync(project).join(',')} — a boot or health run wrote into the project folder beyond .mercury and MERCURY.md; find the writer and move it under the config home`,
   )
   const harnessSpelling = (name: string): boolean =>
     (/^\.?mercury([._-].*)?$/i.test(name) && name !== '.mercury' && name !== 'mercury-nodejs')
@@ -72,7 +72,7 @@ try {
     const dir = join(home, xdg)
     if (existsSync(dir)) offenders.push(...readdirSync(dir).filter(harnessSpelling).map(n => join(xdg, n)))
   }
-  check('user-scope harness state landed in the native home only', offenders.length === 0, offenders.join(','))
+  check('user-scope harness state landed in the native home only', offenders.length === 0, `${offenders.join(',')} — a run wrote a harness-spelled path into the user home; make it write under the native .mercury config home instead`)
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

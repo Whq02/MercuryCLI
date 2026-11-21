@@ -6,8 +6,9 @@ import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
 let failures = 0
+const splitFailHint = 'change getGlobPreambleCommand (src/utils/shell/globPreamble.ts) or where buildExecCommand puts the preamble in the frame (createBashShellProvider in src/utils/shell/bashProvider.ts)'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' · ' : ' — '}${splitFailHint}`}`)
   if (!ok) failures = 1
 }
 

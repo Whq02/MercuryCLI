@@ -43,8 +43,9 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
+  const parseCheckHint = 'to fix, change checkIntroducedParseError in src/tools/FileWriteTool/parseCheck.ts (what it reports, and when it stays silent) or its callers src/tools/FileWriteTool/write/call.ts and src/tools/FileEditTool/edit/call.ts (whether the write or edit lands and carries the parse error)'
   console.log(
-    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}`,
+    `  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail} | ` : ''}${parseCheckHint}` : ''}`,
   )
 }
 function section(t: string): void {

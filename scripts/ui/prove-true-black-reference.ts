@@ -3,9 +3,10 @@ import { entryId, readManifest, readStoredGrid, gridDigest, styleDigest } from '
 
 const id = 'frame--120x40--true-black--truecolor--full'
 let failures = 0
+const trueBlackHint = 'add the 120x40 true-black truecolor full frame to matrix() in scripts/ui/generate-visual-baseline.ts and rerun that writer so the stored frame and manifest entry are rebuilt'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? detail + '; ' : ''}${trueBlackHint}`}`)
 }
 check('the writer matrix includes the True Black reference frame', matrix().some(spec => entryId(spec) === id))
 const entry = readManifest()?.entries.find(row => row.id === id)

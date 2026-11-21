@@ -4,9 +4,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fixHint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — fix: ${fixHint}` : ''}`)
 }
 const { seedFirstRun, FIXTURE_API_KEY, GATE_API_KEY } = await import('../lib/firstRunSeed.ts')
 type Cfg = { customApiKeyResponses?: { approved?: string[]; rejected?: string[] }; hasCompletedOnboarding?: boolean }
@@ -20,9 +20,9 @@ console.log('§1 the fixture key is approved with no key in the seeder env')
   seedFirstRun(home, [home])
   if (saved !== undefined) process.env.ANTHROPIC_API_KEY = saved
   const cfg = readCfg(home)
-  check('the canonical fixture key tail is approved', (cfg.customApiKeyResponses?.approved ?? []).includes(FIXTURE_API_KEY.slice(-20)), JSON.stringify(cfg.customApiKeyResponses))
-  check('the fixture key is the scripts-wide spelling', FIXTURE_API_KEY === 'fixture-key-000')
-  check('the home is onboarded (the walk never covers a capture)', cfg.hasCompletedOnboarding === true)
+  check('the canonical fixture key tail is approved', (cfg.customApiKeyResponses?.approved ?? []).includes(FIXTURE_API_KEY.slice(-20)), JSON.stringify(cfg.customApiKeyResponses), 'in scripts/lib/firstRunSeed.ts seedFirstRun, keep FIXTURE_API_KEY.slice(-20) in the approved list even when ANTHROPIC_API_KEY is unset')
+  check('the fixture key is the scripts-wide spelling', FIXTURE_API_KEY === 'fixture-key-000', '', 'FIXTURE_API_KEY in scripts/lib/firstRunSeed.ts must stay fixture-key-000 (other scripts use that spelling)')
+  check('the home is onboarded (the walk never covers a capture)', cfg.hasCompletedOnboarding === true, '', 'seedFirstRun in scripts/lib/firstRunSeed.ts must write hasCompletedOnboarding: true')
   rmSync(home, { recursive: true, force: true })
 }
 
@@ -33,12 +33,12 @@ console.log("§2 the seeder's own key is approved beside it, once")
   process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
   seedFirstRun(home, [home])
   const approved = readCfg(home).customApiKeyResponses?.approved ?? []
-  check('both tails approved', approved.includes('proof-key-ci-gate-not-a-real-key'.slice(-20)) && approved.includes(FIXTURE_API_KEY.slice(-20)), JSON.stringify(approved))
+  check('both tails approved', approved.includes('proof-key-ci-gate-not-a-real-key'.slice(-20)) && approved.includes(FIXTURE_API_KEY.slice(-20)), JSON.stringify(approved), 'seedFirstRun in scripts/lib/firstRunSeed.ts must approve the env key tail and the fixture key tail together')
   process.env.ANTHROPIC_API_KEY = FIXTURE_API_KEY
   const home2 = mkdtempSync(join(tmpdir(), 'first-run-seed-'))
   seedFirstRun(home2, [home2])
   const approved2 = readCfg(home2).customApiKeyResponses?.approved ?? []
-  check('the same key on both sides is approved ONCE (no duplicate row), beside the gate key the seed always approves', approved2.length === 2 && approved2[0] === FIXTURE_API_KEY.slice(-20) && approved2[1] === GATE_API_KEY.slice(-20), JSON.stringify(approved2))
+  check('the same key on both sides is approved ONCE (no duplicate row), beside the gate key the seed always approves', approved2.length === 2 && approved2[0] === FIXTURE_API_KEY.slice(-20) && approved2[1] === GATE_API_KEY.slice(-20), JSON.stringify(approved2), 'seedFirstRun in scripts/lib/firstRunSeed.ts must de-duplicate the approved tails (the Set) and list env, fixture, gate in that order')
   if (saved === undefined) delete process.env.ANTHROPIC_API_KEY
   else process.env.ANTHROPIC_API_KEY = saved
   rmSync(home, { recursive: true, force: true })
@@ -52,7 +52,7 @@ console.log('§3 absent-only: an existing config file is never touched')
   const before = JSON.stringify({ theme: 'not-a-theme', operator: true })
   writeFileSync(join(home, '.mercury.json'), before)
   seedFirstRun(home, [home])
-  check('the operator-shaped file is byte-identical after the seed', readFileSync(join(home, '.mercury.json'), 'utf8') === before)
+  check('the operator-shaped file is byte-identical after the seed', readFileSync(join(home, '.mercury.json'), 'utf8') === before, '', 'seedFirstRun in scripts/lib/firstRunSeed.ts must return early when the .mercury.json file already exists')
   rmSync(home, { recursive: true, force: true })
 }
 
@@ -66,9 +66,9 @@ console.log('§4 a capture cwd reached through a symlink is trusted under the sp
   const home = join(base, 'home')
   seedFirstRun(home, [link])
   const projects = (JSON.parse(readFileSync(join(home, '.mercury.json'), 'utf8')) as { projects?: Record<string, { hasTrustDialogAccepted?: boolean }> }).projects ?? {}
-  check('the raw spelling is trusted', projects[link]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '))
-  check('the real path is trusted too (process.cwd() under /var/folders reads /private/var/folders — the trust walk keys the real path)', projects[realpathSync(link)]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '))
-  check('a folder that is its own real path is keyed once', Object.keys(projects).filter(key => key === real || key === realpathSync(real)).length <= 1, Object.keys(projects).join(' · '))
+  check('the raw spelling is trusted', projects[link]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '), 'seedFirstRun in scripts/lib/firstRunSeed.ts must key the trusted cwd as given')
+  check('the real path is trusted too (process.cwd() under /var/folders reads /private/var/folders — the trust walk keys the real path)', projects[realpathSync(link)]?.hasTrustDialogAccepted === true, Object.keys(projects).join(' · '), 'seedFirstRun in scripts/lib/firstRunSeed.ts must also key the realpathSync form of each trusted cwd')
+  check('a folder that is its own real path is keyed once', Object.keys(projects).filter(key => key === real || key === realpathSync(real)).length <= 1, Object.keys(projects).join(' · '), 'seedFirstRun in scripts/lib/firstRunSeed.ts must not add a second key when the real path equals the given path')
   rmSync(base, { recursive: true, force: true })
 }
 

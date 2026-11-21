@@ -37,13 +37,13 @@ const { setEngineModelOverride } = await import(`${root}/src/bootstrap/state.ts`
 setEngineModelOverride('claude-haiku-4-5-20251001')
 const context = await import(`${root}/src/services/agents/queryContext.ts`)
 const parts = await context.fetchSystemPromptParts({ tools: [], engineModel: 'model', mcpClients: [] })
-assert.deepEqual(events, ['prompt', 'user', 'system'])
-assert.deepEqual(parts, { defaultSystemPrompt: ['default'], userContext: { user: 'context' }, systemContext: { system: 'context' } })
+assert.deepEqual(events, ['prompt', 'user', 'system'], 'fetchSystemPromptParts in src/services/agents/queryContext.ts must start the default prompt, user context and system context calls in that order')
+assert.deepEqual(parts, { defaultSystemPrompt: ['default'], userContext: { user: 'context' }, systemContext: { system: 'context' } }, 'fetchSystemPromptParts in src/services/agents/queryContext.ts must return the three parts it awaited')
 events.length = 0
 const custom = await context.fetchSystemPromptParts({ tools: [], engineModel: 'model', mcpClients: [], customSystemPrompt: '' })
-assert.deepEqual(events, ['user'])
-assert.deepEqual(custom.defaultSystemPrompt, [])
-assert.deepEqual(custom.systemContext, {})
+assert.deepEqual(events, ['user'], 'fetchSystemPromptParts in src/services/agents/queryContext.ts must call only the user context when customSystemPrompt is an empty string')
+assert.deepEqual(custom.defaultSystemPrompt, [], 'fetchSystemPromptParts in src/services/agents/queryContext.ts must return an empty defaultSystemPrompt for a custom prompt')
+assert.deepEqual(custom.systemContext, {}, 'fetchSystemPromptParts in src/services/agents/queryContext.ts must return an empty systemContext for a custom prompt')
 console.log('PASS prompt calls start in order; empty custom prompt skips both default companions')
 userPending = true
 const rows: any[] = [{ type: 'user', message: { content: 'original rows' } }]
@@ -56,9 +56,9 @@ input.messages = []
 input.tools = [{ name: 'new' }]
 releaseUser()
 const fallback = await pending
-assert.deepEqual(fallback.systemPrompt, ['original', 'append'])
-assert.equal(fallback.forkContextMessages, rows)
-assert.equal(fallback.toolUseContext.options.tools, originalTools)
+assert.deepEqual(fallback.systemPrompt, ['original', 'append'], 'buildSideQuestionFallbackParams in src/services/agents/queryContext.ts must read customSystemPrompt and appendSystemPrompt from the input before it awaits the prompt parts')
+assert.equal(fallback.forkContextMessages, rows, 'buildSideQuestionFallbackParams in src/services/agents/queryContext.ts must capture input.messages before it awaits the prompt parts')
+assert.equal(fallback.toolUseContext.options.tools, originalTools, 'buildSideQuestionFallbackParams in src/services/agents/queryContext.ts must capture input.tools before it awaits the prompt parts')
 console.log('PASS fallback parameters capture the caller fields before awaiting prompt parts')
 const { queryWithModel } = await import(`${root}/src/services/providers/anthropic/streamCore.ts`)
 const originalSignal = new AbortController().signal
@@ -67,14 +67,14 @@ const oldFormat = question.outputFormat
 const oldOptions = question.options
 duringRecording = () => { question.userPrompt = 'mutated'; question.outputFormat = undefined; question.signal = new AbortController().signal; question.options = { model: 'wrong' } }
 const reply = await queryWithModel(question)
-assert.equal(recorded[1].message.content, 'original user')
-assert.equal(routed.messages[0].message.content, 'original user')
-assert.equal(routed.signal, originalSignal)
-assert.equal(routed.options.model, oldOptions.model)
-assert.equal(routed.options.outputFormat, oldFormat)
-assert.equal(routed.options.enablePromptCaching, false)
-assert.deepEqual(routed.tools, [])
-assert.deepEqual(routed.thinkingConfig, { type: 'disabled' })
-assert.deepEqual(reply.rows.map((r: any) => r.marker), ['one', 'two'])
-assert.equal(reply.aborted, false)
+assert.equal(recorded[1].message.content, 'original user', 'queryWithModel in src/services/providers/anthropic/streamCore.ts must copy question.userPrompt before the recording callback runs')
+assert.equal(routed.messages[0].message.content, 'original user', 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route the user prompt captured before recording')
+assert.equal(routed.signal, originalSignal, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route the signal captured before recording')
+assert.equal(routed.options.model, oldOptions.model, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route the model from the options captured before recording')
+assert.equal(routed.options.outputFormat, oldFormat, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route the outputFormat captured before recording')
+assert.equal(routed.options.enablePromptCaching, false, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route enablePromptCaching as false')
+assert.deepEqual(routed.tools, [], 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route an empty tools list')
+assert.deepEqual(routed.thinkingConfig, { type: 'disabled' }, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must route thinkingConfig as disabled')
+assert.deepEqual(reply.rows.map((r: any) => r.marker), ['one', 'two'], 'queryWithModel in src/services/providers/anthropic/streamCore.ts must drain every assistant row from the routed stream and settle them once')
+assert.equal(reply.aborted, false, 'queryWithModel in src/services/providers/anthropic/streamCore.ts must settle with aborted false when the stream ends normally')
 console.log('PASS one-shot call captures fields before recording, drains assistants, preserves routing options and settles once')

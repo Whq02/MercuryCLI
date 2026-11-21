@@ -45,22 +45,23 @@ const keyOf = async (dir: string): Promise<string> => {
   return pathmod.normalizePathForConfigKey(dir) as string
 }
 
+const LADDER_WHERE = ' | the verdict comes from checkHasTrustDialogAccepted, isPathTrusted and the ancestor walk in src/utils/config/trust.ts; the child run failed to print a verdict if childFailed appears'
 try {
   const repoKey = await keyOf(repo)
   const deepKey = await keyOf(deep)
   const siblingKey = await keyOf(sibling)
   const none = verdictFrom(deep, {})
-  check('no record anywhere: the cwd is untrusted', none.accepted === false && none.direct === false, JSON.stringify(none))
+  check('no record anywhere: the cwd is untrusted', none.accepted === false && none.direct === false, JSON.stringify(none) + LADDER_WHERE)
   const own = verdictFrom(deep, { [deepKey]: { hasTrustDialogAccepted: true } })
-  check('a record on the cwd itself trusts it', own.accepted === true && own.direct === true, JSON.stringify(own))
+  check('a record on the cwd itself trusts it', own.accepted === true && own.direct === true, JSON.stringify(own) + LADDER_WHERE)
   const above = verdictFrom(deep, { [repoKey]: { hasTrustDialogAccepted: true } })
-  check('a record on an ancestor trusts the cwd through the ladder', above.accepted === true && above.direct === true, JSON.stringify(above))
+  check('a record on an ancestor trusts the cwd through the ladder', above.accepted === true && above.direct === true, JSON.stringify(above) + LADDER_WHERE)
   const beside = verdictFrom(deep, { [siblingKey]: { hasTrustDialogAccepted: true } })
-  check('a record on a sibling folder does not reach the cwd', beside.accepted === false && beside.direct === false, JSON.stringify(beside))
+  check('a record on a sibling folder does not reach the cwd', beside.accepted === false && beside.direct === false, JSON.stringify(beside) + LADDER_WHERE)
   const declined = verdictFrom(deep, { [repoKey]: { hasTrustDialogAccepted: false } })
-  check('a record that says no is no grant', declined.accepted === false && declined.direct === false, JSON.stringify(declined))
+  check('a record that says no is no grant', declined.accepted === false && declined.direct === false, JSON.stringify(declined) + LADDER_WHERE)
   const latched = verdictFrom(deep, {}, true)
-  check('the session latch alone satisfies the cwd verdict and never the direct path check', latched.accepted === true && latched.direct === false, JSON.stringify(latched))
+  check('the session latch alone satisfies the cwd verdict and never the direct path check', latched.accepted === true && latched.direct === false, JSON.stringify(latched) + LADDER_WHERE + '; the session latch is getSessionTrustAccepted in src/bootstrap/state.ts, read only by computeTrustDialogAccepted')
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })
 }

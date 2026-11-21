@@ -7,7 +7,8 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, 'fix gitStatus in src/services/gitGraph/observe.ts (untracked folders listed by file) or the folder refusal in preparePlan / applyPlan in src/services/gitGraph/plan.ts'].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 
 const { gitStatus } = await import('../../src/services/gitGraph/observe.ts')

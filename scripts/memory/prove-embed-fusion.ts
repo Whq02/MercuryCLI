@@ -11,8 +11,9 @@ process.env.NODE_ENV = 'test'
 process.chdir(ROOT)
 
 let failures = 0
+const FUSION_FIX_HINT = 'fuseRecallRankings and semanticRanking in src/mneme/mnemeLookup.ts (the semantic ranking must join the fusion), chooseAtStart in src/mneme/entryKnapsack.ts (start pick scoring); if the semantic ranking is empty, rebuild the index with rebuildEmbedIndex in src/mneme/mnemeIndex.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : ` | fix: ${FUSION_FIX_HINT}`}`)
   if (!cond) failures++
 }
 const finish = (): never => {

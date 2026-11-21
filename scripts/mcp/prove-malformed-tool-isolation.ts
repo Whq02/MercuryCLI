@@ -13,7 +13,7 @@ try {
   if (tools.length !== 1 || !tools[0]?.name.endsWith('fix_ping')) failures.push(`G7: malformed tools hid the valid tool (${tools.length} loaded)`)
   if (getToolDiscoveryFailure(connection.name) !== null) failures.push('G7: valid discovery was recorded as a server failure')
   if (connection.serverInfo?.title !== 'Fixture Tools') failures.push('G8: serverInfo.title was discarded')
-  assert.deepEqual(failures, [])
+  assert.deepEqual(failures, [], 'change the per-tool validation in fetchToolsForClient (src/services/mcp/client.ts) so one malformed tool is skipped without hiding valid tools or recording a server failure, and keep serverInfo.title on the connection')
   console.log('malformed MCP tool isolation and server title: PASS')
 } finally {
   await clearServerCache('mixed-tools', config)
@@ -34,7 +34,7 @@ try {
   const titled = tools.find(tool => (tool as { mcpInfo?: { toolName: string } }).mcpInfo?.toolName === 'null_annotation_title')
   if (titled !== undefined && titled.isReadOnly?.({} as never) !== true) failures.push('G9: the annotations beside a null title were lost')
   if (getToolDiscoveryFailure(nullConnection.name) !== null) failures.push('G9: null metadata was recorded as a server failure')
-  assert.deepEqual(failures, [])
+  assert.deepEqual(failures, [], 'change the tool metadata handling in fetchToolsForClient (src/services/mcp/client.ts) so null optional fields (description, annotations, title, properties, icons) read as absent while malformed tools are still skipped')
   console.log('null optional tool metadata read as absent, malformed tools still isolated: PASS')
 } finally {
   await clearServerCache('null-metadata-tools', nullConfig)

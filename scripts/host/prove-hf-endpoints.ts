@@ -31,14 +31,16 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   if (!['127.0.0.1', '[::1]'].includes(url.hostname)) { escaped.push(url.origin); throw new Error('HF proof permits loopback fixtures only') }
   return nativeFetch(input, init)
 }, nativeFetch)
+const hfSrc = 'fix in src/services/host/vendors/huggingface.ts (HuggingfaceClient)'
+const hfWorkerSrc = 'fix in src/services/host/worker.ts (runHostJob) or src/services/host/vendors/huggingface.ts'
 let checks = 0
 const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
 try {
   const { HOST_VENDORS, vendorKey, vendorClient } = await import('../../src/services/host/vendors/client.ts')
-  check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'))
+  check('Hugging Face is the fourth rental provider', HOST_VENDORS.includes('huggingface'), 'add huggingface to HOST_VENDORS in src/services/host/vendors/client.ts')
   const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   writeStoredHuggingfaceApiKey(hf.key)
-  check('the existing Hugging Face sign-in supplies the rental key', vendorKey('huggingface') === hf.key)
+  check('the existing Hugging Face sign-in supplies the rental key', vendorKey('huggingface') === hf.key, 'fix vendorKey in src/services/host/vendors/client.ts to read the stored Hugging Face key')
   const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const { hostJobReadOnly } = await import('../../src/services/host/retry.ts')
@@ -50,37 +52,37 @@ try {
   const api = new HuggingfaceClient(hf.key, hf.baseUrl, { pollMs: 5, readyTimeoutMs: 40 })
   const offers = await api.offers(signal)
   const offer = offers.find(row => row.recipe.id === 'qwen38-27b-h200')!
-  check('offers use live region, exact GPU count and complete hourly price', offer?.price === 5 && offer.dataCenter === 'gcp/us-south1')
-  check('live 8x H200 price is forty dollars, not per-GPU', offers.some(row => row.recipe.count === 8 && row.recipe.gpu === 'H200' && row.price === 40))
-  check('510 GB B200 recipe is not fabricated on HF hardware', !offers.some(row => row.recipe.id.startsWith('deepseek41-')))
-  check('local-file and multi-node recipes are not offered', offers.every(row => !row.recipe.files && (row.recipe.nodes ?? 1) === 1))
-  check('HF is managed and adds no note line to the machine screen', api.capabilities.managed && api.offersNote() === '')
+  check('offers use live region, exact GPU count and complete hourly price', offer?.price === 5 && offer.dataCenter === 'gcp/us-south1', hfSrc + ' offers(): price and region must come from the live catalogue')
+  check('live 8x H200 price is forty dollars, not per-GPU', offers.some(row => row.recipe.count === 8 && row.recipe.gpu === 'H200' && row.price === 40), hfSrc + ' offers(): price a multi-GPU shape as the full hourly price')
+  check('510 GB B200 recipe is not fabricated on HF hardware', !offers.some(row => row.recipe.id.startsWith('deepseek41-')), hfSrc + ' offers(): drop recipes whose weights exceed the HF hardware')
+  check('local-file and multi-node recipes are not offered', offers.every(row => !row.recipe.files && (row.recipe.nodes ?? 1) === 1), hfSrc + ' offers(): skip local-file and multi-node recipes')
+  check('HF is managed and adds no note line to the machine screen', api.capabilities.managed && api.offersNote() === '', hfSrc + ': capabilities.managed must be true and offersNote() must return an empty string')
   const selectedRecipe = { ...offers.find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!.recipe, flags: ['--fixture-selected-row'], image: 'fixture/selected-image' }
   const watched = await api.watchOffer(selectedRecipe, 3, signal)
-  check('stock watch retains the saved same-id recipe instead of current catalogue defaults', watched?.recipe.flags.includes('--fixture-selected-row') && watched.recipe.image === selectedRecipe.image)
+  check('stock watch retains the saved same-id recipe instead of current catalogue defaults', watched?.recipe.flags.includes('--fixture-selected-row') && watched.recipe.image === selectedRecipe.image, hfSrc + ' watchOffer(): keep the recipe passed in, not the catalogue defaults')
   await assert.rejects(api.create({ ...offer }, '', 'forged-offer'), /unchanged/)
   hf.state.computes[0].quota.maxAccelerators = 0
   const limited = new HuggingfaceClient(hf.key, hf.baseUrl)
-  check('quota-free shapes are not rentable but remain visible in shapes', !(await limited.offers(signal)).some(row => row.recipe.id === offer.recipe.id) && limited.shapes().some(row => row.recipe.id === offer.recipe.id))
+  check('quota-free shapes are not rentable but remain visible in shapes', !(await limited.offers(signal)).some(row => row.recipe.id === offer.recipe.id) && limited.shapes().some(row => row.recipe.id === offer.recipe.id), hfSrc + ' offers() and shapes(): hide a shape from offers when quota is zero but keep it in shapes()')
   hf.state.computes[0].quota.maxAccelerators = 64
   const pod = await api.create(offer, '', 'hf-ready-proof')
   const sent = hf.requests.find(row => row.method === 'POST' && row.path === '/v2/endpoint/fixture-owner')!.body
-  check('create retains repo, private auth, single replica and engine image', sent.type === 'private' && sent.model.repository === offer.recipe.model && sent.model.image.sGLang.url === offer.recipe.image && sent.compute.scaling.minReplica === 1 && sent.compute.scaling.maxReplica === 1 && sent.compute.scaling.scaleToZeroTimeout === null)
-  check('engine flags and parallelism survive without SSH keys', offer.recipe.flags.every(flag => sent.model.args.includes(flag)) && sent.model.image.sGLang.tensorParallelSize === 1 && !JSON.stringify(sent).includes('ssh'))
+  check('create retains repo, private auth, single replica and engine image', sent.type === 'private' && sent.model.repository === offer.recipe.model && sent.model.image.sGLang.url === offer.recipe.image && sent.compute.scaling.minReplica === 1 && sent.compute.scaling.maxReplica === 1 && sent.compute.scaling.scaleToZeroTimeout === null, hfSrc + ' create(): fix the POST body (private type, repository, engine image, one replica, no scale-to-zero)')
+  check('engine flags and parallelism survive without SSH keys', offer.recipe.flags.every(flag => sent.model.args.includes(flag)) && sent.model.image.sGLang.tensorParallelSize === 1 && !JSON.stringify(sent).includes('ssh'), hfSrc + ' create(): pass every recipe flag and tensorParallelSize, and send no SSH key')
   check('pending create is not READY', pod.status === 'PROVISIONING')
   const runner = { async run() { throw new Error('Managed endpoint must never use SSH or a shell') }, tunnel() { throw new Error('Managed endpoint must never tunnel') } }
   const record = queueHostSetup({ id: pod.id, name: pod.name, vendor: 'huggingface', recipe: offer.recipe.id, recipeRow: offer.recipe, price: offer.price, startedAt: pod.createdAt, status: pod.status, apiBaseUrl: hf.baseUrl, sessionId: 'hf-ready' })
   await runHostJob(record.id, record.generation!, { runner, pauseMs: 5, timeoutMs: 5000, keepAlive: false })
   const ready = readHostRecord(record.id)!
-  check('managed worker polls to READY without SSH or tunnel', ready.jobState === 'ready' && !ready.target && !ready.sshKey && !ready.localPort)
+  check('managed worker polls to READY without SSH or tunnel', ready.jobState === 'ready' && !ready.target && !ready.sshKey && !ready.localPort, hfWorkerSrc + ': a managed endpoint must reach ready without SSH or a tunnel')
   const endpoint = configuredCompatEndpoints().find(row => row.name === ready.provider)
-  check('READY registers served URL and the existing HF token as compat key', endpoint?.baseUrl === hf.origin + '/v1' && resolveCompatApiKey(process.env, ready.provider)?.key === hf.key)
-  check('READY checked a model reply over HF Bearer auth', hf.requests.some(row => row.path === '/v1/chat/completions' && row.authorized))
-  check('logs use structured HF route and redact secrets', (await api.logs(pod.id)).includes('Downloading model [redacted]'))
+  check('READY registers served URL and the existing HF token as compat key', endpoint?.baseUrl === hf.origin + '/v1' && resolveCompatApiKey(process.env, ready.provider)?.key === hf.key, hfWorkerSrc + ': register the served URL and the HF token as a compat endpoint when ready')
+  check('READY checked a model reply over HF Bearer auth', hf.requests.some(row => row.path === '/v1/chat/completions' && row.authorized), hfWorkerSrc + ': check readiness with a model reply sent under the HF Bearer token')
+  check('logs use structured HF route and redact secrets', (await api.logs(pod.id)).includes('Downloading model [redacted]'), hfSrc + ' logs(): use the structured route and redact secrets')
   check('pause is read back and costs zero compute', (await api.stop(pod.id)).status === 'EXITED' && (await api.get(pod.id)).cost === 0)
-  check('resume returns to provisioning', (await api.resume(pod.id)).status === 'PROVISIONING')
+  check('resume returns to provisioning', (await api.resume(pod.id)).status === 'PROVISIONING', hfSrc + ' resume(): return the endpoint as PROVISIONING')
   await api.terminate(pod.id)
-  check('terminate verifies complete listing absence', hf.state.deletes === 1 && !(await api.pods()).some(row => row.id === pod.id))
+  check('terminate verifies complete listing absence', hf.state.deletes === 1 && !(await api.pods()).some(row => row.id === pod.id), hfSrc + ' terminate(): send one delete and verify the endpoint is absent from the full listing')
   removeHostRecord(pod.id)
   for (let i = 0; i < 3; i++) await api.create(offer, '', 'hf-page-' + i)
   check('endpoint listing walks every cursor', (await api.pods()).length === 3 && hf.requests.some(row => row.query.includes('cursor=')))
@@ -101,16 +103,16 @@ try {
   }
   await untilTheDeadline(queued)
   const guarded = readHostRecord(queued.id)!
-  check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'))
-  check('a provisioning endpoint names Terminate rather than an unavailable Resume', guarded.status === 'PROVISIONING' && guarded.error?.includes('/hr still billing') && guarded.error.includes('Terminate in /llmhost') && !guarded.error.includes('Resume'))
+  check('never-running endpoint pauses without deletion', guarded.jobState === 'paused' && guarded.status !== 'TERMINATED' && hf.state.deletes === deletesBeforeSetup && hf.state.pods.has('hf-never-ready'), hfWorkerSrc + ': pause, never delete, when the setup budget ends')
+  check('a provisioning endpoint names Terminate rather than an unavailable Resume', guarded.status === 'PROVISIONING' && guarded.error?.includes('/hr still billing') && guarded.error.includes('Terminate in /llmhost') && !guarded.error.includes('Resume'), hfWorkerSrc + ': a still-provisioning endpoint must offer Terminate, not Resume; error was ' + String(guarded.error))
   const notices = readdirSync(join(f.home, 'host/notices')).map(name => JSON.parse(readFileSync(join(f.home, 'host/notices', name), 'utf8'))).filter(row => row.sessionId === 'hf-never-ready')
   check('never-ready guard publishes exactly one final notice', notices.length === 1 && !JSON.stringify(notices).includes(hf.key))
-  check('an endpoint that never becomes ready is told the setup budget ended', guarded.error === budgetWords(stuck), String(guarded.error))
+  check('an endpoint that never becomes ready is told the setup budget ended', guarded.error === budgetWords(stuck), String(guarded.error) + ' | ' + hfWorkerSrc + ': fix the setup-budget paused words')
   const pausedEndpoint = await api.stop(stuck.id)
   const pausedSetup = queueHostSetup({ ...guarded, status: pausedEndpoint.status })
   await untilTheDeadline(pausedSetup)
   const pausedRecord = readHostRecord(pausedSetup.id)!
-  check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'))
+  check('a paused managed endpoint keeps Resume but claims neither a disk nor compute billing', pausedRecord.status === 'EXITED' && pausedRecord.error?.includes('Paused · no compute bills') && pausedRecord.error.includes('Resume or Terminate') && !pausedRecord.error.includes('disk still bills') && !pausedRecord.error.includes('/hr still billing'), hfWorkerSrc + ': a paused endpoint keeps Resume and must not claim disk or compute billing; error was ' + String(pausedRecord.error))
   const inFlight = await api.create(offer, '', 'hf-read-in-flight')
   const inFlightSetup = setup(inFlight)
   const withReadHeld = async (record: { id: string; generation?: string }, name: string, timeoutMs: number, passDeadline: boolean): Promise<boolean> => {
@@ -123,7 +125,7 @@ try {
   }
   const cutAtTheDeadline = await withReadHeld(inFlightSetup, inFlight.name, deadlineMs, true)
   const cutShort = readHostRecord(inFlightSetup.id)!
-  check('a status read in flight when the setup budget ends leaves the budget’s own words and offer, not a read failure with a Resume', cutAtTheDeadline && cutShort.jobState === 'paused' && cutShort.status === 'PROVISIONING' && cutShort.error === budgetWords(inFlight), JSON.stringify({ cut: cutAtTheDeadline, jobState: cutShort.jobState, status: cutShort.status, error: cutShort.error }))
+  check('a status read in flight when the setup budget ends leaves the budget’s own words and offer, not a read failure with a Resume', cutAtTheDeadline && cutShort.jobState === 'paused' && cutShort.status === 'PROVISIONING' && cutShort.error === budgetWords(inFlight), JSON.stringify({ cut: cutAtTheDeadline, jobState: cutShort.jobState, status: cutShort.status, error: cutShort.error }) + ' | ' + hfWorkerSrc + ': when the budget ends during a status read, leave the budget words, not a read failure')
   const readFailure = (counted: string): string => 'Hugging Face did not answer endpoint reads for ' + counted + ' · setup paused · Mercury did not terminate the pod; it bills $' + offer.price.toFixed(2) + '/hr while it runs · Resume retries, Terminate stops the bill'
   const silent = await api.create(offer, '', 'hf-no-answer')
   const silentSetup = setup(silent)
@@ -131,12 +133,12 @@ try {
   await untilTheDeadline(silentSetup, silent.name)
   hf.state.failNext = null
   const unanswered = readHostRecord(silentSetup.id)!
-  check('a vendor that fails every status read until the budget ends keeps the read failure and its Resume', unanswered.jobState === 'paused' && unanswered.error === readFailure('1 min (HTTP 503 ×3)'), String(unanswered.error))
+  check('a vendor that fails every status read until the budget ends keeps the read failure and its Resume', unanswered.jobState === 'paused' && unanswered.error === readFailure('1 min (HTTP 503 ×3)'), String(unanswered.error) + ' | ' + hfWorkerSrc + ': keep the read-failure words and Resume when every status read fails')
   const hung = await api.create(offer, '', 'hf-hung-read')
   const hungSetup = setup(hung)
   const cutBeforeTheDeadline = await withReadHeld(hungSetup, hung.name, 10 * 60_000, false)
   const givenUp = readHostRecord(hungSetup.id)!
-  check('a status read given up on while the setup budget still runs stays a read failure with its Resume', cutBeforeTheDeadline && givenUp.jobState === 'paused' && givenUp.error === readFailure('1 s (network error ×1)'), JSON.stringify({ cut: cutBeforeTheDeadline, error: givenUp.error }))
+  check('a status read given up on while the setup budget still runs stays a read failure with its Resume', cutBeforeTheDeadline && givenUp.jobState === 'paused' && givenUp.error === readFailure('1 s (network error ×1)'), JSON.stringify({ cut: cutBeforeTheDeadline, error: givenUp.error }) + ' | ' + hfWorkerSrc + ': a read given up on before the budget ends must stay a read failure with Resume')
   hf.state.neverReady = false
   for (const pod of [stuck, inFlight, silent, hung]) { await api.terminate(pod.id); removeHostRecord(pod.id) }
   const marks: string[] = []
@@ -144,35 +146,35 @@ try {
   const read = hostJobReadOnly({ label: api.label, pauseMs: 1, timeoutMs: 1000, signal, mark: words => marks.push(words) })
   const at = Date.now()
   await read('pod listing', abort => api.pods(abort))
-  check('read retry honors Retry-After and recovers', Date.now() - at >= 30 && marks.some(row => row.includes('429')) && marks.some(row => row.includes('recovered')))
+  check('read retry honors Retry-After and recovers', Date.now() - at >= 30 && marks.some(row => row.includes('429')) && marks.some(row => row.includes('recovered')), 'fix hostJobReadOnly in src/services/host/retry.ts to wait out Retry-After and report recovery')
   hf.state.ambiguousCreate = true
   const before = hf.state.creates
   await assert.rejects(api.create(offer, '', 'hf-ambiguous'), /may exist/)
   check('uncertain create is never retried', hf.state.creates === before + 1)
   hf.state.ambiguousCreate = false
   await assert.rejects(api.create(offer, '', 'hf-second'), /earlier unanswered/)
-  check('account reconciliation prevents a second paid create', hf.state.creates === before + 1)
+  check('account reconciliation prevents a second paid create', hf.state.creates === before + 1, hfSrc + ' create(): list the account first and refuse while an earlier create is unanswered')
   const ambiguous = (await api.pods()).find(row => row.name === 'hf-ambiguous')!
   hf.state.holdDelete = true
   await assert.rejects(api.terminate(ambiguous.id), /not verified/)
-  check('delete acknowledgement alone never means terminated', hf.state.pods.has('hf-ambiguous'))
+  check('delete acknowledgement alone never means terminated', hf.state.pods.has('hf-ambiguous'), hfSrc + ' terminate(): confirm absence from the listing, not the delete acknowledgement')
   hf.state.holdDelete = false
   await api.terminate(ambiguous.id)
   const poisoned = await api.create(offer, '', 'hf-hostile-url')
   hf.state.endpointUrl = 'https://attacker.example/v1'
   hf.state.bootReads = 0
   await assert.rejects(api.managedEndpoint(poisoned.id), /HF endpoint URL/)
-  check('returned foreign URL cannot receive the HF token', escaped.length === 0)
+  check('returned foreign URL cannot receive the HF token', escaped.length === 0, hfSrc + ' managedEndpoint(): refuse an endpoint URL outside HF; escaped to ' + escaped.join(', '))
   await api.terminate(poisoned.id)
   for (const [recipeId, engine] of [['mistral-large3-h200', 'vLLM'], ['nemotron35-super-gguf-rtx-pro-6000', 'llamacpp']] as const) {
     const chosen = offers.find(row => row.recipe.id === recipeId)!
     const created = await api.create(chosen, '', 'hf-engine-' + engine.toLowerCase())
     const payload = hf.requests.filter(row => row.method === 'POST' && row.path === '/v2/endpoint/fixture-owner').at(-1)!.body
-    check(engine + ' uses the recipe image and retains its engine arguments', payload.model.image[engine].url === chosen.recipe.image && chosen.recipe.flags.every(flag => payload.model.args.includes(flag)))
-    check(engine + ' preserves parallelism or the exact GGUF/projector paths', engine === 'vLLM' ? payload.model.image.vLLM.tensorParallelSize === 8 && payload.model.image.vLLM.dataParallelSize === 1 : payload.model.image.llamacpp.modelPath === chosen.recipe.weightFile && payload.model.image.llamacpp.mmprojModelPath === chosen.recipe.mmproj)
+    check(engine + ' uses the recipe image and retains its engine arguments', payload.model.image[engine].url === chosen.recipe.image && chosen.recipe.flags.every(flag => payload.model.args.includes(flag)), hfSrc + ' create(): build the engine block from the recipe image and flags')
+    check(engine + ' preserves parallelism or the exact GGUF/projector paths', engine === 'vLLM' ? payload.model.image.vLLM.tensorParallelSize === 8 && payload.model.image.vLLM.dataParallelSize === 1 : payload.model.image.llamacpp.modelPath === chosen.recipe.weightFile && payload.model.image.llamacpp.mmprojModelPath === chosen.recipe.mmproj, hfSrc + ' create(): carry tensor and data parallelism for vLLM and the GGUF and projector paths for llamacpp')
     await api.terminate(created.id)
   }
-  check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed)
-  check('all HF requests stay on loopback', escaped.length === 0)
+  check('vendor factory returns managed HF client', vendorClient('huggingface', { apiBaseUrl: hf.baseUrl }).capabilities.managed, 'fix vendorClient in src/services/host/vendors/client.ts to return the managed HuggingfaceClient')
+  check('all HF requests stay on loopback', escaped.length === 0, 'a request left loopback: ' + escaped.join(', '))
   console.log('HF ENDPOINTS GREEN — ' + checks + ' checks; no real token or endpoint')
 } finally { await hf.close(); f.close(); globalThis.fetch = nativeFetch; Date.now = realNow }

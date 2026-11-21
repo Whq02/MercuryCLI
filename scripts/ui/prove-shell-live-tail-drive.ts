@@ -21,9 +21,10 @@ const recordBase = process.argv.includes('--record-base')
 const fixtures = join(import.meta.dir, 'fixtures', 'shell-live-tail')
 if (recordBase) mkdirSync(fixtures, { recursive: true })
 let failures = 0
+const liveTailFixHint = 'change shellLiveTailLines and shellLiveTailBudget in src/components/shell/liveShellTail.ts or the live row in src/components/shell/ShellLiveTail.tsx; rerun with --capture-dir to read the saved frames'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + '; ' : ''}${liveTailFixHint}` : ''}`)
 }
 function save(name: string, rows: readonly string[]): void {
   if (captureDir) writeFileSync(join(captureDir, `${name}.txt`), rows.map(row => row.trimEnd()).join('\n') + '\n')

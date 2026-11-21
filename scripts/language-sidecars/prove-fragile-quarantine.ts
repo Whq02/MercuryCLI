@@ -23,15 +23,16 @@ const { loadGrammarEngine, _resetFragileProbeForTesting } = facility
 const { GRAMMAR_REGISTRY } = await import('../../src/utils/structure/grammarRegistry.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', fixHint = ''): void => {
+  const shown = cond || !fixHint ? detail : detail ? `${detail} — ${fixHint}` : fixHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
 const engine = await loadGrammarEngine()
 if (engine.state !== 'ok') {
-  console.error(`  [FAIL] engine unavailable: ${engine.note}`)
+  console.error(`  [FAIL] engine unavailable: ${engine.note} — loadGrammarEngine in src/utils/structure/grammarFacility.ts must load tree-sitter.js and tree-sitter.wasm from the folder named by MERCURY_TREESITTER_VENDOR_DIR`)
   process.exit(1)
 }
 
@@ -47,11 +48,12 @@ section('§1 THE QUARANTINE ARM')
     extensions: ['.probe'],
     fragile: { reason: 'synthetic fixture — the probe child must die' },
   } as never)
-  check('a dead probe child quarantines the grammar', isUnavailable(verdict), JSON.stringify(verdict).slice(0, 120))
+  check('a dead probe child quarantines the grammar', isUnavailable(verdict), JSON.stringify(verdict).slice(0, 120), 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must answer state unavailable when the probe child dies on a fragile grammar')
   check(
     'the note names quarantine + the reason + the child death',
     isUnavailable(verdict) && /quarantined/.test(verdict.note) && /synthetic fixture/.test(verdict.note),
     isUnavailable(verdict) ? verdict.note.slice(0, 160) : '',
+    'the note built in probeFragileGrammarOnce (src/utils/structure/grammarFacility.ts) must say quarantined and carry the fragile reason',
   )
   check('the HOST survived the probe (this line printed)', true)
 }
@@ -65,7 +67,7 @@ section('§2 THE PASS ARM')
     extensions: ['.probejson'],
     fragile: { reason: 'synthetic fixture — the probe child survives' },
   } as never)
-  check('a surviving probe lets the grammar load in-host', !isUnavailable(loaded), JSON.stringify(loaded).slice(0, 80))
+  check('a surviving probe lets the grammar load in-host', !isUnavailable(loaded), JSON.stringify(loaded).slice(0, 80), 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must return no verdict when the probe child survives, so loadLanguage loads the grammar in-host')
 }
 
 section('§3 PROBE ONCE')
@@ -77,25 +79,25 @@ section('§3 PROBE ONCE')
   const t2 = Date.now()
   await engine.loadLanguage({ name: 'memo-probe', wasm: 'not-a-grammar.wasm', extensions: ['.m'], fragile: { reason: 'memo fixture' } } as never)
   const secondMs = Date.now() - t2
-  check('the second ask answers from the memo (no second child)', secondMs < Math.max(50, firstMs / 4), `first=${firstMs}ms second=${secondMs}ms`)
+  check('the second ask answers from the memo (no second child)', secondMs < Math.max(50, firstMs / 4), `first=${firstMs}ms second=${secondMs}ms`, 'probeFragileGrammarOnce in src/utils/structure/grammarFacility.ts must answer a repeat ask from fragileProbeVerdicts instead of spawning a second child')
 }
 
 section('§4 THE REGISTRY MARKING')
 {
   const swift = GRAMMAR_REGISTRY.find(g => g.name === 'swift')
-  check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason)
+  check('swift is marked fragile with the engine-OOM reason', /OOM/.test(swift?.fragile?.reason ?? ''), swift?.fragile?.reason, 'the swift row of GRAMMAR_REGISTRY in src/utils/structure/grammarRegistry.ts must carry a fragile reason that names the engine OOM')
   const marked = GRAMMAR_REGISTRY.filter(g => g.fragile).map(g => g.name)
   const auditioned = GRAMMAR_REGISTRY.filter(g => g.name === 'swift' || g.patternOnly).map(g => g.name)
-  check('swift and every pattern-only row are marked, and no row the edit note or the outline reads beside swift (no blanket probing)', marked.join(',') === auditioned.join(',') && GRAMMAR_REGISTRY.filter(g => !g.patternOnly && g.fragile).length === 1, marked.join(','))
+  check('swift and every pattern-only row are marked, and no row the edit note or the outline reads beside swift (no blanket probing)', marked.join(',') === auditioned.join(',') && GRAMMAR_REGISTRY.filter(g => !g.patternOnly && g.fragile).length === 1, marked.join(','), 'in src/utils/structure/grammarRegistry.ts mark fragile only the swift row and the patternOnly rows, and no other row')
   const t = Date.now()
   const json = await engine.loadLanguage(GRAMMAR_REGISTRY.find(g => g.name === 'json') as never)
-  check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000)
+  check('an unmarked grammar loads without the probe', !isUnavailable(json) && Date.now() - t < 5000, '', 'the json row of GRAMMAR_REGISTRY (src/utils/structure/grammarRegistry.ts) must stay unmarked so loadLanguage in src/utils/structure/grammarFacility.ts loads it without the probe child')
 }
 
 section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
 {
   const nodeBin = Bun.which('node')
-  check('node binary available (the product runtime)', nodeBin !== null)
+  check('node binary available (the product runtime)', nodeBin !== null, '', 'put a node binary on PATH (the product runtime, Node 24.20 or newer)')
   if (nodeBin) {
     const childSource = [
       "const path = require('node:path');",
@@ -124,6 +126,7 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       'the vendored swift wasm survives load+parse under node (the cure holds)',
       cure.status === 0 && cure.signal === null && cure.error === undefined,
       `exit ${cure.status ?? 'null'}${cure.signal ? `, signal ${cure.signal}` : ''}${cure.error ? `, ${String(cure.error)}` : ''}${cure.stderr ? ` — ${cure.stderr.slice(0, 600)}` : ''}`,
+      'vendor/grammars/extracted/tree-sitter-swift.wasm must load and parse under node; refresh the vendored grammar pack with bun run setup, or rebuild the swift blob if the stderr shows an engine fault',
     )
     const control = spawnSync(nodeBin, ['-e', childSource, DIR, join(DIR, 'not-a-grammar.wasm')], {
       env: process.env,
@@ -131,7 +134,7 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       stdio: 'ignore',
       windowsHide: true,
     })
-    check('the node audition child CAN die (control on garbage bytes)', control.status !== 0)
+    check('the node audition child CAN die (control on garbage bytes)', control.status !== 0, '', 'the child script (childSource in this file) must exit non-zero when it loads bytes that are no wasm, otherwise the cure check above proves nothing')
     const scope = join(DIR, 'module-scope')
     mkdirSync(scope)
     writeFileSync(join(scope, 'package.json'), JSON.stringify({ type: 'module' }) + '\n')
@@ -141,9 +144,9 @@ section('§5 THE CURE: THE VENDORED SWIFT BLOB UNDER THE PRODUCT RUNTIME')
       return spawnSync(nodeBin, ['-e', childSource, join(scope, name), swiftWasm], { env: process.env, timeout: 60_000, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', windowsHide: true })
     }
     const stamped = auditionIn('stamped', ['tree-sitter.js', 'tree-sitter.wasm', 'package.json'])
-    check('under a package that says "type": "module" the engine folder still loads under node: it carries the CommonJS stamp the build gives the vendored one', stamped.status === 0, `exit ${stamped.status ?? 'null'}${stamped.stderr ? ` — ${stamped.stderr.slice(0, 300)}` : ''}`)
+    check('under a package that says "type": "module" the engine folder still loads under node: it carries the CommonJS stamp the build gives the vendored one', stamped.status === 0, `exit ${stamped.status ?? 'null'}${stamped.stderr ? ` — ${stamped.stderr.slice(0, 300)}` : ''}`, 'the engine folder needs the package.json that says type commonjs next to tree-sitter.js; whatever builds or copies the vendored engine must write that stamp')
     const bare = auditionIn('bare', ['tree-sitter.js', 'tree-sitter.wasm'])
-    check('without the stamp the same child dies there, as the Windows box read (node takes the loader for an ES module and require() answers a namespace with no Parser)', bare.status !== 0, `exit ${bare.status ?? 'null'}${bare.stderr ? ` — ${bare.stderr.split('\n')[0]}` : ''}`)
+    check('without the stamp the same child dies there, as the Windows box read (node takes the loader for an ES module and require() answers a namespace with no Parser)', bare.status !== 0, `exit ${bare.status ?? 'null'}${bare.stderr ? ` — ${bare.stderr.split('\n')[0]}` : ''}`, 'this control expects node to fail on an engine folder with no commonjs stamp under a module-type parent package; if it now passes, the control no longer shows why the stamp is needed')
   }
 }
 

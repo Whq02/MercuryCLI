@@ -25,10 +25,11 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
 let failures = 0
 let checks = 0
+const sleepFailHint = 'change SLEEP_TIMEOUT_WHY and where it is added to a timed-out command error, in src/tools/BashTool/BashTool.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' · ' : ' — '}${sleepFailHint}`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 

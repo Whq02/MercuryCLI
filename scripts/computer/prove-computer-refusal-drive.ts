@@ -20,9 +20,9 @@ for (const size of SIZES) {
   await endLeg(off)
   const done = res.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} flag off`, done)
-  check(`${size.cols}: the drive delivered`, res.status === 0, `vshot ${res.status} · ${res.endReason} · ${res.stderr.slice(-300)}`)
+  check(`${size.cols}: the drive delivered`, res.status === 0, `the flag-off drive did not finish (rebuild dist with bun run build.ts, then read the vshot capture) · vshot ${res.status} · ${res.endReason} · ${res.stderr.slice(-300)}`)
   const offWords = joined(done).includes('No such tool available') ? 'frame' : persistedText(off.home).includes('No such tool available') ? 'session file' : 'nowhere'
-  check(`${size.cols}: the refusal names the tool as not available (read on the ${offWords})`, offWords !== 'nowhere' && (joined(done).includes('Computer') || persistedText(off.home).includes('Computer')), joined(done).slice(0, 500))
+  check(`${size.cols}: the refusal names the tool as not available (read on the ${offWords})`, offWords !== 'nowhere' && (joined(done).includes('Computer') || persistedText(off.home).includes('Computer')), `with MERCURY_COMPUTER_USE=0 the Computer tool must be absent so a call to it is refused as No such tool available naming Computer (src/services/tools/toolExecution.ts builds that refusal; src/services/tools/withheldTools.ts gates the tool on the flag) · frame: ${joined(done).slice(0, 500)}`)
   check(`${size.cols}: no card, no footer`, !rowsHaving(done, CARD_NEEDLE) && !rowsHaving(done, 'hands off'))
   check(`${size.cols}: the fake log was never created`, !existsSync(off.log))
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(off.netlog)).length === 0)
@@ -33,9 +33,9 @@ for (const size of SIZES) {
   await endLeg(none)
   const doneNone = resNone.marks.done ?? []
   printFrame(`${size.cols}×${size.rows} driver none`, doneNone)
-  check(`${size.cols}: the drive delivered`, resNone.status === 0, `vshot ${resNone.status} · ${resNone.endReason} · ${resNone.stderr.slice(-300)}`)
+  check(`${size.cols}: the drive delivered`, resNone.status === 0, `the driver-none drive did not finish (rebuild dist with bun run build.ts, then read the vshot capture) · vshot ${resNone.status} · ${resNone.endReason} · ${resNone.stderr.slice(-300)}`)
   const noneWords = joined(doneNone).includes('No such tool available') ? 'frame' : persistedText(none.home).includes('No such tool available') ? 'session file' : 'nowhere'
-  check(`${size.cols}: the tool is not offered with the driver switched off — the refusal names it as not available (read on the ${noneWords})`, noneWords !== 'nowhere' && (joined(doneNone).includes('Computer') || persistedText(none.home).includes('Computer')), joined(doneNone).slice(0, 500))
+  check(`${size.cols}: the tool is not offered with the driver switched off — the refusal names it as not available (read on the ${noneWords})`, noneWords !== 'nowhere' && (joined(doneNone).includes('Computer') || persistedText(none.home).includes('Computer')), `with MERCURY_DESKTOP_DRIVER=none the Computer tool must be absent so a call to it is refused as No such tool available naming Computer (src/services/desktop/resolveDriver.ts resolves the driver; src/services/tools/toolExecution.ts builds the refusal) · frame: ${joined(doneNone).slice(0, 500)}`)
   check(`${size.cols}: no card, no footer`, !rowsHaving(doneNone, CARD_NEEDLE) && !rowsHaving(doneNone, 'hands off'))
   check(`${size.cols}: the fake log was never created`, !existsSync(none.log))
   check(`${size.cols}: nothing left loopback`, nonLoopback(netlines(none.netlog)).length === 0)
@@ -85,11 +85,11 @@ for (const size of SIZES) {
     })
     const doneLocal = resLocal.marks.done ?? []
     printFrame(`${size.cols}×${size.rows} text-only local model`, doneLocal)
-    check(`${size.cols}: the text-only drive delivered`, resLocal.status === 0, `vshot ${resLocal.status} · ${resLocal.endReason} · ${resLocal.stderr.slice(-300)}`)
-    check(`${size.cols}: the product read the local capability catalogue and used its model`, catalogueReads > 0 && requests.length >= 2 && requests.every(request => request.model === wireModel), `catalogue=${catalogueReads} · models=${requests.map(request => request.model).join(',')}`)
+    check(`${size.cols}: the text-only drive delivered`, resLocal.status === 0, `the text-only drive did not finish (rebuild dist with bun run build.ts, then read the vshot capture) · vshot ${resLocal.status} · ${resLocal.endReason} · ${resLocal.stderr.slice(-300)}`)
+    check(`${size.cols}: the product read the local capability catalogue and used its model`, catalogueReads > 0 && requests.length >= 2 && requests.every(request => request.model === wireModel), `the session must read the fixture /api/v1/models catalogue and send every request to the model ${wireModel}; catalogue=${catalogueReads} · requests=${requests.length} · models=${requests.map(request => request.model).join(',')}`)
     const returned = requests.flatMap(request => request.messages ?? []).find(message => message.role === 'tool' && message.tool_call_id === 'call_text_only')
     const refusal = typeof returned?.content === 'string' ? returned.content : JSON.stringify(returned?.content ?? '')
-    check(`${size.cols}: the actual Computer tool result refuses text-only input and names the local route and remedy`, refusal.includes('receives text only in this release') && refusal.includes(model) && refusal.includes('Local models') && refusal.includes('/model'), refusal)
+    check(`${size.cols}: the actual Computer tool result refuses text-only input and names the local route and remedy`, refusal.includes('receives text only in this release') && refusal.includes(model) && refusal.includes('Local models') && refusal.includes('/model'), `the Computer tool result for a text-only model must name the model, say it receives text only in this release and point to Local models and /model (src/tools/ComputerTool/computer/shot.ts textOnlyRefusal builds the sentence) · result: ${refusal}`)
     check(`${size.cols}: the refusal is retained in the product transcript`, persistedText(local.home).includes('receives text only in this release'))
     check(`${size.cols}: no text-only permission card or driving footer`, !rowsHaving(doneLocal, CARD_NEEDLE) && !rowsHaving(doneLocal, 'hands off'))
     check(`${size.cols}: text-only input never creates a desktop act log`, !existsSync(local.log))

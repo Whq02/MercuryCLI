@@ -41,7 +41,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${ok ? '' : ' (fix: the JEV popup and its rows in src/components/Settings/Jev.tsx, the setting in src/services/jev/jevSetting.ts, the status in src/services/jev/jevStatus.ts, the key in src/services/jev/jevKey.ts, the /jev command in src/commands/jev/jev.tsx, the Boot Settings row in src/components/BootSettingsScreen.tsx; the section heading above names the surface)'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

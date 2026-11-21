@@ -8,11 +8,15 @@ import { CAPTURE_PREFLIGHT_MISSING_EXIT } from '../lib/capturePreflight.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+let refusalWhere = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ` (change ${refusalWhere})`}`)
   if (!cond) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  refusalWhere = t.startsWith('§2') ? 'the missing-engine refusal in scripts/ui/render-tui.ts, which must exit 2 with the pip remedy before it stages a scenario' : 'the missing-emulator refusal and the --preflight answer in the POSIX engine that captureEngineEntry in scripts/lib/captureDriver.ts returns and in scripts/winreg/vshot-win.py, with the exit code in scripts/lib/capturePreflight.ts'
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 
 const driver = resolveCaptureDriver()
 if (process.platform === 'win32' || driver.kind !== 'posix-pty') {

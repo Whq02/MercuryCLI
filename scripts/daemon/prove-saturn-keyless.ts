@@ -36,9 +36,11 @@ const discovery = await import('../../src/services/providers/local/localDiscover
 const { refreshLocalDiscovery, __resetLocalDiscoveryForTest } = discovery
 
 let failures = 0
+const WHERE_TO_LOOK =
+  'fix the keyless schedule account in src/daemon/saturnAccount.ts (deriveScheduleAccountForModel, scheduleAccountVerdict, readLiveAccountFacts), the holds in src/daemon/saturnTicker.ts (tickSaturnOnce), the box row checks in src/daemon/saturnBoxSchedules.ts, or the sentence in src/components/BootSaturnScreen.tsx (saturnVerdictSentence)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` (${WHERE_TO_LOOK})`}`)
 }
 
 function json(res: ServerResponse, body: unknown): void {

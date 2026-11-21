@@ -29,11 +29,25 @@ const SRC = join(import.meta.dir, '..', '..', 'src')
 
 let failures = 0
 let checks = 0
+const PROVIDER_CONTRACT_SOURCES: Array<[string, string]> = [
+  ['provider:', 'src/utils/model/providers.ts (isFirstPartyAnthropicBaseUrl, hasAnthropicControlPlane)'],
+  ['canonical:', 'src/utils/model/modelNames.ts (getCanonicalName)'],
+  ['counting:', 'src/services/context/tokens.ts and src/services/tokenEstimation.ts'],
+  ['assembly:', 'src/services/providers/anthropic/requestParams.ts'],
+  ['message-param:', 'src/services/providers/anthropic/messageParams.ts'],
+  ['census:', 'the files named in the detail under src/'],
+  ['', 'src/utils/model/capabilities.ts (the model capability tables behind betas.ts, thinking.ts, effort.ts and context.ts)'],
+]
+function providerContractHint(label: string): string {
+  const where = PROVIDER_CONTRACT_SOURCES.find(([prefix]) => label.startsWith(prefix))?.[1] ?? ''
+  return `change the code in ${where} to match this contract, or update this row if the contract moved`
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const hint = providerContractHint(label)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — ${hint}`)
   }
 }
 

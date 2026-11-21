@@ -9,9 +9,10 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
+const WHERE_TO_LOOK = 'change the boot step this check names in its own file under src/cli/headless/boot/ (BOOT_STEPS in bootList.ts lists them), or the resume closure hydrateResumedRun in src/cli/headless/resumeHydration.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${WHERE_TO_LOOK}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (value: unknown): string => JSON.stringify(value)
@@ -19,7 +20,7 @@ const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 const pause = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 setTimeout(() => {
-  console.log('  [FAIL] the proof ended within its two minutes')
+  console.log('  [FAIL] the proof ended within its two minutes — a boot step or a resume step never settled: find the last section printed above and look in its step file under src/cli/headless/boot/ or in hydrateResumedRun of src/cli/headless/resumeHydration.ts')
   process.exit(1)
 }, 120_000).unref()
 

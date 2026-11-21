@@ -21,10 +21,11 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+const COUNTS_FIX_HINT = 'maintenanceRow and the lineage rows in src/components/memory/memoryCentreLayout.ts, the overview and lineage table in src/components/memory/MemoryCentreView.tsx, runDueMaintenance in src/mneme/mnemeMaintenance.ts (first run in an empty project), the stats text in call in src/commands/memory/memory.tsx, the ledger rows in src/mneme/ledger.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` | fix: ${COUNTS_FIX_HINT}`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

@@ -51,8 +51,8 @@ async function main(): Promise<void> {
     } catch {
       corruptThrew = true
     }
-    check('setAgentDisabled rejects corrupt file', corruptThrew)
-    check('corrupt file stands unchanged after setAgentDisabled', readFileSync(file, 'utf8') === '{not valid json')
+    check('setAgentDisabled rejects corrupt file', corruptThrew, 'make setAgentDisabled in src/services/agents/overrides.ts throw when agent-overrides.json is corrupt, not overwrite it')
+    check('corrupt file stands unchanged after setAgentDisabled', readFileSync(file, 'utf8') === '{not valid json', 'setAgentDisabled in src/services/agents/overrides.ts must leave a corrupt agent-overrides.json as it found it')
 
     let corruptOverrideThrew = false
     try {
@@ -60,8 +60,8 @@ async function main(): Promise<void> {
     } catch {
       corruptOverrideThrew = true
     }
-    check('setAgentOverride rejects corrupt file', corruptOverrideThrew)
-    check('corrupt file stands unchanged after setAgentOverride', readFileSync(file, 'utf8') === '{not valid json')
+    check('setAgentOverride rejects corrupt file', corruptOverrideThrew, 'make setAgentOverride in src/services/agents/overrides.ts throw when agent-overrides.json is corrupt, not overwrite it')
+    check('corrupt file stands unchanged after setAgentOverride', readFileSync(file, 'utf8') === '{not valid json', 'setAgentOverride in src/services/agents/overrides.ts must leave a corrupt agent-overrides.json as it found it')
 
     if (POSIX_MODES) {
       writeFileSync(file, valid, { mode: 0o600 })
@@ -82,14 +82,14 @@ async function main(): Promise<void> {
       } finally {
         chmodSync(file, 0o600)
       }
-      check('setAgentDisabled rejects unreadable file', eaccesDisabled)
-      check('setAgentOverride rejects unreadable file', eaccesOverride)
-      check('unreadable file keeps existing overrides byte for byte', readFileSync(file, 'utf8') === valid)
+      check('setAgentDisabled rejects unreadable file', eaccesDisabled, 'make setAgentDisabled in src/services/agents/overrides.ts throw when the file cannot be read, not treat it as empty')
+      check('setAgentOverride rejects unreadable file', eaccesOverride, 'make setAgentOverride in src/services/agents/overrides.ts throw when the file cannot be read, not treat it as empty')
+      check('unreadable file keeps existing overrides byte for byte', readFileSync(file, 'utf8') === valid, 'the overrides setters in src/services/agents/overrides.ts must not rewrite an unreadable agent-overrides.json')
     }
 
     rmSync(file, { force: true })
     const created = await overrides.setAgentDisabled('user', WORK, 'other', true)
-    check('absent file still writes cleanly', created.disabled.includes('other'))
+    check('absent file still writes cleanly', created.disabled.includes('other'), 'setAgentDisabled in src/services/agents/overrides.ts must still create the file when it is absent')
   })
 
   await runRow('store: appendReceipt keeps history when receipts unreadable and restore reports unreadable trashDir', async () => {
@@ -108,7 +108,7 @@ async function main(): Promise<void> {
       } finally {
         chmodSync(receipts, 0o600)
       }
-      check('unreadable receipts file keeps prior history intact', readFileSync(receipts, 'utf8') === prior)
+      check('unreadable receipts file keeps prior history intact', readFileSync(receipts, 'utf8') === prior, 'saveAgentDocument in src/services/agents/store.ts must append the receipt without dropping the prior history when agent-receipts.jsonl cannot be read')
 
       mkdirSync(trash, { recursive: true })
       chmodSync(trash, 0o000)
@@ -120,7 +120,7 @@ async function main(): Promise<void> {
       } finally {
         chmodSync(trash, 0o700)
       }
-      check('restoreAgentFromTrash reports io error instead of source-missing when trash dir is unreadable', errCode === 'io', `got ${errCode}`)
+      check('restoreAgentFromTrash reports io error instead of source-missing when trash dir is unreadable', errCode === 'io', `restoreAgentFromTrash in src/services/agents/store.ts must throw an AgentStoreError with code io when the trash folder cannot be read; got ${errCode}`)
     }
   })
 
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
       while (emitted === 0 && Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 30))
       }
-      check('agentsChanged fires once unreadable new root becomes readable', emitted > 0, `emitted=${emitted}`)
+      check('agentsChanged fires once unreadable new root becomes readable', emitted > 0, `keep probing a new agents root whose first read failed until it is readable (src/services/agents/watch.ts, startAgentWatch); emitted=${emitted}`)
     } finally {
       chmodSync(agentsDir, 0o700)
       unsub()
@@ -189,10 +189,10 @@ async function main(): Promise<void> {
       }))
     `
     const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
-    check('isolated errors check exited 0', res.status === 0, res.stderr.slice(-400))
+    check('isolated errors check exited 0', res.status === 0, `the isolated script in this row failed; read its stderr (src/services/api/errors.ts getAssistantMessageFromError): ${res.stderr.slice(-400)}`)
     const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { family?: string | null; hasOverflowMsg?: boolean; hasBadReqMsg?: boolean }
-    check('overflowFamilyOfModel classifies as unknown on throw instead of anthropic', out.family === 'unknown', `got ${out.family}`)
-    check('provider error message still returned when routeLaw throws', out.hasOverflowMsg === true && out.hasBadReqMsg === true)
+    check('overflowFamilyOfModel classifies as unknown on throw instead of anthropic', out.family === 'unknown', `make the overflow family fall back to unknown when routeLaw throws (src/services/api/errors.ts, getAssistantMessageFromError); got ${out.family}`)
+    check('provider error message still returned when routeLaw throws', out.hasOverflowMsg === true && out.hasBadReqMsg === true, 'getAssistantMessageFromError in src/services/api/errors.ts must still return the provider error message when routeLaw throws')
   })
 
   await runRow('branchManifest: readBranchManifest throws on unreadable or corrupt manifest and returns null when absent', async () => {
@@ -200,7 +200,7 @@ async function main(): Promise<void> {
     const base = join(SCRATCH, 'branch-session.jsonl')
     const manifestPath = `${base}.branch-manifest.json`
 
-    check('absent manifest returns null', readBranchManifest(base) === null)
+    check('absent manifest returns null', readBranchManifest(base) === null, 'readBranchManifest in src/services/branches/branchManifest.ts must return null when there is no manifest')
 
     writeFileSync(manifestPath, '{corrupt', { mode: 0o600 })
     let corruptThrew = false
@@ -209,7 +209,7 @@ async function main(): Promise<void> {
     } catch {
       corruptThrew = true
     }
-    check('corrupt manifest throws instead of returning null', corruptThrew)
+    check('corrupt manifest throws instead of returning null', corruptThrew, 'make readBranchManifest in src/services/branches/branchManifest.ts throw on a corrupt manifest')
 
     if (POSIX_MODES) {
       writeFileSync(manifestPath, JSON.stringify({ v: 1 }), { mode: 0o600 })
@@ -222,7 +222,7 @@ async function main(): Promise<void> {
       } finally {
         chmodSync(manifestPath, 0o600)
       }
-      check('unreadable manifest throws instead of returning null', eaccesThrew)
+      check('unreadable manifest throws instead of returning null', eaccesThrew, 'make readBranchManifest in src/services/branches/branchManifest.ts throw when the manifest cannot be read')
     }
   })
 
@@ -324,11 +324,11 @@ async function main(): Promise<void> {
       }))
     `
     const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
-    check('isolated browserEmulation check exited 0', res.status === 0, res.stderr.slice(-400))
+    check('isolated browserEmulation check exited 0', res.status === 0, `the isolated script in this row failed; read its stderr (src/services/browser/browserEmulation.ts): ${res.stderr.slice(-400)}`)
     const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { regrantReported?: boolean; revokeReported?: boolean; headerClearReported?: boolean }
-    check('re-grant failure after navigation surfaces in emulationLines', out.regrantReported === true)
-    check('revoke failure on geolocation clear surfaces in outcome.failures', out.revokeReported === true)
-    check('inherited header clear failure surfaces in outcome.failures', out.headerClearReported === true)
+    check('re-grant failure after navigation surfaces in emulationLines', out.regrantReported === true, 'make the emulation lines of src/services/browser/browserEmulation.ts report a location permission re-grant that failed after navigation')
+    check('revoke failure on geolocation clear surfaces in outcome.failures', out.revokeReported === true, 'make applyEmulation in src/services/browser/browserEmulation.ts put a failed geolocation revoke into outcome.failures')
+    check('inherited header clear failure surfaces in outcome.failures', out.headerClearReported === true, 'make inheritEmulation in src/services/browser/browserEmulation.ts put a failed header clear into failures')
   })
 
   await runRow('browserSecrets: refuses unreadable secrets file and keychain read or JSON errors instead of missing', () => {
@@ -388,7 +388,7 @@ async function main(): Promise<void> {
       }
     `
     const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
-    check('isolated browserSecrets check exited 0', res.status === 0, res.stderr.slice(-400))
+    check('isolated browserSecrets check exited 0', res.status === 0, `the isolated script in this row failed; read its stderr (src/services/browser/browserSecrets.ts): ${res.stderr.slice(-400)}`)
     const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as {
       posix?: boolean
       absentRes?: { state: string; note: string }
@@ -396,11 +396,11 @@ async function main(): Promise<void> {
       kcThrowRes?: { state: string; note: string }
       kcBadJsonRes?: { state: string; note: string }
     }
-    check('absent secrets file still reports missing', out.absentRes?.state === 'missing')
+    check('absent secrets file still reports missing', out.absentRes?.state === 'missing', 'resolveBrowserSecret in src/services/browser/browserSecrets.ts must report missing for an absent secrets file')
     if (out.posix) {
-      check('unreadable secrets file refuses instead of missing', out.unreadableRes?.state === 'refused' && out.unreadableRes.note.includes('could not be read'), JSON.stringify(out.unreadableRes))
-      check('keychain read error refuses instead of missing', out.kcThrowRes?.state === 'refused' && out.kcThrowRes.note.includes('keychain locked'), JSON.stringify(out.kcThrowRes))
-      check('keychain corrupt JSON refuses instead of missing', out.kcBadJsonRes?.state === 'refused' && out.kcBadJsonRes.note.includes('not valid JSON'), JSON.stringify(out.kcBadJsonRes))
+      check('unreadable secrets file refuses instead of missing', out.unreadableRes?.state === 'refused' && out.unreadableRes.note.includes('could not be read'), `make resolveBrowserSecret in src/services/browser/browserSecrets.ts refuse with could not be read when the file cannot be read; got ${JSON.stringify(out.unreadableRes)}`)
+      check('keychain read error refuses instead of missing', out.kcThrowRes?.state === 'refused' && out.kcThrowRes.note.includes('keychain locked'), `make resolveBrowserSecret in src/services/browser/browserSecrets.ts refuse with the keychain error when the read throws; got ${JSON.stringify(out.kcThrowRes)}`)
+      check('keychain corrupt JSON refuses instead of missing', out.kcBadJsonRes?.state === 'refused' && out.kcBadJsonRes.note.includes('not valid JSON'), `make resolveBrowserSecret in src/services/browser/browserSecrets.ts refuse with not valid JSON when the keychain answers with bad JSON; got ${JSON.stringify(out.kcBadJsonRes)}`)
     }
   })
 
@@ -469,10 +469,10 @@ async function main(): Promise<void> {
       }
     `
     const res = spawnSync(BUN, ['-e', script], { encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_HOME: '' } })
-    check('isolated browserTransfers check exited 0', res.status === 0, res.stderr.slice(-400))
+    check('isolated browserTransfers check exited 0', res.status === 0, `the isolated script in this row failed; read its stderr (src/services/browser/browserTransfers.ts): ${res.stderr.slice(-400)}`)
     const out = JSON.parse(res.stdout.trim().split('\n').pop() ?? '{}') as { t1State?: string; t1Failure?: string | null; t2State?: string; t2Failure?: string | null }
-    check('direct move fails closed on non-ENOENT lstat error', out.t1State === 'failed' && String(out.t1Failure).includes('cannot stat destination'), JSON.stringify(out))
-    check('EXDEV fallback move fails closed on non-ENOENT lstat error', out.t2State === 'failed' && String(out.t2Failure).includes('cannot stat destination'), JSON.stringify(out))
+    check('direct move fails closed on non-ENOENT lstat error', out.t1State === 'failed' && String(out.t1Failure).includes('cannot stat destination'), `make the move in src/services/browser/browserTransfers.ts fail the transfer with the lstat error when the destination cannot be checked; got ${JSON.stringify(out)}`)
+    check('EXDEV fallback move fails closed on non-ENOENT lstat error', out.t2State === 'failed' && String(out.t2Failure).includes('cannot stat destination'), `make the EXDEV fallback move in src/services/browser/browserTransfers.ts fail the transfer with the lstat error when the destination cannot be checked; got ${JSON.stringify(out)}`)
   })
 }
 

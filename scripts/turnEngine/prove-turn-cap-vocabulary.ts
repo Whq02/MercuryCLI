@@ -8,8 +8,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ` — ${hint}` : ''}`)
   if (!cond) failures++
 }
 
@@ -17,20 +17,20 @@ console.log('§1 the guard matrix')
 {
   const { BudgetGuard } = await import('../../src/run-core/budget-guard.js')
   const guard = new BudgetGuard()
-  check('a positive cap fires past the cap', guard.maxTurnsExceeded(3, 2) === true)
-  check('… and not at or under it', guard.maxTurnsExceeded(2, 2) === false && guard.maxTurnsExceeded(1, 2) === false)
-  check('absent ⇒ uncapped (unchanged)', guard.maxTurnsExceeded(999, undefined) === false)
-  check('0 never fires AND never removes an assertion elsewhere (junk caps nothing)', guard.maxTurnsExceeded(999, 0) === false)
-  check('NaN caps nothing', guard.maxTurnsExceeded(999, Number.NaN) === false)
-  check('a NEGATIVE cap no longer fires on the first turn', guard.maxTurnsExceeded(1, -3) === false)
-  check('a fractional cap caps nothing (integer vocabulary)', guard.maxTurnsExceeded(999, 2.5) === false)
+  check('a positive cap fires past the cap', guard.maxTurnsExceeded(3, 2) === true, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a positive cap fires when turns exceed it')
+  check('… and not at or under it', guard.maxTurnsExceeded(2, 2) === false && guard.maxTurnsExceeded(1, 2) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so it does not fire at or under the cap')
+  check('absent ⇒ uncapped (unchanged)', guard.maxTurnsExceeded(999, undefined) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so an absent cap means uncapped')
+  check('0 never fires AND never removes an assertion elsewhere (junk caps nothing)', guard.maxTurnsExceeded(999, 0) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a cap of 0 never fires')
+  check('NaN caps nothing', guard.maxTurnsExceeded(999, Number.NaN) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a NaN cap never fires')
+  check('a NEGATIVE cap no longer fires on the first turn', guard.maxTurnsExceeded(1, -3) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a negative cap never fires')
+  check('a fractional cap caps nothing (integer vocabulary)', guard.maxTurnsExceeded(999, 2.5) === false, '', 'fix BudgetGuard.maxTurnsExceeded in src/run-core/budget-guard.ts so a fractional cap never fires')
 }
 
 console.log('§2 the door, live (preflight — credential-free)')
 {
   const DIST = join(import.meta.dir, '..', '..', 'dist', 'mercury.mjs')
   if (!existsSync(DIST)) {
-    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false)
+    check('dist/mercury.mjs exists (build first — this leg drives the artifact)', false, '', 'run bun run build.ts to write dist/mercury.mjs')
   } else {
     const home = realpathSync(mkdtempSync(join(tmpdir(), 'maxturns-home-')))
     const run = (value: string): { status: number | null; err: string } => {
@@ -47,6 +47,7 @@ console.log('§2 the door, live (preflight — credential-free)')
         `--max-turns ${bad} refuses loudly at the door`,
         outcome.status !== 0 && outcome.err.includes('positive integer'),
         `rc=${outcome.status} ${outcome.err.slice(0, 90).replace(/\s+/g, ' ')}`,
+        'the run command must exit non-zero and print positive integer for this --max-turns value; fix its --max-turns validation',
       )
     }
     const good = run('2')
@@ -54,6 +55,7 @@ console.log('§2 the door, live (preflight — credential-free)')
       '--max-turns 2 passes the door (fails later on auth, never on the flag)',
       !good.err.includes('positive integer'),
       good.err.slice(0, 90).replace(/\s+/g, ' '),
+      'the run command must accept --max-turns 2 and not print positive integer; fix its --max-turns validation',
     )
     rmSync(home, { recursive: true, force: true })
   }

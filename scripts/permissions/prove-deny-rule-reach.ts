@@ -15,6 +15,7 @@ const EDIT: Rules = { deny: ['Edit(secrets/**)'] }
 const ALL: Rules = { deny: ['Bash(rm *)', `Bash(${PUSH} *)`, 'Read(secrets/**)', 'Edit(secrets/**)'] }
 const EVERY_MODE = ['default', 'implement', 'flow', 'sovereign']
 const ruleOf = (rules: Rules): string => (rules.deny as string[])[0] as string
+const reachFix = 'Fix: change denyRuleReach in src/tools/BashTool/denyRuleReach.ts (called from bashToolHasPermission in src/tools/BashTool/bashPermissions.ts); its refusal text is hiddenDenyRuleRefusal in the same file. Got: '
 
 const FOLLOWED: Array<[Rules, string[]]> = [
   [RM, [
@@ -66,7 +67,7 @@ for (const [rules, commands] of FOLLOWED) {
       const decision = await bashDecision(command, mode, rules)
       if (decision.behavior !== 'deny' || !String(decision.message).includes(`denied by the rule ${ruleOf(rules)}`)) wrong.push(`${mode}: ${told(decision).slice(0, 160)}`)
     }
-    check(`deny ${ruleOf(rules)} · ${shown(command)} · denied by the rule in ${EVERY_MODE.join(', ')}`, wrong.length === 0, wrong.join(' · '))
+    check(`deny ${ruleOf(rules)} · ${shown(command)} · denied by the rule in ${EVERY_MODE.join(', ')}`, wrong.length === 0, reachFix + wrong.join(' · '))
   }
 }
 
@@ -76,13 +77,13 @@ for (const [rules, commands] of UNESTABLISHED) {
     const command = fill(spelled)
     for (const mode of ['default', 'implement']) {
       const decision = await bashDecision(command, mode, rules)
-      check(`deny ${ruleOf(rules)} · ${shown(command)} · ${mode} asks, the person sees the card`, decision.behavior === 'ask', told(decision).slice(0, 200))
+      check(`deny ${ruleOf(rules)} · ${shown(command)} · ${mode} asks, the person sees the card`, decision.behavior === 'ask', reachFix + told(decision).slice(0, 200))
     }
     for (const [mode, title] of [['sovereign', 'Sovereign Mode'], ['flow', 'Flow']] as const) {
       const decision = await bashDecision(command, mode, rules)
       const words = String(decision.message)
       const ok = decision.behavior === 'deny' && words.startsWith('This command is refused: its effect could not be established (') && words.includes(`the rule ${ruleOf(rules)} in the project local settings denies what it may do`) && words.includes(`${title} asks nobody`) && decision.decisionReason?.rule?.ruleValue?.ruleContent === ruleOf(rules).slice(ruleOf(rules).indexOf('(') + 1, -1)
-      check(`deny ${ruleOf(rules)} · ${shown(command)} · ${mode} refuses: the effect could not be established, the rule is named`, ok, told(decision).slice(0, 300))
+      check(`deny ${ruleOf(rules)} · ${shown(command)} · ${mode} refuses: the effect could not be established, the rule is named`, ok, reachFix + told(decision).slice(0, 300))
     }
   }
 }
@@ -91,10 +92,10 @@ section('§3 with deny rules in force, a command that touches none of them is an
 for (const spelled of UNTOUCHED) {
   const command = fill(spelled)
   const under = await bashDecision(command, 'sovereign', ALL)
-  check(`four deny rules in force · ${shown(command)} · sovereign allows`, under.behavior === 'allow', told(under).slice(0, 240))
+  check(`four deny rules in force · ${shown(command)} · sovereign allows`, under.behavior === 'allow', reachFix + told(under).slice(0, 240))
   const bare = await bashDecision(command, 'default', {})
   const ruled = await bashDecision(command, 'default', ALL)
-  check(`four deny rules in force · ${shown(command)} · default answers as it does with none (${bare.behavior})`, ruled.behavior === bare.behavior, `with rules: ${told(ruled).slice(0, 160)} · without: ${told(bare).slice(0, 120)}`)
+  check(`four deny rules in force · ${shown(command)} · default answers as it does with none (${bare.behavior})`, ruled.behavior === bare.behavior, `${reachFix}with rules: ${told(ruled).slice(0, 160)} · without: ${told(bare).slice(0, 120)}`)
 }
 
 section('§4 with no deny rule in force nothing changes: every spelling above is allowed under Sovereign, and Default refuses none')
@@ -108,18 +109,18 @@ section('§4 with no deny rule in force nothing changes: every spelling above is
     const plain = await bashDecision(command, 'default', {})
     if (plain.behavior === 'deny') refused.push(`${shown(command)}: ${told(plain).slice(0, 80)}`)
   }
-  check(`${every.length} spellings, no deny rule: sovereign allows every one`, carded.length === 0, carded.join(' ‖ '))
-  check(`${every.length} spellings, no deny rule: default refuses none`, refused.length === 0, refused.join(' ‖ '))
+  check(`${every.length} spellings, no deny rule: sovereign allows every one`, carded.length === 0, reachFix + carded.join(' ‖ '))
+  check(`${every.length} spellings, no deny rule: default refuses none`, refused.length === 0, reachFix + refused.join(' ‖ '))
   const allowOnly = await bashDecision('less secrets/k.txt', 'sovereign', { allow: ['Read(secrets/**)'], ask: ['Bash(less *)'] })
-  check('an allow rule and an ask rule are not deny rules: sovereign still allows', allowOnly.behavior === 'allow', told(allowOnly))
+  check('an allow rule and an ask rule are not deny rules: sovereign still allows', allowOnly.behavior === 'allow', reachFix + told(allowOnly))
 }
 
 section('§5 Flow keeps its own asks beside the rules')
 {
   const push = await bashDecision(`${PUSH} origin main`, 'flow', READ)
-  check('flow · a push with an unrelated deny rule in force still asks first', push.behavior === 'ask', told(push))
+  check('flow · a push with an unrelated deny rule in force still asks first', push.behavior === 'ask', reachFix + told(push))
   const plain = await bashDecision('npm test', 'flow', ALL)
-  check('flow · npm test with four deny rules in force runs unasked', plain.behavior === 'allow', told(plain))
+  check('flow · npm test with four deny rules in force runs unasked', plain.behavior === 'allow', reachFix + told(plain))
 }
 note('every row is a bashToolHasPermission decision through decideToolPermissionWithModes; no command is run')
 finish('prove-deny-rule-reach')

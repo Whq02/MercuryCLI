@@ -9,9 +9,10 @@ const scratch = mkdtempSync(join(tmpdir(), 'mercury-pointers-'))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
+const POINTERS_FIX_HINT = 'searchPointers in src/mneme/mnemePointers.ts (pointer shape, titles, footnotes, ledger pointers), recallQuery, readMemoryRecord and correctMemory in src/mneme/memoryVerbs.ts, the Recall result text in src/tools/MemoryTools/MemoryTools.ts, RECALL_PROMPT and RECALL_DESCRIPTION in src/constants/tools/memory.ts, publishFrontPage in src/mneme/mnemeFrontPage.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` | fix: ${POINTERS_FIX_HINT}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -35,12 +35,16 @@ const CONTINUATION = getResumePrompt()
 
 let failures = 0
 let checks = 0
+let sectionTitle = ''
+const resumeHint = 'change loadConversationForResume in src/services/resume/conversationRecovery.ts (or normalizeMessagesForAPI in src/services/messages.ts for the request shape) so a call with no result keeps the call plus one error result carrying the sentence'
+const bundleHint = 'the built bundle did not resume as the loader does: rebuild with bun run build.ts and rerun, then compare the wire shown with the loader checks of sections 1 to 6 (src/services/resume/conversationRecovery.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${sectionTitle.startsWith('§7') ? bundleHint : resumeHint}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(t: string): void {
+  sectionTitle = t
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''

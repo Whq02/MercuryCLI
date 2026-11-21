@@ -7,9 +7,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const effortMatrixHint = ' | to fix, change resolveEffortTruth, resolveWireRequestedEffort or selectableEffortLevels in src/utils/effort.ts, the vocabulary reads in src/utils/model/capabilities.ts, resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts, the /effort receipts in src/commands/effort/effort.ts, glmAcceptsEffort in src/utils/model/pins/glmPins.ts, or toBridgeMessages in src/services/providers/openai/openaiCallModel.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : effortMatrixHint}`)
 }
 
 console.log('============================================================')

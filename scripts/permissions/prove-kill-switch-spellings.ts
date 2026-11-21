@@ -15,7 +15,7 @@ const {
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix: how MERCURY_KILL entries are read and matched is reseedCapabilityKillsFromEnv, isCapabilityKilled and capabilityKillReason in src/utils/permissions/capabilityGate.ts; the kills row of the health check (section 4) is in src/services/health/sections/settings.ts'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

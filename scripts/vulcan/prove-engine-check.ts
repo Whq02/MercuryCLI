@@ -22,11 +22,13 @@ const promptMod = await import(join(ROOT, 'src/tools/GodotTool/prompt.ts'))
 const optable = await import(join(ROOT, 'src/utils/vulcan/optable.generated.ts'))
 
 let failures = 0
+let sectionWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail.slice(0, 300) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail.slice(0, 300) : ''}${cond ? '' : ` (change ${sectionWhere})`}`)
 }
 function section(t: string): void {
+  sectionWhere = t.startsWith('5.') ? 'the engine ops in src/utils/vulcan/optable.generated.ts, src/services/vulcan/engine/ops.ts, or the prompt in src/tools/GodotTool/prompt.ts' : 'the engine compile gate in src/services/vulcan/engine/compileGate.ts (the live gate of section 6 also runs src/services/vulcan/engine/spawn.ts and ops.ts)'
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

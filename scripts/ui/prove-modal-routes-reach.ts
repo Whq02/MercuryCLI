@@ -98,7 +98,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' — to fix: the view this label names (its command under src/commands/), or the shared frame and cursor code it paints with: src/components/FullscreenLayout.tsx, src/components/mercury-ui/useCursorFollow.ts, src/components/mercury-ui/NavigablePanes.tsx, src/components/CustomSelect/select.tsx (/critter is src/components/CritterSelect.tsx)'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise<void>(resolve => setTimeout(resolve, ms))
 async function until(predicate: () => boolean, ms = 15000): Promise<boolean> {
@@ -136,7 +136,7 @@ class Input extends EventEmitter {
   get readableLength(): number { return this.chunks.reduce((sum, chunk) => sum + chunk.length, 0) }
   push(data: string): void { this.chunks.push(data); this.emit('readable') }
 }
-const hardLimit = setTimeout(() => { console.error('modal-routes-reach exceeded its deadline'); process.exit(1) }, 900_000)
+const hardLimit = setTimeout(() => { console.error('modal-routes-reach exceeded its 900 s deadline: a route never painted its mark or the walk stalled; rerun with --route <name> to find the view that hangs, and read its command under src/commands/'); process.exit(1) }, 900_000)
 hardLimit.unref()
 
 const resetPopups = (): void => {

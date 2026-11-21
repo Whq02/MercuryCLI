@@ -3,8 +3,8 @@ import { resolve } from 'node:path'
 const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathname)
 const { getToolUseID } = await import(`${root}/src/services/messages/lookups.ts`)
 for (const type of ['grouped_tool_use', 'collapsed_read_search', 'turn_receipt']) {
-  assert.equal(getToolUseID({ type, messages: [], uuid: 'render-row' } as never), undefined)
+  assert.equal(getToolUseID({ type, messages: [], uuid: 'render-row' } as never), undefined, `getToolUseID in src/services/messages/lookups.ts must return undefined for a ${type} row (no case for it in its switch, and no read of message.message); got something else`)
   console.log(`PASS ${type} has no direct tool id and never dereferences a nonexistent message body`)
 }
-assert.equal(getToolUseID({ type: 'user', sourceToolUseID: 'source' } as never), 'source')
+assert.equal(getToolUseID({ type: 'user', sourceToolUseID: 'source' } as never), 'source', 'getToolUseID in src/services/messages/lookups.ts must return sourceToolUseID of a user row before it reads message.message.content')
 console.log('PASS a source tool id answers before reading user content')

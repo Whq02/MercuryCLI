@@ -38,37 +38,38 @@ section('§A repeat-confirm applies once — the original receipt stands')
 {
   let state = base()
   const first = settleModelSelection(state, 'claude-sonnet-5', { turnActive: false })
-  check('first confirm applies with a receipt', first.kind === 'applied' && first.receipt !== null)
+  check('first confirm applies with a receipt', first.kind === 'applied' && first.receipt !== null, `got kind ${first.kind}; settleModelSelection in src/services/model/modelTransition.ts must return kind applied with a receipt for a new model when no turn is active`)
   state = apply(state, first.patch)
   const second = settleModelSelection(state, 'claude-sonnet-5', { turnActive: false })
-  check('second identical confirm is a plain no-op (null patch, no receipt)', second.kind === 'no-op' && second.patch === null && second.receipt === null)
+  check('second identical confirm is a plain no-op (null patch, no receipt)', second.kind === 'no-op' && second.patch === null && second.receipt === null, `got kind ${second.kind}; settleModelSelection in src/services/model/modelTransition.ts must return a no-op with a null patch and null receipt when the model is already the engine model`)
   state = apply(state, second.patch)
   check(
     'the ORIGINAL receipt stands untouched',
     state.lastModelTransition === (first.kind === 'applied' ? first.receipt : null),
+    'a no-op in settleModelSelection (src/services/model/modelTransition.ts) must not return a patch that replaces lastModelTransition',
   )
-  check('the model applied exactly once', state.engineModel === 'claude-sonnet-5')
+  check('the model applied exactly once', state.engineModel === 'claude-sonnet-5', `engineModel is ${state.engineModel}; the applied patch from settleModelSelection in src/services/model/modelTransition.ts must set engineModel to the picked model`)
 }
 
 section('§B a queued switch settles exactly once at the boundary')
 {
   let state = base()
   const queued = settleModelSelection(state, 'gpt-5.2', { turnActive: true })
-  check('mid-turn pick parks (no receipt yet — nothing applied)', queued.kind === 'queued' && queued.receipt === null)
+  check('mid-turn pick parks (no receipt yet — nothing applied)', queued.kind === 'queued' && queued.receipt === null, `got kind ${queued.kind}; settleModelSelection in src/services/model/modelTransition.ts must return kind queued with a null receipt while turnActive is true`)
   state = apply(state, queued.patch)
-  check('the pending slot holds the choice', state.pendingModelSwitch?.setting === 'gpt-5.2')
+  check('the pending slot holds the choice', state.pendingModelSwitch?.setting === 'gpt-5.2', 'the queued patch from settleModelSelection in src/services/model/modelTransition.ts must set pendingModelSwitch to the picked setting')
   const boundary = settlePendingAtBoundary(state, {})
-  check('the boundary applies with ONE turn-boundary receipt', boundary !== null && boundary.receipt.resolution === 'applied' && boundary.receipt.boundary === 'turn-boundary' && boundary.receipt.crossProvider === true)
+  check('the boundary applies with ONE turn-boundary receipt', boundary !== null && boundary.receipt.resolution === 'applied' && boundary.receipt.boundary === 'turn-boundary' && boundary.receipt.crossProvider === true, `boundary receipt is ${JSON.stringify(boundary?.receipt ?? null)}; settlePendingAtBoundary in src/services/model/modelTransition.ts must apply the pending switch with a turn-boundary receipt that is marked crossProvider`)
   state = apply(state, boundary?.patch ?? null)
-  check('applied + pending cleared in the same patch', state.engineModel === 'gpt-5.2' && state.pendingModelSwitch === null)
+  check('applied + pending cleared in the same patch', state.engineModel === 'gpt-5.2' && state.pendingModelSwitch === null, 'the patch from settlePendingAtBoundary in src/services/model/modelTransition.ts must set engineModel and clear pendingModelSwitch together')
   const again = settlePendingAtBoundary(state, {})
-  check('a second boundary pass finds NOTHING to apply', again === null)
+  check('a second boundary pass finds NOTHING to apply', again === null, 'settlePendingAtBoundary in src/services/model/modelTransition.ts must return null when pendingModelSwitch is already null')
 }
 
 section('§C crash before the boundary — the pending slot is in-memory only')
 {
   const fresh = getDefaultAppState() as unknown as Slice
-  check('a fresh boot carries no pending switch', fresh.pendingModelSwitch === null || fresh.pendingModelSwitch === undefined)
+  check('a fresh boot carries no pending switch', fresh.pendingModelSwitch === null || fresh.pendingModelSwitch === undefined, 'getDefaultAppState in src/state/AppStateStore.ts must not start with a pendingModelSwitch')
   let hits: string[] = []
   try {
     hits = execFileSync(
@@ -81,7 +82,7 @@ section('§C crash before the boundary — the pending slot is in-memory only')
   } catch {
     hits = []
   }
-  check('the persistence estate never references pendingModelSwitch', hits.length === 0, hits.join(' · '))
+  check('the persistence estate never references pendingModelSwitch', hits.length === 0, `${hits.join(' · ')}; remove pendingModelSwitch from these files under src/utils/sessionStorage/ so the pending switch is never persisted`)
 }
 
 section('§D crash after apply — the applied patch is one atomic object')
@@ -96,7 +97,7 @@ section('§D crash after apply — the applied patch is one atomic object')
       'pendingModelSwitch' in patch &&
       patch.pendingModelSwitch === null &&
       'lastModelTransition' in patch,
-    JSON.stringify(Object.keys(patch ?? {})),
+    `${JSON.stringify(Object.keys(patch ?? {}))}; the applied patch from settleModelSelection in src/services/model/modelTransition.ts must carry engineModel, pendingModelSwitch (null) and lastModelTransition together`,
   )
 }
 
@@ -104,10 +105,10 @@ section('§E cancelled-pending mints exactly one receipt')
 {
   let state = base({ pendingModelSwitch: { setting: 'gpt-5.2' } })
   const cancel = settleModelSelection(state, 'claude-opus-5', { turnActive: false })
-  check('re-picking the current model resolves the parked switch with a receipt', cancel.kind === 'cancelled-pending' && cancel.receipt?.resolution === 'cancelled-pending')
+  check('re-picking the current model resolves the parked switch with a receipt', cancel.kind === 'cancelled-pending' && cancel.receipt?.resolution === 'cancelled-pending', `got kind ${cancel.kind}; settleModelSelection in src/services/model/modelTransition.ts must return cancelled-pending with a cancelled-pending receipt when the current model is re-picked while a switch is parked`)
   state = apply(state, cancel.patch)
   const repeat = settleModelSelection(state, 'claude-opus-5', { turnActive: false })
-  check('repeating is a plain no-op — no second cancellation receipt', repeat.kind === 'no-op' && repeat.receipt === null)
+  check('repeating is a plain no-op — no second cancellation receipt', repeat.kind === 'no-op' && repeat.receipt === null, `got kind ${repeat.kind}; settleModelSelection in src/services/model/modelTransition.ts must return a no-op with a null receipt once pendingModelSwitch is cleared`)
 }
 
 console.log(failures === 0 ? '\n ✅ SETTLEMENT IS IDEMPOTENT (repeat · boundary · crash · cancel)' : `\n ❌ ${failures} FAILED`)

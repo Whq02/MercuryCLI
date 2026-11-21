@@ -6,8 +6,10 @@ import { bootJourneyIsExplicit, consumeBootSurfaceIntent, consumeFaceDoorDeepLin
 import { bootAttemptsPath, clearBootAttempts, formatBootResidueWarning, readBootAttemptResidue } from '../../src/substrate/bootBeacon.js'
 
 let failures = 0
+let hintWhere = ''
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = [detail, hintWhere].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !shown ? '' : ` — ${shown}`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
@@ -19,6 +21,7 @@ const dirExists = (d: string): boolean => dirs.has(d)
 
 section('(1) decideSplashReceipt — the validation matrix (no shape may cost a boot)')
 {
+  hintWhere = 'to fix, change decideSplashReceipt in src/substrate/splashHandover.ts (or the one-shot readers it arms, consumeBootSurfaceIntent and consumeFaceDoorDeepLink, in the same file)'
   const d = (raw: string | null) => decideSplashReceipt(raw, NOW, dirExists)
   check('absent file ⇒ no-file, nothing applied', d(null).reason === 'no-file' && d(null).apply === null)
   check('a bare plain-text receipt ("\\n\\nheld\\n") ⇒ malformed, nothing applied', d('\n\nheld\n').reason === 'malformed')
@@ -98,6 +101,7 @@ section('(1) decideSplashReceipt — the validation matrix (no shape may cost a 
 
 section('(1b) the explicit-journey one-shot (argv journeys outrank the landing)')
 {
+  hintWhere = 'to fix, change markExplicitBootJourney and bootJourneyIsExplicit in src/substrate/splashHandover.ts'
   check('unmarked boot: no explicit journey', bootJourneyIsExplicit() === false)
   markExplicitBootJourney()
   check('marked boot: the resolver reads the fact live', bootJourneyIsExplicit() === true)
@@ -105,6 +109,7 @@ section('(1b) the explicit-journey one-shot (argv journeys outrank the landing)'
 
 section('(2) consumeSplashHandover — one-shot env, file discipline, application')
 {
+  hintWhere = 'to fix, change consumeSplashHandover in src/substrate/splashHandover.ts'
   const scratch = mkdtempSync(join(tmpdir(), 'splash receipt '))
   const home = join(scratch, 'home')
   const project = join(scratch, 'picked café-日本 project')
@@ -174,6 +179,7 @@ section('(2) consumeSplashHandover — one-shot env, file discipline, applicatio
 
 section('(3) the boot-completion beacon — asset stamp shape ⇄ bootBeacon reader')
 {
+  hintWhere = 'to fix, change bootAttemptsPath, readBootAttemptResidue, clearBootAttempts or formatBootResidueWarning in src/substrate/bootBeacon.ts'
   const scratch = mkdtempSync(join(tmpdir(), 'boot beacon '))
   try {
     const p = bootAttemptsPath(scratch)
@@ -195,6 +201,7 @@ section('(3) the boot-completion beacon — asset stamp shape ⇄ bootBeacon rea
 
 section('(4) writer-side pins — the asset speaks ONLY the new protocol')
 {
+  hintWhere = 'to fix, change the receipt writer in assets/splash/mercury-splash.mjs'
   const src = readFileSync(join(import.meta.dir, '..', '..', 'assets', 'splash', 'mercury-splash.mjs'), 'utf8')
   check('the receipt writer emits JSON only (no plain-twin write anywhere)', !src.includes("writeFileSync(join(CONFIG_HOME, 'splash-action.txt')"))
   check('the exit funnel derives the launcher contract (130 cancel · 20 restored)', src.includes('if (cancelled) exitCode = 130') && src.includes("exitCode = 20"))

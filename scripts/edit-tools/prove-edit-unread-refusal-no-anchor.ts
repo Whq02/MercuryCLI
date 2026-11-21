@@ -26,7 +26,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}`)
+  const unreadRefusalHint = 'to fix, change readKnowledge in src/tools/FileEditTool/edit/readKnowledge.ts (the refusal text for an unread file or a failed anchor) so it leads with the read law and carries no anchor, digest or file content'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail} | ` : ''}${unreadRefusalHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

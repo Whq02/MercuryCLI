@@ -4,7 +4,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}fix paneWindow, fitGroupedWindow or fitMeasuredWindow in src/components/mercury-ui/paneWindow.ts` : ''}`)
 }
 
 const { paneWindow } = await import('../../src/components/mercury-ui/paneWindow.js')

@@ -15,9 +15,10 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const rosterDefaultHint = ' | to fix, change the default choice in computedDefault (src/services/model/computedDefault.ts), the candidate walk in frontierOperatorDecision (src/services/model/frontierPolicy.ts), or the roster test isModelAllowed (src/services/model/modelAllowlist.ts); getDefaultEngineModelSetting and parseUserSpecifiedModel are in src/services/model/model.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : rosterDefaultHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

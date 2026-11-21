@@ -16,9 +16,16 @@ process.env.MERCURY_CONFIG_DIR = SCRATCH
 process.env.ANTHROPIC_API_KEY = 'sk-ant-fixture-dummy0000000000'
 
 let failures = 0
+function failureWhere(label: string): string {
+  if (/is a turn|is not$|⤳/.test(label)) return ' — to fix: isOperatorTurn and countOperatorTurns in src/utils/messages/operatorTurns.ts'
+  if (/effort/.test(label)) return ' — to fix: the EFFORT_* glyphs in src/constants/figures.ts'
+  if (/^\/help/.test(label)) return ' — to fix: the /help view in src/commands/help/help.tsx (column layout and footer at 100x30); if a drive did not deliver, run bun run build.ts and rerun'
+  if (/delivered every send/.test(label)) return ' — to fix: the drive stopped before its last send; run bun run build.ts, then rerun and read the exit and stderr above'
+  return ' — to fix: the /logins modal body, footer and PageDown or arrow scrolling (the view that paints Mercury · logins); the check reads the 100x30 screen of dist/mercury.mjs, so run bun run build.ts first'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : failureWhere(label)}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

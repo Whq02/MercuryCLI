@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond && hint) console.log(`    fix: ${hint}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
@@ -73,12 +74,12 @@ console.log('L1 the probe — unknown answers yes')
       out.unreadable = 'skipped'
     }
   `)
-  check('an absent file answers false', r.absent === false)
-  check('an empty file answers false', r.empty === false)
-  check('an UNPARSEABLE file answers true (the key may be there)', r.unparseable === true, `answered ${r.unparseable}`)
-  check('a parseable file without the key answers false', r.withoutKey === false)
-  check('a parseable file with the key answers true', r.withKey === true)
-  check('an UNREADABLE file answers true', r.unreadable === true || r.unreadable === 'skipped', `answered ${r.unreadable}`)
+  check('an absent file answers false', r.absent === false, '', 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer false when the user settings file does not exist')
+  check('an empty file answers false', r.empty === false, '', 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer false for an empty settings file')
+  check('an UNPARSEABLE file answers true (the key may be there)', r.unparseable === true, `answered ${r.unparseable}`, 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer true when the file cannot be parsed, since the key may be in it')
+  check('a parseable file without the key answers false', r.withoutKey === false, '', 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer false when the parsed file lacks records.retentionDays')
+  check('a parseable file with the key answers true', r.withKey === true, '', 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer true when the parsed file holds records.retentionDays')
+  check('an UNREADABLE file answers true', r.unreadable === true || r.unreadable === 'skipped', `answered ${r.unreadable}`, 'rawSettingsContainsKey in src/utils/settings/settings.ts must answer true when the file exists but cannot be read')
 }
 
 console.log('L2 the sweep — a broken settings file that held the key stops the sweep')
@@ -92,8 +93,8 @@ console.log('L2 the sweep — a broken settings file that held the key stops the
     out.survived = fs.existsSync(planted)
   `)
   const receipt = r.receipt as { messages: number; errors: number }
-  check('the 40-day-old debug log SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default')
-  check('the receipt carries one error and no finished look', receipt.errors === 1 && receipt.messages === 0, JSON.stringify(receipt))
+  check('the 40-day-old debug log SURVIVES', r.survived === true, 'the sweep deleted it on the 30-day default', 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must stop the sweep when rawSettingsContainsKey says a broken settings file may hold records.retentionDays')
+  check('the receipt carries one error and no finished look', receipt.errors === 1 && receipt.messages === 0, JSON.stringify(receipt), 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must return one error and no messages when it stops for a broken settings file')
 }
 
 console.log('L3 control — healthy settings, the sweep runs')
@@ -106,7 +107,7 @@ console.log('L3 control — healthy settings, the sweep runs')
     out.receipt = await cleanup.cleanupOldMessageFilesInBackground()
     out.survived = fs.existsSync(planted)
   `)
-  check('the old debug log is swept on the default window', r.survived === false, 'still present')
+  check('the old debug log is swept on the default window', r.survived === false, 'still present', 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must sweep a 40-day-old debug log when settings are healthy')
 }
 
 console.log('L4 policy — a registry/plist-delivered retention window is seen')
@@ -121,8 +122,8 @@ console.log('L4 policy — a registry/plist-delivered retention window is seen')
       out.viaPolicy = s.rawSettingsContainsKey('records.retentionDays')
     }
   `)
-  if (r.skipped === true) check('the policy tier is probed', false, 'the proof seam is absent in this src (pre-fix tree)')
-  else check('the policy tier is probed (the key seen through the parsed view)', r.viaPolicy === true, `answered ${r.viaPolicy}`)
+  if (r.skipped === true) check('the policy tier is probed', false, 'the proof seam is absent in this src (pre-fix tree)', 'src/utils/settings/mdm/rawRead.ts must export _setMdmRawReadForProofs')
+  else check('the policy tier is probed (the key seen through the parsed view)', r.viaPolicy === true, `answered ${r.viaPolicy}`, 'rawSettingsContainsKey in src/utils/settings/settings.ts must see records.retentionDays delivered through the MDM policy tier (src/utils/settings/mdm/settings.ts)')
 }
 
 console.log('L5 oversized retention never deletes pasted images or worktrees')
@@ -166,10 +167,10 @@ for (const road of ['settings', 'runtime', 'invalid-cutoff']) {
     out.tree = fs.existsSync(tree)
     out.log = fs.existsSync(oldLog)
   `)
-  check(`${road}: oversized retention is refused by name`, r.refused === true)
-  check(`${road}: another session's pasted image survives`, r.image === true)
-  check(`${road}: the ten-day-old clean worktree survives`, r.tree === true)
-  check(`${road}: the old debug log survives`, r.log === true)
+  check(`${road}: oversized retention is refused by name`, r.refused === true, '', 'SettingsSchema in src/utils/settings/types.ts must reject records.retentionDays above its maximum with an issue on records.retentionDays')
+  check(`${road}: another session's pasted image survives`, r.image === true, '', 'the retention window handling in src/services/cleanup.ts and cleanupOldImageCaches in src/utils/imageStore.ts must not delete image-cache files when retentionDays is oversized or the cutoff is invalid')
+  check(`${road}: the ten-day-old clean worktree survives`, r.tree === true, '', 'the retention window handling in src/services/cleanup.ts and cleanupStaleAgentWorktrees in src/services/worktree.ts must not remove agent worktrees when retentionDays is oversized or the cutoff is invalid')
+  check(`${road}: the old debug log survives`, r.log === true, '', 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must not delete old debug logs when retentionDays is oversized')
 }
 
 console.log('L6 an aged error log is a removal, not a failed sweep')
@@ -204,10 +205,10 @@ console.log('L6 an aged error log is a removal, not a failed sweep')
     out.advanced = fs.statSync(sentinel).mtimeMs > before && fs.readFileSync(sentinel, 'utf8') !== 'previous sweep'
   `)
   const receipt = r.receipt as { messages: number; errors: number }
-  check('one aged error log is removed', r.removed === true)
-  check('the receipt counts one removal and no failures', receipt.messages === 1 && receipt.errors === 0, JSON.stringify(receipt))
-  check('the cycle removes the aged error log and completes cleanly', r.cycleRemoved === true && r.outcome === 'cycle-complete', String(r.outcome))
-  check('the successful cycle advances the stale sentinel', r.advanced === true)
+  check('one aged error log is removed', r.removed === true, '', 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must remove error logs older than the retention window')
+  check('the receipt counts one removal and no failures', receipt.messages === 1 && receipt.errors === 0, JSON.stringify(receipt), 'cleanupOldMessageFilesInBackground in src/services/cleanup.ts must count a removed aged error log as one message and no error')
+  check('the cycle removes the aged error log and completes cleanly', r.cycleRemoved === true && r.outcome === 'cycle-complete', String(r.outcome), 'runCleanupCycleStep in src/services/backgroundHousekeeping.ts must remove the aged error log and reach cycle-complete')
+  check('the successful cycle advances the stale sentinel', r.advanced === true, '', 'runLifecycleVerbOpportunity in src/services/backgroundHousekeeping.ts must rewrite the .last-cleanup sentinel after a completed cycle')
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

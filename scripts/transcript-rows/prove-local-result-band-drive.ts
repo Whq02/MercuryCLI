@@ -23,8 +23,8 @@ const driver = resolveCaptureDriver()
 if (driver.kind === 'unavailable') throw new Error(driver.remedy)
 
 let failures = 0
-const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+const check = (name: string, ok: boolean, detail = '', hint = ''): void => {
+  console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` [${hint}]` : ''}`)
   if (!ok) failures++
 }
 
@@ -177,13 +177,13 @@ console.log('── a long local result ends where its rows end (the built bundl
 for (const [cols, rows] of [[120, 40], [177, 45]] as const) {
   const run = await drive(cols, rows)
   const size = `${cols}x${rows}`
-  check(`[${size}] the capture ran to its marks`, run.exit === 0 && run.marks.length >= 1, `exit ${run.exit} marks ${run.marks.map(m => m.label).join(',')} ${run.stderr.slice(-200)}`)
+  check(`[${size}] the capture ran to its marks`, run.exit === 0 && run.marks.length >= 1, `exit ${run.exit} marks ${run.marks.map(m => m.label).join(',')} ${run.stderr.slice(-200)}`, 'rebuild dist/mercury.mjs with bun run build.ts, then read the capture stderr shown')
   const bottom = run.marks.find(m => m.label === 'bottom')
   const band = bottom ? readBand(textOf(bottom.grid)) : null
-  check(`[${size}] the transcript pane is on screen at the bottom of the chat`, band !== null)
+  check(`[${size}] the transcript pane is on screen at the bottom of the chat`, band !== null, '', 'no lanes pane header with its box corners was found in the bottom mark; read the saved bottom grid text file under the output folder')
   if (band) {
-    check(`[${size}] the result's last line is painted on the pane's last row when the chat sits at the bottom`, band.needleRow >= 0 && band.needleRow === band.lastContentRow, band.needleRow < 0 ? 'the last line is not on screen: blank rows stand where it should be' : `last line on row ${band.needleRow}, the pane's last row is ${band.lastContentRow}`)
-    check(`[${size}] no empty row stands between the last line and the pane's bottom`, band.needleRow >= 0 && band.blankBelow === 0, `${band.blankBelow} empty rows`)
+    check(`[${size}] the result's last line is painted on the pane's last row when the chat sits at the bottom`, band.needleRow >= 0 && band.needleRow === band.lastContentRow, band.needleRow < 0 ? 'the last line is not on screen: blank rows stand where it should be' : `last line on row ${band.needleRow}, the pane's last row is ${band.lastContentRow}`, 'change UserLocalCommandOutputMessage in src/components/messages/UserLocalCommandOutputMessage.tsx so the row ends where its text ends')
+    check(`[${size}] no empty row stands between the last line and the pane's bottom`, band.needleRow >= 0 && band.blankBelow === 0, `${band.blankBelow} empty rows`, 'change UserLocalCommandOutputMessage in src/components/messages/UserLocalCommandOutputMessage.tsx so it reserves no rows beneath its last bullet')
   }
   if (band && band.needleRow < 0) {
     for (const mark of run.marks.filter(m => m.label.startsWith('pageup'))) {

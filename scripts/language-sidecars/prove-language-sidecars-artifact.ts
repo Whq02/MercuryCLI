@@ -10,9 +10,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 const ESC = String.fromCharCode(27)
 
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', fixHint = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, fixHint].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
 }
 
 const stage = mkdtempSync(join(tmpdir(), 'vista artifact '))
@@ -21,7 +22,7 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
 
 {
   const r = spawnSync('node', [bundle, '--version'], { encoding: 'utf8', timeout: 60_000 })
-  check('isolated: --version answers', r.status === 0 && r.stdout.includes('Mercury'), r.stderr.slice(0, 120))
+  check('isolated: --version answers', r.status === 0 && r.stdout.includes('Mercury'), r.stderr.slice(0, 120), 'the copy of dist/mercury.mjs in the staged folder must start and print its version on its own; rebuild with bun run build.ts and read the stderr shown here')
 }
 
 {
@@ -35,7 +36,7 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
     encoding: 'utf8',
     timeout: 60_000,
   })
-  check('isolated: image/iterm renders WITHOUT sharp', r.status === 0 && r.stdout.startsWith(`${ESC}]1337;File=`), r.stderr.slice(0, 160))
+  check('isolated: image/iterm renders WITHOUT sharp', r.status === 0 && r.stdout.startsWith(`${ESC}]1337;File=`), r.stderr.slice(0, 160), 'the image verb of the built bundle (node dist/mercury.mjs image <png> --protocol iterm) must print the iTerm file escape from the pure-JavaScript road when sharp is absent; read the stderr shown here')
 }
 
 {
@@ -61,15 +62,15 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
   }
   child.kill()
   const out = Buffer.concat(frames).toString('utf8')
-  check('isolated: web sidecar initializes', out.includes('"serverInfo"') && out.includes('mercury-web'))
-  check('isolated: css diagnostic answers', out.includes('"items"') && out.includes('colr'), out.slice(0, 200))
+  check('isolated: web sidecar initializes', out.includes('"serverInfo"') && out.includes('mercury-web'), out.slice(0, 200), 'node dist/mercury.mjs --lsp-web-sidecar must answer the initialize request with serverInfo naming mercury-web within ten seconds when run from the staged copy of dist')
+  check('isolated: css diagnostic answers', out.includes('"items"') && out.includes('colr'), out.slice(0, 200), 'the web sidecar (--lsp-web-sidecar of the built bundle) must answer textDocument/diagnostic for the css fixture with items that name the unknown property colr')
 }
 
 {
   const vendor = JSON.parse(readFileSync(join(stage, 'dist', 'vendor', 'treesitter', 'vendor.json'), 'utf8')) as {
     grammars: string[]
   }
-  check('isolated: 57 grammar wasms shipped', vendor.grammars.length === 57, String(vendor.grammars.length))
+  check('isolated: 57 grammar wasms shipped', vendor.grammars.length === 57, String(vendor.grammars.length), 'dist/vendor/treesitter/vendor.json, written by build.ts, must list exactly 57 grammar wasms; run bun run setup then bun run build.ts, or update the count here if the pack was changed on purpose')
   const probe = `
     const path = require('path');
     const dir = ${JSON.stringify(join(stage, 'dist', 'vendor', 'treesitter'))};
@@ -83,14 +84,14 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
     }).catch(e => { console.error('ENGINE FAIL', e.message); process.exit(1) });
   `
   const r = spawnSync('node', ['-e', probe], { encoding: 'utf8', timeout: 60_000 })
-  check('isolated: the S2 pack grammar PARSES under stock node', r.status === 0 && r.stdout.includes('PARSED') && r.stdout.includes('false'), (r.stderr || r.stdout).slice(0, 160))
+  check('isolated: the S2 pack grammar PARSES under stock node', r.status === 0 && r.stdout.includes('PARSED') && r.stdout.includes('false'), (r.stderr || r.stdout).slice(0, 160), 'the vendored engine and tree-sitter-toml.wasm in dist/vendor/treesitter must load and parse under stock node with no parse error; rebuild the vendored grammar pack with bun run setup')
 }
 
 {
   const bundleText = readFileSync(bundle, 'utf8')
-  check('isolated: the puppeteer driver is IN the bundle', bundleText.includes('puppeteer-core'))
+  check('isolated: the puppeteer driver is IN the bundle', bundleText.includes('puppeteer-core'), '', 'build.ts must bundle the puppeteer-core driver into dist/mercury.mjs')
   const manifest = JSON.parse(readFileSync(join(stage, 'dist', 'manifest.json'), 'utf8')) as Record<string, unknown>
-  check('manifest: selfContained', manifest.selfContained === true)
+  check('manifest: selfContained', manifest.selfContained === true, '', 'build.ts must write selfContained true into dist/manifest.json')
   const hosted = resolveExecutionProfile(ROOT).kind === 'hosted-gate'
   const desktop = manifest.desktopDriver as { vendored?: boolean } | undefined
   const embedder = manifest.semanticEmbedder as { vendored?: boolean } | undefined
@@ -111,14 +112,17 @@ const bundle = join(stage, 'dist', 'mercury.mjs')
       : 'manifest: degraded[] EMPTY (or only the built packs the build says it lacks — the voice capture, on-device transcriber, desktop driver and semantic embedder packs, the allowed absences)',
     degraded !== null && degraded.every(d => allowedAbsences.has(d)) && new Set(degraded).size === degraded.length,
     JSON.stringify(manifest.degraded),
+    'dist/manifest.json lists a degraded pack the build does not allow here; run bun run setup to fetch the missing pack, then bun run build.ts',
   )
   const ip = manifest.imageProcessing as { vendored?: boolean; degradesTo?: string; remedy?: string } | undefined
   check(
     'manifest: imageProcessing honesty recorded',
     !!ip && typeof ip.vendored === 'boolean' && (ip.vendored ? /pure-JavaScript image road/.test(ip.degradesTo ?? '') : /pure-JavaScript image road/.test(ip.remedy ?? '')),
+    JSON.stringify(ip ?? null),
+    'build.ts must record imageProcessing in dist/manifest.json with a boolean vendored and the pure-JavaScript image road named in degradesTo or remedy',
   )
   const tsit = manifest.treeSitter as { grammarPack?: { vendored?: boolean } } | undefined
-  check('manifest: grammarPack vendored', tsit?.grammarPack?.vendored === true)
+  check('manifest: grammarPack vendored', tsit?.grammarPack?.vendored === true, '', 'build.ts must record treeSitter.grammarPack.vendored true in dist/manifest.json; run bun run setup so the grammar pack is vendored, then rebuild')
 }
 
 if (failures > 0) {

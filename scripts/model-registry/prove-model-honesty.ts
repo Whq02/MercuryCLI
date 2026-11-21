@@ -74,9 +74,10 @@ type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOptio
 type Presence = import('../../src/services/providers/providerUsage.ts').ProviderFamilyPresence
 
 let failures = 0
+const modelHonestyHint = ' | to fix, change the /model rows in getModelOptions (src/services/model/modelOptions.ts), the sub-model picker in composeSubModelRegistry (src/services/model/subModelSlots.ts), the worker seats in composeWorkerModelRegistry (src/services/concourse/workerModels.ts), or the credential read in anthropicCredentialPresence (src/services/providers/providerUsage.ts), whichever surface this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : modelHonestyHint}`)
 }
 function section(t: string): void {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 66 - t.length))}`)

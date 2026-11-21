@@ -17,15 +17,15 @@ console.log('L1 the budget oracle')
   process.env.MERCURY_MCP_TOOL_TIMEOUT_MS = '444000'
   const budget = client.mcpRequestBudgetMs as ((body: unknown) => number) | undefined
   if (budget === undefined) {
-    t('the method-scoped budget oracle exists', false, 'mcpRequestBudgetMs is absent (pre-fix tree)')
+    t('the method-scoped budget oracle exists', false, 'export mcpRequestBudgetMs from src/services/mcp/client/fetch.ts through src/services/mcp/client.ts')
   } else {
-    t('tools/call rides the tool timeout (MERCURY_MCP_TOOL_TIMEOUT_MS respected)', budget(rpc('tools/call', { name: 'x', arguments: {} })) === 444_000, String(budget(rpc('tools/call'))))
-    t('initialize keeps the short budget', budget(rpc('initialize')) === 60_000)
-    t('tools/list keeps the short budget', budget(rpc('tools/list')) === 60_000)
-    t('a batch body reads its first entry', budget(`[${rpc('tools/call')},${rpc('tools/list')}]`) === 444_000)
-    t('a malformed body keeps the short budget', budget('{not json') === 60_000)
-    t('a non-string body keeps the short budget', budget(undefined) === 60_000)
-    t('a method buried past the head is still found (full-parse fallback)', budget(JSON.stringify({ jsonrpc: '2.0', id: 1, params: { pad: 'x'.repeat(4000) }, method: 'tools/call' })) === 444_000)
+    t('tools/call rides the tool timeout (MERCURY_MCP_TOOL_TIMEOUT_MS respected)', budget(rpc('tools/call', { name: 'x', arguments: {} })) === 444_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must return the MERCURY_MCP_TOOL_TIMEOUT_MS value for a tools/call body; got ' + String(budget(rpc('tools/call'))))
+    t('initialize keeps the short budget', budget(rpc('initialize')) === 60_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must give every method but tools/call the 60s budget')
+    t('tools/list keeps the short budget', budget(rpc('tools/list')) === 60_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must give every method but tools/call the 60s budget')
+    t('a batch body reads its first entry', budget(`[${rpc('tools/call')},${rpc('tools/list')}]`) === 444_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must read the method of the first entry of a batch body')
+    t('a malformed body keeps the short budget', budget('{not json') === 60_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must return the 60s budget for a body that is not JSON')
+    t('a non-string body keeps the short budget', budget(undefined) === 60_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must return the 60s budget for a body that is not a string')
+    t('a method buried past the head is still found (full-parse fallback)', budget(JSON.stringify({ jsonrpc: '2.0', id: 1, params: { pad: 'x'.repeat(4000) }, method: 'tools/call' })) === 444_000, 'mcpRequestBudgetMs (src/services/mcp/client/fetch.ts) must fall back to a full JSON parse when the method is not in the head of the body')
   }
   delete process.env.MERCURY_MCP_TOOL_TIMEOUT_MS
 }
@@ -48,7 +48,7 @@ console.log('L2 the wire at small scales')
     ),
     new Promise<string>(resolve => setTimeout(() => resolve('still-pending'), 1_200)),
   ])
-  t('a never-answering tools/call aborts at the tool timeout (~300ms), named TimeoutError', callVerdict === 'aborted:TimeoutError', callVerdict)
+  t('a never-answering tools/call aborts at the tool timeout (~300ms), named TimeoutError', callVerdict === 'aborted:TimeoutError', 'wrapFetchWithTimeout (src/services/mcp/client/fetch.ts) must abort a tools/call POST at the tool timeout with a TimeoutError; got ' + callVerdict)
 
   const init = wrapped('https://mcp.example/rpc', { method: 'POST', body: rpc('initialize') })
   const initVerdict = await Promise.race([
@@ -58,7 +58,7 @@ console.log('L2 the wire at small scales')
     ),
     new Promise<string>(resolve => setTimeout(() => resolve('still-pending'), 900)),
   ])
-  t('an initialize POST under the same env is still alive well past 300ms (60s budget untouched)', initVerdict === 'still-pending', initVerdict)
+  t('an initialize POST under the same env is still alive well past 300ms (60s budget untouched)', initVerdict === 'still-pending', 'wrapFetchWithTimeout (src/services/mcp/client/fetch.ts) must give a non-tools/call POST the 60s budget, not the tool timeout; got ' + initVerdict)
   init.catch(() => {})
 }
 
@@ -72,7 +72,7 @@ console.log('L3 GET stays exempt')
   }
   const wrapped = client.wrapFetchWithTimeout(base as never) as (input: string, init?: Record<string, unknown>) => Promise<Response>
   await wrapped('https://mcp.example/stream', { method: 'GET' })
-  t('a GET rides through with no imposed budget signal', sawSignal === null || sawSignal === undefined, String(sawSignal))
+  t('a GET rides through with no imposed budget signal', sawSignal === null || sawSignal === undefined, 'wrapFetchWithTimeout (src/services/mcp/client/fetch.ts) must pass a GET through without adding a timeout signal; got ' + String(sawSignal))
 }
 
 console.log(failures === 0 ? 'HTTP CALL BUDGET: ALL PASS' : 'HTTP CALL BUDGET: RED')

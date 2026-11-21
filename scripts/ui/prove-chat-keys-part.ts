@@ -2,9 +2,10 @@
 import { openKeysPart } from './chatScenarios.ts'
 
 let failures = 0
+const keysPartFix = 'fix what ChatKeys hands its handlers, the Escape hold and the suspend and resume writes in src/screens/chat/ChatKeys.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${keysPartFix}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

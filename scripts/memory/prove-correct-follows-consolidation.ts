@@ -16,10 +16,11 @@ for (const key of ['MERCURY_HOME', 'MERCURY_MODEL', 'OPENAI_API_KEY', 'GEMINI_AP
 
 let checks = 0
 let failures = 0
+const FOLLOW_FIX_HINT = 'consolidatedIdOf, readMemoryRecord and retainItems in src/mneme/memoryVerbs.ts (stale pending id following and the history note), maybeConsolidate in src/mneme/mnemeConsolidate.ts, conflictReason in src/mneme/mnemeContradiction.ts, the Correct tool result in src/tools/MemoryTools/MemoryTools.ts and renderCorrectResult in src/tools/MemoryTools/UI.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` | fix: ${FOLLOW_FIX_HINT}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)

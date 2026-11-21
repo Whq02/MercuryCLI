@@ -8,14 +8,15 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'change the dataBreakpoints, instructionBreakpoints or writeMemory op in src/tools/DebugTool/DebugTool.ts (its helpers sit under src/tools/DebugTool/debug/) or the DAP client in src/services/dap/dapClient.ts; the mock adapter is scripts/dap/mock-dap-adapter-memory.mjs'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — proof exceeded 180s')
+  console.log('\nTIMEOUT — proof exceeded 180s; a DebugTool call in src/tools/DebugTool/DebugTool.ts or the mock adapter scripts/dap/mock-dap-adapter-memory.mjs never answered')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

@@ -12,9 +12,14 @@ const ANSWER = 'Still here.'
 const TOAST_BUDGET = 61
 
 let failures = 0
+function failureWhere(label: string): string {
+  if (/stdin|hangup|terminal gone|re-armed|seam raised|fresh reader/.test(label)) return ' — to fix: the stdin hand-back after an editor child in src/utils/promptEditor.ts and src/ink/ink/stdin.ts (suspendStdin and the stdin recovery lines)'
+  if (/editor|receipt|refusal/.test(label)) return ' — to fix: the refusal and receipt wording in src/utils/editor.ts (editorRefusalLine) and src/commands/keybindings/keybindings.ts'
+  return ' — to fix: the /keybindings command in src/commands/keybindings/keybindings.ts, or run the drive again with the built bundle (bun run build.ts)'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${cond ? '' : failureWhere(label)}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

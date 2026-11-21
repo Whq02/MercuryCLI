@@ -11,9 +11,10 @@ const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
+const ONE_STORE_FIX_HINT = 'stop loadMemoryPrompt in src/mneme/mnemeFrontPage.ts and getInstructionFiles in src/services/instructions/engine.ts from reading the old MEMORY.md index or its pointer files; the library under the mneme home is the only memory store'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` | fix: ${ONE_STORE_FIX_HINT}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

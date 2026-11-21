@@ -60,7 +60,7 @@ if (process.env.AXIOM_CARDS_CHILD) {
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ' — the glyphs come from cardTone in src/components/mercury-ui/toolCardGrammar and the states from executionCardState and transactionCardState in src/services/primitives; rerun the child with AXIOM_CARDS_CHILD=1 to see the grid, and update GLYPH_FOR here only if the grammar changed on purpose' : ''}`)
   }
   if (!existsSync(VSHOT)) {
     console.error(`vshot.py not found at ${VSHOT} — the render-verify harness (scripts/ui/vshot.py) is required.`)

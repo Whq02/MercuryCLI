@@ -19,10 +19,13 @@ if (!existsSync(BIN)) {
 const FRAMES = argAfter('--frames')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
+const seedHint = 'the seeded keys come from seedFirstRun and canonicalProjectKeyOf in scripts/lib/firstRunSeed.ts; change them there'
+const captureHint = 'the capture is run by scripts/ui/vshot.py through the driver from scripts/lib/captureDriver.ts; rerun with --keep and read the boot-*.json, boot-*.tee and stderr in the scratch folder it prints'
+const trustCardHint = 'the card comes from TrustDialog in src/components/TrustDialog/TrustDialog.tsx, shown by src/interactiveHelpers.tsx when checkHasTrustDialogAccepted in src/utils/config/trust.ts finds no grant for the worktree or its parent folders; make that check see the grant before the first frame'
 
 const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'trust-worktree-')))
 const HOME = join(SCRATCH, 'home')
@@ -155,7 +158,7 @@ async function boot(size: string, cols: number, rows: number): Promise<{ marks: 
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: LINKED, cols, rows, sends, total: 180, out }))
   const teePath = join(SCRATCH, `boot-${size}.tee`)
   const res = await runChild(driver.python, [join(REPO, 'scripts', 'ui', 'vshot.py'), cfgPath], vshotBudgetMs(300_000), { VSHOT_TEE: teePath })
-  check(`${size}: the boot capture ran`, res.status === 0, res.stderr.slice(-240))
+  check(`${size}: the boot capture ran`, res.status === 0, res.stderr.slice(-240), captureHint)
   let marks: Mark[] = []
   try {
     marks = (JSON.parse(readFileSync(out, 'utf8')) as { marks?: Mark[] }).marks ?? []
@@ -183,9 +186,9 @@ function saveFrames(size: string, marks: Mark[], tee: TeeFrame[]): void {
 try {
   console.log('W the world: a trusted main checkout, a linked worktree the seed never keyed')
   const before = projectsOf()
-  check('the seed trusts the main checkout under its own key', before[MAIN]?.hasTrustDialogAccepted === true, Object.keys(before).join(', '))
-  check('the seed holds no key for the linked worktree', before[LINKED] === undefined, Object.keys(before).join(', '))
-  check('the product keys the linked worktree to the main checkout (its common directory)', canonicalProjectKeyOf(LINKED) === MAIN, String(canonicalProjectKeyOf(LINKED)))
+  check('the seed trusts the main checkout under its own key', before[MAIN]?.hasTrustDialogAccepted === true, Object.keys(before).join(', '), seedHint)
+  check('the seed holds no key for the linked worktree', before[LINKED] === undefined, Object.keys(before).join(', '), seedHint)
+  check('the product keys the linked worktree to the main checkout (its common directory)', canonicalProjectKeyOf(LINKED) === MAIN, String(canonicalProjectKeyOf(LINKED)), seedHint)
 
   for (const [cols, rows] of [[120, 40], [80, 21]] as const) {
     const size = `${cols}x${rows}`
@@ -195,22 +198,23 @@ try {
     const { marks, tee } = booted
     saveFrames(size, marks, tee)
     const face = marks.find(mark => mark.label === 'face')
-    check(`${size}: the boot reached the Boot face`, face !== undefined && rowsOf(face.grid).some(row => row.includes('New Session')), face === undefined ? 'no face mark' : rowsOf(face.grid).slice(0, 12).join(' | ').slice(0, 300))
-    check(`${size}: the first ${FIRST_TICKS} ticks were all sampled`, marks.filter(mark => /^f\d{3}$/.test(mark.label)).length === FIRST_TICKS, String(marks.length))
+    check(`${size}: the boot reached the Boot face`, face !== undefined && rowsOf(face.grid).some(row => row.includes('New Session')), face === undefined ? 'no face mark' : rowsOf(face.grid).slice(0, 12).join(' | ').slice(0, 300), `the boot in the linked worktree never drew New Session; ${captureHint}`)
+    check(`${size}: the first ${FIRST_TICKS} ticks were all sampled`, marks.filter(mark => /^f\d{3}$/.test(mark.label)).length === FIRST_TICKS, String(marks.length), captureHint)
     const flashed = marks.filter(mark => trustWordOn(rowsOf(mark.grid)) !== undefined)
     const firstFlash = flashed[0]
     check(
       `${size}: no frame carries the workspace trust card or its chrome`,
       flashed.length === 0,
       firstFlash === undefined ? '' : `tick ${firstFlash.atTick} (${flashed.length} frame(s)): ${rowsOf(firstFlash.grid).filter(row => trustWordOn([row]) !== undefined).map(row => row.trim()).join(' | ').slice(0, 240)}`,
+      trustCardHint,
     )
     const teeHit = teeWordAt(tee)
-    check(`${size}: the terminal was never sent the trust card's words (${tee.length} pty reads)`, tee.length > 0 && teeHit === undefined, teeHit === undefined ? '' : `tick ${teeHit.tick}: ${teeHit.word}`)
+    check(`${size}: the terminal was never sent the trust card's words (${tee.length} pty reads)`, tee.length > 0 && teeHit === undefined, teeHit === undefined ? '' : `tick ${teeHit.tick}: ${teeHit.word}`, tee.length === 0 ? captureHint : trustCardHint)
   }
 
   const after = projectsOf()
-  check('after the boots the worktree carries its own grant, keyed as the shipped road keyed it', after[LINKED]?.hasTrustDialogAccepted === true, Object.keys(after).join(', '))
-  check('the main checkout keeps its grant', after[MAIN]?.hasTrustDialogAccepted === true)
+  check('after the boots the worktree carries its own grant, keyed as the shipped road keyed it', after[LINKED]?.hasTrustDialogAccepted === true, Object.keys(after).join(', '), 'the grant is written by setPathTrusted in src/utils/config/trust.ts; check what the boot in the linked worktree did with the trust dialog')
+  check('the main checkout keeps its grant', after[MAIN]?.hasTrustDialogAccepted === true, '', seedHint)
 } catch (error) {
   failures++
   console.log(`  [FAIL] the drive threw: ${error instanceof Error ? error.message : String(error)}`)

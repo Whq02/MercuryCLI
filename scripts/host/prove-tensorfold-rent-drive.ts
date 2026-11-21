@@ -15,7 +15,8 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
   return nativeFetch(request)
 }, nativeFetch)
 let checks = 0
-const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
+const rentDriveWhere = 'look in src/services/host (worker.ts runHostJob and ssh.ts for the setup, vendors/client.ts for the Runpod client, tensorfoldPod.ts for stop and terminate, boxes.ts and costs.ts for the rows) and src/services/providers/openaicompat/compatAccounts.ts for the provider; the fixtures are scripts/host/runpodFixture.mjs and scripts/providers/lib/llmhostFixture.ts'
+const check = (name: string, truth: unknown, detail = ''): void => { assert.ok(truth, name + (detail ? ': ' + detail : '') + ' · ' + rentDriveWhere); checks++; console.log('PASS ' + name) }
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 const engineHits: { path: string; authorization?: string; body?: unknown }[] = []
 let podKey = (): string | undefined => undefined

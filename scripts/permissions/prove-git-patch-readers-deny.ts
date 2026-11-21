@@ -63,6 +63,7 @@ const SECRET = join(PROJECT, 'secrets', 'k.txt')
 const EVERY_MODE = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 const asked = (): number => readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).length
 const bash = (command: string, mode: string, rules: Rules = READ) => decide('Bash', { command }, mode, rules)
+const patchReadersFix = 'Fix: change denyRuleReach in src/tools/BashTool/denyRuleReach.ts and the git readers in src/tools/BashTool/gitPrintedNames.ts, which bashToolHasPermission calls; the stash summary words are added by gitArgs in src/utils/git/spawnArgs.ts. Got: '
 
 section('§0 the stand-in git is the one the product asks')
 if (process.platform === 'win32') {
@@ -70,7 +71,7 @@ if (process.platform === 'win32') {
 } else {
   const before = asked()
   const answer = await bash('git diff', 'default')
-  check('a bare git diff under a Read deny rule asks git for the names it would print', asked() > before, `asked ${asked() - before} time(s); ${said(answer)}`)
+  check('a bare git diff under a Read deny rule asks git for the names it would print', asked() > before, `${patchReadersFix}asked ${asked() - before} time(s); ${said(answer)}`)
 }
 
 section('§1 a patch reader that would print a denied file is refused by the rule in every mode, and the refusal says how to leave the file out')
@@ -121,11 +122,11 @@ for (const [label, command] of PRINTS) {
     if (!names) wrong.push(`${mode}: ${said(decision)}`)
     else advice = words.slice(words.indexOf('name what to print: ') + 'name what to print: '.length).trim()
   }
-  check(`${label} · ${shown(command)} · refused in all six modes, naming the file, the rule and the way to leave it out`, wrong.length === 0, wrong.join(' ‖ '))
+  check(`${label} · ${shown(command)} · refused in all six modes, naming the file, the rule and the way to leave it out`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   if (advice === '') continue
   const followed = await bash(advice, 'sovereign')
   const inDefault = await bash(advice, 'default')
-  check(`…and the command it names runs: ${shown(advice).slice(0, 110)}`, followed.behavior === 'allow' && inDefault.behavior !== 'deny', `sovereign: ${said(followed)} · default: ${said(inDefault)}`)
+  check(`…and the command it names runs: ${shown(advice).slice(0, 110)}`, followed.behavior === 'allow' && inDefault.behavior !== 'deny', `${patchReadersFix}sovereign: ${said(followed)} · default: ${said(inDefault)}`)
 }
 
 section('§2 no false refusal: a reader that prints no denied file is answered exactly as it is with no rule in force')
@@ -146,21 +147,21 @@ for (const command of PRINTS_NONE) {
     const bare = await bash(command, mode, {})
     if (ruled.behavior !== bare.behavior || ruled.behavior === 'deny' !== (mode === 'dontAsk' && bare.behavior === 'deny')) wrong.push(`${mode}: with the rule ${said(ruled)} · without ${said(bare)}`)
   }
-  check(`${shown(command)} · answered in all six modes as with no rule in force`, wrong.length === 0, wrong.join(' ‖ '))
+  check(`${shown(command)} · answered in all six modes as with no rule in force`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
 }
 {
   const { gitArgs } = await import('../../src/utils/git/spawnArgs.ts')
   const ran = (args: string[]): string => execFileSync(REAL_GIT, gitArgs(args, PROJECT), { cwd: PROJECT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] })
   const summary = ran(['stash', 'show', 'stash@{1}'])
-  check('a plain git stash show, which the rule lets run, is run so that it prints what git prints for it: the summary line of the stash, none of the denied file\'s lines', /secrets\/k\.txt \| 1 \+/.test(summary) && !summary.includes('diff --git') && !summary.includes('+held'), summary.slice(0, 200))
-  check('…the words the product adds to it name the summary, since any option that names no format makes git print the patch', gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv stash@{1}') && gitArgs(['stash', 'show', '-u', '1'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv -u 1'), gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' '))
+  check('a plain git stash show, which the rule lets run, is run so that it prints what git prints for it: the summary line of the stash, none of the denied file\'s lines', /secrets\/k\.txt \| 1 \+/.test(summary) && !summary.includes('diff --git') && !summary.includes('+held'), patchReadersFix + summary.slice(0, 200))
+  check('…the words the product adds to it name the summary, since any option that names no format makes git print the patch', gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv stash@{1}') && gitArgs(['stash', 'show', '-u', '1'], PROJECT).join(' ').endsWith('stash show --stat --no-ext-diff --no-textconv -u 1'), patchReadersFix + gitArgs(['stash', 'show', 'stash@{1}'], PROJECT).join(' '))
   const asked = gitArgs(['stash', 'show', PATCH, 'stash@{1}'], PROJECT).join(' ')
-  check('…and a stash reader that names its own format is run as it was', asked.endsWith(`stash show --no-ext-diff --no-textconv ${PATCH} stash@{1}`) && gitArgs(['stash', 'show', '--stat'], PROJECT).join(' ').endsWith('stash show --no-ext-diff --no-textconv --stat') && ran(['stash', 'show', PATCH, 'stash@{1}']).includes('+held'), asked)
+  check('…and a stash reader that names its own format is run as it was', asked.endsWith(`stash show --no-ext-diff --no-textconv ${PATCH} stash@{1}`) && gitArgs(['stash', 'show', '--stat'], PROJECT).join(' ').endsWith('stash show --no-ext-diff --no-textconv --stat') && ran(['stash', 'show', PATCH, 'stash@{1}']).includes('+held'), patchReadersFix + asked)
 }
 {
   const plain = await bash('git diff', 'default')
   const shownHead = await bash('git show HEAD', 'default')
-  check('default · git diff and git show HEAD run with no card, as before', plain.behavior === 'allow' && shownHead.behavior === 'allow', `${said(plain)} ‖ ${said(shownHead)}`)
+  check('default · git diff and git show HEAD run with no card, as before', plain.behavior === 'allow' && shownHead.behavior === 'allow', `${patchReadersFix}${said(plain)} ‖ ${said(shownHead)}`)
 }
 
 {
@@ -172,9 +173,9 @@ for (const command of PRINTS_NONE) {
       if (decision.behavior !== 'deny' || !(decision.message ?? '').includes(SECRET)) wrong.push(`${mode} · ${command}: ${said(decision)}`)
     }
   }
-  check('the relative flag taken back, from a folder below, under a rule that spells the folder by its full path: the names are read from the top, as git prints them, and both forms are refused naming the file (sovereign, flow and default)', wrong.length === 0, wrong.join(' ‖ '))
+  check('the relative flag taken back, from a folder below, under a rule that spells the folder by its full path: the names are read from the top, as git prints them, and both forms are refused naming the file (sovereign, flow and default)', wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   const again = await bash('cd sub && git diff --relative --no-relative --relative HEAD~2', 'sovereign', anchored)
-  check('…and with the flag given once more after it, which prints the files of that folder alone, the command runs', again.behavior === 'allow', said(again))
+  check('…and with the flag given once more after it, which prints the files of that folder alone, the command runs', again.behavior === 'allow', patchReadersFix + said(again))
 }
 
 {
@@ -186,9 +187,9 @@ for (const command of PRINTS_NONE) {
     const bare = await decide('Bash', { command: 'git diff', cwd: 'sub' }, mode, {})
     if (plain.behavior !== bare.behavior) wrong.push(`${mode}: git diff with the rule ${said(plain)} · without ${said(bare)}`)
   }
-  check('a call that names the folder to run in is judged in that folder: git show HEAD~1 there is refused in all six modes, git diff there is answered as with no rule', wrong.length === 0, wrong.join(' ‖ '))
+  check('a call that names the folder to run in is judged in that folder: git show HEAD~1 there is refused in all six modes, git diff there is answered as with no rule', wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   const named = await decide('Bash', { command: 'cat k.txt', cwd: 'secrets' }, 'default', READ)
-  check('control · the kit hands the folder a call names to the decision: cat k.txt run in secrets is refused by the rule', named.behavior === 'deny' && (named.message ?? '').includes(SECRET), said(named))
+  check('control · the kit hands the folder a call names to the decision: cat k.txt run in secrets is refused by the rule', named.behavior === 'deny' && (named.message ?? '').includes(SECRET), patchReadersFix + said(named))
 }
 
 section('§3 the working tree and the index are read as they stand')
@@ -200,7 +201,7 @@ section('§3 the working tree and the index are read as they stand')
       const bare = await bash(command, mode, {})
       if (ruled.behavior !== bare.behavior) wrong.push(`${mode}: with the rule ${said(ruled)} · without ${said(bare)}`)
     }
-    check(`with the denied file untouched, ${shown(command)} is answered in all six modes as with no rule in force`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`with the denied file untouched, ${shown(command)} is answered in all six modes as with no rule in force`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   put('secrets/k.txt', 'changed\n', true)
   const wrong: string[] = []
@@ -208,7 +209,7 @@ section('§3 the working tree and the index are read as they stand')
     const decision = await bash('git diff', mode)
     if (decision.behavior !== 'deny' || !(decision.message ?? '').includes(SECRET)) wrong.push(`${mode}: ${said(decision)}`)
   }
-  check('with the denied file changed in the working tree, a bare git diff is refused in all six modes', wrong.length === 0, wrong.join(' ‖ '))
+  check('with the denied file changed in the working tree, a bare git diff is refused in all six modes', wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   const judged = async (command: string, printed: boolean): Promise<string[]> => {
     const wrong: string[] = []
     for (const mode of ['sovereign', 'default'] as const) {
@@ -220,57 +221,57 @@ section('§3 the working tree and the index are read as they stand')
   }
   for (const [command, printed] of [['git status -vv', true], ['git status --verbose --verbose', true], ['git status -v -v', true], ['git status --verb --v', true], ['git status -vv -- src', true], ['git status -v', false], ['git status', false], ['git status -svv', false], ['git status --porcelain -vv', false], ['git status -vv --no-verbose', false]] as const) {
     const wrong = await judged(command, printed)
-    check(`…and ${shown(command)}, which ${printed ? 'prints the unstaged change whatever paths it names, is refused by the rule' : 'does not print it, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`…and ${shown(command)}, which ${printed ? 'prints the unstaged change whatever paths it names, is refused by the rule' : 'does not print it, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   for (const [command, printed] of [['git status -s --no-short -vv', true], ['git status --short --no-shor -vv', true], ['git status --porcelain --no-porcelain -vv', true], ['git status --porcelain=v2 --no-porc -vv', true], ['git status -z --no-null -vv', true], ['git status -vvz --no-nul', true], ['git status -s --no-long -vv', true], ['git status -s --lo -vv', true], ['git status --short --long -vv', true], ['git status -s -z --no-null -vv', false], ['git status --short --branch -vv', false], ['git status --porcelain --untracked-files=no -vv', false], ['git status --long --short -vv', false], ['git status --null -vv', false]] as const) {
     const wrong = await judged(command, printed)
-    check(`…and ${shown(command)}, where ${printed ? 'a short form is taken back, so git prints the long form and its diff, is refused by the rule' : 'git prints a short form and no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`…and ${shown(command)}, where ${printed ? 'a short form is taken back, so git prints the long form and its diff, is refused by the rule' : 'git prints a short form and no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   {
     const refused = await bash('git status -vv', 'default')
     const words = refused.message ?? ''
     const advice = words.includes('name what to print: ') ? words.slice(words.indexOf('name what to print: ') + 'name what to print: '.length).trim() : ''
     const followed = advice === '' ? null : await bash(advice, 'default')
-    check(`…and its refusal names a diff that leaves the file out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff HEAD -- ') && followed !== null && followed.behavior === 'allow', followed === null ? words : said(followed))
+    check(`…and its refusal names a diff that leaves the file out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff HEAD -- ') && followed !== null && followed.behavior === 'allow', patchReadersFix + (followed === null ? words : said(followed)))
   }
   git('reset', '-q', '--', 'README')
   for (const command of ['git status -vv', 'cd sub && git status -vv', 'git -C sub status -vv', 'git -C sub status -v -v -- .']) {
     const wrong = await judged(command, true)
-    check(`with nothing staged, ${shown(command)} is refused by the rule from the folder it runs in (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`with nothing staged, ${shown(command)} is refused by the rule from the folder it runs in (sovereign and default)`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   {
     const below = await decide('Bash', { command: 'git status -vv', cwd: 'sub' }, 'sovereign', READ)
-    check('with nothing staged, a call that names the folder below to run git status -vv in is refused by the rule', below.behavior === 'deny' && (below.message ?? '').includes(SECRET), said(below))
+    check('with nothing staged, a call that names the folder below to run git status -vv in is refused by the rule', below.behavior === 'deny' && (below.message ?? '').includes(SECRET), patchReadersFix + said(below))
     const anchored = await bash('cd sub && git status -vv', 'sovereign', { deny: [`Read(/${PROJECT_POSIX}/secrets/**)`] })
-    check('with nothing staged, under a rule that spells the folder by its full path, cd sub && git status -vv is refused under sovereign', anchored.behavior === 'deny' && (anchored.message ?? '').includes(SECRET), said(anchored))
+    check('with nothing staged, under a rule that spells the folder by its full path, cd sub && git status -vv is refused under sovereign', anchored.behavior === 'deny' && (anchored.message ?? '').includes(SECRET), patchReadersFix + said(anchored))
   }
   git('add', 'README')
   const cached = await bash('git diff --cached', 'sovereign')
-  check('…and git diff --cached, which would not print it, still runs', cached.behavior === 'allow', said(cached))
+  check('…and git diff --cached, which would not print it, still runs', cached.behavior === 'allow', patchReadersFix + said(cached))
   git('add', 'secrets/k.txt')
   for (const [command, printed] of [['git status -v', true], ['git status --verbose', true], ['git status --v -- src', true], ['git -C sub status -v', true], ['git status -sv', false], ['git status -v -z', false]] as const) {
     const wrong = await judged(command, printed)
-    check(`with the change staged, ${shown(command)}, which ${printed ? 'prints the staged change, is refused by the rule' : 'prints no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`with the change staged, ${shown(command)}, which ${printed ? 'prints the staged change, is refused by the rule' : 'prints no diff, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   for (const [command, printed] of [['git status --short --no-short -v', true], ['git status -sv --no-short', true], ['git status -sv --no-short --short', false]] as const) {
     const wrong = await judged(command, printed)
-    check(`with the change staged, ${shown(command)}, where the short form is ${printed ? 'taken back, is refused by the rule' : 'given again, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, wrong.join(' ‖ '))
+    check(`with the change staged, ${shown(command)}, where the short form is ${printed ? 'taken back, is refused by the rule' : 'given again, is answered as with no rule in force'} (sovereign and default)`, wrong.length === 0, patchReadersFix + wrong.join(' ‖ '))
   }
   {
     const refused = await bash('git status -v', 'sovereign')
     const words = refused.message ?? ''
     const advice = words.includes('name what to print: ') ? words.slice(words.indexOf('name what to print: ') + 'name what to print: '.length).trim() : ''
     const followed = advice === '' ? null : await bash(advice, 'sovereign')
-    check(`…and its refusal names the staged diff with the file left out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff --cached -- ') && followed !== null && followed.behavior === 'allow', followed === null ? words : said(followed))
+    check(`…and its refusal names the staged diff with the file left out, which runs: ${shown(advice).slice(0, 90)}`, advice.startsWith('git diff --cached -- ') && followed !== null && followed.behavior === 'allow', patchReadersFix + (followed === null ? words : said(followed)))
   }
   const staged: string[] = []
   for (const mode of EVERY_MODE) {
     const decision = await bash('git diff --cached', mode)
     if (decision.behavior !== 'deny' || !(decision.message ?? '').includes(SECRET)) staged.push(`${mode}: ${said(decision)}`)
   }
-  check('with the change staged, git diff --cached is refused in all six modes', staged.length === 0, staged.join(' ‖ '))
+  check('with the change staged, git diff --cached is refused in all six modes', staged.length === 0, patchReadersFix + staged.join(' ‖ '))
   const unstaged = await bash('git diff', 'sovereign')
-  check('…and the bare git diff, which no longer prints it, runs again', unstaged.behavior === 'allow', said(unstaged))
+  check('…and the bare git diff, which no longer prints it, runs again', unstaged.behavior === 'allow', patchReadersFix + said(unstaged))
   git('reset', '-q', '--', 'secrets/k.txt')
   git('checkout', '-q', '--', 'secrets/k.txt')
 }
@@ -299,12 +300,12 @@ for (const [label, command, why] of UNREAD) {
   for (const mode of ['sovereign', 'flow'] as const) {
     const decision = await bash(command, mode)
     const words = decision.message ?? ''
-    check(`${label} · ${shown(command)} · ${mode} refuses: the effect could not be established, the rule is named`, decision.behavior === 'deny' && words.startsWith('This command is refused: its effect could not be established (') && why.test(words) && words.includes('the rule Read(secrets/**)'), said(decision))
+    check(`${label} · ${shown(command)} · ${mode} refuses: the effect could not be established, the rule is named`, decision.behavior === 'deny' && words.startsWith('This command is refused: its effect could not be established (') && why.test(words) && words.includes('the rule Read(secrets/**)'), patchReadersFix + said(decision))
   }
   const inDefault = await bash(command, 'default')
-  check(`${label} · default asks, the person sees the card`, inDefault.behavior === 'ask', said(inDefault))
+  check(`${label} · default asks, the person sees the card`, inDefault.behavior === 'ask', patchReadersFix + said(inDefault))
   const bare = await bash(command, 'sovereign', {})
-  check(`${label} · with no rule in force sovereign allows it as before`, bare.behavior === 'allow', said(bare))
+  check(`${label} · with no rule in force sovereign allows it as before`, bare.behavior === 'allow', patchReadersFix + said(bare))
 }
 if (process.platform === 'win32') {
   console.log('  [SKIP] not read on Windows: git stand-in shim requires a POSIX executable script (§4 silent git)')
@@ -316,10 +317,10 @@ if (process.platform === 'win32') {
       const decision = await bash(command, mode)
       const words = decision.message ?? ''
       const told = mode === 'flow' || mode === 'sovereign' ? words.startsWith('This command is refused: its effect could not be established (git did not say in time which files git') : mode === 'dontAsk' ? true : /git did not say in time which files git (?:diff|show) would print, and the rule Read\(secrets\/\*\*\) .* denies what it may print; name the paths it should print, or approve/.test(words)
-      check(`git gives no answer · ${shown(command)} · ${mode}: ${behavior}${behavior === 'ask' ? ', with the sentence that says why' : ''}`, decision.behavior === behavior && told, said(decision))
+      check(`git gives no answer · ${shown(command)} · ${mode}: ${behavior}${behavior === 'ask' ? ', with the sentence that says why' : ''}`, decision.behavior === behavior && told, patchReadersFix + said(decision))
     }
     const bare = await bash(command, 'default', {})
-    check(`git gives no answer · ${shown(command)} · with no rule in force it runs with no card, and git was not asked`, bare.behavior === 'allow', said(bare))
+    check(`git gives no answer · ${shown(command)} · with no rule in force it runs with no card, and git was not asked`, bare.behavior === 'allow', patchReadersFix + said(bare))
   }
   rmSync(SILENT)
 }
@@ -331,7 +332,7 @@ for (const [label, rules] of [['no rule at all', {}], ['a Bash deny rule alone',
   for (const command of ['git diff', 'git show HEAD~1', 'git diff HEAD~2', `git stash show ${PATCH} 'stash@{1}'`]) {
     for (const mode of ['default', 'sovereign'] as const) answers.push((await bash(command, mode, rules)).behavior)
   }
-  check(`${label} · four patch readers in default and sovereign: git is not asked what they would print, and each runs`, (process.platform === 'win32' || asked() === before) && answers.every(answer => answer === 'allow'), `asked ${asked() - before} time(s); ${answers.join(',')}`)
+  check(`${label} · four patch readers in default and sovereign: git is not asked what they would print, and each runs`, (process.platform === 'win32' || asked() === before) && answers.every(answer => answer === 'allow'), `${patchReadersFix}asked ${asked() - before} time(s); ${answers.join(',')}`)
 }
 
 section('§6 Sovereign mode: a run or a refusal, never a card')
@@ -341,12 +342,12 @@ section('§6 Sovereign mode: a run or a refusal, never a card')
     const decision = await bash(command, 'sovereign')
     if (decision.behavior !== 'allow' && decision.behavior !== 'deny') cards.push(`${command}: ${said(decision)}`)
   }
-  check(`sovereign · the ${PRINTS.length + PRINTS_NONE.length + UNREAD.length} commands above are each allowed or refused`, cards.length === 0, cards.join(' ‖ '))
+  check(`sovereign · the ${PRINTS.length + PRINTS_NONE.length + UNREAD.length} commands above are each allowed or refused`, cards.length === 0, patchReadersFix + cards.join(' ‖ '))
 }
 if (process.platform === 'win32') {
   console.log('  [SKIP] not read on Windows: git stand-in shim requires a POSIX executable script (asked log)')
 } else {
-  check('the stand-in was asked through the product\'s own spawn: no helper of the repository is on any of its command lines', existsSync(ASKED) && readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).every(line => line.includes('core.fsmonitor=false') && line.includes('--no-ext-diff') && line.includes('--no-textconv')), readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line) && !line.includes('--no-textconv')).slice(0, 3).join(' ‖ '))
+  check('the stand-in was asked through the product\'s own spawn: no helper of the repository is on any of its command lines', existsSync(ASKED) && readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line)).every(line => line.includes('core.fsmonitor=false') && line.includes('--no-ext-diff') && line.includes('--no-textconv')), patchReadersFix + readFileSync(ASKED, 'utf8').split('\n').filter(line => /--name-only/.test(line) && !line.includes('--no-textconv')).slice(0, 3).join(' ‖ '))
 }
 note('nothing a model asked for is executed: command strings are handed to the decision function. The decision asks git, through a stand-in that records each question and hands it to the real git, for the names a command would print; the repository is this proof\'s own scratch folder')
 finish('prove-git-patch-readers-deny')

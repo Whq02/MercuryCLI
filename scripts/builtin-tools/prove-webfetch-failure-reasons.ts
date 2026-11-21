@@ -35,7 +35,13 @@ const run = async (path: string, agentId = 'a', sessionId = 'fetch-failures') =>
   return (await WebFetchTool.call({ url: path }, { owner, agentId, abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never)).data.result
 }
 let failures = 0
-function check(label: string, ok: boolean, detail: string) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}: ${detail}`); if (!ok) failures++ }
+function failureHint(label: string): string {
+  if (label.startsWith('DNS')) return 'fix networkFailureClass in src/tools/WebFetchTool/fetchErrors.ts'
+  if (label.startsWith('the Bash description')) return 'fix getSimplePrompt in src/tools/BashTool/prompt.ts'
+  if (/curl|marker|command text/.test(label)) return 'fix WEB_CONTENT_NOTICE and shellWebContentNotice in src/tools/BashTool/webContent.ts, and where BashTool.ts applies them'
+  return 'fix the fetch failure words or the WebFetchTool.prompt text under src/tools/WebFetchTool/ (WebFetchTool.ts, fetchErrors.ts)'
+}
+function check(label: string, ok: boolean, detail: string) { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}: ${detail}${ok ? '' : ` — ${failureHint(label)}`}`); if (!ok) failures++ }
 try {
   for (const [name, pattern] of [['reset', /connection reset/i], ['timeout', /timeout/i], ['406', /HTTP 406/], ['404', /HTTP 404/]] as const) {
     const text = await run(`https://${name}.example.org/${name}`)

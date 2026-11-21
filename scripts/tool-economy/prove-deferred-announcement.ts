@@ -119,11 +119,14 @@ const rendered = (row: Attachment): string => {
 }
 const first = createUserMessage({ content: 'begin' }) as Message
 const MODEL = 'claude-sonnet-5-5'
+const lineRuleHint = 'change formatDeferredToolLine (ANNOUNCEMENT_LINE_HINT_LIMIT and the cut) in src/tools/ToolSearchTool/prompt.ts, or the tool searchHint'
+const deltaRowHint = 'change getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts, or the deferral gates it calls'
+const purposeHint = 'fix the searchHint of that tool in its src/tools/<Tool>/ file (a complete purpose of at most 100 characters)'
 
 section('§1 the head and the line rule over a fixture pool')
 {
   const longHint = 'a hint of exactly one hundred and twelve characters, long enough that the line rule has to cut it at a word boun'
-  check('the fixture hint is 112 characters', longHint.length === 112, String(longHint.length))
+  check('the fixture hint is 112 characters', longHint.length === 112, `${String(longHint.length)}; the fixture longHint in this proof must be exactly 112 characters`)
   const pool: Tool[] = [
     fixtureTool('Read'),
     ToolSearchTool as never,
@@ -137,7 +140,7 @@ section('§1 the head and the line rule over a fixture pool')
     fixtureTool('lookup', { mcp: 'fixture' }),
   ]
   const row = getDeferredToolsDeltaAttachment(pool, MODEL, [first])[0] as { type: string; addedNames: string[]; addedLines: string[]; removedNames: string[]; body: string } | undefined
-  check('the row is a deferred_tools_delta', row !== undefined && row.type === 'deferred_tools_delta')
+  check('the row is a deferred_tools_delta', row !== undefined && row.type === 'deferred_tools_delta', deltaRowHint)
   if (row !== undefined) {
     const expectedLines = [
       'Alpha — spaced out hint',
@@ -149,22 +152,22 @@ section('§1 the head and the line rule over a fixture pool')
       'Zeta — the last line by name',
       'mcp__fixture__lookup',
     ]
-    check('addedNames are the bare names, sorted', row.addedNames.join(',') === ['Alpha', 'Bare', 'Exact', 'Long', 'Punct', 'Unbroken', 'Zeta', 'mcp__fixture__lookup'].join(','), row.addedNames.join(','))
-    check('a hint under the limit renders as `Name — hint`, whitespace runs made one space', row.addedLines.includes('Alpha — spaced out hint') && row.addedLines.includes('Zeta — the last line by name'), row.addedLines.join(' | '))
-    check('a tool without a hint is its name alone', row.addedLines.includes('Bare'))
-    check('a hint of exactly 100 characters is not cut', row.addedLines.includes('Exact — ' + 'x'.repeat(100)))
-    check('a 112-character hint is cut at its last space at or before 100 and ends with …', row.addedLines.includes(expectedLines[3]!), row.addedLines.find(line => line.startsWith('Long')) ?? 'no Long line')
-    check('trailing spaces, commas, semicolons, colons and dashes are removed before the …', row.addedLines.includes(expectedLines[4]!), row.addedLines.find(line => line.startsWith('Punct')) ?? 'no Punct line')
-    check('a hint with no space is cut at 100', row.addedLines.includes(expectedLines[5]!))
-    check('the lines are sorted', row.addedLines.join('\n') === expectedLines.join('\n'), row.addedLines.join(' | '))
-    check('the body is the head, a newline, then the lines joined by newlines', row.body === `${HEAD}\n${expectedLines.join('\n')}`)
-    check('the head is the one the deltas module exports', DEFERRED_TOOLS_ANNOUNCEMENT_HEAD === HEAD)
+    check('addedNames are the bare names, sorted', row.addedNames.join(',') === ['Alpha', 'Bare', 'Exact', 'Long', 'Punct', 'Unbroken', 'Zeta', 'mcp__fixture__lookup'].join(','), `${row.addedNames.join(',')} | ${deltaRowHint}`)
+    check('a hint under the limit renders as `Name — hint`, whitespace runs made one space', row.addedLines.includes('Alpha — spaced out hint') && row.addedLines.includes('Zeta — the last line by name'), `${row.addedLines.join(' | ')} | ${lineRuleHint}`)
+    check('a tool without a hint is its name alone', row.addedLines.includes('Bare'), lineRuleHint)
+    check('a hint of exactly 100 characters is not cut', row.addedLines.includes('Exact — ' + 'x'.repeat(100)), lineRuleHint)
+    check('a 112-character hint is cut at its last space at or before 100 and ends with …', row.addedLines.includes(expectedLines[3]!), `${row.addedLines.find(line => line.startsWith('Long')) ?? 'no Long line'} | ${lineRuleHint}`)
+    check('trailing spaces, commas, semicolons, colons and dashes are removed before the …', row.addedLines.includes(expectedLines[4]!), `${row.addedLines.find(line => line.startsWith('Punct')) ?? 'no Punct line'} | ${lineRuleHint}`)
+    check('a hint with no space is cut at 100', row.addedLines.includes(expectedLines[5]!), lineRuleHint)
+    check('the lines are sorted', row.addedLines.join('\n') === expectedLines.join('\n'), `${row.addedLines.join(' | ')} | ${deltaRowHint}`)
+    check('the body is the head, a newline, then the lines joined by newlines', row.body === `${HEAD}\n${expectedLines.join('\n')}`, `${row.body} | ${deltaRowHint}`)
+    check('the head is the one the deltas module exports', DEFERRED_TOOLS_ANNOUNCEMENT_HEAD === HEAD, 'DEFERRED_TOOLS_ANNOUNCEMENT_HEAD in src/constants/tools/toolSearch.ts no longer equals the HEAD text in this proof; change one to match the other')
     const text = rendered(row)
-    check('rendered, the text is <system-reminder>\\nDeferred tools: …\\n</system-reminder>', text === `<system-reminder>\n${row.body}\n</system-reminder>` && text.startsWith('<system-reminder>\nDeferred tools: '))
-    check('a second turn announces nothing more', getDeferredToolsDeltaAttachment(pool, MODEL, [first, { type: 'attachment', uuid: 'row', timestamp: new Date().toISOString(), attachment: row } as never]).length === 0)
+    check('rendered, the text is <system-reminder>\\nDeferred tools: …\\n</system-reminder>', text === `<system-reminder>\n${row.body}\n</system-reminder>` && text.startsWith('<system-reminder>\nDeferred tools: '), `${text} | the attachment rendering is normalizeAttachmentForAPI in src/services/messages/attachmentText.ts`)
+    check('a second turn announces nothing more', getDeferredToolsDeltaAttachment(pool, MODEL, [first, { type: 'attachment', uuid: 'row', timestamp: new Date().toISOString(), attachment: row } as never]).length === 0, `a second call over a history that already holds the row must return no row; ${deltaRowHint}`)
   }
-  check('formatDeferredToolLine agrees line by line', formatDeferredToolLine(fixtureTool('Long', { hint: longHint })) === 'Long — a hint of exactly one hundred and twelve characters, long enough that the line rule has to cut it at…' && formatDeferredToolLine(fixtureTool('Bare')) === 'Bare' && formatDeferredToolLine(fixtureTool('Empty', { hint: '   ' })) === 'Empty')
-  check('the server-search head keeps its words', SERVER_SEARCH_ANNOUNCEMENT_HEAD.startsWith('The following tools are available in this session but their definitions are not loaded yet.'))
+  check('formatDeferredToolLine agrees line by line', formatDeferredToolLine(fixtureTool('Long', { hint: longHint })) === 'Long — a hint of exactly one hundred and twelve characters, long enough that the line rule has to cut it at…' && formatDeferredToolLine(fixtureTool('Bare')) === 'Bare' && formatDeferredToolLine(fixtureTool('Empty', { hint: '   ' })) === 'Empty', lineRuleHint)
+  check('the server-search head keeps its words', SERVER_SEARCH_ANNOUNCEMENT_HEAD.startsWith('The following tools are available in this session but their definitions are not loaded yet.'), 'SERVER_SEARCH_ANNOUNCEMENT_HEAD in src/services/attachments/deltas.ts must keep its opening words')
 }
 
 section('§2 over the bench roster the body is the specification\'s text byte for byte')
@@ -182,18 +185,18 @@ section('§2 over the bench roster the body is the specification\'s text byte fo
   const here = computerToolEnabled() ? NAMES : NAMES.filter(name => name !== 'Computer')
   const specBody = computerToolEnabled() ? SPEC_BODY : SPEC_BODY.split('\n').filter(line => !line.startsWith('Computer — ')).join('\n')
   const roster: Tool[] = here.flatMap(name => pool.filter(tool => tool.name === name))
-  check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, here.filter(name => !roster.some(tool => tool.name === name)).join(', '))
+  check(`the ${here.length} built-ins of the split bench roster this build offers are present`, roster.length === here.length, `${here.filter(name => !roster.some(tool => tool.name === name)).join(', ')} | these tools are missing from assembleToolPool and getAllBaseTools in src/tools.ts`)
   for (const name of ['lease_list', 'lease_release', 'lease_take', 'render_tui']) roster.push(fixtureTool(name, { mcp: 'mercury' }))
   const row = getDeferredToolsDeltaAttachment(roster, MODEL, [first])[0] as { addedNames: string[]; body: string } | undefined
   const announced = computerToolEnabled() ? 47 : 46
-  check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, String(row?.addedNames.length))
-  check('the body equals the purpose-line specification under 4,000 bytes', row !== undefined && row.body === specBody && Buffer.byteLength(row.body, 'utf8') <= 4000, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}`)
+  check(`${announced} tools are announced`, row !== undefined && row.addedNames.length === announced, `${String(row?.addedNames.length)} | ${deltaRowHint}; a tool that should be deferred or loaded changed its shouldDefer or searchHint`)
+  check('the body equals the purpose-line specification under 4,000 bytes', row !== undefined && row.body === specBody && Buffer.byteLength(row.body, 'utf8') <= 4000, row === undefined ? 'no row' : `${Buffer.byteLength(row.body, 'utf8')} bytes; first differing line: ${row.body.split('\n').find((line, i) => line !== specBody.split('\n')[i]) ?? 'none'}; change that tool searchHint in src/tools/<Tool>/ or update SPEC_BODY in this proof`)
   if (row !== undefined) {
     for (const name of ['JevEval', 'Debug', 'Git', 'AstEdit', 'Test', 'Monitor', 'Checkpoint', 'Rewind', 'Crewmate', 'Skill', 'LspRead', 'AstSearch']) {
-      check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)))
+      check(`${name} has its line`, row.body.split('\n').some(line => line.startsWith(`${name} — `)), `no line for ${name}; give that tool a searchHint in its src/tools/<Tool>/ file and defer it`)
     }
-    check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)))
-    check('no loaded tool has a line', ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch'].every(name => !row.addedNames.includes(name)))
+    check('the four MCP tools are their names alone', ['mcp__mercury__lease_list', 'mcp__mercury__lease_release', 'mcp__mercury__lease_take', 'mcp__mercury__render_tui'].every(name => row.body.split('\n').includes(name)), `${row.body} | the mcp__mercury__ names come from the fixture tools made in this proof; see formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
+    check('no loaded tool has a line', ['Bash', 'Glob', 'Grep', 'Read', 'Edit', 'Write', 'Eval', 'ChangeSet', 'ToolSearch'].every(name => !row.addedNames.includes(name)), `${row.addedNames.join(',')} | ${deltaRowHint}`)
   }
 }
 
@@ -205,29 +208,29 @@ const purposeTools = [...getAllBaseTools(), ListMcpResourcesTool, ComputerTool]
 for (const name of purposeNames) {
   const tool = purposeTools.find(tool => tool.name === name)
   const hint = tool?.searchHint ?? ''
-  check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`)
+  check(`${name} has a complete purpose under 100 characters`, tool !== undefined && hint.length > 0 && hint.length <= 100 && formatDeferredToolLine(tool, false) === `${name} — ${hint}`, `${name}: ${purposeHint}; the line is built by formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
 }
-check('CrewBoard names messaging and lead-only assignments, not launches', /^read and post shared crew messages; lead-only \w+ assignments$/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? '') && !/launch/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? ''))
-check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers')
+check('CrewBoard names messaging and lead-only assignments, not launches', /^read and post shared crew messages; lead-only \w+ assignments$/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? '') && !/launch/.test(purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? ''), `${purposeTools.find(tool => tool.name === 'CrewBoard')?.searchHint ?? 'no CrewBoard tool'} | change the CrewBoard searchHint under src/tools/`)
+check('ListMcpResources has its resource-listing purpose', ListMcpResourcesTool.searchHint === 'list resources exposed by connected MCP servers', `${ListMcpResourcesTool.searchHint} | change searchHint in src/tools/ListMcpResourcesTool/ListMcpResourcesTool.ts`)
 
 const { markSessionNonInteractive, resetRuntimePostureForTest } = await import('../../src/utils/cockpit/runtimePosture.ts')
 markSessionNonInteractive()
 bootstrap.setAskChannel('none')
 const headlessPool = [ToolSearchTool, fixtureTool('Debug', { defer: true, hint: 'real debugger' }), fixtureTool('lookup', { mcp: 'fixture' })] as Tool[]
 const headless = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), headless.body)
+check('headless discovery carries every name without repeating the searchable descriptions', headless.addedLines.join('\n') === headless.addedNames.join('\n'), `${headless.body} | unattended lines are built by formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
 const economyPool = [...headlessPool, fixtureTool('Crewmate', { hint: 'delegate a task to a crewmate that works on its own' }), fixtureTool('Skill', { hint: 'invoke a slash-command skill by name' })] as Tool[]
 const headlessEconomy = getDeferredToolsDeltaAttachment(economyPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), headlessEconomy.body)
+check('headless discovery keeps the purpose on the lines of the economy-deferred tools, the rest names alone', headlessEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${headlessEconomy.body} | ANNOUNCED_WITH_PURPOSE in src/tools/ToolSearchTool/prompt.ts decides which lines keep a purpose`)
 const localEconomy = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('the local prompt profile announces the economy-deferred tools on the local lane with their purpose, the rest names alone', localEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), localEconomy.body)
+check('the local prompt profile announces the economy-deferred tools on the local lane with their purpose, the rest names alone', localEconomy.addedLines.join('\n') === ['Crewmate — delegate a task to a crewmate that works on its own', 'Debug', 'Skill — invoke a slash-command skill by name', 'mcp__fixture__lookup'].join('\n'), `${localEconomy.body} | localPromptProfileApplies and ANNOUNCED_WITH_PURPOSE in src/tools/ToolSearchTool/prompt.ts decide this`)
 process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
 const localOff = getDeferredToolsDeltaAttachment(economyPool, 'local/qwen3-32b', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
 delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
-check('with the profile switched off the local lane never announces the economy-deferred tools: they stay in full there', !localOff.addedNames.includes('Crewmate') && !localOff.addedNames.includes('Skill'), localOff.body)
+check('with the profile switched off the local lane never announces the economy-deferred tools: they stay in full there', !localOff.addedNames.includes('Crewmate') && !localOff.addedNames.includes('Skill'), `${localOff.body} | MERCURY_LOCAL_PROMPT_PROFILE=0 must stop the local deferral; see defersOnLocalFor in src/tools/ToolSearchTool/prompt.ts`)
 bootstrap.setAskChannel('sdk')
 const hosted = getDeferredToolsDeltaAttachment(headlessPool, 'glm-5.3', [first])[0] as Extract<Attachment, { type: 'deferred_tools_delta' }>
-check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'))
+check('a host that answers asks retains the descriptive roster', hosted.addedLines.includes('Debug — real debugger'), `${hosted.addedLines.join(' | ')} | an ask channel of sdk must keep purposes; see formatDeferredToolLine in src/tools/ToolSearchTool/prompt.ts`)
 resetRuntimePostureForTest()
 
 console.log(`\n${checks - failures}/${checks} checks passed`)

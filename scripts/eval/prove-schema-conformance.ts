@@ -11,6 +11,8 @@ const { createSyntheticOutputTool } = await import('../../src/tools/SyntheticOut
 
 type Verdict = 'accept' | 'reject' | 'schema-refused'
 
+const hinted = (label: string, cond: boolean, hint: string, detail = ''): void => check(label, cond, cond ? detail : detail ? `${detail} | ${hint}` : hint)
+
 function evalVerdict(schema: object, value: unknown): Verdict {
   const answer = applySchemaToReply(JSON.stringify(value), schema,  true)
   if (answer.ok) return 'accept'
@@ -80,12 +82,13 @@ for (const row of divergence) {
   const fromEval = evalVerdict(row.schema, row.value)
   const fromWorkflow = await workflowVerdict(row.schema, row.value)
   const fromHeadless = await headlessVerdict(row.schema, row.value)
-  check(
+  hinted(
     `${row.name}: all three surfaces agree`,
     fromEval === fromWorkflow && fromEval === fromHeadless,
+    'the three validators must give one verdict: applySchemaToReply in src/services/eval/evalBridge.ts, getSchemaBoundStructuredOutputTool in src/tools/SyntheticOutputTool/structuredOutputTool.ts, createSyntheticOutputTool in src/tools/SyntheticOutputTool/SyntheticOutputTool.ts; change the one that differs from the others',
     `eval=${fromEval} workflow=${fromWorkflow} headless=${fromHeadless}`,
   )
-  check(`${row.name}: the unified verdict is ${row.expect}`, fromEval === row.expect, `got ${fromEval}`)
+  hinted(`${row.name}: the unified verdict is ${row.expect}`, fromEval === row.expect, 'the eval verdict from applySchemaToReply in src/services/eval/evalBridge.ts differs from the expected one for this schema and value', `got ${fromEval}`)
 }
 
 section('verdict conformance: the agreement corpus stays intact')
@@ -93,9 +96,10 @@ for (const row of agreement) {
   const fromEval = evalVerdict(row.schema, row.value)
   const fromWorkflow = await workflowVerdict(row.schema, row.value)
   const fromHeadless = await headlessVerdict(row.schema, row.value)
-  check(
+  hinted(
     `${row.name}: eval ≡ workflow ≡ headless ≡ ${row.expect}`,
     fromEval === fromWorkflow && fromEval === fromHeadless && fromEval === row.expect,
+    'a plain schema must keep one verdict on all three validators: applySchemaToReply (src/services/eval/evalBridge.ts), getSchemaBoundStructuredOutputTool (src/tools/SyntheticOutputTool/structuredOutputTool.ts), createSyntheticOutputTool (src/tools/SyntheticOutputTool/SyntheticOutputTool.ts)',
     `eval=${fromEval} workflow=${fromWorkflow} headless=${fromHeadless}`,
   )
 }
@@ -104,28 +108,28 @@ section('a refused schema teaches the correction, on both surfaces')
 {
   const schema = { type: 'object', flibber: true }
   const fromEval = applySchemaToReply('{}', schema, true)
-  check('eval error names the refusal class', !fromEval.ok && (fromEval.error ?? '').includes('unknown keyword'), fromEval.ok ? 'accepted' : fromEval.error)
-  check('eval error teaches the correction', !fromEval.ok && (fromEval.error ?? '').includes('remove the unknown keyword'), fromEval.ok ? '' : fromEval.error)
+  hinted('eval error names the refusal class', !fromEval.ok && (fromEval.error ?? '').includes('unknown keyword'), 'applySchemaToReply in src/services/eval/evalBridge.ts must refuse a schema with an unknown keyword and name it', fromEval.ok ? 'accepted' : fromEval.error)
+  hinted('eval error teaches the correction', !fromEval.ok && (fromEval.error ?? '').includes('remove the unknown keyword'), 'the refusal text from applySchemaToReply in src/services/eval/evalBridge.ts must tell the caller to remove the unknown keyword', fromEval.ok ? '' : fromEval.error)
   const bound = getSchemaBoundStructuredOutputTool(schema)
-  check('workflow refusal carries the same teaching text', bound.error !== undefined && bound.error.includes('remove the unknown keyword'), bound.error ?? 'bound a tool')
+  hinted('workflow refusal carries the same teaching text', bound.error !== undefined && bound.error.includes('remove the unknown keyword'), 'getSchemaBoundStructuredOutputTool in src/tools/SyntheticOutputTool/structuredOutputTool.ts must return the same remove-the-unknown-keyword refusal as the eval seam', bound.error ?? 'bound a tool')
 }
 
 section('non-strict eval: value-over-refusal, no silent flip into refusal')
 {
   const refused = applySchemaToReply('{"a":1}', { type: 'object', flibber: true },  false)
-  check('uncompilable schema + non-strict tolerates (value rides through)', refused.ok === true && JSON.stringify(refused.value) === '{"a":1}', JSON.stringify(refused))
+  hinted('uncompilable schema + non-strict tolerates (value rides through)', refused.ok === true && JSON.stringify(refused.value) === '{"a":1}', 'applySchemaToReply in src/services/eval/evalBridge.ts must pass the parsed value through when strict is false and the schema does not compile', JSON.stringify(refused))
   const failing = applySchemaToReply('3', { oneOf: [{ type: 'number' }, { type: 'integer' }] },  false)
-  check('failing validation + non-strict returns the parsed value', failing.ok === true && failing.value === 3, JSON.stringify(failing))
+  hinted('failing validation + non-strict returns the parsed value', failing.ok === true && failing.value === 3, 'applySchemaToReply in src/services/eval/evalBridge.ts must return the parsed value when strict is false and validation fails', JSON.stringify(failing))
   const prose = applySchemaToReply('no json here', { type: 'object' },  false)
-  check('unparsable reply + non-strict returns the raw text', prose.ok === true && prose.value === 'no json here', JSON.stringify(prose))
+  hinted('unparsable reply + non-strict returns the raw text', prose.ok === true && prose.value === 'no json here', 'applySchemaToReply in src/services/eval/evalBridge.ts must return the raw reply text when strict is false and the reply is not JSON', JSON.stringify(prose))
   const proseStrict = applySchemaToReply('no json here', { type: 'object' },  true)
-  check('unparsable reply + strict refuses, naming the parse failure', proseStrict.ok === false && (proseStrict.error ?? '').includes('schema requested but'), JSON.stringify(proseStrict))
+  hinted('unparsable reply + strict refuses, naming the parse failure', proseStrict.ok === false && (proseStrict.error ?? '').includes('schema requested but'), 'applySchemaToReply in src/services/eval/evalBridge.ts must refuse a non-JSON reply under strict with an error containing schema requested but', JSON.stringify(proseStrict))
 }
 
 section('boolean schemas (valid JSON Schema) compile on the eval seam')
 {
   const anything = applySchemaToReply('{"x":1}', true,  true)
-  check('`true` accepts any value', anything.ok === true, JSON.stringify(anything))
+  hinted('`true` accepts any value', anything.ok === true, 'applySchemaToReply in src/services/eval/evalBridge.ts must compile a boolean true schema and accept any value', JSON.stringify(anything))
 }
 
 cleanup()

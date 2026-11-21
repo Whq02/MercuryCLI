@@ -43,9 +43,14 @@ const BOARD_PICKER_BOTTOM = 47
 const KEEP = process.env.MODEL_DEFAULT_KEY_KEEP === '1'
 
 let failures = 0
+function defaultKeyWhere(label: string): string {
+  if (/delivered every send/.test(label)) return ' — to fix: the drive stopped early; run bun run build.ts so dist/mercury.mjs is current, then rerun and read the vshot exit and stderr printed above'
+  if (/picker|heading|frontier|GPT|row/.test(label)) return ' — to fix: the model picker in src/components/MercuryModelPicker.tsx, and the m key and its hint in src/services/switchboard/sessionDefaultsKey.ts and src/components/BootSplashScreen.tsx (the engine.sessionDefaults setting turns it off)'
+  return ' — to fix: the m key phrase and the setting behind it (engine.sessionDefaults) in src/services/switchboard/sessionDefaultsKey.ts, and the Boot face in src/components/BootSplashScreen.tsx'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : defaultKeyWhere(label)}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

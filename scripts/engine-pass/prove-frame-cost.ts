@@ -19,7 +19,7 @@ const delay = (ms: number): Promise<void> => new Promise(resolve => setTimeout(r
 async function until(predicate: () => boolean, label: string): Promise<void> {
   const end = sharedClockMs() + 30_000
   while (!predicate()) {
-    if (sharedClockMs() > end) throw new Error(`no ${label} frame mark within 30 seconds`)
+    if (sharedClockMs() > end) throw new Error(`no ${label} frame mark within 30 seconds; read frames.jsonl under the work directory to see where the scene built by scripts/engine-pass/build-scene.ts stopped`)
     await delay(5)
   }
 }
@@ -80,8 +80,8 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
       const burst = outputBursts(output)[0] ?? []
       const nextFrame = inputs[index + 1]?.afterFrame ?? frames.length
       const active = frames.slice(input.afterFrame, nextFrame).filter(frame => frame.view === input.view && frame.draft === input.draft && (frame.phases?.patches ?? 0) > 0)
-      if (input.kind === 'view') assert.ok(output.length > 0, `${label} missing repaint for view switch ${index}`)
-      if (input.kind !== 'pointer' && output.length > 0) assert.ok(active.length > 0, `${label} missing engine timing for input ${index}`)
+      if (input.kind === 'view') assert.ok(output.length > 0, `${label} missing repaint for view switch ${index}; the view switch key sequence produced no terminal output, read pty.bin and measurements.json under the work directory`)
+      if (input.kind !== 'pointer' && output.length > 0) assert.ok(active.length > 0, `${label} missing engine timing for input ${index}; output was painted but frames.jsonl has no frame with patches for this view and draft, read it under the work directory`)
       return {
         kind: input.kind, silent: output.length === 0, bytes: bytesOf(output), firstMs: output[0] ? output[0].atMs - input.atMs : 0,
         burstEndMs: burst.at(-1) ? burst.at(-1)!.atMs - input.atMs : 0,
@@ -95,7 +95,7 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
     const views = rows.filter(row => row.kind === 'view')
     const pointers = rows.filter(row => row.kind === 'pointer')
     const silentKeys = rows.flatMap((row, index) => row.kind === 'key' && row.silent ? [index] : [])
-    assert.ok(keys.length >= 10, `${label} echoed only ${keys.length} of 20 keys`)
+    assert.ok(keys.length >= 10, `${label} echoed only ${keys.length} of 20 keys; typed keys painted no output, read pty.bin under the work directory`)
     const metrics: Metrics = {
       keyBytes: median(keys.map(row => row.bytes)),
       keyFirstMs: median(keys.map(row => row.firstMs)),
@@ -128,12 +128,12 @@ async function measure(bundle: string, label: string): Promise<{ metrics: Metric
 const baselinePath = join(import.meta.dir, `baseline-${BASE.slice(0, 9)}.json`)
 const liveBase = hasBaseObject()
 const recordingBase = process.argv.includes('--record-base')
-assert.ok(liveBase || existsSync(baselinePath), 'neither the pinned base git object nor its committed measurement record is available')
+assert.ok(liveBase || existsSync(baselinePath), 'neither the pinned base git object nor its committed measurement record is available; fetch the BASE commit named in scripts/engine-pass/support.ts or restore the baseline-<sha>.json file next to this script')
 if (recordingBase) {
-  assert.ok(liveBase, 'the base object is required to record measurements')
-  assert.ok(!existsSync(baselinePath), 'the base measurement record is write-once')
+  assert.ok(liveBase, 'the base object is required to record measurements; fetch the BASE commit named in scripts/engine-pass/support.ts')
+  assert.ok(!existsSync(baselinePath), 'the base measurement record is write-once; the baseline-<sha>.json file next to this script already exists, run without --record-base')
   assert.equal(git('diff', BASE, '--', 'src', 'assets'), '', 'the first baseline must precede engine changes')
-} else assert.ok(existsSync(baselinePath), 'write-once base record is missing')
+} else assert.ok(existsSync(baselinePath), 'write-once base record is missing; restore the baseline-<sha>.json file next to this script, or run with --record-base where the BASE git object exists')
 const recorded = existsSync(baselinePath) ? JSON.parse(readFileSync(baselinePath, 'utf8')) as { baseSha: string; sceneDigest: string; silentKeys: number[]; medians: Metrics; runs: Array<{ metrics: Metrics; silentKeys: number[] }> } : null
 const baseBundle = liveBase ? await buildScene(baseSources(work), join(work, 'base-dist')) : null
 const tipBundle = await buildScene(ROOT, join(work, 'tip-dist'))
@@ -149,7 +149,7 @@ for (let round = 0; round < 5; round++) {
 const base = liveBase ? fiveRunMedians(runs.base) : recorded!.medians
 const tip = fiveRunMedians(runs.tip)
 const silentKeys = (recorded ?? runs.base[0] ?? runs.tip[0])!.silentKeys
-for (const run of [...runs.base, ...runs.tip, ...(recorded?.runs ?? [])]) assert.deepEqual(run.silentKeys, silentKeys, 'every run of the same scene must leave the same keys without bytes')
+for (const run of [...runs.base, ...runs.tip, ...(recorded?.runs ?? [])]) assert.deepEqual(run.silentKeys, silentKeys, 'every run of the same scene must leave the same keys without bytes; compare silentKeys in the runs of report.json under the work directory')
 const digest = createHash('sha256')
 for (const name of ['boot', 'chat', 'concourse']) digest.update(readFileSync(join(scenes, `${name}.json`)))
 const identity = { baseSha: BASE, tipSha: git('rev-parse', 'HEAD'), sourceTree: git('rev-parse', 'HEAD:src'), sceneDigest: digest.digest('hex'), cols: 177, rows: 49, platform: process.platform, architecture: process.arch, box: cpus()[0]?.model ?? 'unreported', osRelease: release(), terminal: 'Apple_Terminal identity over byte-exact POSIX pty', repetitions: 5, comparison: liveBase ? 'live base and tip on this box' : 'tip against committed base record' }
@@ -161,9 +161,9 @@ if (recordingBase) writeFileSync(baselinePath, JSON.stringify({ ...identity, mea
 let failures = 0
 const signed = (value: number): string => `${value > 0 ? '+' : ''}${value.toFixed(6)}`
 if (recorded) {
-  assert.equal(recorded.baseSha, BASE, 'recorded base identity differs')
-  assert.equal(recorded.sceneDigest, identity.sceneDigest, 'the measured scenes changed')
-  assert.deepEqual(fiveRunMedians(recorded.runs), recorded.medians, 'the committed medians do not follow their five recorded runs')
+  assert.equal(recorded.baseSha, BASE, 'recorded base identity differs; BASE in scripts/engine-pass/support.ts no longer matches baseSha in the baseline-<sha>.json file')
+  assert.equal(recorded.sceneDigest, identity.sceneDigest, 'the measured scenes changed; the files under scripts/engine-pass/scenes no longer match sceneDigest in the baseline-<sha>.json file, restore them')
+  assert.deepEqual(fiveRunMedians(recorded.runs), recorded.medians, 'the committed medians do not follow their five recorded runs; medians in the baseline-<sha>.json file must equal fiveRunMedians of its runs')
   if (liveBase) {
     const recordFloors = boxFloors(recorded.medians, runs.base, recorded.runs)
     for (const key of Object.keys(base)) {
@@ -185,12 +185,12 @@ for (const row of costRows(base, tip, noise)) {
   if (!row.pass) failures++
   const floor = floors[row.metric]
   const detail = floor ? ` (${signed(row.tip - row.base)} against the box's floor ${floor.floor.toFixed(6)} = spread ${floor.spread.toFixed(6)} | ${RELATIVE_FLOOR * 100}% ${floor.relative.toFixed(6)})` : ' (exact)'
-  console.log(`[${row.pass ? 'PASS' : 'FAIL'}] ${row.metric}: base ${row.base.toFixed(6)} tip ${row.tip.toFixed(6)}${detail}`)
+  console.log(`[${row.pass ? 'PASS' : 'FAIL'}] ${row.metric}: base ${row.base.toFixed(6)} tip ${row.tip.toFixed(6)}${detail}${row.pass ? '' : ` (tip cost rose past the base: look for the engine change in src that raised ${row.metric}; per-run numbers are in report.json under ${work})`}`)
 }
 const fullBudget = argument('--full-budget-ms')
 if (fullBudget !== undefined && tip.fullFrameMs! > Number(fullBudget)) {
   failures++
-  console.log(`[FAIL] full-frame renderer ${tip.fullFrameMs}ms exceeds ${fullBudget}ms`)
+  console.log(`[FAIL] full-frame renderer ${tip.fullFrameMs}ms exceeds ${fullBudget}ms (the --full-budget-ms limit; reduce the full-frame renderer cost or raise the limit)`)
 }
 console.log(`[${failures ? 'FAIL' : 'PASS'}] frame cost: ${failures} regressions; five runs per build; receipts ${work}`)
 process.exit(failures ? 1 : 0)

@@ -15,8 +15,9 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change ${TENSORFOLD_DISCOVERY_AT}` : ''}`)
 }
+const TENSORFOLD_DISCOVERY_AT = 'by section: section 0 the hosts store in src/services/providers/local/tensorfoldHosts.ts; sections 1 to 3 discoverLocalServers, localProbeTargets and readServed in src/services/providers/local/localDiscovery.ts; section 4 resolveLocalApiKeyFor in src/services/providers/local/localAccounts.ts; section 5 localLaneProfileFor in src/services/providers/local/localCallModel.ts and the key file in src/services/providers/local/tensorfoldKeyFile.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }

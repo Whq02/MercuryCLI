@@ -28,10 +28,11 @@ const bash = {
 }
 let failures = 0
 let checks = 0
+const lineBreakHint = 'change how a command on the line after a pipeline is read in parseForSecurity (src/utils/bash/ast.ts), or how it is judged in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), refusalOfShellCommand (src/utils/wards/wardsRefusals.ts), shellCredentialWritePath and shellSelfProtectionReason (src/utils/permissions/shellProtectedPaths.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : `${detail ? ` — ${detail}` : ''} · ${lineBreakHint}`}`)
 }
 async function decide(command: string): Promise<string> {
   const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default', alwaysAllowRules: {}, alwaysDenyRules: {}, alwaysAskRules: {}, isBypassPermissionsModeAvailable: false }, tasks: {} }

@@ -13,8 +13,9 @@ const { readHooksMap } = await import('../../src/schemas/hooks.ts')
 const { HOOK_EVENTS, hookEventTable } = await import('../../src/utils/hooks/contract.ts')
 
 let failures = 0
+const HOOK_TEETH_WHERE = 'fix the entry faults in src/schemas/hooks.ts (the hook entry schema and readHooksMap) or the match grammar in src/utils/hooks/matcherGrammar.ts and src/utils/hooks/matching.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' | ' : ' — ') + HOOK_TEETH_WHERE}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

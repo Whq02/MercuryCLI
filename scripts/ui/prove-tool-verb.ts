@@ -3,8 +3,10 @@
 import { activeToolVerb, toolVerbFor } from '../../src/utils/cockpit/toolVerb.js'
 
 let fail = 0
+const verbFixHint = 'change toolVerbFor or activeToolVerb in src/utils/cockpit/toolVerb.ts so the verb matches this case'
 const t = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : detail ? `${detail}; ${verbFixHint}` : verbFixHint
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) fail = 1
 }
 

@@ -18,6 +18,7 @@ import { ALL_MODEL_CONFIGS, newestGenerationKey } from '../../src/utils/model/co
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = process.env.REPRO_DIST ?? join(ROOT, 'dist', 'mercury.mjs')
 const j = (v: unknown): string => JSON.stringify(v)
+const RECORD_SRC_HINT = 'change src/services/providers/anthropic/boundPrefixRecord.ts (boundPrefixRecordToEmit and restoreBoundPrefixFromMessages), which writes and replays the first-exchange record'
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -29,14 +30,14 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the agent record proof exceeded 300s')
+  console.log('\n❌ TIMEOUT — the agent record proof exceeded 300s; a process run or fixture close hung, read the last section printed above')
   process.exit(1)
 }, 300_000)
 guard.unref?.()
 
 const nodeBin = Bun.which('node')
 if (!existsSync(DIST) || !nodeBin) {
-  check('the bundle under proof and a node binary are present', false, `${DIST} node=${String(nodeBin)}`)
+  check('the bundle under proof and a node binary are present', false, `${DIST} node=${String(nodeBin)}; build the bundle with bun run build.ts (or set REPRO_DIST) and put node on PATH`)
   process.exit(1)
 }
 console.log(`bundle under proof: ${DIST}`)
@@ -126,20 +127,20 @@ const turns1: ScriptedTurn[] = [
 ]
 const fixture1 = await startFixtureApi(turns1, { bindingCheck: true })
 const r1 = await runStreaming(arena, fixture1, {}, ['--model', MAIN, '--sovereign', '--session-id', SID], ['launch the seat and carry on', 'and now say noted'], 3_000)
-check('process 1 exits 0 after the launch turn and the follow-up turn', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(-400)}`)
+check('process 1 exits 0 after the launch turn and the follow-up turn', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(-400)}; read the stderr tail for the crash in the process-1 run`)
 const initTools1 = initToolsOf(r1.stdout)
 const reqs1 = fixture1.messageRequests()
 const seatReqs1 = reqs1.filter(q => modelOf(q) === SEAT)
 console.log(`  wire order: ${reqs1.map((q, i) => `${i + 1}:${modelOf(q) === SEAT ? 'seat' : 'main'}`).join(' ')}`)
-check('the seat made at least one request of its own in process 1', seatReqs1.length >= 1, `seat ${seatReqs1.length}`)
+check('the seat made at least one request of its own in process 1', seatReqs1.length >= 1, `seat ${seatReqs1.length}; the background Crewmate launch sent no request of its own on the wire, read the wire order line above`)
 const files1 = transcriptFiles(arena)
 const mainFile = files1.find(f => f.endsWith(`${SID}.jsonl`))
 const agentFiles1 = files1.filter(f => /subagents/.test(f))
-check('the main transcript carries the first-exchange record (bound_prefix)', mainFile !== undefined && readFileSync(mainFile, 'utf8').includes('"attachmentType":"bound_prefix"'))
-check('the seat left a transcript of its own under the session', agentFiles1.length >= 1, files1.join(', '))
+check('the main transcript carries the first-exchange record (bound_prefix)', mainFile !== undefined && readFileSync(mainFile, 'utf8').includes('"attachmentType":"bound_prefix"'), RECORD_SRC_HINT)
+check('the seat left a transcript of its own under the session', agentFiles1.length >= 1, `${files1.join(', ')}; the seat should write a subagents transcript under the session`)
 const seatFile = agentFiles1[0]
 const seatRecorded = seatFile !== undefined && readFileSync(seatFile, 'utf8').includes('"attachmentType":"bound_prefix"')
-check('the seat\'s transcript carries a first-exchange record of its own', seatRecorded, seatFile ?? '(no file)')
+check('the seat\'s transcript carries a first-exchange record of its own', seatRecorded, `${seatFile ?? '(no file)'}; ${RECORD_SRC_HINT}`)
 const agentId = seatFile !== undefined ? /agent-([^/\\]+)\.jsonl$/.exec(basename(seatFile))?.[1] ?? null : null
 console.log(`  the seat: ${agentId ?? '(unknown id)'}; its first tools array: ${seatReqs1[0] ? toolNamesOf(seatReqs1[0]) : '(none)'}`)
 await fixture1.close()
@@ -161,16 +162,16 @@ if (agentId !== null) {
   ]
   const fixture2 = await startFixtureApi(turns2, { bindingCheck: true })
   const r2 = await runStreaming(arena, fixture2, { MERCURY_TASKS: '1' }, ['--model', MAIN, '--sovereign', '--resume', SID], ['message the seat to carry on', 'and now say noted'], 6_000)
-  check('process 2 exits 0 after the resume turn and the follow-up turn', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(-400)}`)
+  check('process 2 exits 0 after the resume turn and the follow-up turn', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(-400)}; read the stderr tail for the crash in the resumed run`)
   initTools2 = initToolsOf(r2.stdout)
   const reqs2 = fixture2.messageRequests()
   seatReqs2 = reqs2.filter(q => modelOf(q) === SEAT)
   mainReqs2 = reqs2.filter(q => modelOf(q) === MAIN)
   console.log(`  wire order: ${reqs2.map((q, i) => `${i + 1}:${modelOf(q) === SEAT ? 'seat' : 'main'}`).join(' ')}`)
-  check('the resumed seat made a request of its own in process 2', seatReqs2.length >= 1, `seat ${seatReqs2.length}; stdout tail=${r2.stdout.slice(-300)}`)
+  check('the resumed seat made a request of its own in process 2', seatReqs2.length >= 1, `seat ${seatReqs2.length}; stdout tail=${r2.stdout.slice(-300)}; the ResumeCrewmate message did not reach the seat, read the wire order line above`)
   await fixture2.close()
 } else {
-  check('the seat\'s id is known from its transcript', false)
+  check('the seat\'s id is known from its transcript', false, 'no agent-<id>.jsonl was found under the session subagents folder, so section 1 failed first; fix its failures above')
 }
 const lastMain1 = mainReqs1[mainReqs1.length - 1]
 const firstMain2 = mainReqs2[0]
@@ -202,7 +203,7 @@ if (lastMain1 !== undefined && firstMain2 !== undefined) {
     }
   }
   console.log(`  the main across the resume (its last request of process 1 against its first of process 2): ${parts.length === 0 ? 'system, tools and the shared rows byte-identical' : `moved in ${parts.join(', ')}`}`)
-  check('the main\'s system prompt is byte-identical across the resume although its pool moved (the sections that name tools ride the first-exchange record; RED where they render from the live pool)', systemOf(lastMain1) === systemOf(firstMain2), parts.join(', '))
+  check('the main\'s system prompt is byte-identical across the resume although its pool moved (the sections that name tools ride the first-exchange record; RED where they render from the live pool)', systemOf(lastMain1) === systemOf(firstMain2), `${parts.join(', ')}; ${RECORD_SRC_HINT}`)
   const drops = ((firstMain2.body as { messages?: unknown[] }).messages ?? []).length
   void drops
 }
@@ -212,9 +213,9 @@ if (seatReqs1[0] !== undefined && seatReqs2[0] !== undefined) {
   console.log(`  the resumed seat's tools array: ${toolNamesOf(resumed)}`)
   const joined = initTools2.filter(t => !initTools1.includes(t))
   console.log(`  the init rosters: process 1 ${initTools1.length} tool(s), process 2 ${initTools2.length} tool(s); joined in process 2: ${joined.join(',') || '(none)'}`)
-  check('the pool moved between the processes (process 2\'s init roster strictly contains process 1\'s: the task tools joined the resumed session)', initTools1.length > 0 && initTools1.every(t => initTools2.includes(t)) && joined.length > 0, `process 1=${initTools1.join(',')} process 2=${initTools2.join(',')}`)
-  check('the resumed seat\'s tools array is byte-identical to its first request\'s (the record re-sent; the joiners held)', toolsOf(resumed) === toolsOf(first), `first=${toolNamesOf(first)} resumed=${toolNamesOf(resumed)}`)
-  check('the resumed seat\'s system prompt is byte-identical to its first request\'s', systemOf(resumed) === systemOf(first), `first ${systemOf(first).length} bytes, resumed ${systemOf(resumed).length} bytes`)
+  check('the pool moved between the processes (process 2\'s init roster strictly contains process 1\'s: the task tools joined the resumed session)', initTools1.length > 0 && initTools1.every(t => initTools2.includes(t)) && joined.length > 0, `process 1=${initTools1.join(',')} process 2=${initTools2.join(',')}; process 2 runs with MERCURY_TASKS=1, check that the task tools join the init roster`)
+  check('the resumed seat\'s tools array is byte-identical to its first request\'s (the record re-sent; the joiners held)', toolsOf(resumed) === toolsOf(first), `first=${toolNamesOf(first)} resumed=${toolNamesOf(resumed)}; ${RECORD_SRC_HINT}`)
+  check('the resumed seat\'s system prompt is byte-identical to its first request\'s', systemOf(resumed) === systemOf(first), `first ${systemOf(first).length} bytes, resumed ${systemOf(resumed).length} bytes; ${RECORD_SRC_HINT}`)
 }
 
 console.log(`\n${failures === 0 ? '✅' : '❌'} agent record resume: ${checks - failures}/${checks} checks passed`)

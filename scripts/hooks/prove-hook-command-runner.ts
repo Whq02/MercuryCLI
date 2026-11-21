@@ -16,12 +16,13 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_SHELL_PREFIX
 
 let failures = 0
+const runnerHint = 'to fix, change startCommandHook or winShHookCommand in src/utils/hooks/commandRunner.ts (the timeout, cancel, output bound, environment and spawn handling it does for a hook command), or the ending sentence in hookEndingSentence of src/rows/vocabulary.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${runnerHint}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('FAIL — the command runner wedged past 90s')
+  console.log('FAIL — the command runner wedged past 90s: a hook command never settled; look at startCommandHook in src/utils/hooks/commandRunner.ts, and the last PASS line above names the block before it')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()

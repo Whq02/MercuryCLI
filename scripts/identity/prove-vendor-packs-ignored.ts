@@ -35,16 +35,16 @@ try {
   git('add', '.gitignore')
   git('commit', '-q', '-m', 'the ignore rules')
   const head = git('rev-parse', 'HEAD^{tree}')
-  check('the ignore rules name node_modules and the vendored packs', names.includes('node_modules') && names.filter(name => name.startsWith('vendor/')).length >= 15, names.join(' '))
+  check('the ignore rules name node_modules and the vendored packs', names.includes('node_modules') && names.filter(name => name.startsWith('vendor/')).length >= 15, `${names.join(' ')} (restore the node_modules and vendor/<pack> lines, at least 15 packs, in .gitignore at the repo root)`)
 
   for (const name of names) {
     mkdirSync(join(repo, name), { recursive: true })
     writeFileSync(join(repo, name, 'payload'), name)
   }
   const openFolders = names.filter(name => !ignored(`${name}/payload`))
-  check(`each of the ${names.length} names is ignored where it stands as a folder`, openFolders.length === 0, openFolders.join(' '))
-  check('a checkout whose packs are folders has nothing to add', git('status', '--porcelain') === '', git('status', '--porcelain'))
-  check('…and a build stamps it as the tree it is', stamp() === head)
+  check(`each of the ${names.length} names is ignored where it stands as a folder`, openFolders.length === 0, `${openFolders.join(' ')} (add a rule for each listed name to .gitignore at the repo root that matches it as a folder)`)
+  check('a checkout whose packs are folders has nothing to add', git('status', '--porcelain') === '', `${git('status', '--porcelain')} (the listed paths are not ignored; fix the matching rule in .gitignore at the repo root)`)
+  check('…and a build stamps it as the tree it is', stamp() === head, 'the stamp tree gained files beyond the committed .gitignore; ignore the untracked paths with a rule in .gitignore at the repo root')
 
   for (const name of names) {
     rmSync(join(repo, name), { recursive: true, force: true })
@@ -54,9 +54,9 @@ try {
     symlinkSync(join(elsewhere, name), join(repo, name), process.platform === 'win32' ? 'junction' : 'dir')
   }
   const openLinks = names.filter(name => !ignored(name))
-  check(`each of the ${names.length} names is ignored where it stands as a link to a folder elsewhere`, openLinks.length === 0, openLinks.join(' '))
-  check('a checkout whose packs are links has nothing to add', git('status', '--porcelain') === '', git('status', '--porcelain').split('\n').join(' · '))
-  check('…and a build stamps it as the tree it is', stamp() === head)
+  check(`each of the ${names.length} names is ignored where it stands as a link to a folder elsewhere`, openLinks.length === 0, `${openLinks.join(' ')} (add a rule for each listed name to .gitignore at the repo root that also matches it as a link, with no trailing slash)`)
+  check('a checkout whose packs are links has nothing to add', git('status', '--porcelain') === '', `${git('status', '--porcelain').split('\n').join(' · ')} (the listed links are not ignored; fix the matching rule in .gitignore at the repo root)`)
+  check('…and a build stamps it as the tree it is', stamp() === head, 'the stamp tree gained link entries beyond the committed .gitignore; ignore the links with a rule in .gitignore at the repo root')
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

@@ -62,7 +62,7 @@ console.log('============================================================')
 saveGlobalConfig(c => ({ ...c, autoCompactWindow: 800_000 }))
 const BLOCKING = getBlockingLimit(MODEL)
 const THRESHOLD = getAutoCompactThreshold(MODEL)
-check(`the owner's window: an 800,000 auto-compact window gives the 777,000 blocking limit and the 757,000 fold threshold`, BLOCKING === 777_000 && THRESHOLD === 757_000, `${BLOCKING} ${THRESHOLD}`)
+check(`the owner's window: an 800,000 auto-compact window gives the 777,000 blocking limit and the 757,000 fold threshold`, BLOCKING === 777_000 && THRESHOLD === 757_000, `got blocking ${BLOCKING} and threshold ${THRESHOLD}; getBlockingLimit and getAutoCompactThreshold (src/services/compact/autoCompact.ts) must follow the autoCompactWindow of 800,000`)
 
 const textOf = (m: unknown): string => {
   const msg = m as AnyMsg
@@ -243,16 +243,16 @@ async function pruneAfter(refusal: string, label: string, expectPrune: boolean):
   const seed = seedLongLane(20, 776_000, 16_000)
   const estimate = tokenCountWithEstimation(seed as never, MODEL)
   const saving = projectTimeBasedMicrocompact(seed as never, 'sdk', { pressure: true })?.tokensSaved ?? 0
-  check(`${label}: the view is over the limit by a small gap the prune covers (${fmt(estimate)} > ${fmt(BLOCKING)}; saving ≈${fmt(saving)})`, estimate > BLOCKING && saving >= (estimate - BLOCKING) * 1.2, `${estimate} ${saving}`)
+  check(`${label}: the view is over the limit by a small gap the prune covers (${fmt(estimate)} > ${fmt(BLOCKING)}; saving ≈${fmt(saving)})`, estimate > BLOCKING && saving >= (estimate - BLOCKING) * 1.2, `estimate ${estimate}, saving ${saving}; the seed must exceed the blocking limit by a gap the pressure prune from projectTimeBasedMicrocompact (src/services/compact/microCompact.ts) covers 1.2 times, so retune the seed (seedLongLane arguments) or that function`)
   const r = await run({ seed, script: [[ping(), asstText('the retry after the prune')]], compactAnswer: { wasCompacted: false, consecutiveFailures: 1, refusal } })
   const refusals = errorYields(r.yields).map(textOf)
   if (expectPrune) {
-    check(`${label}: the prune rung fired and the retry went out (one model call, terminal completed) — red on the base, where only the ceiling sentence unlocked the prune`, r.terminal.reason === 'completed' && r.calls.length === 1 && refusals.length === 0, `${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals).slice(0, 300)}`)
-    check(`${label}: the transition names the prune rung from the estimate`, JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), JSON.stringify(settledTransitions(r.events)))
+    check(`${label}: the prune rung fired and the retry went out (one model call, terminal completed) — red on the base, where only the ceiling sentence unlocked the prune`, r.terminal.reason === 'completed' && r.calls.length === 1 && refusals.length === 0, `after a failed fold the loop in queryEvents (src/query.ts) must prune and retry; terminal ${JSON.stringify(r.terminal)} calls=${r.calls.length} refusals=${JSON.stringify(refusals).slice(0, 300)}`)
+    check(`${label}: the transition names the prune rung from the estimate`, JSON.stringify(settledTransitions(r.events)).includes('"reason":"overflow_recovery","rung":"prune","source":"estimate"'), `the settled turn must record an overflow_recovery transition with rung prune and source estimate, got ${JSON.stringify(settledTransitions(r.events))}`)
     const cleared = r.calls[0] !== undefined ? toolResultsOf(r.calls[0].messages).filter(x => isPlaceholder(x.content)) : []
-    check(`${label}: the request carries the cleared results' placeholders and the newest result whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), JSON.stringify(cleared.map(c => c.id)))
+    check(`${label}: the request carries the cleared results' placeholders and the newest result whole`, r.calls[0] !== undefined && cleared.length >= 5 && !isPlaceholder(toolResultsOf(r.calls[0].messages).at(-1)?.content), `the retry request needs at least 5 cleared tool results and the newest left whole; cleared ids ${JSON.stringify(cleared.map(c => c.id))}`)
   } else {
-    check(`${label}: no prune, no call — the operator's own cancel ends the turn where it stood`, r.calls.length === 0 && r.terminal.reason !== 'completed', `${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
+    check(`${label}: no prune, no call — the operator's own cancel ends the turn where it stood`, r.calls.length === 0 && r.terminal.reason !== 'completed', `an operator cancel must end the turn with no model call and no prune; terminal ${JSON.stringify(r.terminal)} calls=${r.calls.length}`)
   }
 }
 

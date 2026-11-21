@@ -13,6 +13,7 @@ const { setOriginalCwd, setProjectRoot, setIsInteractive, setSessionTrustAccepte
 const { refreshHooksSnapshot } = await import('../../src/utils/hooks/hooksConfigSnapshot.js')
 const run = (code: string, timeoutSeconds?: number) => within('budget cell', 60_000, evalKernelManager.runCell({ owner: 'budget-proof', cwd: work, input: { language: 'py', code, timeoutSeconds }, abortSignal: new AbortController().signal, serveBridge: refusingBridge() }))
 const block = (out: Awaited<ReturnType<typeof run>>) => EvalTool.mapToolResultToToolResultBlockParam({ ...out, language: 'py' }, 'budget-proof')
+const hinted = (label: string, cond: boolean, hint: string, detail = ''): void => check(label, cond, cond ? detail : detail ? `${detail} | ${hint}` : hint)
 
 try {
   setCwd(work)
@@ -39,29 +40,29 @@ try {
     }
   }
   const cancelled = results.find(result => result.tool_use_id === use.id)
-  check('budget cancellation is an error result through the tool transaction', cancelled?.is_error === true && String(cancelled?.content).startsWith('[cell cancelled]'), JSON.stringify(cancelled))
-  check('budget cancellation keeps its exact reason', String(cancelled?.content).includes('the cell hit its 1s runtime budget (bridge time excluded) and was interrupted — raise timeoutSeconds or pass 0 to disable'))
+  hinted('budget cancellation is an error result through the tool transaction', cancelled?.is_error === true && String(cancelled?.content).startsWith('[cell cancelled]'), 'a cancelled Eval cell must reach the transcript as an is_error tool_result starting with [cell cancelled]; see composeResultText and mapToolResultToToolResultBlockParam in src/tools/EvalTool/EvalTool.ts', JSON.stringify(cancelled))
+  hinted('budget cancellation keeps its exact reason', String(cancelled?.content).includes('the cell hit its 1s runtime budget (bridge time excluded) and was interrupted — raise timeoutSeconds or pass 0 to disable'), 'the wording comes from cancelReasonNote in src/services/eval/kernelManager.ts')
   const row = cancelled ? contentItemOf(cancelled) : undefined
-  check('SDK content projects the cancellation as an error', row?.type === 'tool_result' && row.status === 'error')
+  hinted('SDK content projects the cancellation as an error', row?.type === 'tool_result' && row.status === 'error', 'contentItemOf in src/rows/content.ts must map the is_error cancelled tool_result to status error')
   const fires = existsSync(mark) ? readFileSync(mark, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line)) : []
   const observed = fires[0]
-  check('tool.after receives the unchanged cancelled output and input, once', fires.length === 1 && observed?.tool === 'Eval' && observed?.output?.status === 'cancelled' && JSON.stringify(observed?.input) === JSON.stringify(input), JSON.stringify(fires))
-  check('a returned cancellation is no cut: ok false, cut false', observed?.ok === false && observed?.cut === false, JSON.stringify(observed))
+  hinted('tool.after receives the unchanged cancelled output and input, once', fires.length === 1 && observed?.tool === 'Eval' && observed?.output?.status === 'cancelled' && JSON.stringify(observed?.input) === JSON.stringify(input), 'the tool.after hook must fire exactly once for the cancelled Eval call with its output and input unchanged; the printed list is what the hook captured in after.jsonl', JSON.stringify(fires))
+  hinted('a returned cancellation is no cut: ok false, cut false', observed?.ok === false && observed?.cut === false, 'the tool.after payload must report ok false and cut false for a cancellation the tool returned', JSON.stringify(observed))
   const clamped = await run('print("done")', 900)
-  check('a clamped successful call names the applied limit', !block(clamped).is_error && String(block(clamped).content).includes('[note] timeoutSeconds clamped to 600 s (the maximum)'), String(block(clamped).content))
+  hinted('a clamped successful call names the applied limit', !block(clamped).is_error && String(block(clamped).content).includes('[note] timeoutSeconds clamped to 600 s (the maximum)'), 'runCell in src/services/eval/kernelManager.ts must add the clampClause note (src/utils/waitCeiling.ts) when timeoutSeconds exceeds EVAL_MAX_TIMEOUT_SECONDS', String(block(clamped).content))
   const unlimited = await run('17', 0)
-  check('zero still disables the runtime budget without a clamp note', !block(unlimited).is_error && !unlimited.annotations.some(note => note.includes('clamped')))
+  hinted('zero still disables the runtime budget without a clamp note', !block(unlimited).is_error && !unlimited.annotations.some(note => note.includes('clamped')), 'runCell in src/services/eval/kernelManager.ts must clamp only values above EVAL_MAX_TIMEOUT_SECONDS, never 0')
   const display = await run('display_markdown("x" * 12000)')
-  check('display exposes exactly the first 10000 characters and the cut', block(display).content === 'x'.repeat(10000) + '\n… [display cut: 12000 chars, the first 10000 shown]')
+  hinted('display exposes exactly the first 10000 characters and the cut', block(display).content === 'x'.repeat(10000) + '\n… [display cut: 12000 chars, the first 10000 shown]', 'composeResultText in src/tools/EvalTool/EvalTool.ts slices a display to EVAL_MAX_DISPLAY_CHARS and appends the cut mark')
   const represented = await run('display("x" * 12000)')
-  check('plain display keeps its representation and says its actual length', String(block(represented).content).endsWith('… [display cut: 12002 chars, the first 10000 shown]'))
+  hinted('plain display keeps its representation and says its actual length', String(block(represented).content).endsWith('… [display cut: 12002 chars, the first 10000 shown]'), 'composeResultText in src/tools/EvalTool/EvalTool.ts must print the cut mark with the real display length')
   const json = await run('display_json({"x": "y" * 12000})')
-  check('JSON displays carry the same explicit cut mark', String(block(json).content).startsWith('[json]\n') && String(block(json).content).includes('… [display cut: 12009 chars, the first 10000 shown]'))
+  hinted('JSON displays carry the same explicit cut mark', String(block(json).content).startsWith('[json]\n') && String(block(json).content).includes('… [display cut: 12009 chars, the first 10000 shown]'), 'composeResultText in src/tools/EvalTool/EvalTool.ts must prefix [json] and add the same cut mark for application/json displays')
   const short = await run('print("small")')
-  check('ordinary output is unchanged', block(short).content === 'small\n' && !block(short).is_error)
+  hinted('ordinary output is unchanged', block(short).content === 'small\n' && !block(short).is_error, 'composeResultText in src/tools/EvalTool/EvalTool.ts must return plain stdout, with no marks, for a status ok cell')
   for (const images of [[], [{ mime: 'image/png' as const, data: 'AA==', b64: true }]]) {
     const aborted = block({ ...short, status: 'cancelled', displays: images })
-    check('cancellation is an error with and without image blocks', aborted.is_error === true)
+    hinted('cancellation is an error with and without image blocks', aborted.is_error === true, 'mapToolResultToToolResultBlockParam in src/tools/EvalTool/EvalTool.ts must set is_error for a non-ok status on both the text-only and the image result shapes')
   }
 } finally {
   await evalKernelManager.disposeAll()

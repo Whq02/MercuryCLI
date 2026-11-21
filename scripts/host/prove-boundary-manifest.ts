@@ -48,7 +48,7 @@ if (childMode) {
   enableConfigs()
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name) }
+  const check = (name: string, truth: unknown, detail = '') => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ': ' + detail : '')) }
   const child = async () => {
     const processChild = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child'], {
       cwd: home,
@@ -87,20 +87,20 @@ if (childMode) {
     queueHostBank(record('bank'))
     const result = await child()
     for (const row of result.rows) {
-      check(row.kind + ' job retains the exact manifest when its private-file environment is absent', isDeepStrictEqual(row.manifest, manifest))
-      check(row.kind + ' worker retains the immutable download revision and exact file list', row.plan.revision === manifest.revision && isDeepStrictEqual(row.plan.include, ['model.gguf']))
+      check(row.kind + ' job retains the exact manifest when its private-file environment is absent', isDeepStrictEqual(row.manifest, manifest), 'fix queueHostSetup, queueHostWatch and queueHostBank in src/services/host/jobs.ts to pin the weight manifest in the record, and pinnedWeightManifest in src/services/host/keptWeights.ts to read it back; got ' + JSON.stringify(row.manifest))
+      check(row.kind + ' worker retains the immutable download revision and exact file list', row.plan.revision === manifest.revision && isDeepStrictEqual(row.plan.include, ['model.gguf']), 'fix bankDownloadPlan in src/services/host/bank.ts to use the pinned revision and exact file list; got ' + JSON.stringify(row.plan))
     }
-    check('the spawned Bank worker sends the saved revision to the downloader', result.downloadScript.includes("--revision '" + manifest.revision + "'"))
+    check('the spawned Bank worker sends the saved revision to the downloader', result.downloadScript.includes("--revision '" + manifest.revision + "'"), 'fix bankDownloadScript in src/services/host/bank.ts to pass the saved revision to the downloader')
     let windowsCall: { command: string; args: string[] } | undefined
     await runBoxScript({ os: 'windows', target: undefined }, bankDownloadScript(recipe, path, true), { async run(command, args) { windowsCall = { command, args }; return '' }, tunnel() { throw new Error('a Bank job must not open a tunnel') } }, new AbortController().signal)
-    check('the Windows Bank road carries the saved revision inside its encoded PowerShell command', windowsCall?.command === 'powershell.exe' && windowsCall.args[2] === '-EncodedCommand' && boxScriptText(windowsCall.command, windowsCall.args).includes("--revision '" + manifest.revision + "'"))
-    check('the actual Bank seal verifies good bytes against trusted hashes rather than against itself', readBankRegistry().models[recipe.model + '\n' + recipe.include]?.check === 'manifest' || Object.values(readBankRegistry().models).some(row => row.path === path && row.check === 'manifest'))
+    check('the Windows Bank road carries the saved revision inside its encoded PowerShell command', windowsCall?.command === 'powershell.exe' && windowsCall.args[2] === '-EncodedCommand' && boxScriptText(windowsCall.command, windowsCall.args).includes("--revision '" + manifest.revision + "'"), 'fix runBoxScript in src/services/host/boxExecution.ts and bankDownloadScript in src/services/host/bank.ts to carry the revision into the encoded PowerShell command')
+    check('the actual Bank seal verifies good bytes against trusted hashes rather than against itself', readBankRegistry().models[recipe.model + '\n' + recipe.include]?.check === 'manifest' || Object.values(readBankRegistry().models).some(row => row.path === path && row.check === 'manifest'), 'fix the Bank seal in src/services/host/bank.ts to verify bytes against the pinned manifest hashes and record check manifest')
     writeFileSync(join(path, 'model.gguf'), Buffer.alloc(bytes.length, 120))
     queueHostBank(record('bank'))
     await child()
     const bad = Object.values(readBankRegistry().models).find(row => row.path === path)
-    check('same-size corrupt bytes are rejected in the separate worker', bad?.error === 'model.gguf · hash differs from the pinned manifest')
-    check('a failed trusted check cannot leave a verified Bank receipt', bad?.verifiedAt === undefined && bad?.check === undefined)
+    check('same-size corrupt bytes are rejected in the separate worker', bad?.error === 'model.gguf · hash differs from the pinned manifest', 'fix the Bank seal in src/services/host/bank.ts to hash same-size files against the pinned manifest; error was ' + String(bad?.error))
+    check('a failed trusted check cannot leave a verified Bank receipt', bad?.verifiedAt === undefined && bad?.check === undefined, 'fix the Bank seal in src/services/host/bank.ts to leave no verifiedAt or check on a failed hash; got ' + JSON.stringify(bad))
     console.log('BOUNDARY MANIFEST ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; real worker processes and real file hashing, no network')
   } finally {
     delete process.env.MERCURY_HOST_WEIGHTS_FILE

@@ -26,6 +26,7 @@ const { HighlightedCode } = await import('../../src/components/HighlightedCode.t
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
+const gutterFix = 'fix the line-number gutter and wrapping in HighlightedCode (src/components/HighlightedCode.tsx, its Fallback in src/components/HighlightedCode/Fallback.tsx) and the NoSelect box (src/ink/components/NoSelect.tsx)'
 const WORD = 'word'
 const lineOf = (n: number, cells: number): string => {
   const head = `L${n}`
@@ -50,17 +51,17 @@ for (const scene of SCENES) {
     await settledFrame(mounted, frame => frame.includes(`L${scene.lines.length} `))
     const rows = mounted.lines().filter(row => row.trim() !== '')
     const heads = scene.lines.map((_, i) => rows.findIndex(row => new RegExp(`^ *${i + 1} +L${i + 1} `).test(row)))
-    check('every line paints its number and its first word on one row', heads.every(at => at >= 0), JSON.stringify(heads))
+    check('every line paints its number and its first word on one row', heads.every(at => at >= 0), `${JSON.stringify(heads)}; a -1 is a line whose number and first word never shared a row; ${gutterFix}`)
     const starts = scene.lines.map((_, i) => (heads[i]! < 0 ? -1 : rows[heads[i]!]!.indexOf(`L${i + 1} `)))
-    check(`the code starts in column ${gutter} on every line: the number, right-aligned in ${digits}, then two spaces`, starts.every(at => at === gutter), `${JSON.stringify(starts)}\n${rows.slice(0, 8).join('\n')}`)
+    check(`the code starts in column ${gutter} on every line: the number, right-aligned in ${digits}, then two spaces`, starts.every(at => at === gutter), `${gutterFix}; first-word columns ${JSON.stringify(starts)}\n${rows.slice(0, 8).join('\n')}`)
     const numbered = scene.lines.map((_, i) => (heads[i]! < 0 ? '' : rows[heads[i]!]!.slice(0, gutter)))
-    check('the gutter reads the same on a line that wraps and on one that does not', numbered.every((cell, i) => cell === `${String(i + 1).padStart(digits)}  `), JSON.stringify(numbered))
+    check('the gutter reads the same on a line that wraps and on one that does not', numbered.every((cell, i) => cell === `${String(i + 1).padStart(digits)}  `), `${JSON.stringify(numbered)}; ${gutterFix}`)
     const continued = rows.filter((_, at) => !heads.includes(at))
-    check('a wrapped line continues under its own first word, never under the gutter', continued.length > 0 && continued.every(row => row.length - row.trimStart().length === gutter), JSON.stringify(continued.slice(0, 4).map(row => row.slice(0, 16))))
-    check(`no row runs past the box's ${scene.width} cells`, rows.every(row => Array.from(row).length <= scene.width), String(Math.max(...rows.map(row => Array.from(row).length))))
+    check('a wrapped line continues under its own first word, never under the gutter', continued.length > 0 && continued.every(row => row.length - row.trimStart().length === gutter), `${JSON.stringify(continued.slice(0, 4).map(row => row.slice(0, 16)))}; ${gutterFix}`)
+    check(`no row runs past the box's ${scene.width} cells`, rows.every(row => Array.from(row).length <= scene.width), `widest row ${Math.max(...rows.map(row => Array.from(row).length))}; ${gutterFix}`)
     const wordsWritten = scene.lines.reduce((sum, line) => sum + line.split(' ').filter(word => word === WORD).length, 0)
     const wordsPainted = rows.join(' ').split(' ').filter(word => word === WORD).length
-    check('every word of every line is on the frame', wordsPainted === wordsWritten, `${wordsPainted} of ${wordsWritten}`)
+    check('every word of every line is on the frame', wordsPainted === wordsWritten, `${wordsPainted} of ${wordsWritten}; ${gutterFix}, a long line must wrap rather than drop words`)
   } finally {
     mounted.unmount()
   }

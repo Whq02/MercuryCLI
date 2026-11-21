@@ -11,9 +11,10 @@ process.env.OPENROUTER_API_KEY = 'fixture-openrouter'
 process.env.MERCURY_OPENROUTER_API_BASE = 'http://127.0.0.1:1/api/v1'
 delete process.env.ANTHROPIC_API_KEY
 let failures = 0
+const LOW_BALANCE_WHERE = 'the low-balance note is built in src/services/providers/openrouter/openrouterUsageState.ts (the floor and its words) and carried by src/services/providers/providerUsage/openrouter.ts; the /usage lines come from src/components/Settings/usage/compact.tsx and src/components/Settings/Usage.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${LOW_BALANCE_WHERE}`}`)
 }
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()

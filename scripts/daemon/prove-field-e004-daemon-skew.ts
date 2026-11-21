@@ -13,9 +13,16 @@ if (!existsSync(BUNDLE)) {
 }
 
 let failures = 0
+const hintFor = (label: string): string => {
+  if (label.startsWith('A')) return 'fix the handshake verdict, heal and line words in src/daemon/handshake.ts (decideHandshake, applyHeal, daemonSkewLine, reopenWayOut, daemonBuildBesideScreen) or isScreenHealAsk in src/daemon/verbs.ts'
+  if (label.startsWith('B')) return 'fix the install layout resolution in src/daemon/handover.ts (releaseDeployedRuntime, deployedRuntime)'
+  if (label.startsWith('DI')) return 'fix moveDaemonAfterInstallerUpgrade in src/cli/update.ts or the restart-when-idle ask in src/daemon/handshake.ts'
+  if (label.startsWith('E')) return 'fix the Scheduler daemon health row in src/services/health/sections/crew/daemon.ts or the skew words in src/daemon/handshake.ts (daemonSkewLine, daemonHandshakeEvidence)'
+  return 'fix the heal and handover in src/daemon/handshake.ts (healDaemonVersion, moveDaemonToDeployedBuild) and src/daemon/handover.ts'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok ? ` (${hintFor(label)})` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -22,11 +22,21 @@ const providers = await import(join(ROOT, 'scripts/vulcan/godotProviders.ts'))
 const optable = await import(join(ROOT, 'src/utils/vulcan/optable.generated.ts'))
 
 let failures = 0
+let sectionWhere = ''
+const sectionOwners: Record<string, string> = {
+  '1': 'src/services/vulcan/godotProcessCensus.ts',
+  '2': 'src/services/vulcan/portabilityHealth.ts',
+  '3': 'src/services/vulcan/editorPresence.ts',
+  '4': 'src/services/vulcan/classCache.ts or src/services/vulcan/godotCapsule.ts',
+  '5': 'src/services/vulcan/addonInstaller.ts or scripts/vulcan/godotProviders.ts',
+  '6': 'src/services/health/sections/runtime.ts, src/services/vulcan/addonInstaller.ts, or src/utils/vulcan/optable.generated.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail.slice(0, 200) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail.slice(0, 200) : ''}${cond ? '' : ` (change ${sectionWhere})`}`)
 }
 function section(t: string): void {
+  sectionWhere = sectionOwners[t.slice(0, 1)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

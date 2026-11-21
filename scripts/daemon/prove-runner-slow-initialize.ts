@@ -12,10 +12,11 @@ delete process.env.MERCURY_SESSION_HOME
 
 let checks = 0
 let failures = 0
+const WHERE_TO_LOOK = 'fix the initialize wait and slow-boot marks in src/daemon/runnerConnection.ts (slowBootMarkMs and the initialize handling) or the request deadline table in src/runner/wire/methods.ts (deadlineOf)'
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` (${WHERE_TO_LOOK})`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)

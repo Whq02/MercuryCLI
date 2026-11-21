@@ -55,7 +55,7 @@ let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' [change renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx (the launch card), applyGrouping in src/utils/groupToolUses.ts (which launches join it) or areMessageRowPropsEqual in src/components/MessageRow.tsx (when the row repaints)]'}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -71,7 +71,7 @@ async function until(pred: () => boolean, ms = 6000): Promise<boolean> {
   return pred()
 }
 const hardLimit = setTimeout(() => {
-  console.error('prove-launch-card-late-member exceeded its deadline')
+  console.error('prove-launch-card-late-member exceeded its deadline; a frame never reached the state a section waited for, so read the last frame printed above and the launch card in src/tools/AgentTool/UI.tsx (renderGroupedAgentToolUse)')
   process.exit(1)
 }, 120_000)
 hardLimit.unref()

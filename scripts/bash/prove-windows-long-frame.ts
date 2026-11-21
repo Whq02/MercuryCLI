@@ -9,9 +9,10 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '0.0.0' }
 
 let failures = 0
+const longFrameHint = 'change msysArgvCarries, msysSourceLine, carriedByFile or protectBackslashRunsFromMsysArgv in src/utils/shell/msysArgv.ts, or the hand-over that buildExecCommand builds in src/utils/shell/bashProvider.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' · ' : ' — '}${longFrameHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

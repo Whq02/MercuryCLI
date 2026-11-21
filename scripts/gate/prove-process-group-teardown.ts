@@ -36,9 +36,9 @@ const PARENT_THAT_LEAVES_A_CHILD = 'sleep 600 & echo $!; wait'
 for (const pid of [undefined, -1, 0, 1, 1.5, NaN, Infinity]) {
   let refused = false
   try { requirePositivePid(pid) } catch { refused = true }
-  check(`a proof refuses the unsafe signal pid ${String(pid)}`, refused)
+  check(`a proof refuses the unsafe signal pid ${String(pid)}`, refused, `make requirePositivePid in scripts/lib/processGroup.ts throw for ${String(pid)}, so a signal never goes to an unsafe pid`)
 }
-check('a proof retains a positive process pid', requirePositivePid(process.pid) === process.pid)
+check('a proof retains a positive process pid', requirePositivePid(process.pid) === process.pid, 'make requirePositivePid in scripts/lib/processGroup.ts return a positive integer pid unchanged')
 
 console.log('§1 a timed-out road ends the whole tree it started, not just its first process')
 if (process.platform === 'win32') {
@@ -46,17 +46,17 @@ if (process.platform === 'win32') {
 } else {
   const child = spawnInOwnGroup('/bin/sh', ['-c', PARENT_THAT_LEAVES_A_CHILD], { stdio: ['ignore', 'pipe', 'inherit'] })
   const grandchild = await grandchildPidOf(child)
-  check('the fixture tree stands: the shell and its sleeping grandchild', alive(child.pid!) && alive(grandchild), `${child.pid} ${grandchild}`)
+  check('the fixture tree stands: the shell and its sleeping grandchild', alive(child.pid!) && alive(grandchild), `the fixture shell should stay up with its sleeping grandchild (spawnInOwnGroup in scripts/lib/processGroup.ts); pids ${child.pid} ${grandchild}`)
   endProcessGroup(child)
   await sleep(300)
-  check('after the group kill the first process is gone', !alive(child.pid!))
-  check('…and so is the grandchild it had started (the old single-process kill left it running)', !alive(grandchild), String(grandchild))
+  check('after the group kill the first process is gone', !alive(child.pid!), 'make endProcessGroup in scripts/lib/processGroup.ts kill the child it was given')
+  check('…and so is the grandchild it had started (the old single-process kill left it running)', !alive(grandchild), `make endProcessGroup in scripts/lib/processGroup.ts signal the whole group (the negative pid) and make spawnInOwnGroup start the child as its own group leader; grandchild pid ${grandchild} is still running`)
 
   const plain = spawn('/bin/sh', ['-c', PARENT_THAT_LEAVES_A_CHILD], { stdio: ['ignore', 'pipe', 'inherit'] })
   const orphan = await grandchildPidOf(plain)
   plain.kill('SIGKILL')
   await sleep(300)
-  check('the control: a plain spawn killed by itself leaves its grandchild alive (the leak the roads had)', !alive(plain.pid!) && alive(orphan), String(orphan))
+  check('the control: a plain spawn killed by itself leaves its grandchild alive (the leak the roads had)', !alive(plain.pid!) && alive(orphan), `the control no longer shows the leak: the plain spawn or its grandchild did not behave as this proof assumes (the fixture in this file, not processGroup.ts); orphan pid ${orphan}`)
   try {
     process.kill(orphan, 'SIGKILL')
   } catch {
@@ -79,10 +79,10 @@ const ROADS = [
 ] as const
 for (const [file, spawns, ends] of ROADS) {
   const text = readFileSync(join(ROOT, file), 'utf8')
-  check(`${file} spawns in its own group and ends the group on its deadline`, (spawns === null || spawns.test(text)) && ends.test(text) && !/\.kill\('SIGKILL'\)/.test(text.replace(/endProcessGroup\([^)]*\)/g, '')), file)
+  check(`${file} spawns in its own group and ends the group on its deadline`, (spawns === null || spawns.test(text)) && ends.test(text) && !/\.kill\('SIGKILL'\)/.test(text.replace(/endProcessGroup\([^)]*\)/g, '')), `change ${file} to start its child with spawnInOwnGroup and end it with endProcessGroup (both from scripts/lib/processGroup.ts), with no direct kill of SIGKILL left`)
 }
 const helper = readFileSync(join(ROOT, 'scripts/lib/processGroup.ts'), 'utf8')
-check('the helper kills the negative pid (the group) and falls back to the one process where groups do not exist', helper.includes('process.kill(-child.pid, signal)') && helper.includes('child.kill(signal)') && helper.includes("process.platform !== 'win32'"))
+check('the helper kills the negative pid (the group) and falls back to the one process where groups do not exist', helper.includes('process.kill(-child.pid, signal)') && helper.includes('child.kill(signal)') && helper.includes("process.platform !== 'win32'"), 'restore in endProcessGroup in scripts/lib/processGroup.ts the group kill process.kill(-child.pid, signal), the fallback child.kill(signal) and the win32 test')
 
 console.log(`\n${failures === 0 ? 'PASS' : 'FAIL'} prove-process-group-teardown (${checks} checks${failures ? `, ${failures} failed` : ''})`)
 process.exit(failures === 0 ? 0 : 1)

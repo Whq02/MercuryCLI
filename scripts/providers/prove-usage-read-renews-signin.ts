@@ -32,7 +32,7 @@ const arg = (name: string): string | undefined => {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: refreshAnthropicUsage and anthropicUsageReaderNote in src/services/providers/anthropic/anthropicUsageState.ts (the refresh grant before the read, the failure note), the views in src/services/providers/providerUsage.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

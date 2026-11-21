@@ -24,7 +24,7 @@ if (driver.kind !== 'posix-pty') {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' (read the frame dumps and the routes and hit lines printed above this check; rebuild with bun run build.ts after a source change, and re-run with CREW_INTERRUPT_KEEP=1 to keep the scratch home and cwd for inspection)'}`)
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'

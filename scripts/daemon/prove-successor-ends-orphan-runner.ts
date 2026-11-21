@@ -196,7 +196,7 @@ const cleanup = async (): Promise<void> => {
 console.log("a daemon that dies while a session works leaves its runner without a host: the daemon that comes after ends that runner as it starts, and the session answers the next message")
 try {
   const first = await boot('daemon-first')
-  check('the first daemon serves', first !== null)
+  check('the first daemon serves', first !== null, 'the daemon from dist/mercury.mjs did not write daemon.json with its pid and answer ping within 60s; read daemon-first.log in the scratch folder and rebuild with bun run build.ts')
   const dispatched = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: 'orphan-runner',
@@ -206,40 +206,40 @@ try {
     model: 'claude-opus-5',
     effort: 'high',
   } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-  check('a session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched))
+  check('a session dispatched onto a real runner', dispatched.ok === true && typeof dispatched.sessionId === 'string', JSON.stringify(dispatched) + ' | the concourseDispatch op in src/daemon/concourseDispatch.ts must start a runner and return its sessionId')
   const sid = dispatched.sessionId ?? ''
-  check('its turn is in flight (the reply stream is open and held by the fixture)', await untilAsync(() => seatStreams >= 1, 90_000), `seat streams ${seatStreams}`)
+  check('its turn is in flight (the reply stream is open and held by the fixture)', await untilAsync(() => seatStreams >= 1, 90_000), `seat streams ${seatStreams} | the runner never opened its reply stream to the fixture in this file; read daemon-first.log in the scratch folder`)
   await sleep(400)
   const before = readRec(sid)
   const orphan = before?.pid
   if (orphan !== undefined) seen.add(orphan)
-  check('the record names a live runner mid-turn', orphan !== undefined && alive(orphan) && (before?.lastDeliveryAt ?? 0) > (before?.lastTurnSettledAt ?? 0), JSON.stringify(before))
+  check('the record names a live runner mid-turn', orphan !== undefined && alive(orphan) && (before?.lastDeliveryAt ?? 0) > (before?.lastTurnSettledAt ?? 0), JSON.stringify(before) + ' | the concourse-workers.json record must hold a live pid with lastDeliveryAt after lastTurnSettledAt while the stream is held; see src/daemon/concourseWorkers/')
 
   first?.child.kill('SIGKILL')
-  check('the daemon is killed outright and its runner outlives it: the scene is staged', (await untilAsync(() => first !== null && gone(first.child), 10_000)) && alive(orphan), `runner alive=${alive(orphan)}`)
+  check('the daemon is killed outright and its runner outlives it: the scene is staged', (await untilAsync(() => first !== null && gone(first.child), 10_000)) && alive(orphan), `runner alive=${alive(orphan)} | the staging failed: the first daemon must die on SIGKILL while its runner survives, so the runner must not be tied to the daemon process`)
 
   const second = await boot('daemon-second')
   const servedAt = Date.now()
-  check('a second daemon takes the same home and serves', second !== null)
+  check('a second daemon takes the same home and serves', second !== null, 'the second daemon did not take over daemon.json or answer ping within 60s; read daemon-second.log in the scratch folder')
   const endedInTime = await untilAsync(() => !alive(orphan), ENDED_BOUND_MS)
-  check(`the runner the dead daemon left is gone within ${ENDED_BOUND_MS / 1000} s of the second daemon serving (red on the base: it lives on with no host until its own watch ends it)`, endedInTime, `pid ${orphan} alive ${Date.now() - servedAt} ms after the second daemon served`)
-  check('the second daemon says what it did', /left by a daemon that died/.test(second?.log() ?? ''), (second?.log() ?? '').split('\n').slice(-6).join(' | '))
+  check(`the runner the dead daemon left is gone within ${ENDED_BOUND_MS / 1000} s of the second daemon serving (red on the base: it lives on with no host until its own watch ends it)`, endedInTime, `pid ${orphan} alive ${Date.now() - servedAt} ms after the second daemon served | endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts, called at boot from src/daemon/main.ts, must end the runner of a dead daemon`)
+  check('the second daemon says what it did', /left by a daemon that died/.test(second?.log() ?? ''), (second?.log() ?? '').split('\n').slice(-6).join(' | ') + ' | the boot step in src/daemon/main.ts that calls endRunnersLeftWithoutHost must log the left by a daemon that died line')
   const held = readRec(sid)
-  check('the session is neither parked, stopped nor ended by it: its record waits for its next message', held !== undefined && held.parkedAt === undefined && held.stoppedAt === undefined && held.endedAt === undefined, JSON.stringify(held))
+  check('the session is neither parked, stopped nor ended by it: its record waits for its next message', held !== undefined && held.parkedAt === undefined && held.stoppedAt === undefined && held.endedAt === undefined, JSON.stringify(held) + ' | endRunnersLeftWithoutHost in src/daemon/concourseWorkers/park.ts must end only the runner process and leave the record without parkedAt, stoppedAt or endedAt')
 
   const said = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'orphan-runner-after', prompt: AFTER, workspaceDir: '', targetSessionId: sid, by: 'operator' } as never, { timeoutMs: 30_000 })) as { ok?: boolean; state?: string; error?: string }
-  check("the operator's next message is taken (red on the base: instruction delivery failed, the message lost)", said.ok === true, JSON.stringify(said))
-  check('a fresh runner serves the session and asks the model with it', await untilAsync(() => seatStreams >= 2, 60_000), `seat streams ${seatStreams}`)
+  check("the operator's next message is taken (red on the base: instruction delivery failed, the message lost)", said.ok === true, JSON.stringify(said) + ' | the concourseDispatch op with targetSessionId in src/daemon/concourseDispatch.ts must start a fresh runner for a session whose runner was ended')
+  check('a fresh runner serves the session and asks the model with it', await untilAsync(() => seatStreams >= 2, 60_000), `seat streams ${seatStreams} | the fresh runner never asked the model; read daemon-second.log in the scratch folder`)
   const revived = readRec(sid)
   if (revived?.pid !== undefined) seen.add(revived.pid)
-  check('…a new process, not the one that was left', revived?.pid !== undefined && revived.pid !== orphan && alive(revived.pid), JSON.stringify({ orphan, now: revived?.pid }))
+  check('…a new process, not the one that was left', revived?.pid !== undefined && revived.pid !== orphan && alive(revived.pid), JSON.stringify({ orphan, now: revived?.pid }) + ' | the record must carry the pid of the fresh runner, not the ended one; see src/daemon/concourseDispatch.ts')
   releaseSeat(2)
   check('its reply ends and the turn settles on the record', (await untilAsync(() => seatStreamsEnded >= 1, 30_000)) && (await untilAsync(() => {
     const r = readRec(sid)
     return r !== undefined && (r.lastTurnSettledAt ?? 0) >= (r.lastDeliveryAt ?? 1)
-  }, 30_000)), JSON.stringify(readRec(sid)))
+  }, 30_000)), JSON.stringify(readRec(sid)) + ' | the fresh runner must stamp lastTurnSettledAt on the concourse-workers.json record once its reply stream ends; see src/daemon/concourseWorkers/')
   const down = (await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 15_000 }).catch(() => null)) as { ok?: boolean } | null
-  check('the second daemon shuts down and no runner of this home is left alive', down?.ok === true && (await untilAsync(() => second !== null && gone(second.child), 20_000)) && (await untilAsync(() => [...seen].every(pid => !alive(pid)), 10_000)), JSON.stringify([...seen].map(pid => [pid, alive(pid)])))
+  check('the second daemon shuts down and no runner of this home is left alive', down?.ok === true && (await untilAsync(() => second !== null && gone(second.child), 20_000)) && (await untilAsync(() => [...seen].every(pid => !alive(pid)), 10_000)), JSON.stringify([...seen].map(pid => [pid, alive(pid)])) + ' | the shutdown op with reapWorkers in src/daemon/controlServer.ts must stop the daemon and kill every runner of this home')
 } finally {
   await cleanup()
 }

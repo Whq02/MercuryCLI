@@ -15,8 +15,9 @@ mkdirSync(join(ROOT, 'pkg'), { recursive: true })
 process.chdir(join(ROOT, 'pkg'))
 
 let failures = 0
+const IMPORTS_WHERE = 'the @import scope, its diagnostics and the import composing are processInstructionFile in src/services/instructions/discovery.ts, the @token reading is parseInstructionFileContent in src/services/instructions/sourceText.ts, the file rosters are mercuryNativeConvention in src/services/instructions/nativeSource.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : (detail ? ' | ' : ' — ') + IMPORTS_WHERE}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

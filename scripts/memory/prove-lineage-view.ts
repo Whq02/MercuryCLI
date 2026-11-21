@@ -9,10 +9,11 @@ const HOME = pinScratchHome('mercury-lineage-view')
 
 let failures = 0
 let checks = 0
+const LINEAGE_FIX_HINT = 'lineageRow, lineageRows, lineageHeading and pageLines in src/components/memory/memoryCentreLayout.ts, notePage and the lineage rows in src/components/memory/MemoryCentreView.tsx, the ledger in src/mneme/ledger.ts (openEntry, closeEntry)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ` | fix: ${LINEAGE_FIX_HINT}`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

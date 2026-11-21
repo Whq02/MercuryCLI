@@ -18,7 +18,9 @@ const owner = (await import('../release/releaseDocuments.mjs')) as {
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  const releaseDocsFailHint = 'to fix, change checkReleaseDocuments in scripts/release/releaseDocuments.mjs, the document lists in scripts/release/payloadContract.mjs, the packager scripts/release/package.mjs, or the document itself (LICENSE.md, NOTICE, TRADEMARKS.md, README.md, sdk/, sdk-py/) that the check names'
+  const releaseDocsDetail = ok ? '' : [detail, releaseDocsFailHint].filter(Boolean).join(' | ')
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${releaseDocsDetail ? ` — ${releaseDocsDetail}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

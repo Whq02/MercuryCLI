@@ -80,6 +80,10 @@ try {
   })
   assert.equal(getShellCwd(), project)
   console.log('Bash normalization and real-shell cwd recovery: PASS')
+} catch (error) {
+  const cwdFailHint = 'FAIL: the assertion error below names the step; to fix it, change the command and cwd rewriting in normalizeToolInput (src/services/messages/api.ts), where the shell stays between commands in setCwd, getShellCwd and resolveShellCwd (src/utils/Shell.ts), or the run in BashTool.call (src/tools/BashTool/BashTool.tsx)'
+  console.error(cwdFailHint)
+  throw error
 } finally {
   await endEngineSession()
   setCwd(initialCwd)

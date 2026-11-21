@@ -26,10 +26,11 @@ const { checkWritePermissionForTool } = await import('../../src/utils/permission
 const fileWriteToolHasPermission = (_tool: unknown, input: { file_path: string }, context: ReturnType<typeof getEmptyToolPermissionContext>) => checkWritePermissionForTool({ name: 'Edit', getPath: (value: { file_path: string }) => value.file_path }, input, context)
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail?: unknown): void => {
+const resourceRulesFixHint = 'change the function this check exercises: tool toolbox in resolveAgentTools (src/tools/AgentTool/agentToolUtils.ts), the rule overlay in composeAgentAppState (src/tools/AgentTool/agentPermissionPosture.ts), Bash rules in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts), Edit rules in checkWritePermissionForTool (src/utils/permissions/filesystem.ts), malformed-pattern diagnostics in decodeAgentDocument (src/services/agents/codec.ts), parseAgentFromJson and getAgentDefinitionsWithOverrides (src/tools/AgentTool/loadAgentsDir.ts)'
+const check =(label: string, ok: boolean, detail?: unknown): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === undefined ? '' : ` — ${JSON.stringify(detail)}`}${ok ? '' : `\n  fix: ${resourceRulesFixHint}`}`)
 }
 const pool = ['Read', 'Edit', 'Bash'].map(name => ({ name })) as never[]
 const definition = { source: 'projectSettings', tools: ['Edit(src/**)', 'Bash'], disallowedTools: ['Bash(rm *)'] }

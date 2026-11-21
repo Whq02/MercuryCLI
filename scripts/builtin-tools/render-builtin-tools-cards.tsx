@@ -83,7 +83,8 @@ if (process.env.ARSENAL_CARDS_CHILD) {
   let failures = 0
   const check = (label: string, cond: boolean, detail = ''): void => {
     if (!cond) failures++
-    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+    const shown = cond ? detail : [detail, 'fix renderToolResultMessage in src/tools/StructureTool/UI, src/tools/GitTool/UI or src/tools/JourneyTool/UI (the glyph and word per outcome); to see the rendered grid run this file with ARSENAL_CARDS_CHILD=1 under scripts/ui/vshot.py'].filter(Boolean).join(' — ')
+    console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
   }
   if (!existsSync(VSHOT)) {
     console.error(`vshot.py not found at ${VSHOT} — the render-verify harness (scripts/ui/vshot.py) is required.`)

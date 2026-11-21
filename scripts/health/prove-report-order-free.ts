@@ -153,7 +153,7 @@ for (const depth of ['fast', 'deep'] as const) {
   const [first, second, reversed, rotated] = settledRuns as [Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>, Awaited<ReturnType<typeof runOrder>>]
   const runs = [first, second, reversed, rotated]
   const silent = runs.filter(entry => entry.run === null).map(entry => entry.why)
-  check(`four ${depth} reports ran`, silent.length === 0, silent)
+  check(`four ${depth} reports ran`, silent.length === 0, [...silent, 'the child process of this file (run with --child) died before it wrote its report: read its last output above, and look at runHealthReport in src/services/health/healthReport.ts and the section list in src/services/health/sections.ts that the child loads'])
   if (first.run === null || second.run === null || reversed.run === null || rotated.run === null) continue
   const ran = runs.flatMap(entry => (entry.run !== null && entry.run.called.join(' ') !== entry.run.handed.join(' ') ? [`the ${entry.run.mode} run handed the report ${entry.run.handed.length} sections (${entry.run.handed[0]} first) and the report called ${entry.run.called.length} of them (${entry.run.called[0] ?? 'none'} first): runHealthReport of src/services/health/healthReport.ts takes the list of sections as its second argument and runs that list in the order handed`] : []))
   check(`the report ran the list it was handed, in the order handed (${first.run.handed[0]} first, ${reversed.run.handed[0]} first, ${rotated.run.handed[0]} first)`, ran.length === 0, ran)

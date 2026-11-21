@@ -7,16 +7,17 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const OVERFLOW_FOLD_FAILURE_HINT = ' | change the overflow recovery in src/services/compact/overflowRecovery.ts (decideOverflowRecovery, overflowRecoveryNotice, overflowRefusalText), driven from src/run-core/turn/makeRequest.ts and src/run-core/turn/noToolReply.ts, or the fold itself (compactConversation in src/services/compact/compact.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : OVERFLOW_FOLD_FAILURE_HINT}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow real-fold prover exceeded 240s')
+  console.log('\nTIMEOUT — overflow real-fold prover exceeded 240s; the fold or the retry never settled, look at src/services/compact/overflowRecovery.ts and the section printed last above')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

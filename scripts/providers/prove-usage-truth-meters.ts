@@ -17,7 +17,7 @@ for (const name of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENR
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | where to look: the view builders and word functions in src/services/providers/providerUsage.ts (activeSourceUsage, usageForProvider, usageCreditsLine, usageCarryWords, usageSummaryWords), the feed and age words in src/services/providers/usageFreshness.ts, the endpoint fold in src/services/anthropicLimits.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

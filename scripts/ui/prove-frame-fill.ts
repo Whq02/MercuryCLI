@@ -45,10 +45,10 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 let checks = 0
-function check(label: string, good: boolean, detail = ''): void {
+function check(label: string, good: boolean, detail = '', fixHint = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good && fixHint ? ` — fix: ${fixHint}` : ''}`)
 }
 async function until(predicate: () => boolean): Promise<boolean> {
   let expired = false
@@ -110,11 +110,11 @@ const describe = (shape: Shape): string =>
 const stored = JSON.parse(readFileSync(join(ROOT, 'design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json'), 'utf8')) as { rows: number; text: string[] }
 const storedShape = shapeOf(stored.text)
 console.log(`stored 120x40 grid: ${describe(storedShape)}`)
-check('the stored 120x40 grid fills its 40 rows from the frame top to the last row', storedShape.rows === 40 && storedShape.frameTop === 0 && storedShape.firstInkRow === 0 && storedShape.lastInkRow === 39 && storedShape.centreBottom === 33 && storedShape.composerTop === 35)
+check('the stored 120x40 grid fills its 40 rows from the frame top to the last row', storedShape.rows === 40 && storedShape.frameTop === 0 && storedShape.firstInkRow === 0 && storedShape.lastInkRow === 39 && storedShape.centreBottom === 33 && storedShape.composerTop === 35, describe(storedShape), 'the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json no longer fills 40 rows with the frame top on row 0; regenerate or repair that grid')
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('frame-fill exceeded its deadline'); process.exit(1) }, 120_000)
+const hardLimit = setTimeout(() => { console.error('frame-fill exceeded its 120s deadline: a render in renderAt (scripts/ui/prove-frame-fill.ts) never finished; read the last [PASS]/[FAIL] line above for the size that hung'); process.exit(1) }, 120_000)
 hardLimit.unref()
 async function renderAt(columns: number, rows: number): Promise<string[]> {
   initializeSurfaceRoute(ROOT_CHAT_ROUTE)
@@ -161,7 +161,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined }, h(Harness)))
   try {
     const painted = await until(() => insertRef.current !== null && ink.lastFrameText().includes('Type a prompt') && ink.lastFrameText().includes('lanes'))
-    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400))
+    check(`${columns}x${rows}: the cockpit paints its composer placeholder and the lanes header`, painted, ink.lastFrameText().slice(0, 400), 'FullscreenLayout in src/components/FullscreenLayout.tsx or PromptInput did not paint the composer placeholder and the lanes header within 15s; read the frame text above')
     await new Promise<void>(resolve => setTimeout(resolve, 150))
     return ink.lastFrameText().replace(/\n$/, '').split('\n')
   } finally {
@@ -178,21 +178,21 @@ for (const [columns, rows] of SIZES) {
   shapes.set(`${columns}x${rows}`, shape)
   console.log(`${columns}x${rows}: ${describe(shape)}`)
   if (frameDir !== undefined) writeFileSync(join(frameDir, `frame-fill-${columns}x${rows}.txt`), `${lines.join('\n')}\n`)
-  check(`${columns}x${rows}: the frame's rows equal the terminal's rows`, shape.rows === rows, `${shape.rows} rows for a ${rows}-row terminal`)
-  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`)
-  check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`)
-  check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`)
-  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns))
+  check(`${columns}x${rows}: the frame's rows equal the terminal's rows`, shape.rows === rows, `${shape.rows} rows for a ${rows}-row terminal`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must fill exactly the terminal rows')
+  check(`${columns}x${rows}: the first row is the frame's top (no blank rows above)`, shape.frameTop === 0 && shape.firstInkRow === 0 && lines[0]!.includes('lanes'), `frame top ${shape.frameTop}, first ink row ${shape.firstInkRow}`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must start its frame on row 0 with the lanes header')
+  check(`${columns}x${rows}: the last row is the frame's bottom (no blank rows below)`, shape.lastInkRow === rows - 1, `last ink row ${shape.lastInkRow}`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must paint down to the terminal last row')
+  check(`${columns}x${rows}: the outline spans every row from the frame top to the centre column's bottom border`, shape.outlineRows === shape.centreBottom + 1, `${shape.outlineRows} outline rows over ${shape.centreBottom + 1}`, 'the centre column outline in FullscreenLayout (src/components/FullscreenLayout.tsx) must stretch to the bottom border row')
+  check(`${columns}x${rows}: every row is at most ${columns} cells wide`, lines.every(line => [...line.replace(/\x1b\[[0-9;]*m/g, '')].length <= columns), '', 'a painted row is wider than the terminal; check the widths in FullscreenLayout (src/components/FullscreenLayout.tsx) and PromptInput')
 }
 const base = shapes.get('120x40')!
 for (const [columns, rows] of SIZES) {
   const shape = shapes.get(`${columns}x${rows}`)!
-  check(`${columns}x${rows}: the bottom block keeps the height it has at 120x40 and the centre column takes every remaining row`, rows - shape.centreBottom === 40 - base.centreBottom && rows - shape.composerTop === 40 - base.composerTop, `centre bottom at ${rows - shape.centreBottom} from the end (120x40: ${40 - base.centreBottom}), composer top at ${rows - shape.composerTop} from the end (120x40: ${40 - base.composerTop})`)
+  check(`${columns}x${rows}: the bottom block keeps the height it has at 120x40 and the centre column takes every remaining row`, rows - shape.centreBottom === 40 - base.centreBottom && rows - shape.composerTop === 40 - base.composerTop, `centre bottom at ${rows - shape.centreBottom} from the end (120x40: ${40 - base.centreBottom}), composer top at ${rows - shape.composerTop} from the end (120x40: ${40 - base.composerTop})`, 'FullscreenLayout in src/components/FullscreenLayout.tsx must give the bottom block a fixed height and the centre column every remaining row')
 }
-check('120x40: the source render and the stored grid share the fill facts (rows, frame top, first and last ink rows)', base.rows === storedShape.rows && base.frameTop === storedShape.frameTop && base.firstInkRow === storedShape.firstInkRow && base.lastInkRow === storedShape.lastInkRow, `${describe(base)} vs ${describe(storedShape)}`)
+check('120x40: the source render and the stored grid share the fill facts (rows, frame top, first and last ink rows)', base.rows === storedShape.rows && base.frameTop === storedShape.frameTop && base.firstInkRow === storedShape.firstInkRow && base.lastInkRow === storedShape.lastInkRow, `${describe(base)} vs ${describe(storedShape)}`, 'regenerate the stored grid design-system/live/grids/frame--120x40--dark--truecolor--full.grid.json or fix the fill in src/components/FullscreenLayout.tsx, whichever is wrong')
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'), 'a console.error during render matched a render fault or hook-order error; read the lines above for the component')
 rmSync(HOME, { recursive: true, force: true })
 console.log(`frame-fill: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

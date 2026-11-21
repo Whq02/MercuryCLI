@@ -21,9 +21,18 @@ const { buildGeminiRequest } = await import('../../src/services/providers/gemini
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+function schemaShapesHint(label: string): string {
+  if (label.startsWith('validateInput') || label.startsWith('refused by the runtime')) return 'change validateInput in src/tools/FileEditTool/FileEditTool.ts (or the inputSchema in src/tools/FileEditTool/types.ts) so the runtime refuses this shape with the words named'
+  if (label.startsWith('the chat-completions')) return 'change mapToolsToZai in src/services/providers/zai/zaiCodec.ts so it passes the root through unchanged'
+  if (label.startsWith('the OpenAI Responses') || label.startsWith('the strict root')) return 'change mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts'
+  if (label.startsWith('the Gemini')) return 'change buildGeminiRequest in src/services/providers/gemini/geminiCodec.ts so it sends the same schema as parametersJsonSchema'
+  if (label.startsWith('the conversion is one object')) return 'change zodToJsonSchema in src/utils/zodToJsonSchema.ts so it memoizes one object per schema identity'
+  if (label.startsWith('the wire schema compiles') || label.startsWith('accepted') || label.startsWith('refused by the wire')) return 'change the Edit input schema in src/tools/FileEditTool/types.ts, or compileJsonSchema in src/services/schema/jsonSchemaEngine.ts, so the wire schema validates as listed'
+  return 'change the Edit input schema in src/tools/FileEditTool/types.ts (its fields, descriptions and required list) or zodToJsonSchema in src/utils/zodToJsonSchema.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}to fix, ${schemaShapesHint(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

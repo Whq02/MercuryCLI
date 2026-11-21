@@ -22,8 +22,9 @@ const { startsWithApiErrorPrefix } = await import('../../src/services/api/errors
 const { listingsOfSessionFile } = await import('../../src/utils/sessionStorage/logs.ts')
 
 let failures = 0
+const paintsOnceHint = 'change how the transcript painter streamRenderedMessages in src/components/exportRenderer.tsx renders assistant text blocks so each paints once, and a commentary note keeps its own ink on its own row'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + '; ' : ''}${paintsOnceHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

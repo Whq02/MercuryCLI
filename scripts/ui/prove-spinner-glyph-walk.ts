@@ -15,8 +15,9 @@ process.env.NODE_ENV = 'test'
 process.env.FORCE_COLOR = '3'
 
 let failures = 0
+const glyphFixHint = 'change SpinnerGlyph in src/components/Spinner/SpinnerGlyph.tsx (frame, cadence, reducedMotion and attentionIntensity props) or getDefaultCharacters in src/components/Spinner/utils.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + '; ' : '') + glyphFixHint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

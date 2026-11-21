@@ -61,6 +61,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
+const prefixLineHint = 'change where the line handed to a MERCURY_SHELL_PREFIX wrapper is built: buildExecCommand in createBashShellProvider (src/utils/shell/bashProvider.ts) and shellStartLine (src/utils/bash/shellPrefix.ts)'
 
 console.log('============================================================')
 console.log(' A shell prefix is handed one line that starts the record\'s shell on the command')
@@ -94,7 +95,7 @@ try {
   const child = spawnSync(process.execPath, [import.meta.path, '--under-the-prefix'], { encoding: 'utf8', env })
   const line = (child.stdout ?? '').split('\n').find(text => text.startsWith('ANSWERS '))
   const answers = line === undefined ? null : (JSON.parse(line.slice(8)) as { hookWhere: Ran; hookWords: Ran; record: string; where: Ran; split: Ran; glob: Ran; equals: Ran; stays: Ran; after: Ran; hidden: Ran; afterHidden: Ran; pattern: string; temp: string; elsewhere: string; elsewherePiped: string; elsewhereFails: string })
-  const told = `${JSON.stringify(answers)} · exit ${String(child.status)} · ${JSON.stringify(String(child.stderr ?? '').slice(-300))}`
+  const told = `${JSON.stringify(answers)} · exit ${String(child.status)} · ${JSON.stringify(String(child.stderr ?? '').slice(-300))} · ${prefixLineHint}`
 
   console.log(`\n(1) the wrapper runs ${other}; the command is read by the record's shell`)
   check('the command runs in bash, not in the shell the wrapper starts', answers !== null && answers.where.code === 0 && /runs in zsh=no bash=\d/.test(answers.where.text), told)
@@ -106,16 +107,16 @@ try {
   console.log('\n(2) what the wrapper was handed')
   const counts = existsSync(`${log}.counts`) ? readFileSync(`${log}.counts`, 'utf8').trim().split('\n') : []
   const handed = existsSync(`${log}.line`) ? readFileSync(`${log}.line`, 'utf8') : ''
-  check('the wrapper is started once for each of the two hooks and the eight commands, with its flag and one line', counts.length === 10 && counts.every(count => count === '2'), JSON.stringify(counts))
+  check('the wrapper is started once for each of the two hooks and the eight commands, with its flag and one line', counts.length === 10 && counts.every(count => count === '2'), `${JSON.stringify(counts)} · ${prefixLineHint}`)
   const { tryParseShellCommand } = await import('../../src/utils/bash/shellQuote.ts')
   const parsed = tryParseShellCommand(handed)
   const words = parsed.success ? parsed.tokens : []
   check(
     'that line is six words: /bin/sh, -c, a script that starts a shell, a name, the record\'s shell by its path, and the frame — whichever shell the wrapper runs reads no word of the command',
     answers !== null && words.length === 6 && words[0] === '/bin/sh' && words[1] === '-c' && typeof words[2] === 'string' && words[2].includes('exec "$1" -c "$2"') && words[4] === answers.record && typeof words[5] === 'string' && words[5].includes("eval 'pwd -P'"),
-    JSON.stringify(handed.slice(0, 400)),
+    `${JSON.stringify(handed.slice(0, 400))} · ${prefixLineHint}`,
   )
-  check('every word of the line is quoted, with single quotes alone, which sh, bash and zsh read alike', handed.startsWith("'/bin/sh' '-c' '") && /^(?:'[^']*'|\\'| )+$/.test(handed), JSON.stringify(handed.slice(0, 200)))
+  check('every word of the line is quoted, with single quotes alone, which sh, bash and zsh read alike', handed.startsWith("'/bin/sh' '-c' '") && /^(?:'[^']*'|\\'| )+$/.test(handed), `${JSON.stringify(handed.slice(0, 200))} · ${prefixLineHint}`)
 
   console.log('\n(2b) a hook under the prefix: the wrapper is handed one quoted line that starts /bin/sh on the hook')
   check('the hook is not read by the shell the wrapper starts', answers !== null && answers.hookWhere.code === 0 && answers.hookWhere.text === 'hook read by zsh=no', JSON.stringify(answers?.hookWhere))
@@ -137,18 +138,18 @@ try {
   }
   const landed = (path: string): { status: number | null; text: string } => landedLine(answers?.elsewhere, path)
   const withBash = landed('/usr/bin:/bin')
-  check('with a bash on PATH there, that bash runs the command: exit 0, read by bash and split as bash splits, and nothing but the command\'s output', withBash.status === 0 && withBash.text === 'ran elsewhere: bash=yes zsh=no\n[a][b]', JSON.stringify(withBash))
+  check('with a bash on PATH there, that bash runs the command: exit 0, read by bash and split as bash splits, and nothing but the command\'s output', withBash.status === 0 && withBash.text === 'ran elsewhere: bash=yes zsh=no\n[a][b]', `${JSON.stringify(withBash)} · ${prefixLineHint}`)
   const piped = landedLine(answers?.elsewherePiped, '/usr/bin:/bin')
-  check('a pipeline there prints its output alone, exit 0: the file of its statuses cannot be written and nothing says so', piped.status === 0 && piped.text === 'piped', JSON.stringify(piped))
+  check('a pipeline there prints its output alone, exit 0: the file of its statuses cannot be written and nothing says so', piped.status === 0 && piped.text === 'piped', `${JSON.stringify(piped)} · ${prefixLineHint}`)
   const fails = landedLine(answers?.elsewhereFails, '/usr/bin:/bin')
-  check('a command that fails there keeps its exit and its output', fails.status === 7 && fails.text === 'out', JSON.stringify(fails))
+  check('a command that fails there keeps its exit and its output', fails.status === 7 && fails.text === 'out', `${JSON.stringify(fails)} · ${prefixLineHint}`)
   const noBash = join(scratch, 'a-path-with-no-bash')
   mkdirSync(noBash)
   const without = landed(noBash)
   check(
     'with no bash there at all the command fails with a line that says so: exit 127, the path named, nothing run',
     without.status === 127 && without.text.includes('its shell at /nowhere/on/this/machine/bash cannot be run where this wrapper ran the line, and no bash is on PATH there, so the command did not run') && !without.text.includes('ran elsewhere'),
-    JSON.stringify(without),
+    `${JSON.stringify(without)} · ${prefixLineHint}`,
   )
 
   console.log('\n(4) formatShellPrefixCommand joins a wrapper and one line as before: the line it is given is the caller\'s')
@@ -160,7 +161,7 @@ try {
   ]
   for (const [prefix, command, want] of SAME) {
     const got = formatShellPrefixCommand(prefix, command)
-    check(`formatShellPrefixCommand(${JSON.stringify(prefix)}, ${JSON.stringify(command)}) is ${JSON.stringify(want)}`, got === want, JSON.stringify(got))
+    check(`formatShellPrefixCommand(${JSON.stringify(prefix)}, ${JSON.stringify(command)}) is ${JSON.stringify(want)}`, got === want, `${JSON.stringify(got)} · change formatShellPrefixCommand in src/utils/bash/shellPrefix.ts`)
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true })

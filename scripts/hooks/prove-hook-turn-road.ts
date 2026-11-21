@@ -6,12 +6,13 @@ import { dist, quote, runDoor, savedHookRowsOf, say, sceneRoot, type Row } from 
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
+const roadHint = 'to fix, change the code that fires the event this label names (src/query/stopHooks.ts, src/services/processUserInput/processUserInput.ts, src/utils/gracefulShutdown.ts, with the hook road in src/utils/hooks/), then rebuild dist with bun run build.ts because this proof runs the built bundle'
 const check = (label: string, good: boolean, detail = ''): void => {
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} | ` : ''}${roadHint}` : ''}`)
 }
 if (!existsSync(dist)) {
-  console.log(`FAIL — ${dist} is missing; build first`)
+  console.log(`FAIL — ${dist} is missing; build first with bun run build.ts`)
   process.exit(1)
 }
 const readJson = (path: string): Row | undefined => (existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as Row) : undefined)

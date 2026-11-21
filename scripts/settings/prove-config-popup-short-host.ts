@@ -15,9 +15,10 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const SHORT_HOST_WHERE = 'the popup size and compact fold come from settingsPopupGeometry in src/components/SettingsPopupSlot.tsx, the hint and header words from src/utils/cockpit/settingsPopup.ts, and the /config rows from src/components/Settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : `${detail ? ' | ' : ' — '}${SHORT_HOST_WHERE}`}`)
 }
 
 const React = await import('react')

@@ -10,9 +10,10 @@ const ROOT = join(import.meta.dir, '..', '..')
 process.chdir(ROOT)
 
 let failures = 0
+const ladderTopHint = ' | to fix, change EFFORT_LEVELS in src/utils/effortLadder.ts, the effort parsers and resolveEffortTruth in src/utils/effort.ts, the wire ranks in src/utils/model/pins/gptPins.ts, the catalogue reads in src/services/providers/openai/openaiCatalogue.ts, or the refusal memory in src/services/providers/openai/qualificationStore.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ladderTopHint}`)
 }
 
 console.log('============================================================')

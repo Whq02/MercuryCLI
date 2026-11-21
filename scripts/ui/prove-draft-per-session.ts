@@ -9,9 +9,10 @@ mkdirSync(join(SCRATCH, 'home'), { recursive: true })
 process.env.MERCURY_CONFIG_DIR = join(SCRATCH, 'home')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const DRAFT_STORE_HINT = 'fix rekeyToSession, flushDrafts or readDraftFor in src/input-core/pending-input.ts so each session keeps its own draft'
+const check = (label: string, cond: boolean, detail = '', hint = DRAFT_STORE_HINT): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${hint}`}`)
 }
 
 
@@ -72,7 +73,7 @@ console.log('\n§3 the owner of the swap, read off the mounted session part of t
 {
   const { sessionRekeys } = await import('./chatScenarios.ts')
   const rekeys = await sessionRekeys('draft-per-session')
-  check('the Chat hop effect owns the swap, mount-skip guarded', rekeys.atMount === '' && rekeys.hop.startsWith('draft draft-per-session-b landing=false') && rekeys.again === '', `at mount "${rekeys.atMount}" · on a hop "${rekeys.hop}" · on the next render "${rekeys.again}"`)
+  check('the Chat hop effect owns the swap, mount-skip guarded', rekeys.atMount === '' && rekeys.hop.startsWith('draft draft-per-session-b landing=false') && rekeys.again === '', `at mount "${rekeys.atMount}" · on a hop "${rekeys.hop}" · on the next render "${rekeys.again}"`, 'the chat screen session part must re-key the draft once on a session hop and not at mount or on the next render; sessionRekeys in scripts/ui/chatScenarios.ts shows which part it mounts')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

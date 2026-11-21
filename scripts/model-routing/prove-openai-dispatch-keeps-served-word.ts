@@ -10,10 +10,11 @@ import type { AssistantMessage, Message, StreamEvent } from '../../src/types/mes
 
 let failures = 0
 let checks = 0
+const servedWordHint = ' | to fix, change how openaiCallModel (src/services/providers/openai/openaiCallModel.ts) builds reasoning.effort and the catalogue note when the live model list is unavailable, or effortSentOf (src/services/engine-connector/seatProjections.ts) and resolveEffortTruth (src/utils/effort.ts) for the facts projection'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : servedWordHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

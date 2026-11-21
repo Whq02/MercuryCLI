@@ -27,6 +27,8 @@ const YIELD_CUE = 'Waiting for permission…'
 const CLOSING = 'The marker is in place.'
 const ANSWER = 'Two files, as counted.'
 const BACKSPACE = '\\x7f'
+const queuedFix = 'queued-words card: src/components/permissions/CardQueuedWords.tsx and src/utils/cockpit/composerSeed.ts'
+const queuedSendFix = 'words queued under a card: src/utils/cockpit/composerSeed.ts and the Chat screen in src/screens'
 
 const flat = (rows: string[]): string => rows.map(r => r.replace(/\s+$/, '')).join('\n')
 const rowsWith = (rows: string[], needle: string): string => rows.filter(r => r.includes(needle)).map(r => r.trim()).join(' | ') || `(no row carries "${needle}")`
@@ -79,7 +81,7 @@ try {
   const approved = byText('1')
   const sent = run.sendLog.filter(s => Buffer.from(s.b64, 'base64').toString('latin1') === '\r')
   const resend = sent.find(s => s.after === CLOSING)
-  check('the card painted its question and every witnessed send was delivered (type · backspace · approve · send)', typed !== undefined && erased !== undefined && approved !== undefined && resend !== undefined, run.driverOut.slice(-400))
+  check('the card painted its question and every witnessed send was delivered (type · backspace · approve · send)', typed !== undefined && erased !== undefined && approved !== undefined && resend !== undefined, `a send was not delivered or the card never painted; look at the driver output, ${queuedFix} · ${run.driverOut.slice(-250)}`)
   if (typed !== undefined && erased !== undefined && approved !== undefined && resend !== undefined) {
     const t = sendStamp(run, typed)
     const e = sendStamp(run, erased)
@@ -88,36 +90,36 @@ try {
 
     dump('typing-yielded', yielded!.rows)
     const yieldedText = flat(yielded!.rows)
-    check('while the hand moves the composer shows the words and says the card is waiting', yieldedText.includes(WORDS) && yieldedText.includes(YIELD_CUE), rowsWith(yielded!.rows, '❯'))
+    check('while the hand moves the composer shows the words and says the card is waiting', yieldedText.includes(WORDS) && yieldedText.includes(YIELD_CUE), `${queuedFix} · ${rowsWith(yielded!.rows, '❯')}`)
 
     dump('card-back-words-under-it', rested!.rows)
     const restedText = flat(rested!.rows)
-    check('once the hand rests the card is back on the frame', restedText.includes(NEEDLE), rowsWith(rested!.rows, 'Bash'))
-    check('the typed words are on the same frame as the card (they never vanish)', restedText.includes(WORDS), rowsWith(rested!.rows, '❯'))
-    check('the row under the card says ↵ is off while the words wait, which digits answer, and that backspace edits them', restedText.includes(HINT), rowsWith(rested!.rows, 'words wait'))
+    check('once the hand rests the card is back on the frame', restedText.includes(NEEDLE), `${queuedFix} · ${rowsWith(rested!.rows, 'Bash')}`)
+    check('the typed words are on the same frame as the card (they never vanish)', restedText.includes(WORDS), `${queuedFix} · ${rowsWith(rested!.rows, '❯')}`)
+    check('the row under the card says ↵ is off while the words wait, which digits answer, and that backspace edits them', restedText.includes(HINT), `the hint line is written in src/utils/cockpit/composerSeed.ts · ${rowsWith(rested!.rows, 'words wait')}`)
 
     dump('after-backspace', edited!.rows)
     const editedText = flat(edited!.rows)
-    check('backspace on the card trims the queued words by one character', editedText.includes(TRIMMED) && !editedText.includes(WORDS), rowsWith(edited!.rows, '❯'))
-    check('the card still waits after the edit', editedText.includes(NEEDLE), rowsWith(edited!.rows, 'Bash'))
+    check('backspace on the card trims the queued words by one character', editedText.includes(TRIMMED) && !editedText.includes(WORDS), `${queuedFix} · ${rowsWith(edited!.rows, '❯')}`)
+    check('the card still waits after the edit', editedText.includes(NEEDLE), `${queuedFix} · ${rowsWith(edited!.rows, 'Bash')}`)
 
     dump('turn-settled', settled!.rows)
     const settledText = flat(settled!.rows)
-    check('after the approval the turn settles (the closing text landed)', settledText.includes(CLOSING), rowsWith(settled!.rows, 'marker'))
-    check('the edited words sit in the composer, unsent, when the turn ends', settledText.includes(TRIMMED) && !settledText.includes(WORDS) && !settledText.includes(NEEDLE), rowsWith(settled!.rows, '❯'))
+    check('after the approval the turn settles (the closing text landed)', settledText.includes(CLOSING), `${queuedFix}; the approval must let the turn finish · ${rowsWith(settled!.rows, 'marker')}`)
+    check('the edited words sit in the composer, unsent, when the turn ends', settledText.includes(TRIMMED) && !settledText.includes(WORDS) && !settledText.includes(NEEDLE), `${queuedFix} · ${rowsWith(settled!.rows, '❯')}`)
 
     dump('final', final!.rows)
     const finalText = flat(final!.rows)
-    check('↵ after the turn sends the words once and the model answers them', finalText.includes(ANSWER), rowsWith(final!.rows, 'counted'))
+    check('↵ after the turn sends the words once and the model answers them', finalText.includes(ANSWER), `${queuedSendFix} · ${rowsWith(final!.rows, 'counted')}`)
     const userRows = final!.rows.filter(r => r.includes(TRIMMED) && !r.includes('words wait')).length
-    check('the words appear once as the user\'s own row (not twice, not as a queued mid-turn row)', userRows === 1, rowsWith(final!.rows, TRIMMED))
+    check('the words appear once as the user\'s own row (not twice, not as a queued mid-turn row)', userRows === 1, `${queuedSendFix} · ${rowsWith(final!.rows, TRIMMED)}`)
     const messageRequests = run.fixture.requests.filter(r => r.path.includes('/messages'))
     const last = messageRequests.at(-1)
-    check('the wire carries the edited words as the user\'s next instruction, once, after the turn', last !== undefined && lastUserText(last.body) === TRIMMED, last ? lastUserText(last.body).slice(0, 200) : '(no request)')
+    check('the wire carries the edited words as the user\'s next instruction, once, after the turn', last !== undefined && lastUserText(last.body) === TRIMMED, `${queuedSendFix} · ${last ? lastUserText(last.body).slice(0, 200) : '(no request)'}`)
     const midTurn = messageRequests.filter(r => lastUserText(r.body).includes(TRIMMED)).length
-    check('no request before the final one carried the words (they waited for the turn)', midTurn === 1, `${midTurn} request(s) carried them`)
+    check('no request before the final one carried the words (they waited for the turn)', midTurn === 1, `${midTurn} request(s) carried them; ${queuedSendFix} must hold the words until the turn ends`)
   }
-  check('the approved command ran (the marker exists) — the queued words never blocked the answer', existsSync(join(run.paths.cwd, MARKER)))
+  check('the approved command ran (the marker exists) — the queued words never blocked the answer', existsSync(join(run.paths.cwd, MARKER)), `the approving 1 never reached the card or the Bash call did not run; ${queuedFix}`)
 } finally {
   run.cleanup()
 }

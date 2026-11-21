@@ -24,9 +24,10 @@ const bash = {
   checkPermissions: (input: { command: string }, context: { getAppState: () => { toolPermissionContext: unknown } }) => bashToolHasPermission(input, context.getAppState().toolPermissionContext as never),
 }
 let failures = 0
+const floorHint = 'change the decision in src/utils/permissions/decision/wrapper.ts (decideToolPermissionWithModes) or src/tools/BashTool/bashPermissions.ts (bashToolHasPermission); for the sed checks change parseSedEditCommand or applySedSubstitution in src/tools/BashTool/sedEditParser.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' · ' : '') + floorHint}`)
 }
 async function decide(command: string, allow: string[] = [], deny: string[] = [], ask: string[] = [], mode = 'default') {
   const state = { toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { localSettings: allow }, alwaysDenyRules: { localSettings: deny }, alwaysAskRules: { localSettings: ask }, isBypassPermissionsModeAvailable: false }, tasks: {} }

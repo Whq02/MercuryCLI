@@ -14,7 +14,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const altPaintHint = 'fix the alt-screen branch of FrameWriter.render in src/ink/frame-writer.ts (a full paint must home the cursor and never emit a bare LF), or the byte writer writeDiffToTerminal in src/ink/session/delivery.ts'
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — ${altPaintHint}`)
   }
 }
 

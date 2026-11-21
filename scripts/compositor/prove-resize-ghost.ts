@@ -75,7 +75,7 @@ try {
   delete env.MERCURY_FULLSCREEN
   delete env.MERCURY_ALT_HELD
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { env, timeout: vshotBudgetMs(180_000), stdio: 'pipe' })
-  check('the walk journey captured (vshot exit 0)', res.status === 0, res.stderr?.toString().slice(-300) ?? '')
+  check('the walk journey captured (vshot exit 0)', res.status === 0, `rebuild dist/mercury.mjs (bun run build.ts) and read scripts/ui/vshot.py, which ran the walk and exited non-zero; its stderr tail: ${res.stderr?.toString().slice(-300) ?? ''}`)
   if (res.status !== 0) throw new Error('capture failed')
 
   const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as Grid & { stages?: Stage[] }
@@ -93,13 +93,14 @@ try {
   }
   const all = Buffer.concat(frames.map(f => f.bytes)).toString('latin1')
   const altEnterAt = all.indexOf('\x1b[?1049h')
-  check('G1 the walk enters the alternate screen (the station host)', altEnterAt >= 0)
+  check('G1 the walk enters the alternate screen (the station host)', altEnterAt >= 0, 'no ESC[?1049h was written during the walk; make the first-run station host enter the alternate screen (src/ink/components/AlternateScreen.tsx writes the entry)')
   check(
     'G1 not one walk byte on the main screen before the alt entry (scrollback purity)',
     altEnterAt >= 0 && !all.slice(0, altEnterAt).includes(NEEDLE),
+    'walk text was written before the alternate-screen entry (or there was no entry); nothing of the station may reach the main screen first',
   )
   const exits = (all.match(/\x1b\[\?1049l/g) ?? []).length
-  check('G3 the journey never leaves the alt screen (zero ?1049l)', exits === 0, `${exits} exits`)
+  check('G3 the journey never leaves the alt screen (zero ?1049l)', exits === 0, `${exits} exits; something leaves the alternate screen (ESC[?1049l) during a resize, and the walk must stay in it`)
 
   const changeTicks = stages.map(s => s.untilTick)
   const bytesIn = (from: number, to: number | null): string =>
@@ -111,20 +112,20 @@ try {
   check(
     'G3 every geometry change repaints THROUGH the overwrite law (whole frames ≥ settled changes, no erase of the display)',
     wholeFramesAfterFirstResize >= SETTLED_CHANGES + 1 && erasesAfterFirstResize === 0,
-    `${wholeFramesAfterFirstResize} whole frames and ${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst`,
+    `${wholeFramesAfterFirstResize} whole frames and ${erasesAfterFirstResize} erases for ${SETTLED_CHANGES} settled changes + one burst; a resize must repaint with a whole-frame overwrite (ESC[H ESC[0m) and never erase the display (ESC[2J)`,
   )
 
-  check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length}`)
+  check('G2 stage snapshots recorded for every geometry', stages.length === cfg.resizes.length, `${stages.length} stages for ${cfg.resizes.length} resizes; the vshot run (scripts/ui/vshot.py) did not settle at every commanded geometry, so check whether the walk reached the station before the resizes`)
   stages.forEach((stage, i) => {
     const n = needleCount(stage.grid)
     if (i < SETTLED_CHANGES) {
       check(
         `G2 geometry ${stage.cols}x${stage.rows} settled with EXACTLY ONE station frame (no ghost stack)`,
         n === 1,
-        `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}`,
+        `${n} copies of ${JSON.stringify(NEEDLE)} before resize #${i + 1}; the station frame is stacking instead of being overwritten on resize`,
       )
     } else {
-      check(`G5 burst event ${i - SETTLED_CHANGES + 1} (${stage.cols}x${stage.rows}) never stacks the station`, n <= 1, `${n} copies`)
+      check(`G5 burst event ${i - SETTLED_CHANGES + 1} (${stage.cols}x${stage.rows}) never stacks the station`, n <= 1, `${n} copies; a burst of resizes must not stack station frames`)
     }
   })
 
@@ -137,20 +138,20 @@ try {
   if (burstStart !== undefined) windows.push(['the burst', burstStart, null])
   for (const [label, from, to] of windows) {
     const bytes = bytesIn(from, to)
-    check(`G5 ${label}: exactly ONE whole-frame overwrite in its window and no erase of the display`, countOf(bytes, WHOLE_FRAME_HEAD) === 1 && countOf(bytes, '\x1b[2J') === 0, `${countOf(bytes, WHOLE_FRAME_HEAD)} whole frames, ${countOf(bytes, '\x1b[2J')} erases`)
+    check(`G5 ${label}: exactly ONE whole-frame overwrite in its window and no erase of the display`, countOf(bytes, WHOLE_FRAME_HEAD) === 1 && countOf(bytes, '\x1b[2J') === 0, `${countOf(bytes, WHOLE_FRAME_HEAD)} whole frames, ${countOf(bytes, '\x1b[2J')} erases; each geometry change must produce exactly one whole-frame overwrite and no ESC[2J`)
   }
   if (burstStart !== undefined) {
     const burst = bytesIn(burstStart, null)
-    check('G5 the burst holds at most ONCE (one holding paint, not one per event)', countOf(burst, '\x1b[?25l') <= 1, `${countOf(burst, '\x1b[?25l')} holds`)
+    check('G5 the burst holds at most ONCE (one holding paint, not one per event)', countOf(burst, '\x1b[?25l') <= 1, `${countOf(burst, '\x1b[?25l')} holds; a resize burst should paint one holding frame, not one per event`)
   }
   const afterFirst = bytesIn(changeTicks[0] ?? 45, null)
-  check('G6 not one line feed after the first change (a bottom-row LF would scroll the buffer)', countOf(afterFirst, '\n') === 0, `${countOf(afterFirst, '\n')} line feeds`)
+  check('G6 not one line feed after the first change (a bottom-row LF would scroll the buffer)', countOf(afterFirst, '\n') === 0, `${countOf(afterFirst, '\n')} line feeds; repaints after a resize must position with cursor moves, not newlines`)
   const finalCount = needleCount(payload.grid)
-  check('G4 the final grid is single (one station frame at the final geometry)', finalCount === 1, `${finalCount} copies`)
+  check('G4 the final grid is single (one station frame at the final geometry)', finalCount === 1, `${finalCount} copies of the station frame in the final grid; a ghost frame survived the resizes`)
   check(
     'G4 the final geometry is the commanded one',
     payload.grid.length === 44 && payload.grid[0]!.length === 120,
-    `${payload.grid[0]?.length}x${payload.grid.length}`,
+    `${payload.grid[0]?.length}x${payload.grid.length}, expected 120x44; the last entry of cfg.resizes was not applied or the app did not follow it`,
   )
 } finally {
   rmSync(SCRATCH, { recursive: true, force: true })

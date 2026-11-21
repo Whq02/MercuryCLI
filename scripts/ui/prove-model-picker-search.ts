@@ -36,7 +36,7 @@ type ModelChoice = import('../../src/components/MercuryModelPicker.js').ModelCho
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}the picker words live in src/utils/model/modelPickerGroups.ts and src/utils/model/modelPickerFooter.ts; the search box, focus and esc behaviour in src/components/MercuryModelPicker.tsx` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

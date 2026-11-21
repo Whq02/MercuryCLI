@@ -19,8 +19,9 @@ delete process.env.MERCURY_MODEL
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the reload fence in the file this label names, among ${RELOAD_FENCE_AT}` : ''}`)
 }
+const RELOAD_FENCE_AT = 'src/services/providers/local/localCallModel.ts (localCallModel), src/services/providers/local/localWindow.ts, src/services/providers/local/localWarm.ts, src/services/providers/local/localDiscovery.ts, src/services/providers/callModelRouter.ts (routedCallModel); the fixture counts a reload when a request asks the Ollama runner for a different num_ctx or num_batch than the resident one'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }

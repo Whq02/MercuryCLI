@@ -107,32 +107,32 @@ try {
     const frames: Frame[] = result.stdout.split('\n').filter(line => line.startsWith('{')).map(line => JSON.parse(line))
     const session = frames.find(frame => frame.type === 'session')
     const pool = session?.tools ?? []
-    check(`${mode}: built headless run uses the local model`, session?.model === `local/${model}`, JSON.stringify(session?.model))
-    check(`${mode}: run completes`, result.code === 0 && frames.some(frame => frame.type === 'outcome' && frame.status === 'completed' && frame.answer === 'LOCAL-LSP-DONE'), `${result.code}: ${result.stderr.slice(0, 500)}`)
-    check(`${mode}: only the scripted local requests run`, requests.length === calls.length + 1 && requests.every(body => body.model === model), `requests=${requests.length}`)
+    check(`${mode}: built headless run uses the local model`, session?.model === `local/${model}`, JSON.stringify(session?.model) + ' | the session frame of the built run must name local/' + model + '; check the --model handling of mercury run')
+    check(`${mode}: run completes`, result.code === 0 && frames.some(frame => frame.type === 'outcome' && frame.status === 'completed' && frame.answer === 'LOCAL-LSP-DONE'), `${result.code}: ${result.stderr.slice(0, 500)}` + ' | the run must exit 0 with a completed outcome answering LOCAL-LSP-DONE; read the stderr above and the --out files')
+    check(`${mode}: only the scripted local requests run`, requests.length === calls.length + 1 && requests.every(body => body.model === model), `requests=${requests.length}` + ' | expected ' + (calls.length + 1) + ' local requests, one per scripted call plus the final answer; a different count means the run asked the model more or fewer times than scripted')
     const first = requests[0]
     const schemas = first?.tools?.map(tool => tool.function.name) ?? []
     const firstText = JSON.stringify(first?.messages ?? [])
     if (!enabled) {
-      check(`${mode}: explicit off or lean keeps LSP absent`, names.every(name => !pool.includes(name) && !schemas.includes(name) && !firstText.includes(`${name} — `)))
+      check(`${mode}: explicit off or lean keeps LSP absent`, names.every(name => !pool.includes(name) && !schemas.includes(name) && !firstText.includes(`${name} — `)), 'with MERCURY_LSP=0 or --lean no Lsp tool may appear in the pool, the schemas or the first prompt; check the LSP gate in src/tools/LSPTool/LSPTool.ts')
       continue
     }
-    check(`${mode}: the complete LSP family is in the tool pool`, names.every(name => pool.includes(name)), pool.join(', '))
-    check(`${mode}: LspRead is announced but not eagerly sent as a schema`, !schemas.includes('LspRead') && firstText.includes('LspRead — ') && schemas.includes('ToolSearch'), schemas.join(', '))
+    check(`${mode}: the complete LSP family is in the tool pool`, names.every(name => pool.includes(name)), pool.join(', ') + ' | all seven Lsp tools must be in the session tool pool when LSP is enabled; check src/tools/LSPTool/LSPTool.ts')
+    check(`${mode}: LspRead is announced but not eagerly sent as a schema`, !schemas.includes('LspRead') && firstText.includes('LspRead — ') && schemas.includes('ToolSearch'), schemas.join(', ') + ' | LspRead must be listed by name in the first prompt as a deferred tool, and only ToolSearch may carry a schema up front')
     const resultOf = (id: string): Frame | undefined => frames.find(frame => frame.type === 'tool_result' && frame.call_id === id)
     const admitted = resultOf('call_1')
-    check(`${mode}: ToolSearch finds LspRead`, admitted?.status === 'ok' && admitted.output.includes('LspRead') && !admitted.output.includes('Nothing was loaded'), JSON.stringify(admitted))
+    check(`${mode}: ToolSearch finds LspRead`, admitted?.status === 'ok' && admitted.output.includes('LspRead') && !admitted.output.includes('Nothing was loaded'), JSON.stringify(admitted) + ' | ToolSearch select:LspRead must load LspRead')
     const admittedText = requests[1]?.messages.find(message => message.role === 'tool' && message.tool_call_id === 'call_1')?.content ?? ''
-    check(`${mode}: the local admission carries the definition in the result`, admittedText.includes('<tools>') && admittedText.includes('"name":"LspRead"') && admittedText.includes('goToDefinition'), admittedText.slice(0, 500))
-    check(`${mode}: admission never changes the tools prefix`, requests.every(body => JSON.stringify(body.tools) === JSON.stringify(first?.tools)))
+    check(`${mode}: the local admission carries the definition in the result`, admittedText.includes('<tools>') && admittedText.includes('"name":"LspRead"') && admittedText.includes('goToDefinition'), admittedText.slice(0, 500) + ' | the ToolSearch result sent back to the model must carry the LspRead definition inside a tools block')
+    check(`${mode}: admission never changes the tools prefix`, requests.every(body => JSON.stringify(body.tools) === JSON.stringify(first?.tools)), 'a later request carried a different tools array than the first; loading a deferred tool must leave the request tools prefix unchanged')
     const before = resultOf('call_2')
-    check(`${mode}: discovery leaves the TypeScript server stopped until use`, before?.status === 'ok' && /mercury-ts — stopped/.test(before.output) && !/ — (running|starting)/.test(before.output), JSON.stringify(before))
+    check(`${mode}: discovery leaves the TypeScript server stopped until use`, before?.status === 'ok' && /mercury-ts — stopped/.test(before.output) && !/ — (running|starting)/.test(before.output), JSON.stringify(before) + ' | serverStatus before any LSP use must show mercury-ts stopped, not running or starting')
     const definition = resultOf('call_3')
-    check(`${mode}: LspRead resolves budget to lib.ts line 1`, definition?.status === 'ok' && definition.output === 'Defined in lib.ts:1:14\n    export const budget = 42', JSON.stringify(definition))
+    check(`${mode}: LspRead resolves budget to lib.ts line 1`, definition?.status === 'ok' && definition.output === 'Defined in lib.ts:1:14\n    export const budget = 42', JSON.stringify(definition) + ' | goToDefinition on main.ts line 2 must return exactly the lib.ts:1:14 definition text')
     const onWire = requests[3]?.messages.find(message => message.role === 'tool' && message.tool_call_id === 'call_3')?.content ?? ''
-    check(`${mode}: the actual definition result reaches the local model`, onWire === 'Defined in lib.ts:1:14\n    export const budget = 42', onWire)
+    check(`${mode}: the actual definition result reaches the local model`, onWire === 'Defined in lib.ts:1:14\n    export const budget = 42', onWire + ' | the tool result sent to the local model must equal the definition text unchanged')
     const after = resultOf('call_4')
-    check(`${mode}: the definition starts the ordinary TypeScript server`, after?.status === 'ok' && /mercury-ts — running/.test(after.output), JSON.stringify(after))
+    check(`${mode}: the definition starts the ordinary TypeScript server`, after?.status === 'ok' && /mercury-ts — running/.test(after.output), JSON.stringify(after) + ' | after goToDefinition the second serverStatus must show mercury-ts running')
     console.log(`[INFO] ${mode}: ${Math.round(performance.now() - started)} ms`)
   }
 } finally {

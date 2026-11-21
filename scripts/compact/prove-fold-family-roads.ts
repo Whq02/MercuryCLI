@@ -29,10 +29,11 @@ const PACED_PORT = 0
 
 let failures = 0
 let checks = 0
+const FOLD_ROADS_FAILURE_HINT = ' | change the fold in src/services/compact/compact.ts (compactConversation) or the request it sends through routedCallModel in src/services/providers/callModelRouter.ts, not this prover'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : FOLD_ROADS_FAILURE_HINT}`)
 }
 function note(label: string): void {
   console.log(`  [NOTE] ${label}`)
@@ -43,7 +44,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — fold family roads prover exceeded 180s')
+  console.log('\nTIMEOUT — fold family roads prover exceeded 180s; a fold request or a fixture stream never finished, look at compactConversation in src/services/compact/compact.ts and the section printed last above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

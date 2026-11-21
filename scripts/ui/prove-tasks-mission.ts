@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
+let missionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, missionHint].filter(Boolean).join('; ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -27,7 +29,7 @@ function capture(scenario: string, cols: number, rows: number): string[] | null 
     { encoding: 'utf8', timeout: 180_000, cwd: ROOT },
   )
   if (res.status !== 0) {
-    console.log(`  [FAIL] render-tui(${scenario}) exited ${res.status}: ${res.stderr?.slice(0, 300)}`)
+    console.log(`  [FAIL] render-tui(${scenario}) exited ${res.status}: ${res.stderr?.slice(0, 300)}; run bun scripts/ui/render-tui.ts --scenario ${scenario} by hand and read its error`)
     failures++
     return null
   }
@@ -40,6 +42,7 @@ console.log(' /tasks MISSION dual-list — #181 LIVESTALE')
 console.log('============================================================')
 
 console.log('\n── A. mission ledger + zero runs (120 cols) ────────────────')
+missionHint = 'change the Mission and runs sections of the /tasks view in src/components/tasks/backgroundTasks/views.tsx'
 {
   const lines = capture('tasks-mission', 120, 40)
   if (lines) {
@@ -56,6 +59,7 @@ console.log('\n── A. mission ledger + zero runs (120 cols) ─────�
 }
 
 console.log('\n── B. runs only, empty ledger (80 cols) ────────────────────')
+missionHint = ''
 {
   const { runArtifactArena, grabScreens } = await import('../streaming/artifactArena.ts')
   const { vshotBudgetMs: S } = await import('../lib/captureDriver.ts')

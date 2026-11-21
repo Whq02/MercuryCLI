@@ -14,12 +14,13 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const payloadHint = 'to fix, change the payload fields of the event this label names in hookEventTable and hookPayloadSchema of src/utils/hooks/contract.ts, or how buildHookPayload in src/utils/hooks/fire.ts fills them; for the run door check also rebuild dist with bun run build.ts'
 const check = (label: string, good: boolean, detail = ''): void => {
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} | ` : ''}${payloadHint}` : ''}`)
 }
 if (!existsSync(dist)) {
-  console.log(`FAIL — ${dist} is missing; build first`)
+  console.log(`FAIL — ${dist} is missing; build first with bun run build.ts`)
   process.exit(1)
 }
 

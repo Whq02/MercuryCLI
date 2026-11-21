@@ -7,8 +7,9 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+const FOLD_OWNER_FIX_HINT = 'FoldStatusRow in src/components/FoldStatusRow.tsx (rendered from src/components/Messages.tsx with the conversationId) must paint the fold row only when conversationId is the focused session, and a crewmate, export or other transcript must paint none; FOLD_ROW_HEAD and beginFoldStatus are in src/services/compact/foldStatus.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` | fix: ${FOLD_OWNER_FIX_HINT}`}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

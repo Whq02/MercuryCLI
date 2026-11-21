@@ -30,7 +30,7 @@ type Cell = { ch: string; fg: string; dim: boolean }
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' [change the row lead in AssistantToolUseMessage (src/components/messages/AssistantToolUseMessage.tsx), the group lead in CollapsedReadSearchContent (src/components/messages/CollapsedReadSearchContent.tsx), the notice row in src/components/messages/UserAgentNotificationMessage.tsx, or the family marks and tones in src/components/mercury-ui/toolGlyphs.ts]'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

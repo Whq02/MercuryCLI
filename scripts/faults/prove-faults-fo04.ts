@@ -8,13 +8,13 @@ const SECRET_RULE = { deny: [fill('Read(/<PROJECT>/secrets/**)')] }
 section('a glob segment no reader translates does not reach the denied folder')
 {
   const decision = await decide('Bash', { command: "sh -c 'cat secr[e-\\f]ts/k.txt'" }, 'implement', SECRET_RULE)
-  check('cat secr[e-\\f]ts/k.txt, which bash expands into the denied secrets folder, is not allowed', decision.behavior !== 'allow', said(decision))
+  check('cat secr[e-\\f]ts/k.txt, which bash expands into the denied secrets folder, is not allowed', decision.behavior !== 'allow', `make the Bash permission check refuse a glob segment it cannot translate when a deny rule could match it (src/tools/BashTool/bashPermissions.ts, bashToolHasPermission); got ${said(decision)}`)
 }
 
 section('a file URL whose path does not decode does not reach the denied folder')
 {
   const decision = await decide('Bash', { command: `sh -c 'curl ${fill('file://<PROJECT>/secrets/k.txt%')}'` }, 'implement', SECRET_RULE)
-  check('curl file://<project>/secrets/k.txt%, a path in the denied folder that decodeURI refuses, is not allowed', decision.behavior !== 'allow', said(decision))
+  check('curl file://<project>/secrets/k.txt%, a path in the denied folder that decodeURI refuses, is not allowed', decision.behavior !== 'allow', `make the Bash permission check treat a file URL whose path does not decode as the denied path, not as allowed (src/tools/BashTool/bashPermissions.ts, bashToolHasPermission); got ${said(decision)}`)
 }
 
 section('pathValidation: a grep --include glob the reader cannot translate keeps the env-file ask')
@@ -23,8 +23,8 @@ section('pathValidation: a grep --include glob the reader cannot translate keeps
   writeFileSync(join(fill('<PROJECT>/envtree'), '.env'), 'SECRET=CANARY-ENVTREE\n')
   const plain = await decide('Bash', { command: "grep -r --include='.env' SECRET envtree" }, 'implement')
   const odd = await decide('Bash', { command: "grep -r --include='.en[v-\\z]' SECRET envtree" }, 'implement')
-  check('the plain include of .env asks first (the floor this row leans on)', plain.behavior !== 'allow', said(plain))
-  check('an include of .en[v-\\z], which grep matches to .env, asks first too', odd.behavior !== 'allow', said(odd))
+  check('the plain include of .env asks first (the floor this row leans on)', plain.behavior !== 'allow', `the plain env-file include must ask before the glob row can hold; check the env-file path validation the Bash permission check applies (src/tools/BashTool/bashPermissions.ts); got ${said(plain)}`)
+  check('an include of .en[v-\\z], which grep matches to .env, asks first too', odd.behavior !== 'allow', `an --include glob the reader cannot translate must keep the env-file ask: make the Bash path validation ask when it cannot translate the glob (src/tools/BashTool/bashPermissions.ts); got ${said(odd)}`)
 }
 
 section('hopIntoSession: a transcript that cannot be read is not resumed in the current folder')
@@ -39,7 +39,7 @@ if (process.platform !== 'win32' && process.getuid?.() !== 0) {
     new Promise<{ ok: boolean; reason: string }>(done => setTimeout(() => done({ ok: true, reason: 'went on past the unreadable transcript' }), 5000)),
   ])
   chmodSync(transcript, 0o644)
-  check('the resume answers not ok with the read error itself', !outcome.ok && /EACCES/.test(outcome.reason), outcome.reason)
+  check('the resume answers not ok with the read error itself', !outcome.ok && /EACCES/.test(outcome.reason), `focusResumedSession must return ok false with the read error when the transcript cannot be read, not resume in the current folder (src/services/switchboard/hopIntoSession.ts); got ${outcome.reason}`)
 }
 
 section('harnessGround: a folder that cannot be entered is not recorded as the ground')
@@ -50,8 +50,8 @@ section('harnessGround: a folder that cannot be entered is not recorded as the g
   const missing = fill('<PROJECT>/no-such-ground')
   const answered = await Promise.race([applyHarnessGround(missing), new Promise<string>(done => setTimeout(() => done('still grounding'), 10000))])
   const after = { original: state.getOriginalCwd(), root: state.getProjectRoot(), cwd: process.cwd() }
-  check('the original cwd and project root stay where the process is', after.original === before.original && after.root === before.root && after.cwd === before.cwd, JSON.stringify(after))
-  check('the answer is the folder the process stayed in', answered === before.cwd, answered)
+  check('the original cwd and project root stay where the process is', after.original === before.original && after.root === before.root && after.cwd === before.cwd, `applyHarnessGround must leave the original cwd, project root and process cwd unchanged when the folder cannot be entered (src/services/switchboard/harnessGround.ts); got ${JSON.stringify(after)}`)
+  check('the answer is the folder the process stayed in', answered === before.cwd, `applyHarnessGround must return process.cwd() when chdir fails (src/services/switchboard/harnessGround.ts); got ${answered}`)
 }
 
 section('matching: one hook matcher that throws does not drop the other hooks of the event')
@@ -80,8 +80,8 @@ section('matching: one hook matcher that throws does not drop the other hooks of
   } as never, { kind: 'agent', type: 'faults' } as never)
   const matched = await matchHooks('tool.before', { tool: 'Bash', input: { command: 'ls -la' } } as never, scope, { appState: state as never })
   const names = matched.map(hook => (hook.entry as { name?: string }).name).sort()
-  check('the hook matched by name alone still runs when another matcher throws', names.includes('by-name'), names.join(', ') || 'no hooks')
-  check('the fail-closed hook whose matcher threw runs, the open one does not', names.includes('by-rule-closed') && !names.includes('by-rule-open'), names.join(', ') || 'no hooks')
+  check('the hook matched by name alone still runs when another matcher throws', names.includes('by-name'), `matchHooks must judge each hook matcher on its own, so one that throws drops only itself (src/utils/hooks/matching.ts); matched ${names.join(', ') || 'no hooks'}`)
+  check('the fail-closed hook whose matcher threw runs, the open one does not', names.includes('by-rule-closed') && !names.includes('by-rule-open'), `matchHooks must keep a hook with failClosed whose matcher threw and drop one without it (src/utils/hooks/matching.ts); matched ${names.join(', ') || 'no hooks'}`)
 }
 
 finish('prove-faults-fo04')

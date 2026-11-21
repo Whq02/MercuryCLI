@@ -8,6 +8,8 @@ const { streamGeminiContent } = await import(`${root}/src/services/providers/gem
 const { streamOllamaChat } = await import(`${root}/src/services/providers/local/ollamaChatTransport.ts`)
 const { assembleZaiTurn } = await import(`${root}/src/services/providers/zai/zaiCodec.ts`)
 
+const CHAT_STREAM_FIX_HINT = 'the stream event shape or the settled turn changed: streamCompatChat in src/services/providers/openaicompat/compatChatClient.ts, streamGeminiContent in src/services/providers/gemini/geminiClient.ts, streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts, assembleZaiTurn in src/services/providers/zai/zaiCodec.ts; compare the printed diff with the fixture and restore the byte-pinned output'
+const CHAT_CALL_FIX_HINT = 'compat tool fragments must emit the same blocks as Anthropic: compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts against queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts'
 const request = { model: 'fixture-model', messages: [{ role: 'user', content: 'fixture input' }] }
 const sse = (chunks: unknown[]) => new Response(chunks.map(chunk => `data: ${JSON.stringify(chunk)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
 const fetchOf = (response: Response) => (async (url: unknown) => {
@@ -44,8 +46,8 @@ assert.deepEqual(chatEvents, [
   { type: 'tool-call-fragment', index: 0, id: 'fixture-call', name: 'Read', argumentsFragment: 'path":"/fixture"}' },
   { type: 'usage', usage: { inputTokens: 7, outputTokens: 5 } },
   { type: 'finish', reason: 'tool_calls', rawReason: 'tool_calls', toolCalls: [{ index: 0, id: 'fixture-call', name: 'Read', argumentsRaw: '{"file_path":"/fixture"}', arguments: { file_path: '/fixture' }, malformed: false }] },
-])
-assert.deepEqual(await assembleZaiTurn(asEvents(chatEvents)), expectedTurn)
+], `compat chat stream events differ from the fixture; ${CHAT_STREAM_FIX_HINT}`)
+assert.deepEqual(await assembleZaiTurn(asEvents(chatEvents)), expectedTurn, `compat chat events settle to a different turn; ${CHAT_STREAM_FIX_HINT}`)
 console.log('PASS: compatible chat stream events and settled content are byte-pinned')
 
 const nativeTurns: unknown[] = []
@@ -66,8 +68,8 @@ assert.deepEqual(nativeTurns, [{
   ],
   calls: [{ id: 'fixture-call', name: 'Read', nativeId: 'fixture-call' }],
   projection: '',
-}])
-assert.deepEqual(await assembleZaiTurn(asEvents(geminiEvents)), { ...expectedTurn, usage: { inputTokens: 7, outputTokens: 5, reasoningTokens: 2, cachedInputTokens: 0 } })
+}], `Gemini native turns differ from the fixture; ${CHAT_STREAM_FIX_HINT}`)
+assert.deepEqual(await assembleZaiTurn(asEvents(geminiEvents)), { ...expectedTurn, usage: { inputTokens: 7, outputTokens: 5, reasoningTokens: 2, cachedInputTokens: 0 } }, `Gemini events settle to a different turn; ${CHAT_STREAM_FIX_HINT}`)
 console.log('PASS: Gemini stream content and signatures are byte-pinned')
 
 const ollamaRows = [
@@ -86,8 +88,8 @@ assert.deepEqual(ollamaEvents, [
   { type: 'tool-call-fragment', index: 0, id: 'fixture-call', name: 'Read', argumentsFragment: '{"file_path":"/fixture"}' },
   { type: 'usage', usage: { inputTokens: 7, outputTokens: 5 } },
   { type: 'finish', reason: 'tool_calls', rawReason: 'stop', toolCalls: [{ index: 0, id: 'fixture-call', name: 'Read', argumentsRaw: '{"file_path":"/fixture"}', arguments: { file_path: '/fixture' }, malformed: false }] },
-])
-assert.deepEqual(await assembleZaiTurn(asEvents(ollamaEvents)), expectedTurn)
+], `local stream events differ from the fixture; ${CHAT_STREAM_FIX_HINT}`)
+assert.deepEqual(await assembleZaiTurn(asEvents(ollamaEvents)), expectedTurn, `local events settle to a different turn; ${CHAT_STREAM_FIX_HINT}`)
 console.log('PASS: local stream events and settled content are byte-pinned')
 
 const { z } = await import('zod/v4')
@@ -136,10 +138,10 @@ try {
     streamTransport: (options: any) => ({ events: streamCompatChat({ ...options, fetchImpl: fetchOf(sse(chatChunks.slice(2))) }) }),
   }, params as never))
   const anthropic = await snapshot(queryModelWithStreaming({ ...params, options: { ...params.options, model: 'claude-sonnet-5', fetchOverride: async () => new Response(nativeFrames.map(frame => 'event: ' + frame.type + '\ndata: ' + JSON.stringify(frame) + '\n\n').join(''), { headers: { 'content-type': 'text/event-stream' } }) } } as never))
-  assert.deepEqual(compat.frames, toolBlocks)
-  assert.deepEqual(anthropic.frames, toolBlocks)
-  assert.deepEqual(compat.tools, expectedTurn.toolUses.map(tool => ({ type: 'tool_use', ...tool })))
-  assert.deepEqual(anthropic.tools, compat.tools)
+  assert.deepEqual(compat.frames, toolBlocks, `compat content block frames differ from the Anthropic ones; ${CHAT_CALL_FIX_HINT}`)
+  assert.deepEqual(anthropic.frames, toolBlocks, `Anthropic content block frames differ from the fixture; ${CHAT_CALL_FIX_HINT}`)
+  assert.deepEqual(compat.tools, expectedTurn.toolUses.map(tool => ({ type: 'tool_use', ...tool })), `compat settled tool call differs from the fixture; ${CHAT_CALL_FIX_HINT}`)
+  assert.deepEqual(anthropic.tools, compat.tools, `Anthropic settled tool call differs from the compat one; ${CHAT_CALL_FIX_HINT}`)
   console.log('PASS: compat tool fragments emit the same start, input JSON deltas, stop and settled call as Anthropic')
 } finally {
   globalThis.fetch = savedFetch

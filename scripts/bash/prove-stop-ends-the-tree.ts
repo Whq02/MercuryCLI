@@ -26,9 +26,10 @@ const { killTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/killShell
 const { spawnShellTask } = await import(join(ROOT, 'src/tasks/LocalShellTask/LocalShellTask.tsx'))
 
 let failures = 0
+const treeFailHint = 'change endProcessTree, win32TaskkillCommand or taskkillActedPids in src/utils/processGroup.ts, killTask in src/tasks/LocalShellTask/killShellTasks.ts, or settledStopSentence in src/tools/TaskStopTool/stopSettlement.ts (for the dist literals of section 4, rebuild with bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : `${detail ? ' · ' : ' — '}${treeFailHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

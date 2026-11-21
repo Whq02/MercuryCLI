@@ -28,7 +28,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}a popup must cover the status band whole or leave it whole: see popupCover and the popup geometry in src/components/PopupGutter.tsx, src/components/CommandPopupSlot.tsx and src/components/ModelPickerPopupSlot.tsx` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

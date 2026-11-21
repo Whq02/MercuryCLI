@@ -113,7 +113,7 @@ try {
   await until('the final block is open', () => paced(7) >= 3)
   const p7 = post('during-interrupted', 'posted inside the block that gets interrupted')
   const interrupted = await host.request('turn/interrupt', {})
-  tally.check('the turn was interrupted mid-block', interrupted.interrupted === true)
+  tally.check('the turn was interrupted mid-block', interrupted.interrupted === true, `${JSON.stringify(interrupted)} | turn/interrupt did not report interrupted:true; the final paced reply may have ended before the request`)
   await until('the interrupted turn closed and flushed its row', () => readFileSync(transcript, 'utf8').includes('posted inside the block that gets interrupted'))
   const p8 = post('idle-after', 'posted while the lead is idle')
   await until('the idle row landed', () => readFileSync(transcript, 'utf8').includes('posted while the lead is idle'))
@@ -129,13 +129,13 @@ try {
   const prompts = rows.filter(row => row.what === 'prompt')
   const order = (label: string, before: string | number, after: string | number): void => {
     const a = typeof before === 'string' ? at(before) : before, b = typeof after === 'string' ? at(after) : after
-    tally.check(label, a >= 0 && b >= 0 && a < b, `${a} vs ${b}: ${rows.map(row => `${row.what}:${row.text.slice(0, 24)}`).join(' | ')}`)
+    tally.check(label, a >= 0 && b >= 0 && a < b, `${a} vs ${b}: ${rows.map(row => `${row.what}:${row.text.slice(0, 24)}`).join(' | ')} | a row landed in the wrong place or is missing: check partyFeed (blockOpen, landed, turnEnd) in src/services/crewBoard/party.ts, which holds party rows while a block is open and commits them when it lands`)
   }
   tally.section('§1 one record per post, every post recorded once')
-  tally.check("the channel opens on the wave's launch row, then the seat that joined has one Joined row, then the eight posts", party.length === 10 && party[0]!.text === 'Swarm launched' && party[0]!.fields.name === 'main' && /^joined(?: · team .+)?$/.test(party[1]!.text) && party[1]!.fields.authorRole === 'system', party.map(row => row.text).join(' | '))
+  tally.check("the channel opens on the wave's launch row, then the seat that joined has one Joined row, then the eight posts", party.length === 10 && party[0]!.text === 'Swarm launched' && party[0]!.fields.name === 'main' && /^joined(?: · team .+)?$/.test(party[1]!.text) && party[1]!.fields.authorRole === 'system', `${party.map(row => row.text).join(' | ')} | expected 10 party rows; the rows are built by partyRow and committed by partyFeed in src/services/crewBoard/party.ts`)
   const creations = allRecords.filter(row => row.what === 'party' && row.creation)
-  tally.check('every party row is created once: one creation record per board event, before any projection', creations.length === party.length && new Set(creations.map(row => row.id)).size === creations.length, `${creations.length} creation records for ${party.length} rows`)
-  tally.check('a party row carries the post words, the seat and its team', party.slice(2).every(row => row.fields.name === 'poster' && row.fields.team === 'lists' && row.fields.kind === 'result' && row.fields.authorRole === 'peer'))
+  tally.check('every party row is created once: one creation record per board event, before any projection', creations.length === party.length && new Set(creations.map(row => row.id)).size === creations.length, `${creations.length} creation records for ${party.length} rows | partyFeed in src/services/crewBoard/party.ts must record each board event once`)
+  tally.check('a party row carries the post words, the seat and its team', party.slice(2).every(row => row.fields.name === 'poster' && row.fields.team === 'lists' && row.fields.kind === 'result' && row.fields.authorRole === 'peer'), `${JSON.stringify(party.slice(2).map(row => row.fields))} | partyRow in src/services/crewBoard/party.ts sets name, team, kind and authorRole on the row`)
 
   tally.section('§2 a row never cuts an open block')
   const longPrompt = prompts.find(row => row.text.includes('say the long one'))!
@@ -145,7 +145,7 @@ try {
   order('and before the text block that followed it', p1, longText)
   order('the first post during the text block lands after the whole text', longText, p2)
   order('the second queued post follows the first', p2, p3)
-  tally.check('the long text record is whole, not split around the rows', rows.filter(row => row.what === 'text' && row.text.includes('Sentence')).length === 1 && rows[longText]!.text.includes('Sentence one') && rows[longText]!.text.includes('THE-LONG-END'))
+  tally.check('the long text record is whole, not split around the rows', rows.filter(row => row.what === 'text' && row.text.includes('Sentence')).length === 1 && rows[longText]!.text.includes('Sentence one') && rows[longText]!.text.includes('THE-LONG-END'), 'the long reply was split around a party row; partyFeed in src/services/crewBoard/party.ts must hold rows while a block is open (blockOpen, landed)')
 
   tally.section('§3 tool turns: words before the tool, the tool call, the run, the words after')
   const preText = rows.findIndex(row => row.what === 'text' && row.text.includes('THE-PRE-END'))
@@ -161,12 +161,12 @@ try {
   const inputUse = rows.findIndex(row => row.what === 'tool-use' && row.text.includes('input-done'))
   const inputResult = rows.findIndex((row, i) => row.what === 'tool-result' && i > inputUse)
   const inputAfter = rows.findIndex(row => row.what === 'text' && row.text.includes('THE-INPUT-END'))
-  tally.check('the post was committed while the tool input block was still being typed', inputOpenWhenPosted)
+  tally.check('the post was committed while the tool input block was still being typed', inputOpenWhenPosted, 'the typed tool call had already landed when the post was made, so the fixture turn ran faster than the post; raise inputGapMs or inputChunks of the paced_tool_use step in this file')
   order('a post during an open tool-input block lands after the words before that tool', inputPre, p6)
   order('and after the whole landed tool call', inputUse, p6)
   order('and before the tool result', p6, inputResult)
   order('the words after the slowly typed tool follow its result', inputResult, inputAfter)
-  tally.check('the slowly typed tool call is recorded whole, its input complete', inputUse >= 0 && rows[inputUse]!.text.includes('"command":"echo input-done"') && rows[inputUse]!.text.includes('keeps the block open for a while'), inputUse >= 0 ? rows[inputUse]!.text : 'no tool-use record')
+  tally.check('the slowly typed tool call is recorded whole, its input complete', inputUse >= 0 && rows[inputUse]!.text.includes('"command":"echo input-done"') && rows[inputUse]!.text.includes('keeps the block open for a while'), `${inputUse >= 0 ? rows[inputUse]!.text : 'no tool-use record'} | the tool-use record was cut or never written; partyFeed in src/services/crewBoard/party.ts must not commit a row inside an open block`)
 
   tally.section('§4 an interrupted turn flushes its held row at the close; an idle post lands at once')
   const finalPrompt = prompts.find(row => row.text.includes('say the final one'))!
@@ -178,19 +178,19 @@ try {
 
   tally.section('§5 the turn anchor: rows that arrived during a turn carry its prompt, idle rows carry none')
   const field = (id: string): string | undefined => party.find(row => row.id === id)?.fields.turnId as string | undefined
-  tally.check('the rows of the long turn carry its prompt record', [p1, p2, p3].every(id => field(id) === longPrompt.id), JSON.stringify([field(p1), field(p2), field(p3), longPrompt.id]))
+  tally.check('the rows of the long turn carry its prompt record', [p1, p2, p3].every(id => field(id) === longPrompt.id), `${JSON.stringify([field(p1), field(p2), field(p3), longPrompt.id])} | partyRow in src/services/crewBoard/party.ts takes turnId from the anchor the host passes to partyFeed`)
   const toolPrompt = prompts.find(row => row.text.includes('run the tool'))!
-  tally.check('the rows of the tool turn carry its prompt record', [p4, p5].every(id => field(id) === toolPrompt.id))
+  tally.check('the rows of the tool turn carry its prompt record', [p4, p5].every(id => field(id) === toolPrompt.id), `${JSON.stringify([field(p4), field(p5), toolPrompt.id])} | partyRow in src/services/crewBoard/party.ts sets turnId`)
   const inputPrompt = prompts.find(row => row.text.includes('type the input slowly'))!
-  tally.check('the row of the slowly typed tool turn carries its prompt record', field(p6) === inputPrompt.id)
-  tally.check('the row of the interrupted turn carries its prompt record', field(p7) === finalPrompt.id)
-  tally.check('the idle row carries no turn', field(p8) === undefined)
+  tally.check('the row of the slowly typed tool turn carries its prompt record', field(p6) === inputPrompt.id, `${field(p6)} vs ${inputPrompt.id} | partyRow in src/services/crewBoard/party.ts sets turnId`)
+  tally.check('the row of the interrupted turn carries its prompt record', field(p7) === finalPrompt.id, `${field(p7)} vs ${finalPrompt.id} | partyRow in src/services/crewBoard/party.ts sets turnId`)
+  tally.check('the idle row carries no turn', field(p8) === undefined, `${field(p8)} | partyRow in src/services/crewBoard/party.ts must omit turnId when no turn is open`)
   tally.check('the launch row and the Joined row arrived while the lead was idle and carry no turn', field(party[0]!.id) === undefined && field(party[1]!.id) === undefined, `${JSON.stringify([field(party[0]!.id), field(party[1]!.id)])} vs prompts ${JSON.stringify(prompts.map(row => `${row.id.slice(0, 8)}:${row.text.slice(0, 20)}`))}`)
 
   tally.section('§6 party rows are screen rows, not model input: the words reach the lead only through its board boundary')
   const bodies = world.fixture.messageRequests().map(request => JSON.stringify(request.body))
   const words = ['posted while the lead thinks', 'posted while the tool runs', 'still being typed']
-  tally.check('no row reached the model: every post word on the wire rides a board packet at a boundary', bodies.every(body => !body.includes('crew_chat')) && words.every(word => bodies.some(body => body.includes(word))) && bodies.every(body => body.includes('crew-board-event:') || words.every(word => !body.includes(word))))
+  tally.check('no row reached the model: every post word on the wire rides a board packet at a boundary', bodies.every(body => !body.includes('crew_chat')) && words.every(word => bodies.some(body => body.includes(word))) && bodies.every(body => body.includes('crew-board-event:') || words.every(word => !body.includes(word))), 'a party row reached the model, or a post word never rode a board packet; board packets are built in src/services/crewBoard/store/reading.ts, and party rows must stay screen rows (src/services/crewBoard/party.ts)')
 } finally {
   record('swarm-party-boundaries-out.txt', raw)
   record('swarm-party-boundaries-requests.json', JSON.stringify(world.fixture.messageRequests().map(request => request.body)))

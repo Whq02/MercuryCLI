@@ -15,12 +15,13 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_BARE
 
 let failures = 0
+const fireHint = 'to fix, change the hook road named by this label: fireHooks and prepareHooks in src/utils/hooks/fire.ts, or its helpers in src/utils/hooks/matching.ts, background.ts and rows.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fireHint}` : ''}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('FAIL — the fire proof wedged past 120s')
+  console.log('FAIL — the fire proof wedged past 120s: a hook command of the block being run never ended or fireHooks in src/utils/hooks/fire.ts never returned; the last PASS line above names the block before it')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

@@ -8,13 +8,13 @@ import { join, resolve } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — run node dist/mercury.mjs health --json (add --deep for the journey rows), find the row this label names and fix the check behind it' : ''}`)
 }
 
 const repoRoot = resolve(import.meta.dir, '..', '..')
 const dist = join(repoRoot, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
-  console.error('dist/mercury.mjs missing — run bun run build.ts before the proof')
+  console.error('dist/mercury.mjs missing — run bun run build.ts before the proof (it is read from the repo root, not the working directory)')
   process.exit(1)
 }
 

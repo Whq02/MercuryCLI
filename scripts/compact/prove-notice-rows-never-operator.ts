@@ -10,10 +10,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let count = 0
+const NOTICE_ROWS_FAILURE_HINT = ' | change isOperatorTurn and countOperatorTurns in src/utils/messages/operatorTurns.ts, or selectOperatorMessages and operatorTextOf in src/utils/compact/operatorMessages.ts, so a task-notification row is never read as an operator message'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${cond ? '' : NOTICE_ROWS_FAILURE_HINT}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

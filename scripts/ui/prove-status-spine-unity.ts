@@ -4,8 +4,9 @@ import { cardTone } from '../../src/components/mercury-ui/toolCardGrammar.ts'
 import { STATE_STYLE } from '../../src/components/mercury-ui/theme.ts'
 
 let failures = 0
+const spineFixHint = 'change the state-to-mark mapping in cardTone and cardToneOf in src/components/mercury-ui/toolCardGrammar.ts so it uses STATE_STYLE from src/components/mercury-ui/theme.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + '; ' : ''}${spineFixHint}` : ''}`)
   if (!ok) failures = 1
 }
 

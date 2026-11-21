@@ -8,7 +8,8 @@ import type { HostRecord } from '../../src/services/host/store.ts'
 
 if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_DIR is required')
 let checks = 0
-const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '')); checks++; console.log('PASS ' + name) }
+const trillionWhere = 'look in src/services/host (recipes.ts and recipesFile.ts for the rows, runpod.ts for the client and cluster create, cluster.ts for cluster setup and terminate, costs.ts for the price words, ssh.ts for the engine launch, index.ts createHostRoad for the road); if assets/host/recipes.json differs, regenerate it from exportHostRecipesJson; the fixtures are scripts/host/runpodFixture.mjs and scripts/host/trillionKimiFixture.ts'
+const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, name + (detail ? ': ' + detail : '') + ' · ' + trillionWhere); checks++; console.log('PASS ' + name) }
 const f = await trillionKimiFixture()
 const rp = await runpodFixture()
 const realFetch = globalThis.fetch

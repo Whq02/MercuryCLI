@@ -15,6 +15,7 @@ const { permissionRuleValueFromString, permissionRuleValueToString } = await imp
 type Maps = { mode: string; alwaysAllowRules: Record<string, string[] | undefined>; strippedDangerousRules?: Record<string, string[]> }
 type Answer = { behavior: string; message?: string }
 const PUSH = ['git', 'push', 'origin', 'main'].join(' ')
+const asideFix = 'Fix: which allow rules Flow sets aside is stripDangerousPermissionsForFlow and restoreDangerousPermissions in src/utils/permissions/permissionSetup.ts; the ask before a push is in src/utils/permissions/flowLaw.ts. Got: '
 const told = (answer: Answer): string => `${answer.behavior}${answer.message ? `: ${answer.message.slice(0, 140)}` : ''}`
 const contextWith = (allow: string[]): Maps => ({ ...(getEmptyToolPermissionContext() as unknown as Maps), mode: 'flow', alwaysAllowRules: { userSettings: allow } })
 const aside = (written: string): { kept: boolean; stashed: boolean; back: boolean } => {
@@ -31,19 +32,19 @@ const aside = (written: string): { kept: boolean; stashed: boolean; back: boolea
 section('§1 an allow rule whose program runs another program is set aside while Flow is on, and comes back when Flow is left')
 for (const rule of ['Bash(nice *)', 'Bash(timeout *)', 'Bash(timeout 5 *)', 'Bash(nohup *)', 'Bash(command *)', 'Bash(find *)', 'Bash(time *)', 'Bash(stdbuf *)', 'Bash(setsid *)', 'Bash(watch *)', 'Bash(flock *)', 'Bash(nice)', 'Bash(nice*)']) {
   const read = aside(rule)
-  check(`${rule} · set aside under Flow, back when Flow is left`, !read.kept && read.stashed && read.back, JSON.stringify(read))
+  check(`${rule} · set aside under Flow, back when Flow is left`, !read.kept && read.stashed && read.back, asideFix + JSON.stringify(read))
 }
 
 section('§2 a whole-tool allow of a tool that starts programs is set aside the same way')
 for (const rule of ['Monitor', 'Service', 'Journey', 'Debug', 'Eval', 'Launch', 'Test', 'Monitor(*)', 'Monitor(nice *)', 'Monitor(bash *)']) {
   const read = aside(rule)
-  check(`${rule} · set aside under Flow, back when Flow is left`, !read.kept && read.stashed && read.back, JSON.stringify(read))
+  check(`${rule} · set aside under Flow, back when Flow is left`, !read.kept && read.stashed && read.back, asideFix + JSON.stringify(read))
 }
 
 section('§3 a rule that names what it allows stays in force')
 for (const rule of ['Bash(git push *)', 'Bash(git *)', 'Bash(npm test *)', 'Bash(find src -name notes.txt)', 'Bash(timeout 5 npm test)', 'Monitor(npm run dev)', 'Service(start web)', 'Read(docs/**)', 'Edit(src/**)', 'WebFetch']) {
   const read = aside(rule)
-  check(`${rule} · stays in force under Flow`, read.kept && !read.stashed, JSON.stringify(read))
+  check(`${rule} · stays in force under Flow`, read.kept && !read.stashed, asideFix + JSON.stringify(read))
 }
 
 section('§4 a Flow session booted with such a rule: the push behind the wrapper asks')
@@ -65,19 +66,19 @@ section('§4 a Flow session booted with such a rule: the push behind the wrapper
   for (const [rule, command] of [['Bash(nice *)', `nice ${PUSH}`], ['Bash(timeout *)', `timeout 60 ${PUSH}`], ['Bash(nohup *)', `nohup ${PUSH}`], ['Bash(command *)', `command ${PUSH}`], ['Bash(find *)', `find . -maxdepth 0 -exec ${PUSH} ;`]] as const) {
     const judge = await boot([rule])
     const answer = await judge(BashTool, { command })
-    check(`${rule} in the home's settings · ${command} · Flow asks before the push`, answer.behavior === 'ask' && /Flow asks before git push/.test(answer.message ?? ''), told(answer))
+    check(`${rule} in the home's settings · ${command} · Flow asks before the push`, answer.behavior === 'ask' && /Flow asks before git push/.test(answer.message ?? ''), asideFix + told(answer))
   }
   {
     const judge = await boot(['Monitor'])
     const answer = await judge(MonitorTool, { command: PUSH, description: 'watch the push' })
-    check('a whole-tool allow of Monitor · a push handed to Monitor · Flow asks before the push', answer.behavior === 'ask' && /Flow asks before git push/.test(answer.message ?? ''), told(answer))
+    check('a whole-tool allow of Monitor · a push handed to Monitor · Flow asks before the push', answer.behavior === 'ask' && /Flow asks before git push/.test(answer.message ?? ''), asideFix + told(answer))
   }
   {
     const judge = await boot(['Bash(git push *)'])
     const answer = await judge(BashTool, { command: PUSH })
-    check('control · a rule that names the push answers it, as the page says', answer.behavior === 'allow', told(answer))
+    check('control · a rule that names the push answers it, as the page says', answer.behavior === 'allow', asideFix + told(answer))
     const plain = await judge(BashTool, { command: 'nice npm test' })
-    check('control · nice npm test runs unasked under Flow with no rule for it', plain.behavior === 'allow', told(plain))
+    check('control · nice npm test runs unasked under Flow with no rule for it', plain.behavior === 'allow', asideFix + told(plain))
   }
   writeFileSync(user, JSON.stringify({}))
   resetSettingsCache()

@@ -3,8 +3,10 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
 let failures = 0
+const effortCopyHint = 'change getEffortLevelDescription or the modelSupportsXHighEffort and modelSupportsMaxEffort predicates in src/utils/effort.ts so the copy and the predicates agree'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : detail ? detail + '; ' + effortCopyHint : effortCopyHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 

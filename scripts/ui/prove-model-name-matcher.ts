@@ -20,12 +20,24 @@ for (const key of ['MERCURY_MODEL', 'MERCURY_EFFORT_LEVEL', 'ANTHROPIC_AUTH_TOKE
 
 let checks = 0
 let failures = 0
+let sectionTitleNow = ''
+const failureWhereBySection: Array<[string, string]> = [
+  ['§1', 'change matchModelName or modelNameKey in src/utils/model/modelNameMatcher.ts'],
+  ['§2', 'change matchReachableModelName, modelNameAskWords, modelNameHeadlessRefusal or reachableModelEntries in src/services/model/modelNameRoad.ts, or the --model flag road it feeds'],
+  ['§3', 'change validateModel in src/services/providers/validateModel.ts so a 404 from the endpoint is an invalid id'],
+  ['§4', 'change the call handler in src/commands/model/mercuryModel.tsx (what /model does with a typed name)'],
+]
+function failureWhere(): string {
+  const found = failureWhereBySection.find(([prefix]) => sectionTitleNow.startsWith(prefix))
+  return found ? ` — to fix: ${found[1]}` : ''
+}
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${ok ? '' : failureWhere()}`)
 }
 function section(title: string): void {
+  sectionTitleNow = title
   console.log(`\n${title}`)
 }
 

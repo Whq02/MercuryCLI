@@ -13,7 +13,11 @@ delete process.env.MERCURY_BROWSER_MAX_SESSIONS
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = label.startsWith('B6 ')
+    ? 'fix driverFailureWords in src/tools/BrowserTool/BrowserTool.ts'
+    : 'fix the close, disconnect or launch bound in src/services/browser/browserSession.ts (the words of an op on a gone browser come from src/tools/BrowserTool/BrowserTool.ts)'
+  const shown = [detail, where].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const tick = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const watchdog = setTimeout(() => {

@@ -19,7 +19,10 @@ const PROJ_DIR = join(CONFIG_HOME, 'projects', basename(getProjectDir(FIX)))
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const diffwsFailHint =
+    'to fix, change the /diff workspace in src/components/diff/diffDialog/views.tsx (list and detail footers, copy receipt) or src/components/diff/diffSources.ts (source titles), then rebuild dist/mercury.mjs'
+  const shown = cond ? detail : [detail, diffwsFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 

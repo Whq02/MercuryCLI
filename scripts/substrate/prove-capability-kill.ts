@@ -14,7 +14,8 @@ import {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = 'change killCapability, isCapabilityKilled, isToolKilled, reseedCapabilityKillsFromEnv or the MERCURY_AGENT_CAP parse in src/utils/permissions/capabilityGate.ts; the /health kills row is killsCheck in src/services/health/sections/settings/sources.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ' — ' + detail : '') : ` — ${detail ? detail + ' | ' : ''}${failHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

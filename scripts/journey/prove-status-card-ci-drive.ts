@@ -31,10 +31,11 @@ const KEY_VARIABLES = ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAU
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', fixHint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, fixHint].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
 }
 const record = (label: string, detail: string): void => {
   console.log(`  [record] ${label}: ${detail}`)
@@ -311,16 +312,16 @@ const section = sectionStart < 0 || sectionEnd < 0 ? undefined : rows.slice(sect
 record('capture', `vshot=${r.status} end=${r.payload?.endReason ?? '?'} · ${r.daemon}`)
 record('the child environment', `CI=true · key variables present: ${r.childKeys.length === 0 ? 'none' : r.childKeys.join(',')}`)
 record('the Anthropic section', JSON.stringify(section?.map(l => l.replace(/^\s*│\s*│\s*/, '').trim()).filter(Boolean) ?? null))
-check('the product ran with CI set and no key variable in its environment', r.childKeys.length === 0, r.childKeys.join(','))
-check('the usage popup paints and the capture ends on it, not on an exit', end.includes(CARD_TITLE) && r.payload?.endReason !== 'eof', tail(end, 16) || r.stderr.slice(-600))
-check('no render error closes the view and no credential refusal reaches the screen', end !== '' && !/RENDER.ERROR/.test(end) && !end.includes(REFUSAL) && !end.includes('exited on an error'), tail(end, 16))
-check('no crash report is written', r.crashReports.length === 0, r.crashReports.join(','))
+check('the product ran with CI set and no key variable in its environment', r.childKeys.length === 0, r.childKeys.join(','), 'the drive deletes KEY_VARIABLES from childEnv in run() in this file; a name listed here is still set, so add it to that deletion list')
+check('the usage popup paints and the capture ends on it, not on an exit', end.includes(CARD_TITLE) && r.payload?.endReason !== 'eof', tail(end, 16) || r.stderr.slice(-600), 'typing /usage after the boot face must open the usage popup and keep the cockpit running; read the grid tail and the capture stderr shown here, and check dist/mercury.mjs was built from the current source')
+check('no render error closes the view and no credential refusal reaches the screen', end !== '' && !/RENDER.ERROR/.test(end) && !end.includes(REFUSAL) && !end.includes('exited on an error'), tail(end, 16), 'with CI set and only a stored claude.ai sign-in, /usage must not hit the credential refusal; the usage popup sections live under src/components/Settings/usage, and the refusal text comes from src/utils/auth.ts')
+check('no crash report is written', r.crashReports.length === 0, r.crashReports.join(','), 'the product wrote a crash report under crashes in the drive config home; read the files named here in the kept world folder')
 if (section === undefined) {
   record('/usage', `the Anthropic section is not on this frame at ${COLS}x${ROWS}`)
-  check('the popup paints with its sections folded and no refusal on it', end.includes(CARD_TITLE) && !end.includes(REFUSAL), tail(end, 16))
+  check('the popup paints with its sections folded and no refusal on it', end.includes(CARD_TITLE) && !end.includes(REFUSAL), tail(end, 16), 'at this compact size the usage popup must still paint its title with no credential refusal; read the grid tail')
 } else {
-  check("the Anthropic section paints the stored subscription's plan label, read through the presence owner", section.some(l => l.includes(PLAN_LABEL)), section.join(' | ').trim())
-  check('the section invents no percent while nothing was read (every provider base dead)', !section.some(l => /\d+%/.test(l)) && section.some(l => /not read yet|unreachable/.test(l)), section.join(' | ').trim())
+  check("the Anthropic section paints the stored subscription's plan label, read through the presence owner", section.some(l => l.includes(PLAN_LABEL)), section.join(' | ').trim(), 'the Anthropic section of the usage popup (src/components/Settings/usage/anthropicSection.tsx) must show the plan label of the stored subscription (PLAN_LABEL in this file); see also src/components/Settings/usage/plan.ts')
+  check('the section invents no percent while nothing was read (every provider base dead)', !section.some(l => /\d+%/.test(l)) && section.some(l => /not read yet|unreachable/.test(l)), section.join(' | ').trim(), 'the Anthropic section (src/components/Settings/usage/anthropicSection.tsx) must show not read yet or unreachable, and no percent, when every provider base is dead')
 }
 if (failures > 0 || KEEP) console.log(`[forensics] world kept: ${r.home}`)
 else rmSync(r.home, { recursive: true, force: true })

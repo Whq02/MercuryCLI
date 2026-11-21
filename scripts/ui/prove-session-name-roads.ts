@@ -22,9 +22,10 @@ const frameIndex = process.argv.indexOf('--frames')
 const frameDir = frameIndex < 0 ? undefined : process.argv[frameIndex + 1]
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
-function check(label: string, ok: boolean, detail: string): void {
+const nameRoadsHint = 'change recentLaneLabel in src/services/cockpit/helmLanesModel/sections.ts and rowLabel in src/components/mercury-ui/screens/sessionPickerModel.ts so both strip command markup and show the first real prompt or summary'
+function check(label: string, ok: boolean, detail: string, hint: string = nameRoadsHint): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label} — ${detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label} — ${detail}${ok ? '' : `; ${hint}`}`)
 }
 const entries = [
   createSyntheticUserCaveatMessage(),
@@ -64,7 +65,7 @@ try {
       })
       let payload: Capture | undefined
       try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
-      check(`${band.cols} ${road}: the product reaches every requested surface`, result.status === 0 && payload !== undefined, `rc ${result.status} ${(result.stderr ?? '').slice(-350)}`)
+      check(`${band.cols} ${road}: the product reaches every requested surface`, result.status === 0 && payload !== undefined, `rc ${result.status} ${(result.stderr ?? '').slice(-350)}`, 'rerun scripts/ui/vshot.py on the .cfg.json in the capture evidence folder printed at the end and read its stderr')
       const marks = Object.fromEntries((payload?.marks ?? []).map(mark => [mark.label, rowsOf(mark.grid)]))
       for (const [label, lines] of Object.entries(marks)) {
         if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}-${road}-${label}.txt`), lines.join('\n') + '\n')

@@ -6,12 +6,15 @@ import { join } from 'node:path'
 const repoRoot = join(import.meta.dir, '..', '..')
 let failures = 0
 let count = 0
+let sectionFix = ''
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  const lead = !cond && sectionFix !== '' ? ` — ${sectionFix}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${lead}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, fix = ''): void {
+  sectionFix = fix
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '0.0.0-proof' }
@@ -32,7 +35,7 @@ const snapshot = (): Snapshot => clock.cacheClockSnapshot() as Snapshot
 const control = (): { type: string; ttl?: string } => params.getCacheControl()
 state.setIsInteractive(true)
 
-section('§1 a key-billed seat: the clock stays off and the reading says which gate held (the field row M39-03, 1B-02)')
+section('§1 a key-billed seat: the clock stays off and the reading says which gate held (the field row M39-03, 1B-02)', 'change cacheClockSnapshot and cacheClockTtlDecision in src/utils/cache/cacheClock.ts, or promptCache1hEligibility and getCacheControl in src/services/providers/anthropic/requestParams.ts')
 {
   clock.resetCacheClockForTesting()
   state.setPromptCache1hEligible(null)
@@ -48,7 +51,7 @@ section('§1 a key-billed seat: the clock stays off and the reading says which g
   check('a 10-minute gap on a key-billed seat still rides the 5m tier (no consent, no premium)', after.ttl === undefined && snapshot().engaged === false, j({ after, snap: snapshot() }))
 }
 
-section('§2 a seat that becomes eligible: the clock engages at a cold boundary, never on a warm prefix')
+section('§2 a seat that becomes eligible: the clock engages at a cold boundary, never on a warm prefix', 'change cacheClockTtlDecision in src/utils/cache/cacheClock.ts so the clock engages only at a cold boundary and stays latched')
 {
   clock.resetCacheClockForTesting()
   state.setPromptCache1hEligible(null)
@@ -63,7 +66,7 @@ section('§2 a seat that becomes eligible: the clock engages at a cold boundary,
   check('once engaged, a later eligibility move never un-engages the clock (the latch holds)', next === '1h' && snapshot().engaged === true, j({ next, snap: snapshot() }))
 }
 
-section('§3 the reading when no request has gone out: the gate of this home is readable in any process (the field rows 2B-06, 2B-07)')
+section('§3 the reading when no request has gone out: the gate of this home is readable in any process (the field rows 2B-06, 2B-07)', 'change cacheClockSnapshot and cacheClockGateWords in src/utils/cache/cacheClock.ts, promptCache1hEligibility in src/services/providers/anthropic/requestParams.ts, or the cache-clock row in src/services/health/sections/crew/appends.ts')
 {
   clock.resetCacheClockForTesting()
   const fresh = snapshot()

@@ -19,6 +19,9 @@ const FRAMES_DIR = framesFlag >= 0 && process.argv[framesFlag + 1] ? resolve(pro
 const onlyFlag = process.argv.indexOf('--only')
 const ONLY = onlyFlag >= 0 && process.argv[onlyFlag + 1] ? process.argv[onlyFlag + 1]! : null
 const t = checker()
+const checkWithHint = (label: string, cond: boolean, detail: string, hint: string): void => t.check(label, cond, cond ? detail : detail ? `${detail} | ${hint}` : hint)
+const framesHint = 'rerun this scene with --only <scene name> --frames <dir>, read the dumped frames at the failing @ms, and change the code that paints the streaming row or working card so the row stays put'
+const rowLawHint = 'downOnlyWithCard in scripts/render-continuity/lib/rowLaw.ts no longer gives this verdict; restore the row law there'
 
 const TOKENS = [
   'alpha', 'bravo', 'charlie', 'delta', 'echo',
@@ -236,15 +239,15 @@ const movesOf = (seq: number[]): { down: number; up: number } => {
 t.section('the row law\'s teeth (synthetic frames, order-proof)')
 {
   const f = (atMs: number, row: number, cardRows: number | null): import('./lib/rowLaw.ts').RowFrame => ({ atMs, row, cardRows })
-  t.check('a row that moves down by exactly the card\'s growth is lawful, and the settle\'s return up with it', downOnlyWithCard([f(1, 11, 1), f(2, 12, 2), f(3, 12, 2), f(4, 11, null)]).ok)
-  t.check('the same two states sampled in the other order are lawful too (the sampling order cannot flip the verdict)', downOnlyWithCard([f(1, 12, 2), f(2, 11, null)]).ok && downOnlyWithCard([f(1, 11, 1), f(2, 12, 2)]).ok)
+  checkWithHint('a row that moves down by exactly the card\'s growth is lawful, and the settle\'s return up with it', downOnlyWithCard([f(1, 11, 1), f(2, 12, 2), f(3, 12, 2), f(4, 11, null)]).ok, '', rowLawHint)
+  checkWithHint('the same two states sampled in the other order are lawful too (the sampling order cannot flip the verdict)', downOnlyWithCard([f(1, 12, 2), f(2, 11, null)]).ok && downOnlyWithCard([f(1, 11, 1), f(2, 12, 2)]).ok, '', rowLawHint)
   const insert = downOnlyWithCard([f(1, 11, 1), f(2, 12, 1)])
-  t.check('a row that moves down while the card holds its lines is an insert-above', !insert.ok && /row 11→12 while the card went 1→1/.test(insert.detail), insert.detail)
+  checkWithHint('a row that moves down while the card holds its lines is an insert-above', !insert.ok && /row 11→12 while the card went 1→1/.test(insert.detail), insert.detail, rowLawHint)
   const mismatch = downOnlyWithCard([f(1, 11, 1), f(2, 13, 2)])
-  t.check('a row that moves down by more than the card grew is an insert-above', !mismatch.ok, mismatch.detail)
+  checkWithHint('a row that moves down by more than the card grew is an insert-above', !mismatch.ok, mismatch.detail, rowLawHint)
   const twice = downOnlyWithCard([f(1, 11, 1), f(2, 12, 2), f(3, 11, 1), f(4, 12, 2)])
-  t.check('two growths in one turn are refused (the card grows once)', !twice.ok && /2 downward moves/.test(twice.detail), twice.detail)
-  t.check('frames without the row are skipped, never a move', downOnlyWithCard([f(1, 11, 1), f(2, -1, 2), f(3, 11, 1)]).ok)
+  checkWithHint('two growths in one turn are refused (the card grows once)', !twice.ok && /2 downward moves/.test(twice.detail), twice.detail, rowLawHint)
+  checkWithHint('frames without the row are skipped, never a move', downOnlyWithCard([f(1, 11, 1), f(2, -1, 2), f(3, 11, 1)]).ok, '', rowLawHint)
 }
 
 for (const scene of scenes) {
@@ -269,7 +272,7 @@ for (const scene of scenes) {
   )
   t.section(scene.name)
   if (grab.status !== 0) {
-    t.check('screengrab ran', false, grab.stderr)
+    t.check('screengrab ran', false, `${grab.stderr} | run scripts/render-continuity/lib/framegrab.py by hand on the scene drive file to see why it exited non-zero`)
     run.cleanup()
     continue
   }
@@ -302,70 +305,80 @@ for (const scene of scenes) {
     const seen = new Set(runs)
     const phaseWords = timed.filter(f => f.rows.some(r => PHASE_WORD_RE.test(r)))
     const verbRows = timed.filter(f => f.rows.some(r => VERB_ROW_RE.test(r)))
-    t.check(
+    checkWithHint(
       `the strip shows only the verb row, the stream row and the tool row across the flip cycle, and never a phase word`,
       seen.has('tool') && !seen.has('reading') && !seen.has('thinking') && phaseWords.length === 0 && verbRows.length + phases.length >= Math.floor(timed.length * 0.5),
       `saw ${[...seen].join(',') || 'nothing'}; ${verbRows.length} verb-row frame(s); ${phaseWords.length} frame(s) with a phase word`,
+      'the working strip must show the verb row, stream row or tool row and never a phase word such as thinking or reading; ' + framesHint,
     )
     const states = timed.map(f => (f.rows.some(r => TOOL_RE.test(r)) ? 'tool' : f.rows.some(r => VERB_ROW_RE.test(r) || WRITING_RE.test(r)) ? 'stream' : null)).filter((p): p is string => p !== null)
     const stateRuns = states.filter((p, i) => i === 0 || p !== states[i - 1])
     const toolTurns = stateRuns.filter(p => p === 'tool').length
-    t.check(
+    checkWithHint(
       `each scripted tool turn flipped the strip to its tool row and back (${scene.flips} scripted flips over the three turns)`,
       toolTurns >= 2 && stateRuns.length - 1 >= 2 * toolTurns - 1,
       `${stateRuns.length - 1} flips: ${stateRuns.join(' → ')}`,
+      'the strip must switch to the Running tool row for each tool turn and back to the stream row after it; ' + framesHint,
     )
     if (compactLayout) {
       const stripRows = timed.map(compactStripRowOf).filter(i => i !== -1)
       const composerRows = timed.map(composerRowOf).filter(i => i !== -1)
-      t.check(
+      checkWithHint(
         `the compact strip is one line whose row never moves across the flips (row ${[...new Set(stripRows)].join(',')})`,
         stripRows.length > 0 && new Set(stripRows).size === 1,
+        '',
+        framesHint,
       )
-      t.check(
+      checkWithHint(
         `the composer never moves across the flips (row ${[...new Set(composerRows)].join(',')})`,
         composerRows.length > 0 && new Set(composerRows).size === 1,
+        '',
+        framesHint,
       )
     } else {
       const turnFrames = timed.filter(f => phaseOf(f) !== null)
       const cardSeq = turnFrames.map(cardRowsOf).filter((n): n is number => n !== null)
       const cardMoves = movesOf(cardSeq)
-      t.check(
+      checkWithHint(
         `the working card never loses a line within the turn (${cardSeq.length ? `${Math.min(...cardSeq)}..${Math.max(...cardSeq)} lines` : 'no card found'})`,
         cardSeq.length > 0 && cardMoves.up === 0,
         `card lines ${cardSeq.join(',')}`,
+        framesHint,
       )
-      t.check('the working card grows at most once within the turn', cardMoves.down <= 1, `${cardMoves.down} growths`)
+      checkWithHint('the working card grows at most once within the turn', cardMoves.down <= 1, `${cardMoves.down} growths`, framesHint)
       const userSeq = turnFrames.map(userRowOf).filter(i => i !== -1)
       const userMoves = movesOf(userSeq)
-      t.check(
+      checkWithHint(
         `the user row never moves up mid-turn and moves down at most once, with the card (rows ${[...new Set(userSeq)].join(',')})`,
         userMoves.up === 0 && userMoves.down <= 1 && userMoves.down <= cardMoves.down,
         `${userMoves.down} down, ${userMoves.up} up`,
+        framesHint,
       )
       const textSeq = turnFrames.filter(f => textRowOf(f) !== -1).map(textRowOf)
       const textMoves = movesOf(textSeq)
-      t.check(
+      checkWithHint(
         `the text start row never moves up mid-turn and moves down at most once, with the card (rows ${[...new Set(textSeq)].join(',')})`,
         textMoves.up === 0 && textMoves.down <= 1 && textMoves.down <= cardMoves.down,
         `${textMoves.down} down, ${textMoves.up} up`,
+        framesHint,
       )
       const finalUser = userRowOf(final)
-      t.check(
+      checkWithHint(
         'the settled frame stands at or above the turn\'s rows (the card may return to one line between turns)',
         finalUser !== -1 && userSeq.length > 0 && finalUser <= userSeq[userSeq.length - 1]!,
         `final ${finalUser}, last live ${userSeq[userSeq.length - 1]}`,
+        framesHint,
       )
     }
   }
 
   const identityLaw = scene.scrolls || tokenFacts.tokenFramesWithoutPlate.length === 0
-  t.check('every frame with response text carries the nameplate at-or-above it', identityLaw)
+  checkWithHint('every frame with response text carries the nameplate at-or-above it', identityLaw, '', 'frames listed by tokenFramesWithoutPlate show response text with no [Mercury] nameplate at or above it; ' + framesHint)
 
   if (!scene.scrolls && scene.flips === undefined) {
     const rowLaw = (label: string, rowOf: (f: Frame) => number): void => {
       const verdict = downOnlyWithCard([...withText, final].map(f => ({ atMs: f.atMs, row: rowOf(f), cardRows: cardRowsOf(f) })))
-      t.check(`${label} moves down only with the working card's own growth, once at most (no insert-above; upward growth-scroll allowed)`, verdict.ok, verdict.detail)
+      checkWithHint(`${label} moves down only with the working card's own growth, once at most (no insert-above; upward growth-scroll allowed)`, verdict.ok, verdict.detail, framesHint)
     }
     rowLaw('the text start row', textRowOf)
     rowLaw('the settled user row', f => f.rows.findIndex(r => r.includes('anatomy probe') && r.includes('❯')))
@@ -374,9 +387,9 @@ for (const scene of scenes) {
   const dupEver = [...timed, final].some(f =>
     TOKENS.some(tok => paneRows(f).filter(r => r.includes(`${tok} stream body`)).length > 1),
   )
-  t.check('no token is ever painted on two rows', !dupEver)
+  checkWithHint('no token is ever painted on two rows', !dupEver, '', 'a stream token appeared on two rows of one frame; ' + framesHint)
   const blankFrames = tokenFacts.blankAfterFirstToken.map(i => screens[i]!)
-  t.check('no blank-transcript frame between first text and settlement', blankFrames.length === 0 || Boolean(scene.interrupted) || scene.scrolls, blankFrames.map(f => `@${f.atMs} (fed to ${(f as Frame & { fedToMs?: number }).fedToMs ?? '?'}; rows with ink ${f.rows.filter(r => r.trim() !== '').length})`).join(', '))
+  checkWithHint('no blank-transcript frame between first text and settlement', blankFrames.length === 0 || Boolean(scene.interrupted) || scene.scrolls, blankFrames.map(f => `@${f.atMs} (fed to ${(f as Frame & { fedToMs?: number }).fedToMs ?? '?'}; rows with ink ${f.rows.filter(r => r.trim() !== '').length})`).join(', '), 'the transcript blanked after the first token appeared; ' + framesHint)
 
   let elapsedLawHolds = true
   let monotonic = true
@@ -406,8 +419,8 @@ for (const scene of scenes) {
       prev = v
     }
   }
-  t.check('at most ONE elapsed indicator per frame', elapsedLawHolds)
-  t.check('the elapsed value never resets within the turn', monotonic)
+  checkWithHint('at most ONE elapsed indicator per frame', elapsedLawHolds, '', 'a frame showed two rows with an elapsed seconds counter; ' + framesHint)
+  checkWithHint('the elapsed value never resets within the turn', monotonic, '', 'the elapsed seconds counter went backwards during the turn; ' + framesHint)
 
   if (scene.interrupted) {
     const preEsc = timed.filter(f => f.atMs <= S(8000) && hasToken(f)).pop()
@@ -416,8 +429,8 @@ for (const scene of scenes) {
           final.rows.some(r => r.includes(`${tok} stream body`)),
         )
       : true
-    t.check('interruption keeps all received text', keptAll)
-    t.check('a truthful interrupted marker is present at settlement', final.rows.some(r => /interrupt/i.test(r)))
+    checkWithHint('interruption keeps all received text', keptAll, '', 'a token seen before Esc is missing from the settled frame; ' + framesHint)
+    checkWithHint('a truthful interrupted marker is present at settlement', final.rows.some(r => /interrupt/i.test(r)), '', 'the settled frame has no row containing interrupt; ' + framesHint)
   }
 
   if (scene.markdown) {
@@ -436,7 +449,7 @@ for (const scene of scenes) {
         }
       }
     }
-    t.check('markdown restyle under stream stays bounded (<= 4 non-tail row edits, hosted-margined)', restyles <= Math.ceil(S(4)), `${restyles}`)
+    checkWithHint('markdown restyle under stream stays bounded (<= 4 non-tail row edits, hosted-margined)', restyles <= Math.ceil(S(4)), `${restyles}`, 'earlier rows were restyled more often than allowed while markdown streamed; ' + framesHint)
   }
 
   if (scene.scrolls) {
@@ -456,11 +469,13 @@ for (const scene of scenes) {
       if (v < last) slidesForward = false
       last = v
     }
-    t.check('the scroll window slides forward only (no backward jumps mid-stream)', slidesForward, `${liveFrames.length} live frames`)
+    checkWithHint('the scroll window slides forward only (no backward jumps mid-stream)', slidesForward, `${liveFrames.length} live frames`, framesHint)
     const lastLive = withText[withText.length - 1]
-    t.check(
+    checkWithHint(
       'the settled window matches the last live window (no anchor jump at settlement)',
       lastLive ? firstVisibleIdx(final) === firstVisibleIdx(lastLive) : true,
+      '',
+      'the first visible token changed between the last live frame and the settled frame; ' + framesHint,
     )
   }
   run.cleanup()

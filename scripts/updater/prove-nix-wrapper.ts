@@ -22,7 +22,7 @@ try {
   } else {
     const nix = readFileSync(join(root, 'nix/package.nix'), 'utf8')
     const body = /launcher = writeShellScriptBin "mercury" ''\n([\s\S]*?)\n  '';\n/.exec(nix)?.[1] ?? ''
-    check('the package still writes its wrapper as one shell text', body.includes('exec "$entry" "$@"'))
+    check('the package still writes its wrapper as one shell text', body.includes('exec "$entry" "$@"'), 'nix/package.nix must define launcher = writeShellScriptBin "mercury" as one shell text that ends in exec "$entry" "$@"')
     const store = join(scratch, 'store')
     const payloadOutput = join(store, 'payload')
     const payload = join(payloadOutput, 'libexec/mercury')
@@ -89,20 +89,20 @@ try {
       ['a system profile that links bin and what the NixOS module asks it to link', join(system, 'bin/mercury'), join(system, 'libexec/mercury/mercury.mjs')],
     ] as const) {
       const started = start(command)
-      check(`${layout}: the payload starts and is handed the path beside the command that can start it again`, started.bundle === expected, started.out)
-      check(`${layout}: the payload it is handed belongs to Nix`, started.bundle !== '' && nixInstallRoot(started.bundle, false) === payloadOutput, started.bundle)
+      check(`${layout}: the payload starts and is handed the path beside the command that can start it again`, started.bundle === expected, `${started.out} (the wrapper text in nix/package.nix must hand the payload the path beside the command that started it)`)
+      check(`${layout}: the payload it is handed belongs to Nix`, started.bundle !== '' && nixInstallRoot(started.bundle, false) === payloadOutput, `${started.bundle} (the wrapper in nix/package.nix must start the payload by a path that nixInstallRoot in src/services/privateChannel/nixInstallRoot.ts maps to the payload output)`)
       const word = started.bundle === '' ? '' : ownCommandWord({ provenanceKind: 'nix', found: { state: 'absent' }, node, bundle: started.bundle })
       const again = word === '' ? null : spawnSync('/bin/sh', ['-c', `${word} --version`], { encoding: 'utf8', env, cwd: scratch, timeout: 60_000 })
-      check(`${layout}: the command Mercury names for itself exists and starts the same payload`, again !== null && again.status === 0 && again.stdout.includes(`BUNDLE ${started.bundle}`), `${word} · ${again?.status}: ${again?.stdout}${again?.stderr}`)
+      check(`${layout}: the command Mercury names for itself exists and starts the same payload`, again !== null && again.status === 0 && again.stdout.includes(`BUNDLE ${started.bundle}`), `${word} · ${again?.status}: ${again?.stdout}${again?.stderr} (ownCommandWord in src/services/privateChannel/installPath.ts must name a command for the nix install that starts the same payload)`)
     }
     writeFileSync(wrapper, render(true), { mode: 0o755 })
     const direct = start(join(profile, 'bin/mercury'))
-    check('Linux text: a payload whose own Node starts is run directly, and no namespace is entered', direct.bundle === join(profile, 'libexec/mercury/mercury.mjs') && !existsSync(entered), direct.out)
+    check('Linux text: a payload whose own Node starts is run directly, and no namespace is entered', direct.bundle === join(profile, 'libexec/mercury/mercury.mjs') && !existsSync(entered), `${direct.out} (the Linux branch of the wrapper in nix/package.nix must run a payload whose own Node starts directly, without entering the namespace)`)
     rmSync(join(payload, 'vendor/node/bin/node'))
     writeFileSync(join(payload, 'vendor/node/bin/node'), '#!/bin/sh\nexit 127\n', { mode: 0o755 })
     const boxed = spawnSync(join(profile, 'bin/mercury'), ['--version', 'two words'], { encoding: 'utf8', env, cwd: scratch, timeout: 60_000 })
     const handed = existsSync(entered) ? readFileSync(entered, 'utf8').split('\n') : []
-    check('Linux text: a payload whose own Node cannot start is handed to the namespace whole, by the same path and with its arguments', handed[0] === join(profile, 'libexec/mercury/mercury') && handed[1] === '--version' && handed[2] === 'two words', `${boxed.status}: ${handed.join(' | ')} ${boxed.stderr}`)
+    check('Linux text: a payload whose own Node cannot start is handed to the namespace whole, by the same path and with its arguments', handed[0] === join(profile, 'libexec/mercury/mercury') && handed[1] === '--version' && handed[2] === 'two words', `${boxed.status}: ${handed.join(' | ')} ${boxed.stderr} (the Linux branch of the wrapper in nix/package.nix must hand a payload whose Node cannot start to the namespace by the same path with its arguments)`)
   }
 } finally { rmSync(scratch, { recursive: true, force: true }) }
 console.log(`prove-nix-wrapper: ${checks - failures}/${checks} passed`)

@@ -5,8 +5,13 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 let failures = 0
+const tableHint = (label: string): string =>
+  label.startsWith('docs')
+    ? 'to fix, make the events table of docs/HOOKS.md agree with hookEventTable in src/utils/hooks/contract.ts (one row per event, its match field and its answer fields)'
+    : 'to fix, change hookEventTable, the payload and answer schemas or the match helpers in src/utils/hooks/contract.ts, or this file expectation if the event table was meant to change'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const tail = [detail, cond ? '' : tableHint(label)].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${tail ? ' — ' + tail : ''}`)
   if (!cond) failures++
 }
 

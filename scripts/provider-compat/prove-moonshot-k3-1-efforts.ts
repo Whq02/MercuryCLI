@@ -57,8 +57,9 @@ let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the K3.1 ids, effort dial or request body in the file this label names, among ${K3_EFFORTS_AT}` : ''}`)
 }
+const K3_EFFORTS_AT = 'src/utils/model/pins/kimiPins.ts, src/services/providers/openaicompat/kimiReplay.ts, src/services/providers/openaicompat/compatWire.ts, src/services/providers/moonshot/moonshotAccounts.ts, src/services/providers/moonshot/moonshotCatalogue.ts, src/services/providers/moonshot/moonshotAdapter.ts, src/utils/model/capabilities.ts (effortVocabularyFor, getContextWindowForModel)'
 function section(title: string): void {
   console.log(`\n${title}`)
 }

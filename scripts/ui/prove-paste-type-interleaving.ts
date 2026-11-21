@@ -99,7 +99,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   if (!ok || !label.startsWith('  split ')) {
-    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+    console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}paste and typing must reach the composer in order: see the paste and burst handling in src/ink/input/input-decoder.ts and expandPastedTextRefs in src/history.ts` : ''}`)
   }
 }
 

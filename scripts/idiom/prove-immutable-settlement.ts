@@ -51,7 +51,7 @@ section('§A immutability — the drain persists the record AS PUBLISHED')
   check(
     'the as-published line carries publication-time usage (mutation not observed)',
     first?.message?.usage?.output_tokens === publishedOutputTokens,
-    `published=${publishedOutputTokens} persisted=${first?.message?.usage?.output_tokens}`,
+    `published=${publishedOutputTokens} persisted=${first?.message?.usage?.output_tokens} (recordTranscript in src/utils/sessionStorage/writer.ts must queue the line as published, so a later change to the message object must not reach the file)`,
   )
 
   await settleTranscriptMessage(msg as never)
@@ -61,13 +61,13 @@ section('§A immutability — the drain persists the record AS PUBLISHED')
   check(
     'explicit settlement supersedes: reader last-wins view shows final usage/stop',
     finalView?.message?.usage?.output_tokens === 424242 && finalView?.message?.stop_reason === 'end_turn',
-    JSON.stringify(finalView?.message?.usage),
+    `${JSON.stringify(finalView?.message?.usage)} (settleMessage in src/utils/sessionStorage/writer/settle.ts must append or replace the line with the message's current usage and stop_reason)`,
   )
   const countBefore = lines.filter(l => l.uuid === msg.uuid).length
   await settleTranscriptMessage(msg as never)
   await getProject().flush()
   const countAfter = readLines(file).filter(l => l.uuid === msg.uuid).length
-  check('byte-identical settlement is skipped (no wasted lines)', countAfter === countBefore, `${countBefore} → ${countAfter}`)
+  check('byte-identical settlement is skipped (no wasted lines)', countAfter === countBefore, `${countBefore} → ${countAfter} (settleMessage in src/utils/sessionStorage/writer/settle.ts must return early when the settled line equals the cached one)`)
 }
 
 section('§C atomic receipt — late-attached continuation receipt becomes durable with settlement')
@@ -91,7 +91,7 @@ section('§C atomic receipt — late-attached continuation receipt becomes durab
   check(
     'the reader last-wins view carries the continuation receipt (settlement+receipt atomic)',
     finalView?.apexProviderTurn?.responseId === 'resp_er2_receipt',
-    'receipt missing from the settled line',
+    'receipt missing from the settled line (settleMessage in src/utils/sessionStorage/writer/settle.ts must write the late-attached apexProviderTurn onto the settled line)',
   )
 }
 

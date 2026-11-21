@@ -52,43 +52,50 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
   type ThemeName = Parameters<typeof resolveMercuryTokens>[0]
 
   const t = checker()
+  const checkWithFix = (label: string, cond: boolean, detail: string, fix: string): void =>
+    t.check(label, cond, cond ? detail : `${detail} — ${fix}`)
   const scratch = mkdtempSync(join(tmpdir(), 'hz-spectral-'))
 
   t.section('§1 — the ramp contract')
   {
     const GROUND = '#12181d'
     const ramp = spectralRamp('#dd4444', GROUND)
-    t.check(`a hostable ramp has ${SPECTRAL_STOPS} stops`, ramp.length === SPECTRAL_STOPS, `${ramp.length}`)
-    t.check('bounded — the deep end IS the role hue', ramp.at(-1) === '#dd4444', String(ramp.at(-1)))
-    t.check(
+    checkWithFix(`a hostable ramp has ${SPECTRAL_STOPS} stops`, ramp.length === SPECTRAL_STOPS, `${ramp.length}`, 'change spectralRamp in src/utils/mercuryTokens.ts to return SPECTRAL_STOPS stops for a role that clears the floor')
+    checkWithFix('bounded — the deep end IS the role hue', ramp.at(-1) === '#dd4444', String(ramp.at(-1)), 'change spectralRamp in src/utils/mercuryTokens.ts so the last stop is the role colour itself')
+    checkWithFix(
       'every stop clears the graphical-object floor against its own ground',
       ramp.every(stop => (contrastRatio(stop, GROUND) ?? 0) >= SPECTRAL_STATE_FLOOR),
       ramp.map(s => (contrastRatio(s, GROUND) ?? 0).toFixed(2)).join(' · '),
+      'change spectralRamp in src/utils/mercuryTokens.ts so its first stop starts at the floor (tMin search)',
     )
-    t.check(
+    checkWithFix(
       'and contrast rises monotonically — quiet to full, never a wobble',
       ramp.every((stop, i) => i === 0 || (contrastRatio(stop, GROUND) ?? 0) >= (contrastRatio(ramp[i - 1]!, GROUND) ?? 0)),
       'monotone',
+      'change spectralRamp in src/utils/mercuryTokens.ts so each stop is no darker than the one before',
     )
-    t.check('the stops are distinct — five bands, not one repeated', new Set(ramp).size === ramp.length, `${new Set(ramp).size}`)
-    t.check(
+    checkWithFix('the stops are distinct — five bands, not one repeated', new Set(ramp).size === ramp.length, `${new Set(ramp).size}`, 'change spectralRamp in src/utils/mercuryTokens.ts so no two stops repeat')
+    checkWithFix(
       'the same inputs give the same ramp',
       spectralRamp('#dd4444', GROUND).join() === ramp.join(),
       'deterministic',
+      'remove any non-deterministic input from spectralRamp in src/utils/mercuryTokens.ts',
     )
 
     const invisible = spectralRamp('#13191e', GROUND)
-    t.check(
+    checkWithFix(
       'a role too close to its ground collapses to a single stop',
       invisible.length === 1,
       JSON.stringify(invisible),
+      'spectralRamp in src/utils/mercuryTokens.ts must return [role] when no stop reaches the floor',
     )
     const named = spectralRamp('ansi:yellow', GROUND)
-    t.check('and a named 16-colour role cannot host depth at all', named.length === 1, JSON.stringify(named))
-    t.check(
+    checkWithFix('and a named 16-colour role cannot host depth at all', named.length === 1, JSON.stringify(named), 'spectralRamp in src/utils/mercuryTokens.ts must return [role] when the colour does not parse as a hex value')
+    checkWithFix(
       'structure clears a LOWER floor than state — chrome recedes, state is seen',
       SPECTRAL_STRUCTURE_FLOOR < SPECTRAL_STATE_FLOOR,
       `${SPECTRAL_STRUCTURE_FLOOR} < ${SPECTRAL_STATE_FLOOR}`,
+      'set SPECTRAL_STRUCTURE_FLOOR below SPECTRAL_STATE_FLOOR in src/utils/mercuryTokens.ts',
     )
   }
 
@@ -98,18 +105,19 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
     const ROLES = ['oasis', 'terra', 'dune', 'amber', 'crimson'] as const
     for (const family of FAMILIES) {
       const tokens = resolveMercuryTokens(family, '#DD4444')
-      t.check(`${family}: names all five ramps`, ROLES.every(r => tokens.spectral[r] !== undefined), ROLES.join(','))
+      checkWithFix(`${family}: names all five ramps`, ROLES.every(r => tokens.spectral[r] !== undefined), ROLES.join(','), 'add the missing role to the spectral block of resolveMercuryTokens in src/utils/mercuryTokens.ts')
       const ground = tokens.surface0
       for (const role of ROLES) {
         const ramp = tokens.spectral[role]
         const floor = role === 'dune' ? SPECTRAL_STRUCTURE_FLOOR : SPECTRAL_STATE_FLOOR
-        t.check(
+        checkWithFix(
           `${family}/${role}: every stop clears its OWN floor (${floor}) on this appearance's ground`,
           ramp.length === 1 ||
             ramp.every(stop => (contrastRatio(stop, ground) ?? -1) >= floor),
           `${ramp.length} stops`,
+          'check the ground and floor passed to spectralRampFor in the spectral block of resolveMercuryTokens, src/utils/mercuryTokens.ts',
         )
-        t.check(
+        checkWithFix(
           `${family}/${role}: contrast rises monotonically across the shipped ramp`,
           ramp.length === 1 ||
             ramp.every(
@@ -118,18 +126,21 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
                 (contrastRatio(stop, ground) ?? 0) >= (contrastRatio(ramp[i - 1]!, ground) ?? 0),
             ),
           ramp.map(s => (contrastRatio(s, ground) ?? 0).toFixed(2)).join(' · '),
+          'check spectralRamp and the spectral block of resolveMercuryTokens in src/utils/mercuryTokens.ts',
         )
       }
-      t.check(
+      checkWithFix(
         `${family}: the identity ramp follows the SESSION accent, not a fixed brand hue`,
         resolveMercuryTokens(family, '#33AACC').spectral.terra.at(-1) !== tokens.spectral.terra.at(-1) ||
           tokens.spectral.terra.length === 1,
         'per-critter depth',
+        'the terra ramp in resolveMercuryTokens, src/utils/mercuryTokens.ts, must be built from the accent argument',
       )
-      t.check(
+      checkWithFix(
         `${family}: dark-family classification is consistent`,
         isDarkThemeFamily(family) === true,
         String(isDarkThemeFamily(family)),
+        'isDarkThemeFamily in src/utils/mercuryTokens.ts must return true for dark and true-black',
       )
     }
   }
@@ -179,26 +190,29 @@ if (process.env.SPECTRAL_RENDER_CHILD) {
     const truecolor = capture('dark', 'dark')
     const tcFull = truecolor[0] ?? []
     const tcPartial = truecolor[1] ?? []
-    t.check('the gauge rendered (full + partial bars)', tcFull.length >= 8 && tcPartial.length >= 2, `${tcFull.length}/${tcPartial.length} filled cells`)
-    t.check(
+    checkWithFix('the gauge rendered (full + partial bars)', tcFull.length >= 8 && tcPartial.length >= 2, `${tcFull.length}/${tcPartial.length} filled cells`, 'zero cells means the vshot capture failed (scripts/ui/vshot.py) or the child render crashed; run this file with SPECTRAL_RENDER_CHILD=1 to see ProgressBar in src/components/mercury-ui/components.tsx render')
+    checkWithFix(
       'and paints DEPTH — several distinct stops across the track',
       new Set(tcFull).size >= 3,
       `${new Set(tcFull).size} distinct inks: ${[...new Set(tcFull)].join(' ')}`,
+      'ProgressBar in src/components/mercury-ui/components.tsx must colour filled cells from the spectralRampFor ramp',
     )
 
     const ansi = capture('dark', 'ansi')
     const anFull = ansi[0] ?? []
     const anPartial = ansi[1] ?? []
-    t.check('the 16-colour gauge rendered (both bars)', anFull.length >= 8 && anPartial.length >= 2, `${anFull.length}/${anPartial.length} filled cells`)
-    t.check(
+    checkWithFix('the 16-colour gauge rendered (both bars)', anFull.length >= 8 && anPartial.length >= 2, `${anFull.length}/${anPartial.length} filled cells`, 'zero cells means the vshot capture failed (scripts/ui/vshot.py) or the child render crashed under MERCURY_TRUECOLOR=0')
+    checkWithFix(
       'the FULL fill length is identical either way',
       tcFull.length === anFull.length,
       `${tcFull.length} vs ${anFull.length}`,
+      'ProgressBar in src/components/mercury-ui/components.tsx must fill the same cell count whatever the colour depth',
     )
-    t.check(
+    checkWithFix(
       'the PARTIAL fill length is identical either way — colour never carries the state where it could',
       tcPartial.length === anPartial.length,
       `${tcPartial.length} vs ${anPartial.length}`,
+      'ProgressBar in src/components/mercury-ui/components.tsx must fill the same cell count whatever the colour depth',
     )
   }
 

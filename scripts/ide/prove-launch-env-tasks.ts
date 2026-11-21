@@ -13,13 +13,13 @@ const DIST_VENDOR = path.join(ROOT, 'dist', 'vendor', 'debugpy')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — fix src/services/ide/launchProfiles.ts (discoverLaunchProfiles, parseEnvFile, expandVsCodeVar) or src/tools/LaunchTool/LaunchTool.ts${detail ? `; ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — launch env/tasks proof exceeded 240s')
+  console.log('\nTIMEOUT — launch env/tasks proof exceeded 240s; it waits on LaunchTool run and debug calls (src/tools/LaunchTool/LaunchTool.ts) and the vendored debugpy adapter in dist/vendor/debugpy')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

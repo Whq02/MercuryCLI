@@ -6,14 +6,15 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const settleRaceHint = 'fix the settling_idle, reenter and close handling and the post-cycle queue recheck in createTurnDriver (src/cli/headless/turnDriver.ts)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${settleRaceHint}`}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — driver-settle-race prover exceeded 60s')
+  console.log('\nTIMEOUT — driver-settle-race prover exceeded 60s; a rig promise never settled, look at the last section printed above and the settle handling in createTurnDriver (src/cli/headless/turnDriver.ts)')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

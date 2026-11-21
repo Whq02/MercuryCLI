@@ -32,8 +32,9 @@ const { compatDispatchModelId } = await import(
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — change the family table or the rule this label names in ${ROUTE_LAW_AT}` : ''}`)
 }
+const ROUTE_LAW_AT = 'src/services/providers/routeLaw.ts (PROVIDER_ID_SPACES, classifyModelRoute, declaredRouteOf, qualifiedWireId, canonicalWireModelId); a dispatch-id row: compatDispatchModelId in src/services/providers/openaicompat/compatChatCallModel.ts; an admission row: homeLaneAdmissionRefusal in src/services/providers/homeLaneAdmission.ts; a listed-id row: src/services/providers/moonshot/moonshotCatalogue.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }

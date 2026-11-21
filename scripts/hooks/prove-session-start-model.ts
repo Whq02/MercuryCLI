@@ -13,8 +13,9 @@ delete process.env.MERCURY_MODEL
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const startHint = 'to fix, change the session.start payload and first-prompt answer built by runSessionStartHooks in src/services/sessionStart.ts (its model comes from getEngineModel in src/services/model/model.ts; the resume payload from loadConversationForResume in src/services/resume/conversationRecovery.ts; the headless boot fallback from loadInitialMessages in src/cli/headless/resume.ts)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${startHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

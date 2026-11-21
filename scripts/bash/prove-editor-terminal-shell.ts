@@ -91,9 +91,10 @@ if (process.argv.includes('--scenes')) {
 }
 
 let failures = 0
+const terminalFixHint = 'change execViaIdeTerminal in src/services/acp/ideToolBridge.ts or terminalShellInvocation in src/utils/Shell.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + terminalFixHint : ''}`)
 }
 
 console.log('============================================================')

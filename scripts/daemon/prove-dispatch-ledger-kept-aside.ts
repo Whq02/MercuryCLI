@@ -12,9 +12,10 @@ for (const key of ['MERCURY_HOME', 'MERCURY_DAEMON_PERSIST', 'MERCURY_DAEMON_OWN
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const WHERE_TO_LOOK = 'fix the merge before publish and the keep-aside of an unusable ledger in src/daemon/concourseDispatch.ts (keepDamagedFileAsideSync, flushDeferredDispatchPublishes) and the recovery ledger in src/substrate/storeRecovery.ts'
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} (${WHERE_TO_LOOK})` : ''}`)
 }
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)

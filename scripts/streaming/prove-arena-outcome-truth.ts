@@ -8,7 +8,8 @@ import { DIST, driverOutcome, runArtifactArena } from './artifactArena.ts'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const arenaHint = 'fix driverOutcome or runArtifactArena in scripts/streaming/artifactArena.ts, or the ending the driver reports in scripts/streaming/ptydrive.py (section 3 also needs a fresh dist/mercury.mjs from bun run build.ts)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${arenaHint}` : ''}`)
 }
 
 console.log('§1 the outcome reader over synthetic driver endings')

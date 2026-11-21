@@ -27,8 +27,13 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const NUDGE_WORDS_AT = 'change the nudge words, the cut marker or the notice line in src/services/api/errors.ts (reasoningOnlyRecoveryNudge, REASONING_CUT_MARKER, reasoningOnlyNoticeLine)'
+const NUDGE_RECOVERY_AT = 'change reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts or decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts'
+const NUDGE_LOCAL_WIRE_AT = 'the local request is built in src/services/providers/local/localCallModel.ts (localCallModel)'
+const NUDGE_CLOUD_WIRE_AT = 'the Anthropic request is built in src/services/providers/anthropic/streamCore.ts (queryModelWithStreaming)'
+const nudgeHint = (detail: string, at: string): string => (detail === '' ? at : `${detail} — ${at}`)
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the reasoning-only nudge prover exceeded 180s')
+  console.log('\nTIMEOUT — the reasoning-only nudge prover exceeded 180s — the last section printed above is the one that hung; its road is reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts or the fixture script that ran out of answers')
   process.exit(1)
 }, 180_000)
 guard.unref?.()
@@ -275,17 +280,17 @@ const runLocal = (answers: ChatAnswer[], effortValue = 'high'): Promise<Run> => 
 section('0 · the owners: the words live beside the other nudges, the decision is pure, the ceiling is the catalogue\'s')
 {
   const nudge = errors.reasoningOnlyRecoveryNudge as ((fewerWords: boolean) => string) | undefined
-  check('reasoningOnlyRecoveryNudge is exported from services/api/errors.ts', typeof nudge === 'function', 'not exported')
-  check('the plain words: ' + j(BASE_WORDS), typeof nudge === 'function' && nudge(false).includes(BASE_WORDS) && !nudge(false).includes(FEWER_WORDS), typeof nudge === 'function' ? nudge(false) : '')
-  check('the fewer-words variant adds: ' + j(FEWER_WORDS), typeof nudge === 'function' && nudge(true).includes(BASE_WORDS) && nudge(true).includes(FEWER_WORDS), typeof nudge === 'function' ? nudge(true) : '')
+  check('reasoningOnlyRecoveryNudge is exported from services/api/errors.ts', typeof nudge === 'function', nudgeHint('not exported', NUDGE_WORDS_AT))
+  check('the plain words: ' + j(BASE_WORDS), typeof nudge === 'function' && nudge(false).includes(BASE_WORDS) && !nudge(false).includes(FEWER_WORDS), nudgeHint(typeof nudge === 'function' ? nudge(false) : '', NUDGE_WORDS_AT))
+  check('the fewer-words variant adds: ' + j(FEWER_WORDS), typeof nudge === 'function' && nudge(true).includes(BASE_WORDS) && nudge(true).includes(FEWER_WORDS), nudgeHint(typeof nudge === 'function' ? nudge(true) : '', NUDGE_WORDS_AT))
   const isNudge = errors.isReasoningOnlyRecoveryNudgeText as ((text: string) => boolean) | undefined
-  check('the classifier accepts both wordings and nothing else', typeof isNudge === 'function' && typeof nudge === 'function' && isNudge(nudge(false)) && isNudge(nudge(true)) && !isNudge(ASK) && !isNudge(String(errors.EMPTY_REPLY_RECOVERY_NUDGE)), 'isReasoningOnlyRecoveryNudgeText missing or wrong')
-  check('the cut marker (the text block that lets the truncated thinking ride the wire) is owned there too', typeof MARKER === 'string' && MARKER.startsWith('[') && MARKER.endsWith(']') && /output ran out/.test(MARKER), j(MARKER))
+  check('the classifier accepts both wordings and nothing else', typeof isNudge === 'function' && typeof nudge === 'function' && isNudge(nudge(false)) && isNudge(nudge(true)) && !isNudge(ASK) && !isNudge(String(errors.EMPTY_REPLY_RECOVERY_NUDGE)), nudgeHint('isReasoningOnlyRecoveryNudgeText missing or wrong', 'change isReasoningOnlyRecoveryNudgeText in src/services/api/errors.ts so it accepts exactly the two nudge wordings'))
+  check('the cut marker (the text block that lets the truncated thinking ride the wire) is owned there too', typeof MARKER === 'string' && MARKER.startsWith('[') && MARKER.endsWith(']') && /output ran out/.test(MARKER), nudgeHint(j(MARKER), NUDGE_WORDS_AT))
   const decide = turnMachine.decideReasoningOnlyRecovery as ((input: { recoveryCount: number; maxTokens: boolean }) => { kind: string; attempt?: number }) | undefined
-  check('a plain thinking-only stop: one continuation, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: false }).kind === 'continue' && decide({ recoveryCount: 0, maxTokens: false }).attempt === 1 && decide({ recoveryCount: 1, maxTokens: false }).kind === 'surface', 'not exported or wrong')
-  check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', 'not exported or wrong')
+  check('a plain thinking-only stop: one continuation, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: false }).kind === 'continue' && decide({ recoveryCount: 0, maxTokens: false }).attempt === 1 && decide({ recoveryCount: 1, maxTokens: false }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'))
+  check('a max-tokens thinking-only stop: two continuations, then surface', typeof decide === 'function' && decide({ recoveryCount: 0, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).kind === 'continue' && decide({ recoveryCount: 1, maxTokens: true }).attempt === 2 && decide({ recoveryCount: 2, maxTokens: true }).kind === 'surface', nudgeHint('not exported or wrong', 'change decideReasoningOnlyRecovery in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'))
   const ceilings = [LOCAL_MODEL, CLOUD_MODEL].map(model => getModelMaxOutputTokens(model).default)
-  check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, j(ceilings))
+  check('the row fixtures have different catalogue ceilings, so a literal cannot satisfy both', new Set(ceilings).size === 2, nudgeHint(j(ceilings), 'the two fixture models must resolve to different getModelMaxOutputTokens defaults (src/utils/model/capabilities.ts); change LOCAL_MODEL_ID or CLOUD_MODEL in this prover'))
   for (const model of [LOCAL_MODEL, CLOUD_MODEL]) {
     let calls = 0
     const r = await run(async function* () {
@@ -296,46 +301,46 @@ section('0 · the owners: the words live beside the other nudges, the decision i
     }, makeCtx(model, 'high', { type: 'disabled' }))
     const ceiling = getModelMaxOutputTokens(model).default
     const words = ceiling % 1000 === 0 ? `${ceiling / 1000}k` : String(ceiling)
-    check(`the emitted row reads the catalogue ceiling (${words}) for ${model}, independent of published source comments`, warnings(r, `thinking ran to the output limit (${words}) — continuing`) === 1 && r.calls.length === 2 && r.answers.at(-1) === 'reply', j(r.notices))
+    check(`the emitted row reads the catalogue ceiling (${words}) for ${model}, independent of published source comments`, warnings(r, `thinking ran to the output limit (${words}) — continuing`) === 1 && r.calls.length === 2 && r.answers.at(-1) === 'reply', nudgeHint(j(r.notices), NUDGE_RECOVERY_AT + '; the limit words come from outputLimitWords and getModelMaxOutputTokens there'))
   }
 }
 
 section('A · the local road: a turn of thinking only (no text, no tool call, end_turn) gets ONE continuation and the reply lands as text')
 {
-  check('the fixture model is a discovered local record', localRecordFor(LOCAL_MODEL) !== undefined)
+  check('the fixture model is a discovered local record', localRecordFor(LOCAL_MODEL) !== undefined, 'the fixture vLLM model was not discovered; see refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and localRecordFor in src/services/providers/local/localCatalogue.ts')
   const r = await runLocal([reasoningOnlyStop, reasoningThenReply])
-  check('two chat requests (the thinking-only turn, then the continuation)', r.calls.length === 2 && localBodies.length === 2, `${r.calls.length} call(s), ${localBodies.length} body(ies)`)
-  check('the run completed', r.terminal.reason === 'completed', j(r.terminal))
-  check('the reply lands as text', r.answers.at(-1) === LOCAL_REPLY, j(r.answers))
-  check('exactly one reasoning_only_recovery transition, attempt 1', reasoningTransitions(r).length === 1 && reasoningTransitions(r)[0]?.attempt === 1, j(r.transitions))
+  check('two chat requests (the thinking-only turn, then the continuation)', r.calls.length === 2 && localBodies.length === 2, nudgeHint(`${r.calls.length} call(s), ${localBodies.length} body(ies)`, NUDGE_RECOVERY_AT))
+  check('the run completed', r.terminal.reason === 'completed', nudgeHint(j(r.terminal), NUDGE_RECOVERY_AT))
+  check('the reply lands as text', r.answers.at(-1) === LOCAL_REPLY, nudgeHint(j(r.answers), NUDGE_RECOVERY_AT))
+  check('exactly one reasoning_only_recovery transition, attempt 1', reasoningTransitions(r).length === 1 && reasoningTransitions(r)[0]?.attempt === 1, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT))
   const continuation = r.calls[1]?.messages ?? []
   const nudge = continuation.at(-1)
-  check('the continuation ends with an isMeta user message carrying the words', nudge?.type === 'user' && nudge.isMeta === true && textOf(nudge.message?.content).includes(BASE_WORDS), j(textOf(nudge?.message?.content)).slice(0, 200))
-  check('the plain words carry no fewer-words clause (the turn stopped on its own)', nudge !== undefined && !textOf(nudge.message?.content).includes(FEWER_WORDS))
-  check('the thinking-only assistant message stands directly above the nudge (the model sees what it did)', continuation.at(-2)?.type === 'assistant' && Array.isArray(continuation.at(-2)?.message?.content) && (continuation.at(-2)?.message?.content as AnyMsg[]).every(b => b.type === 'thinking'), String(continuation.at(-2)?.type))
-  check('no API-error row rides the continuation', !continuation.some(m => m.type === 'assistant' && m.isApiErrorMessage === true))
+  check('the continuation ends with an isMeta user message carrying the words', nudge?.type === 'user' && nudge.isMeta === true && textOf(nudge.message?.content).includes(BASE_WORDS), nudgeHint(j(textOf(nudge?.message?.content)).slice(0, 200), NUDGE_RECOVERY_AT))
+  check('the plain words carry no fewer-words clause (the turn stopped on its own)', nudge !== undefined && !textOf(nudge.message?.content).includes(FEWER_WORDS), nudgeHint('the first nudge must not carry the fewer-words clause', NUDGE_WORDS_AT))
+  check('the thinking-only assistant message stands directly above the nudge (the model sees what it did)', continuation.at(-2)?.type === 'assistant' && Array.isArray(continuation.at(-2)?.message?.content) && (continuation.at(-2)?.message?.content as AnyMsg[]).every(b => b.type === 'thinking'), nudgeHint(String(continuation.at(-2)?.type), NUDGE_RECOVERY_AT))
+  check('no API-error row rides the continuation', !continuation.some(m => m.type === 'assistant' && m.isApiErrorMessage === true), nudgeHint('an API-error row rode the continuation', NUDGE_RECOVERY_AT + ' (the carried rows drop isApiErrorMessage rows)'))
   const wire = localBodies[1]?.messages ?? []
   const wireLast = wire.at(-1)
-  check('the wire body: the last row is the user nudge with the words', wireLast?.role === 'user' && String(wireLast.content).includes(BASE_WORDS), `${String(wireLast?.role)}: ${j(String(wireLast?.content ?? '').slice(0, 120))}`)
-  check('one visible warning row says the turn carried thinking only and the model was asked once', warnings(r, 'carried thinking only') === 1, j(r.notices))
-  check('the effort is the session\'s on both requests', r.efforts.length === 2 && r.efforts[0] === 'high' && r.efforts[1] === 'high', j(r.efforts))
+  check('the wire body: the last row is the user nudge with the words', wireLast?.role === 'user' && String(wireLast.content).includes(BASE_WORDS), `${String(wireLast?.role)}: ${j(String(wireLast?.content ?? '').slice(0, 120))} — ${NUDGE_LOCAL_WIRE_AT}`)
+  check('one visible warning row says the turn carried thinking only and the model was asked once', warnings(r, 'carried thinking only') === 1, nudgeHint(j(r.notices), NUDGE_RECOVERY_AT))
+  check('the effort is the session\'s on both requests', r.efforts.length === 2 && r.efforts[0] === 'high' && r.efforts[1] === 'high', nudgeHint(j(r.efforts), NUDGE_RECOVERY_AT + ' (the hand-over must keep the session effort)'))
 }
 
 section('B · the local road: two thinking-only turns in a row — the turn ends with the plain words, no third request')
 {
   const before = localBodies.length
   const r = await runLocal([reasoningOnlyStop, reasoningOnlyStop, reasoningThenReply])
-  check('exactly two chat requests', r.calls.length === 2 && localBodies.length - before === 2, `${r.calls.length} call(s)`)
-  check('the run completed (as today, no error)', r.terminal.reason === 'completed', j(r.terminal))
-  check('one continuation only', reasoningTransitions(r).length === 1, j(r.transitions))
-  check('the plain words end the turn: "carried thinking only again — the turn ends here"', warnings(r, 'carried thinking only again — the turn ends here') === 1, j(r.notices))
-  check('no text landed (nothing to show)', r.answers.length === 0, j(r.answers))
+  check('exactly two chat requests', r.calls.length === 2 && localBodies.length - before === 2, nudgeHint(`${r.calls.length} call(s)`, NUDGE_RECOVERY_AT))
+  check('the run completed (as today, no error)', r.terminal.reason === 'completed', nudgeHint(j(r.terminal), NUDGE_RECOVERY_AT))
+  check('one continuation only', reasoningTransitions(r).length === 1, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT))
+  check('the plain words end the turn: "carried thinking only again — the turn ends here"', warnings(r, 'carried thinking only again — the turn ends here') === 1, nudgeHint(j(r.notices), NUDGE_RECOVERY_AT))
+  check('no text landed (nothing to show)', r.answers.length === 0, nudgeHint(j(r.answers), NUDGE_RECOVERY_AT))
 }
 
 section('C · the local road control: a turn with text gets no nudge')
 {
   const r = await runLocal([reasoningThenReply])
-  check('one request, no continuation, the reply lands', r.calls.length === 1 && reasoningTransitions(r).length === 0 && r.answers.at(-1) === LOCAL_REPLY, `${r.calls.length} call(s) ${j(r.transitions)}`)
+  check('one request, no continuation, the reply lands', r.calls.length === 1 && reasoningTransitions(r).length === 0 && r.answers.at(-1) === LOCAL_REPLY, nudgeHint(`${r.calls.length} call(s) ${j(r.transitions)}`, NUDGE_RECOVERY_AT + ' (a turn with text must not be nudged)'))
 }
 
 type Block = { type?: string; text?: string; thinking?: string; signature?: string }
@@ -360,55 +365,55 @@ const carriesCutThinking = (row: Block[]): boolean =>
 section(`D · the Anthropic road: thinking ran to max_tokens with no text — one continuation at the SAME effort, the signed thinking carried as the assistant prefix, a visible row`)
 {
   const { r, bodies, refusals } = await runCloud([maxTokensThinking, cloudReply])
-  check('two message requests (the cut turn, then the continuation)', bodies.length === 2, `${bodies.length} request(s)`)
-  check('the fixture refused nothing (the continuation is a legal request under the API\'s documented rules)', refusals.length === 0, j(refusals))
-  check('the run completed and the reply landed as text', r.terminal.reason === 'completed' && r.answers.at(-1) === CLOUD_REPLY, `${j(r.terminal)} ${j(r.answers)}`)
-  check('exactly one reasoning_only_recovery transition and NO max_output_tokens_recovery (the silent resume never fires)', reasoningTransitions(r).length === 1 && maxTokensTransitions(r) === 0, j(r.transitions))
-  check('both requests rode at the same effort (max, max) — no rung drop', bodies[0]?.output_config?.effort === 'max' && bodies[1]?.output_config?.effort === 'max' && j(r.efforts) === j(['max', 'max']), `${j(bodies.map(b => b.output_config))} ${j(r.efforts)}`)
+  check('two message requests (the cut turn, then the continuation)', bodies.length === 2, nudgeHint(`${bodies.length} request(s)`, NUDGE_RECOVERY_AT))
+  check('the fixture refused nothing (the continuation is a legal request under the API\'s documented rules)', refusals.length === 0, nudgeHint(j(refusals), NUDGE_CLOUD_WIRE_AT + '; the refusal text names the rule the continuation request broke'))
+  check('the run completed and the reply landed as text', r.terminal.reason === 'completed' && r.answers.at(-1) === CLOUD_REPLY, nudgeHint(`${j(r.terminal)} ${j(r.answers)}`, NUDGE_RECOVERY_AT))
+  check('exactly one reasoning_only_recovery transition and NO max_output_tokens_recovery (the silent resume never fires)', reasoningTransitions(r).length === 1 && maxTokensTransitions(r) === 0, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT + ' (a thinking-only max_tokens stop must take this recovery, not the max-output one)'))
+  check('both requests rode at the same effort (max, max) — no rung drop', bodies[0]?.output_config?.effort === 'max' && bodies[1]?.output_config?.effort === 'max' && j(r.efforts) === j(['max', 'max']), nudgeHint(`${j(bodies.map(b => b.output_config))} ${j(r.efforts)}`, NUDGE_RECOVERY_AT + ' (the continuation must keep the effort)'))
   const rows = assistantRows(bodies[1])
   const prefix = rows.at(-1)
-  check('the continuation body carries the truncated turn\'s SIGNED thinking block, verbatim, as its last assistant row (followed only by the cut marker text)', prefix !== undefined && carriesCutThinking(prefix), j(prefix ?? null).slice(0, 300))
+  check('the continuation body carries the truncated turn\'s SIGNED thinking block, verbatim, as its last assistant row (followed only by the cut marker text)', prefix !== undefined && carriesCutThinking(prefix), nudgeHint(j(prefix ?? null).slice(0, 300), 'the carried turn is built by withReasoningCutMarker in src/run-core/turn/noToolReply.ts'))
   const wireMessages = bodies[1]?.messages ?? []
-  check('that assistant row stands directly before the user nudge (the prefix the model resumes from)', wireMessages.at(-2)?.role === 'assistant' && wireMessages.at(-1)?.role === 'user', j(wireMessages.map(m => m.role)))
+  check('that assistant row stands directly before the user nudge (the prefix the model resumes from)', wireMessages.at(-2)?.role === 'assistant' && wireMessages.at(-1)?.role === 'user', nudgeHint(j(wireMessages.map(m => m.role)), NUDGE_RECOVERY_AT))
   const last = wireMessages.at(-1)
-  check('the first continuation\'s nudge carries the plain words and NOT "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && !textOf(last.content).includes(FEWER_WORDS), j(textOf(last?.content)).slice(0, 240))
-  check(`the visible row: "thinking ran to the output limit (${CEILING_WORDS}) — continuing" at warning level`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) — continuing`) === 1, j(r.notices))
-  check('the withheld max-tokens error never surfaced (the continuation answered)', r.withheldSurfaced === 0, String(r.withheldSurfaced))
+  check('the first continuation\'s nudge carries the plain words and NOT "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && !textOf(last.content).includes(FEWER_WORDS), nudgeHint(j(textOf(last?.content)).slice(0, 240), NUDGE_WORDS_AT))
+  check(`the visible row: "thinking ran to the output limit (${CEILING_WORDS}) — continuing" at warning level`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) — continuing`) === 1, nudgeHint(j(r.notices), NUDGE_WORDS_AT + ' or ' + NUDGE_RECOVERY_AT))
+  check('the withheld max-tokens error never surfaced (the continuation answered)', r.withheldSurfaced === 0, nudgeHint(String(r.withheldSurfaced), NUDGE_RECOVERY_AT))
   const nudgeRow = lastUser(r.calls[1]?.messages ?? [])
-  check('the nudge rides as an isMeta user message', nudgeRow?.isMeta === true && textOf(nudgeRow.message?.content).includes(BASE_WORDS))
+  check('the nudge rides as an isMeta user message', nudgeRow?.isMeta === true && textOf(nudgeRow.message?.content).includes(BASE_WORDS), NUDGE_RECOVERY_AT)
 }
 
 section('E · the Anthropic road: a second max-tokens stop gets the second continuation, asking for fewer words; both truncated turns ride')
 {
   const { r, bodies, refusals } = await runCloud([maxTokensThinking, maxTokensThinking, cloudReply])
-  check('three message requests (the cut turn, two continuations)', bodies.length === 3, `${bodies.length} request(s)`)
-  check('the fixture refused nothing', refusals.length === 0, j(refusals))
-  check('the reply landed as text on the second continuation', r.terminal.reason === 'completed' && r.answers.at(-1) === CLOUD_REPLY, `${j(r.terminal)} ${j(r.answers)}`)
-  check('two reasoning_only_recovery transitions (attempts 1 and 2) and no max_output_tokens_recovery', j(reasoningTransitions(r).map(t => t.attempt)) === j([1, 2]) && maxTokensTransitions(r) === 0, j(r.transitions))
-  check('every request rode at max', bodies.every(b => b.output_config?.effort === 'max') && j(r.efforts) === j(['max', 'max', 'max']), j(r.efforts))
+  check('three message requests (the cut turn, two continuations)', bodies.length === 3, nudgeHint(`${bodies.length} request(s)`, NUDGE_RECOVERY_AT))
+  check('the fixture refused nothing', refusals.length === 0, nudgeHint(j(refusals), NUDGE_CLOUD_WIRE_AT))
+  check('the reply landed as text on the second continuation', r.terminal.reason === 'completed' && r.answers.at(-1) === CLOUD_REPLY, nudgeHint(`${j(r.terminal)} ${j(r.answers)}`, NUDGE_RECOVERY_AT))
+  check('two reasoning_only_recovery transitions (attempts 1 and 2) and no max_output_tokens_recovery', j(reasoningTransitions(r).map(t => t.attempt)) === j([1, 2]) && maxTokensTransitions(r) === 0, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT))
+  check('every request rode at max', bodies.every(b => b.output_config?.effort === 'max') && j(r.efforts) === j(['max', 'max', 'max']), nudgeHint(j(r.efforts), NUDGE_RECOVERY_AT))
   const rows = assistantRows(bodies[2])
-  check('the third request carries BOTH truncated turns\' signed thinking (two assistant rows, each thinking + the marker)', rows.length === 2 && rows.every(carriesCutThinking), j(rows).slice(0, 400))
+  check('the third request carries BOTH truncated turns\' signed thinking (two assistant rows, each thinking + the marker)', rows.length === 2 && rows.every(carriesCutThinking), nudgeHint(j(rows).slice(0, 400), 'the carried turns are built by withReasoningCutMarker in src/run-core/turn/noToolReply.ts'))
   const last = bodies[2]?.messages?.at(-1)
-  check('the second continuation\'s nudge adds "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && textOf(last.content).includes(FEWER_WORDS), j(textOf(last?.content)).slice(0, 240))
+  check('the second continuation\'s nudge adds "answer in fewer words"', last?.role === 'user' && textOf(last.content).includes(BASE_WORDS) && textOf(last.content).includes(FEWER_WORDS), nudgeHint(j(textOf(last?.content)).slice(0, 240), NUDGE_RECOVERY_AT + ' (fewerWords is set there from the attempt number)'))
   const firstNudge = bodies[1]?.messages?.at(-1)
-  check('the first continuation\'s nudge did not', firstNudge?.role === 'user' && !textOf(firstNudge.content).includes(FEWER_WORDS))
-  check(`the second row: "thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words"`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words`) === 1, j(r.notices))
+  check('the first continuation\'s nudge did not', firstNudge?.role === 'user' && !textOf(firstNudge.content).includes(FEWER_WORDS), NUDGE_RECOVERY_AT + ' (fewerWords is set there from the attempt number)')
+  check(`the second row: "thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words"`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) again — continuing, asking for fewer words`) === 1, nudgeHint(j(r.notices), NUDGE_WORDS_AT + ' or ' + NUDGE_RECOVERY_AT))
 }
 
 section('F · the Anthropic road: a third max-tokens stop ends the turn with plain words — no third continuation, the operator decides')
 {
   const { r, bodies } = await runCloud([maxTokensThinking, maxTokensThinking, maxTokensThinking, cloudReply])
-  check('exactly three message requests (the cut turn and two continuations; no third continuation)', bodies.length === 3, `${bodies.length} request(s)`)
-  check(`the plain words: "thinking ran to the output limit (${CEILING_WORDS}) again — the turn ends here after 2 continuations; the next step is yours"`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) again — the turn ends here after 2 continuations; the next step is yours`) === 1, j(r.notices))
-  check('the withheld max-tokens error surfaces once the continuations are spent', r.withheldSurfaced === 1, String(r.withheldSurfaced))
-  check('no max_output_tokens_recovery transition; two reasoning_only_recovery', maxTokensTransitions(r) === 0 && reasoningTransitions(r).length === 2, j(r.transitions))
-  check('the run completed', r.terminal.reason === 'completed', j(r.terminal))
+  check('exactly three message requests (the cut turn and two continuations; no third continuation)', bodies.length === 3, nudgeHint(`${bodies.length} request(s)`, NUDGE_RECOVERY_AT))
+  check(`the plain words: "thinking ran to the output limit (${CEILING_WORDS}) again — the turn ends here after 2 continuations; the next step is yours"`, warnings(r, `thinking ran to the output limit (${CEILING_WORDS}) again — the turn ends here after 2 continuations; the next step is yours`) === 1, nudgeHint(j(r.notices), NUDGE_WORDS_AT + ' or ' + NUDGE_RECOVERY_AT))
+  check('the withheld max-tokens error surfaces once the continuations are spent', r.withheldSurfaced === 1, nudgeHint(String(r.withheldSurfaced), NUDGE_RECOVERY_AT))
+  check('no max_output_tokens_recovery transition; two reasoning_only_recovery', maxTokensTransitions(r) === 0 && reasoningTransitions(r).length === 2, nudgeHint(j(r.transitions), NUDGE_RECOVERY_AT))
+  check('the run completed', r.terminal.reason === 'completed', nudgeHint(j(r.terminal), NUDGE_RECOVERY_AT))
 }
 
 section('G · the Anthropic road control: thinking followed by text gets no nudge and keeps its effort')
 {
   const { r, bodies } = await runCloud([cloudReply])
-  check('one request, no continuation, the reply lands, effort max', bodies.length === 1 && reasoningTransitions(r).length === 0 && r.answers.at(-1) === CLOUD_REPLY && bodies[0]?.output_config?.effort === 'max', `${bodies.length} request(s) ${j(r.transitions)} ${j(r.answers)}`)
+  check('one request, no continuation, the reply lands, effort max', bodies.length === 1 && reasoningTransitions(r).length === 0 && r.answers.at(-1) === CLOUD_REPLY && bodies[0]?.output_config?.effort === 'max', nudgeHint(`${bodies.length} request(s) ${j(r.transitions)} ${j(r.answers)}`, NUDGE_RECOVERY_AT + ' (a turn with text must not be nudged)'))
 }
 
 section('H · the shape on a scripted road: a tool call after thinking is never nudged; a stream FAULT after thinking stays the stream-fault lane\'s; the native road\'s reasoningOnly stamp is read')
@@ -438,17 +443,17 @@ section('H · the shape on a scripted road: a tool call after thinking is never 
   }
   const toolCtx = makeCtx(CLOUD_MODEL, 'high', { type: 'disabled' }, [makeTool('EchoTool')])
   const withTool = await run(scripted([[thinkingMessage(), toolMessage('tu_1')], [textMessage('done')]]), toolCtx)
-  check('thinking then a tool call: the tool round runs and no reasoning-only continuation fires', withTool.calls.length === 2 && reasoningTransitions(withTool).length === 0 && withTool.answers.at(-1) === 'done', `${withTool.calls.length} call(s) ${j(withTool.transitions)}`)
+  check('thinking then a tool call: the tool round runs and no reasoning-only continuation fires', withTool.calls.length === 2 && reasoningTransitions(withTool).length === 0 && withTool.answers.at(-1) === 'done', nudgeHint(`${withTool.calls.length} call(s) ${j(withTool.transitions)}`, NUDGE_RECOVERY_AT + ' (a tool call after thinking must not be nudged)'))
   const streamFaultAfterPartialText = errors.streamFaultAfterPartialText as (provider: string, code: string, message: string) => string
   const fault = createAssistantAPIErrorMessage({ content: streamFaultAfterPartialText('Fixture', 'no-finish', 'stream ended without finish'), error: 'server_error' } as never) as unknown as AnyMsg
   const faulted = await run(scripted([[thinkingMessage(), fault], [textMessage('after the cut')]]), makeCtx(CLOUD_MODEL, 'high', { type: 'disabled' }))
   const faultNudge = lastUser(faulted.calls[1]?.messages ?? [])
-  check('a stream fault after thinking only takes the stream-fault continuation (its own nudge), never this one', faulted.calls.length === 2 && reasoningTransitions(faulted).length === 0 && faulted.transitions.some(t => t.reason === 'stream_fault_recovery') && faultNudge !== undefined && textOf(faultNudge.message?.content) === String(errors.STREAM_FAULT_RECOVERY_NUDGE), `${faulted.calls.length} call(s) ${j(faulted.transitions)} ${j(textOf(faultNudge?.message?.content)).slice(0, 120)}`)
+  check('a stream fault after thinking only takes the stream-fault continuation (its own nudge), never this one', faulted.calls.length === 2 && reasoningTransitions(faulted).length === 0 && faulted.transitions.some(t => t.reason === 'stream_fault_recovery') && faultNudge !== undefined && textOf(faultNudge.message?.content) === String(errors.STREAM_FAULT_RECOVERY_NUDGE), nudgeHint(`${faulted.calls.length} call(s) ${j(faulted.transitions)} ${j(textOf(faultNudge?.message?.content)).slice(0, 120)}`, NUDGE_RECOVERY_AT + ' (a stream fault must stay with the stream_fault_recovery decision in the same folder)'))
   const stamped = thinkingMessage()
   stamped.reasoningOnly = true
   const viaStamp = await run(scripted([[stamped], [textMessage('the reply')]]), makeCtx(CLOUD_MODEL, 'high', { type: 'disabled' }))
-  check('a message the transport stamped reasoningOnly: true is nudged once and the reply lands', viaStamp.calls.length === 2 && reasoningTransitions(viaStamp).length === 1 && viaStamp.answers.at(-1) === 'the reply', `${viaStamp.calls.length} call(s) ${j(viaStamp.transitions)}`)
-  check('the effort stays the session\'s (high, high)', j(viaStamp.efforts) === j(['high', 'high']), j(viaStamp.efforts))
+  check('a message the transport stamped reasoningOnly: true is nudged once and the reply lands', viaStamp.calls.length === 2 && reasoningTransitions(viaStamp).length === 1 && viaStamp.answers.at(-1) === 'the reply', nudgeHint(`${viaStamp.calls.length} call(s) ${j(viaStamp.transitions)}`, NUDGE_RECOVERY_AT + ' (it reads the reasoningOnly stamp from the reply)'))
+  check('the effort stays the session\'s (high, high)', j(viaStamp.efforts) === j(['high', 'high']), nudgeHint(j(viaStamp.efforts), NUDGE_RECOVERY_AT))
 }
 
 vllm.server.close()

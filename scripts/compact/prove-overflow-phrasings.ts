@@ -8,16 +8,17 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const PHRASINGS_FAILURE_HINT = ' | change classifyOverflowFault or overflowSignalOf in src/services/api/overflowSignal.ts (the phrasing patterns, exclusions and bodiless-400 measure), mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, or measureOverflow in src/services/compact/overflowRecovery.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : PHRASINGS_FAILURE_HINT}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — overflow phrasings prover exceeded 180s')
+  console.log('\nTIMEOUT — overflow phrasings prover exceeded 180s; the S4 loopback call through routedCallModel (src/services/providers/callModelRouter.ts) never settled, check the fixture in scripts/compact/overflowFixture.ts and the section printed last above')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()

@@ -67,7 +67,7 @@ for (const row of RETIRED) {
       if (row.spelling.test(line)) hits.push(`${path}:${index + 1}`)
     })
   }
-  check(`${row.was} → ${row.now}`, hits.length === 0, hits.slice(0, 5).join(', '))
+  check(`${row.was} → ${row.now}`, hits.length === 0, 'change the retired spelling at ' + hits.slice(0, 5).join(', ') + ' to the wording after the arrow in the label')
 }
 
 const HOME = pinScratchHome('mercury-screen-words-plain')
@@ -81,7 +81,7 @@ try {
   check(
     'the one theme-label owner names the three appearances a user reads',
     themeLabel('dark') === 'Oasis dark' && themeLabel('true-black') === 'True Black' && themeLabel('mono') === 'Black and white',
-    `${themeLabel('dark')} · ${themeLabel('true-black')} · ${themeLabel('mono')}`,
+    `${themeLabel('dark')} · ${themeLabel('true-black')} · ${themeLabel('mono')}; fix themeLabel in src/utils/theme.ts`,
   )
 
   const React = await import('react')
@@ -109,7 +109,7 @@ try {
     mountedAppearance.push('3')
     const settled = await waitFor(() => done.length === 1, 8000)
     const receipt = String(done[0]?.[0] ?? '')
-    check('the appearance receipt reads the owner', settled && receipt.startsWith(`Theme set to ${themeLabel('mono')}`), receipt)
+    check('the appearance receipt reads the owner', settled && receipt.startsWith(`Theme set to ${themeLabel('mono')}`), `receipt ${JSON.stringify(receipt)}; the onDone line in src/commands/appearance/appearance.tsx must print themeLabel(setting), and the picker must show Black and white as item 3`)
   } finally {
     mountedAppearance.unmount()
     resetOverlayStackForTests()
@@ -124,7 +124,7 @@ try {
     check(
       'the welcome card labels the critter row critter and tells a stranger what the model row is',
       painted && screen.includes('  critter ') && screen.includes('   the model this session runs on · /model changes it'),
-      mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | '),
+      `fix the critter and model rows in src/components/MercuryHome.tsx; screen: ${mountedHome.lines().filter(l => l.trim()).slice(0, 12).join(' | ')}`,
     )
   } finally {
     mountedHome.unmount()
@@ -133,7 +133,7 @@ try {
 
   const { cronToHuman } = await import('../../src/utils/cron.js')
   const wake = cronToHuman('30 9 15 4 *')
-  check('a one-shot wake reads as a time on a date, never as a cron string', wake.includes('on 15 April') && !wake.includes('*'), wake)
+  check('a one-shot wake reads as a time on a date, never as a cron string', wake.includes('on 15 April') && !wake.includes('*'), 'got ' + JSON.stringify(wake) + '; fix cronToHuman in src/utils/cron.ts')
 } finally {
   await releaseScratchHome(HOME)
 }

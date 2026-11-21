@@ -35,7 +35,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${ok ? '' : '\n  fix: the instruction-file write gate (the ask that says this file steers every later session) is in checkWritePermissionForTool in src/utils/permissions/filesystem.ts and src/utils/permissions/pathValidation.ts; the decision order (deny, ask, grant, mode) is decideToolPermission in src/utils/permissions/decision/engine.ts'}`)
 }
 function context(mode: string, rules: { allow?: string[]; deny?: string[]; ask?: string[] } = {}) {
   const state = { toolPermissionContext: {

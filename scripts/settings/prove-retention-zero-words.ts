@@ -22,9 +22,10 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
+const RETENTION_WHERE = 'records.retentionDays 0 is read in src/utils/settings/validationTips.ts (the tip words), src/services/cleanup.ts (the sweep and retentionWindowDays), src/utils/sessionStorage/writer.ts (transcript writing) and src/mneme/lineageSession.ts (the lineage entry); for a failure in the built-run checks, rebuild dist/mercury.mjs with bun run build.ts first'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${RETENTION_WHERE}`}`)
 }
 
 console.log('§1 the records.retentionDays tip says what the product does')

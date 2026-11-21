@@ -111,7 +111,7 @@ const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` (change what spawns git in the idle bundle: G1 wants fewer git processes at idle, G2 one status probe and no upstream probe after an index move, G4 no synchronous git spawn; rebuild dist with bun run build.ts first, and rerun with MERCURY_GIT_DRIVE_KEEP=1 to keep the shim and census logs in the scratch folder)`}`)
 }
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {

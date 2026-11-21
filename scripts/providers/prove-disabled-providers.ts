@@ -65,10 +65,10 @@ const disabledOwner = existsSync(`${root}/src/services/providers/disabledProvide
 
 let checks = 0
 let failures = 0
-function check(name: string, pass: unknown) {
+function check(name: string, pass: unknown, detail?: string) {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && detail ? ` -- ${detail}` : ''}`)
 }
 
 const setDisabled = (disabledProviders?: unknown) => {
@@ -95,24 +95,24 @@ try {
   secrets.writeStoredZaiApiKey('sk-zai-kept')
 
   setDisabled(undefined)
-  check('before disabling, deepseek rows appear in the picker and bare word resolves', getModelOptions().some((o: any) => o.value === 'deepseek-v4-pro') && isBareFamilyWord('deepseek') && resolveBareFamilyWord('deepseek') === 'deepseek-v4-pro')
+  check('before disabling, deepseek rows appear in the picker and bare word resolves', getModelOptions().some((o: any) => o.value === 'deepseek-v4-pro') && isBareFamilyWord('deepseek') && resolveBareFamilyWord('deepseek') === 'deepseek-v4-pro', 'with no engine.disabledProviders set the deepseek rows and bare word must stay available: check getModelOptions in src/services/model/modelOptions.ts and bareFamilyWords.ts')
 
   setDisabled(['deepseek', 'not-a-family'])
   const optionsAfter = getModelOptions()
-  check('disabling deepseek removes its rows and action rows from the picker while keeping other families', !optionsAfter.some((o: any) => o.value.includes('deepseek')) && optionsAfter.some((o: any) => o.value.includes('glm')))
+  check('disabling deepseek removes its rows and action rows from the picker while keeping other families', !optionsAfter.some((o: any) => o.value.includes('deepseek')) && optionsAfter.some((o: any) => o.value.includes('glm')), 'getModelOptions in src/services/model/modelOptions.ts must drop rows of a provider listed in engine.disabledProviders (isProviderDisabled in src/services/providers/disabledProviders.ts) and keep the others')
 
   const pageAfter = await liveModelsReference({})
-  check('disabling deepseek removes it from mercury://models while keeping zai', !pageAfter.providers.some((p: any) => p.provider === 'deepseek') && !pageAfter.notSignedIn.includes('DeepSeek') && pageAfter.providers.some((p: any) => p.provider === 'zai'))
+  check('disabling deepseek removes it from mercury://models while keeping zai', !pageAfter.providers.some((p: any) => p.provider === 'deepseek') && !pageAfter.notSignedIn.includes('DeepSeek') && pageAfter.providers.some((p: any) => p.provider === 'zai'), 'liveModelsReference in src/services/resources/adapters/models.ts must skip a disabled provider in providers and notSignedIn and keep zai')
 
-  check('the disabled family bare word stops resolving and becomes unknown', !isBareFamilyWord('deepseek') && resolveBareFamilyWord('deepseek') === undefined && parseUserSpecifiedModel('deepseek') === 'deepseek')
-  check('the stored key of a disabled provider remains untouched on disk', secrets.readStoredDeepseekApiKey() === 'sk-deepseek-kept')
+  check('the disabled family bare word stops resolving and becomes unknown', !isBareFamilyWord('deepseek') && resolveBareFamilyWord('deepseek') === undefined && parseUserSpecifiedModel('deepseek') === 'deepseek', 'isBareFamilyWord and resolveBareFamilyWord in src/services/model/bareFamilyWords.ts must ignore a disabled family, and the word must then pass through parseUserSpecifiedModel unchanged')
+  check('the stored key of a disabled provider remains untouched on disk', secrets.readStoredDeepseekApiKey() === 'sk-deepseek-kept', 'disabling a provider must not touch its stored key: nothing in src/services/providers/disabledProviders.ts or its callers may clear it from src/utils/accounts/providerSecrets.ts')
 
   const snap = buildProviderSnapshot()
   const dsSnap = snap.providers.find((p: any) => p.id === 'deepseek')
-  check('the provider registry marks a disabled provider unavailable with reason disabled:deepseek', dsSnap?.available === false && dsSnap?.reason === 'disabled:deepseek')
+  check('the provider registry marks a disabled provider unavailable with reason disabled:deepseek', dsSnap?.available === false && dsSnap?.reason === 'disabled:deepseek', `buildProviderSnapshot in src/services/providers/modelRegistry.ts must mark a disabled provider available false with reason disabled:deepseek, got ${JSON.stringify(dsSnap)}`)
 
   const healthSummary = disabledOwner?.disabledProvidersHealthSummary()
-  check('/health summary names the disabled provider and any unknown provider name once as info', healthSummary?.status === 'info' && healthSummary.evidence.includes('DeepSeek (deepseek)') && healthSummary.evidence.includes('not-a-family'))
+  check('/health summary names the disabled provider and any unknown provider name once as info', healthSummary?.status === 'info' && healthSummary.evidence.includes('DeepSeek (deepseek)') && healthSummary.evidence.includes('not-a-family'), `disabledProvidersHealthSummary in src/services/providers/disabledProviders.ts must return status info naming each disabled provider and each unknown name, got ${JSON.stringify(healthSummary)}`)
 
   const out: any[] = []
   for await (const row of routedCallModel({
@@ -125,24 +125,24 @@ try {
   } as never)) {
     if (row.type === 'assistant') out.push(row)
   }
-  check('a session already on a disabled family model keeps running without hopping', out.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'STILL-RUNNING-SETTLED')))
+  check('a session already on a disabled family model keeps running without hopping', out.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'STILL-RUNNING-SETTLED')), 'routedCallModel in src/services/providers/callModelRouter.ts must still serve a model of a disabled family without hopping to another provider')
 
   console.log('refusals')
-  check('a disabled family model id is not allowed for selection', !isModelAllowed('deepseek-v4-pro') && !isModelAllowed('deepseek'))
+  check('a disabled family model id is not allowed for selection', !isModelAllowed('deepseek-v4-pro') && !isModelAllowed('deepseek'), 'isModelAllowed in src/services/model/modelAllowlist.ts must refuse a model id and a bare word of a disabled provider')
   const validated = await validateModel('deepseek-v4-pro')
-  check('typing a disabled family model id is treated as unknown / not found', !validated.valid && Boolean(validated.error?.includes('not found')))
+  check('typing a disabled family model id is treated as unknown / not found', !validated.valid && Boolean(validated.error?.includes('not found')), `validateModel in src/services/providers/validateModel.ts must answer not found for a disabled family model id, got ${JSON.stringify(validated)}`)
   const bareValidated = await validateModel('deepseek')
-  check('typing a disabled family bare word is treated as unknown / not found', !bareValidated.valid && Boolean(bareValidated.error?.includes('not found')))
+  check('typing a disabled family bare word is treated as unknown / not found', !bareValidated.valid && Boolean(bareValidated.error?.includes('not found')), `validateModel in src/services/providers/validateModel.ts must answer not found for a disabled family bare word, got ${JSON.stringify(bareValidated)}`)
   const crewRefusal = unrecognisedModelWordRefusal('deepseek')
-  check('crew dispatch treats a disabled family bare word as an unrecognised word', crewRefusal !== null && crewRefusal.includes("names no model"))
+  check('crew dispatch treats a disabled family bare word as an unrecognised word', crewRefusal !== null && crewRefusal.includes("names no model"), `unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts must refuse a disabled family bare word with a text saying it names no model, got ${JSON.stringify(crewRefusal)}`)
 
   for (const bad of [{ engine: { disabledProviders: 'deepseek' } }, { engine: { disabledProviders: [123] } }]) {
     const verdict = SettingsSchema().safeParse(bad)
-    check(`malformed engine.disabledProviders is refused: ${JSON.stringify(bad)}`, !verdict.success)
+    check(`malformed engine.disabledProviders is refused: ${JSON.stringify(bad)}`, !verdict.success, 'the engine.disabledProviders field in SettingsSchema (src/utils/settings/types.ts) must accept only an array of strings')
   }
 
   setDisabled(undefined)
-  check('clearing engine.disabledProviders restores deepseek to the picker and bare word table', getModelOptions().some((o: any) => o.value === 'deepseek-v4-pro') && isBareFamilyWord('deepseek'))
+  check('clearing engine.disabledProviders restores deepseek to the picker and bare word table', getModelOptions().some((o: any) => o.value === 'deepseek-v4-pro') && isBareFamilyWord('deepseek'), 'removing engine.disabledProviders must bring the deepseek rows and bare word back: the settings cache reset must reach getModelOptions (src/services/model/modelOptions.ts) and bareFamilyWords.ts')
 
   console.log(`${failures ? 'DISABLED PROVIDERS RED' : 'DISABLED PROVIDERS GREEN'} (${checks} checks, ${failures} failures; loopback only)`)
 } finally {

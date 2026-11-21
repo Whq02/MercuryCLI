@@ -17,7 +17,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} | fix the edit handling in src/services/lsp/workspaceEditApply.ts (normalizeWorkspaceEdit, applyEditsToText, offsetAtPosition, formatEditPreview) for normalize, apply, offsetAtPosition and preview checks, or runMercuryLspOp in src/tools/LSPTool/mercuryOps.ts for the production apply and permission checks`)
   }
 }
 

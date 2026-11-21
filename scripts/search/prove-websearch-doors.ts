@@ -51,6 +51,7 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    fix: the door that answered is chosen in src/tools/WebSearchTool/WebSearchTool.ts (vendored WebSearch) or src/tools/WebSearchTool/ProviderSearchTool.ts (native); keyless scraping lives in src/services/search/duckduckgo.ts and cool-down, cache and pacing in src/services/search/searchPacing.ts; read the section title above this line to pick the file')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -58,7 +59,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — websearch doors prover exceeded 240s')
+  console.log('\nTIMEOUT — websearch doors prover exceeded 240s; the last section printed above was still waiting on a search call or on the dist/mercury.mjs headless run in section 13, so check src/tools/WebSearchTool/WebSearchTool.ts and the search fixture in scripts/search/lib/searchFixture.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -42,9 +42,9 @@ const before = bridge.mapMessagesToOpenaiInput(history)
 {
   const expectedRecordItems = history.flatMap(m => m.turnRecord?.items ?? [])
   const replayed = before.filter(i => i.type !== 'message' || (i as { role?: string }).role !== 'user')
-  check('with the flag unset every record item replays verbatim, in order (reasoning included)', JSON.stringify(replayed) === JSON.stringify(expectedRecordItems), `${replayed.length} vs ${expectedRecordItems.length}`)
-  check('all six reasoning items ride', reasoningIds(before).join(',') === 'r1,r1b,r2,r3,r4,r4b', reasoningIds(before).join(','))
-  check('the user rows are in their positions', before.filter(i => i.type === 'message' && (i as { role?: string }).role === 'user').length === 4)
+  check('with the flag unset every record item replays verbatim, in order (reasoning included)', JSON.stringify(replayed) === JSON.stringify(expectedRecordItems), `${replayed.length} vs ${expectedRecordItems.length}; mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts must replay every turnRecord item untouched while MERCURY_GPT_PRUNE_PRIOR_REASONING is unset`)
+  check('all six reasoning items ride', reasoningIds(before).join(',') === 'r1,r1b,r2,r3,r4,r4b', reasoningIds(before).join(',') + '; mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts must keep all reasoning items with the flag unset')
+  check('the user rows are in their positions', before.filter(i => i.type === 'message' && (i as { role?: string }).role === 'user').length === 4, 'mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts must keep the four user rows in place')
 }
 
 section('P2 ON — prior turns lose their reasoning; the current turn keeps its own')
@@ -57,24 +57,24 @@ delete process.env.MERCURY_GPT_PRUNE_PRIOR_REASONING
 {
   const lastUser = before.map(i => i.type === 'message' && (i as { role?: string }).role === 'user').lastIndexOf(true)
   const expected = before.filter((i, idx) => !(idx < lastUser && i.type === 'reasoning'))
-  check('the output is the OFF output minus the reasoning items that precede the last user message', JSON.stringify(after) === JSON.stringify(expected), `${after.length} vs ${expected.length}`)
-  check('the current turn keeps both of its reasoning items (intra-turn continuation)', reasoningIds(after).join(',') === 'r4,r4b', reasoningIds(after).join(','))
-  check('every function_call and message item survives, in order', after.filter(i => i.type !== 'reasoning').length === before.filter(i => i.type !== 'reasoning').length)
+  check('the output is the OFF output minus the reasoning items that precede the last user message', JSON.stringify(after) === JSON.stringify(expected), `${after.length} vs ${expected.length}; with MERCURY_GPT_PRUNE_PRIOR_REASONING on, mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts must drop only the reasoning items before the last user message`)
+  check('the current turn keeps both of its reasoning items (intra-turn continuation)', reasoningIds(after).join(',') === 'r4,r4b', reasoningIds(after).join(',') + '; the prune in mapMessagesToOpenaiInput (src/services/providers/openai/responsesBridge.ts) must keep reasoning after the last user message')
+  check('every function_call and message item survives, in order', after.filter(i => i.type !== 'reasoning').length === before.filter(i => i.type !== 'reasoning').length, 'the prune in mapMessagesToOpenaiInput (src/services/providers/openai/responsesBridge.ts) must drop reasoning items only')
   const again = bridge.mapMessagesToOpenaiInput(history)
-  check('with the flag unset again the replay is verbatim once more (per-call read, no latch)', JSON.stringify(again) === JSON.stringify(before))
+  check('with the flag unset again the replay is verbatim once more (per-call read, no latch)', JSON.stringify(again) === JSON.stringify(before), 'mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts must read the flag on every call, not latch it')
 }
 
 section('P3 THE COUNT — bytes per request')
 {
   const b = bytes(before)
   const a = bytes(after)
-  check('the request shed exactly the pruned reasoning bytes plus one array separator per pruned item', b - a > 0 && census.items === 4 && b - a === census.bytes + census.items, `${b} → ${a}, census ${JSON.stringify(census)}`)
+  check('the request shed exactly the pruned reasoning bytes plus one array separator per pruned item', b - a > 0 && census.items === 4 && b - a === census.bytes + census.items, `${b} → ${a}, census ${JSON.stringify(census)}; replayPruneCensus in src/services/providers/openai/responsesBridge.ts must count each pruned reasoning item and its bytes`)
   console.log(`  BEFORE (flag off, today's wire): ${b} input bytes with 4 settled turns of reasoning replayed · AFTER (flag on): ${a} — ${b - a} bytes (${census.items} reasoning items) fewer on this request; the shed grows with every settled turn`)
 }
 
 section('P4 wiring')
 {
-  check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in')
+  check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in', 'MERCURY_GPT_PRUNE_PRIOR_REASONING must be registered as an opt-in flag in src/substrate/flags/providers.ts')
 }
 
 console.log(failures === 0 ? '\n✅ ALL GPT-REASONING-REPLAY-PRUNE PROOFS PASS' : `\n❌ ${failures} GPT-REASONING-REPLAY-PRUNE PROOF(S) FAILED`)
