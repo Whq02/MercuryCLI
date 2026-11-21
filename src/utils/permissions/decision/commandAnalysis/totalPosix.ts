@@ -209,43 +209,7 @@ export class PosixWalk {
   }
 
   variable(node: Node, frame: Frame): Words {
-    const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
-    const inner: number[] = []
-    const within = (part: Node): void => {
-      for (const child of part.children) {
-        if (child.type === 'regex') inner.push(...this.buried(child, frame, true))
-        else if (WORD_KINDS.has(child.type)) inner.push(...this.word(child, frame).inner)
-        else within(child)
-      }
-    }
-    within(node)
-    if (node.type === 'expansion' && (node.text.includes('`') || (this.inDoubleQuotes > 0 && node.text.includes('$(')))) {
-      const covered: Array<readonly [number, number]> = []
-      const markCovered = (part: Node): void => {
-        for (const child of part.children) {
-          if (COVERED_IN_EXPANSION.has(child.type) || (child.type === 'raw_string' && this.inDoubleQuotes === 0)) covered.push([child.startIndex, child.endIndex])
-          else markCovered(child)
-        }
-      }
-      markCovered(node)
-      covered.sort((a, b) => a[0] - b[0])
-      let uncovered = ''
-      let cursor = node.startIndex
-      for (const [start, end] of covered) {
-        if (start > cursor) uncovered += this.source.slice(cursor, start)
-        if (end > cursor) {
-          uncovered += ' '
-          cursor = end
-        }
-      }
-      if (node.endIndex > cursor) uncovered += this.source.slice(cursor, node.endIndex)
-      inner.push(...this.buried(node, frame, this.inDoubleQuotes === 0, uncovered))
-    }
-    const known = name === undefined ? undefined : this.reading.scope.get(name)
-    if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
-    if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
-    if (name === 'OLDPWD' && this.reading.oldpwd !== undefined && (node.type === 'simple_expansion' || node.text === '${OLDPWD}')) return { values: [this.reading.oldpwd], inner }
-    return { values: [node.text], inner }
+    return posixVariable.call(this, node, frame)
   }
 
   word(node: Node, frame: Frame): Words {
@@ -253,66 +217,7 @@ export class PosixWalk {
   }
 
   expandWord(node: Node, frame: Frame): ExpandedWord[] {
-    if (node.type !== 'concatenation' || !hasBraceListCandidate(node)) {
-      const part = this.word(node, frame)
-      return [{ values: part.values, written: node.text, inner: part.inner }]
-    }
-    const tokens: BraceToken[] = []
-    let fallbackValues = ['']
-    const fallbackInner: number[] = []
-    const stands = this.reading.cwd
-    for (const child of node.children) {
-      if (child.type !== 'word') {
-        const part = this.word(child, frame)
-        fallbackValues = cross(fallbackValues, part.values)
-        fallbackInner.push(...part.inner)
-        tokens.push({ kind: 'atom', word: { values: part.values, written: child.text, inner: part.inner } })
-        continue
-      }
-      const raw = child.text
-      const leads = child.startIndex === 0 || /[\s;&|(=:]/.test(this.source[child.startIndex - 1] ?? '')
-      const plain = unescapeBackslashes(raw)
-      const expandedLead = stands !== undefined && leads && /^~\+(?=\/|$)/.test(raw)
-      fallbackValues = cross(fallbackValues, [expandedLead ? stands + plain.slice(2) : plain])
-      let valBuf = ''
-      let rawBuf = ''
-      const flush = (): void => {
-        if (valBuf === '' && rawBuf === '') return
-        tokens.push({ kind: 'atom', word: { values: [valBuf], written: rawBuf, inner: [] } })
-        valBuf = ''
-        rawBuf = ''
-      }
-      let start = 0
-      if (expandedLead) {
-        valBuf = stands
-        rawBuf = '~+'
-        start = 2
-      }
-      for (let i = start; i < raw.length; i++) {
-        const ch = raw[i]!
-        if (ch === '\\' && i + 1 < raw.length) {
-          const next = raw[i + 1]!
-          if (next !== '\n') valBuf += next
-          rawBuf += '\\' + next
-          i++
-        } else if (ch === '{') {
-          flush()
-          tokens.push({ kind: 'open' })
-        } else if (ch === ',') {
-          flush()
-          tokens.push({ kind: 'comma' })
-        } else if (ch === '}') {
-          flush()
-          tokens.push({ kind: 'close' })
-        } else {
-          valBuf += ch
-          rawBuf += ch
-        }
-      }
-      flush()
-    }
-    const expanded = expandBraceTokens(tokens)
-    return expanded !== undefined && expanded.length > 1 ? expanded : [{ values: fallbackValues, written: node.text, inner: fallbackInner }]
+    return posixExpandWord.call(this, node, frame)
   }
 
   redirect(node: Node, frame: Frame, redirects: ReadRedirect[], inputInner: number[]): void {
@@ -665,4 +570,107 @@ function posixWord(this: PosixWalk, node: Node, frame: Frame): Words {
       this.children(node, frame)
       return { values: [node.text], inner: [] }
   }
+}
+
+function posixVariable(this: PosixWalk, node: Node, frame: Frame): Words {
+  const name = (node.children.find(child => child.type === 'variable_name') ?? node.children.find(child => child.type === 'special_variable_name'))?.text
+  const inner: number[] = []
+  const within = (part: Node): void => {
+    for (const child of part.children) {
+      if (child.type === 'regex') inner.push(...this.buried(child, frame, true))
+      else if (WORD_KINDS.has(child.type)) inner.push(...this.word(child, frame).inner)
+      else within(child)
+    }
+  }
+  within(node)
+  if (node.type === 'expansion' && (node.text.includes('`') || (this.inDoubleQuotes > 0 && node.text.includes('$(')))) {
+    const covered: Array<readonly [number, number]> = []
+    const markCovered = (part: Node): void => {
+      for (const child of part.children) {
+        if (COVERED_IN_EXPANSION.has(child.type) || (child.type === 'raw_string' && this.inDoubleQuotes === 0)) covered.push([child.startIndex, child.endIndex])
+        else markCovered(child)
+      }
+    }
+    markCovered(node)
+    covered.sort((a, b) => a[0] - b[0])
+    let uncovered = ''
+    let cursor = node.startIndex
+    for (const [start, end] of covered) {
+      if (start > cursor) uncovered += this.source.slice(cursor, start)
+      if (end > cursor) {
+        uncovered += ' '
+        cursor = end
+      }
+    }
+    if (node.endIndex > cursor) uncovered += this.source.slice(cursor, node.endIndex)
+    inner.push(...this.buried(node, frame, this.inDoubleQuotes === 0, uncovered))
+  }
+  const known = name === undefined ? undefined : this.reading.scope.get(name)
+  if (known !== undefined && known.length > 0) return { values: [...known].reverse(), inner }
+  if (name === 'PWD' && this.reading.cwd !== undefined && (node.type === 'simple_expansion' || node.text === '${PWD}')) return { values: [this.reading.cwd], inner }
+  if (name === 'OLDPWD' && this.reading.oldpwd !== undefined && (node.type === 'simple_expansion' || node.text === '${OLDPWD}')) return { values: [this.reading.oldpwd], inner }
+  return { values: [node.text], inner }
+}
+
+function posixExpandWord(this: PosixWalk, node: Node, frame: Frame): ExpandedWord[] {
+  if (node.type !== 'concatenation' || !hasBraceListCandidate(node)) {
+    const part = this.word(node, frame)
+    return [{ values: part.values, written: node.text, inner: part.inner }]
+  }
+  const tokens: BraceToken[] = []
+  let fallbackValues = ['']
+  const fallbackInner: number[] = []
+  const stands = this.reading.cwd
+  for (const child of node.children) {
+    if (child.type !== 'word') {
+      const part = this.word(child, frame)
+      fallbackValues = cross(fallbackValues, part.values)
+      fallbackInner.push(...part.inner)
+      tokens.push({ kind: 'atom', word: { values: part.values, written: child.text, inner: part.inner } })
+      continue
+    }
+    const raw = child.text
+    const leads = child.startIndex === 0 || /[\s;&|(=:]/.test(this.source[child.startIndex - 1] ?? '')
+    const plain = unescapeBackslashes(raw)
+    const expandedLead = stands !== undefined && leads && /^~\+(?=\/|$)/.test(raw)
+    fallbackValues = cross(fallbackValues, [expandedLead ? stands + plain.slice(2) : plain])
+    let valBuf = ''
+    let rawBuf = ''
+    const flush = (): void => {
+      if (valBuf === '' && rawBuf === '') return
+      tokens.push({ kind: 'atom', word: { values: [valBuf], written: rawBuf, inner: [] } })
+      valBuf = ''
+      rawBuf = ''
+    }
+    let start = 0
+    if (expandedLead) {
+      valBuf = stands
+      rawBuf = '~+'
+      start = 2
+    }
+    for (let i = start; i < raw.length; i++) {
+      const ch = raw[i]!
+      if (ch === '\\' && i + 1 < raw.length) {
+        const next = raw[i + 1]!
+        if (next !== '\n') valBuf += next
+        rawBuf += '\\' + next
+        i++
+      } else if (ch === '{') {
+        flush()
+        tokens.push({ kind: 'open' })
+      } else if (ch === ',') {
+        flush()
+        tokens.push({ kind: 'comma' })
+      } else if (ch === '}') {
+        flush()
+        tokens.push({ kind: 'close' })
+      } else {
+        valBuf += ch
+        rawBuf += ch
+      }
+    }
+    flush()
+  }
+  const expanded = expandBraceTokens(tokens)
+  return expanded !== undefined && expanded.length > 1 ? expanded : [{ values: fallbackValues, written: node.text, inner: fallbackInner }]
 }
