@@ -1,6 +1,6 @@
 kind	feature	proof	how
 command	accounts	none	none
-command	advise	none	none
+command	advise	scripts/headless/prove-queued-words-never-abort.ts	bundle
 command	agents	none	none
 command	appearance	none	none
 command	audit	scripts/command-catalogue/prove-audit-command.ts	bundle
@@ -10,14 +10,14 @@ command	browser	none	none
 command	caching	none	none
 command	capabilities	none	none
 command	clear	none	none
-command	compact	none	none
+command	compact	scripts/compact/prove-fold-refreshes-git-status.ts	bundle
 command	concourse	none	none
-command	config	none	none
+command	config	scripts/ui/prove-media-settings-picker-drive.ts	terminal
 command	context	scripts/command-catalogue/prove-unavailable-honesty.ts	bundle
-command	contract	none	none
+command	contract	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	copy	none	none
 command	crew	none	none
-command	crewmates	none	none
+command	crewmates	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	critter	none	none
 command	daemon	none	none
 command	defaultprovider	none	none
@@ -27,190 +27,194 @@ command	exit	none	none
 command	export	none	none
 command	extensions	none	none
 command	feedback	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
-command	general	none	none
-command	health	none	none
+command	general	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
+command	health	scripts/ui/prove-bang-clear-leaves-shell-mode.ts	source
 command	help	none	none
 command	hooks	none	none
-command	imagesetup	none	none
+command	imagesetup	scripts/media/prove-imagesetup-esc.ts	source
 command	jev	none	none
 command	keybindings	none	none
 command	keys	none	none
 command	keysetup	none	none
-command	kill	none	none
+command	kill	scripts/switchboard/prove-command-table.ts	bundle
 command	llmhost	none	none
 command	localsetup	none	none
-command	logins	none	none
+command	logins	scripts/ui/prove-chat-recording.ts	source
 command	logout	none	none
-command	lsp	none	none
+command	lsp	scripts/switchboard/prove-command-table.ts	bundle
 command	mcp	none	none
 command	memory	none	none
-command	mission	none	none
-command	model	none	none
+command	mission	scripts/ui/prove-chat-recording.ts	source
+command	model	scripts/ui/prove-chat-recording.ts	source
 command	mouse	none	none
-command	orient	none	none
+command	orient	scripts/skills/prove-slash-bare-send-census.ts	source
 command	palette	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
 command	permissions	none	none
-command	rename	none	none
+command	rename	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	restart	none	none
 command	review	scripts/command-catalogue/prove-review-command.ts	bundle
-command	rewind	none	none
+command	rewind	scripts/ui/prove-chat-recording.ts	source
 command	run	none	none
 command	runs	none	none
-command	samples	none	none
+command	samples	scripts/skills/prove-slash-name-honesty.ts	source
 command	saturn	none	none
-command	seats	none	none
+command	seats	scripts/daemon/prove-midturn-line.ts	bundle
 command	sessions	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
 command	skills	none	none
 command	submodels	none	none
-command	swarm	none	none
-command	swarmchat	none	none
-command	team	none	none
+command	swarm	scripts/crew/prove-board-wake-is-the-harness-notice.ts	bundle
+command	swarmchat	scripts/crew/prove-swarm-party-controls.ts	bundle
+command	team	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	tensorfold	none	none
-command	title	none	none
+command	title	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
 command	trace	none	none
-command	unkill	none	none
+command	unkill	scripts/switchboard/prove-command-table.ts	bundle
 command	update-notes	none	none
-command	usage	none	none
-command	verify	none	none
+command	usage	scripts/ui/prove-chat-recording.ts	source
+command	verify	scripts/skills/prove-verify-command-drive.ts	bundle
 command	vim	none	none
 command	voice	none	none
-command	whisper	none	none
-command	workbench	none	none
+command	whisper	scripts/crew/prove-swarm-switch-waits-for-the-landing.ts	source
+command	workbench	scripts/ui/prove-conhost-wheel.ts	source
 command	zen	none	none
+screen	ChangeSetPermissionRequest	scripts/changesets/prove-changeset-permission-card.ts	source
+screen	HistorySearchInput	scripts/ui/prove-chat-recording.ts	source
+screen	MediaConfigPicker	scripts/ui/prove-media-settings-picker-drive.ts	terminal
+screen	MediaPermissionRequest	scripts/media/prove-media-permission-card-answers.ts	source
 screen	ResumeConversation	scripts/ui/prove-resume-conversation-drive.ts	terminal
 screen	boot-settings	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
-screen	concourse	none	none
-screen	logins	none	none
-screen	menu	none	none
+screen	concourse	scripts/formal-models/prove-major-flows.ts	source
+screen	logins	scripts/formal-models/prove-screen-properties-boot-settings.ts	source
+screen	menu	scripts/formal-models/prove-screen-properties-boot-settings.ts	source
 screen	repl	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
-screen	session	none	none
+screen	session	scripts/formal-models/prove-major-flows.ts	source
 tool	ApolloReview	none	none
 tool	Aseprite	none	none
 tool	AskAdvisor	scripts/advisor/prove-advisor-roads.ts	source
-tool	AskUserQuestion	none	none
-tool	AstEdit	none	none
-tool	AstSearch	none	none
-tool	Bash	none	none
-tool	Blender	none	none
+tool	AskUserQuestion	scripts/editor-bridge/prove-acp-question-form.ts	bundle
+tool	AstEdit	scripts/ast-tools/prove-ast-edit-batch.ts	source
+tool	AstSearch	scripts/ast-tools/prove-ast-glob-braces.ts	source
+tool	Bash	scripts/agents/prove-agent-cwd-drive.ts	bundle
+tool	Blender	scripts/substrate/prove-live-boot-menu.ts	bundle
 tool	Browser	none	none
-tool	ChangeSet	none	none
-tool	Checkpoint	none	none
-tool	Computer	none	none
-tool	ContextLeft	none	none
+tool	ChangeSet	scripts/outcome-pack/prove-outcome-pack.ts	bundle
+tool	Checkpoint	scripts/bash/prove-cd-lasts-the-session.ts	source
+tool	Computer	scripts/api/prove-restart-keeps-thinking.ts	source
+tool	ContextLeft	scripts/mcp/prove-failed-server-told.ts	bundle
 tool	Contract	scripts/switchboard/prove-contract-tool-hosted.ts	bundle
 tool	Correct	none	none
-tool	CrewBoard	none	none
-tool	Crewmate	none	none
+tool	CrewBoard	scripts/crew/prove-run-wake-closing-roads.ts	bundle
+tool	Crewmate	scripts/agents/prove-agent-cwd-drive.ts	bundle
 tool	CronCreate	none	none
 tool	CronDelete	none	none
 tool	CronList	none	none
-tool	Debug	none	none
-tool	Document	none	none
-tool	Edit	none	none
-tool	EnterWorktree	none	none
-tool	Eval	none	none
-tool	ExitWorktree	none	none
-tool	Git	none	none
-tool	Glob	none	none
-tool	Godot	none	none
-tool	Grep	none	none
-tool	Inspect	none	none
+tool	Debug	scripts/daemon/prove-runner-refusal-drive.ts	bundle
+tool	Document	scripts/document/prove-tool-door.ts	source
+tool	Edit	scripts/agents/prove-reviewer-reads-git.ts	bundle
+tool	EnterWorktree	scripts/agents/prove-session-worktree-drive.ts	bundle
+tool	Eval	scripts/daemon/prove-runner-refusal-drive.ts	bundle
+tool	ExitWorktree	scripts/agents/prove-worktree-hop-cwd-drive.ts	bundle
+tool	Git	scripts/builtin-tools/prove-git-tool-folder.ts	bundle
+tool	Glob	scripts/exit-handle/prove-exit-cliff-census.ts	bundle
+tool	Godot	scripts/api/prove-sent-prefix-frozen.ts	bundle
+tool	Grep	scripts/compact/prove-small-window-fits-a-round.ts	bundle
+tool	Inspect	scripts/prompt/prove-seat-reference.ts	bundle
 tool	JevEval	none	none
 tool	Journal	none	none
 tool	Journey	none	none
 tool	Launch	none	none
-tool	ListMcpResources	none	none
-tool	LspCodeAction	none	none
-tool	LspFormat	none	none
-tool	LspMoveFile	none	none
-tool	LspMoveSymbol	none	none
-tool	LspRead	none	none
-tool	LspRename	none	none
-tool	LspRequest	none	none
-tool	Monitor	none	none
+tool	ListMcpResources	scripts/mcp/prove-list-mcp-resources-tool.ts	bundle
+tool	LspCodeAction	scripts/lsp/prove-lsp-write-tools.ts	source
+tool	LspFormat	scripts/lsp/prove-lsp-write-tools.ts	source
+tool	LspMoveFile	scripts/lsp/prove-lsp-write-tools.ts	source
+tool	LspMoveSymbol	scripts/lsp/prove-lsp-write-tools.ts	source
+tool	LspRead	scripts/lsp/prove-lsp-advertised-keys.ts	source
+tool	LspRename	scripts/lsp/prove-lsp-implicit-project.ts	source
+tool	LspRequest	scripts/lsp/prove-lsp-write-tools.ts	source
+tool	Monitor	scripts/crew/prove-drained-notice-frames.ts	bundle
 tool	NotebookEdit	none	none
 tool	PowerShell	none	none
 tool	ProviderSearch	none	none
-tool	Read	none	none
-tool	ReadMcpResource	none	none
-tool	Recall	none	none
+tool	Read	scripts/agents/prove-reviewer-reads-git.ts	bundle
+tool	ReadMcpResource	scripts/mcp/prove-read-mcp-resource-tool.ts	bundle
+tool	Recall	scripts/memory/prove-open-cite-log.ts	source
 tool	RecordConvention	none	none
 tool	Reflect	none	none
-tool	ResumeCrewmate	none	none
-tool	Retain	none	none
-tool	Rewind	none	none
-tool	ScheduleWakeup	none	none
-tool	SendMessage	none	none
-tool	Service	none	none
-tool	Skill	none	none
-tool	Sleep	none	none
-tool	Structure	none	none
-tool	StructuredOutput	none	none
+tool	ResumeCrewmate	scripts/agents/prove-agent-cwd-drive.ts	bundle
+tool	Retain	scripts/api/prove-memory-save-keeps-prefix.ts	bundle
+tool	Rewind	scripts/bash/prove-cd-lasts-the-session.ts	source
+tool	ScheduleWakeup	scripts/daemon/prove-wake-hold-drive.ts	bundle
+tool	SendMessage	scripts/headless/prove-agent-message-notice.ts	bundle
+tool	Service	scripts/daemon/prove-runner-refusal-drive.ts	bundle
+tool	Skill	scripts/core-runtime/prove-loop-guard-headless.ts	source
+tool	Sleep	scripts/cockpit-interaction/prove-sleep-redirect.ts	bundle
+tool	Structure	scripts/structure-tools/prove-structure-fold.ts	source
+tool	StructuredOutput	scripts/headless/prove-agent-structured-row.ts	bundle
 tool	TaskCreate	scripts/tools/prove-task-update-stored.ts	bundle
 tool	TaskGet	scripts/tools/prove-task-update-stored.ts	bundle
 tool	TaskList	scripts/tools/prove-task-update-stored.ts	bundle
-tool	TaskStop	none	none
+tool	TaskStop	scripts/bash/prove-shell-record-of-sub-agent-launch.ts	bundle
 tool	TaskUpdate	scripts/tools/prove-task-update-stored.ts	bundle
 tool	Test	none	none
 tool	ToolSearch	scripts/tools/prove-task-update-stored.ts	bundle
-tool	Transaction	none	none
+tool	Transaction	scripts/ide/prove-transaction-contract.ts	source
 tool	Unity	none	none
-tool	Video	none	none
+tool	Video	scripts/tools/prove-video-tool.ts	bundle
 tool	WebFetch	none	none
 tool	WebSearch	none	none
-tool	Write	none	none
-tool	mcp__<server>__authenticate	none	none
-verb	--version	none	none
-verb	acp	none	none
+tool	Write	scripts/agents/prove-reviewer-reads-git.ts	bundle
+tool	mcp__<server>__authenticate	scripts/mcp/prove-mcp-auth-tool.ts	bundle
+verb	--version	scripts/bash/prove-windows-road-order.ts	bundle
+verb	acp	scripts/editor-bridge/prove-acp-early-cancel.ts	bundle
 verb	acp --login	none	none
-verb	auth list	none	none
-verb	auth login	none	none
-verb	auth logout	none	none
+verb	auth list	scripts/accounts/prove-auth-logout-built.ts	bundle
+verb	auth login	scripts/accounts/prove-roles-account-drive.ts	bundle
+verb	auth logout	scripts/accounts/prove-auth-logout-built.ts	bundle
 verb	auth mint	none	none
-verb	auth status	none	none
-verb	bridge	none	none
+verb	auth status	scripts/accounts/prove-auth-logout-built.ts	bundle
+verb	bridge	scripts/editor-bridge/prove-vscode-bridge.ts	bundle
 verb	daemon	scripts/command-catalogue/prove-beta-journey-matrix.ts	bundle
-verb	extension-api	none	none
-verb	extensions add	none	none
-verb	extensions disable	none	none
-verb	extensions enable	none	none
-verb	extensions fence	none	none
-verb	extensions inspect	none	none
-verb	extensions install	none	none
-verb	extensions list	none	none
-verb	extensions refresh	none	none
-verb	extensions remove	none	none
-verb	extensions scaffold	none	none
-verb	extensions sources	none	none
-verb	extensions trust	none	none
-verb	extensions unfence	none	none
-verb	extensions uninstall	none	none
-verb	extensions update	none	none
-verb	godot	none	none
-verb	health	none	none
+verb	extension-api	scripts/extensions/prove-external-api.ts	source
+verb	extensions add	scripts/extensions/prove-cli-verbs-exit.ts	bundle
+verb	extensions disable	scripts/extensions/prove-bundled-extensions.ts	bundle
+verb	extensions enable	scripts/extensions/prove-bundled-extensions.ts	bundle
+verb	extensions fence	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions inspect	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions install	scripts/extensions/prove-cli-verbs-exit.ts	bundle
+verb	extensions list	scripts/extensions/prove-bundled-extensions.ts	bundle
+verb	extensions refresh	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions remove	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions scaffold	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions sources	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions trust	scripts/extensions/prove-cli-verbs-exit.ts	bundle
+verb	extensions unfence	scripts/extensions/prove-extensions-cli.ts	bundle
+verb	extensions uninstall	scripts/extensions/prove-bundled-extensions.ts	bundle
+verb	extensions update	scripts/extensions/prove-bundled-extensions.ts	bundle
+verb	godot	scripts/identity/prove-docs-names.ts	bundle
+verb	health	scripts/accounts/prove-keychain-never-touched.ts	bundle
 verb	help	none	none
-verb	host	none	none
-verb	image	none	none
-verb	install	none	none
+verb	host	scripts/host/prove-mercury-host.ts	bundle
+verb	image	scripts/language-sidecars/prove-image-display.ts	bundle
+verb	install	scripts/release/prove-release-local.ts	bundle
 verb	interactive	scripts/advisor/prove-advisor-note-lands.ts	bundle
-verb	lsp install	none	none
+verb	lsp install	scripts/lsp/prove-lsp-install-verb.ts	bundle
 verb	lsp list	none	none
-verb	mcp add	none	none
-verb	mcp get	none	none
-verb	mcp import	none	none
+verb	mcp add	scripts/mcp/prove-config-display-redaction.ts	bundle
+verb	mcp get	scripts/mcp/prove-config-display-redaction.ts	bundle
+verb	mcp import	scripts/mcp/prove-config-display-redaction.ts	bundle
 verb	mcp list	scripts/mcp/prove-mcp-trust-reset.ts	bundle
-verb	mcp remove	none	none
-verb	mcp serve	none	none
+verb	mcp remove	scripts/mcp/prove-project-mcp-file.ts	bundle
+verb	mcp serve	scripts/ast-tools/prove-recovered-edit.ts	bundle
 verb	mcp trust-reset	scripts/mcp/prove-mcp-trust-reset.ts	bundle
 verb	mcp-server	none	none
 verb	models	none	none
 verb	roster	none	none
 verb	run	scripts/command-catalogue/prove-unavailable-honesty.ts	bundle
 verb	runner	scripts/advisor/prove-advisor-chip.ts	bundle
-verb	sessions	none	none
+verb	sessions	scripts/switchboard/prove-sessions-list-verb.ts	bundle
 verb	sessions delete	none	none
-verb	sessions list	none	none
+verb	sessions list	scripts/headless/prove-run-title-saved.ts	bundle
 verb	tune	none	none
-verb	update	none	none
+verb	update	scripts/release/prove-release-local.ts	bundle
 verb	usage	scripts/usage/prove-usage-history.ts	bundle
-verb	version	none	none
+verb	version	scripts/build-identity/prove-config-home.ts	bundle
