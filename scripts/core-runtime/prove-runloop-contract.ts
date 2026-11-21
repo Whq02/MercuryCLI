@@ -1010,7 +1010,7 @@ section('L12 RAPID-REFILL BREAKER — the notice rides beside the answer, the tu
 
 section('L13 COMPACTION BOUNDARY — boundary yields, post-compact input')
 {
-  const boundaryMarker = createUserMessage({ content: '[rig boundary]', isMeta: true })
+  const boundaryMarker = Object.assign(createUserMessage({ content: '[rig boundary]', isMeta: true }), { compactMetadata: { trigger: 'auto' as const, preTokens: 900 } })
   const summary = createUserMessage({ content: 'RIG SUMMARY', isCompactSummary: true })
   const preCompactAssistant = createAssistantMessage({
     content: 'old fat turn',
