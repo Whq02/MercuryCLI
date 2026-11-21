@@ -21,7 +21,7 @@ function check(name: string, test: () => void): void {
 const model = 'gemini-4-argon-high'
 const board = tool({ buildTool, principal: () => null, paused: () => false, sessionOn: () => false }, () => null)
 const schema = await toolToAPISchema(board, { tools: [board], agents: [], model, getToolPermissionContext: async () => getEmptyToolPermissionContext() })
-assert('name' in schema && 'input_schema' in schema)
+assert('name' in schema && 'input_schema' in schema, `src/utils/api.ts toolToAPISchema(CrewBoard) missing name or input_schema: keys=${Object.keys(schema).join(',')}`)
 const request: CompatChatRequest = {
   model,
   messages: [{ role: 'user', content: 'Read the board and continue.' }],
@@ -79,7 +79,7 @@ check('CrewBoard keeps its real declaration and every accepted schema constraint
 })
 check('the native API wire and the stored replay are not mutated', () => {
   assert.equal(JSON.stringify({ request, saved, native }), before)
-  assert(native.contents.some(content => content.parts.some(part => part.functionResponse) && content.parts.some(part => part.text)))
+  assert(native.contents.some(content => content.parts.some(part => part.functionResponse) && content.parts.some(part => part.text)), 'src/services/providers/gemini/geminiCodec.ts buildGeminiRequest native fixture must retain separate text+functionResponse parts before plan packing')
   assert.deepEqual(buildGeminiPlanRequest(native, model, envelope), wire)
 })
 check('plain text, images and response errors survive without duplication', () => {

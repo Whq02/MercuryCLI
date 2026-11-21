@@ -31,7 +31,7 @@ let body: unknown = fixture.models
 const fetchImpl = (async (url: string | URL | Request, init?: RequestInit) => {
   fetches++
   assert.equal(String(url), `${process.env.MERCURY_MELIOUS_API_BASE}/models?include_meta=true`)
-  assert.ok(new Headers(init?.headers).get('authorization')?.startsWith('Bearer proof-key-'))
+  assert.ok(new Headers(init?.headers).get('authorization')?.startsWith('Bearer proof-key-'), 'src/services/providers/melious/meliousCatalogue.ts request missing expected Bearer authorization prefix')
   return Response.json(status === 200 ? body : fixture.modelError, { status })
 }) as typeof fetch
 try {
