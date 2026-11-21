@@ -112,7 +112,7 @@ try {
   console.log('\n§1 approved and rejected project servers + trustProjectServers: trust-reset clears all three and preserves unrelated settings')
   {
     const w = makeWorld('approved', 'probe', {
-      cleanupPeriodDays: 30,
+      records: { retentionDays: 30 },
       kit: {
         projectOn: ['probe'],
         projectOff: ['blocked'],
@@ -134,7 +134,7 @@ try {
     check('local settings kit.projectOn is empty', Array.isArray(kit.projectOn) && kit.projectOn.length === 0, JSON.stringify(kit.projectOn))
     check('local settings kit.projectOff is empty', Array.isArray(kit.projectOff) && kit.projectOff.length === 0, JSON.stringify(kit.projectOff))
     check('local settings kit.trustProjectServers is false', kit.trustProjectServers === false, JSON.stringify(kit.trustProjectServers))
-    check('unrelated local setting is preserved', settings.cleanupPeriodDays === 30, JSON.stringify(settings.cleanupPeriodDays))
+    check('unrelated local setting is preserved', (settings.records as { retentionDays?: number } | undefined)?.retentionDays === 30, JSON.stringify(settings.records))
 
     const after = runMcp(w, 'list')
     check('after reset: mcp list exits 0', after.rc === 0, String(after.rc))
