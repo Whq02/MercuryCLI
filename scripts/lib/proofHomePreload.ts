@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { configHomeIsReal } from './loginDriverGuard.ts'
 import { carryProofGuard, openSystemLibrary, proofEntry } from './proofGuard.cjs'
@@ -60,8 +61,11 @@ if (!import.meta.main && !isBuildEntry && !isProductEntry) {
   if (!(process.env.BUN_OPTIONS || '').includes(preloadFlag)) {
     process.env.BUN_OPTIONS = process.env.BUN_OPTIONS ? `${process.env.BUN_OPTIONS} ${preloadFlag}` : preloadFlag
   }
-  const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
-  registerBootDoors()
+  const bootDoors = resolve(root, 'src', 'services', 'boot', 'registerDoors.ts')
+  if (existsSync(bootDoors)) {
+    const { registerBootDoors } = await import('../../src/services/boot/registerDoors.ts')
+    registerBootDoors()
+  }
 }
 
 if (import.meta.main) console.log(`${process.env.MERCURY_CONFIG_DIR ?? ''}\n${process.env.MERCURY_LOCAL_PROBE_TARGETS ?? ''}\n${process.env.NO_COLOR ?? ''}${process.env.FORCE_COLOR ?? ''}\n${Object.keys(process.env).filter(name => name.startsWith('GIT_')).sort().join(' ')}`)
