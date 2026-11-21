@@ -77,7 +77,7 @@ try {
           m.push(KEY.esc); await until('1 servers · this session')
         }
         reason = undefined
-        m.push(KEY.esc); assert.ok(await waitFor(() => closed, 3000))
+        m.push(KEY.esc); assert.ok(await waitFor(() => closed, 3000), `MCP popup did not close within 3000ms after Esc at cols=${cols}; check McpPopup.tsx`)
       } finally { m.unmount(); claims.releaseCommandPopup(originalToken) }
     }
   } finally { setFocusedSessionConnector(previous) }
