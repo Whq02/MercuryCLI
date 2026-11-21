@@ -18,6 +18,7 @@ import { localServerProbingOff } from '../../services/localServer/localServerTru
 import type { TensorFoldAnnouncedHost } from './tensorfoldRows.js'
 import type { TensorFoldOffer } from '../loginFamilyRows.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
+import { tensorFoldHasNativeEngine, tensorFoldMachineSupportKind, tensorFoldSupportsLanBrowse } from '../../utils/platform/tensorfold.js'
 
 const LOOPBACK = /^(?:localhost|127(?:\.\d+){3}|::1|\[::1\])$/i
 
@@ -54,9 +55,10 @@ export function adapterFitsMachine(ramBytes: number): boolean {
 }
 
 export function tensorFoldCapableMachine(platform: NodeJS.Platform = process.platform, arch: string = process.arch, nvidia: () => string | undefined = () => quietly(() => readFileSync('/proc/driver/nvidia/version', 'utf8'), undefined), ramBytes: number = totalmem()): boolean {
-  if (platform === 'darwin') return arch === 'arm64'
-  if (platform === 'win32') return arch === 'x64' && adapterFitsMachine(ramBytes)
-  if (platform !== 'linux') return false
+  const support = tensorFoldMachineSupportKind(platform)
+  if (support === 'macos-metal') return arch === 'arm64'
+  if (support === 'windows-adapter') return arch === 'x64' && adapterFitsMachine(ramBytes)
+  if (support !== 'linux-nvidia') return false
   const major = Number(/Module\s+(\d+)\./.exec(nvidia() ?? '')?.[1])
   return Number.isInteger(major) && major >= TENSORFOLD_DRIVER_FLOOR
 }
@@ -148,9 +150,9 @@ export function tensorFoldHostsNow(): TensorFoldHost[] {
 
 async function readTensorFoldOffer(platform: NodeJS.Platform = process.platform, capable: () => boolean = () => tensorFoldCapableMachine()): Promise<TensorFoldOffer | null> {
   if (localServerProbingOff()) return null
-  if (!capable()) return platform === 'win32' ? { kind: 'host' } : null
+  if (!capable()) return !tensorFoldHasNativeEngine(platform) ? { kind: 'host' } : null
   const engine = await quietlyAsync(() => findTensorFoldEngine(), null)
-  if (platform === 'win32' && engine === null) return { kind: 'host' }
+  if (!tensorFoldHasNativeEngine(platform) && engine === null) return { kind: 'host' }
   const adapter = engineServedByAdapter(engine)
   const rows = withDiscoveredRows(await quietlyAsync(() => readTensorFoldInventory(engine), []), quietly(() => tensorFoldHosts(), []))
   const served = rows.find(row => row.state === 'serving')
@@ -235,7 +237,7 @@ export function tensorFoldAnnouncementsNow(hosts: readonly TensorFoldHost[] = qu
 }
 
 export function refreshTensorFoldAnnouncements(): Promise<void> {
-  if (localServerProbingOff() || process.platform === 'win32') return Promise.resolve()
+  if (localServerProbingOff() || !tensorFoldSupportsLanBrowse()) return Promise.resolve()
   browsing ??= browseAnnouncements()
     .then(found => {
       const mine = announcerMachineName()
