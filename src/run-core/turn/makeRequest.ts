@@ -1,3 +1,4 @@
+import { LOCAL_COMMAND_STDOUT_TAG } from '../../constants/xml.js'
 import { resetSessionEnvNoticeOnCompaction } from '../../tools/shared/sessionEnvNotice.js'
 import {
   AUTOCOMPACT_THRASH_MESSAGE,
@@ -40,6 +41,7 @@ import {
   PROMPT_TOO_LONG_ERROR_MESSAGE,
 } from '../../services/api/errors.js'
 import {
+  createCommandInputMessage,
   createUserMessage,
   createSystemMessage,
   createAssistantAPIErrorMessage,
@@ -323,6 +325,11 @@ export async function* foldContext(run: RunCtx, state: TurnState, toolUseContext
       trigger: forcedFold !== undefined ? 'overflow' : 'auto',
       messages: [...postCompactMessages, ...carried],
     })
+    if (toolUseContext.agentId === undefined && compactionResult.boundaryMarker.compactMetadata.trigger === 'manual') {
+      const { manualCompactDisplayText } = await import('../../services/compact/manualReceipt.js')
+      const display = manualCompactDisplayText(toolUseContext, compactionResult, foldSplit.head.length)
+      yield emit({ kind: 'notice', message: createCommandInputMessage(`<${LOCAL_COMMAND_STDOUT_TAG}>${display}</${LOCAL_COMMAND_STDOUT_TAG}>`) })
+    }
     resetSessionEnvNoticeOnCompaction()
 
     messagesForQuery = [...postCompactMessages, ...carried]
