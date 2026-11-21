@@ -139,8 +139,11 @@ export class TaskRoster {
     if (h.longLived === undefined || door === undefined || door.closed) return false
     const ll = h.longLived
     const edgesBefore = ll.turnEdges
-    ll.turnActive = true
-    ll.turnStartedAt = Date.now()
+    const opensTurn = !ll.turnActive
+    if (opensTurn) {
+      ll.turnActive = true
+      ll.turnStartedAt = Date.now()
+    }
     const worker = short.startsWith('concourse-w')
     if (worker) {
       void import('./concourseWorkers.js')
@@ -148,7 +151,7 @@ export class TaskRoster {
         .catch(passedOver)
     }
     if (!(await door.deliver(row))) {
-      if (ll.turnEdges === edgesBefore) {
+      if (opensTurn && ll.turnEdges === edgesBefore) {
         ll.turnActive = false
         ll.turnStartedAt = undefined
         if (worker) {
