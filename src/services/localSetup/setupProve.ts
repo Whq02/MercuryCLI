@@ -5,7 +5,7 @@ import { chooseLocalBatch, decideLocalWindow, localBatchSettingOf, localWindowSe
 import { ollamaChatBody, ollamaChatUrl, streamOllamaChat, type OllamaChatKnobs } from '../providers/local/ollamaChatTransport.js'
 import { streamCompatChat, type CompatChatRequest, type CompatStreamEvent, type CompatStreamOptions } from '../providers/openaicompat/compatChatClient.js'
 import { tokensWords } from '../localServer/localServerMemory.js'
-import { settleModelSelection, type SettledSelection } from '../../utils/model/modelTransition.js'
+import { settleModelSelection, type SettledSelection } from '../model/modelTransition.js'
 import { rec, resolveSetupIo, seconds, type ResolvedSetupIo } from './setupIo.js'
 import { SETUP_PROVE_MAX_TOKENS, SETUP_PROVE_PROMPT, type ProveResult, type ProveTimings, type SessionModelDoor, type SessionModelSlice, type SessionSwitchReceipt, type SetupIo } from './setupTypes.js'
 import { passedOver } from '../../utils/passedOver.js'

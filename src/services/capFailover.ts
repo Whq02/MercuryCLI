@@ -668,7 +668,7 @@ export function liveCapFailoverCandidates(home: string | null): CapFailoverCandi
   const { getGptSeatAvailability } =
     require('./providers/openai/openaiCatalogue.js') as typeof import('./providers/openai/openaiCatalogue.js')
   const { providerFrontierFact } =
-    require('../utils/model/providerFrontier.js') as typeof import('../utils/model/providerFrontier.js')
+    require('./model/providerFrontier.js') as typeof import('./model/providerFrontier.js')
   const { readSignInLedger } =
     require('../utils/accounts/signInLedger.js') as typeof import('../utils/accounts/signInLedger.js')
   const { getInitialSettings } =

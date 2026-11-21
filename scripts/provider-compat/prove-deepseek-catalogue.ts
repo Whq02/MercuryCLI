@@ -47,11 +47,11 @@ const { DEEPSEEK_DISPLAY_PINS, deepseekDisplayPin, deepseekDisplayName } = pins
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts').catch(() => null)
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
 const { DEEPSEEK_STATIC_CATALOGUE, describeDeepseekProvider, listDeepseekModels } = router
-const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { deepseekLaneProfile } = await import('../../src/services/providers/deepseek/deepseekCallModel.ts')

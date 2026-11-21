@@ -20,7 +20,7 @@ const {
   resolveSubModel,
   setSubModel,
   subModelConnectHome,
-} = await import('../../src/utils/model/subModelSlots.ts')
+} = await import('../../src/services/model/subModelSlots.ts')
 const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 const { noteCredentialChange } = await import('../../src/utils/accounts/signInLedger.ts')
@@ -160,7 +160,7 @@ section('3 · ONE catalogue — no serve law, no tier (ruled)')
 
 section("3b · THE UNSET DEFAULT (the operator's word) — the choice is the operator's")
 {
-  const { SUB_MODEL_UNSET_HINT } = await import('../../src/utils/model/subModelSlots.ts')
+  const { SUB_MODEL_UNSET_HINT } = await import('../../src/services/model/subModelSlots.ts')
   check(
     "the hint is the ruling's words, verbatim",
     SUB_MODEL_UNSET_HINT === 'use /submodels to pin one of the available model catalogues',
@@ -277,7 +277,7 @@ section('4 · persistence — env pin > saved pick > UNSET')
           `globalThis.MACRO = { VERSION: '1.0.0' }`,
           `const { enableConfigs } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'config.ts'))})`,
           `enableConfigs()`,
-          `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'utils', 'model', 'subModelSlots.ts'))})`,
+          `const { resolveSubModel } = await import(${JSON.stringify(join(import.meta.dir, '..', '..', 'src', 'services', 'model', 'subModelSlots.ts'))})`,
           `console.log(JSON.stringify({ advisor: resolveSubModel('advisor') }))`,
         ].join('\n'),
       ],
@@ -307,7 +307,7 @@ section('4 · persistence — env pin > saved pick > UNSET')
 
 section('6 · the frontier row — an ordinary tier row of the SHARED catalog (ruled)')
 {
-  const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, anthropicNotSignedInReason } = await import('../../src/services/model/modelOptions.ts')
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
   const real = getModelOptions()
   const fables = real.filter(o => typeof o.value === 'string' && /fable/i.test(o.value))
@@ -541,7 +541,7 @@ section('7 · the ONE credential truth — the REAL owner chain across sign-in/o
 section("8 · CATALOGUE EQUALITY — both containers list exactly the main picker's rows, carriers included")
 {
   const { getModelOptions, isProviderActionRow } = await import(
-    '../../src/utils/model/modelOptions.ts'
+    '../../src/services/model/modelOptions.ts'
   )
   const {
     __resetOpenrouterCatalogueForTest,
@@ -655,7 +655,7 @@ section("8 · CATALOGUE EQUALITY — both containers list exactly the main picke
 
 section('10 · THE ADVISOR CONTAINER — the one container, its own pin, its own words')
 {
-  const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/utils/model/subModelSlots.ts')
+  const { SUB_MODEL_CONTAINERS, subModelEnvVar, subModelEffortContext } = await import('../../src/services/model/subModelSlots.ts')
   check('one container, the advisor', JSON.stringify(SUB_MODEL_CONTAINERS) === JSON.stringify(['advisor']), JSON.stringify(SUB_MODEL_CONTAINERS))
   check('the container has its own env pin', subModelEnvVar('advisor') === 'MERCURY_ADVISOR_MODEL')
   const wrote = setSubModel('advisor', 'opus', reads)

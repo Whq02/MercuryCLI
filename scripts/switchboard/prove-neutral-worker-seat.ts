@@ -60,7 +60,7 @@ console.log('============================================================')
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const wm = await import('../../src/services/concourse/workerModels.ts')
-const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 
 type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelEntryV1

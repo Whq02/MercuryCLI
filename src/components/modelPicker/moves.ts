@@ -1,5 +1,5 @@
 import type * as React from 'react'
-import { focusedOptionSupports1m, stripContext1m, withContext1m } from '../../utils/model/modelOptions.js'
+import { focusedOptionSupports1m, stripContext1m, withContext1m } from '../../services/model/modelOptions.js'
 import { has1mContext } from '../../utils/context.js'
 import {
   composePickerLines,

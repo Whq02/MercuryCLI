@@ -162,7 +162,7 @@ globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
 ;(await import('../../src/utils/config.ts')).enableConfigs()
 const accounts = await import('../../src/services/providers/moonshot/moonshotAccounts.ts')
 const catalogue = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
-const { keyLanePins, getModelOptions, MOONSHOT_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions, MOONSHOT_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { moonshotCallModel } = await import('../../src/services/providers/moonshot/moonshotCallModel.ts')
 const { streamCompatChat } = await import('../../src/services/providers/openaicompat/compatChatClient.ts')
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')

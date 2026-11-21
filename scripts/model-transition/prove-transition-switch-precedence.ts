@@ -28,7 +28,7 @@ console.log('============================================================')
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const { settleModelSelection, settlePendingAtBoundary } = await import(
-  '../../src/utils/model/modelTransition.ts'
+  '../../src/services/model/modelTransition.ts'
 )
 const { getUserSpecifiedModelSetting } = await import('../../src/utils/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')

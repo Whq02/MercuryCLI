@@ -9,7 +9,7 @@ import {
 } from '../../src/services/providers/openrouter/openrouterCatalogue.ts'
 import { openrouterWireModelId } from '../../src/services/providers/openrouter/openrouterCallModel.ts'
 import { compatDispatchModelId } from '../../src/services/providers/openaicompat/compatChatCallModel.ts'
-import { focusedOptionSupports1m } from '../../src/utils/model/modelOptions.ts'
+import { focusedOptionSupports1m } from '../../src/services/model/modelOptions.ts'
 import { validateModel } from '../../src/services/providers/validateModel.ts'
 
 let failures = 0

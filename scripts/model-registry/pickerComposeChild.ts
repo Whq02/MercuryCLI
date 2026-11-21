@@ -13,7 +13,7 @@ const probe = process.env.PICKER_COMPOSE_PROBE ?? ''
 const started = Date.now()
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { getModelOptions, focusedOptionSupports1m, resolvesToExistingOption } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, focusedOptionSupports1m, resolvesToExistingOption } = await import('../../src/services/model/modelOptions.ts')
 const model = await import('../../src/utils/model/model.ts')
 const { resolveCatalogueSpelling } = await import('../../src/utils/model/modelSpellingFold.ts')
 

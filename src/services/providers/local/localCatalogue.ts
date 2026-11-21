@@ -1,4 +1,4 @@
-import type { ModelOption } from '../../../utils/model/modelOptions.js'
+import type { ModelOption } from '../../model/modelOptions.js'
 import { ADAPTER_ENGINE_WORDS, servedByAdapter } from '../../tensorfold/adapter/identity.js'
 import {
   cachedLocalModels,

@@ -58,7 +58,7 @@ async function stub(path: string, fixture: () => Record<string, unknown>): Promi
   const actual = await import(path)
   mock.module(path, () => ({ ...actual, ...fixture() }))
 }
-await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ['gemini', 'huggingface', 'anthropic', 'openai', 'moonshot', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local'].map(family => ({ family })) }))
+await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ['gemini', 'huggingface', 'anthropic', 'openai', 'moonshot', 'deepseek', 'zai', 'openrouter', 'openai-compat', 'local'].map(family => ({ family })) }))
 await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'absent', ids: [], reason: 'fixture' }) }))
 await stub('../../src/services/providers/catalogueOnDemand.js', () => ({ readCatalogueIfPending: async () => undefined }))
 await stub('../../src/services/providers/huggingface/huggingfaceCatalogue.js', () => ({ getHuggingfaceAvailability: () => ({ state: 'absent', liveIds: [], reason: 'catalogue not read in this proof' }) }))

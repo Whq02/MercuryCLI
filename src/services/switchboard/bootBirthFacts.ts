@@ -97,7 +97,7 @@ export function screenBirthModel(): string | undefined {
   const { getEngineModel, getUserSpecifiedModelSetting } = require('../../utils/model/model.js') as typeof import('../../utils/model/model.js')
   const { getEngineModelOverride } = require('../../bootstrap/state.js') as typeof import('../../bootstrap/state.js')
   if (getEngineModelOverride() !== undefined) return getEngineModel()
-  const { computedDefault } = require('../../utils/model/computedDefault.js') as typeof import('../../utils/model/computedDefault.js')
+  const { computedDefault } = require('../model/computedDefault.js') as typeof import('../model/computedDefault.js')
   const decision = computedDefault()
   if (decision.source !== 'keyless') return getEngineModel()
   if (getUserSpecifiedModelSetting() === null) return undefined

@@ -41,7 +41,7 @@ process.env.MERCURY_GEMINI_API_BASE = `http://127.0.0.1:${(server.address() as {
 process.env.MERCURY_GEMINI_OAUTH_TOKEN_BASE = 'http://127.0.0.1:1'
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.ts')
+const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
 const { resolveGeminiAccount, disconnectGeminiOauth } = await import('../../src/services/providers/gemini/geminiAccounts.ts')
 const { refreshGeminiCatalogue, __resetGeminiCatalogueForTest } = await import('../../src/services/providers/gemini/geminiCatalogue.ts')
 const { validateWorkerModelChoice } = await import('../../src/services/concourse/workerModels.ts')

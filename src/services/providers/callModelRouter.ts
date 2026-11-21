@@ -34,7 +34,7 @@ import { homeLaneAdmissionRefusal } from './homeLaneAdmission.js'
 import { anthropicCatalogueRefusal } from './catalogueAdmission.js'
 import { readStoredImageRefsForRequest } from '../../utils/imageStore.js'
 import { withBackupVote } from '../api/backupEngines.js'
-import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../../utils/model/computedDefault.js'
+import { CHOOSE_A_MODEL_DOOR, isChooseAModel } from '../model/computedDefault.js'
 import { rosterRefusal } from '../../utils/model/modelAllowlist.js'
 
 export {

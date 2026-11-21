@@ -1,7 +1,7 @@
 import { getSessionKind } from '../../bootstrap/state.js'
 import type { Terminal } from '../../query/transitions.js'
 import { INVALID_API_KEY_ERROR_MESSAGE, isStreamFaultRecoveryNudgeEcho } from '../../services/api/errors.js'
-import { CHOOSE_A_MODEL_DOOR } from '../../utils/model/computedDefault.js'
+import { CHOOSE_A_MODEL_DOOR } from '../../services/model/computedDefault.js'
 import { localRoadBesideSignIn } from '../../services/providers/local/localAccounts.js'
 import { toolCallShapedAnswer } from '../../services/providers/local/toolCallMarkup.js'
 import { emptyReplyEndedLine, emptyReplyKindOf } from '../../services/providers/emptyReply.js'

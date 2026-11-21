@@ -56,7 +56,7 @@ const { configuredDefaultProvider, knownDefaultProviderFamilies, switchDefaultPr
 )
 const { SIGN_IN_LEDGER_FILE, readSignInLedger } = await import('../../src/utils/accounts/signInLedger.ts')
 const { computedDefault, orderCredentials, resetComputedDefaultMemo } = await import(
-  '../../src/utils/model/computedDefault.ts'
+  '../../src/services/model/computedDefault.ts'
 )
 const { isGlobalConfigKey } = await import('../../src/utils/config/schema.ts')
 
@@ -118,7 +118,7 @@ section('§4 — the legacy record is the untimed tiebreak (pure)')
 section('§5 — the live wiring (a legacy home: config deepseek + two env keys, no ledger)')
 {
   const model = await import('../../src/utils/model/model.ts')
-  const { keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+  const { keyLanePins } = await import('../../src/services/model/modelOptions.ts')
   const { providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
   rmSync(ledgerFile, { force: true })
   saveGlobalConfig(config => ({ ...config, defaultProvider: 'deepseek' }) as never)

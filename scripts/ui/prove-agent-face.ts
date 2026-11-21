@@ -403,9 +403,9 @@ t.section("§5 — THE ROW, BOTH HOSTS (under kit, over health — the ruled pos
 
 t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly provider-neutral · sign-in routing)')
 {
-  const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
-  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
-  const fixture: import('../../src/utils/model/modelOptions.ts').ModelOption[] = [
+  const { agentModelPickOutcome, getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/services/model/modelOptions.js')
+  const fixture: import('../../src/services/model/modelOptions.ts').ModelOption[] = [
     { value: '__mercury_anthropic_connect__', label: 'Claude — sign in', description: '↵ runs /logins anthropic' },
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'claude-opus-4-8[1m]', label: 'Opus 4.8 (1M)', description: '' },
@@ -471,7 +471,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
   t.check('picking a connect row routes to sign-in', agentModelPickOutcome(rows.find(r => r.value === '__mercury_connect__:zai')!).kind === 'needs-sign-in')
 
   {
-    const { getAgentModel } = await import('../../src/utils/model/agent.js')
+    const { getAgentModel } = await import('../../src/services/model/agent.js')
     const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.js')
     const PARENT = DEFAULT_OPUS
     t.check(
@@ -495,7 +495,7 @@ t.section('§6 — THE MULTIAUTH MANDATE (any model from the catalogue · truly 
 t.section('§7 — THE FRONTIER PASS (the authoring guidance · the availability truth · the field totality)')
 {
 
-  const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
+  const { agentModelAvailabilityNote, getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
   const rows = getAgentModelPickerRows([
     { value: 'fable', label: 'Fable', description: '' },
     { value: 'claude-opus-4-6', label: 'Opus 4.6', description: '', unavailable: 'not signed in — /logins anthropic' },
@@ -567,8 +567,8 @@ t.section('§8 — THE SIGN-IN WALK, DRIVEN (AGENTVERIFY A3: the face swap on a 
   const React = (await import('react')).default
   const { render } = await import('../../src/ink.js')
   const { BootAgentsScreen, agentFormRowIds } = await import('../../src/components/BootAgentsScreen.js')
-  const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
-  const { keyConnectValue } = await import('../../src/utils/model/modelOptions.js')
+  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
+  const { keyConnectValue } = await import('../../src/services/model/modelOptions.js')
 
   const priorZaiKey = process.env.ZAI_API_KEY
   delete process.env.ZAI_API_KEY
@@ -694,11 +694,11 @@ t.section('§9 — THE BUILT-IN MODEL DIAL (AGENTDIALS C1: the override round-tr
     '../../src/tools/AgentTool/loadAgentsDir.js'
   )
   const { buildStudioRows } = await import('../../src/components/agents/studio/studioData.js')
-  const { getAgentModel } = await import('../../src/utils/model/agent.js')
+  const { getAgentModel } = await import('../../src/services/model/agent.js')
   const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.js')
   const { resolveEffectiveAgentRuntime } = await import('../../src/services/agents/resolver.js')
   const { agentFaceDetailLines, BootAgentsScreen } = await import('../../src/components/BootAgentsScreen.js')
-  const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.js')
+  const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.js')
 
   const walkCwd = mkdtempSync(join(tmpdir(), 'agent-dial-walk-'))
 

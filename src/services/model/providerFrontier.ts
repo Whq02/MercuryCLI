@@ -1,15 +1,15 @@
-import type { CallModelRoute } from '../../services/providers/routeLaw.js'
-import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from './pins/gptPins.js'
-import { frontierOperatorDecision } from './frontierPolicy.js'
+import type { CallModelRoute } from '../providers/routeLaw.js'
+import { GPT_DISPLAY_PINS, gptDisplayName, parseGptModelId } from '../../utils/model/pins/gptPins.js'
+import { frontierOperatorDecision } from '../../utils/model/frontierPolicy.js'
 import {
   getDefaultSonnetModel,
   getMarketingNameForModel,
-} from './model.js'
+} from '../../utils/model/model.js'
 import { keyLanePins } from './modelOptions.js'
-import { moonshotCatalogueSourceWords } from '../../services/providers/moonshot/moonshotCatalogue.js'
-import { deepseekCatalogueSourceWords } from '../../services/providers/deepseek/deepseekCatalogue.js'
-import { zaiCatalogueSourceWords } from '../../services/providers/zai/zaiCatalogue.js'
-import { passedOver } from '../passedOver.js'
+import { moonshotCatalogueSourceWords } from '../providers/moonshot/moonshotCatalogue.js'
+import { deepseekCatalogueSourceWords } from '../providers/deepseek/deepseekCatalogue.js'
+import { zaiCatalogueSourceWords } from '../providers/zai/zaiCatalogue.js'
+import { passedOver } from '../../utils/passedOver.js'
 
 export interface ProviderFrontierFact {
   modelId: string
@@ -46,17 +46,17 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
         return { modelId: best.pin.id, displayName: best.pin.displayName, observedAt: best.pin.observedAt }
       }
       case 'xai': {
-        const { xaiCatalogueRows } = require('../../services/providers/xai/xaiCatalogue.js') as typeof import('../../services/providers/xai/xaiCatalogue.js')
+        const { xaiCatalogueRows } = require('../providers/xai/xaiCatalogue.js') as typeof import('../providers/xai/xaiCatalogue.js')
         const row = xaiCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'meta': {
-        const { newestMetaModel, metaCatalogueRows } = require('../../services/providers/meta/metaCatalogue.js') as typeof import('../../services/providers/meta/metaCatalogue.js')
+        const { newestMetaModel, metaCatalogueRows } = require('../providers/meta/metaCatalogue.js') as typeof import('../providers/meta/metaCatalogue.js')
         const row = metaCatalogueRows().rows.find(row => row.id === newestMetaModel())
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'mistral': {
-        const { mistralCatalogueRows } = require('../../services/providers/mistral/mistralCatalogue.js') as typeof import('../../services/providers/mistral/mistralCatalogue.js')
+        const { mistralCatalogueRows } = require('../providers/mistral/mistralCatalogue.js') as typeof import('../providers/mistral/mistralCatalogue.js')
         const row = mistralCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
@@ -82,38 +82,38 @@ export function providerFrontierFact(route: CallModelRoute): ProviderFrontierFac
       case 'fireworks':
         return undefined
       case 'minimax': {
-        const { minimaxCatalogueRows } = require('../../services/providers/minimax/minimaxCatalogue.js') as typeof import('../../services/providers/minimax/minimaxCatalogue.js')
+        const { minimaxCatalogueRows } = require('../providers/minimax/minimaxCatalogue.js') as typeof import('../providers/minimax/minimaxCatalogue.js')
         const row = minimaxCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'cohere': {
-        const { cohereCatalogueRows } = require('../../services/providers/cohere/cohereCatalogue.js') as typeof import('../../services/providers/cohere/cohereCatalogue.js')
+        const { cohereCatalogueRows } = require('../providers/cohere/cohereCatalogue.js') as typeof import('../providers/cohere/cohereCatalogue.js')
         const row = cohereCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'qwen': {
-        const { qwenCatalogueRows } = require('../../services/providers/qwen/qwenCatalogue.js') as typeof import('../../services/providers/qwen/qwenCatalogue.js')
+        const { qwenCatalogueRows } = require('../providers/qwen/qwenCatalogue.js') as typeof import('../providers/qwen/qwenCatalogue.js')
         const row = qwenCatalogueRows().rows[0]
         return row ? { modelId: row.id, displayName: row.displayName } : undefined
       }
       case 'huggingface': {
         const { getCachedHuggingfaceCatalogue } =
-          require('../../services/providers/huggingface/huggingfaceCatalogue.js') as typeof import('../../services/providers/huggingface/huggingfaceCatalogue.js')
+          require('../providers/huggingface/huggingfaceCatalogue.js') as typeof import('../providers/huggingface/huggingfaceCatalogue.js')
         const live = getCachedHuggingfaceCatalogue()?.models[0]
         if (live) {
           const { huggingfaceSlugModelName } =
-            require('./pins/huggingfacePins.js') as typeof import('./pins/huggingfacePins.js')
+            require('../../utils/model/pins/huggingfacePins.js') as typeof import('../../utils/model/pins/huggingfacePins.js')
           return { modelId: `huggingface/${live.id}`, displayName: huggingfaceSlugModelName(live.id) }
         }
         const { HUGGINGFACE_DISPLAY_PINS } =
-          require('./pins/huggingfacePins.js') as typeof import('./pins/huggingfacePins.js')
+          require('../../utils/model/pins/huggingfacePins.js') as typeof import('../../utils/model/pins/huggingfacePins.js')
         const pin = HUGGINGFACE_DISPLAY_PINS[0]
         if (!pin) return undefined
         return { modelId: `huggingface/${pin.id}`, displayName: pin.displayName, observedAt: pin.observedAt }
       }
       case 'nous': {
         const { getNousModelOptions, NOUS_MODEL_PREFIX } =
-          require('../../services/providers/nous/nousCatalogue.js') as typeof import('../../services/providers/nous/nousCatalogue.js')
+          require('../providers/nous/nousCatalogue.js') as typeof import('../providers/nous/nousCatalogue.js')
         const row = getNousModelOptions().find(option => option.value.startsWith(NOUS_MODEL_PREFIX) && option.unavailable === undefined)
         return row ? { modelId: row.value, displayName: row.label } : undefined
       }
@@ -148,9 +148,9 @@ export function openaiSessionDefault(served: readonly string[]): ProviderFrontie
 
 function openaiServedIds(): string[] | undefined {
   const { resolveOpenaiAccount } =
-    require('../../services/providers/openai/openaiAccounts.js') as typeof import('../../services/providers/openai/openaiAccounts.js')
+    require('../providers/openai/openaiAccounts.js') as typeof import('../providers/openai/openaiAccounts.js')
   const { qualifiedGptCandidates } =
-    require('../../services/providers/openai/openaiCatalogue.js') as typeof import('../../services/providers/openai/openaiCatalogue.js')
+    require('../providers/openai/openaiCatalogue.js') as typeof import('../providers/openai/openaiCatalogue.js')
   const account = resolveOpenaiAccount()
   if (!account) return undefined
   return qualifiedGptCandidates('specialist', account.kind).map(candidate => candidate.identity.canonicalId)

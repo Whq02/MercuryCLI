@@ -103,7 +103,7 @@ try {
   check('the expired fact survives usage-state reset', accounts.resolveOpenrouterApiKey()?.source === 'stored')
   await reader.refreshOpenrouterKeyUsage({ fetchImpl, force: true })
 
-  await stub('../../src/utils/model/computedDefault.js', { recentSignIns: () => [{ family: 'openrouter' }] })
+  await stub('../../src/services/model/computedDefault.js', { recentSignIns: () => [{ family: 'openrouter' }] })
   await stub('../../src/hooks/useProviderUsageOnShow.js', { useProviderUsageOnShow: () => undefined })
   await stub('../../src/keybindings/useKeybinding.js', { useKeybinding: () => undefined, useKeybindings: () => undefined })
   await stub('../../src/hooks/useExitOnCtrlCD.js', { useExitOnCtrlCD: () => undefined })

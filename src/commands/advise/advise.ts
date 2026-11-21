@@ -1,7 +1,7 @@
 import {
   ADVISOR_COMMAND,
   advisorChatLine,
-} from '../../utils/advisor/advisorSettings.js'
+} from '../../services/advisor/advisorSettings.js'
 import type { LocalCommandResult, LocalJSXCommandContext } from '../../types/command.js'
 import { saveAdvisorSwitch } from '../../utils/sessionStorage.js'
 

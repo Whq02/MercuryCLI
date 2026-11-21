@@ -20,7 +20,7 @@ enableConfigs()
 const secrets = await import('../../src/services/providers/providerSecrets.js')
 const { composeSignInView, summarizeSignInView } = await import('../../src/daemon/signInView.js')
 const { collectLoginsScreenFacts, loginsCatalogue, loginsRowStateOf } = await import('../../src/components/BootLoginsScreen.js')
-const { computedDefault } = await import('../../src/utils/model/computedDefault.js')
+const { computedDefault } = await import('../../src/services/model/computedDefault.js')
 const { refreshDeepseekCatalogue } = await import('../../src/services/providers/deepseek/deepseekCatalogue.js')
 let status = 200
 let requests = 0

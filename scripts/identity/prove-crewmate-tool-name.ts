@@ -64,7 +64,7 @@ const PINS: Array<[string, string]> = [
 
 const NOT_THE_TOOL: Array<[string, string, string]> = [
   ['src/utils/hooks/hooksSettings.ts', `return '${OLD_TOOL}'`, "the short word for a hook that came from an agent definition's frontmatter, beside Extension and Skill"],
-  ['src/utils/model/agentModelPicker.ts', `group: '${OLD_TOOL}'`, "the agent model picker's group label for the agent definition being edited"],
+  ['src/services/model/agentModelPicker.ts', `group: '${OLD_TOOL}'`, "the agent model picker's group label for the agent definition being edited"],
   ['scripts/api/node-transport-lane.mjs', `=== '${OLD_TOOL}'`, "undici's dispatcher class, compared by its constructor name"],
 ]
 

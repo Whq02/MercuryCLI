@@ -81,14 +81,14 @@ const {
   mostRecentSignInFamily,
   orderCredentials,
   resetComputedDefaultMemo,
-} = await import('../../src/utils/model/computedDefault.ts')
-type ComputedDefaultFacts = import('../../src/utils/model/computedDefault.ts').ComputedDefaultFacts
-type LaneRowVerdict = import('../../src/utils/model/computedDefault.ts').LaneRowVerdict
+} = await import('../../src/services/model/computedDefault.ts')
+type ComputedDefaultFacts = import('../../src/services/model/computedDefault.ts').ComputedDefaultFacts
+type LaneRowVerdict = import('../../src/services/model/computedDefault.ts').LaneRowVerdict
 const { getDefaultEngineModelSetting, getEngineModel, parseUserSpecifiedModel, renderDefaultModelLabel, renderModelChip, renderModelName } =
   await import('../../src/utils/model/model.ts')
 const { setEngineModelOverride } = await import('../../src/bootstrap/state.ts')
 const { recognizeModelId } = await import('../../src/services/providers/idSpaces.ts')
-const { getModelOptions, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
@@ -372,7 +372,7 @@ section('§5 the sign-in owners — every credential-landing site records; the r
 {
   {
     const { settingsChecks } = await import('../../src/services/health/sections/settings.ts')
-    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/utils/model/computedDefault.ts')
+    const { computedDefault: decide, describeComputedDefault: describe } = await import('../../src/services/model/computedDefault.ts')
     const { providerDisplayName: nameOf } = await import('../../src/services/providers/routeLaw.ts')
     const frontier = await settingsChecks().find(row => row.id === 'frontier')?.run()
     check("/health's Default model row projects it", frontier?.evidence.includes(describe(decide(), nameOf)) === true && frontier.link === '/model', frontier?.evidence)

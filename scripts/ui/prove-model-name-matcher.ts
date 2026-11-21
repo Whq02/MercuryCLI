@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-// gate-watch: src/utils/model/modelNameMatcher.ts src/utils/model/modelNameRoad.ts src/services/providers/validateModel.ts
+// gate-watch: src/utils/model/modelNameMatcher.ts src/services/model/modelNameRoad.ts src/services/providers/validateModel.ts
 // gate-watch: src/commands/model/mercuryModel.tsx src/main.tsx src/tools/AgentTool/AgentTool.tsx src/utils/model/modelPickerGroups.ts
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -81,7 +81,7 @@ section('§1 the table: typed forms → one id, several, or none (a typo never m
 
 section('§2 the three roads read the one module')
 {
-  const road = await import('../../src/utils/model/modelNameRoad.ts')
+  const road = await import('../../src/services/model/modelNameRoad.ts')
   const { builtCli } = await import('../lib/builtProduct.ts')
   const flagRun = (typed: string) => builtCli(['run', '--model', typed, 'hi'], { env: { ANTHROPIC_API_KEY: 'proof-key-ci-gate-not-a-real-key' } })
   const refusedRun = flagRun('gemini three point five')
@@ -109,7 +109,7 @@ section('§2 the three roads read the one module')
 
 section('§2b an exact declared id passes as itself: the prefix rule never reads it as a longer listed id')
 {
-  const road = await import('../../src/utils/model/modelNameRoad.ts')
+  const road = await import('../../src/services/model/modelNameRoad.ts')
   const catalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
   const page = (ids: string[]): typeof fetch =>
     (async () => new Response(JSON.stringify({ data: ids.map(id => ({ type: 'model', id, display_name: id })), has_more: false }), { status: 200, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch

@@ -65,13 +65,13 @@ const {
   isProviderActionRow,
   stripContext1m,
   withContext1m,
-} = await import('../../src/utils/model/modelOptions.ts')
-type ModelOption = import('../../src/utils/model/modelOptions.ts').ModelOption
+} = await import('../../src/services/model/modelOptions.ts')
+type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOption
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
 const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
 const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
-const { getAgentModelPickerRows } = await import('../../src/utils/model/agentModelPicker.ts')
-const { composeSubModelRegistry } = await import('../../src/utils/model/subModelSlots.ts')
+const { getAgentModelPickerRows } = await import('../../src/services/model/agentModelPicker.ts')
+const { composeSubModelRegistry } = await import('../../src/services/model/subModelSlots.ts')
 const { clearOAuthTokenCache, isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
 
 let failures = 0

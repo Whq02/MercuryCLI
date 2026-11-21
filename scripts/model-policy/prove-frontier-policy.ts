@@ -17,7 +17,7 @@ import {
 } from '../../src/utils/model/model.js'
 import { setEngineModelOverride } from '../../src/bootstrap/state.js'
 import { restoreConversationModelFromMessages } from '../../src/services/resume/sessionRestore.js'
-import { computedDefault } from '../../src/utils/model/computedDefault.js'
+import { computedDefault } from '../../src/services/model/computedDefault.js'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {

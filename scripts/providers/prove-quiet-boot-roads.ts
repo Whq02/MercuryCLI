@@ -91,7 +91,7 @@ section('§2 the wire is quiet — the features the roads fed still answer, and 
   const state = await import('../../src/bootstrap/state.js')
   state.setOriginalCwd(project)
 
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
   const rows = getModelOptions()
   check('the model list answers from the catalogue (rows present)', rows.length > 0, String(rows.length))
   check('…with first-party rows for the signed-in account', rows.some(r => /claude|opus|sonnet|fable|haiku/i.test(r.value)), rows.map(r => r.value).slice(0, 8).join(', '))

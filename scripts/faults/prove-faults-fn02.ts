@@ -126,7 +126,7 @@ console.log('\npicker/select — catalogue refresh rejections keep the error det
     const hfCatPath = path.join(SRC, 'services/providers/huggingface/huggingfaceCatalogue.ts')
     const moonAcctPath = path.join(SRC, 'services/providers/moonshot/moonshotAccounts.ts')
     const moonCatPath = path.join(SRC, 'services/providers/moonshot/moonshotCatalogue.ts')
-    const optsPath = path.join(SRC, 'utils/model/modelOptions.ts')
+    const optsPath = path.join(SRC, 'services/model/modelOptions.ts')
     const [realNous, realOaiCat, realOaiAcct, realOrCat, realOrAcct, realGemCat, realGemAcct, realHfCat, realMoonAcct, realMoonCat, realOpts] = await Promise.all([
       import(nousPath), import(openaiCatPath), import(openaiAcctPath), import(orCatPath), import(orAcctPath),
       import(gemCatPath), import(gemAcctPath), import(hfCatPath), import(moonAcctPath), import(moonCatPath), import(optsPath),
@@ -185,7 +185,7 @@ console.log('\nBootSaturnScreen — model/preset/project listing failures surfac
 {
   const r = runCase(`
     const { mock } = await import('bun:test')
-    const optsPath = path.join(SRC, 'utils/model/modelOptions.ts')
+    const optsPath = path.join(SRC, 'services/model/modelOptions.ts')
     const presetPath = path.join(SRC, 'services/mcp/presetStore.ts')
     const factsPath = path.join(SRC, 'utils/bootCardFacts.ts')
     const [realOpts, realPresets, realFacts] = await Promise.all([import(optsPath), import(presetPath), import(factsPath)])
@@ -359,7 +359,7 @@ console.log('\npicker/headings — failed slot derivation reports unread account
       }),
     }))
     const { providerHeadingsOf } = await import(${JSON.stringify(join(SRC, 'commands/model/picker/headings.ts'))})
-    const { DEEPSEEK_MODEL_GROUP } = await import(${JSON.stringify(join(SRC, 'utils/model/modelOptions.ts'))})
+    const { DEEPSEEK_MODEL_GROUP } = await import(${JSON.stringify(join(SRC, 'services/model/modelOptions.ts'))})
     const headings = providerHeadingsOf(999)
     out.deepseek = headings[DEEPSEEK_MODEL_GROUP]
   `)

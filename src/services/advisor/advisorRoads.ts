@@ -3,7 +3,7 @@ import type { QueuedCommand } from '../../types/textInputTypes.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { advisorClock, advisorContextOptions, advisorNoteDue, composeAdvisorNote, type AdvisorNote, type AdvisorRoad } from './advisorNote.js'
 import { loadAdvisorContext } from './advisorContext.js'
-import { advisorSeatRefusal, readAdvisorSettings } from '../../utils/advisor/advisorSettings.js'
+import { advisorSeatRefusal, readAdvisorSettings } from './advisorSettings.js'
 
 const inFlight = new Set<string>()
 const pendingNotes = new Map<string, AdvisorNote[]>()

@@ -71,7 +71,7 @@ await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => subsc
 await stub('../../src/services/providers/gemini/geminiPlanQuota.js', () => ({ geminiLaneModelsByLastUse: () => (rich ? ['gemini-3.8-flash', 'google/claude-opus-4-6-thinking'] : []) }))
 await stub('../../src/hooks/useDisplayedSessionModel.js', () => ({ useFocusedServedModel: () => (rich ? 'gemini-4-argon' : null), useFocusedServedEffort: () => (rich ? 'high' : null) }))
 await stub('../../src/services/engine-connector/focusedConnector.js', () => ({ focusedSessionModelFacts: () => (rich ? { effective: 'gemini-4-argon', main: 'gemini-4-argon', setting: 'gemini-4-argon', sessionPin: null, effort: 'high', effectiveSource: 'session' } : null) }))
-await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
 await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: entries, activeWalletEntry: (id: string) => entries().find(entry => entry.provider === id) }))
 await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
 await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))

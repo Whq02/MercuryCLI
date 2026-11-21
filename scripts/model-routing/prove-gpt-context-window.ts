@@ -244,8 +244,8 @@ section('7 · speedster 3.5.5 — the ONE typed ContextResolution (CX rows)')
 
 section('9 · the /model GPT group is the FULL lineup; availability = the resolver')
 {
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.js')
-  const { OPENAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.js')
+  const { OPENAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
   const options = getModelOptions()
   const gptRows = options.filter(o => o.group === OPENAI_MODEL_GROUP)
   const byValue = new Map(gptRows.map(o => [o.value, o]))

@@ -151,7 +151,7 @@ await stub('../../src/services/providers/providerUsage.js', () => ({
   activeSourceUsage: () => ({ provider: 'local', sourceKind: 'keyless', label: 'Local models usage', shape: 'none', windows: [], pools: [], spend, tier: 'fixture · no metering' }),
 }))
 await stub('../../src/utils/auth.js', () => ({ isClaudeAISubscriber: () => false }))
-await stub('../../src/utils/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
+await stub('../../src/services/model/computedDefault.js', () => ({ recentSignIns: () => ids.map(family => ({ family })) }))
 await stub('../../src/services/wallet/wallet.js', () => ({ walletEntries: () => [], activeWalletEntry: () => undefined }))
 await stub('../../src/services/providers/usageFreshness.js', () => ({ usageSourceWords: () => 'endpoint-fed · read 0 s ago' }))
 await stub('../../src/services/providers/openai/openaiCatalogue.js', () => ({ getGptSeatAvailability: () => ({ state: 'ready', ids: ['fixture-model'] }) }))
@@ -182,7 +182,7 @@ const { saturnVerdictSentence } = await import('../../src/components/BootSaturnS
 const { call: usageCall } = await import('../../src/commands/usage/usage.js')
 const { MercuryModelPicker } = await import('../../src/components/MercuryModelPicker.js')
 const { LOCAL_MODEL_GROUP } = await import('../../src/services/providers/local/localCatalogue.js')
-const { ANTHROPIC_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.js')
+const { ANTHROPIC_MODEL_GROUP } = await import('../../src/services/model/modelOptions.js')
 
 const wrap = (element: unknown, cols: number, rows: number) => React.createElement(AppStateProvider as never, {}, React.createElement(ThemeProvider as never, {}, React.createElement(Box, { flexDirection: 'column', width: cols, height: rows }, element as never)))
 const keep = (name: string, m: Mounted, cols: number, rows: number): void => {

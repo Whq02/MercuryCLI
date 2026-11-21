@@ -3,7 +3,7 @@ import { deriveFamilySlotGroups, familyDisplayName, type AccountSlot, type Famil
 import { resolveProviderUsability, type ProviderId, type ProviderUsability } from '../../services/providers/providerUsability.js';
 import type { ProviderFamilyPresence } from '../../services/providers/providerUsage.js';
 import { providerDisplayName } from '../../services/providers/routeLaw.js';
-import { mostRecentSignInFamily } from '../../utils/model/computedDefault.js';
+import { mostRecentSignInFamily } from '../../services/model/computedDefault.js';
 import { wrapPlain } from '../BootHealthScreen.js';
 import { loginFamilyFocusFor, loginFamilyRows, type LoginFamilyRow } from '../loginFamilyRows.js';
 

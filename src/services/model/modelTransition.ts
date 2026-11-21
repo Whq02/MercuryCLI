@@ -1,9 +1,9 @@
-import { parseUserSpecifiedModel } from './model.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import {
   declaredRouteOf,
   providerDisplayName,
   type CallModelRoute,
-} from '../../services/providers/routeLaw.js'
+} from '../providers/routeLaw.js'
 
 export type ProviderFamily = CallModelRoute | 'unrecognised'
 
@@ -39,15 +39,8 @@ export function decideModelTransition(i: ModelTransitionInput): ModelTransitionD
 }
 
 
-export interface ModelTransitionReceipt {
-  previous: string | null
-  requested: string | null
-  applied: string | null
-  resolution: 'applied' | 'cancelled-pending'
-  boundary: 'idle' | 'turn-boundary'
-  crossProvider: boolean
-  cacheDisposition: 'keyed-sections-recompute-once' | 'none'
-}
+import type { ModelTransitionReceipt } from '../../types/message.js'
+export type { ModelTransitionReceipt }
 
 interface TransitionStateSlice {
   engineModel: string | null

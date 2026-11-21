@@ -1,7 +1,7 @@
-import { isModelAlias } from './aliases.js'
-import { DECLARED_GENERATION_STEMS } from './configs.js'
-import { isModelFamilyWord } from './modelFamilies.js'
-import { matchModelName, type ModelNameEntry, type ModelNameMatch } from './modelNameMatcher.js'
+import { isModelAlias } from '../../utils/model/aliases.js'
+import { DECLARED_GENERATION_STEMS } from '../../utils/model/configs.js'
+import { isModelFamilyWord } from '../../utils/model/modelFamilies.js'
+import { matchModelName, type ModelNameEntry, type ModelNameMatch } from '../../utils/model/modelNameMatcher.js'
 import { getModelOptions, isProviderActionRow } from './modelOptions.js'
 
 const CLASS_WORDS = new Set(['default', 'gpt', 'glm', 'kimi', 'deepseek', 'grok', 'compat', 'huggingface', 'local', 'gemini', 'openrouter', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'orcarouter', 'melious', 'cerebras', 'fireworks', 'qwen', 'meta', 'inherit'])
