@@ -1,6 +1,7 @@
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 import { foldContinuations, readShellCommand, shellTextOutsideFileHeredocs, type ShellDialect } from '../permissions/decision/commandAnalysis.js'
+import { wardEnvHomePath, wardNormalizedSlashedPath, wardUsesWindowsDeletePatterns } from '../platform/wards.js'
 
 export { shellTextOutsideFileHeredocs }
 
@@ -547,7 +548,7 @@ export function setHomeSpellings(door: HomeSpellings | undefined): void {
 }
 
 function envHomeSpellings(): readonly string[] {
-  const home = process.platform === 'win32' ? hostEnv().USERPROFILE || hostEnv().HOME : hostEnv().HOME || hostEnv().USERPROFILE
+  const home = wardEnvHomePath()
   return home === undefined || home === '' ? [] : [home]
 }
 
@@ -665,7 +666,7 @@ let otherUserDeleteCache: { key: string; patterns: RegExp[] } | undefined
 
 function otherUserDeletePatterns(): RegExp[] {
   const own = ownHomeNames()
-  const windows = process.platform === 'win32'
+  const windows = wardUsesWindowsDeletePatterns()
   const key = `${windows ? 'win32' : 'posix'}\n${own.join('\n')}`
   if (otherUserDeleteCache?.key === key) return otherUserDeleteCache.patterns
   const heads = windows ? [...OTHER_HOME_HEADS, ...OTHER_HOME_HEADS_WINDOWS] : OTHER_HOME_HEADS
@@ -683,7 +684,7 @@ function otherUserDeletePatterns(): RegExp[] {
 function patternsFor(rule: WardRule): RegExp[] {
   const compiled = compile(rule)
   const home = rule.homePath === undefined ? [] : homePatterns()[rule.homePath]
-  const windows = rule.windowsRoots === true ? [...(process.platform === 'win32' ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
+  const windows = rule.windowsRoots === true ? [...(wardUsesWindowsDeletePatterns() ? windowsRemovalPatterns() : []), pipelineRemovalPattern()] : []
   const other = rule.otherUserHome === true ? otherUserDeletePatterns() : []
   return home.length === 0 && windows.length === 0 && other.length === 0 ? compiled : [...compiled, ...home, ...windows, ...other]
 }
@@ -930,7 +931,7 @@ function lineResolvesInsideFolder(
   folder: string,
   work?: WardWork,
 ): boolean {
-  const slashed = (path: string): string => (process.platform === 'win32' ? path.replace(/\\/g, '/').toLowerCase() : path.replace(/\\/g, '/'))
+  const slashed = (path: string): string => wardNormalizedSlashedPath(path)
   const base = slashed(folder).replace(/\/+$/, '') + '/'
   let resolvedAny = false
   for (const m of line.matchAll(homePatterns().operand)) {
