@@ -1,5 +1,5 @@
 
-import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs'
+import { existsSync, realpathSync } from 'node:fs'
 import {
   readAgentTranscript,
   transcriptEndWords,
@@ -7,6 +7,7 @@ import {
 } from '../../crew/agentTranscriptReader.js'
 import type { AgentId } from '../../../types/ids.js'
 import { getAgentTranscriptPath } from '../../../utils/sessionStorage/paths.js'
+import { historyTail } from '../../../utils/sessionStorage/historyParts.js'
 import { getTaskOutputPath } from '../../../utils/task/diskOutput.js'
 import {
   boundedTextView,
@@ -22,21 +23,15 @@ import { recordIdNamesNoPath } from '../referencePaths.js'
 export const AGENT_TAIL_READ_CAP_BYTES = 512 * 1024
 
 export function readTailWindow(path: string, cap: number = AGENT_TAIL_READ_CAP_BYTES): { text: string; total: number; cut: boolean } {
-  const total = statSync(path).size
-  const fd = openSync(path, 'r')
-  try {
-    const length = Math.min(total, cap)
-    const buffer = Buffer.alloc(length)
-    readSync(fd, buffer, 0, length, total - length)
-    let text = buffer.toString('utf8')
-    if (length < total) {
-      const newline = text.indexOf('\n')
-      if (newline >= 0) text = text.slice(newline + 1)
-    }
-    return { text, total, cut: length < total }
-  } finally {
-    closeSync(fd)
+  const resolved = realpathSync(path)
+  const { bytes, skipped } = historyTail(resolved, cap)
+  const total = skipped + bytes.length
+  let text = bytes.toString('utf8')
+  if (skipped > 0) {
+    const newline = text.indexOf('\n')
+    if (newline >= 0) text = text.slice(newline + 1)
   }
+  return { text, total, cut: skipped > 0 }
 }
 
 import { agentStatusWord } from './agentStatusWord.js'
