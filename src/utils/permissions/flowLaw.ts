@@ -19,7 +19,7 @@ import { allowRulesThatPreAuthorise } from './lateAllowRules.js'
 import { ownGroundCategory } from './ownGround.js'
 import { serviceInputAsSent, serviceInputKey } from './serviceInputHistory.js'
 import { inlineScriptWriteTargets } from './shellProtectedPaths.js'
-import { placesCertain } from './shellProtectedPaths/folders.js'
+import { oldFolderPlaces, placesCertain } from './shellProtectedPaths/folders.js'
 import { passedOver } from '../passedOver.js'
 import { hostEnv } from '../hostEnv.js'
 
@@ -739,7 +739,7 @@ async function scanReading(command: string, cwd: string | null, scan: Scan, pare
   }
   const places: Array<string | null> | null =
     read.unread === undefined && !placesCertain(read, command)
-      ? [...new Set<string | null>([cwd, ...read.commands.map(one => one.cwd).filter((folder): folder is string => folder !== undefined)])].slice(0, 8)
+      ? [...new Set<string | null>([cwd, ...oldFolderPlaces(read, command, cwd, () => home), ...read.commands.map(one => one.cwd).filter((folder): folder is string => folder !== undefined)])].slice(0, 8)
       : null
   for (const simple of commandOrder(read.commands)) {
     if (scan.asks.length > 0) break
