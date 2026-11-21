@@ -88,7 +88,6 @@ const IMPORTERS = [
   'src/tools/MonitorTool/watchReceipts.ts',
   'src/tools/ServiceTool/ServiceTool.ts',
   'src/tools/TaskStopTool/TaskStopTool.ts',
-  'src/utils/cockpit/runtimePosture.ts',
   'src/utils/collapseBackgroundBashNotifications.ts',
   'src/utils/crossProjectResume.ts',
   'src/utils/hooks/commandRunner.ts',
