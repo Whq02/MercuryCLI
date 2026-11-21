@@ -78,17 +78,12 @@ command	whisper	none	none
 command	workbench	none	none
 command	zen	none	none
 screen	ResumeConversation	scripts/ui/prove-resume-conversation-drive.ts	terminal
-screen	agents	none	none
 screen	boot-settings	scripts/command-catalogue/prove-feedback-issue-road.ts	terminal
 screen	concourse	none	none
-screen	health	none	none
-screen	kit	none	none
 screen	logins	none	none
 screen	menu	none	none
 screen	repl	scripts/command-catalogue/prove-beta-journey-matrix.ts	terminal
-screen	saturn	none	none
 screen	session	none	none
-screen	sessions	none	none
 tool	ApolloReview	none	none
 tool	Aseprite	none	none
 tool	AskAdvisor	scripts/advisor/prove-advisor-roads.ts	source
