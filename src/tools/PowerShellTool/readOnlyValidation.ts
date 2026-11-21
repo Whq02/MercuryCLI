@@ -351,6 +351,12 @@ export function isReadOnlyCommand(command: string, parsed?: ParsedPowerShellComm
 }
 
 
+const UNSAFE_UNQUOTED_SYNTAX = /[({#]|(?<![>&])&(?!&)/
+
+export function stripPowerShellQuotes(command: string): string {
+  return command.replace(/`[\s\S]|'(?:''|[^'])*'|"(?:`[\s\S]|""|[^"])*"/g, match => (match[0] === '`' ? match : '_'))
+}
+
 export function hasSyncSecurityConcerns(command: string): boolean {
   const trimmed = command.trim()
   if (trimmed === '') return false
@@ -361,5 +367,6 @@ export function hasSyncSecurityConcerns(command: string): boolean {
   if (trimmed.includes('--%')) return true
   if (/\\\\|(?<!:)\/\//.test(trimmed)) return true
   if (trimmed.includes('::')) return true
+  if (UNSAFE_UNQUOTED_SYNTAX.test(stripPowerShellQuotes(trimmed))) return true
   return false
 }

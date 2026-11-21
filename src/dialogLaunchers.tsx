@@ -1,3 +1,4 @@
+import { featureReached } from './substrate/featureReached.js'
 
 import * as React from 'react'
 import type { Root } from './ink.js'
@@ -92,6 +93,7 @@ export async function launchResumeChooser(
         return [] as string[]
       }),
     ])
+  featureReached('screen', 'ResumeConversation')
   root.render(
     <App {...appProps}>
       <KeybindingSetup>

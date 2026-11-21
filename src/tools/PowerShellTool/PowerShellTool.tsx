@@ -30,7 +30,7 @@ import { windowedError } from '../../utils/toolErrors.js'
 import { getCachedPowerShellPath } from '../../utils/shell/powershellDetection.js'
 import { firstCommandWord } from '../../utils/shell/shellToolUtils.js'
 import { powershellToolHasPermission } from './powershellPermissions.js'
-import { hasSyncSecurityConcerns, isReadOnlyCommand, resolveToCanonical } from './readOnlyValidation.js'
+import { hasSyncSecurityConcerns, isReadOnlyCommand, resolveToCanonical, stripPowerShellQuotes } from './readOnlyValidation.js'
 import { pinnedCommandAnalysis } from '../../utils/permissions/decision/commandAnalysis.js'
 import {
   BackgroundHint,
@@ -138,14 +138,15 @@ function isSearchOrRead(command: string): { isSearch: boolean; isRead: boolean }
   const trimmed = command.trim()
   if (trimmed === '') return { isSearch: false, isRead: false }
   if (hasSyncSecurityConcerns(trimmed)) return { isSearch: false, isRead: false }
-  const unquoted = trimmed.replace(/'(?:''|[^'])*'|"(?:`[\s\S]|""|[^"])*"/g, '_')
+  const unquoted = stripPowerShellQuotes(trimmed)
   const withoutSafeRedirects = unquoted.replace(/[0-9*]?>>?(?:&\d|[ \t]*\$null(?=$|[\s;|\r\n&]))/gi, '')
   if (withoutSafeRedirects.includes('>')) return { isSearch: false, isRead: false }
   let isSearch = false, isRead = false, sawReal = false
   for (const fragment of withoutSafeRedirects.split(/[;|\r\n]|&&|\|\|/)) {
     const first = fragment.trim().split(/\s+/)[0]
     if (!first) continue
-    const canonical = resolveToCanonical(first)
+    const lower = first.toLowerCase()
+    const canonical = lower.includes('.') ? lower : resolveToCanonical(first)
     if (NEUTRAL.has(canonical)) continue
     if (!SEARCH.has(canonical) && !READ.has(canonical)) return { isSearch: false, isRead: false }
     sawReal = true

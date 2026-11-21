@@ -18,6 +18,7 @@ const EXIT_DRAIN_BACKSTOP_MS = 2_000
 
 interface LifeNeeds {
   spawnLongLived(short: string): number | undefined
+  notifyExit(short: string): void
 }
 
 export class LifePart {
@@ -107,6 +108,7 @@ export class LifePart {
         const degradedReason = `${short}: ${reason}`
         h.entry.state = 'crashed'
         h.entry.outcome = 'degraded'
+        this.needs.notifyExit(short)
         ledgerExit('degraded', reason)
         stampCrash(false, `crashed — respawns exhausted (${reason})`)
         logForDebugging(`[daemon] ${GLYPH.warn} DEGRADED — ${degradedReason}`)
@@ -123,6 +125,7 @@ export class LifePart {
       if (ll.intentionalStop) {
         h.entry.state = 'settled'
         h.entry.outcome = 'killed'
+        this.needs.notifyExit(short)
         ledgerExit('killed')
         this.completeIntentionalStop(short)
         return

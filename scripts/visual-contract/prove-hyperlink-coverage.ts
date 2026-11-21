@@ -217,7 +217,9 @@ t.section('§3 — stored grid baselines stay hermetic')
 {
   const roots = ['scripts/visual-contract/baselines', 'design-system/live/grids']
   let scanned = 0
+  let contractScanned = 0
   const dirty: string[] = []
+  const stamped: string[] = []
   for (const root of roots) {
     const walk = (dir: string): void => {
       for (const e of readdirSync(dir, { withFileTypes: true })) {
@@ -225,7 +227,15 @@ t.section('§3 — stored grid baselines stay hermetic')
         if (e.isDirectory()) walk(p)
         else if (e.name.endsWith('.json')) {
           scanned++
-          if (readFileSync(p, 'utf8').includes(']8;;')) dirty.push(p)
+          const raw = readFileSync(p, 'utf8')
+          if (raw.includes(']8;;')) dirty.push(p)
+          if (root === 'scripts/visual-contract/baselines') {
+            contractScanned++
+            const parsed = JSON.parse(raw) as { sendReceipts?: Array<Record<string, unknown>> }
+            if (Array.isArray(parsed.sendReceipts) && parsed.sendReceipts.some(r => r !== null && typeof r === 'object' && 'ts' in r)) {
+              stamped.push(p)
+            }
+          }
         }
       }
     }
@@ -235,6 +245,11 @@ t.section('§3 — stored grid baselines stay hermetic')
     `no stored grid carries an OSC 8 fragment (${scanned} scanned)`,
     scanned > 0 && dirty.length === 0,
     dirty.join(', ') || 'clean',
+  )
+  t.check(
+    `no visual-contract baseline carries sendReceipts[*].ts (${contractScanned} scanned)`,
+    contractScanned > 0 && stamped.length === 0,
+    stamped.length > 0 ? `${stamped.sort().join(', ')} — strip sendReceipts[*].ts via scripts/visual-contract/baseline-capture.ts` : 'clean',
   )
 }
 

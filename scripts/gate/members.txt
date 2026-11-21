@@ -1,4 +1,5 @@
 prove-gate-runner.sh
+prove-feature-map.ts
 prove-suite-stall.ts
 prove-proof-scratch.ts
 prove-proof-guard.ts
@@ -56,3 +57,4 @@ scripts/substrate/prove-flag-registry-readers.ts
 scripts/substrate/prove-flag-registry-split.ts
 prove-second-look-runs-reds.ts
 prove-module-state.ts
+prove-doc-text-reads.ts

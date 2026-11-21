@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { getCwd } from '../../utils/cwd.js';
 import { enterConcourse, enterRootChat } from '../../context/surfaceRoute.js';
@@ -82,27 +83,34 @@ export function runRowOf({ flipFirstBirth, facts, permissionModeRef, setSettings
       };
     }
     case 'menu':
+      featureReached('screen', 'menu');
       setSettingsOpen(true);
       return null;
     case 'kit':
+      featureReached('screen', 'kit');
       setKitOpen(true);
       return null;
     case 'health':
+      featureReached('screen', 'health');
       setHealthOpen(true);
       return null;
     case 'saturn':
+      featureReached('screen', 'saturn');
       setSaturnOpen(true);
       return null;
     case 'agents':
+      featureReached('screen', 'agents');
       setAgentsOpen(true);
       return null;
     case 'logins':
+      featureReached('screen', 'logins');
       setLoginsOpen(true);
       return null;
     case 'concourse':
       enterConcourse();
       return null;
     case 'sessions':
+      featureReached('screen', 'sessions');
       setResumeOpen(true);
       return null;
   }

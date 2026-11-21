@@ -41,6 +41,7 @@ import type {
   BoardPostRequestV1,
   CheckpointFactsV1,
   EditOutcomeRowV1,
+  EmptyDetailControlMethods,
   EngineConnectorV1,
   KitDialReceiptV1,
   LeaveReceiptV1,
@@ -82,6 +83,7 @@ import { VerbsPart } from './daemon/verbs.js'
 import { DialsPart } from './daemon/dials.js'
 import { HEARTBEAT_MS, ProjectionFeed } from './projectionFeed.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { installEmptyDetailControlMethods } from './emptyDetailControls.js'
 
 export interface DaemonSessionRecordV1 {
   sessionId: string
@@ -341,14 +343,6 @@ abstract class ConnectorHandOffs {
     return this.verbsPart.agentVerb('resume-agent', agentId, note)
   }
 
-  backgroundShell(): Promise<AgentControlReceiptV1> {
-    return this.verbsPart.backgroundShell()
-  }
-
-  sendNow(): Promise<AgentControlReceiptV1> {
-    return this.verbsPart.sendNow()
-  }
-
   queuedSendCount(): number {
     return this.sendsPart.queuedSendCount()
   }
@@ -477,6 +471,8 @@ abstract class ConnectorHandOffs {
     return this.livePart.status({ ...seatLabelsOf(this.record), runner: this.admissionPart.runnerShown(this.factsPart.read()?.runner ?? null) })
   }
 }
+
+interface ConnectorHandOffs extends EmptyDetailControlMethods {}
 
 abstract class ConnectorOwnWork extends ConnectorHandOffs {
   protected abstract readonly hands: ConnectorHands
@@ -669,6 +665,10 @@ abstract class ConnectorOwnWork extends ConnectorHandOffs {
 
 export class DaemonSessionConnector extends ConnectorOwnWork implements EngineConnectorV1, SeatLiveExtensionV1 {
   readonly carrier = 'daemon' as const
+
+  static {
+    installEmptyDetailControlMethods(DaemonSessionConnector.prototype, (self, key) => self.verbsPart.controlVerb(key))
+  }
 
   protected readonly carrierPart = new CarrierPart({
     sessionId: () => this.record.sessionId,

@@ -1,3 +1,4 @@
+import { featureReached } from '../../substrate/featureReached.js'
 import { ReadStream } from 'node:tty'
 import { useContext, useRef } from 'react'
 import { useClaim, useLayoutClaim, usePublish } from '../../hooks/effects.js'
@@ -9,12 +10,13 @@ import { trySeedComposer } from '../../utils/cockpit/composerSeed.js'
 import type { ToolUseConfirm } from './PermissionRequest.js'
 import { startImmediate } from '../../utils/timers.js'
 
-export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): void {
+export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm, screen?: 'ChangeSetPermissionRequest' | 'MediaPermissionRequest'): void {
   const setAppState = useSetAppState()
   const loggedToolUseId = useRef<string | null>(null)
   usePublish(() => {
     if (loggedToolUseId.current === toolUseConfirm.toolUseID) return
     loggedToolUseId.current = toolUseConfirm.toolUseID
+    if (screen) featureReached('screen', screen)
     setAppState(prev => ({
       ...prev,
       attribution: {
@@ -22,7 +24,7 @@ export function usePermissionRequestLogging(toolUseConfirm: ToolUseConfirm): voi
         permissionPromptCount: prev.attribution.permissionPromptCount + 1,
       },
     }))
-  }, [toolUseConfirm, setAppState])
+  }, [toolUseConfirm, setAppState, screen])
 }
 
 export function useKeysHeldUntilFirstPaint(): void {

@@ -1,248 +1,248 @@
-accounts	6
-advisor	9
-agent-definitions	7
-agent-dispatch	5
-agent-experience	7
-agents	18
-api	24
-api-drives	1
-apollo	9
-aseprite	4
-ast-tools	4
-attachments	6
-attention	11
-attention-drives	6
-bash	20
-bash-drives	4
-behaviour-laws	1
-bench	2
-blender-bridge	6
-browser	3
-build	6
-build-identity	3
-builtin-tools	14
-builtin-tools-drives	24
-cache	4
-changesets	8
-changesets-drives	7
-cockpit-interaction	35
-cockpit-interaction-drives	27
-command-catalogue	12
-command-catalogue-drives	19
-commit-gate	3
-compact	23
-compositor	6
-compositor-drives	22
-computer	5
-computer-drives	11
-consistency-census	5
-context	8
-core-runtime	14
-core-runtime-drives	13
-crew	56
-crew-drives	11
-critters	2
-critters-drives	10
-daemon	20
-daemon-2	25
-daemon-3	26
-daemon-4	25
-daemon-drives	5
-dap	3
-decisions	6
-default-model	2
-default-provider	5
-default-provider-drives	4
-desktop	5
-dev-context	1
-distribution	5
-distribution-drives	11
-docs	11
-document	7
-document-read	23
-edit-tools	20
-editor-bridge	24
-editor-bridge-drives	38
-effort	7
-engine-connector	12
-engine-connector-drives	11
-engine-durability	3
-engine-pass	13
-engine-pass-drives	11
-eval	7
-exit-handle	2
-extensions	9
-formal-models	4
-gate	20
-golden-journeys	11
-golden-journeys-drives	9
-harness-compare	2
-headless	36
-headless-2	28
-health	6
-health-drives	4
-hooks	27
-host	24
-host-2	50
-host-drives	58
-ide	12
-ide-drives	43
-identity	7
-idiom	18
-ink-runtime	1
-interaction	17
-interaction-pure	15
-interview	11
-interview-drives	11
-jev	8
-journey	25
-journey-10	8
-journey-11	8
-journey-2	8
-journey-3	8
-journey-4	7
-journey-5	7
-journey-6	8
-journey-7	8
-journey-8	8
-journey-9	8
-journey-drives	21
-language-sidecars	8
-local-setup	6
-local-setup-drives	5
-longrun-invariants	21
-lsp	5
-mcp	14
-mcp-drives	9
-media	9
-memory	17
-memory-drives	34
-memory-lifecycle	13
-messages	8
-mission	4
-mission-runner	6
-mission-runner-drives	5
-model-policy	4
-model-registry	11
-model-routing	15
-model-transition	19
-motion	9
-motion-drives	10
-navigation	7
-navigation-drives	14
-node-runtime	5
-node-runtime-drives	5
-notifications	20
-notifications-drives	4
-onboarding	3
-operator-identity	1
-ops	1
-orphans	1
-outcome-pack	5
-ownership	26
-permissions	29
-pings	7
-pings-drives	19
-primitives-kernel	4
-primitives-kernel-drives	4
-project-intel	5
-project-services	11
-project-services-drives	13
-prompt	9
-prompt-input	18
-prompt-input-drives	16
-prompts-panel	23
-prompts-panel-drives	20
-provauth	18
-provider-compat	31
-providers	22
-release	5
-reliability	7
-remote-files	13
-render-continuity	8
-render-continuity-drives	11
-repetition-guard	7
-repetition-guard-drives	4
-rewind	5
-run	9
-run-continuity	8
-run-continuity-drives	8
-run-recovery	10
-samples	10
-samples-drives	8
-scroll	8
-scroll-drives	8
-sdk	7
-search	8
-self-hosting	4
-session-graph	18
-session-graph-drives	25
-sessionStorage	4
-settings	40
-skills	13
-smoke	2
-smoke-drives	2
-splash	5
-splash-drives	2
-staleness	1
-stop-policy	9
-stop-policy-boots	4
-streaming	7
-streaming-drives	9
-structure-tools	11
-subagent-doctrine	2
-substrate	12
-switchboard	14
-switchboard-2	3
-switchboard-2-drives	5
-switchboard-3	6
-switchboard-3-drives	5
-switchboard-4	4
-switchboard-4-drives	5
-switchboard-5	3
-switchboard-5-drives	4
-switchboard-6	4
-switchboard-6-drives	4
-switchboard-drives	6
-task-durability	1
-tensorfold	14
-tensorfold-drives	9
-terminal-boundary	16
-terminal-boundary-drives	14
-tool-economy	8
-tools	22
-topic-memory	1
-transcript-rows	17
-transcript-rows-drives	9
-tree-ownership	1
-turnEngine	3
-typecheck	1
-ui	36
-ui-2	7
-ui-3	7
-ui-4	7
-ui-census	4
-ui-drives	12
-ui-pure-1	27
-ui-pure-2	19
-ui-pure-3	16
-unity-bridge	3
-update-reliability	4
-updater	16
-updater-drives	4
-usage	5
-usage-drives	3
-usage-warning	6
-usage-warning-drives	6
-verify	3
-verify-drives	8
-visual-contract	8
-visual-contract-drives	4
-visual-finish	9
-voice	6
-vulcan	3
-wallet	8
-wards	8
-winreg	12
-winreg-drives	11
-wrapper	1
+accounts	6	bundle,deep,unseen
+advisor	9	bundle,deep
+agent-definitions	7	deep,lazy,unseen
+agent-dispatch	4	deep,unseen
+agent-experience	7	bundle,deep
+agents	18	bundle,deep,unseen
+api	23	bundle,deep,lazy,unseen
+api-drives	1	bundle
+apollo	9	bundle,deep,unseen
+aseprite	4	deep,lazy
+ast-tools	4	bundle,deep,unseen
+attachments	6	deep,lazy
+attention	11	deep,lazy,unseen
+attention-drives	6	bundle,lazy,unseen
+bash	20	bundle,deep,unseen
+bash-drives	4	bundle,unseen
+behaviour-laws	1	deep
+bench	2	unseen
+blender-bridge	6	deep,unseen
+browser	3	deep,lazy,unseen
+build	5	bundle,unseen
+build-identity	3	bundle,deep,lazy
+builtin-tools	14	bundle,deep,lazy,unseen
+builtin-tools-drives	24	lazy,unseen
+cache	4	deep,unseen
+changesets	8	deep,lazy,unseen
+changesets-drives	7	bundle,lazy,unseen
+cockpit-interaction	35	bundle,deep,lazy,unseen
+cockpit-interaction-drives	27	bundle,deep,lazy,unseen
+command-catalogue	12	bundle,deep,lazy,unseen
+command-catalogue-drives	19	bundle,deep,lazy,unseen
+commit-gate	3	deep,unseen
+compact	23	bundle,deep,lazy,unseen
+compositor	6	deep,lazy,unseen
+compositor-drives	22	bundle,deep,lazy,unseen
+computer	5	deep,unseen
+computer-drives	11	bundle,unseen
+consistency-census	5	bundle,deep,unseen
+context	8	deep,lazy,unseen
+core-runtime	14	deep,lazy,unseen
+core-runtime-drives	13	bundle,future,unseen
+crew	55	bundle,deep,future,lazy,unseen
+crew-drives	11	deep,lazy,unseen
+critters	2	deep,unseen
+critters-drives	10	bundle,deep,lazy,unseen
+daemon	20	bundle,deep,lazy,unseen
+daemon-2	25	bundle,deep,unseen
+daemon-3	26	bundle,deep,unseen
+daemon-4	25	bundle,deep,lazy,unseen
+daemon-drives	5	bundle,lazy,unseen
+dap	3	deep,unseen
+decisions	6	deep,lazy
+default-model	2	lazy,unseen
+default-provider	5	lazy,unseen
+default-provider-drives	4	bundle,unseen
+desktop	5	lazy,unseen
+dev-context	1	unseen
+distribution	5	unseen
+distribution-drives	11	unseen
+docs	11	deep,lazy,unseen
+document	7	deep,unseen
+document-read	23	deep,lazy,unseen
+edit-tools	20	bundle,deep,lazy,unseen
+editor-bridge	24	bundle,deep,lazy,unseen
+editor-bridge-drives	38	bundle,deep,lazy,unseen
+effort	7	bundle,deep
+engine-connector	12	bundle,deep,lazy,unseen
+engine-connector-drives	11	bundle,deep,lazy,unseen
+engine-durability	3	deep,unseen
+engine-pass	13	unseen
+engine-pass-drives	11	bundle,unseen
+eval	7	bundle,deep,lazy
+exit-handle	2	bundle
+extensions	9	deep,lazy,unseen
+formal-models	4	unseen
+gate	19	bundle,deep,lazy,unseen
+golden-journeys	11	lazy,unseen
+golden-journeys-drives	9	bundle,lazy,unseen
+harness-compare	2	unseen
+headless	36	bundle,deep,lazy,unseen
+headless-2	28	bundle,deep,lazy,unseen
+health	6	bundle,deep,unseen
+health-drives	4	bundle,unseen
+hooks	27	bundle,deep,lazy,unseen
+host	24	bundle,deep,unseen
+host-2	50	deep,lazy,unseen
+host-drives	58	bundle,deep,lazy,unseen
+ide	12	bundle,deep,lazy,unseen
+ide-drives	43	deep,lazy,unseen
+identity	7	deep,unseen
+idiom	18	bundle,deep,lazy
+ink-runtime	1	unseen
+interaction	17	bundle,deep,lazy,unseen
+interaction-pure	15	deep,lazy,unseen
+interview	11	deep,unseen
+interview-drives	11	bundle,deep,unseen
+jev	8	bundle,deep,lazy,unseen
+journey	25	deep,lazy,unseen
+journey-10	8	bundle,unseen
+journey-11	8	bundle,unseen
+journey-2	8	bundle,unseen
+journey-3	8	bundle,unseen
+journey-4	7	bundle,deep,lazy,unseen
+journey-5	7	bundle,unseen
+journey-6	8	bundle,unseen
+journey-7	8	bundle,unseen
+journey-8	8	bundle,unseen
+journey-9	8	bundle,unseen
+journey-drives	21	bundle,deep,lazy,unseen
+language-sidecars	8	deep,lazy,unseen
+local-setup	6	deep,lazy,unseen
+local-setup-drives	5	bundle,unseen
+longrun-invariants	21	deep,lazy,unseen
+lsp	5	bundle,deep,unseen
+mcp	14	bundle,deep,lazy,unseen
+mcp-drives	9	bundle,deep,lazy,unseen
+media	9	deep,lazy,unseen
+memory	17	bundle,deep,unseen
+memory-drives	34	bundle,deep,lazy,unseen
+memory-lifecycle	13	bundle,deep,lazy
+messages	8	deep,unseen
+mission	4	deep,lazy,unseen
+mission-runner	6	lazy,unseen
+mission-runner-drives	5	bundle,unseen
+model-policy	4	deep,lazy,unseen
+model-registry	11	bundle,deep,lazy,unseen
+model-routing	14	bundle,deep,lazy,unseen
+model-transition	19	deep,lazy,unseen
+motion	9	unseen
+motion-drives	10	bundle,unseen
+navigation	7	lazy,unseen
+navigation-drives	14	bundle,lazy
+node-runtime	5	bundle,deep,unseen
+node-runtime-drives	5	unseen
+notifications	20	bundle,deep,lazy,unseen
+notifications-drives	3	bundle,unseen
+onboarding	3	deep,lazy
+operator-identity	1	unseen
+ops	1	unseen
+orphans	1	unseen
+outcome-pack	5	bundle,deep
+ownership	26	bundle,deep,unseen
+permissions	29	bundle,deep,lazy,unseen
+pings	7	deep,lazy,unseen
+pings-drives	19	bundle,deep,unseen
+primitives-kernel	4	bundle,deep,lazy,unseen
+primitives-kernel-drives	4	deep,lazy,unseen
+project-intel	5	deep,future,lazy
+project-services	11	bundle,deep,lazy,unseen
+project-services-drives	13	deep,lazy,unseen
+prompt	9	bundle,deep,unseen
+prompt-input	18	deep,unseen
+prompt-input-drives	16	bundle,deep,unseen
+prompts-panel	23	deep,lazy,unseen
+prompts-panel-drives	20	bundle,deep,lazy,unseen
+provauth	18	deep,lazy,unseen
+provider-compat	31	bundle,deep,lazy
+providers	22	bundle,deep,lazy,unseen
+release	5	unseen
+reliability	7	bundle,lazy,unseen
+remote-files	13	deep,lazy,unseen
+render-continuity	8	deep,unseen
+render-continuity-drives	11	bundle,deep,lazy,unseen
+repetition-guard	7	deep,unseen
+repetition-guard-drives	4	bundle,lazy,unseen
+rewind	5	bundle,deep,lazy
+run	9	bundle,lazy
+run-continuity	8	unseen
+run-continuity-drives	8	bundle,deep,lazy,unseen
+run-recovery	10	bundle,deep,lazy,unseen
+samples	10	deep,lazy,unseen
+samples-drives	8	bundle,unseen
+scroll	8	lazy,unseen
+scroll-drives	8	bundle,unseen
+sdk	7	bundle,deep,unseen
+search	8	bundle,deep,unseen
+self-hosting	4	deep,lazy
+session-graph	18	deep,lazy,unseen
+session-graph-drives	25	bundle,lazy,unseen
+sessionStorage	4	deep,lazy,unseen
+settings	40	bundle,deep,lazy,unseen
+skills	13	bundle,deep,lazy,unseen
+smoke	2	unseen
+smoke-drives	2	unseen
+splash	5	unseen
+splash-drives	2	unseen
+staleness	1	unseen
+stop-policy	9	bundle,deep
+stop-policy-boots	4	bundle,deep,unseen
+streaming	7	deep,unseen
+streaming-drives	9	bundle,deep,lazy,unseen
+structure-tools	11	deep,lazy
+subagent-doctrine	2	deep,unseen
+substrate	12	bundle,deep,unseen
+switchboard	14	bundle,deep,unseen
+switchboard-2	3	unseen
+switchboard-2-drives	5	bundle,unseen
+switchboard-3	6	bundle,deep,unseen
+switchboard-3-drives	5	bundle,unseen
+switchboard-4	4	bundle,lazy,unseen
+switchboard-4-drives	5	bundle,unseen
+switchboard-5	3	unseen
+switchboard-5-drives	4	bundle,unseen
+switchboard-6	4	lazy,unseen
+switchboard-6-drives	4	bundle,unseen
+switchboard-drives	6	bundle,unseen
+task-durability	1	unseen
+tensorfold	14	deep,lazy,unseen
+tensorfold-drives	9	bundle,unseen
+terminal-boundary	16	bundle,deep,unseen
+terminal-boundary-drives	14	bundle,deep,lazy,unseen
+tool-economy	8	deep
+tools	22	bundle,deep,lazy,unseen
+topic-memory	1	unseen
+transcript-rows	17	bundle,deep,lazy,unseen
+transcript-rows-drives	9	bundle,lazy,unseen
+tree-ownership	1	deep
+turnEngine	3	bundle,unseen
+typecheck	1	unseen
+ui	36	bundle,deep,lazy,unseen
+ui-2	7	bundle,unseen
+ui-3	7	bundle,unseen
+ui-4	7	bundle,unseen
+ui-census	4	unseen
+ui-drives	12	bundle,deep,lazy,unseen
+ui-pure-1	27	bundle,deep,unseen
+ui-pure-2	19	bundle,deep,lazy,unseen
+ui-pure-3	16	bundle,deep,lazy,unseen
+unity-bridge	3	deep,lazy
+update-reliability	4	unseen
+updater	16	deep,lazy,unseen
+updater-drives	4	deep,unseen
+usage	5	deep,unseen
+usage-drives	3	bundle,deep,unseen
+usage-warning	6	bundle,unseen
+usage-warning-drives	6	bundle,deep,unseen
+verify	3	deep,unseen
+verify-drives	8	lazy,unseen
+visual-contract	8	lazy,unseen
+visual-contract-drives	4	bundle,lazy,unseen
+visual-finish	9	deep,lazy,unseen
+voice	6	deep,lazy,unseen
+vulcan	3	deep,unseen
+wallet	8	deep,lazy,unseen
+wards	8	bundle,deep,unseen
+winreg	12	bundle,lazy,unseen
+winreg-drives	11	bundle,lazy,unseen
+wrapper	1	bundle

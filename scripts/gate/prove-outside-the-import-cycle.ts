@@ -46,6 +46,7 @@ const OUTSIDE = [
   'src/services/tools/toolExecution.ts',
   'src/services/tools/toolHooks.ts',
   'src/services/tools/toolOrchestration.ts',
+  'src/substrate/featureReached.ts',
   'src/tasks.ts',
   'src/tasks/LocalAgentTask/launchReceipts.ts',
   'src/tasks/LocalAgentTask/pauseCarry.ts',
