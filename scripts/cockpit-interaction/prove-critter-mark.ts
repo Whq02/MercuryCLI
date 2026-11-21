@@ -15,6 +15,7 @@ import {
 import { CRAB_GLYPHS } from '../../src/components/mercury-ui/assets.tsx'
 import { displayWidth } from '../../src/utils/glyphs.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const KEYS = ['crab', 'octopus', 'jellyfish', 'clam'] as const
@@ -82,7 +83,7 @@ t.section('§5 — REAL BINARY: an octopus session anchors its inline statusline
       cols: 100, rows: 30, total: 150,
       argv: ['node', BIN], out, cwd: process.cwd(),
       sends: [
-        { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+        { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
         { atTick: 999, requireAwait: true, awaitText: '← back', minTick: 5, awaitSettleTicks: 4, data: '' },
       ],
       readyText: ['❯', '? for shortcuts'], readySettleTicks: 3,

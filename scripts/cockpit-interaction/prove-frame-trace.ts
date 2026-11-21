@@ -15,6 +15,7 @@ import {
   traceKeyResolved,
 } from '../../src/ink/root/frame-trace.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'hz-ftrace-'))
@@ -80,7 +81,7 @@ t.section('§3 — REAL BINARY: keystrokes fill the ring; /trace renders it')
       out,
       cwd: process.cwd(),
       sends: [
-        { requireAwait: true, awaitText: '↑↓ choose', awaitPattern: '↑↓ choose', awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
+        { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 2, mark: 'boot-ready', data: '\r' },
         { requireAwait: true, awaitText: ' ready · ', awaitPattern: ' ready · [\\s\\S]*Type a prompt, start a slash command', awaitSettleTicks: 3, mark: 'chat-ready', data: 'x' },
         { requireAwait: true, awaitText: '│❯ x ', awaitPattern: '│❯ x ', awaitSettleTicks: 2, mark: 'typed-x', data: '\x7f' },
         { requireAwait: true, awaitText: 'Type a prompt, start a slash command', awaitPattern: 'Type a prompt, start a slash command', awaitSettleTicks: 2, mark: 'trace-requested', data: '/trace\r' },

@@ -15,6 +15,7 @@ import {
 import { parseBindings } from '../../src/keybindings/parser.ts'
 import type { Key } from '../../src/ink.js'
 import { vshotBudgetMs, vshotBudgetScale } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 
@@ -195,7 +196,7 @@ t.section('§5 — REAL BINARY: chord timing is deterministic in the product')
       return { status: r.status, text, endReason, tail, facts, row }
     }
 
-    const FACE = { atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' }
+    const FACE = { atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 3, awaitSettleTicks: 2, data: '\r' }
     const boot = { atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 5, awaitSettleTicks: 3 }
     const SCALE = vshotBudgetScale()
     const real = (ticks: number): number => Math.max(1, Math.round(ticks / SCALE))
