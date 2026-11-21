@@ -3,6 +3,7 @@ import { readFileSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fixture, option, ROOT } from './viewportFixture.ts'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 if (!process.argv.includes('--out')) {
   const scratch = process.argv.includes('--scratch') ? option('--scratch') : realpathSync(tmpdir())
@@ -47,7 +48,7 @@ for (const [cols, rows, prefix] of [[120, 40, label], [80, 24, compactLabel]] as
   const lines = (mark: Mark) => mark.grid.map(row => row.map(cell => cell.c).join(''))
   const beforeLines = lines(before)
   const afterLines = lines(after)
-  check(`${cols}x${rows}: both Boot frames are ready`, [beforeLines, afterLines].every(frame => frame.some(line => line.includes('↑↓ choose'))))
+  check(`${cols}x${rows}: both Boot frames are ready`, [beforeLines, afterLines].every(frame => paintsBootFaceReady(frame.join('\n'))))
   check(`${cols}x${rows}: Concourse is distinct from Boot`, !lines(concourse).some(line => line.includes('New Session')) && lines(concourse).some(line => line.includes('no sessions running')))
   const start = beforeLines.findIndex(line => line.includes('New Session'))
   check(`${cols}x${rows}: the lockup is above the menu`, start > 0)

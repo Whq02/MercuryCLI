@@ -9,7 +9,7 @@ requireDist()
 
 const COLS = 120
 const ROWS = 40
-const FACE_READY = '↑↓ choose'
+const FACE_READY = '>_  ·  ↵  ·  ↑↓'
 const COMPOSER_READY = 'Type a prompt'
 const PROMPT = 'hello there'
 const SIGNED_OUT_ANSWER = 'choose a model · /model'
@@ -67,7 +67,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
     check(`${tag}: the boot face painted its ready line`, home !== null && home.some(l => l.includes('New Session')), unfired(run))
     check(`${tag}: the chat painted its composer`, chat !== null && chat.some(l => l.includes(COMPOSER_READY)), unfired(run))
     if (!signedIn) {
-      check(`${tag}: the home menu's Logins row says not signed in`, rowsWith(home, 'Logins').some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
+      check(`${tag}: the boot face status line says no sign-in yet`, rowsWith(home, 'Model ').some(l => l.includes('no sign-in yet')), rowsWith(home, 'Model ').join(' | '))
       check(`${tag}: the chat's hero row says not signed in and names /logins`, rowsWith(chat, 'not signed in').some(l => l.includes('○ not signed in · /logins connects')), rowsWith(chat, 'signed in').join(' | '))
       check(`${tag}: …and never says ready`, chat !== null && !chat.some(l => l.includes('● ready')), rowsWith(chat, 'ready').join(' | '))
       check(`${tag}: the status row reads "not signed in · /logins" before the model`, /^\s*not signed in · \/logins · /.test(statusRow(resting)), statusRow(resting))
@@ -78,7 +78,7 @@ async function drive(tag: string, signedIn: boolean, sendPrompt: boolean): Promi
         check(`${tag}: a prompt sent while signed out answers with the model door (${SIGNED_OUT_ANSWER}) beside the status row's /logins, not a provider error`, afterSend !== null && afterSend.some(l => l.includes(PROMPT)) && rowsWith(afterSend, SIGNED_OUT_ANSWER).length === 1 && rowsWith(afterSend, '/logins').length > 0 && !/401|authentication_error|invalid x-api-key|ECONNREFUSED|API Error/.test(afterSend.join('\n')), afterSend === null ? `the answer never painted · ${unfired(run)}` : rowsWith(afterSend, PROMPT).concat(rowsWith(afterSend, 'logins')).join(' | '))
       }
     } else {
-      check(`${tag}: the Logins row counts the sign-in and never says not signed in`, rowsWith(home, 'Logins').some(l => /\d+ of \d+ signed in/.test(l)) && !(home ?? []).some(l => l.includes('not signed in')), rowsWith(home, 'Logins').join(' | '))
+      check(`${tag}: the boot face status line names the signed-in model and never says no sign-in yet`, rowsWith(home, 'Model ').some(l => l.includes('Opus 5.5')) && !(home ?? []).some(l => l.includes('no sign-in yet') || l.includes('not signed in')), rowsWith(home, 'Model ').join(' | '))
       check(`${tag}: the chat's hero row reads ready`, chat !== null && chat.some(l => l.includes('● ready · type a prompt, or / for commands')), rowsWith(chat, 'ready').join(' | '))
       check(`${tag}: the status row reads ready before the model`, /^\s*ready · /.test(statusRow(chat)), statusRow(chat))
       check(`${tag}: nothing on the signed-in chat says not signed in`, chat !== null && !chat.some(l => l.includes('not signed in')), rowsWith(chat, 'signed in').join(' | '))

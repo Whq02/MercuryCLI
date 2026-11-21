@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const arg = (name: string): string | undefined => {
@@ -165,7 +166,7 @@ try {
     const env: NodeJS.ProcessEnv = { ...process.env, ANTHROPIC_API_KEY: FIXTURE_API_KEY, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: browser, MERCURY_CLIPBOARD_FILE: join(home, 'clipboard.txt'), MERCURY_DAEMON_DIR: join(home, 'daemon'), MERCURY_HOME: join(home, 'home'), MERCURY_HEALTH_STATE_DIR: join(home, 'health'), MERCURY_BOOT_PREFLIGHT: '0', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_LIVE_GLYPHS: '0', MERCURY_LIVE_CLOCK: '0', MERCURY_CRITTER_GAZE: '0', MERCURY_CRITTER_IDLE: '0', MERCURY_CRITTER_SLEEP: '0', TERM_PROGRAM: 'vscode', MERCURY_GEMINI_API_BASE: 'http://127.0.0.1:1', MERCURY_GEMINI_OAUTH_TOKEN_BASE: `${base}/token`, MERCURY_GEMINI_OAUTH_AUTH_BASE: `${base}/auth`, MERCURY_GOOGLE_USERINFO_BASE: base, MERCURY_ANTIGRAVITY_CODE_ASSIST_BASE: base, MERCURY_ANTIGRAVITY_MANIFEST_BASE: 'http://127.0.0.1:1' }
     for (const k of ['ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'ZAI_API_KEY', 'OPENROUTER_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY', 'MOONSHOT_API_KEY', 'DEEPSEEK_API_KEY', 'HF_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_MODEL', 'NODE_ENV']) delete env[k]
     const sends: Send[] = [
-      gate('↑↓ choose', SHIFT_RIGHT),
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 3, data: SHIFT_RIGHT },
       gate('+ new session · n', 'm'),
       { ...gate('Gemini — sign in', click, 'picker'), targetText: 'Gemini — sign in' },
       gate('Gemini — sign in', '\r', 'selected'),
@@ -180,11 +181,11 @@ try {
       gate('Gemini 4 Argon', '\r', 'picked'),
       witness('gemini-4-argon', 'model', gone('Mercury · model')),
       gate('+ new session · n', ESC),
-      witness('↑↓ choose', 'end'),
+      witness('↑↓', 'end', BOOT_FACE_READY),
     ]
     const out = join(ROOT, `${id}.json`)
     const cfg = join(ROOT, `${id}.cfg.json`)
-    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, readyText: '↑↓ choose', stableTicks: 3, out }))
+    writeFileSync(cfg, JSON.stringify({ argv: [NODE, BIN], cwd: CWD, cols, rows, total: 560, sends, readyText: '>_  ·  ↵  ·  ↑↓', stableTicks: 3, out }))
     const hitsBefore = fixture.hits.length
     const result = await capture(cfg, env, vshotBudgetMs(280_000))
     await endOwnedDaemon(home)

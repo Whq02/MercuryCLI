@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -97,7 +98,6 @@ for (const name of ['OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'DEEPS
 
 type Mark = { label: string; atTick: number; grid: Array<Array<{ c: string }>> }
 const TRUST_WORDS = ['Workspace trust', 'Accessing workspace', 'trust this folder']
-const FACE_READY = '↑↓ choose'
 const FIRST_TICKS = 50
 const rowsOf = (grid: Mark['grid']): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').replace(/\s+$/, ''))
 const trustWordOn = (rows: string[]): string | undefined => TRUST_WORDS.find(word => rows.some(row => row.includes(word)))
@@ -150,7 +150,7 @@ async function boot(size: string, cols: number, rows: number): Promise<{ marks: 
   const out = join(SCRATCH, `boot-${size}.json`)
   const sends: Array<Record<string, unknown>> = [{ atTick: 1, data: '', mark: 'f001' }]
   for (let tick = 2; tick <= FIRST_TICKS; tick++) sends.push({ afterPrevTicks: 1, data: '', mark: `f${String(tick).padStart(3, '0')}` })
-  sends.push({ atTick: 999, awaitText: FACE_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'face' })
+  sends.push({ atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 5, awaitSettleTicks: 2, requireAwait: true, data: '', mark: 'face' })
   const cfgPath = join(SCRATCH, `boot-${size}-cfg.json`)
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], cwd: LINKED, cols, rows, sends, total: 180, out }))
   const teePath = join(SCRATCH, `boot-${size}.tee`)
