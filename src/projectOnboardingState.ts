@@ -1,4 +1,4 @@
-import { memoize } from 'lodash-es'
+import { resolve } from 'node:path'
 import { flagEnv } from './substrate/flagRegistry.js'
 import { composedGuideFilesAt } from './services/instructions/adapters/index.js'
 import { getCurrentProjectConfig, saveCurrentProjectConfig } from './utils/config.js'
@@ -7,6 +7,59 @@ import { getFsImplementation } from './utils/fsOperations.js'
 import { passedOver } from './utils/passedOver.js'
 
 const ONBOARDING_SEEN_COUNT_LIMIT = 4
+const ONBOARDING_MEMO_CAP = 50
+
+type OnboardingMemoCache<V> = {
+  has(key: unknown): boolean
+  get(key: unknown): V | undefined
+  set(key: unknown, value: V): OnboardingMemoCache<V>
+  delete(key: unknown): boolean
+  clear(): void
+  readonly size: number
+}
+
+function memoizeByCwd<T>(
+  compute: () => T,
+): (() => T) & { cache: OnboardingMemoCache<T> } {
+  const entries = new Map<string, T>()
+  const keyOf = (key: unknown): string => (key === undefined ? resolve(getCwd()) : resolve(String(key)))
+  const cache: OnboardingMemoCache<T> = {
+    has: (key: unknown) => entries.has(keyOf(key)),
+    get: (key: unknown) => entries.get(keyOf(key)),
+    set: (key: unknown, value: T) => {
+      const k = keyOf(key)
+      if (entries.has(k)) {
+        entries.delete(k)
+      } else if (entries.size >= ONBOARDING_MEMO_CAP) {
+        const oldest = entries.keys().next().value
+        if (oldest !== undefined) entries.delete(oldest)
+      }
+      entries.set(k, value)
+      return cache
+    },
+    delete: (key: unknown) => entries.delete(keyOf(key)),
+    clear: () => {
+      entries.clear()
+    },
+    get size(): number {
+      return entries.size
+    },
+  }
+  const memo = (): T => {
+    const k = resolve(getCwd())
+    if (entries.has(k)) {
+      const hit = entries.get(k) as T
+      entries.delete(k)
+      entries.set(k, hit)
+      return hit
+    }
+    const value = compute()
+    cache.set(k, value)
+    return value
+  }
+  memo.cache = cache
+  return memo
+}
 
 export type Step = {
   key: string
@@ -68,7 +121,7 @@ export function maybeMarkProjectOnboardingComplete(): void {
   }
 }
 
-export const shouldShowProjectOnboarding = memoize((): boolean => {
+export const shouldShowProjectOnboarding = memoizeByCwd((): boolean => {
   const config = getCurrentProjectConfig()
   if (config.hasCompletedProjectOnboarding) {
     return false
@@ -89,7 +142,7 @@ export function incrementProjectOnboardingSeenCount(): void {
   }))
 }
 
-export const projectOnboardingHint = memoize((): string | undefined => {
+export const projectOnboardingHint = memoizeByCwd((): string | undefined => {
   if (!shouldShowProjectOnboarding()) return undefined
   const step = getSteps().find(s => s.isEnabled && s.isCompletable && !s.isComplete)
   return step?.text

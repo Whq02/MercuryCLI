@@ -14,7 +14,7 @@ import { passedOver } from './passedOver.js'
 
 const MAX_TRACKED_PATHS = 200
 
-const storedPaths = new Map<number, string>()
+const storedPaths = new Map<string, string>()
 
 function cacheBaseDir(): string {
   return join(getMercuryHome(), 'image-cache')
@@ -24,32 +24,40 @@ function sessionCacheDir(): string {
   return join(cacheBaseDir(), getSessionId())
 }
 
-function imagePathFor(content: PastedContent): string {
+function imagePathFor(content: PastedContent, dir = sessionCacheDir()): string {
   const ext = content.mediaType?.split('/')[1] || 'png'
-  return join(sessionCacheDir(), `${content.id}.${ext}`)
+  return join(dir, `${content.id}.${ext}`)
 }
 
-function remember(id: number, path: string): void {
+function storedPathKey(id: number, dir = sessionCacheDir()): string {
+  return `${dir}\0${id}`
+}
+
+function remember(id: number, path: string, dir = sessionCacheDir()): void {
+  const key = storedPathKey(id, dir)
+  if (storedPaths.has(key)) storedPaths.delete(key)
   while (storedPaths.size >= MAX_TRACKED_PATHS) {
     const oldest = storedPaths.keys().next()
     if (oldest.done) break
     storedPaths.delete(oldest.value)
   }
-  storedPaths.set(id, path)
+  storedPaths.set(key, path)
 }
 
 export function cacheImagePath(content: PastedContent): string | null {
   if (content.type !== 'image') return null
-  const path = imagePathFor(content)
-  remember(content.id, path)
+  const dir = sessionCacheDir()
+  const path = imagePathFor(content, dir)
+  remember(content.id, path, dir)
   return path
 }
 
 export async function storeImage(content: PastedContent): Promise<string | null> {
   if (content.type !== 'image') return null
-  const path = imagePathFor(content)
+  const dir = sessionCacheDir()
+  const path = imagePathFor(content, dir)
   try {
-    await mkdir(sessionCacheDir(), { recursive: true })
+    await mkdir(dir, { recursive: true })
     const handle = await open(path, 'w', 0o600)
     try {
       await handle.writeFile(Buffer.from(content.content, 'base64'))
@@ -57,7 +65,7 @@ export async function storeImage(content: PastedContent): Promise<string | null>
     } finally {
       await handle.close()
     }
-    remember(content.id, path)
+    remember(content.id, path, dir)
     logForDebugging(`imageStore: stored image ${content.id} at ${path}`)
     return path
   } catch (err) {
@@ -77,11 +85,11 @@ export async function storeImages(pastedContents: Record<number, PastedContent>)
 }
 
 export function getStoredImagePath(imageId: number): string | null {
-  return storedPaths.get(imageId) ?? null
+  return storedPaths.get(storedPathKey(imageId)) ?? null
 }
 
 export function storedImageState(imageId: number): { path: string; present: boolean } | null {
-  const path = storedPaths.get(imageId)
+  const path = storedPaths.get(storedPathKey(imageId))
   if (path === undefined) return null
   return { path, present: existsSync(path) }
 }
@@ -106,7 +114,8 @@ interface StoredImageRefBlock {
 
 export function storedImageRefBlock(content: PastedContent): StoredImageRefBlock | null {
   if (content.type !== 'image' || !content.content) return null
-  const path = storedPaths.get(content.id) ?? imagePathFor(content)
+  const dir = sessionCacheDir()
+  const path = storedPaths.get(storedPathKey(content.id, dir)) ?? imagePathFor(content, dir)
   try {
     const bytes = Buffer.from(content.content, 'base64')
     const onDisk = statSync(path)

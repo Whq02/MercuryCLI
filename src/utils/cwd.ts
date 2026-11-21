@@ -1,26 +1,21 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
-
 import { getCwdState, getOriginalCwd } from '../bootstrap/state.js'
-
-type CwdContext = { cwd: string | undefined; shellCwd: string | null }
-
-const cwdOverrideStorage = new AsyncLocalStorage<CwdContext>()
+import { getOwnerContext, withOwnerContext } from './run/ownerContext.js'
 
 export function runWithCwdOverride<T>(cwd: string, fn: () => T): T {
-  return cwdOverrideStorage.run({ cwd, shellCwd: null }, fn)
+  return withOwnerContext({ directory: { cwd, shellCwd: null } }, fn)
 }
 
 export function runWithOwnShellCwd<T>(fn: () => T): T {
-  return cwdOverrideStorage.run({ cwd: getCwd(), shellCwd: null }, fn)
+  return withOwnerContext({ directory: { cwd: getCwd(), shellCwd: null } }, fn)
 }
 
 export function contextShellCwd(): string | null | undefined {
-  const store = cwdOverrideStorage.getStore()
+  const store = getOwnerContext()?.directory
   return store === undefined ? undefined : store.shellCwd
 }
 
 export function setContextShellCwd(next: string | null): boolean {
-  const store = cwdOverrideStorage.getStore()
+  const store = getOwnerContext()?.directory
   if (store === undefined) return false
   store.shellCwd = next
   return true
@@ -39,11 +34,11 @@ export function tellWhereTheShellStands(read: () => string): void {
 }
 
 export function getStartingCwd(): string {
-  return cwdOverrideStorage.getStore()?.cwd ?? getOriginalCwd()
+  return getOwnerContext()?.directory?.cwd ?? getOriginalCwd()
 }
 
 export function pwd(): string {
-  const override = cwdOverrideStorage.getStore()?.cwd
+  const override = getOwnerContext()?.directory?.cwd
   if (override !== undefined) return override
   return getCwdState()
 }

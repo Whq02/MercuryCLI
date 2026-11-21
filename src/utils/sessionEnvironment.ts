@@ -1,5 +1,5 @@
 import { mkdir, readdir, readFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { getSessionId } from '../bootstrap/state.js'
@@ -42,17 +42,37 @@ export async function getHookEnvFilePath(hookEvent: SessionEnvHookEvent, hookInd
   return join(dir, `${fragmentFamily(hookEvent)}-hook-${hookIndex}.sh`)
 }
 
-type CacheState = { state: 'not-loaded' } | { state: 'absent' } | { state: 'loaded'; script: string }
+type CacheState =
+  | { state: 'not-loaded'; epoch: number }
+  | { state: 'absent'; key: string; epoch: number }
+  | { state: 'loaded'; key: string; script: string; epoch: number }
 
-let cache: CacheState = { state: 'not-loaded' }
+let cache: CacheState = { state: 'not-loaded', epoch: 0 }
+
+function resolveFilesystemPath(path: string): string {
+  try {
+    return resolve(path)
+  } catch (error) {
+    passedOver(error)
+    return path
+  }
+}
+
+function resolveSessionEnvFile(): string | undefined {
+  const envFile = flagEnv('MERCURY_ENV_FILE')
+  return envFile ? resolveFilesystemPath(envFile) : undefined
+}
+
+function sessionEnvCacheKey(dir: string, envFile: string | undefined): string {
+  return `${dir}\0${envFile ?? ''}`
+}
 
 export function invalidateSessionEnvCache(): void {
-  cache = { state: 'not-loaded' }
+  cache = { state: 'not-loaded', epoch: cache.epoch + 1 }
   logForDebugging('sessionEnvironment: cache invalidated')
 }
 
-async function readFragments(): Promise<{ fragments: string[]; failed: boolean }> {
-  const dir = sessionEnvDirPath()
+async function readFragments(dir: string): Promise<{ fragments: string[]; failed: boolean }> {
   let entries: string[]
   try {
     entries = await readdir(dir)
@@ -101,11 +121,14 @@ export async function getSessionEnvironmentScript(windowsBash = false): Promise<
     logForDebugging('sessionEnvironment: read on Windows by the bash roads alone')
     return null
   }
-  if (cache.state === 'absent') return null
-  if (cache.state === 'loaded') return cache.script
+  const dir = resolveFilesystemPath(sessionEnvDirPath())
+  const envFile = resolveSessionEnvFile()
+  const key = sessionEnvCacheKey(dir, envFile)
+  if (cache.state === 'absent' && cache.key === key) return null
+  if (cache.state === 'loaded' && cache.key === key) return cache.script
+  const epoch = cache.epoch
   const parts: string[] = []
   let failed = false
-  const envFile = flagEnv('MERCURY_ENV_FILE')
   if (envFile) {
     try {
       const content = await readScript(envFile)
@@ -118,16 +141,18 @@ export async function getSessionEnvironmentScript(windowsBash = false): Promise<
       }
     }
   }
-  const { fragments, failed: fragmentsFailed } = await readFragments()
+  const { fragments, failed: fragmentsFailed } = await readFragments(dir)
   failed ||= fragmentsFailed
   parts.push(...fragments)
   logForDebugging(`sessionEnvironment: ${fragments.length} hook file(s) loaded; script length ${parts.join('\n').length}`)
+  const currentKey = sessionEnvCacheKey(resolveFilesystemPath(sessionEnvDirPath()), resolveSessionEnvFile())
+  const cacheable = !failed && cache.epoch === epoch && currentKey === key
   if (parts.length === 0) {
-    if (!failed) cache = { state: 'absent' }
+    if (cacheable) cache = { state: 'absent', key, epoch }
     return null
   }
   const script = parts.join('\n')
-  if (!failed) cache = { state: 'loaded', script }
+  if (cacheable) cache = { state: 'loaded', key, script, epoch }
   return script
 }
 
