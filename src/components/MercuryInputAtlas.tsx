@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useCallback, useMemo, useState } from 'react'
-import { useClaim, useDerivedState } from '../hooks/effects.js'
+import { useClaim } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import {
   atlasMatches,
@@ -110,14 +110,13 @@ export function MercuryInputAtlas({
     min: MIN_ROWS,
     cap: MAX_ROWS,
   })
-  const listRows = filtered.length > rowCap ? Math.max(1, rowCap - 1) : rowCap
-  const winStart = paneWindow(filtered.length, sel, listRows).start
-  const shown = filtered.slice(winStart, winStart + listRows)
-  const current = filtered[Math.min(sel, Math.max(0, filtered.length - 1))]
+  const clampedSel = Math.min(sel, Math.max(0, filtered.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
 
-  useDerivedState(() => {
-    setSel(s => Math.min(s, Math.max(0, filtered.length - 1)))
-  }, [filtered.length])
+  const listRows = filtered.length > rowCap ? Math.max(1, rowCap - 1) : rowCap
+  const winStart = paneWindow(filtered.length, clampedSel, listRows).start
+  const shown = filtered.slice(winStart, winStart + listRows)
+  const current = filtered[clampedSel]
 
   const leaveCapture = useCallback(() => {
     setMode('browse')
@@ -230,7 +229,7 @@ export function MercuryInputAtlas({
         action === 'pageNext'
       ) {
         event.stopImmediatePropagation()
-        const target = applyNavMotion(action, sel, filtered.length, {
+        const target = applyNavMotion(action, clampedSel, filtered.length, {
           orientation: 'vertical',
           pageSize: listRows,
         })
@@ -279,7 +278,7 @@ export function MercuryInputAtlas({
         ? 'press the chord to assign · esc cancel'
         : `${filtered.length} of ${rows.length} · tab context · ${lookupChord} look up · ${rebindChord} rebind`
 
-  return atlasViewOf({ t, kb, query, setQuery, cursorOffset, setCursorOffset, sel, setSel, mode, report, pending, notice, inspected, filtered, winStart, shown, current, liveContexts, footer, onClose, stateTone, LookupView, RowDetail, CHORD_WIDTH, ACTION_WIDTH, QUERY_WIDTH })
+  return atlasViewOf({ t, kb, query, setQuery, cursorOffset, setCursorOffset, sel: clampedSel, setSel, mode, report, pending, notice, inspected, filtered, winStart, shown, current, liveContexts, footer, onClose, stateTone, LookupView, RowDetail, CHORD_WIDTH, ACTION_WIDTH, QUERY_WIDTH })
 }
 
 function RowDetail({

@@ -1,6 +1,6 @@
 
 import { useRef } from 'react'
-import { useSubscription } from './effects.js'
+import { useClaim } from './effects.js'
 import { watch, type FSWatcher } from 'node:fs'
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -26,7 +26,7 @@ export function useSkillsChange(
   const setAppStateRef = useRef(maybeSetAppState)
   setAppStateRef.current = maybeSetAppState
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!cwd) return
 
     let alive = true

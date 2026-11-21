@@ -9,7 +9,7 @@ import React, {
   useReducer,
   useRef,
 } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
+import { useClaim } from '../../hooks/effects.js'
 import { WHEEL_ROWS_PER_NOTCH } from '../../components/mercury-ui/composerFloor.js'
 import { markDirty, scheduleRenderFrom, type DOMElement } from '../dom.js'
 import { LayoutEdge } from '../layout/node.js'
@@ -191,7 +191,7 @@ const ScrollBox = forwardRef<ScrollBoxHandle, ScrollBoxProps>(function ScrollBox
 
   useImperativeHandle(ref, () => handle, [handle])
   const { internal_eventEmitter } = useStdin()
-  useSubscription(() => {
+  useClaim(() => {
     const wheel = (event: InputEvent): void => {
       const node = nodeRef.current
       if (!node || !elevatedSurfaceOwnsNode(node)) return

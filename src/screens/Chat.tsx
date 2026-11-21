@@ -21,6 +21,7 @@ import { getFocusedSessionConnector, hasFocusedSession, conversationIdHere } fro
 import { flagEnv } from '../substrate/flagRegistry.js';
 import { resolveTerminalExperience } from '../ink/session/terminalExperience.js';
 import type { Tool } from '../Tool.js';
+import { useChatScreenStore } from './chat/chatStore.js';
 import { useChatAsks, useChatAsksCard } from './chat/useChatAsks.js';
 import { useChatBootLines, useChatBootNotices, useChatBootStart, useChatBootTips, useChatCrashResume } from './chat/useChatBoot.js';
 import { type ToolJSXState, useChatDialogPaints, useChatDialogs, useChatDialogsView } from './chat/useChatDialogs.js';
@@ -117,6 +118,7 @@ export function Chat({
   const [virtualScrollEnabled] = useState(() => resolveTerminalExperience().virtualScroll.effective);
   const [terminalTitleEnabled] = useState(() => resolveTerminalExperience().terminalTitle.effective);
 
+  const chatStore = useChatScreenStore();
   const { focusedConnector, seatLive, focusedEffectiveModel, textActive, interruptingKey, isStopping, focusedTail, isLoading, isLoadingRef } = useChatFocusedSeat();
 
   const { pendingModelSwitch } = useChatTurnBoundary({ isLoading, setAppState, addNotification });
@@ -137,7 +139,7 @@ export function Chat({
   const reducedMotion = prefersReducedMotion || isEnvTruthy(flagEnv('MERCURY_REDUCED_MOTION'));
   const streamingSuppressed = streamingRevealSuppressed(reducedMotion, fullscreen);
 
-  const { sessionAsks, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification });
+  const { sessionAsks, toolUseConfirmQueue, resolveHeadPermission, setToolPermissionContext, elicitationQueue, respondToElicitation, dismissElicitationWaiting } = useChatAsks({ setAppState, addNotification, chatStore });
   const chatSurfaceCovered = useSyncExternalStore(
     subscribeSurfaceRoute,
     () => currentSurfaceRoute().kind !== 'repl',
@@ -161,7 +163,7 @@ export function Chat({
 
   const { seatStartTimeRef, seatPausedMsRef, seatPauseStartRef } = useChatSeatClock({ seatLive, focusedInputDialog, isLoading });
 
-  const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, resolvedConsentCount, resolveHeadPermission, chatSurfaceCovered, verbose });
+  const { permissionOverlay } = useChatAsksCard({ focusedInputDialog, repinToBottom, toolUseConfirmQueue, chatStore, resolveHeadPermission, chatSurfaceCovered, verbose });
   const { submitCount, setSubmitCount, getReadFileState, getToolUseContext, resume, paintScreenCommandReceipt, dialogInFlightRef, armedHandedBackRef, queuedDialogCommandsRef } = useChatSubmitTools({ store, setAppState, addNotification, removeNotification, debug, mergedTools, themeName, commandsRef, apiKeyVerification, paintScreenRow, setToolJSX, setShowMessageSelector, setConversationId });
 
   const { lastCompletedAt } = useChatTurnEnd({ focusedConnector, isLoading, setAppState, themeName, getReadFileState, seatPausedMsRef, seatPauseStartRef });

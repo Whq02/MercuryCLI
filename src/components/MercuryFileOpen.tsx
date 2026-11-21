@@ -1,7 +1,7 @@
 import { isTopOverlayNow, useRegisterOverlay } from '../context/overlayContext.js';
 import * as React from 'react'
 import { useMemo, useRef, useState } from 'react'
-import { useDerivedState, useLoad } from '../hooks/effects.js'
+import { useLoad } from '../hooks/effects.js'
 import { Box, Text, useInput } from '../ink.js'
 import type { SuggestionItem } from './PromptInput/PromptInputFooterSuggestions.js'
 import TextInput from './TextInput.js'
@@ -94,9 +94,8 @@ export function MercuryFileOpen({
 
   const pastOpenEvent = useOpenEventGate()
 
-  useDerivedState(() => {
-    setSel(s => Math.min(s, Math.max(0, shown.length - 1)))
-  }, [shown.length])
+  const clampedSel = Math.min(sel, Math.max(0, shown.length - 1))
+  if (sel !== clampedSel) setSel(clampedSel)
 
   useInput(
     (input, key, event) => {
@@ -110,7 +109,7 @@ export function MercuryFileOpen({
       }
       if (action === 'movePrevious' || action === 'moveNext') {
         event.stopImmediatePropagation()
-        const target = applyNavMotion(action, sel, shown.length, { orientation: 'vertical' })
+        const target = applyNavMotion(action, clampedSel, shown.length, { orientation: 'vertical' })
         if (target !== null) setSel(target)
         return
       }
@@ -131,7 +130,7 @@ export function MercuryFileOpen({
           }}
           onSubmit={() => {
             if (!pastOpenEvent()) return
-            const it = shown[Math.min(sel, Math.max(0, shown.length - 1))]
+            const it = shown[clampedSel]
             if (it) onPick(`@${it.displayText} `)
           }}
           focus={isActive}
@@ -166,7 +165,7 @@ export function MercuryFileOpen({
       ) : (
         <Box marginTop={1} flexDirection="column">
           {shown.map((it, i) => {
-            const here = i === sel
+            const here = i === clampedSel
             const p = truncateToWidth(it.displayText, PATH_WIDTH)
             const pad = ' '.repeat(Math.max(0, PATH_WIDTH - displayWidth(p)))
             return (
