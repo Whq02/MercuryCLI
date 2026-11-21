@@ -32,6 +32,7 @@ prove-fold-ladder-replay.ts
 prove-fold-ladder-rungs.ts
 prove-fold-landing-room.ts
 prove-fold-ledger.ts
+prove-fold-ledger-stretches.ts
 prove-fold-local-window.ts
 prove-fold-loop-answers.ts
 prove-fold-mechanical-profile.ts

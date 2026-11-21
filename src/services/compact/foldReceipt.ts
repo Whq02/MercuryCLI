@@ -29,7 +29,7 @@ export function foldReceipt(meta: CompactMetadata, landing?: { input: number } |
     after: typeof meta.postTokens === 'number' && meta.postTokens >= 0 ? { tokens: meta.postTokens, source: 'estimate' } : null,
     landing: landing && landing.input > 0 ? { tokens: landing.input, source: 'provider' } : null,
     rounds: meta.recentRounds ? { kept: meta.recentRounds.kept, requested: meta.recentRounds.requested, reason: meta.recentRounds.reason, folded: meta.recentRounds.folded ?? 0 } : null,
-    operator: meta.ledger ? { messages: meta.ledger.operator.length, bytes: meta.ledger.operator.reduce((n, row) => n + row.bytes, 0) } : null,
+    operator: meta.ledger?.version === 2 ? { ...meta.ledger.totals.operator } : meta.ledger ? { messages: meta.ledger.operator.length, bytes: meta.ledger.operator.reduce((n, row) => n + row.bytes, 0) } : null,
     memory: meta.memory
       ? meta.memory.state === 'committed'
         ? { state: 'committed', id: meta.memory.pointer.id, reason: null }
