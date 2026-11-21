@@ -55,3 +55,4 @@ prove-layer-imports.ts
 scripts/substrate/prove-flag-registry-readers.ts
 scripts/substrate/prove-flag-registry-split.ts
 prove-second-look-runs-reds.ts
+prove-doc-text-reads.ts
