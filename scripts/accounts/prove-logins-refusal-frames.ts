@@ -10,7 +10,7 @@ for (const key of Object.keys(process.env)) if (/API_KEY|AUTH_TOKEN|OAUTH_TOKEN|
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 const { writeStoredOpenrouterApiKey, writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.js')
-const { captureSignInRequest, observeSignInResponse, readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.js')
+const { captureSignInRequest, observeSignInResponse, readSignInRefusal } = await import('../../src/services/providers/signInRefusal.js')
 const { Box, Text } = await import('../../src/ink.js')
 const { AppStateProvider } = await import('../../src/state/AppState.js')
 const { ThemeProvider } = await import('../../src/components/design-system/ThemeProvider.js')

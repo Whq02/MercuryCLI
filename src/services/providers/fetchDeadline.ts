@@ -16,7 +16,7 @@ export function deadlineBreachLine(provider: string, ms: number): string {
   return `timed out after ${deadlineSecondsLabel(ms)} — ${provider} did not answer`
 }
 
-import { captureSignInRequest, observeSignInResponse } from '../../utils/accounts/signInRefusal.js'
+import { captureSignInRequest, observeSignInResponse } from './signInRefusal.js'
 
 export async function fetchWithProviderDeadline(
   fetchImpl: typeof fetch,

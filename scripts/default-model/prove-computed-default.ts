@@ -340,7 +340,7 @@ section('§4 the live chain in a scratch home')
 section('§4b a stored key the provider refuses is skipped by the default until that family signs in again')
 {
   const { refreshZaiCatalogue } = await import('../../src/services/providers/zai/zaiCatalogue.ts')
-  const { readSignInRefusal } = await import('../../src/utils/accounts/signInRefusal.ts')
+  const { readSignInRefusal } = await import('../../src/services/providers/signInRefusal.ts')
   const refusing = (async () =>
     new Response(JSON.stringify({ error: { message: 'invalid api key' } }), { status: 401, headers: { 'content-type': 'application/json' } })) as unknown as typeof fetch
   const snapshot = await refreshZaiCatalogue({ force: true, env: { ...process.env }, fetchImpl: refusing })

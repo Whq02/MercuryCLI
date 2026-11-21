@@ -1,4 +1,4 @@
-import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../utils/accounts/signInRefusal.js';
+import { readSignInRefusal, signInRefusalWords, type SignInRefusal } from '../../services/providers/signInRefusal.js';
 import { deriveFamilySlotGroups, familyDisplayName, type AccountSlot, type FamilySlotGroup } from '../../services/providers/accountSlots.js';
 import { resolveProviderUsability, type ProviderId, type ProviderUsability } from '../../services/providers/providerUsability.js';
 import type { ProviderFamilyPresence } from '../../services/providers/providerUsage.js';
