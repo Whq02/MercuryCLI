@@ -1,8 +1,6 @@
 import { basename } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import 'vscode-jsonrpc'
-
 import type { InitializeParams, ServerCapabilities } from 'vscode-languageserver-protocol'
 
 import { getCwd } from '../../utils/cwd.js'

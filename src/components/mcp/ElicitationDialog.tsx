@@ -1,5 +1,4 @@
 
-import 'figures'
 import * as React from 'react'
 import { useRef, useState } from 'react'
 import { useClaim, usePublish } from '../../hooks/effects.js'

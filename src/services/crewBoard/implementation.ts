@@ -102,7 +102,6 @@ export function tool(host: BoardHost, store: () => BoardStore | null): Tool {
 
 export const view: BoardModule['view'] = host => {
   const { React, Text, Box, width, height, tokens } = host
-  const [live, setLive] = React.useState(host.snapshot)
   const [selected, setSelected] = React.useState<string | undefined>()
   const [earlier, setEarlier] = React.useState<number[]>([])
   const before = earlier.at(-1)
@@ -110,15 +109,21 @@ export const view: BoardModule['view'] = host => {
   const [team, setTeam] = React.useState<string | undefined>()
   const [scroll, setScroll] = React.useState(0)
   const record = host.snapshot.record
-  React.useEffect(() => {
-    setLive(host.snapshot)
-    if (!record) return
-    const reader = tail(record)
-    const refresh = () => setLive(reader.view())
-    const stop = reader.subscribe(refresh)
-    refresh()
-    return () => { stop(); reader.close() }
+  const feed = React.useMemo(() => {
+    let current = host.snapshot
+    if (!record) return { subscribe: () => () => {}, getSnapshot: () => current }
+    return {
+      subscribe: (notify: () => void) => {
+        const reader = tail(record)
+        const refresh = () => { current = reader.view(); notify() }
+        const stop = reader.subscribe(refresh)
+        refresh()
+        return () => { stop(); reader.close() }
+      },
+      getSnapshot: () => current,
+    }
   }, [record?.path, record?.sessionId, host.snapshot.on])
+  const live = React.useSyncExternalStore(feed.subscribe, feed.getSnapshot)
   const snapshot = React.useMemo(() => record && (before !== undefined || thread !== undefined || team !== undefined) ? page(record, before, thread, thread ? undefined : team) : live, [live, before, thread, team, record?.path, record?.sessionId])
   const entries = chatRows(snapshot, host.traffic, thread ? undefined : team, thread)
   const index = selected === undefined ? entries.length - 1 : Math.max(0, entries.findIndex(row => row.id === selected))
