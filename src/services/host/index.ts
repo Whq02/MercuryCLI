@@ -557,7 +557,8 @@ function hostRoadControls(run: HostRoadRun, { options, ask, emit, lifetimeSignal
       if (run.record?.status === 'TERMINATED') return { ok: false, words: run.record.error ?? 'Instance terminated.' }
       if (run.record?.retuning) { const { reconcileHostTune } = await import('./tune.js'); run.record = await reconcileHostTune(run.pod.id, runner, signal) }
       mark()
-      const stopRefresh = subscribeHostRecord(run.pod.id, () => { refreshRecord(); mark() })
+      const refresh = (): void => { refreshRecord(); mark() }
+      const stopRefresh = subscribeHostRecord(run.pod.id, refresh, 1000, refresh)
       let action: string | null
       try { action = await question({ step: 'pod-controls', title: words.manage, found: run.api.label + ' · ' + run.pod.name + ' · ' + run.pod.id + ' · ' + price(run.pod.cost), willRun: run.pod.family ? 'Cluster nodes and disks bill until Terminate.' : '', rows: [...(run.vendor === 'runpod' && run.record?.provider && run.record.target && run.pod.status === 'RUNNING' && !run.pod.family ? [{ value: 'tune', label: 'Tune · quality, conversations × context, thinking' }] : []), ...(canResume() ? [{ value: 'resume', label: run.api.capabilities.managed ? 'Resume endpoint' : 'Resume setup' }] : []), ...(!run.api.capabilities.stop || run.pod.family || run.pod.status === 'EXITED' ? [] : [{ value: 'stop', label: run.api.capabilities.managed ? 'Pause · end compute billing' : words.stopPod }]), { value: 'logs', label: 'Logs' }, { value: 'terminate', label: run.api.capabilities.managed ? 'Terminate · delete the endpoint' : words.terminatePod }, { value: 'close', label: run.pod.status === 'EXITED' ? run.api.capabilities.managed ? 'Close · keep the paused endpoint' : words.closePod : run.pod.status === 'RUNNING' ? words.keepPod : 'Close' }] }) } finally { stopRefresh() }
       refreshRecord()
@@ -691,12 +692,13 @@ function hostRoadWatches(run: HostRoadRun, { options, emit, signal, sessionId, r
       if (!watch || watch.jobState === 'stopped' || watch.jobState === 'failed') return { ok: watch?.jobState !== 'failed', words: watch?.error ?? 'Stock watch ended · no machine was created.' }
       const markWatch = (current: HostRecord): void => emit({ title: words.manage, words: current.step ?? 'watching for stock ≤ ' + price(current.maxPrice ?? current.price), host: { id: current.id, price: current.maxPrice ?? current.price, startedAt: current.startedAt, status: 'WATCHING', step: current.step } })
       markWatch(watch)
-      const stopRefresh = subscribeHostRecords(() => {
+      const refresh = (): void => {
         const nextRented = hostRecords().find(row => row.watchedFrom === watchId)
         if (nextRented) { emit({ title: words.manage, words: 'Rented ' + nextRented.name + ' · setting up', host: { id: nextRented.id, price: nextRented.price, startedAt: nextRented.startedAt, status: nextRented.status, step: nextRented.step } }); return }
         const current = readHostRecord(watchId)
         if (current) markWatch(current)
-      })
+      }
+      const stopRefresh = subscribeHostRecords(refresh, refresh)
       let action: string | null
       try {
         action = await question({ step: 'watch-controls', title: words.manage, found: watch.name + ' · watching ≤ ' + price(watch.maxPrice ?? watch.price), willRun: '', rows: [{ value: 'cancel', label: 'Cancel · stop watching for stock' }, { value: 'close', label: 'Keep watching and close' }] })

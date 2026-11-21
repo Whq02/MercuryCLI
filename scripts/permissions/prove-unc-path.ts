@@ -125,6 +125,16 @@ if (!process.argv.includes('--file-roads')) {
   for (const input of ['C:\\project\\file.txt', '/usr/local/file', './file', 'https://localhost/page', String.raw`\\?\C:\project\file`, String.raw`\\.\C:\project\file`, String.raw`"C:\\Users\\someone\\x"`, String.raw`cp "C:\\Users\\someone\\x" D:\\y`]) check(`local or web ${input}`, !uncPathRisk(input).risky)
   for (const command of [String.raw`cp "C:\\Users\\someone\\x" "D:\\y"`, String.raw`type C:\\Users\\someone\\notes.txt`]) check(`an escaped drive path is no share on the command road: ${command}`, !uncPathRisk(command, { command: true }).risky)
   check('an escaped share root still asks', uncPathRisk(String.raw`type \\\\server\\share\\x.txt`, { command: true }).risky)
+  for (const input of ['file://C:/src/project/notes.txt', 'file:///C:/src/project/notes.txt', String.raw`file://C:\src\project\notes.txt`, String.raw`file://C:\\src\\project\\notes.txt`, 'file://C|/src/project/notes.txt', 'file:///C|/src/project/notes.txt', 'file://C%3A/src/project/notes.txt', 'file://C%7C/src/project/notes.txt']) check(`local drive file URL is no remote host: ${input}`, !uncPathRisk(input).risky)
+  for (const command of ['curl file://C:/src/project/notes.txt', 'curl file:///C:/src/project/notes.txt', 'curl file://C|/src/project/notes.txt']) check(`local drive file URL on command road is no remote host: ${command}`, !uncPathRisk(command, { command: true }).risky)
+  for (const input of ['file://evil/share/notes.txt', 'smb://C:/share/notes.txt', 'file://C:80/share/notes.txt', 'file://C:/src/DavWWWRoot/notes.txt']) check(`remote or WebDAV URL still asks: ${input}`, uncPathRisk(input).risky)
+  for (const command of ['curl file://C:/src/project/notes.txt //evil/share/x', 'curl file://C:/src/project/notes.txt;type //evil/share/x']) check(`local file URL beside a share still asks: ${command}`, uncPathRisk(command, { command: true }).risky)
+  const bashLocalFile = await bashToolHasPermission({ command: 'curl file://C:/src/project/notes.txt' }, shellContext)
+  check('Bash default mode does not blame a remote host for file://C:/', bashLocalFile.behavior === 'passthrough' && !bashLocalFile.message.includes('SMB/WebDAV'))
+  const psLocalFile = await powershellToolHasPermission({ command: 'curl file://C:/src/project/notes.txt' }, context)
+  check('PowerShell default mode does not blame a remote host for file://C:/', psLocalFile.behavior !== 'allow' && !psLocalFile.message.includes('SMB/WebDAV'))
+  const bashSecretFile = await bashToolHasPermission({ command: 'curl file://C:/Users/operator/.mercury/.credentials.json' }, shellContext)
+  check('Bash still refuses a credentials store file://C:/ read', bashSecretFile.behavior === 'deny' && !bashSecretFile.message.includes('SMB/WebDAV'))
   const { windowsPathNeedsPermission } = await import('../../src/utils/permissions/windowsPath.js')
   const inherited = [
     ['host then separator', String.raw`\\server\share`],

@@ -6,6 +6,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { runTurns, type TurnRequest } from '../lib/rows.ts'
+import { historyLines } from '../../src/utils/sessionStorage/historyParts.ts'
 
 process.env.NODE_ENV = 'test'
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sent-prefix-pure-'))
@@ -575,7 +576,7 @@ if (!existsSync(DIST)) {
       const files = existsSync(join(arena.home, '.mercury', 'projects')) ? walk(join(arena.home, '.mercury', 'projects')) : []
       const notices: string[] = []
       for (const file of files) {
-        for (const line of readFileSync(file, 'utf8').split('\n')) {
+        for (const line of Buffer.concat([...historyLines(file)]).toString('utf8').split('\n')) {
           if (!line.includes('Preserved thinking')) continue
           try {
             const row = JSON.parse(line) as { payload?: { kind?: string; content?: string } }
@@ -988,7 +989,7 @@ if (!existsSync(DIST)) {
       const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${sessionId}.jsonl`) files.push(f) } }
       const root = join(arena.home, '.mercury', 'projects')
       if (existsSync(root)) walk(root)
-      return files.map(f => readFileSync(f, 'utf8')).join('\n')
+      return files.map(f => Buffer.concat([...historyLines(f)]).toString('utf8')).join('\n')
     }
     {
       const turns: ScriptedTurn[] = [1, 2].map(n => ({ kind: 'text' as const, text: `S6C-T${n}`, thinking: `godot c ${n}` }))
@@ -1138,13 +1139,7 @@ if (!existsSync(DIST)) {
       check('§7 the Crewmate tool rode the first request (the focused seat admits launches) and stays in the tools array with sub-agents off — the toggled request and the summariser alike (the valve refuses; the array never moves)', toolsOf(reqs[0]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[6]!).some(t => t.name === 'Crewmate') && toolsOf(reqs[8]!).some(t => t.name === 'Crewmate'), `first=${toolsOf(reqs[0]!).some(t => t.name === 'Crewmate')} toggled=${toolsOf(reqs[6]!).some(t => t.name === 'Crewmate')} summariser=${toolsOf(reqs[8]!).some(t => t.name === 'Crewmate')}`)
       const admissionRows = beforeFold.filter(q => q.raw.includes('"type":"tool_reference"')).length
       check('§7 the lookups admitted through tool_reference records inside their own result rows', admissionRows >= 2, String(admissionRows))
-      const rows = (() => {
-        const dir = join(arena.home, '.mercury', 'projects')
-        const files: string[] = []
-        const walk = (d: string): void => { for (const e of readdirSync(d, { withFileTypes: true })) { const f = join(d, e.name); if (e.isDirectory()) walk(f); else if (e.name === `${SID}.jsonl`) files.push(f) } }
-        if (existsSync(dir)) walk(dir)
-        return files.map(f => readFileSync(f, 'utf8')).join('\n')
-      })()
+      const rows = transcriptText(arena, SID)
       check('§7 the apollo pack rode a persisted mode_pack row and left through a mode_pack_exit row (never the system prompt)', rows.includes('"attachmentType":"mode_pack"') && rows.includes('"attachmentType":"mode_pack_exit"') && !systemTextOf(reqs[0]!.body as Body).includes('Apollo Mode'), `${rows.includes('"attachmentType":"mode_pack"')}/${rows.includes('"attachmentType":"mode_pack_exit"')}`)
       const marksOf = (q: { body: unknown }): string => toolsOf(q).map(t => `${t.name}${t.defer_loading === true ? '+' : '-'}`).join(' ')
       console.log(`    §7 tools per request: ${reqs.map((q, i) => `${i + 1}:${toolsOf(q).length}`).join(' ')}`)

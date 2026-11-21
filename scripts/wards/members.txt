@@ -28,6 +28,7 @@ prove-target-root-on-windows.ts
 prove-ui-wards-project-scope.ts
 prove-ward-regex-cache.ts
 prove-wards-model-free.ts
+prove-wards-read-when-the-parser-is-late.ts
 prove-wards-ride-crewmates.ts
 prove-wards-spellings.ts
 prove-wards-untrusted-folder-words.ts

@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { getProjectRoot } from '../bootstrap/state.js'
-import { MONITOR_TOOL_NAME } from '../tools/MonitorTool/constants.js'
+import { MONITOR_TOOL_NAME } from '../constants/tools/monitor.js'
 import { TASK_STOP_TOOL_NAME } from '../constants/tools/taskStop.js'
 import { SCHEDULE_WAKEUP_TOOL_NAME } from '../tools/ScheduleWakeupTool/prompt.js'
 import { getMercuryHome, isEnvTruthy } from '../utils/envUtils.js'

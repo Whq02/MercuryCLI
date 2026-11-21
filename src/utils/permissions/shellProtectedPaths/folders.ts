@@ -3,13 +3,14 @@ import { homedir } from 'node:os'
 import { posix } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type ShellRead, UNREAD_PART, absolutePath, moveOf, printedBy, wordKnown } from '../../wards/wardsShellRead.js'
+import { type ReadCommand, type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, wordKnown, wordsAsWritten } from '../decision/commandAnalysis.js'
 import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
 import { CONVENTIONAL_USER_HOME, GLOB_PART, floorsWorld, globNotCompiled, mercuryHomes, wildcardSource } from './homes.js'
 import { passedOver } from '../../passedOver.js'
 import { hostEnv } from '../../hostEnv.js'
+import { isCmdDriveSwitchCd } from '../../platform/commandForms.js'
 
 const CD_PROGRAMS = new Set(['cd', 'chdir', 'pushd', 'set-location', 'sl', 'push-location'])
 const FOLDER_CAP = 16
@@ -98,7 +99,7 @@ export function foldersAfter(read: ShellRead, at: number, cwd: string): { folder
     const move = moveOf(turn)
     if (move === undefined || !CD_PROGRAMS.has(move.program) || turn.cwd === undefined) continue
     const operands = move.operands
-    const switched = process.platform === 'win32' && operands.length === 2 && /^\/d$/i.test(operands[0]!)
+    const switched = isCmdDriveSwitchCd(operands)
     const target = switched ? operands[1] : operands[0]
     const bare = target === undefined && turn.dialect === 'powershell' && move.program !== 'pushd' && move.program !== 'push-location' ? (read.homes.at(-1) ?? floorsWorld(turn.cwd).home) : undefined
     if (bare === undefined && (target === undefined || target === '-' || !wordKnown(target))) continue
@@ -113,6 +114,23 @@ export function foldersAfter(read: ShellRead, at: number, cwd: string): { folder
     if (ran && moved) continue
     stayed.push(posix.join(turn.cwd, stands.slice(named.length)), turn.cwd)
   }
+  const called = new Set<string>()
+  for (let index = 0; index < at; index++) {
+    const turn = read.commands[index]!
+    if (turn.body === undefined && turn.argv[0] !== undefined) called.add(turn.argv[0])
+  }
+  if (called.size > 0) {
+    for (let index = 0; index < at; index++) {
+      const turn = read.commands[index]!
+      if (turn.body === undefined || !called.has(turn.body) || turn.cwd === undefined) continue
+      const move = moveOf(turn)
+      if (move === undefined || !CD_PROGRAMS.has(move.program)) continue
+      const target = move.operands[0]
+      if (target === undefined || target === '-' || !wordKnown(target)) continue
+      const named = absolutePath(target, turn.cwd, floorsWorld(turn.cwd))
+      if (named !== undefined) stayed.push(named)
+    }
+  }
   return stayed.length === 0 ? reached : { folders: [...new Set([...reached.folders, ...stayed])], lost: reached.lost }
 }
 
@@ -120,8 +138,10 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
   const simple = read.commands[at]
   if (simple === undefined) return { folders: [cwd], lost: false }
   if (simple.cwd !== undefined) {
-    if (!GLOB_PART.test(simple.cwd)) return { folders: [simple.cwd], lost: false }
-    return { folders: [...foldersNamedBy(simple.cwd), simple.cwd], lost: false }
+    const envAt = simple.cwd.search(/%(?:USERPROFILE|HOME|MERCURY_CONFIG_DIR)%|\$env:(?:USERPROFILE|MERCURY_CONFIG_DIR)/i)
+    const standing = envAt >= 0 ? spelling(simple.cwd.slice(envAt)) : simple.cwd
+    if (!GLOB_PART.test(standing)) return { folders: [standing], lost: false }
+    return { folders: [...foldersNamedBy(standing), standing], lost: false }
   }
   for (let index = at - 1; index >= 0; index--) {
     const turn = read.commands[index]!
@@ -141,4 +161,111 @@ export function foldersRead(read: ShellRead, at: number, cwd: string): { folders
     return { folders: [...named, ...(named.includes(pattern) ? [] : [pattern]), ...(named.length > 0 || gated ? [] : [before])], lost: false }
   }
   return { folders: [cwd], lost: true }
+}
+
+const UNCERTAIN_PLACE_WORDS = /\b(?:OLDPWD|DIRSTACK|CDPATH|trap)\b/
+const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|local|readonly|unset)\b|(?:^|[\s;|&(])(?:HOME|PWD)\+?=|[A-Za-z_][\w.-]*\s*\(\s*\)|\$\{[^}]*:?=/
+const UNCERTAIN_MOVE_WORD = /[`$*?[\]{}\\<>()!'"]/
+const PLAIN_SEP = /^[ \t]*(?:;|\r?\n)[ \t]*/
+const AFTER_RETURN = /^[ \t]*(?:$|;(?!;)|\r?\n|&&(?!&))/
+const SHELL_BUILTINS = new Set([
+  '.', 'alias', 'autoload', 'bg', 'bind', 'bindkey', 'break', 'builtin',
+  'caller', 'cd', 'chdir', 'command', 'compgen', 'complete', 'compopt',
+  'continue', 'coproc', 'declare', 'dirs', 'disable', 'disown', 'emulate',
+  'enable', 'eval', 'exec', 'exit', 'export', 'fc', 'fg', 'float', 'functions',
+  'getopts', 'hash', 'help', 'history', 'integer', 'jobs', 'kill', 'let',
+  'local', 'logout', 'mapfile', 'noglob', 'popd', 'print', 'pushd',
+  'read', 'readarray', 'readonly', 'rehash', 'return', 'set', 'setopt',
+  'shift', 'shopt', 'source', 'suspend', 'times', 'trap', 'type',
+  'typeset', 'ulimit', 'umask', 'unalias', 'unfunction', 'unhash',
+  'unset', 'unsetopt', 'wait', 'whence', 'zmodload',
+])
+
+type MoveKind = 'cd-entry' | 'cd-return' | 'pushd-entry' | 'popd-return'
+
+function printfAssigns(argv: readonly string[]): boolean {
+  for (const word of argv.slice(1)) {
+    if (word === '--') return false
+    if (word === '-v' || /^-[A-Za-z]*v/.test(word)) return true
+  }
+  return false
+}
+
+function plainLiteralOperand(arg: string): boolean {
+  if (arg === '' || UNCERTAIN_MOVE_WORD.test(arg)) return false
+  if (arg.startsWith('~') && arg !== '~' && !arg.startsWith('~/')) return false
+  return true
+}
+
+function plainMoveKind(turn: ReadCommand): MoveKind | undefined | null {
+  const move = moveOf(turn)
+  if (move === undefined) return undefined
+  if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.background || turn.stages.length > 0 || turn.substituted === true) return null
+  if (turn.redirects.length > 0 || turn.env.length > 0) return null
+  const raw = wordsAsWritten(turn)
+  if (raw === undefined || raw.length !== turn.argv.length) return null
+  const layer = layersOf(turn.argv).find(found => found.program === move.program)
+  if (layer === undefined || layer.wrappers.length > 0 || layer.argv.length !== turn.argv.length) return null
+  const written = raw[0]!
+  if (written === 'cd') {
+    if (raw.length !== 2) return null
+    const arg = raw[1]!
+    if (arg === '-') return 'cd-return'
+    if (arg.startsWith('-') || !plainLiteralOperand(arg)) return null
+    return 'cd-entry'
+  }
+  if (written === 'pushd') {
+    if (raw.length !== 2) return null
+    const arg = raw[1]!
+    if (arg.startsWith('-') || arg.startsWith('+') || !plainLiteralOperand(arg)) return null
+    return 'pushd-entry'
+  }
+  if (written === 'popd') return raw.length === 1 ? 'popd-return' : null
+  return null
+}
+
+function startsWithReturnPair(text: string, prevText: string, turnText: string): boolean {
+  const start = text.length - text.trimStart().length
+  if (!text.startsWith(prevText, start)) return false
+  const afterPrev = start + prevText.length
+  const sep = PLAIN_SEP.exec(text.slice(afterPrev))
+  if (sep === null) return false
+  const turnAt = afterPrev + sep[0].length
+  const afterTurn = turnAt + turnText.length
+  return text.startsWith(turnText, turnAt) && AFTER_RETURN.test(text.slice(afterTurn))
+}
+
+export function placesCertain(read: ShellRead, text: string): boolean {
+  if (UNCERTAIN_PLACE_WORDS.test(text) || UNCERTAIN_SYNTAX.test(text)) return false
+  if (read.exported.size > 0) return false
+  let prevKind: MoveKind | undefined
+  let prevText = ''
+  for (let at = 0; at < read.commands.length; at++) {
+    const turn = read.commands[at]!
+    if (turn.body !== undefined) return false
+    const kind = plainMoveKind(turn)
+    if (kind === null) return false
+    if (kind !== undefined) {
+      if (kind === 'cd-return' || kind === 'popd-return') {
+        const expected: MoveKind = kind === 'cd-return' ? 'cd-entry' : 'pushd-entry'
+        if (at !== 1 || prevKind !== expected || !startsWithReturnPair(text, prevText, turn.text)) return false
+        prevKind = undefined
+        prevText = ''
+      } else {
+        prevKind = kind
+        prevText = turn.text
+      }
+      continue
+    }
+    prevKind = undefined
+    prevText = ''
+    if (turn.argv.length === 0) continue
+    const head = turn.argv[0]!
+    if (!wordKnown(head) || head.startsWith('$')) return false
+    for (const layer of layersOf(turn.argv)) {
+      if (SHELL_BUILTINS.has(layer.program)) return false
+      if (layer.program === 'printf' && printfAssigns(layer.argv)) return false
+    }
+  }
+  return true
 }

@@ -10,9 +10,6 @@ export class BootConfigOwner {
     'flagSettings',
     'policySettings',
   ]
-  sessionIngressToken: string | null | undefined = undefined
-  oauthTokenFromFd: string | null | undefined = undefined
-  apiKeyFromFd: string | null | undefined = undefined
   sessionExtensions: Array<string> = []
   mainThreadAgentType: string | undefined = undefined
   directConnectServerUrl: string | undefined = undefined
