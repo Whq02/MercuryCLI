@@ -4,7 +4,6 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { vshotBudgetMs } from '../lib/captureDriver.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const BIN = join(REPO, 'dist', 'mercury.mjs')
@@ -14,9 +13,10 @@ if (!existsSync(BIN)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', failHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shownDetail = !cond && failHint ? (detail ? `${detail} — ${failHint}` : failHint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shownDetail ? ` — ${shownDetail}` : ''}`)
 }
 
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'mercury-health-mcp-row-')))
@@ -81,9 +81,9 @@ try {
   const certificate = JSON.parse(j.text) as { sections: Array<{ checks: Row[] }> }
   const allChecks = certificate.sections.flatMap(section => section.checks)
   const mcpIndex = allChecks.findIndex(check => check.id === 'mcp')
-  check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`)
-  check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '')
-  check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'))
+  check('health --json produces the record (0/3 by verdict — FC-044) and carries the mcp row', (j.status === 0 || j.status === 3) && row !== undefined, `status=${String(j.status)}`, 'run node dist/mercury.mjs health --json in a project with an mcpServers entry; the mcp row is built by mcpCheck in src/services/health/sections/runtime/services.ts, and an exit other than 0 or 3 or a missing row id mcp means the health command or that check broke')
+  check('the row names the server with its state', typeof row?.evidence === 'string' && /\bfixture-echo \((configured|starting|failed|ready|needs-auth|disabled)\)/.test(row.evidence), row?.evidence?.slice(0, 120) ?? '', 'the evidence must list the configured fixture-echo server as name (state); fix the serverList line of mcpCheck in src/services/health/sections/runtime/services.ts')
+  check('no evidence anywhere reads [object Object]', !j.text.includes('[object Object]'), 'an object was interpolated into an evidence string; find [object Object] in the health --json output and fix the check that built that row (the mcp row is mcpCheck in src/services/health/sections/runtime/services.ts)')
 
   console.log('S the cockpit at 120×40 — the MCP policy row carries the server name')
   const driver = resolveCaptureDriver()
@@ -116,7 +116,7 @@ try {
       timeout: vshotBudgetMs(240_000),
       env: { ...process.env, MERCURY_CONFIG_DIR: HOME, MERCURY_LIVE_GLYPHS: '0' },
     })
-    check('the capture ran', res.status === 0, (res.stderr ?? '').slice(-200))
+    check('the capture ran', res.status === 0, (res.stderr ?? '').slice(-200), 'the scripts/ui/vshot.py capture of /health at 120x40 exited non-zero; read the stderr tail above and run the vshot config by hand')
     let lines: string[] = []
     try {
       const grid = JSON.parse(readFileSync(out, 'utf8')) as { grid: { c: string }[][] }
@@ -130,9 +130,9 @@ try {
       writeFileSync(join(captureDir, 'health-mcp-row-120x40.txt'), lines.join('\n') + '\n')
     }
     const mcpLine = lines.find(l => l.includes('MCP policy')) ?? ''
-    check('/health painted its certificate', lines.some(l => l.includes('Mercury · health')))
-    check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120))
-    check('no grid cell holds [object Object]', !lines.some(l => l.includes('[object Object]')))
+    check('/health painted its certificate', lines.some(l => l.includes('Mercury · health')), 'the grid has no Mercury · health title; the /health screen did not open from the resumed session, or the capture read an empty grid (MERCURY_HEALTH_CAPTURE_DIR saves it)')
+    check('the MCP policy row is on screen and names the fixture server', mcpLine !== '' && lines.slice(lines.indexOf(mcpLine), lines.indexOf(mcpLine) + 3).some(line => line.includes('fixture-echo')), mcpLine.trim().slice(0, 120), 'the opened MCP policy row must carry the fixture-echo server name within three lines; the evidence is composed by mcpCheck in src/services/health/sections/runtime/services.ts')
+    check('no grid cell holds [object Object]', !lines.some(l => l.includes('[object Object]')), 'an object was interpolated into a health row shown on screen; set MERCURY_HEALTH_CAPTURE_DIR to save the grid and find the row')
   }
 
   console.log('P poison: a pre-fix bundle prints [object Object] on the same row (MERCURY_BASE_DIST)')
@@ -140,7 +140,7 @@ try {
   if (baseDist && existsSync(join(baseDist, 'mercury.mjs'))) {
     const b = healthJson(join(baseDist, 'mercury.mjs'))
     const brow = mcpRowOf(b.text)
-    check('the pre-fix row reads [object Object]', brow?.evidence?.includes('[object Object]') === true, brow?.evidence?.slice(0, 80) ?? '')
+    check('the pre-fix row reads [object Object]', brow?.evidence?.includes('[object Object]') === true, brow?.evidence?.slice(0, 80) ?? '', 'the bundle at MERCURY_BASE_DIST must be a build from before the fix; point it at an older dist or unset it')
   } else {
     console.log('  [SKIP] MERCURY_BASE_DIST unset — prove-health-evidence-strings holds the standing poison for the composer source')
   }

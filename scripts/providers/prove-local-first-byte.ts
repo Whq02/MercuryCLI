@@ -18,6 +18,16 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
+const HINT_LAW = 'fix the local first-byte wait in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) or startLocalLivenessLoop (src/services/providers/localLiveness.ts)'
+const HINT_PACE = 'fix the promise sizing in localFirstBytePromiseMs or localPaceDefaultFor (src/services/providers/localLiveness.ts)'
+const HINT_WORDS = 'fix the wait wording in requestWaitLine (src/services/providers/streamIdleBudget.ts) or the promise extension in localPromiseExtensionMs (src/services/providers/localLiveness.ts)'
+const HINT_PROBE = 'fix the probe URL in localLivenessProbeUrl (src/services/providers/localLiveness.ts)'
+const HINT_DEAD = 'fix localDeadServerLine (src/services/providers/localLiveness.ts) or the dead-server cut in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
+const HINT_CAP = 'fix localCapLine or LOCAL_REQUEST_CAP_MS (src/services/providers/localLiveness.ts)'
+const HINT_SILENT = 'fix the no-bytes warning in requestWaitLine (src/services/providers/streamIdleBudget.ts) or the idle watchdog in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts)'
+const HINT_BUDGET = 'fix streamIdleTimeoutMsForRoute or the first-byte budget numbers in src/services/providers/streamIdleBudget.ts'
+const HINT_RUNTIME = 'fix the stream options built in src/services/providers/openaicompat/compatChatCallModel/attemptEvents.ts (localStreamLawFor, idleTimeoutMs)'
+const HINT_RETRY = 'fix retryEligible and isLocalLivenessCut in src/services/providers/openaicompat/compatChatCallModel/attempt.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -239,13 +249,13 @@ section('L7 · a 27B record, a 65k-token cold prompt, the first byte at 400 s of
   const fx = fixture({ firstByteAtMs: 400_000, body: [{ atMs: 10, chunks: REPLY_CHUNKS('Ping!') }], close: true, alive: () => true })
   const run = await play({ record: RECORD_27B, fx, runMs: 400_000 + 5_000 })
   const spoken = lines(run)
-  check('no fault: the request was never aborted by the clock', faults(run).length === 0, JSON.stringify(faults(run)))
-  check('exactly one POST: nothing was reissued', run.fixture.posts() === 1 && !run.fixture.aborted(), `posts=${run.fixture.posts()} aborted=${run.fixture.aborted()}`)
-  check('one reply landed', run.text === 'Ping!' && run.events.some(e => e.type === 'finish'), JSON.stringify({ text: run.text, types: run.events.map(e => e.type) }))
+  check('no fault: the request was never aborted by the clock', faults(run).length === 0, JSON.stringify(faults(run)) + ' — ' + HINT_LAW)
+  check('exactly one POST: nothing was reissued', run.fixture.posts() === 1 && !run.fixture.aborted(), `posts=${run.fixture.posts()} aborted=${run.fixture.aborted()} — ${HINT_LAW}`)
+  check('one reply landed', run.text === 'Ping!' && run.events.some(e => e.type === 'finish'), JSON.stringify({ text: run.text, types: run.events.map(e => e.type) }) + ' — ' + HINT_LAW)
   const first = run.waits[0] as Record<string, unknown> | null
-  check("the row's first line carried a promise sized from the 27B's default pace (65k ÷ 100 tokens/s × 1.25 ≈ 13m 33s), not a deadline", first !== null && first.promise === true && typeof first.budgetMs === 'number' && Math.abs((first.budgetMs as number) - 812_500) <= 1_000, JSON.stringify(first))
-  check('the first line reads as a promise', spoken[0]?.startsWith('ingesting a 65k-token prompt on qwen3.5:27b — first byte expected in about 13m 3') === true, spoken[0])
-  check('the promise was never up before the byte landed here (400 s < 13m 33s), so the row carried the promise and then the clear', spoken.length >= 2 && spoken.at(-1) === '<cleared>' && run.fixture.probes() === 0, JSON.stringify({ spoken, probes: run.fixture.probes() }))
+  check("the row's first line carried a promise sized from the 27B's default pace (65k ÷ 100 tokens/s × 1.25 ≈ 13m 33s), not a deadline", first !== null && first.promise === true && typeof first.budgetMs === 'number' && Math.abs((first.budgetMs as number) - 812_500) <= 1_000, JSON.stringify(first) + ' — ' + HINT_PACE)
+  check('the first line reads as a promise', spoken[0]?.startsWith('ingesting a 65k-token prompt on qwen3.5:27b — first byte expected in about 13m 3') === true, String(spoken[0]) + ' — ' + HINT_WORDS)
+  check('the promise was never up before the byte landed here (400 s < 13m 33s), so the row carried the promise and then the clear', spoken.length >= 2 && spoken.at(-1) === '<cleared>' && run.fixture.probes() === 0, JSON.stringify({ spoken, probes: run.fixture.probes() }) + ' — ' + HINT_WORDS)
 }
 
 section('L7b · the same record with the pace remembered as 200 tokens/s: the promise runs out at 406 s, the probe answers, the row extends')
@@ -258,11 +268,11 @@ section('L7b · the same record with the pace remembered as 200 tokens/s: the pr
   const fx = fixture({ firstByteAtMs: 500_000, body: [{ atMs: 10, chunks: REPLY_CHUNKS('Ping!') }], close: true, alive: () => true })
   const run = await play({ record: RECORD_27B, fx, runMs: 500_000 + 5_000 })
   const spoken = lines(run)
-  check('no fault, one POST, one reply', faults(run).length === 0 && run.fixture.posts() === 1 && run.text === 'Ping!', JSON.stringify({ faults: faults(run), posts: run.fixture.posts(), text: run.text }))
-  check('the promise read about 6m 46s (65k ÷ 200 × 1.25)', spoken[0] === 'ingesting a 65k-token prompt on qwen3.5:27b — first byte expected in about 6m 46s', spoken[0])
-  check('the promise ran out, the server answered its liveness probe once, and the row extended with the answer named', run.fixture.probes() === 1 && spoken[1]?.startsWith('still ingesting a 65k-token prompt on qwen3.5:27b — about 3m 23s more (its server answered at 6m 46s)') === true, JSON.stringify({ probes: run.fixture.probes(), spoken }))
-  check('the probe went to the cheap liveness door, never a generation', run.fixture.probeHits().every(u => u.endsWith('/api/version') || u.endsWith('/api/ps')), run.fixture.probeHits().join(' '))
-  check('the line cleared at the first byte', spoken.at(-1) === '<cleared>', JSON.stringify(spoken))
+  check('no fault, one POST, one reply', faults(run).length === 0 && run.fixture.posts() === 1 && run.text === 'Ping!', JSON.stringify({ faults: faults(run), posts: run.fixture.posts(), text: run.text }) + ' — ' + HINT_LAW)
+  check('the promise read about 6m 46s (65k ÷ 200 × 1.25)', spoken[0] === 'ingesting a 65k-token prompt on qwen3.5:27b — first byte expected in about 6m 46s', String(spoken[0]) + ' — ' + HINT_PACE)
+  check('the promise ran out, the server answered its liveness probe once, and the row extended with the answer named', run.fixture.probes() === 1 && spoken[1]?.startsWith('still ingesting a 65k-token prompt on qwen3.5:27b — about 3m 23s more (its server answered at 6m 46s)') === true, JSON.stringify({ probes: run.fixture.probes(), spoken }) + ' — ' + HINT_WORDS)
+  check('the probe went to the cheap liveness door, never a generation', run.fixture.probeHits().every(u => u.endsWith('/api/version') || u.endsWith('/api/ps')), run.fixture.probeHits().join(' ') + ' — ' + HINT_PROBE)
+  check('the line cleared at the first byte', spoken.at(-1) === '<cleared>', JSON.stringify(spoken) + ' — ' + HINT_LAW)
   if (liveness !== null) {
     rmSync(liveness.localPaceStorePath(), { force: true })
     liveness.__resetLocalPaceForTest()
@@ -283,10 +293,10 @@ section('L7c · the same fixture whose liveness probe stops answering: the cut n
   }, 300_000)
   const run = await play({ record: RECORD_27B, fx, runMs: 500_000 })
   const fault = faults(run)[0]
-  check('one typed fault naming the dead server, not retryable', faults(run).length === 1 && fault?.kind === 'timeout' && fault.code === 'local-server-dead' && fault.retryable === false, JSON.stringify(faults(run)))
-  check('the words: no answer from the server, the local server is not responding, /model re-probes', /^no answer from Ollama at 127\.0\.0\.1:11434 for \d+ s while ingesting — the local server is not responding \(its window, its load, or a crash\); \/model re-probes$/.test(fault?.message ?? ''), fault?.message)
-  check('the server was asked twice in a row before the cut', run.fixture.probes() === 2, String(run.fixture.probes()))
-  check('the request was torn down once and never reissued', run.fixture.aborted() && run.fixture.posts() === 1, `posts=${run.fixture.posts()}`)
+  check('one typed fault naming the dead server, not retryable', faults(run).length === 1 && fault?.kind === 'timeout' && fault.code === 'local-server-dead' && fault.retryable === false, JSON.stringify(faults(run)) + ' — ' + HINT_DEAD)
+  check('the words: no answer from the server, the local server is not responding, /model re-probes', /^no answer from Ollama at 127\.0\.0\.1:11434 for \d+ s while ingesting — the local server is not responding \(its window, its load, or a crash\); \/model re-probes$/.test(fault?.message ?? ''), String(fault?.message) + ' — ' + HINT_DEAD)
+  check('the server was asked twice in a row before the cut', run.fixture.probes() === 2, String(run.fixture.probes()) + ' — ' + HINT_DEAD)
+  check('the request was torn down once and never reissued', run.fixture.aborted() && run.fixture.posts() === 1, `posts=${run.fixture.posts()} — ${HINT_DEAD}`)
   if (liveness !== null) {
     rmSync(liveness.localPaceStorePath(), { force: true })
     liveness.__resetLocalPaceForTest()
@@ -297,8 +307,8 @@ section('L6 · the 9B case: the first byte at 114 s lands unchanged')
 {
   const fx = fixture({ firstByteAtMs: 114_000, body: [{ atMs: 10, chunks: REPLY_CHUNKS('pong') }], close: true, alive: () => true })
   const run = await play({ record: RECORD_9B, fx, runMs: 120_000 })
-  check('no fault, one POST, the reply', faults(run).length === 0 && run.fixture.posts() === 1 && run.text === 'pong', JSON.stringify({ faults: faults(run), text: run.text }))
-  check('the 9B promise reads from the small-class default (65k ÷ 300 × 1.25 ≈ 4m 31s)', lines(run)[0] === 'ingesting a 65k-token prompt on qwen3.5:9b-q4_K_M — first byte expected in about 4m 31s', lines(run)[0])
+  check('no fault, one POST, the reply', faults(run).length === 0 && run.fixture.posts() === 1 && run.text === 'pong', JSON.stringify({ faults: faults(run), text: run.text }) + ' — ' + HINT_LAW)
+  check('the 9B promise reads from the small-class default (65k ÷ 300 × 1.25 ≈ 4m 31s)', lines(run)[0] === 'ingesting a 65k-token prompt on qwen3.5:9b-q4_K_M — first byte expected in about 4m 31s', String(lines(run)[0]) + ' — ' + HINT_PACE)
 }
 
 section('L8 · a stream silent for 20 minutes after the first byte whose probe answers: no cut, the warning on the row, the reply lands when the bytes resume')
@@ -314,14 +324,14 @@ section('L8 · a stream silent for 20 minutes after the first byte whose probe a
   })
   const run = await play({ record: RECORD_27B, fx, runMs: 1_000 + 20 * 60_000 + 5_000 })
   const spoken = lines(run)
-  check('no fault: the silence was not a death', faults(run).length === 0, JSON.stringify(faults(run)))
-  check('the whole reply landed once the bytes resumed', run.text === "I'll build you a playable RPG game — done." && run.events.some(e => e.type === 'finish'), JSON.stringify({ text: run.text }))
+  check('no fault: the silence was not a death', faults(run).length === 0, JSON.stringify(faults(run)) + ' — ' + HINT_SILENT)
+  check('the whole reply landed once the bytes resumed', run.text === "I'll build you a playable RPG game — done." && run.events.some(e => e.type === 'finish'), JSON.stringify({ text: run.text }) + ' — ' + HINT_SILENT)
   const warning = spoken.find(l => l.startsWith('no bytes for') && l.includes('is asked at'))
   const answered = spoken.filter(l => l.startsWith('no bytes for') && l.endsWith("qwen3.5:27b's server still answers"))
-  check("the row warned before the idle number (the server is asked at 15m) — the watchdog's warning point, 7.5 minutes in", warning === 'no bytes for 7m 30s — qwen3.5:27b\'s server is asked at 15m', warning)
-  check('at the idle number the server answered and the row said so, then kept saying so each minute', answered.length >= 5 && answered[0] === 'no bytes for 15m — qwen3.5:27b\'s server still answers' && answered[1] === 'no bytes for 16m — qwen3.5:27b\'s server still answers', JSON.stringify(answered.slice(0, 3)))
-  check('the row cleared when the bytes resumed', spoken.at(-1) === '<cleared>', JSON.stringify(spoken.slice(-2)))
-  check('the probes were cheap liveness reads', run.fixture.probes() >= 5 && run.fixture.probeHits().every(u => u.endsWith('/api/version')), run.fixture.probeHits().slice(0, 3).join(' '))
+  check("the row warned before the idle number (the server is asked at 15m) — the watchdog's warning point, 7.5 minutes in", warning === 'no bytes for 7m 30s — qwen3.5:27b\'s server is asked at 15m', String(warning) + ' — ' + HINT_SILENT)
+  check('at the idle number the server answered and the row said so, then kept saying so each minute', answered.length >= 5 && answered[0] === 'no bytes for 15m — qwen3.5:27b\'s server still answers' && answered[1] === 'no bytes for 16m — qwen3.5:27b\'s server still answers', JSON.stringify(answered.slice(0, 3)) + ' — ' + HINT_SILENT)
+  check('the row cleared when the bytes resumed', spoken.at(-1) === '<cleared>', JSON.stringify(spoken.slice(-2)) + ' — ' + HINT_SILENT)
+  check('the probes were cheap liveness reads', run.fixture.probes() >= 5 && run.fixture.probeHits().every(u => u.endsWith('/api/version')), run.fixture.probeHits().slice(0, 3).join(' ') + ' — ' + HINT_PROBE)
 }
 
 section('L8b · the same silence whose probe stops answering: the cut names the dead server, the partial reply is kept as a fault after content')
@@ -338,9 +348,9 @@ section('L8b · the same silence whose probe stops answering: the cut names the 
   }, 14 * 60_000)
   const run = await play({ record: RECORD_27B, fx, runMs: 16 * 60_000 })
   const fault = faults(run)[0]
-  check('one dead-server fault after the partial content, not retryable', faults(run).length === 1 && fault?.code === 'local-server-dead' && fault.retryable === false && run.text === 'partial', JSON.stringify(faults(run)))
-  check('the words name the writing phase', /while writing — the local server is not responding/.test(fault?.message ?? ''), fault?.message)
-  check('two probes in a row went unanswered', run.fixture.probes() === 2, String(run.fixture.probes()))
+  check('one dead-server fault after the partial content, not retryable', faults(run).length === 1 && fault?.code === 'local-server-dead' && fault.retryable === false && run.text === 'partial', JSON.stringify(faults(run)) + ' — ' + HINT_DEAD)
+  check('the words name the writing phase', /while writing — the local server is not responding/.test(fault?.message ?? ''), String(fault?.message) + ' — ' + HINT_DEAD)
+  check('two probes in a row went unanswered', run.fixture.probes() === 2, String(run.fixture.probes()) + ' — ' + HINT_DEAD)
 }
 
 section('cap · the hard cap on the local road is two hours, and only there')
@@ -348,16 +358,16 @@ section('cap · the hard cap on the local road is two hours, and only there')
   const fx = fixture({ firstByteAtMs: 3 * 60 * 60_000, body: [], close: true, alive: () => true })
   const run = await play({ record: RECORD_27B, fx, runMs: 2 * 60 * 60_000 + 60_000 })
   const fault = faults(run)[0]
-  check('the two-hour cap cut the request with its own words, not retryable', faults(run).length === 1 && fault?.code === 'local-cap' && fault.retryable === false && /after 2h — the 2h cap on a local request is reached/.test(fault.message), JSON.stringify(faults(run)))
-  check('the constants', liveness !== null && liveness.LOCAL_FIRST_BYTE_CAP_MS === 7_200_000 && liveness.LOCAL_REQUEST_CAP_MS === 7_200_000, String(liveness?.LOCAL_FIRST_BYTE_CAP_MS))
+  check('the two-hour cap cut the request with its own words, not retryable', faults(run).length === 1 && fault?.code === 'local-cap' && fault.retryable === false && /after 2h — the 2h cap on a local request is reached/.test(fault.message), JSON.stringify(faults(run)) + ' — ' + HINT_CAP)
+  check('the constants', liveness !== null && liveness.LOCAL_FIRST_BYTE_CAP_MS === 7_200_000 && liveness.LOCAL_REQUEST_CAP_MS === 7_200_000, String(liveness?.LOCAL_FIRST_BYTE_CAP_MS) + ' — ' + HINT_CAP)
 }
 
 section('the other roads take their normal patience numbers')
 {
-  check('openai and moonshot: the quiet number (15 min); zai, anthropic, openai-compat: the fed number (6 min); no route: the shared 2 min', budget.streamIdleTimeoutMsForRoute('openai') === 900_000 && budget.streamIdleTimeoutMsForRoute('zai') === 360_000 && budget.streamIdleTimeoutMsForRoute('anthropic') === 360_000 && budget.streamIdleTimeoutMsForRoute('openai-compat') === 360_000 && budget.streamIdleTimeoutMsForRoute('moonshot') === 900_000 && budget.streamIdleTimeoutMsForRoute(null) === 120_000)
-  check('the local road takes the quiet number, never the fed number', IDLE_MS === 900_000, String(IDLE_MS))
-  check('the first-byte budget arithmetic on the other roads is untouched: 1,200 ms per 1k, a 300 s floor, twice the idle budget', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 120_000 }) === 198_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 900_000 }) === 978_000)
-  check('the shared default and the warning floor stand', budget.STREAM_IDLE_DEFAULT_MS === 120_000 && budget.STREAM_IDLE_WARNING_FLOOR_MS === 300_000)
+  check('openai and moonshot: the quiet number (15 min); zai, anthropic, openai-compat: the fed number (6 min); no route: the shared 2 min', budget.streamIdleTimeoutMsForRoute('openai') === 900_000 && budget.streamIdleTimeoutMsForRoute('zai') === 360_000 && budget.streamIdleTimeoutMsForRoute('anthropic') === 360_000 && budget.streamIdleTimeoutMsForRoute('openai-compat') === 360_000 && budget.streamIdleTimeoutMsForRoute('moonshot') === 900_000 && budget.streamIdleTimeoutMsForRoute(null) === 120_000, HINT_BUDGET)
+  check('the local road takes the quiet number, never the fed number', IDLE_MS === 900_000, String(IDLE_MS) + ' — ' + HINT_BUDGET)
+  check('the first-byte budget arithmetic on the other roads is untouched: 1,200 ms per 1k, a 300 s floor, twice the idle budget', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 120_000 }) === 198_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 65_000, idleMs: 900_000 }) === 978_000, HINT_BUDGET)
+  check('the shared default and the warning floor stand', budget.STREAM_IDLE_DEFAULT_MS === 120_000 && budget.STREAM_IDLE_WARNING_FLOOR_MS === 300_000, HINT_BUDGET)
 }
 
 section('a generic compat road under the same clock still cuts at its first-byte budget (the law is the local road\'s alone)')
@@ -377,7 +387,7 @@ section('a generic compat road under the same clock still cuts at its first-byte
   await advance(200_000)
   await Promise.race([consumed, new Promise<void>(r => realSetTimeout(r, 2_000))])
   const fault = events.find(e => e.type === 'stream-fault')?.fault
-  check('the generic road fired its 198 s budget as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === 'no first byte from kimi after 3m 18s (a 65k-token prompt ingesting uncached)', JSON.stringify(fault))
+  check('the generic road fired its 198 s budget as the typed first-byte fault, retryable', fault?.code === 'first-byte-timeout' && fault.retryable === true && fault.message === 'no first byte from kimi after 3m 18s (a 65k-token prompt ingesting uncached)', JSON.stringify(fault) + ' — fix the first-byte cut in streamCompatChat (src/services/providers/openaicompat/compatChatClient.ts) or firstByteBudgetMs (src/services/providers/streamIdleBudget.ts)')
 }
 
 section('fold 46b: the initialized runtime feeds the transport the local law, and a dead-server cut is never reissued')
@@ -397,7 +407,7 @@ section('fold 46b: the initialized runtime feeds the transport the local law, an
   discovery.__resetLocalDiscoveryForTest()
   await discovery.refreshLocalDiscovery({ force: true, env: { MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:11434' } as NodeJS.ProcessEnv, fetchImpl: discoveryFetch, timeoutMs: 500 })
   const record = discovery.localModelRecord('qwen3.5:27b')
-  check('the fixture discovery seeded a 27B record, loaded, on the Ollama base', record?.parameterSize === '27B' && record.loaded === true && record.baseUrl === 'http://127.0.0.1:11434/v1', JSON.stringify(record))
+  check('the fixture discovery seeded a 27B record, loaded, on the Ollama base', record?.parameterSize === '27B' && record.loaded === true && record.baseUrl === 'http://127.0.0.1:11434/v1', JSON.stringify(record) + ' — fix refreshLocalDiscovery or localModelRecord in src/services/providers/local/localDiscovery.ts')
   const { localLaneProfileFor } = await import('../../src/services/providers/local/localCallModel.js')
   const { compatChatCallModel } = await import('../../src/services/providers/openaicompat/compatChatCallModel.js')
   async function driveWithTransport(fault: { kind: string; code: string; message: string; retryable: boolean }): Promise<{ transports: number; seen: Array<Record<string, unknown>>; errors: string[] }> {
@@ -445,12 +455,12 @@ section('fold 46b: the initialized runtime feeds the transport the local law, an
   const dead = await driveWithTransport({ kind: 'timeout', code: 'local-server-dead', message: 'no answer from Ollama at 127.0.0.1:11434 for 10 s while ingesting — the local server is not responding (its window, its load, or a crash); /model re-probes', retryable: false })
   const options = dead.seen[0] ?? {}
   const law = options.local as { promiseMs?: number; paceTokensPerSec?: number; serverWords?: string; capMs?: number; loadedAtSend?: boolean } | undefined
-  check('the road hands the transport the local law: the 27B class pace (100 tokens/s), a tiny prompt at the one-minute floor, the server words, the two-hour cap, the loaded state', law !== undefined && law.paceTokensPerSec === 100 && law.promiseMs === 60_000 && law.serverWords === 'Ollama at 127.0.0.1:11434' && law.capMs === 7_200_000 && law.loadedAtSend === true, JSON.stringify(law))
-  check("the road feeds the transport the local road's idle number (the quiet 15 minutes)", options.idleTimeoutMs === 900_000, String(options.idleTimeoutMs))
-  check('a dead-server cut before any content is NOT reissued: one transport attempt', dead.transports === 1, String(dead.transports))
-  check('the turn ends on the typed error row carrying the dead-server words', dead.errors.length === 1 && dead.errors[0]!.includes('local-server-dead') && dead.errors[0]!.includes('the local server is not responding (its window, its load, or a crash); /model re-probes'), JSON.stringify(dead.errors))
+  check('the road hands the transport the local law: the 27B class pace (100 tokens/s), a tiny prompt at the one-minute floor, the server words, the two-hour cap, the loaded state', law !== undefined && law.paceTokensPerSec === 100 && law.promiseMs === 60_000 && law.serverWords === 'Ollama at 127.0.0.1:11434' && law.capMs === 7_200_000 && law.loadedAtSend === true, JSON.stringify(law) + ' — ' + HINT_RUNTIME)
+  check("the road feeds the transport the local road's idle number (the quiet 15 minutes)", options.idleTimeoutMs === 900_000, String(options.idleTimeoutMs) + ' — ' + HINT_RUNTIME)
+  check('a dead-server cut before any content is NOT reissued: one transport attempt', dead.transports === 1, String(dead.transports) + ' — ' + HINT_RETRY)
+  check('the turn ends on the typed error row carrying the dead-server words', dead.errors.length === 1 && dead.errors[0]!.includes('local-server-dead') && dead.errors[0]!.includes('the local server is not responding (its window, its load, or a crash); /model re-probes'), JSON.stringify(dead.errors) + ' — ' + HINT_DEAD)
   const retryable = await driveWithTransport({ kind: 'transport-error', code: 'fetch-failed', message: 'connect ECONNRESET', retryable: true })
-  check('a retryable transport fault on the same lane still takes its one reissue (the bounded recovery is untouched)', retryable.transports === 2, String(retryable.transports))
+  check('a retryable transport fault on the same lane still takes its one reissue (the bounded recovery is untouched)', retryable.transports === 2, String(retryable.transports) + ' — ' + HINT_RETRY)
   discovery.__resetLocalDiscoveryForTest()
 }
 

@@ -42,6 +42,16 @@ const REPLY = 'A quick demo: one HTML file with a canvas and a loop.'
 const TOOL = 'ReadMenu'
 const TOOL_ID = 'toolu_menu_read'
 const NUDGE_WORDS = 'your last turn carried thinking only — say your reply, or call the tool you meant'
+const FIX_CEILING = '; to fix: make getModelMaxOutputTokens in src/utils/model/capabilities.ts return default equal to upperLimit for this model'
+const FIX_MARKER = '; to fix: export REASONING_CUT_MARKER as a non-empty string from src/services/api/errors.ts'
+const FIX_RECOVERY = '; to fix: the thinking-only recovery (reasoningOnlyRecovery in src/run-core/turn/noToolReply.ts) must send one continuation request after the turn cut at max_tokens'
+const FIX_REFUSAL = '; to fix: the refusal text above names the API rule the request broke, so correct the request that queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) sends'
+const FIX_REQUEST = '; to fix: start from the request body that queryModelWithStreaming (src/services/providers/anthropic/streamCore.ts) builds for each call'
+const FIX_CUTTURN = '; to fix: the cut turn must settle as the signed thinking block alone, as streamed by the fixture and kept by src/run-core/turn/noToolReply.ts'
+const FIX_PREFIX = '; to fix: the continuation request must carry the earlier rows and the cut turn (withReasoningCutMarker in src/run-core/turn/noToolReply.ts adds the marker text) directly before the nudge'
+const FIX_NUDGE = '; to fix: the nudge wording is defined in src/services/api/errors.ts and added by src/run-core/turn/noToolReply.ts'
+const FIX_NOTICE = '; to fix: the warning text is built in src/services/api/errors.ts (thinking ran to the output limit) with outputLimitWords in src/run-core/turn/noToolReply.ts'
+const FIX_WITHHELD = '; to fix: the withheld max_tokens error must be absorbed by the recovery in src/run-core/turn/noToolReply.ts and never surfaced'
 
 const turnMachine = (await import('../../src/run-core/turn-machine.ts')) as Record<string, unknown>
 const runEventCore = turnMachine.runEventCore as (params: unknown, consumed: string[]) => AsyncGenerator<Record<string, unknown>, Record<string, unknown>>
@@ -200,8 +210,8 @@ const answer: ScriptedTurn = { kind: 'text', text: REPLY, thinking: '', model: M
 
 section(`0 · the ceiling the catalogue states for ${MODEL} is the ceiling every request carries (${CEILING_WORDS}), not a smaller default`)
 {
-  check(`getModelMaxOutputTokens(${j(MODEL)}).default equals its upperLimit (${CEILING.upperLimit})`, CEILING.default === CEILING.upperLimit, j(CEILING))
-  check('the cut marker text block is owned by services/api/errors.ts', typeof MARKER === 'string' && MARKER.length > 0, j(MARKER))
+  check(`getModelMaxOutputTokens(${j(MODEL)}).default equals its upperLimit (${CEILING.upperLimit})`, CEILING.default === CEILING.upperLimit, j(CEILING) + FIX_CEILING)
+  check('the cut marker text block is owned by services/api/errors.ts', typeof MARKER === 'string' && MARKER.length > 0, j(MARKER) + FIX_MARKER)
 }
 
 section('A · the real shape: a tool round, then thinking to max_tokens with an EMPTY thinking field and a signature (the omitted display), then the continuation')
@@ -219,31 +229,31 @@ section('A · the real shape: a tool round, then thinking to max_tokens with an 
     delete process.env.ANTHROPIC_BASE_URL
     await fixture.close()
   }
-  check('three requests: the tool round, the cut turn, the continuation', bodies.length === 3, `${bodies.length} request(s): ${j(bodies.map(shape))}; terminal ${j(r.terminal)}; notices ${j(r.notices)}; calls ${r.calls.length}`)
-  check('the fixture refused nothing (every request is legal under the documented rules)', refusals.length === 0, j(refusals))
-  check(`every request carries max_tokens ${CEILING.upperLimit} — the stated maximum, the cut turn and the continuation alike`, bodies.length === 3 && bodies.every(b => b.max_tokens === CEILING.upperLimit), j(bodies.map(b => b.max_tokens)))
-  check('every request rides at the session effort, max, with adaptive thinking and no budget', bodies.length === 3 && bodies.every(b => b.output_config?.effort === EFFORT && b.thinking?.type === 'adaptive' && b.thinking?.budget_tokens === undefined), `${j(bodies.map(b => b.output_config))} ${j(bodies.map(b => b.thinking))}`)
+  check('three requests: the tool round, the cut turn, the continuation', bodies.length === 3, `${bodies.length} request(s): ${j(bodies.map(shape))}; terminal ${j(r.terminal)}; notices ${j(r.notices)}; calls ${r.calls.length}${FIX_RECOVERY}`)
+  check('the fixture refused nothing (every request is legal under the documented rules)', refusals.length === 0, j(refusals) + FIX_REFUSAL)
+  check(`every request carries max_tokens ${CEILING.upperLimit} — the stated maximum, the cut turn and the continuation alike`, bodies.length === 3 && bodies.every(b => b.max_tokens === CEILING.upperLimit), j(bodies.map(b => b.max_tokens)) + FIX_CEILING)
+  check('every request rides at the session effort, max, with adaptive thinking and no budget', bodies.length === 3 && bodies.every(b => b.output_config?.effort === EFFORT && b.thinking?.type === 'adaptive' && b.thinking?.budget_tokens === undefined), `${j(bodies.map(b => b.output_config))} ${j(bodies.map(b => b.thinking))}${FIX_REQUEST}`)
   const cut = r.settled.find(m => m.message?.stop_reason === 'max_tokens')
   const cutBlocks = blocksOf(cut?.message as { content: unknown } | undefined)
-  check('the cut turn settled as one thinking block with an empty thinking field and a signature, no text, no tool call', cutBlocks.length === 1 && cutBlocks[0]?.type === 'thinking' && cutBlocks[0].thinking === '' && typeof cutBlocks[0].signature === 'string' && cutBlocks[0].signature.length > 0, j(cutBlocks).slice(0, 300))
+  check('the cut turn settled as one thinking block with an empty thinking field and a signature, no text, no tool call', cutBlocks.length === 1 && cutBlocks[0]?.type === 'thinking' && cutBlocks[0].thinking === '' && typeof cutBlocks[0].signature === 'string' && cutBlocks[0].signature.length > 0, j(cutBlocks).slice(0, 300) + FIX_CUTTURN)
   const continuation = bodies[2]
   const rows = continuation?.messages ?? []
-  check('the continuation body keeps the tool round: the assistant tool_use row and its tool_result row precede the cut row', rows.some(m => m.role === 'assistant' && blocksOf(m).some(b => b.type === 'tool_use' && b.id === TOOL_ID)) && rows.some(m => m.role === 'user' && blocksOf(m).some(b => b.type === 'tool_result' && b.tool_use_id === TOOL_ID)), j(shape(continuation)))
+  check('the continuation body keeps the tool round: the assistant tool_use row and its tool_result row precede the cut row', rows.some(m => m.role === 'assistant' && blocksOf(m).some(b => b.type === 'tool_use' && b.id === TOOL_ID)) && rows.some(m => m.role === 'user' && blocksOf(m).some(b => b.type === 'tool_result' && b.tool_use_id === TOOL_ID)), j(shape(continuation)) + FIX_PREFIX)
   const lastAssistant = [...rows].reverse().find(m => m.role === 'assistant')
   const carried = blocksOf(lastAssistant)
-  check('the last assistant row of the continuation is the cut turn: its signed thinking block (thinking "", the signature verbatim) followed only by the cut marker text', carried.length === 2 && carried[0]?.type === 'thinking' && carried[0].thinking === '' && carried[0].signature === cutBlocks[0]?.signature && carried[1]?.type === 'text' && carried[1].text === MARKER, j(carried).slice(0, 300))
-  check('the cut row stands directly before the user nudge (the prefix the model resumes from), never dropped as an orphan', rows.at(-2)?.role === 'assistant' && rows.at(-2) === lastAssistant && rows.at(-1)?.role === 'user', j(shape(continuation)))
+  check('the last assistant row of the continuation is the cut turn: its signed thinking block (thinking "", the signature verbatim) followed only by the cut marker text', carried.length === 2 && carried[0]?.type === 'thinking' && carried[0].thinking === '' && carried[0].signature === cutBlocks[0]?.signature && carried[1]?.type === 'text' && carried[1].text === MARKER, j(carried).slice(0, 300) + FIX_PREFIX)
+  check('the cut row stands directly before the user nudge (the prefix the model resumes from), never dropped as an orphan', rows.at(-2)?.role === 'assistant' && rows.at(-2) === lastAssistant && rows.at(-1)?.role === 'user', j(shape(continuation)) + FIX_PREFIX)
   const nudge = rows.at(-1)
-  check('the nudge carries the words: ' + j(NUDGE_WORDS), nudge?.role === 'user' && textOf(nudge.content).includes(NUDGE_WORDS), j(textOf(nudge?.content)).slice(0, 240))
+  check('the nudge carries the words: ' + j(NUDGE_WORDS), nudge?.role === 'user' && textOf(nudge.content).includes(NUDGE_WORDS), j(textOf(nudge?.content)).slice(0, 240) + FIX_NUDGE)
   check('the nudge rides as an isMeta user message on the machine side', (() => {
     const last = [...(r.calls[2]?.messages ?? [])].reverse().find(m => m.type === 'user')
     return last?.isMeta === true && textOf(last.message?.content).includes(NUDGE_WORDS)
-  })(), j(r.calls[2]?.messages.at(-1)?.message?.content).slice(0, 200))
-  check('one reasoning_only_recovery transition (attempt 1) and NO max_output_tokens_recovery — the silent from-scratch resume never fires', j(r.transitions.filter(t => t.reason === 'reasoning_only_recovery').map(t => t.attempt)) === j([1]) && !r.transitions.some(t => t.reason === 'max_output_tokens_recovery'), j(r.transitions))
-  check(`one visible warning row: "thinking ran to the output limit (${CEILING_WORDS}) — continuing"`, r.notices.filter(n => n.level === 'warning' && n.text.includes(`thinking ran to the output limit (${CEILING_WORDS}) — continuing`)).length === 1, j(r.notices))
-  check('the reply landed as text and the run completed', r.terminal.reason === 'completed' && r.answers.at(-1) === REPLY, `${j(r.terminal)} ${j(r.answers)}`)
-  check('the withheld max-tokens error never surfaced', r.withheldSurfaced === 0, String(r.withheldSurfaced))
-  check('the effort word rode every model call (max, max, max)', j(r.efforts) === j([EFFORT, EFFORT, EFFORT]), j(r.efforts))
+  })(), j(r.calls[2]?.messages.at(-1)?.message?.content).slice(0, 200) + FIX_NUDGE + ' (the nudge must be an isMeta user message)')
+  check('one reasoning_only_recovery transition (attempt 1) and NO max_output_tokens_recovery — the silent from-scratch resume never fires', j(r.transitions.filter(t => t.reason === 'reasoning_only_recovery').map(t => t.attempt)) === j([1]) && !r.transitions.some(t => t.reason === 'max_output_tokens_recovery'), j(r.transitions) + FIX_RECOVERY)
+  check(`one visible warning row: "thinking ran to the output limit (${CEILING_WORDS}) — continuing"`, r.notices.filter(n => n.level === 'warning' && n.text.includes(`thinking ran to the output limit (${CEILING_WORDS}) — continuing`)).length === 1, j(r.notices) + FIX_NOTICE)
+  check('the reply landed as text and the run completed', r.terminal.reason === 'completed' && r.answers.at(-1) === REPLY, `${j(r.terminal)} ${j(r.answers)}; to fix: the run must end completed with the fixture reply as the last visible text, so check the continuation path in src/run-core/turn/noToolReply.ts`)
+  check('the withheld max-tokens error never surfaced', r.withheldSurfaced === 0, String(r.withheldSurfaced) + FIX_WITHHELD)
+  check('the effort word rode every model call (max, max, max)', j(r.efforts) === j([EFFORT, EFFORT, EFFORT]), j(r.efforts) + '; to fix: the session effort must be reported on every model_call_started event of the turn loop, including the continuation call')
 }
 
 clearTimeout(guard)

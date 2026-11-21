@@ -31,7 +31,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)} | To fix, change the option labels in getFilePermissionOptions (src/components/permissions/FilePermissionDialog/permissionOptions.tsx) or the session rule in generateSuggestions (src/utils/permissions/filesystem.ts), whichever this check names.` : ''}`)
 }
 const context = getEmptyToolPermissionContext()
 const words = (node: unknown): string => {

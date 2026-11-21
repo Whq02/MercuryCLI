@@ -5,14 +5,17 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+let sectionHint = ''
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, hint || sectionHint].filter(Boolean).join(' | to fix: ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8').replace(/\r\n/g, '\n')
 
 console.log('── §1 the hosted probe workflow ──')
 const PROBE = '.github/workflows/shell-windows-probe.yml'
+sectionHint = 'this check reads the text of .github/workflows/shell-windows-probe.yml, so restore the step, input or line the label names in that workflow (or change the check if the workflow moved on purpose)'
 let pinnedVersion = ''
 {
   const yml = read(PROBE)
@@ -38,6 +41,7 @@ let pinnedVersion = ''
 
 console.log('── §2 the release windows job ──')
 {
+  sectionHint = 'this check reads .github/workflows/private-release.yml and scripts/release/package.mjs, so restore the Windows engine-pack step or the packager line the label names there'
   const yml = read('.github/workflows/private-release.yml')
   const step = yml.indexOf('- name: Build the shell engine pack (Windows)')
   check('the package job carries the Windows engine-pack step', step !== -1)
@@ -53,13 +57,14 @@ console.log('── §2 the release windows job ──')
 
 console.log('── §3 the win-x64 layout ──')
 {
+  sectionHint = 'this check reads the win-x64 engine pack layout (vendor/brush.lock.json, src/utils/shell/brushPack.ts, vendor/brush/win-x64), so rebuild the pack with scripts/vendor/build-brush.ts or fix the owner named in the label'
   const lock = join(ROOT, 'vendor', 'brush.lock.json')
   if (existsSync(lock)) {
     const parsed = JSON.parse(readFileSync(lock, 'utf8')) as { version?: string; platforms?: Record<string, { kind?: string; crate?: string; crateVersion?: string; target?: string; crateSha256?: string | null }> }
-    check('the engine pin (vendor/brush.lock.json) equals the probe\'s default version', parsed.version === pinnedVersion, `${parsed.version} vs ${pinnedVersion}`)
+    check('the engine pin (vendor/brush.lock.json) equals the probe\'s default version', parsed.version === pinnedVersion, `${parsed.version} vs ${pinnedVersion}`, 'make the version in vendor/brush.lock.json and the brush_version default in .github/workflows/shell-windows-probe.yml the same')
     const entry = parsed.platforms?.['win-x64']
-    check('the lock carries a BUILD entry for win-x64 — the crate, its version at the pin, the MSVC target', entry?.kind === 'build' && entry.crate === 'brush-shell' && entry.crateVersion === parsed.version && entry.target === 'x86_64-pc-windows-msvc', JSON.stringify(entry))
-    check("the build entry pins the crate archive's sha256 (the crates.io index checksum), so a build refuses a changed crate", typeof entry?.crateSha256 === 'string' && /^[0-9a-f]{64}$/.test(entry.crateSha256), String(entry?.crateSha256))
+    check('the lock carries a BUILD entry for win-x64 — the crate, its version at the pin, the MSVC target', entry?.kind === 'build' && entry.crate === 'brush-shell' && entry.crateVersion === parsed.version && entry.target === 'x86_64-pc-windows-msvc', JSON.stringify(entry), 'give vendor/brush.lock.json a platforms["win-x64"] entry of kind build for brush-shell at the pinned version with target x86_64-pc-windows-msvc')
+    check("the build entry pins the crate archive's sha256 (the crates.io index checksum), so a build refuses a changed crate", typeof entry?.crateSha256 === 'string' && /^[0-9a-f]{64}$/.test(entry.crateSha256), String(entry?.crateSha256), 'set crateSha256 on the win-x64 entry of vendor/brush.lock.json to the 64-hex crates.io checksum of the pinned crate')
   } else {
     console.log('  [SKIP] vendor/brush.lock.json is not on this tree — the version pin is the probe\'s default alone')
   }
@@ -77,11 +82,11 @@ console.log('── §3 the win-x64 layout ──')
     }
     ownerDecode = owner.readBrushPackManifest ?? null
     const spelled = owner.brushPackPlatform?.('win32', 'x64') ?? null
-    check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled))
-    check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH))
+    check('the pack owner spells the Windows platform win-x64', spelled === 'win-x64', String(spelled), 'brushPackPlatform in src/utils/shell/brushPack.ts must return win-x64 for win32 on x64')
+    check('the pack root is vendor/brush', owner.BRUSH_PACK_PATH === 'vendor/brush', String(owner.BRUSH_PACK_PATH), 'BRUSH_PACK_PATH in src/utils/shell/brushPack.ts must be vendor/brush')
     if (spelled !== null) packPlatform = spelled
     const named = owner.brushBinaryFor?.(packPlatform)
-    check('the Windows binary is brush.exe', named === 'brush.exe', String(named))
+    check('the Windows binary is brush.exe', named === 'brush.exe', String(named), 'brushBinaryFor in src/utils/shell/brushPack.ts must return brush.exe for win-x64')
     if (named !== undefined) binaryName = named
   } else {
     console.log('  [SKIP] src/utils/shell/brushPack.ts is not on this tree — the literal win-x64 spelling stands in')
@@ -99,7 +104,7 @@ console.log('── §3 the win-x64 layout ──')
       check(`the manifest names the platform ${packPlatform}`, manifest.platform === packPlatform, String(manifest.platform))
       check('the manifest carries a version', typeof manifest.version === 'string' && /^\d+\.\d+\.\d+/.test(manifest.version), String(manifest.version))
       check('the manifest says the pack was built from the crate (source cargo-build)', manifest.source === 'cargo-build', String(manifest.source))
-      if (ownerDecode !== null) check('the pack owner decodes the built pack', ownerDecode(pack)?.source === 'cargo-build')
+      if (ownerDecode !== null) check('the pack owner decodes the built pack', ownerDecode(pack)?.source === 'cargo-build', '', 'readBrushPackManifest in src/utils/shell/brushPack.ts returned null or a source other than cargo-build for this pack, so compare it with the .vendor-manifest.json in the pack')
       const digest = createHash('sha256').update(readFileSync(exe)).digest('hex')
       const strings: string[] = []
       const walk = (v: unknown): void => {

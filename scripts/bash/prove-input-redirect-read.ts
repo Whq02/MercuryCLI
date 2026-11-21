@@ -30,9 +30,10 @@ const { checkPathConstraints } = await import('../../src/tools/BashTool/pathVali
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 
 let failures = 0
+const failureHint = 'to fix, read validateInputRedirections in src/tools/BashTool/pathValidation.ts (the read path check and its messages), then bashToolHasPermission in src/tools/BashTool/bashPermissions.ts and checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts for the scout'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 type Verdict = { behavior: string; message?: string; decisionReason?: { type?: string; reasons?: Map<string, Verdict> } }
 const context = (extra: Record<string, unknown> = {}) => ({ ...getEmptyToolPermissionContext(), mode: 'default', ...extra })

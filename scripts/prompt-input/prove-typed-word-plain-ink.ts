@@ -24,9 +24,9 @@ if (driver.kind !== 'posix-pty') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'
@@ -190,26 +190,26 @@ try {
     150_000,
   )
 } catch (error) {
-  check('the capture ran', false, String(error).slice(0, 400))
+  check('the capture ran', false, String(error).slice(0, 400), 'the PTY driver scripts/ui/vshot.py wrote no grid; read its stderr above and rebuild with bun run build.ts if the bundle is stale')
 } finally {
   await fixture.close()
 }
 if (cap) {
   if (KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(label, frame)
-  check('every send became due', cap.receipts === 5, `${cap.receipts}/5 · end ${cap.endReason}`)
+  check('every send became due', cap.receipts === 5, `${cap.receipts}/5 · end ${cap.endReason}`, 'a send in the capture config above never found its awaitText on screen; run with TYPED_WORD_INK_KEEP=1 to dump the frames and see which step stalled (driver: scripts/ui/vshot.py)')
   const composerNeedle = new RegExp(`❯.*${TYPED}`)
   const control = wordInks(cap.marks['composer'], composerNeedle, CONTROL)
-  check(`the composer shows the typed line with "${CONTROL}"`, control !== null, control ? control.row.slice(0, 100) : 'no composer row')
+  check(`the composer shows the typed line with "${CONTROL}"`, control !== null, control ? control.row.slice(0, 100) : 'no composer row', 'the typed line never reached the composer row; check how src/components/PromptInput/PromptInput.tsx renders its input line (HighlightedInput in src/components/PromptInput/ShimmeredInput.tsx)')
   for (const word of TRIGGERS) {
     const typed = wordInks(cap.marks['composer'], composerNeedle, word)
-    check(`the composer paints "${word}" in the ink of "${CONTROL}", every cell`, typed !== null && control !== null && distinct(typed.inks) === distinct(control.inks), typed && control ? `${word}: ${distinct(typed.inks)} · ${CONTROL}: ${distinct(control.inks)}` : 'no composer row')
+    check(`the composer paints "${word}" in the ink of "${CONTROL}", every cell`, typed !== null && control !== null && distinct(typed.inks) === distinct(control.inks), typed && control ? `${word}: ${distinct(typed.inks)} · ${CONTROL}: ${distinct(control.inks)}` : 'no composer row', `the composer must paint a typed trigger word in plain ink; remove the highlight given to it in src/components/PromptInput/PromptInput.tsx and src/components/PromptInput/ShimmeredInput.tsx (segmentTextByHighlights in src/utils/textHighlighting.ts)`)
   }
   const rowNeedle = new RegExp(`\\[sam\\].*${TYPED}`)
   const rowControl = wordInks(cap.marks['row'], rowNeedle, CONTROL)
-  check(`the sent row shows the line with "${CONTROL}"`, rowControl !== null, rowControl ? rowControl.row.slice(0, 100) : 'no user row')
+  check(`the sent row shows the line with "${CONTROL}"`, rowControl !== null, rowControl ? rowControl.row.slice(0, 100) : 'no user row', 'the sent user row never showed the typed line; run with TYPED_WORD_INK_KEEP=1 to dump the frames, and look at src/components/messages/HighlightedThinkingText.tsx')
   for (const word of TRIGGERS) {
     const sent = wordInks(cap.marks['row'], rowNeedle, word)
-    check(`the sent row paints "${word}" in the ink of "${CONTROL}", every cell`, sent !== null && rowControl !== null && distinct(sent.inks) === distinct(rowControl.inks), sent && rowControl ? `${word}: ${distinct(sent.inks)} · ${CONTROL}: ${distinct(rowControl.inks)}` : 'no user row')
+    check(`the sent row paints "${word}" in the ink of "${CONTROL}", every cell`, sent !== null && rowControl !== null && distinct(sent.inks) === distinct(rowControl.inks), sent && rowControl ? `${word}: ${distinct(sent.inks)} · ${CONTROL}: ${distinct(rowControl.inks)}` : 'no user row', `the sent row must paint a typed trigger word in plain ink; remove the highlight given to it in HighlightedThinkingText in src/components/messages/HighlightedThinkingText.tsx (segmentTextByHighlights in src/utils/textHighlighting.ts)`)
   }
   if (failures > 0 && !KEEP) for (const [label, frame] of Object.entries(cap.marks)) dump(label, frame)
 }

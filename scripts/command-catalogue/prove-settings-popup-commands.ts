@@ -7,9 +7,10 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-settings-popup-commands')
 
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = !ok && hint ? (detail ? detail + ' — ' : '') + hint : detail
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -24,10 +25,10 @@ const VIEWS = ['config', 'usage'] as const
 section('§1 the two commands are local screen-seat commands that open the one popup store')
 for (const view of VIEWS) {
   const index = (await import(`../../src/commands/${view}/index.js`)).default as Record<string, unknown>
-  check(`/${view} is a local command`, index.type === 'local', String(index.type))
-  check(`/${view} runs on the screen seat`, index.seat === 'screen', String(index.seat))
-  check(`/${view} is user-private (its line never enters a model conversation)`, index.userPrivate === true, String(index.userPrivate))
-  check(`/${view} declares supportsNonInteractive false`, index.supportsNonInteractive === false, String(index.supportsNonInteractive))
+  check(`/${view} is a local command`, index.type === 'local', String(index.type), 'set type: \'local\' in the command object of src/commands/' + view + '/index.ts')
+  check(`/${view} runs on the screen seat`, index.seat === 'screen', String(index.seat), 'set seat: \'screen\' in the command object of src/commands/' + view + '/index.ts')
+  check(`/${view} is user-private (its line never enters a model conversation)`, index.userPrivate === true, String(index.userPrivate), 'set userPrivate: true in the command object of src/commands/' + view + '/index.ts')
+  check(`/${view} declares supportsNonInteractive false`, index.supportsNonInteractive === false, String(index.supportsNonInteractive), 'set supportsNonInteractive: false in the command object of src/commands/' + view + '/index.ts')
   let opened: { view: string; width: number; rows: number | null } | null = null
   const unsubscribe = store.subscribeSettingsPopup(() => {
     const request = store.settingsPopupRequest()
@@ -37,10 +38,10 @@ for (const view of VIEWS) {
     const load = index.load as () => Promise<{ call: (args: string, context: unknown) => Promise<{ type: string }> }>
     const module = await load()
     const result = await module.call('', { messages: [], options: {} })
-    check(`/${view}'s body returns skip (the popup is the receipt)`, result.type === 'skip', JSON.stringify(result))
-    check(`/${view} opens the store with its own view`, opened !== null && opened.view === view, JSON.stringify(opened))
+    check(`/${view}'s body returns skip (the popup is the receipt)`, result.type === 'skip', JSON.stringify(result), 'the call() in src/commands/' + view + '/' + view + '.tsx must open the popup and return a skip result')
+    check(`/${view} opens the store with its own view`, opened !== null && opened.view === view, JSON.stringify(opened), 'the call() in src/commands/' + view + '/' + view + '.tsx must call openSettingsPopup with view: \'' + view + '\'')
   } catch (error) {
-    check(`/${view}'s body runs`, false, String(error).slice(0, 160))
+    check(`/${view}'s body runs`, false, String(error).slice(0, 160), 'the load() of src/commands/' + view + '/index.ts or the call() in src/commands/' + view + '/' + view + '.tsx threw; fix that error')
   } finally {
     unsubscribe()
     store.closeSettingsPopup()
@@ -48,15 +49,15 @@ for (const view of VIEWS) {
 }
 
 const config = (await import('../../src/commands/config/index.js')).default as Record<string, unknown>
-check('/config keeps its settings alias', Array.isArray(config.aliases) && (config.aliases as string[]).includes('settings'))
-check('/config carries no immediate getter (a screen command runs now, busy or not)', !('immediate' in config))
+check('/config keeps its settings alias', Array.isArray(config.aliases) && (config.aliases as string[]).includes('settings'), JSON.stringify(config.aliases), 'add \'settings\' to aliases in src/commands/config/index.ts')
+check('/config carries no immediate getter (a screen command runs now, busy or not)', !('immediate' in config), '', 'remove the immediate getter from the command object in src/commands/config/index.ts')
 const request = store.settingsPopupRequest()
 {
   const module = await (config.load as () => Promise<{ call: (args: string, context: unknown) => Promise<unknown> }>)()
   await module.call('', { messages: [], options: {} })
   const opened = store.settingsPopupRequest()
-  check('/config asks for 110 columns and 44 rows', opened?.width === 110 && opened?.rows === 44, JSON.stringify({ width: opened?.width, rows: opened?.rows }))
-  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint)
+  check('/config asks for 110 columns and 44 rows', opened?.width === 110 && opened?.rows === 44, JSON.stringify({ width: opened?.width, rows: opened?.rows }), 'set CONFIG_POPUP_WIDTH to 110 and CONFIG_POPUP_ROWS to 44 in src/components/Settings/config/configLayout.ts')
+  check("/config's hint row is the page's, verbatim", opened?.hint === '↑↓ select · pgup/pgdn page · ←/→ change · ↵ save · / search · esc or click outside closes', opened?.hint, 'make CONFIG_POPUP_HINT in src/components/Settings/config/configLayout.ts read exactly as this check expects')
   store.closeSettingsPopup()
 }
 void request

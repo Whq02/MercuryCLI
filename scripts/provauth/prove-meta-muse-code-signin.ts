@@ -180,11 +180,12 @@ try {
     login.META_CONNECT_ROWS[0]?.label === 'Sign in with Meta — a Muse Code subscription, a device code in your browser' &&
       login.META_CONNECT_ROWS[0]?.value === 'device' &&
       login.META_CONNECT_ROWS[1]?.value === 'key',
-    JSON.stringify(login.META_CONNECT_ROWS),
+    JSON.stringify(login.META_CONNECT_ROWS) + ' — change META_CONNECT_ROWS in src/services/providers/meta/metaLogin.ts so Sign in with Meta (device) is first and the API key (key) second',
   )
   check(
     'the Boot logins face offers the exact same two rows in the same order',
     JSON.stringify(screen.loginsPickOptions('meta')) === JSON.stringify(login.META_CONNECT_ROWS),
+    'make loginsPickOptions(meta) in src/components/bootLogins/pickLines.ts return META_CONNECT_ROWS from src/services/providers/meta/metaLogin.ts unchanged',
   )
   check(
     'production endpoints match the verified Meta OIDC and key mint contract',
@@ -193,6 +194,7 @@ try {
       accounts.metaDeviceAuthUrl({} as NodeJS.ProcessEnv) === 'https://auth.meta.com/oidc/device/authorization/' &&
       accounts.metaDeviceTokenUrl({} as NodeJS.ProcessEnv) === 'https://auth.meta.com/oidc/device/token/' &&
       accounts.metaMuseCodeKeyUrl({} as NodeJS.ProcessEnv) === 'https://api.meta.ai/muse-code/key',
+    'restore the client id, API version and the three default URLs (metaDeviceAuthUrl, metaDeviceTokenUrl, metaMuseCodeKeyUrl) in src/services/providers/meta/metaAccounts.ts',
   )
 
   console.log('── 2. Device authorization, poll (pending + slow_down), token & key mint ──')
@@ -214,16 +216,16 @@ try {
       events.push(e.phase === 'waiting' ? `waiting:${e.polls}:${e.start.userCode}` : e.phase)
     },
   })
-  check('device sign-in succeeds and settles with receipt', outcome.ok === true, outcome.receipt)
+  check('device sign-in succeeds and settles with receipt', outcome.ok === true, outcome.receipt + ' — runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts did not finish the sign-in against the fixture server')
   check(
     'events progress starting → waiting (code shown before first poll, then per poll) → finishing',
     events.join(' ') === 'starting waiting:0:MUSE-4321 waiting:1:MUSE-4321 waiting:2:MUSE-4321 finishing',
-    events.join(' '),
+    events.join(' ') + ' — fix the onEvent phases emitted by runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   check(
     'slow_down increases the poll interval by 5 seconds per RFC 8628',
     JSON.stringify(sleeps) === JSON.stringify([2000, 2000, 7000]),
-    JSON.stringify(sleeps),
+    JSON.stringify(sleeps) + ' — fix the slow_down handling in the poll loop of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   const authReq = requests[0]
   const pollReq = requests[1]
@@ -235,7 +237,7 @@ try {
       authReq.headers['accept'] === 'application/json' &&
       authReq.headers['x-api-version'] === '1.0.0' &&
       authReq.body === 'client_id=1031625952748946',
-    JSON.stringify(authReq),
+    JSON.stringify(authReq) + ' — fix the device authorization request (see metaDeviceAuthUrl in src/services/providers/meta/metaAccounts.ts and runMetaDeviceLogin in metaLogin.ts)',
   )
   check(
     'token poll sends client_id, device_code, and device_code grant with x-api-version: 1.0.0',
@@ -246,7 +248,7 @@ try {
       pollReq.body.includes('client_id=1031625952748946') &&
       pollReq.body.includes('device_code=dev-meta-001') &&
       pollReq.body.includes('grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Adevice_code'),
-    JSON.stringify(pollReq),
+    JSON.stringify(pollReq) + ' — fix the token poll request (see metaDeviceTokenUrl in src/services/providers/meta/metaAccounts.ts and runMetaDeviceLogin in metaLogin.ts)',
   )
   check(
     'key mint sends ONE POST /muse-code/key with Bearer <account token>, x-api-version: 1.0.0, and {"onboard":true}',
@@ -255,7 +257,7 @@ try {
       keyReq.headers['authorization'] === `Bearer ${ACCOUNT_TOKEN}` &&
       keyReq.headers['x-api-version'] === '1.0.0' &&
       keyReq.body === '{"onboard":true}',
-    JSON.stringify(keyReq),
+    JSON.stringify(keyReq) + ' — fix the key mint request (see metaMuseCodeKeyUrl in src/services/providers/meta/metaAccounts.ts and runMetaDeviceLogin in metaLogin.ts)',
   )
 
   console.log('── 3. Stored grant mode 600, e-mail, tier, usage windows, and wire key resolution ──')
@@ -266,7 +268,7 @@ try {
     authPath.startsWith(proofHome) &&
       authPath.endsWith('.meta-auth.json') &&
       (statSync(authPath).mode & 0o777) === 0o600,
-    authPath,
+    authPath + ' — fix metaAuthPathForDisplay or the grant write in src/services/providers/meta/metaAccounts.ts (file name .meta-auth.json under the auth home, mode 600)',
   )
   check(
     'stored grant holds the account token, minted key, e-mail, tier, and both usage windows',
@@ -282,13 +284,14 @@ try {
       grant.usage.weekly.windowDurationMins === 10080 &&
       grant.usage.weekly.resetsAtMs === Date.parse('2026-10-20T00:00:00.000Z') &&
       grant.observedAtMs === nowMs,
-    JSON.stringify(grant),
+    JSON.stringify(grant) + ' — fix how runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts stores the grant, and readMetaMuseCodeGrant in metaAccounts.ts',
   )
   check(
     'resolveMetaApiKey returns the MINTED key (never the account token)',
     accounts.resolveMetaApiKey()?.key === MINTED_KEY &&
       accounts.resolveMetaApiKey()?.source === 'muse-code' &&
       accounts.resolveMetaApiKey()?.key !== ACCOUNT_TOKEN,
+    'resolveMetaApiKey in src/services/providers/meta/metaAccounts.ts must return the minted key with source muse-code, never the account token',
   )
   check(
     'receipt names e-mail, tier, and usage windows without leaking the account token or minted key',
@@ -298,7 +301,7 @@ try {
       outcome.receipt.includes('weekly 41%') &&
       !outcome.receipt.includes(ACCOUNT_TOKEN) &&
       !outcome.receipt.includes(MINTED_KEY),
-    outcome.receipt,
+    outcome.receipt + ' — fix the receipt text built in runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   const metaSlots = slots.deriveFamilySlotGroups().find(g => g.family.id === 'meta')?.slots ?? []
   check(
@@ -310,7 +313,7 @@ try {
       metaSlots[0].identity.includes('subscriber@example.com') &&
       !JSON.stringify(metaSlots).includes(ACCOUNT_TOKEN) &&
       !JSON.stringify(metaSlots).includes(MINTED_KEY),
-    JSON.stringify(metaSlots),
+    JSON.stringify(metaSlots) + ' — fix deriveFamilySlotGroups in src/services/providers/accountSlots.ts for the meta family',
   )
   const metaPresence = providerUsage.providerFamilyPresences().find(p => p.id === 'meta')
   check(
@@ -320,7 +323,7 @@ try {
       metaPresence.credentialLabel === 'Muse Code (Muse Code Pro)' &&
       providerUsage.presenceIdentityWords(metaPresence, true) === 'subscriber@example.com' &&
       providerUsage.presenceIdentityWords(metaPresence, false) === 'Meta account',
-    JSON.stringify(metaPresence),
+    JSON.stringify(metaPresence) + ' — fix providerFamilyPresences and presenceIdentityWords in src/services/providers/providerUsage.ts for the meta family',
   )
 
   console.log('── 4. Row 4: /usage shows tier and two windows with age; re-read bounded through /muse-code/key ──')
@@ -346,14 +349,14 @@ try {
       initialUsage.windows[1]?.resetsAtMs === Date.parse('2026-10-20T00:00:00.000Z') &&
       stampWords?.includes('endpoint-fed') &&
       stampWords?.includes('3 min ago'),
-    JSON.stringify({ initialUsage, stampWords, tierWithAge }),
+    JSON.stringify({ initialUsage, stampWords, tierWithAge }) + ' — fix usageForProvider(meta) in src/services/providers/providerUsage.ts (meta view in providerUsage/meta.ts), metaMuseCodeTierWordsWithAge in meta/metaLogin.ts, or usageSourceWords in usageFreshness.ts',
   )
   requests.length = 0
   await providerUsage.refreshProviderUsage('meta', { now: () => nowMs + 5_000, reason: 'open' })
   check(
     'a /usage read inside the TTL floor makes no network request (bounded)',
     requests.filter(r => r.path === '/muse-code/key').length === 0,
-    JSON.stringify(requests),
+    JSON.stringify(requests) + ' — refreshProviderUsage in src/services/providers/providerUsage.ts must skip the re-read inside USAGE_POLL_TTL_MS',
   )
   const savedKeyReplyForUsage = keyReply
   keyReply = {
@@ -393,7 +396,7 @@ try {
       refreshedUsage.windows[0]?.usedPct === 62 &&
       refreshedUsage.windows[1]?.usedPct === 58 &&
       refreshedUsage.windows[0]?.observedAtMs === refreshedAtMs,
-    JSON.stringify({ usageKeyReqs, refreshedUsage }),
+    JSON.stringify({ usageKeyReqs, refreshedUsage }) + ' — fix refreshProviderUsage for meta in src/services/providers/providerUsage.ts so past the TTL it posts {} to /muse-code/key once and stores the new tier, windows and read time',
   )
   keyReply = savedKeyReplyForUsage
   secrets.writeStoredMetaApiKey(STORED_API_KEY)
@@ -405,7 +408,7 @@ try {
       keyUsage.shape === 'api-spend' &&
       keyUsage.windows.length === 0 &&
       keyUsage.absence === usageState.META_USAGE_ABSENCE,
-    JSON.stringify(keyUsage),
+    JSON.stringify(keyUsage) + ' — fix usageForProvider(meta) in src/services/providers/providerUsage.ts for the api-key source (absence line META_USAGE_ABSENCE from meta/metaUsageState.ts)',
   )
 
   const { Usage } = await import('../../src/components/Settings/Usage.tsx')
@@ -423,15 +426,15 @@ try {
         planSlot.includes('not active — ↵ on its /logins row makes it active') &&
         !planSlot.includes('none —') && !planSlot.includes('This session:') &&
         !frame.includes(ACCOUNT_TOKEN) && !frame.includes(MINTED_KEY) && !frame.includes(STORED_API_KEY),
-      frame,
+      frame + ' — fix the inactive Muse Code slot rendering in src/components/Settings/Usage.tsx and metaMuseCodeUsage in src/services/providers/providerUsage/meta.ts',
     )
-    check('reading the inactive subscription slot never refreshes or activates it', requests.length === 0 && accounts.resolveMetaAccount()?.kind === 'api-key' && accounts.readMetaMuseCodeGrant()?.observedAtMs === refreshedAtMs, JSON.stringify(requests))
+    check('reading the inactive subscription slot never refreshes or activates it', requests.length === 0 && accounts.resolveMetaAccount()?.kind === 'api-key' && accounts.readMetaMuseCodeGrant()?.observedAtMs === refreshedAtMs, JSON.stringify(requests) + ' — the Usage panel in src/components/Settings/Usage.tsx must only read the stored subscription, not refresh or activate it')
     const storedPlan = providerUsage.metaMuseCodeUsage()
-    check('the inactive slot reads the subscription owner, not the active API-key usage', storedPlan?.tier === 'Muse Code Max' && storedPlan.windows.length === 2 && storedPlan.windows[0]?.usedPct === 62 && storedPlan.windows[1]?.usedPct === 58 && storedPlan.windows.every(window => window.observedAtMs === refreshedAtMs) && keyUsage.windows.length === 0)
+    check('the inactive slot reads the subscription owner, not the active API-key usage', storedPlan?.tier === 'Muse Code Max' && storedPlan.windows.length === 2 && storedPlan.windows[0]?.usedPct === 62 && storedPlan.windows[1]?.usedPct === 58 && storedPlan.windows.every(window => window.observedAtMs === refreshedAtMs) && keyUsage.windows.length === 0, 'fix metaMuseCodeUsage in src/services/providers/providerUsage/meta.ts so it reads the stored subscription grant, not the active API-key usage')
     const storedGrant = accounts.readMetaMuseCodeGrant()!
     const { usage: _windows, ...grantWithoutWindows } = storedGrant
     accounts.writeMetaMuseCodeGrant(grantWithoutWindows)
-    check('a stored subscription without stated windows gets its absence words from the usage owner', providerUsage.metaMuseCodeUsage()?.absence === 'Plan windows: not stated on the last read.' && providerUsage.metaMuseCodeUsage()?.windows.length === 0)
+    check('a stored subscription without stated windows gets its absence words from the usage owner', providerUsage.metaMuseCodeUsage()?.absence === 'Plan windows: not stated on the last read.' && providerUsage.metaMuseCodeUsage()?.windows.length === 0, 'fix metaMuseCodeUsage in src/services/providers/providerUsage/meta.ts so a grant without windows returns the absence words Plan windows: not stated on the last read.')
     accounts.writeMetaMuseCodeGrant(storedGrant)
   } finally {
     inactiveView.unmount()
@@ -449,7 +452,7 @@ try {
       chatReq?.headers['authorization'] === `Bearer ${MINTED_KEY}` &&
       !requests.some(r => r.headers['authorization'] === `Bearer ${ACCOUNT_TOKEN}`) &&
       !requests.some(r => r.headers['authorization'] === `Bearer ${STORED_API_KEY}`),
-    JSON.stringify(chatReq?.headers),
+    JSON.stringify(chatReq?.headers) + ' — fix the credential the Meta chat call sends in src/services/providers/meta/metaCallModel.ts (resolveMetaApiKey in metaAccounts.ts must give the minted key)',
   )
   for (const status of [401, 403] as const) {
     chatStatus = status
@@ -465,7 +468,7 @@ try {
       ) &&
         !requests.some(r => r.headers['authorization'] === `Bearer ${STORED_API_KEY}`) &&
         accounts.resolveMetaAccount()?.kind === 'muse-code',
-      JSON.stringify(refusedChat),
+      JSON.stringify(refusedChat) + ' — fix the 401/403 handling in src/services/providers/meta/metaCallModel.ts',
     )
   }
   chatStatus = 200
@@ -481,14 +484,14 @@ try {
         m.error === 'authentication_failed' &&
         JSON.stringify(m).includes('run /logins to sign in with Meta again'),
     ) && requests.length === 0,
-    JSON.stringify(refusedModels),
+    JSON.stringify(refusedModels) + ' — fix the refused-catalogue message in src/services/providers/meta/metaCallModel.ts (the 401 comes from refreshMetaCatalogue in metaCatalogue.ts)',
   )
   const refusedValidate = await validateModel('muse-spark-1.3')
   check(
     'validateModel on a refused Muse Code key says "run /logins to sign in with Meta again"',
     !refusedValidate.valid &&
       refusedValidate.error?.includes('run /logins to sign in with Meta again') === true,
-    JSON.stringify(refusedValidate),
+    JSON.stringify(refusedValidate) + ' — fix validateMetaModel in src/services/providers/validateModel/onDemandCatalogues.ts (reached from validateModel in src/services/providers/validateModel.ts)',
   )
   modelsStatus = 200
   catalogue.__resetMetaCatalogueForTest()
@@ -518,7 +521,7 @@ try {
       paymentRequired.receipt.includes('nothing stored as active') &&
       accounts.readMetaMuseCodeGrant() === undefined &&
       accounts.resolveMetaAccount() === undefined,
-    paymentRequired.receipt,
+    paymentRequired.receipt + ' — fix the require-payment branch of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   pollQueue = [{ status: 200, body: { access_token: ACCOUNT_TOKEN } }]
   keyReply = {
@@ -535,7 +538,7 @@ try {
       paymentAltUrl.code === 'require-payment' &&
       paymentAltUrl.receipt.includes('https://www.meta.ai/muse-code/billing') &&
       accounts.readMetaMuseCodeGrant() === undefined,
-    paymentAltUrl.receipt,
+    paymentAltUrl.receipt + ' — fix the require_payment_action_url handling in runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   await login.storeMetaApiKeyLogin(STORED_API_KEY)
   pollQueue = [{ status: 200, body: { access_token: ACCOUNT_TOKEN } }]
@@ -553,7 +556,7 @@ try {
       !refusedMint.receipt.includes(ACCOUNT_TOKEN) &&
       accounts.readMetaMuseCodeGrant() === undefined &&
       accounts.resolveMetaAccount()?.kind === 'api-key',
-    refusedMint.receipt,
+    refusedMint.receipt + ' — fix the refused branch of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   secrets.writeStoredMetaApiKey(null)
   keyReply = savedKeyReply
@@ -570,21 +573,21 @@ try {
   check(
     'cancelling during the poll settles cancelled and stores nothing',
     !cancelled.ok && cancelled.code === 'cancelled' && accounts.readMetaMuseCodeGrant() === undefined,
-    cancelled.receipt,
+    cancelled.receipt + ' — fix the cancelled branch of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   pollQueue = [{ status: 400, body: { error: 'expired_token' } }]
   const expiredToken = await login.runMetaDeviceLogin({ sleep: async () => {} })
   check(
     'expired_token from the poll endpoint settles expired and stores nothing',
     !expiredToken.ok && expiredToken.code === 'expired' && accounts.readMetaMuseCodeGrant() === undefined,
-    expiredToken.receipt,
+    expiredToken.receipt + ' — fix the expired_token branch of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   pollQueue = [{ status: 400, body: { error: 'access_denied' } }]
   const deniedToken = await login.runMetaDeviceLogin({ sleep: async () => {} })
   check(
     'access_denied from the poll endpoint settles denied and stores nothing',
     !deniedToken.ok && deniedToken.code === 'denied' && accounts.readMetaMuseCodeGrant() === undefined,
-    deniedToken.receipt,
+    deniedToken.receipt + ' — fix the access_denied branch of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
   let clock = 1_000_000
   const expired = await login.runMetaDeviceLogin({
@@ -596,7 +599,7 @@ try {
   check(
     'poll past expiry settles expired and stores nothing',
     !expired.ok && expired.code === 'expired' && accounts.readMetaMuseCodeGrant() === undefined,
-    expired.receipt,
+    expired.receipt + ' — fix the clock expiry check in the poll loop of runMetaDeviceLogin in src/services/providers/meta/metaLogin.ts',
   )
 
   console.log(`\n${passes} passed, ${failures} failed`)

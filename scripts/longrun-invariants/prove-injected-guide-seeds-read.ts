@@ -30,9 +30,9 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
   setOriginalCwd(restoreCwd)
   const guide = nativeGuide
   const seeded = cache.get(guide)
-  check('the injected root guide is seeded into readFileState', seeded !== undefined)
-  check('…with the CURRENT disk bytes (honest knowledge, not a guess)', seeded?.content === readFileSync(guide, 'utf8'))
-  check('…and a real mtime stamp', typeof seeded?.timestamp === 'number' && seeded.timestamp > 0)
+  check('the injected root guide is seeded into readFileState', seeded !== undefined, 'seedFileKnowledgeFromInjectedInstructions in src/services/instructions/engine.ts set no entry for the fixture MERCURY.md; check that getInstructionFiles and filterInjectedInstructionFiles still return it with content')
+  check('…with the CURRENT disk bytes (honest knowledge, not a guess)', seeded?.content === readFileSync(guide, 'utf8'), 'the seeded content differs from the file on disk; fix the content stored by seedFileKnowledgeFromInjectedInstructions in src/services/instructions/engine.ts')
+  check('…and a real mtime stamp', typeof seeded?.timestamp === 'number' && seeded.timestamp > 0, 'the seeded entry has no positive timestamp; fix the timestamp set from statSync mtimeMs in seedFileKnowledgeFromInjectedInstructions in src/services/instructions/engine.ts')
 
   const { getDefaultAppState } = await import('../../src/state/AppState.js')
   const appState = getDefaultAppState()
@@ -41,7 +41,7 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
     { file_path: guide, content: 'x' },
     { readFileState: cache, getAppState: () => appState } as never,
   )
-  check('FileWriteTool.validate PASSES on the seeded file (no forced Read)', verdict.result === true, JSON.stringify(verdict))
+  check('FileWriteTool.validate PASSES on the seeded file (no forced Read)', verdict.result === true, `${JSON.stringify(verdict)} (FileWriteTool.validateInput in src/tools/FileWriteTool/FileWriteTool.ts must accept a file whose content the readFileState cache already holds from seedFileKnowledgeFromInjectedInstructions)`)
   const scratch = mkdtempSync(join(tmpdir(), 'vigil-blind-write-'))
   const blindPath = join(scratch, 'existing.txt')
   writeFileSync(blindPath, 'original\n')
@@ -55,7 +55,7 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
     getAppState: () => appState,
   } as never
   const blind = await FileWriteTool.validateInput({ file_path: blindPath, content: 'changed\n' }, blindCtx)
-  check('validateInput is content-free — the gate moved to call', blind.result === true)
+  check('validateInput is content-free — the gate moved to call', blind.result === true, 'FileWriteTool.validateInput in src/tools/FileWriteTool/FileWriteTool.ts must not read file content or refuse an unread existing file; the prior-read gate belongs in call')
   let refusal = ''
   try {
     await (FileWriteTool as { call: Function }).call({ file_path: blindPath, content: 'changed\n' }, blindCtx, null, {
@@ -65,8 +65,8 @@ console.log('\n=== harness-known files need no redundant Read (AVS MEMORY.md) ==
   } catch (err) {
     refusal = err instanceof Error ? err.message : String(err)
   }
-  check('an UNSEEDED existing file still refuses a blind CHANGING Write at call() (the gate stands)', /prior read of the current content is required/.test(refusal), refusal || 'settled?!')
-  check('nothing was written on the refusal', readFileSync(blindPath, 'utf8') === 'original\n')
+  check('an UNSEEDED existing file still refuses a blind CHANGING Write at call() (the gate stands)', /prior read of the current content is required/.test(refusal), `${refusal || 'settled?!'} (FileWriteTool.call in src/tools/FileWriteTool/FileWriteTool.ts must refuse a changing write to an existing file absent from readFileState; the refusal text is built in src/tools/FileEditTool/otherSession.ts)`)
+  check('nothing was written on the refusal', readFileSync(blindPath, 'utf8') === 'original\n', 'the file on disk changed although FileWriteTool.call should have refused the blind write; check the prior-read gate in src/tools/FileWriteTool/FileWriteTool.ts')
 }
 
 console.log(`\n${failures === 0 ? '✅ ALL PASS — harness knowledge is shared' : `❌ ${failures} FAILED`}\n`)

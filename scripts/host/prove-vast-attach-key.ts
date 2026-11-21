@@ -37,7 +37,8 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 const failures: string[] = []
 let checks = 0
-const check = (name: string, truth: unknown, detail = '') => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name); console.error('FAIL ' + name + ': ' + detail) } }
+const attachKeyHint = 'change the SSH wait and key attach step of runHostJob in src/services/host/worker.ts, or VastClient.attachSshKey and VastClient.get in src/services/host/vendors/vast.ts'
+const check = (name: string, truth: unknown, detail = '') => { if (truth) { checks++; console.log('PASS ' + name) } else { failures.push(name); console.error('FAIL ' + name + ': ' + detail + ' · ' + attachKeyHint) } }
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 try {
   const { hostRunner, ensureHostKey, closeHostTunnel } = await import('../../src/services/host/ssh.ts')
@@ -106,7 +107,7 @@ try {
     check(mode + ': no terminate or replacement and no secrets in the notice', vast.state.deletes === 0 && !notices(pod.id).some(text => text.includes(vast.key) || text.includes(key.publicKey)), notices(pod.id).join('\n'))
     closeHostTunnel(pod.id)
   }
-  check('all requests stayed on loopback', escaped.length === 0)
+  check('all requests stayed on loopback', escaped.length === 0, 'escaped requests: ' + escaped.join(', '))
   if (failures.length) throw new Error(failures.length + ' attach-key checks failed: ' + failures.join('; '))
   console.log('VAST ATTACH KEY GREEN · ' + checks + ' checks')
 } finally { Date.now = realNow; globalThis.fetch = nativeFetch; ssh?.close(); await vast.close(); f.close() }

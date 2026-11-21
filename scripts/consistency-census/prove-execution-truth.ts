@@ -8,9 +8,18 @@ import { fullPoolSupport, resolveExecutionProfile } from '../lib/executionProfil
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
+const sectionFixes: Record<string, string> = {
+  '§A': 'change runGit in scripts/lib/git.ts so it returns the typed ok, nonzero and unavailable arms',
+  '§B': 'change gitOutOrNull in scripts/lib/git.ts, or the git calls in scripts/verify/fast.ts and scripts/verify/prove-baseline-source.ts',
+  '§C': 'change resolveExecutionProfile or fullPoolSupport in scripts/lib/executionProfile.ts',
+  '§D': 'change the fullPoolSupport guard before the pool spawns, and the exit code, in scripts/verify/fast.ts',
+  '§E': 'change the plan printing in scripts/verify/fast.ts so --plan prints the plan verdict line',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failed++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const fix = sectionFixes[label.slice(0, 2)]
+  const shown = [detail, fix === undefined ? '' : 'to fix: ' + fix].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ' — ' + shown : cond && detail ? ' — ' + detail : ''}`)
 }
 
 const repo = mkdtempSync(join(tmpdir(), 'unison-w6-repo-'))

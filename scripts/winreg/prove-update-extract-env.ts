@@ -6,9 +6,9 @@ const updateService = (await import('../../src/services/privateChannel/updateSer
 }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fix = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
 const spellings = (env: NodeJS.ProcessEnv, name: string): string[] =>
   Object.keys(env).filter(key => key.toUpperCase() === name.toUpperCase())
@@ -17,16 +17,16 @@ console.log('============================================================')
 console.log(' the update extractor environment per PowerShell edition')
 console.log('============================================================')
 
-check('updateService exports extractorEnv', typeof updateService.extractorEnv === 'function')
+check('updateService exports extractorEnv', typeof updateService.extractorEnv === 'function', '', 'export extractorEnv from src/services/privateChannel/updateService.ts')
 
 if (typeof updateService.extractorEnv === 'function') {
   process.env.PSModulePath = ['pwsh-user-modules', 'pwsh-shared-modules'].join(process.platform === 'win32' ? ';' : ':')
   const legacy = updateService.extractorEnv('powershell', 'archive.zip', 'dest')
   const modern = updateService.extractorEnv('pwsh', 'archive.zip', 'dest')
-  check('Windows PowerShell gets no module path from the parent, so it builds its own', spellings(legacy, 'PSModulePath').length === 0, spellings(legacy, 'PSModulePath').join(', '))
-  check('PowerShell 7 keeps the module path from the parent', spellings(modern, 'PSModulePath').length === 1)
-  check('both carry the archive and the destination', legacy.MERCURY_UPDATE_ARCHIVE === 'archive.zip' && legacy.MERCURY_UPDATE_DEST === 'dest' && modern.MERCURY_UPDATE_ARCHIVE === 'archive.zip')
-  check('both keep PATH', spellings(legacy, 'PATH').length === 1 && spellings(modern, 'PATH').length === 1)
+  check('Windows PowerShell gets no module path from the parent, so it builds its own', spellings(legacy, 'PSModulePath').length === 0, spellings(legacy, 'PSModulePath').join(', '), 'in extractorEnv in src/services/privateChannel/updateService.ts delete every case spelling of PSModulePath when the shell is powershell')
+  check('PowerShell 7 keeps the module path from the parent', spellings(modern, 'PSModulePath').length === 1, '', 'in extractorEnv in src/services/privateChannel/updateService.ts keep PSModulePath from the parent environment when the shell is pwsh')
+  check('both carry the archive and the destination', legacy.MERCURY_UPDATE_ARCHIVE === 'archive.zip' && legacy.MERCURY_UPDATE_DEST === 'dest' && modern.MERCURY_UPDATE_ARCHIVE === 'archive.zip', '', 'in extractorEnv in src/services/privateChannel/updateService.ts set MERCURY_UPDATE_ARCHIVE and MERCURY_UPDATE_DEST from its archivePath and destDir arguments for both shells')
+  check('both keep PATH', spellings(legacy, 'PATH').length === 1 && spellings(modern, 'PATH').length === 1, '', 'in extractorEnv in src/services/privateChannel/updateService.ts keep PATH from the subprocess environment for both shells')
   delete process.env.PSModulePath
 }
 

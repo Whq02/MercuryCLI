@@ -190,24 +190,24 @@ const boardWithReply = m ? Number(m[2]) : -1
   check(
     'R0 the terra turn reached the OpenAI lane (the fixture served POST /responses once)',
     openaiTurns.length === 1,
-    `wire: ${wire.map(r => `${r.kind}${r.model ? `:${r.model}` : ''}`).join(' · ') || '(no wire log)'}`,
+    `wire: ${wire.map(r => `${r.kind}${r.model ? `:${r.model}` : ''}`).join(' · ') || '(no wire log)'} | fix: after /model gpt-5.6-sol the next turn must go to the OpenAI lane exactly once; read the wire log ${captureFile} and the kept world named under [forensics]`,
   )
   check(
     'R0 the previous provider served ONE main turn (alpha) — the switched turn never rode it',
     anthropicMainTurns.length === 1,
-    `anthropic main-model requests: ${anthropicMainTurns.length}`,
+    `anthropic main-model requests: ${anthropicMainTurns.length} | fix: the alpha turn must be the only main-model request on the previous provider; the switched turn must not go out on it (read ${captureFile})`,
   )
 }
 check(
   'R1 the newest assistant reply survived the round trip (painted after esc)',
   gridText.includes(TERRA),
-  `vshot status=${res.status}\n${gridText.split('\n').slice(-16).join('\n')}`,
+  `vshot status=${res.status}\n${gridText.split('\n').slice(-16).join('\n')}\nfix: after /concourse and esc the newest reply must paint again; grid at ${out}, frames at ${tee}, stderr: ${(res.stderr ?? '').slice(-400)}`,
 )
-check('R2 the ctx meter did not reset to em-dash', !/ctx — /.test(gridText), gridText.split('\n').filter(l => l.includes('ctx')).join('\n'))
+check('R2 the ctx meter did not reset to em-dash', !/ctx — /.test(gridText), gridText.split('\n').filter(l => l.includes('ctx')).join('\n') + ' | fix: the ctx meter must keep its token count after the concourse round trip; grid at ' + out)
 check(
   "R3 the board's live viewer painted the main Chat transcript (no blank mirror)",
   boardFrames > 0 && boardWithReply > 0,
-  `board frames=${boardFrames} with reply=${boardWithReply} census='${(census.stdout ?? census.stderr ?? '').trim()}'`,
+  `board frames=${boardFrames} with reply=${boardWithReply} census='${(census.stdout ?? census.stderr ?? '').trim()}' | fix: the board frames (SESSIONS) must show the ${TERRA} reply in the live viewer; see SessionMirror in src/components/concourse/SessionMirror.tsx and useWorkerTranscriptFold in src/components/concourse/workerTranscriptFold.ts, frames at ${tee}`,
 )
 
 {
@@ -224,7 +224,7 @@ check(
       }
     }
   }
-  check('R4 the reply text is in the persisted session log', hit, `${scanned} transcript file(s) scanned under ${projectsDir}`)
+  check('R4 the reply text is in the persisted session log', hit, `${scanned} transcript file(s) scanned under ${projectsDir} | fix: the reply ${TERRA} must be appended to the session transcript .jsonl under projects/ before the turn ends`)
 }
 
 console.log(failures === 0 ? '\nprove-concourse-roundtrip-transcript: ALL LAWS HOLD' : `\nprove-concourse-roundtrip-transcript: ${failures} FAILURE(S)`)

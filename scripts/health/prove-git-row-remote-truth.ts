@@ -9,10 +9,14 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fix = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    if (fix) console.log(`    fix: ${fix}`)
+  }
 }
+const gitRowFix = 'the git check in src/services/health/sections/git.ts builds the evidence clauses (unpushed count, no remote configured, no upstream for this branch) from the repo facts of src/utils/git.ts; correct the clause that disagrees with the repository this section built'
 
 const BASE = realpathSync(mkdtempSync(join(tmpdir(), 'gitrow-')))
 const git = (cwd: string, ...args: string[]): void => {
@@ -45,6 +49,7 @@ console.log('§1 remoteless repo with a commit')
     "says 'no remote configured', never 'ahead of remote'",
     ev.includes('no remote configured') && !ev.includes('ahead of remote'),
     ev,
+    gitRowFix,
   )
 }
 
@@ -57,6 +62,7 @@ console.log('\n§2 a real clone, in sync')
     'carries neither clause (upstream exists, nothing unpushed)',
     !ev.includes('no remote') && !ev.includes('ahead of remote') && !ev.includes('no upstream') && !ev.includes('unpushed'),
     ev,
+    gitRowFix,
   )
 
   console.log('\n§3 the clone one commit ahead')
@@ -64,7 +70,7 @@ console.log('\n§2 a real clone, in sync')
   git(clone, 'add', 'b.txt')
   git(clone, 'commit', '-q', '-m', 'second')
   const ahead = await gitRow(clone)
-  check("says '1 unpushed' (the count is the ahead-ness fact)", ahead.includes('1 unpushed'), ahead)
+  check("says '1 unpushed' (the count is the ahead-ness fact)", ahead.includes('1 unpushed'), ahead, gitRowFix)
 }
 
 console.log('\n§4 a remote configured, branch without an upstream')
@@ -81,6 +87,7 @@ console.log('\n§4 a remote configured, branch without an upstream')
     "says 'no upstream for this branch', never 'ahead of remote'",
     ev.includes('no upstream for this branch') && !ev.includes('ahead of remote'),
     ev,
+    gitRowFix,
   )
 }
 

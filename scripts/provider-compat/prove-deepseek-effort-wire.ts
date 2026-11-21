@@ -97,6 +97,10 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const DEEPSEEK_WIRE_FIX = 'change buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts (wired by deepseekLaneProfile in src/services/providers/deepseek/deepseekCallModel.ts)'
+const DEEPSEEK_TRANSPORT_FIX = 'the turn runs through compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts with deepseekLaneProfile in src/services/providers/deepseek/deepseekCallModel.ts; read the request line above for what reached the fixture'
+const DEEPSEEK_CLIENT_FIX = 'the body and the Authorization header are built in src/services/providers/openaicompat/compatChatClient.ts'
+const DEEPSEEK_DIST_FIX = 'rebuild with bun run build.ts, then rerun node dist/mercury.mjs run --input=rows --format=rows --model deepseek-v4-pro against this fixture and read the stderr in this detail'
 
 type Capture = {
   tag: string
@@ -259,15 +263,15 @@ const thinkingOf = (c: Capture | undefined): Record<string, unknown> | undefined
   c && typeof c.body.thinking === 'object' && c.body.thinking !== null ? (c.body.thinking as Record<string, unknown>) : undefined
 
 function checkTurn(tag: string, run: TransportRun): void {
-  check(`${tag}: exactly one chat request reached the fixture`, run.count === 1, `count=${run.count}`)
-  check(`${tag}: the turn settled cleanly on the fixture answer`, run.settledText.includes(FIXTURE_TEXT) && run.errorCount === 0, JSON.stringify({ text: run.settledText, errors: run.errorCount }))
+  check(`${tag}: exactly one chat request reached the fixture`, run.count === 1, `count=${run.count}; ${DEEPSEEK_TRANSPORT_FIX}`)
+  check(`${tag}: the turn settled cleanly on the fixture answer`, run.settledText.includes(FIXTURE_TEXT) && run.errorCount === 0, `${JSON.stringify({ text: run.settledText, errors: run.errorCount })}; ${DEEPSEEK_TRANSPORT_FIX}`)
 }
 
 function checkThinking(tag: string, c: Capture | undefined, expectedType: string): void {
   const t = thinkingOf(c)
-  check(`${tag}: the thinking object is EXACTLY { type }`, t !== undefined && JSON.stringify(Object.keys(t).sort()) === JSON.stringify(['type']), JSON.stringify(t))
-  check(`${tag}: thinking.type is ${expectedType}`, t?.type === expectedType, JSON.stringify(t))
-  check(`${tag}: no effort nested inside thinking`, t !== undefined && !('reasoning_effort' in t), JSON.stringify(t))
+  check(`${tag}: the thinking object is EXACTLY { type }`, t !== undefined && JSON.stringify(Object.keys(t).sort()) === JSON.stringify(['type']), `${JSON.stringify(t)}; ${DEEPSEEK_WIRE_FIX}: thinking must carry only type`)
+  check(`${tag}: thinking.type is ${expectedType}`, t?.type === expectedType, `${JSON.stringify(t)}; ${DEEPSEEK_WIRE_FIX}: thinking.type follows args.thinkingEnabled`)
+  check(`${tag}: no effort nested inside thinking`, t !== undefined && !('reasoning_effort' in t), `${JSON.stringify(t)}; ${DEEPSEEK_WIRE_FIX}: reasoning_effort belongs at the top level of the body`)
 }
 
 section('§1 the DeepSeek transport over a local HTTP fixture: the request body on the wire')
@@ -277,22 +281,22 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const run = await driveTransport(tag, 'high', true, undefined)
   const c = run.capture
   checkTurn(tag, run)
-  check(`${tag}: POST ${CHAT_PATH} exactly`, c?.method === 'POST' && c?.path === CHAT_PATH, `${c?.method} ${c?.path}`)
-  check(`${tag}: the bearer key rides the header`, c?.bearer === true)
-  check(`${tag}: the key never rides the body`, c?.keyInBody === false)
-  check(`${tag}: model is ${WIRE_MODEL}`, c?.body.model === WIRE_MODEL, String(c?.body.model))
-  check(`${tag}: stream:true`, c?.body.stream === true)
-  check(`${tag}: reasoning_effort sits at the TOP LEVEL`, c?.body.reasoning_effort === 'high', JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) }))
+  check(`${tag}: POST ${CHAT_PATH} exactly`, c?.method === 'POST' && c?.path === CHAT_PATH, `${c?.method} ${c?.path}; the URL comes from deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts`)
+  check(`${tag}: the bearer key rides the header`, c?.bearer === true, `no Bearer header with the fixture key reached the server; check deepseekLaneProfile.resolveCredential in src/services/providers/deepseek/deepseekCallModel.ts and ${DEEPSEEK_CLIENT_FIX}`)
+  check(`${tag}: the key never rides the body`, c?.keyInBody === false, `the key text appears in the request body; ${DEEPSEEK_CLIENT_FIX}`)
+  check(`${tag}: model is ${WIRE_MODEL}`, c?.body.model === WIRE_MODEL, `${String(c?.body.model)}; deepseekLaneProfile.wireModelId in src/services/providers/deepseek/deepseekCallModel.ts picks the wire model`)
+  check(`${tag}: stream:true`, c?.body.stream === true, `stream=${String(c?.body.stream)}; ${DEEPSEEK_CLIENT_FIX}`)
+  check(`${tag}: reasoning_effort sits at the TOP LEVEL`, c?.body.reasoning_effort === 'high', `${JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) })}; ${DEEPSEEK_WIRE_FIX}`)
   checkThinking(tag, c, 'enabled')
-  check(`${tag}: stream_options.include_usage rides`, JSON.stringify(c?.body.stream_options) === JSON.stringify({ include_usage: true }), JSON.stringify(c?.body.stream_options))
-  check(`${tag}: no max_tokens without an explicit override`, c !== undefined && !('max_tokens' in c.body))
+  check(`${tag}: stream_options.include_usage rides`, JSON.stringify(c?.body.stream_options) === JSON.stringify({ include_usage: true }), `${JSON.stringify(c?.body.stream_options)}; ${DEEPSEEK_WIRE_FIX}`)
+  check(`${tag}: no max_tokens without an explicit override`, c !== undefined && !('max_tokens' in c.body), `max_tokens=${String(c?.body.max_tokens)}; ${DEEPSEEK_WIRE_FIX}: max_tokens only from maxOutputTokensOverride`)
 }
 
 {
   const tag = 'transport-low'
   const run = await driveTransport(tag, 'low', true, undefined)
   checkTurn(tag, run)
-  check(`${tag}: low rides top-level verbatim`, run.capture?.body.reasoning_effort === 'low', String(run.capture?.body.reasoning_effort))
+  check(`${tag}: low rides top-level verbatim`, run.capture?.body.reasoning_effort === 'low', `${String(run.capture?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}`)
   checkThinking(tag, run.capture, 'enabled')
 }
 
@@ -301,8 +305,8 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const run = await driveTransport(tag, 'max', true, 4096)
   const c = run.capture
   checkTurn(tag, run)
-  check(`${tag}: max rides top-level verbatim`, c?.body.reasoning_effort === 'max', String(c?.body.reasoning_effort))
-  check(`${tag}: an explicit override rides max_tokens`, c?.body.max_tokens === 4096, String(c?.body.max_tokens))
+  check(`${tag}: max rides top-level verbatim`, c?.body.reasoning_effort === 'max', `${String(c?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}`)
+  check(`${tag}: an explicit override rides max_tokens`, c?.body.max_tokens === 4096, `${String(c?.body.max_tokens)}; ${DEEPSEEK_WIRE_FIX}: maxOutputTokensOverride becomes max_tokens`)
   checkThinking(tag, c, 'enabled')
 }
 
@@ -310,7 +314,7 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const tag = 'transport-xhigh'
   const run = await driveTransport(tag, 'xhigh', true, undefined)
   checkTurn(tag, run)
-  check(`${tag}: xhigh resolves nearest-below to high, top-level`, run.capture?.body.reasoning_effort === 'high', String(run.capture?.body.reasoning_effort))
+  check(`${tag}: xhigh resolves nearest-below to high, top-level`, run.capture?.body.reasoning_effort === 'high', `${String(run.capture?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}: deepseekAcceptsEffort and nearestSupportedWireEffort pick the word`)
   checkThinking(tag, run.capture, 'enabled')
 }
 
@@ -318,7 +322,7 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const tag = 'transport-medium'
   const run = await driveTransport(tag, 'medium', true, undefined)
   checkTurn(tag, run)
-  check(`${tag}: medium resolves nearest-below to low, top-level`, run.capture?.body.reasoning_effort === 'low', String(run.capture?.body.reasoning_effort))
+  check(`${tag}: medium resolves nearest-below to low, top-level`, run.capture?.body.reasoning_effort === 'low', `${String(run.capture?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}: deepseekAcceptsEffort and nearestSupportedWireEffort pick the word`)
   checkThinking(tag, run.capture, 'enabled')
 }
 
@@ -327,7 +331,7 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const run = await driveTransport(tag, undefined, true, undefined)
   const c = run.capture
   checkTurn(tag, run)
-  check(`${tag}: no effort asked ⇒ no reasoning_effort key at all`, c !== undefined && !('reasoning_effort' in c.body), String(c?.body.reasoning_effort))
+  check(`${tag}: no effort asked ⇒ no reasoning_effort key at all`, c !== undefined && !('reasoning_effort' in c.body), `${String(c?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}: send reasoning_effort only when effortValue is set`)
   checkThinking(tag, c, 'enabled')
 }
 
@@ -336,7 +340,7 @@ section('§1 the DeepSeek transport over a local HTTP fixture: the request body 
   const run = await driveTransport(tag, 'max', false, undefined)
   const c = run.capture
   checkTurn(tag, run)
-  check(`${tag}: thinking off ⇒ no top-level effort`, c !== undefined && !('reasoning_effort' in c.body), String(c?.body.reasoning_effort))
+  check(`${tag}: thinking off ⇒ no top-level effort`, c !== undefined && !('reasoning_effort' in c.body), `${String(c?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}: drop reasoning_effort when thinkingEnabled is false`)
   checkThinking(tag, c, 'disabled')
 }
 
@@ -447,20 +451,20 @@ function checkChild(tag: string, outcome: ChildOutcome, capture: Capture | undef
   check(
     `${tag}: the child exited 0 with no spawn error and no timeout`,
     outcome.exitCode === 0 && outcome.timedOut === false && outcome.spawnError === '',
-    JSON.stringify({ exit: outcome.exitCode, timedOut: outcome.timedOut, spawnError: outcome.spawnError, stderr: outcome.stderrTail }),
+    `${JSON.stringify({ exit: outcome.exitCode, timedOut: outcome.timedOut, spawnError: outcome.spawnError, stderr: outcome.stderrTail })}; ${DEEPSEEK_DIST_FIX}`,
   )
-  check(`${tag}: exactly one chat request reached the fixture`, count === 1, `count=${count}`)
+  check(`${tag}: exactly one chat request reached the fixture`, count === 1, `count=${count}; ${DEEPSEEK_DIST_FIX}`)
   const all = captures.filter(c => c.tag === tag)
-  check(`${tag}: the substantive request is the only one; no marked closing ask follows it (an unattended run leaves no note)`, JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify([false]), JSON.stringify(all.map(isHandoffRequest)))
+  check(`${tag}: the substantive request is the only one; no marked closing ask follows it (an unattended run leaves no note)`, JSON.stringify(all.map(isHandoffRequest)) === JSON.stringify([false]), `${JSON.stringify(all.map(isHandoffRequest))}; an extra closing-ask request reached the fixture, so an unattended run must not send a handoff request (isHandoffRequest in scripts/lib/fixtureApi.ts recognises it)`)
   check(
     `${tag}: the turn settled cleanly (not a vacuous capture)`,
     outcome.status === 'completed' && outcome.answer.includes(FIXTURE_TEXT),
-    JSON.stringify({ status: outcome.status, answer: outcome.answer, stderr: outcome.stderrTail }),
+    `${JSON.stringify({ status: outcome.status, answer: outcome.answer, stderr: outcome.stderrTail })}; ${DEEPSEEK_DIST_FIX}`,
   )
   check(
     `${tag}: POST ${CHAT_PATH} exactly, with model and stream on the wire`,
     capture?.method === 'POST' && capture?.path === CHAT_PATH && capture?.body.model === WIRE_MODEL && capture?.body.stream === true,
-    JSON.stringify({ method: capture?.method, path: capture?.path, model: capture?.body.model, stream: capture?.body.stream }),
+    `${JSON.stringify({ method: capture?.method, path: capture?.path, model: capture?.body.model, stream: capture?.body.stream })}; ${DEEPSEEK_CLIENT_FIX}`,
   )
 }
 
@@ -471,7 +475,7 @@ for (const word of ['low', 'high', 'max']) {
   const mine = captures.filter(c => c.tag === tag && !isHandoffRequest(c))
   const c = mine.at(-1)
   checkChild(tag, outcome, c, mine.length)
-  check(`${tag}: reasoning_effort '${word}' sits at the TOP LEVEL`, c?.body.reasoning_effort === word, JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) }))
+  check(`${tag}: reasoning_effort '${word}' sits at the TOP LEVEL`, c?.body.reasoning_effort === word, `${JSON.stringify({ top: c?.body.reasoning_effort, thinking: thinkingOf(c) })}; ${DEEPSEEK_WIRE_FIX}; the built dist may be stale, rebuild with bun run build.ts`)
   checkThinking(tag, c, 'enabled')
 }
 
@@ -482,22 +486,22 @@ for (const word of ['low', 'high', 'max']) {
   const mine = captures.filter(c => c.tag === tag && !isHandoffRequest(c))
   const c = mine.at(-1)
   checkChild(tag, outcome, c, mine.length)
-  check(`${tag}: no top-level effort when thinking is off`, c !== undefined && !('reasoning_effort' in c.body), String(c?.body.reasoning_effort))
+  check(`${tag}: no top-level effort when thinking is off`, c !== undefined && !('reasoning_effort' in c.body), `${String(c?.body.reasoning_effort)}; ${DEEPSEEK_WIRE_FIX}: drop reasoning_effort when thinkingEnabled is false; MERCURY_THINKING_BUDGET=0 turns thinking off`)
   checkThinking(tag, c, 'disabled')
 }
 
 section('§3 the whole wire')
 
-check('every capture was an exact POST /chat/completions', captures.every(c => c.method === 'POST' && c.path === CHAT_PATH), captures.map(c => `${c.method} ${c.path}`).join(' '))
-check('no capture ever carried the key in its body', captures.every(c => !c.keyInBody))
-check('no request missed the chat path by method or spelling', strayRequests.every(r => !r.includes(CHAT_PATH)), strayRequests.join(' '))
+check('every capture was an exact POST /chat/completions', captures.every(c => c.method === 'POST' && c.path === CHAT_PATH), captures.map(c => c.method + ' ' + c.path).join(' ') + '; deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts builds the URL')
+check('no capture ever carried the key in its body', captures.every(c => !c.keyInBody), `tags with the key in the body: ${captures.filter(c => c.keyInBody).map(c => c.tag).join(' ')}; ${DEEPSEEK_CLIENT_FIX}`)
+check('no request missed the chat path by method or spelling', strayRequests.every(r => !r.includes(CHAT_PATH)), `${strayRequests.join(' ')}; deepseekChatCompletionsUrl in src/services/providers/deepseek/deepseekAccounts.ts builds the URL`)
 check('no capture nested an effort inside thinking', captures.every(c => {
   const t = thinkingOf(c)
   return t === undefined || !('reasoning_effort' in t)
-}), captures.filter(c => {
+}), `${captures.filter(c => {
   const t = thinkingOf(c)
   return t !== undefined && 'reasoning_effort' in t
-}).map(c => c.tag).join(' '))
+}).map(c => c.tag).join(' ')}; ${DEEPSEEK_WIRE_FIX}: reasoning_effort belongs at the top level of the body`)
 
 if (RECORDS !== undefined) {
   mkdirSync(RECORDS, { recursive: true })

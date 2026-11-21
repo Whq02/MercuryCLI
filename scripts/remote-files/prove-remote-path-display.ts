@@ -14,11 +14,13 @@ const { FilePathLink } = await import('../../src/components/FilePathLink.tsx')
 
 let failures = 0
 let checks = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${!ok && hint ? ` | fix: ${hint}` : ''}`)
 }
+const displayFix = 'change getDisplayPath in src/utils/file.ts (remote paths come back unchanged through isRemotePath, local paths shorten to the working folder or the home)'
+const linkFix = 'change FilePathLink in src/components/FilePathLink.tsx (a remote path paints as words in a Fragment, a local path as a Link to its file URL with the words as fallback)'
 
 type Painted = { type: unknown; props: { url?: string; fallback?: unknown; children?: unknown } }
 const painted = (filePath: string, children?: string): Painted => FilePathLink(children === undefined ? { filePath } : { filePath, children }) as unknown as Painted
@@ -28,32 +30,32 @@ const REMOTE = ['ssh://web1/etc/hosts', 'ssh://deploy@web1:2222/~/notes/today.md
 
 for (const path of REMOTE) {
   const shown = getDisplayPath(path)
-  check(`${path} is displayed as it was written`, shown === path, shown)
+  check(`${path} is displayed as it was written`, shown === path, shown, displayFix)
 }
 
 for (const path of REMOTE) {
   const element = painted(path)
-  check(`${path} is painted as words and no link`, element.type === React.Fragment && element.props.url === undefined && element.props.children === path, `${isLink(element) ? `a link to ${element.props.url}` : String(element.type)}`)
+  check(`${path} is painted as words and no link`, element.type === React.Fragment && element.props.url === undefined && element.props.children === path, `${isLink(element) ? `a link to ${element.props.url}` : String(element.type)}`, linkFix)
 }
 const labelled = painted('ssh://web1/etc/hosts', 'hosts on web1')
-check('the words a caller gives for a remote path are the words painted', labelled.type === React.Fragment && labelled.props.children === 'hosts on web1', String(labelled.props.url))
+check('the words a caller gives for a remote path are the words painted', labelled.type === React.Fragment && labelled.props.children === 'hosts on web1', String(labelled.props.url), linkFix)
 
 const inside = join(process.cwd(), 'src', 'utils', 'file.ts')
-check('a local file under the working folder is displayed relative to it', getDisplayPath(inside) === join('src', 'utils', 'file.ts'), getDisplayPath(inside))
+check('a local file under the working folder is displayed relative to it', getDisplayPath(inside) === join('src', 'utils', 'file.ts'), getDisplayPath(inside), displayFix)
 const elsewhere = join(parse(process.cwd()).root, 'no-such-root-folder', 'file.txt')
-check('a local file outside it and outside the home is displayed whole', getDisplayPath(elsewhere) === elsewhere, getDisplayPath(elsewhere))
+check('a local file outside it and outside the home is displayed whole', getDisplayPath(elsewhere) === elsewhere, getDisplayPath(elsewhere), displayFix)
 const underHome = join(homedir(), 'no-such-home-folder', 'file.txt')
 const homeShown = getDisplayPath(underHome)
-check('a local file under the home is displayed from the tilde', homeShown === `~${sep}no-such-home-folder${sep}file.txt` || homeShown === join('no-such-home-folder', 'file.txt') || !underHome.startsWith(homedir() + sep), homeShown)
+check('a local file under the home is displayed from the tilde', homeShown === `~${sep}no-such-home-folder${sep}file.txt` || homeShown === join('no-such-home-folder', 'file.txt') || !underHome.startsWith(homedir() + sep), homeShown, displayFix)
 const oneSlash = getDisplayPath('ssh:/web1/etc/hosts')
-check('a relative path whose first folder is named ssh: stays a local path', oneSlash === join('ssh:', 'web1', 'etc', 'hosts'), oneSlash)
+check('a relative path whose first folder is named ssh: stays a local path', oneSlash === join('ssh:', 'web1', 'etc', 'hosts'), oneSlash, displayFix)
 
 for (const path of [inside, elsewhere]) {
   const element = painted(path)
-  check(`${path === inside ? 'a local file under the working folder' : 'a local file elsewhere'} is a link to its file URL with the path as its words`, isLink(element) && element.props.url === pathToFileURL(path).href && element.props.fallback === path && element.props.children === path, `${String(element.props.url)}`)
+  check(`${path === inside ? 'a local file under the working folder' : 'a local file elsewhere'} is a link to its file URL with the path as its words`, isLink(element) && element.props.url === pathToFileURL(path).href && element.props.fallback === path && element.props.children === path, `${String(element.props.url)}`, linkFix)
 }
 const localLabelled = painted(inside, 'file.ts')
-check('the words a caller gives for a local path are the link text and its fallback', isLink(localLabelled) && localLabelled.props.url === pathToFileURL(inside).href && localLabelled.props.fallback === 'file.ts' && localLabelled.props.children === 'file.ts', String(localLabelled.props.url))
+check('the words a caller gives for a local path are the link text and its fallback', isLink(localLabelled) && localLabelled.props.url === pathToFileURL(inside).href && localLabelled.props.fallback === 'file.ts' && localLabelled.props.children === 'file.ts', String(localLabelled.props.url), linkFix)
 
 console.log(`\nremote path display: ${checks - failures} of ${checks} ${failures === 0 ? 'PASS' : 'FAIL'}`)
 process.exit(failures === 0 ? 0 : 1)

@@ -7,7 +7,7 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 
 const at = process.argv.indexOf('--dist')
 const dist = resolve(at < 0 ? join(import.meta.dir, '../../dist/mercury.mjs') : process.argv[at + 1]!)
-if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist}`); process.exit(1) }
+if (!existsSync(dist)) { console.error(`FAIL run bundle exists: ${dist} (run bun run build.ts to write dist/mercury.mjs, or pass --dist <path to the built mercury.mjs>)`); process.exit(1) }
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => { console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`); if (!ok) failures++ }
@@ -36,21 +36,21 @@ try {
   {
     const plain = await run(['--format', 'rows', PROMPT])
     const plainLines = plain.err.trim().split('\n')
-    check('without the marker: exit 2, empty stdout, the parser line then ONE hint line', plain.code === 2 && plain.out === '' && plainLines.length === 2 && /looks like a prompt that begins with "-"/.test(plainLines[1]!), plain.err.slice(0, 400))
-    check('without the marker the hint names the plain form and never mentions PowerShell', plainLines[1]!.includes(`run -- ${JSON.stringify(PROMPT)}`) && !/PowerShell/.test(plainLines[1]!), plainLines[1] ?? '')
+    check('without the marker: exit 2, empty stdout, the parser line then ONE hint line', plain.code === 2 && plain.out === '' && plainLines.length === 2 && /looks like a prompt that begins with "-"/.test(plainLines[1]!), `${plain.err.slice(0, 400)} | change promptMistakenForOptionHint and exitForCommanderError in src/main/cli.ts so an unknown option holding whitespace gets exit 2, empty stdout and exactly one hint line after the parser line`)
+    check('without the marker the hint names the plain form and never mentions PowerShell', plainLines[1]!.includes(`run -- ${JSON.stringify(PROMPT)}`) && !/PowerShell/.test(plainLines[1]!), `${plainLines[1] ?? ''} | change promptMistakenForOptionHint in src/main/cli.ts so the hint without MERCURY_LAUNCHER=ps1 reads run -- followed by the JSON-quoted prompt and never names PowerShell`)
 
     const ps1 = await run(['--format', 'rows', PROMPT], { MERCURY_LAUNCHER: 'ps1' })
     const ps1Lines = ps1.err.trim().split('\n')
-    check('under the ps1 marker: the same exit 2, empty stdout, parser line then ONE hint line', ps1.code === 2 && ps1.out === '' && ps1Lines.length === 2 && ps1Lines[0] === plainLines[0], ps1.err.slice(0, 400))
-    check('the hint keeps the plain form word for word', ps1Lines[1]!.startsWith(plainLines[1]!), ps1Lines[1] ?? '')
-    check('…and adds the PowerShell truth: the first -- is PowerShell\'s own, write it twice', /from PowerShell's \S+ command the first "--" is PowerShell's own and never reaches Mercury, so write it twice: \S+ run -- -- /.test(ps1Lines[1]!) && ps1Lines[1]!.includes(`run -- -- ${JSON.stringify(PROMPT)}`), ps1Lines[1] ?? '')
-    check('…and names the cmd launcher as the other way', /\(or use \S+\.cmd\)$/.test(ps1Lines[1]!), ps1Lines[1] ?? '')
+    check('under the ps1 marker: the same exit 2, empty stdout, parser line then ONE hint line', ps1.code === 2 && ps1.out === '' && ps1Lines.length === 2 && ps1Lines[0] === plainLines[0], `${ps1.err.slice(0, 400)} | change promptMistakenForOptionHint in src/main/cli.ts so the ps1 marker leaves the exit code, stdout and parser line as they are and still prints one hint line`)
+    check('the hint keeps the plain form word for word', ps1Lines[1]!.startsWith(plainLines[1]!), `${ps1Lines[1] ?? ''} | change promptMistakenForOptionHint in src/main/cli.ts so the ps1 hint begins with the plain hint word for word`)
+    check('…and adds the PowerShell truth: the first -- is PowerShell\'s own, write it twice', /from PowerShell's \S+ command the first "--" is PowerShell's own and never reaches Mercury, so write it twice: \S+ run -- -- /.test(ps1Lines[1]!) && ps1Lines[1]!.includes(`run -- -- ${JSON.stringify(PROMPT)}`), `${ps1Lines[1] ?? ''} | change the ps1 branch of promptMistakenForOptionHint in src/main/cli.ts so it says the first "--" is PowerShell's own and shows run -- -- with the quoted prompt`)
+    check('…and names the cmd launcher as the other way', /\(or use \S+\.cmd\)$/.test(ps1Lines[1]!), `${ps1Lines[1] ?? ''} | change the ps1 branch of promptMistakenForOptionHint in src/main/cli.ts so the hint ends with (or use <name>.cmd)`)
 
     const cmd = await run(['--format', 'rows', PROMPT], { MERCURY_LAUNCHER: 'cmd' })
-    check('another marker value (cmd) keeps the plain hint — only the ps1 road eats the boundary', cmd.err.trim().split('\n')[1] === plainLines[1], cmd.err.slice(0, 300))
+    check('another marker value (cmd) keeps the plain hint — only the ps1 road eats the boundary', cmd.err.trim().split('\n')[1] === plainLines[1], `${cmd.err.slice(0, 300)} | change promptMistakenForOptionHint in src/main/cli.ts so only MERCURY_LAUNCHER=ps1 adds the PowerShell text`)
 
     const control = await run(['--format', 'rows', '--frobnicate', 'hello'], { MERCURY_LAUNCHER: 'ps1' })
-    check('control: a one-word unknown option under the marker is still a plain parser error, no hint', control.code === 2 && control.out === '' && control.err.trim().split('\n').every(line => !/looks like a prompt/.test(line)), control.err.slice(0, 300))
+    check('control: a one-word unknown option under the marker is still a plain parser error, no hint', control.code === 2 && control.out === '' && control.err.trim().split('\n').every(line => !/looks like a prompt/.test(line)), `${control.err.slice(0, 300)} | change promptMistakenForOptionHint in src/main/cli.ts so an unknown option without whitespace returns null and prints no hint`)
   }
 } finally {
   rmSync(home, { recursive: true, force: true })

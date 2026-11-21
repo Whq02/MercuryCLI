@@ -76,11 +76,11 @@ for (const abs of files) {
   if (n > 0) offenders.push(`${rel} (${n} literal${n === 1 ? '' : 's'})`)
 }
 
-check('the SoT pair is present (guard is anchored to real files)', SOT.size === 2)
+check('the SoT pair is present (guard is anchored to real files)', SOT.size === 2, SOT.size === 2 ? '' : 'the SOT set at the top of scripts/ui/prove-no-new-hex.ts must name exactly src/components/mercuryPalette.ts and src/components/mercury-ui/sessionAccent.ts')
 check(
   'no NEW quoted hex literal in a live src file (outside SoT/specimen/allowlist)',
   offenders.length === 0,
-  offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}` : 'clean',
+  offenders.length ? `offenders:\n      - ${offenders.join('\n      - ')}\n    change: replace each quoted hex literal in those files with a token from src/components/mercuryPalette.ts or src/components/mercury-ui/sessionAccent.ts` : 'clean',
 )
 
 section('scan: named chalk colours (UX-6 — the hex ratchet blind spot)')
@@ -109,7 +109,7 @@ for (const abs of files) {
 check(
   'no NEW named chalk colour outside the frozen allowlist',
   chalkOffenders.length === 0,
-  chalkOffenders.length ? `offenders:\n      - ${chalkOffenders.join('\n      - ')}` : 'clean',
+  chalkOffenders.length ? `offenders:\n      - ${chalkOffenders.join('\n      - ')}\n    change: replace each named chalk colour in those files with a palette token (src/components/mercuryPalette.ts); the frozen budgets are CHALK_ALLOW in scripts/ui/prove-no-new-hex.ts and may only fall` : 'clean',
 )
 
 section('self-test: the matcher catches a quoted literal but not an issue ref')

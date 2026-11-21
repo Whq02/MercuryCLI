@@ -33,9 +33,10 @@ const toolRound = (name: string, prompt?: number): Message[] => {
 const CLAIM = 'All 23 tests pass across 2 test files. Verified with pnpm vitest run — exit code 0, 5ms total runtime.'
 
 let failures = 0
+const RECEIPT_FIX_HINT = 'change injectTurnReceipts, walkTurnReceipts, promptTokensOf or formatContextDelta in src/utils/cockpit/turnReceipt.ts (receipt rows and counts), TurnReceiptRow in src/components/messages/TurnReceiptRow.tsx (painted words), or foldedTurnReceipts for the fold cases'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `: ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `: ${detail ? `${detail} | ` : ''}${RECEIPT_FIX_HINT}` : ''}`)
 }
 const compose = (rows: Message[]) =>
   composeTranscript({ normalized: normalizeMessages(rows).filter(isNotEmptyMessage), syntheticStreamingRows: [], verbose: false, fullscreen: true, isTranscriptMode: false, truncateTranscript: false, tools: [], inProgressToolUseIDs: new Set() }).collapsed

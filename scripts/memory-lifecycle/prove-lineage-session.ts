@@ -49,8 +49,8 @@ const mnemeProjectKeyFor: (root: string) => string = (pathsModule as { mnemeProj
 const lineagePath: (key: string) => string = (pathsModule as { lineagePath?: (key: string) => string }).lineagePath ?? (() => join(configDir, 'projects', '(no lineage path in this tree)'))
 const readLedger: (key: string) => Array<{ ordinal: number; sessionId: string; endedAt: string | null; outcome: string | null; engines: Array<{ model: string; at: string }>; handoff: { text: string; at: string } | null }> = ledgerModule?.readLedger ?? (() => [])
 const recordHandoff: (key: string, sessionId: string, text: string) => unknown = ledgerModule?.recordHandoff ?? absent('recordHandoff')
-check('the lineage modules are in the tree (ledger, entry page, handoff ask)', handoffModule !== null && entryModule !== null && ledgerModule !== null)
-check('the ask carries the mark the proof fixtures answer to (scripts/lib/fixtureApi.ts HANDOFF_ASK_MARK) — the two cannot drift apart', HANDOFF_ASK.includes(HANDOFF_ASK_MARK), HANDOFF_ASK)
+check('the lineage modules are in the tree (ledger, entry page, handoff ask)', handoffModule !== null && entryModule !== null && ledgerModule !== null, 'a src/mneme module failed to import: restore src/mneme/handoffAsk.ts, src/mneme/entryPage.ts and src/mneme/ledger.ts, or fix the import error in them')
+check('the ask carries the mark the proof fixtures answer to (scripts/lib/fixtureApi.ts HANDOFF_ASK_MARK) — the two cannot drift apart', HANDOFF_ASK.includes(HANDOFF_ASK_MARK), `${HANDOFF_ASK} — make HANDOFF_ASK in src/mneme/handoffAsk.ts contain HANDOFF_ASK_MARK, or change the mark in scripts/lib/fixtureApi.ts to match`)
 
 console.log('a headless session reads the entry page at its start and leaves no note at its end (an unattended run makes no closing call); the ledger of the scratch home keeps its entry, and the page shows the last note that exists')
 
@@ -116,64 +116,64 @@ const SID3 = '33333333-0000-4000-8000-000000000003'
 const NOTE_ONE = 'The work: the probe.\nDecided: answer with the marker.\nStill to do: the second probe.\nWrong: nothing yet.'
 
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the gate prebuilds it)', false, `${DIST} — run bun run build.ts first`)
 } else if (!nodeBin) {
-  check('a node binary on PATH', false)
+  check('a node binary on PATH', false, 'put a node binary (24.20 or later) on PATH before running this proof')
 } else {
   section('§1 the first session: no record at the start; no ask at the end (the fixture\'s note turn stays unserved); the entry closes with no note; the answer untouched')
   const one = await session(SID1, 'first probe', [
     { kind: 'text', text: 'ANSWER-ONE', whenBody: 'first probe' },
     { kind: 'text', text: NOTE_ONE, whenBody: 'Leave one note for the next session' },
   ])
-  check('the run exits 0 and its outcome row answers the operator\'s prompt, not the note', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE') && !answeredWith(one.stdout, NOTE_ONE), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)}`)
-  check('one request reached the engine: the turn; no ask followed it', one.requests.length === 1 && !j(one.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${one.requests.length}`)
+  check('the run exits 0 and its outcome row answers the operator\'s prompt, not the note', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE') && !answeredWith(one.stdout, NOTE_ONE), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)} — the headless run verb must exit 0 and answer ANSWER-ONE as its outcome row; read stderr, and check the fixture turn whenBody matches the prompt`)
+  check('one request reached the engine: the turn; no ask followed it', one.requests.length === 1 && !j(one.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${one.requests.length} — only the turn may reach the engine; a request carrying HANDOFF_ASK_MARK means a headless run still puts the note ask (see handoffAskDue in src/mneme/handoffAsk.ts and its call in src/run-core/turn/noToolReply.ts)`)
   const firstSystem = systemText(one.requests[0]?.body ?? {}).join('\n')
-  check('the first session\'s page says first session, no record', firstSystem.includes(`${ENTRY_PAGE_HEADING}\nFirst session of this work; no record.`), firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 120))
+  check('the first session\'s page says first session, no record', firstSystem.includes(`${ENTRY_PAGE_HEADING}\nFirst session of this work; no record.`), firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 120) + ' — composeEntryPage in src/mneme/entryPage.ts must emit FIRST_SESSION_LINE under the heading when the ledger is empty; the system prompt takes it in src/constants/prompts.ts')
   let entries = readLedger(projectKey)
-  check('the ledger of the scratch home holds one closed entry for the session', existsSync(ledgerFile) && entries.length === 1 && entries[0]!.sessionId === SID1 && entries[0]!.endedAt !== null, j(entries))
-  check('the entry closes with no note (an unattended run leaves none)', entries[0]?.handoff === null, j(entries[0]?.handoff))
-  check('the entry carries the engine the session ran on and the outcome', entries[0]?.engines[0]?.model === 'claude-opus-4-8' && entries[0]?.outcome === 'closed', j(entries[0]))
-  check('the ledger lives under the home, never under the project', ledgerFile.startsWith(configDir) && !existsSync(join(project, 'lineage')) && !existsSync(join(project, '.mercury')))
+  check('the ledger of the scratch home holds one closed entry for the session', existsSync(ledgerFile) && entries.length === 1 && entries[0]!.sessionId === SID1 && entries[0]!.endedAt !== null, `${j(entries)} — the run must open one ledger entry and close it at its end: see openEntry and closeEntry in src/mneme/ledger.ts as called from src/mneme/lineageSession.ts`)
+  check('the entry closes with no note (an unattended run leaves none)', entries[0]?.handoff === null, `${j(entries[0]?.handoff)} — an unattended run must close its entry with no handoff: see closeEntry in src/mneme/lineageSession.ts and the ask gate handoffAskDue in src/mneme/handoffAsk.ts`)
+  check('the entry carries the engine the session ran on and the outcome', entries[0]?.engines[0]?.model === 'claude-opus-4-8' && entries[0]?.outcome === 'closed', `${j(entries[0])} — the entry must hold the engine model from recordEngine and outcome closed: see src/mneme/lineageSession.ts and src/mneme/ledger.ts`)
+  check('the ledger lives under the home, never under the project', ledgerFile.startsWith(configDir) && !existsSync(join(project, 'lineage')) && !existsSync(join(project, '.mercury')), `${ledgerFile} — the ledger path must come from lineagePath in src/mneme/paths.ts under the config home, and nothing may be written into the project folder`)
   recordHandoff(projectKey, SID1, NOTE_ONE)
   entries = readLedger(projectKey)
-  check('a note left on the entry through the ledger (the road an attended session\'s ask writes by) is stored exactly as written, every line', entries.length === 1 && entries[0]?.handoff?.text === NOTE_ONE && entries[0]?.endedAt !== null, j(entries[0]?.handoff))
+  check('a note left on the entry through the ledger (the road an attended session\'s ask writes by) is stored exactly as written, every line', entries.length === 1 && entries[0]?.handoff?.text === NOTE_ONE && entries[0]?.endedAt !== null, `${j(entries[0]?.handoff)} — recordHandoff in src/mneme/ledger.ts must store the note text unchanged on the closed entry`)
 
   section('§2 the second session: the page composed from the ledger rides the system prompt, apart from the operator\'s words; the session leaves no note of its own')
   const two = await session(SID2, 'second probe', [
     { kind: 'text', text: 'ANSWER-TWO', whenBody: 'second probe' },
     { kind: 'text', text: 'NOTE-TWO', whenBody: 'Leave one note for the next session' },
   ])
-  check('the second run answers its own prompt', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-TWO'), `exit=${two.exit} stderr=${two.stderr.slice(0, 300)}`)
-  check('one request reached the engine: the turn; no ask followed it', two.requests.length === 1 && !j(two.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${two.requests.length}`)
+  check('the second run answers its own prompt', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-TWO'), `exit=${two.exit} stderr=${two.stderr.slice(0, 300)} — the headless run verb must exit 0 and answer ANSWER-TWO; read stderr, and check the fixture turn whenBody matches the prompt`)
+  check('one request reached the engine: the turn; no ask followed it', two.requests.length === 1 && !j(two.requests[0]?.body).includes(HANDOFF_ASK_MARK), `${two.requests.length} — only the turn may reach the engine; a request carrying HANDOFF_ASK_MARK means a headless run still puts the note ask (see handoffAskDue in src/mneme/handoffAsk.ts)`)
   const first = two.requests.find(r => j(r.body).includes('second probe'))
-  check('the first request of the second session was captured', first !== undefined)
+  check('the first request of the second session was captured', first !== undefined, 'no request carried the second prompt: the fixture API saw no turn for it, so read the second run stderr in the check above')
   const system = first ? systemText(first.body) : []
   const pageBlock = system.find(s => s.includes(ENTRY_PAGE_HEADING)) ?? ''
   const pageStart = pageBlock.indexOf(ENTRY_PAGE_HEADING)
   const pageEnd = pageBlock.indexOf('\n# ', pageStart + 1)
   const page = pageStart >= 0 ? pageBlock.slice(pageStart, pageEnd > 0 ? pageEnd : undefined) : ''
-  check('the page is in the system prompt under its own heading', page.startsWith(ENTRY_PAGE_HEADING), j(system.map(s => s.slice(0, 40))))
-  check('the page sits after the memory index, before the environment', pageBlock.indexOf('# Memory') >= 0 && pageBlock.indexOf('# Memory') < pageStart && pageBlock.indexOf('# Environment') > pageStart, j([pageBlock.indexOf('# Memory'), pageStart, pageBlock.indexOf('# Environment')]))
-  check('the page carries the ordinal and the count from the ledger', page.includes('Session 2 of this work; 1 session before it'), page)
-  check('the page names the earlier session\'s engine with its time, never the current one as current', page.includes('Engines before this session: claude-opus-4-8 from ') && page.includes('(session 1)'), page)
-  check('the last note rides word for word under its heading with its time, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && page.includes(NOTE_ONE.split('\n').map(line => line.trim() === '' ? line : `${HANDOFF_GRADE} ${line}`).join('\n')), page)
-  check('the page points at the pinned rules instead of repeating them', page.includes('Standing rulings: none pinned.'), page)
+  check('the page is in the system prompt under its own heading', page.startsWith(ENTRY_PAGE_HEADING), `${j(system.map(s => s.slice(0, 40)))} — the system prompt must carry the page from composeEntryPage in src/mneme/entryPage.ts, wired in src/constants/prompts.ts`)
+  check('the page sits after the memory index, before the environment', pageBlock.indexOf('# Memory') >= 0 && pageBlock.indexOf('# Memory') < pageStart && pageBlock.indexOf('# Environment') > pageStart, `${j([pageBlock.indexOf('# Memory'), pageStart, pageBlock.indexOf('# Environment')])} — move the entry page section in src/constants/prompts.ts so it sits after the memory index and before the environment`)
+  check('the page carries the ordinal and the count from the ledger', page.includes('Session 2 of this work; 1 session before it'), `${page} — composeEntryPage in src/mneme/entryPage.ts must state the ordinal and the count of earlier sessions from the ledger`)
+  check('the page names the earlier session\'s engine with its time, never the current one as current', page.includes('Engines before this session: claude-opus-4-8 from ') && page.includes('(session 1)'), `${page} — composeEntryPage in src/mneme/entryPage.ts must list the engines of earlier sessions with their times`)
+  check('the last note rides word for word under its heading with its time, every line graded as a model-authored note', page.includes('## The last note left (session 1, ') && page.includes(NOTE_ONE.split('\n').map(line => line.trim() === '' ? line : `${HANDOFF_GRADE} ${line}`).join('\n')), `${page} — composeEntryPage in src/mneme/entryPage.ts must print the last note word for word under its heading, each line graded with HANDOFF_GRADE`)
+  check('the page points at the pinned rules instead of repeating them', page.includes('Standing rulings: none pinned.'), `${page} — composeEntryPage in src/mneme/entryPage.ts must end with the standing rulings line when none are pinned`)
   const messages = first?.body.messages ?? []
-  check('nothing of the page is in the messages: not the heading, not the note', !j(messages).includes(ENTRY_PAGE_HEADING) && !j(messages).includes(NOTE_ONE) && !j(messages).includes('Session 2 of this work'))
+  check('nothing of the page is in the messages: not the heading, not the note', !j(messages).includes(ENTRY_PAGE_HEADING) && !j(messages).includes(NOTE_ONE) && !j(messages).includes('Session 2 of this work'), 'the page or the note leaked into the messages: it must ride only the system prompt (src/constants/prompts.ts), never the user messages')
   const userText = first ? userTexts(first.body, 0) : []
-  check('the first user message ends with the operator\'s own words, untouched', userText[userText.length - 1] === 'second probe', j(userText))
-  check('the page appears once in the request', system.join('\n').split(ENTRY_PAGE_HEADING).length === 2)
+  check('the first user message ends with the operator\'s own words, untouched', userText[userText.length - 1] === 'second probe', `${j(userText)} — the first user message must end with the operator prompt unchanged; nothing may be appended to it`)
+  check('the page appears once in the request', system.join('\n').split(ENTRY_PAGE_HEADING).length === 2, 'the entry page heading appears more than once or not at all in the system prompt: it must be added once in src/constants/prompts.ts')
   entries = readLedger(projectKey)
-  check('the ledger now holds two closed entries in order, the second with no note of its own (the fixture\'s note turn stayed unserved)', entries.length === 2 && entries[1]!.ordinal === 2 && entries[1]!.sessionId === SID2 && entries[1]!.handoff === null && entries[1]!.endedAt !== null, j(entries.map(e => [e.ordinal, e.sessionId, e.handoff?.text, e.endedAt !== null])))
+  check('the ledger now holds two closed entries in order, the second with no note of its own (the fixture\'s note turn stayed unserved)', entries.length === 2 && entries[1]!.ordinal === 2 && entries[1]!.sessionId === SID2 && entries[1]!.handoff === null && entries[1]!.endedAt !== null, `${j(entries.map(e => [e.ordinal, e.sessionId, e.handoff?.text, e.endedAt !== null]))} — each run must open and close its own ledger entry in order with no handoff: see openEntry and closeEntry in src/mneme/ledger.ts as called from src/mneme/lineageSession.ts`)
 
   section('§3 a session that leaves no note ends with "no note left" — never an invented note; the last note that exists stays on the page')
   const three = await session(SID3, 'third probe', [{ kind: 'text', text: 'ANSWER-THREE', whenBody: 'third probe' }])
-  check('the run answers and exits 0', three.exit === 0 && answeredWith(three.stdout, 'ANSWER-THREE'), `exit=${three.exit} stderr=${three.stderr.slice(0, 300)}`)
-  check('no ask was put: the turn is the only request', three.requests.length === 1, `${three.requests.length}`)
+  check('the run answers and exits 0', three.exit === 0 && answeredWith(three.stdout, 'ANSWER-THREE'), `exit=${three.exit} stderr=${three.stderr.slice(0, 300)} — the headless run verb must exit 0 and answer ANSWER-THREE; read stderr`)
+  check('no ask was put: the turn is the only request', three.requests.length === 1, `${three.requests.length} — a headless run must not put the note ask: see handoffAskDue in src/mneme/handoffAsk.ts`)
   entries = readLedger(projectKey)
-  check('the entry closes with handoff null', entries.length === 3 && entries[2]!.handoff === null && entries[2]!.endedAt !== null, j(entries[2]))
+  check('the entry closes with handoff null', entries.length === 3 && entries[2]!.handoff === null && entries[2]!.endedAt !== null, `${j(entries[2])} — a run that leaves no note must close its entry with handoff null: see closeEntry in src/mneme/lineageSession.ts`)
   const next = entryModule?.composeEntryPage(projectKey, 'next-session') ?? ''
-  check('the next session\'s page says the last session left no note and shows the last note that exists (session 1\'s)', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 1, ') && next.includes(NOTE_ONE.split('\n').map(line => `${HANDOFF_GRADE} ${line}`).join('\n')), next)
+  check('the next session\'s page says the last session left no note and shows the last note that exists (session 1\'s)', next.includes(`The last session (3, ended `) && next.includes(NO_NOTE_LEFT) && next.includes('## The last note left (session 1, ') && next.includes(NOTE_ONE.split('\n').map(line => `${HANDOFF_GRADE} ${line}`).join('\n')), `${next} — composeEntryPage in src/mneme/entryPage.ts must say the last session left no note (NO_NOTE_LEFT) and still show the last note that exists`)
 }
 
 console.log('\n============================================================')

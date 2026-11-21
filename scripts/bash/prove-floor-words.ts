@@ -31,24 +31,24 @@ const rows: Array<[string, RegExp]> = [
 for (const [command, construct] of rows) {
   const result = await bashToolHasPermission({ command }, context)
   const message = 'message' in result ? result.message : ''
-  check(`ask identifies ${JSON.stringify(command.slice(0, 50))}`, result.behavior === 'ask' && construct.test(message ?? ''), JSON.stringify(result))
-  check('the floor sentence names the way through', /approve|approval/i.test(message ?? '') && /spell|literal|split|simpl|fix|short|run|retry/i.test(message ?? ''), message)
-  check('the floor writes no opaque fallback words', !/MERCURY(?:nl|dq|sq|op|cp)[0-9a-f]+z|security risks|malformed syntax/.test(message ?? ''), message)
+  check(`ask identifies ${JSON.stringify(command.slice(0, 50))}`, result.behavior === 'ask' && construct.test(message ?? ''), JSON.stringify(result) + ' | the ask text should name the construct; change the refusal reasons in refuseNode in src/utils/permissions/decision/commandAnalysis/exactWords.ts, or bashToolHasPermission in src/tools/BashTool/bashPermissions.ts')
+  check('the floor sentence names the way through', /approve|approval/i.test(message ?? '') && /spell|literal|split|simpl|fix|short|run|retry/i.test(message ?? ''), message + ' | the ask text must say to approve or how to rewrite the command; change the reason text in refuseNode in src/utils/permissions/decision/commandAnalysis/exactWords.ts')
+  check('the floor writes no opaque fallback words', !/MERCURY(?:nl|dq|sq|op|cp)[0-9a-f]+z|security risks|malformed syntax/.test(message ?? ''), message + ' | the ask text carries an opaque fallback word; replace it with a plain reason in src/utils/permissions/decision/commandAnalysis/exactWords.ts or the path that built this message in bashToolHasPermission')
 }
 const continued = await bashToolHasPermission({ command: 'wc -l file |\n python3 -' }, context)
-check('continuation refusal names the written command, not a marker', JSON.stringify(continued).includes('python3 -') && !/MERCURY(?:nl|dq|sq|op|cp)[0-9a-f]+z/.test(JSON.stringify(continued)), JSON.stringify(continued))
+check('continuation refusal names the written command, not a marker', JSON.stringify(continued).includes('python3 -') && !/MERCURY(?:nl|dq|sq|op|cp)[0-9a-f]+z/.test(JSON.stringify(continued)), JSON.stringify(continued) + ' | the refusal for a continued command must show the command as written; look at how bashToolHasPermission in src/tools/BashTool/bashPermissions.ts builds its ask text')
 const { parseForSecurity } = await import('../../src/utils/permissions/decision/commandAnalysis.js')
 const spaced = await parseForSecurity('echo "  "')
-check('quoted whitespace is literal data, not an unproven command', spaced.kind === 'simple' && spaced.commands[0]?.argv[1] === '  ', JSON.stringify(spaced))
+check('quoted whitespace is literal data, not an unproven command', spaced.kind === 'simple' && spaced.commands[0]?.argv[1] === '  ', JSON.stringify(spaced) + ' | parseForSecurity in src/utils/bash/ast.ts should read a quoted whitespace argument as the literal text')
 const short = await parseCommandRaw('echo é😀 | cat')
-check('the packaged parser reports 14 UTF-16 units, not 17 bytes', short !== null && short !== PARSE_ABORTED && short.endIndex === 14)
+check('the packaged parser reports 14 UTF-16 units, not 17 bytes', short !== null && short !== PARSE_ABORTED && short.endIndex === 14, 'parseCommandRaw in src/utils/bash/parser.ts should report endIndex in UTF-16 units, not bytes')
 const command = "echo é😀 '$(literal);' | cat"
 const root = await parseCommandRaw(command)
-check('the quote projection has a product tree', root !== null && root !== PARSE_ABORTED)
+check('the quote projection has a product tree', root !== null && root !== PARSE_ABORTED, 'parseCommandRaw in src/utils/bash/parser.ts returned no tree for this command')
 if (root && root !== PARSE_ABORTED) {
   const analysis = analyzeCommand(root, command)
-  check('the UTF-16 projection removes exactly the quoted span', analysis.quoteContext.fullyUnquoted === 'echo é😀  | cat', JSON.stringify(analysis.quoteContext))
-  check('literal substitution is not an executable node', !analysis.dangerousPatterns.hasCommandSubstitution)
+  check('the UTF-16 projection removes exactly the quoted span', analysis.quoteContext.fullyUnquoted === 'echo é😀  | cat', JSON.stringify(analysis.quoteContext) + ' | analyzeCommand (src/utils/permissions/decision/commandAnalysis/analysis.ts) should remove exactly the quoted span when positions are UTF-16')
+  check('literal substitution is not an executable node', !analysis.dangerousPatterns.hasCommandSubstitution, 'a substitution inside single quotes is literal text; analyzeCommand in src/utils/permissions/decision/commandAnalysis/analysis.ts must not flag it')
 }
 process.chdir(before)
 rmSync(scratch, { recursive: true, force: true })

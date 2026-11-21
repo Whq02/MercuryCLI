@@ -5,6 +5,9 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const verdictHint = ' | change cppCompileDbVerdict in src/services/ide/cppProjectProfile.ts (walk order: root compile_commands.json, build/, compile_flags.txt, .clangd; absent remedy comes from compileDbRemedy in src/services/lsp/clangdLane.ts)'
+const profileHint = ' | change buildCppProjectProfile, parseCMakePresets or findCppProjectRoot in src/services/ide/cppProjectProfile.ts'
+const buildOpsHint = ' | change the build op in src/services/ide/cppBuild.ts (listCMakePresets, configurePreset, configureConventional, buildTarget, clean)'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -62,28 +65,28 @@ section('(1) compile-DB verdict — the walk precedence, root > build/ > flags >
     writeFileSync(join(ws, '.clangd'), 'CompileFlags:\n  Add: [-Wall]\n')
 
     let v = cppCompileDbVerdict(ws)
-    check('all four present ⇒ root compile_commands.json wins', v.state === 'ok' && v.source === 'root' && v.path === join(ws, 'compile_commands.json'), JSON.stringify(v))
+    check('all four present ⇒ root compile_commands.json wins', v.state === 'ok' && v.source === 'root' && v.path === join(ws, 'compile_commands.json'), JSON.stringify(v) + verdictHint)
 
     rmSync(join(ws, 'compile_commands.json'))
     v = cppCompileDbVerdict(ws)
-    check('root removed ⇒ build/compile_commands.json', v.state === 'ok' && v.source === 'build-dir' && v.path === join(ws, 'build', 'compile_commands.json'), JSON.stringify(v))
+    check('root removed ⇒ build/compile_commands.json', v.state === 'ok' && v.source === 'build-dir' && v.path === join(ws, 'build', 'compile_commands.json'), JSON.stringify(v) + verdictHint)
 
     rmSync(join(ws, 'build', 'compile_commands.json'))
     v = cppCompileDbVerdict(ws)
-    check('build DB removed ⇒ compile_flags.txt', v.state === 'ok' && v.source === 'compile-flags', JSON.stringify(v))
+    check('build DB removed ⇒ compile_flags.txt', v.state === 'ok' && v.source === 'compile-flags', JSON.stringify(v) + verdictHint)
 
     rmSync(join(ws, 'compile_flags.txt'))
     v = cppCompileDbVerdict(ws)
-    check('flags removed ⇒ .clangd config', v.state === 'ok' && v.source === 'clangd-config', JSON.stringify(v))
+    check('flags removed ⇒ .clangd config', v.state === 'ok' && v.source === 'clangd-config', JSON.stringify(v) + verdictHint)
 
     rmSync(join(ws, '.clangd'))
     v = cppCompileDbVerdict(ws)
     const expectedRemedy = compileDbRemedy(probeCompileDb(ws))
-    check('nothing left ⇒ absent + the EXACT lane remedy (CMakeLists present ⇒ cmake line)', v.state === 'absent' && v.remedy === expectedRemedy && v.remedy.includes('cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'), JSON.stringify(v))
+    check('nothing left ⇒ absent + the EXACT lane remedy (CMakeLists present ⇒ cmake line)', v.state === 'absent' && v.remedy === expectedRemedy && v.remedy.includes('cmake -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON'), JSON.stringify(v) + verdictHint)
 
     rmSync(join(ws, 'CMakeLists.txt'))
     v = cppCompileDbVerdict(ws)
-    check('no CMakeLists ⇒ the fallback-flags ladder remedy', v.state === 'absent' && v.remedy.includes('bear -- make'), JSON.stringify(v))
+    check('no CMakeLists ⇒ the fallback-flags ladder remedy', v.state === 'absent' && v.remedy.includes('bear -- make'), JSON.stringify(v) + verdictHint)
   } finally {
     rmSync(ws, { recursive: true, force: true })
   }
@@ -115,27 +118,27 @@ section('(2) profile evidence — presets, configs, build dirs; ONE walk impleme
 
     const nested = join(ws, 'src', 'deep')
     mkdirSync(nested, { recursive: true })
-    check('root detection walks up from a nested dir', findCppProjectRoot(nested).root === ws)
+    check('root detection walks up from a nested dir', findCppProjectRoot(nested).root === ws, 'got ' + findCppProjectRoot(nested).root + profileHint)
 
     const profile = freshProfile(ws)
-    check('markers carry the root evidence', profile.markers.includes('CMakeLists.txt') && profile.markers.includes('CMakePresets.json'), profile.markers.join(','))
-    check('hidden presets are skipped; declared names parse in order', profile.cmake.presets.map(p => p.name).join(',') === 'debug,release', JSON.stringify(profile.cmake.presets))
-    check('binaryDir macros expand (${sourceDir}/${presetName})', profile.cmake.presets[0]?.binaryDir === join(ws, 'out', 'debug'), String(profile.cmake.presets[0]?.binaryDir))
-    check('build presets parse', profile.cmake.buildPresets.join(',') === 'debug-build')
-    check('.clang-tidy evidence', profile.clangTidy.configured && profile.clangTidy.evidence === '.clang-tidy')
-    check('.clang-format evidence', profile.clangFormat.configured && profile.clangFormat.evidence === '.clang-format')
-    check('.clangd absent ⇒ not configured', profile.clangd.configured === false)
+    check('markers carry the root evidence', profile.markers.includes('CMakeLists.txt') && profile.markers.includes('CMakePresets.json'), profile.markers.join(',') + profileHint)
+    check('hidden presets are skipped; declared names parse in order', profile.cmake.presets.map(p => p.name).join(',') === 'debug,release', JSON.stringify(profile.cmake.presets) + profileHint)
+    check('binaryDir macros expand (${sourceDir}/${presetName})', profile.cmake.presets[0]?.binaryDir === join(ws, 'out', 'debug'), String(profile.cmake.presets[0]?.binaryDir) + profileHint)
+    check('build presets parse', profile.cmake.buildPresets.join(',') === 'debug-build', 'got ' + profile.cmake.buildPresets.join(',') + profileHint)
+    check('.clang-tidy evidence', profile.clangTidy.configured && profile.clangTidy.evidence === '.clang-tidy', JSON.stringify(profile.clangTidy) + profileHint)
+    check('.clang-format evidence', profile.clangFormat.configured && profile.clangFormat.evidence === '.clang-format', JSON.stringify(profile.clangFormat) + profileHint)
+    check('.clangd absent ⇒ not configured', profile.clangd.configured === false, JSON.stringify(profile.clangd) + profileHint)
     const dirPaths = profile.buildDirs.map(d => d.path)
-    check('conventional build dir found (cmake-build-debug, ninja generator)', profile.buildDirs.some(d => d.path === join(ws, 'cmake-build-debug') && d.generator === 'ninja'), dirPaths.join(','))
-    check('preset binaryDir joins the candidates (configured via CMakeCache)', profile.buildDirs.some(d => d.path === join(ws, 'out', 'debug') && d.configured), dirPaths.join(','))
-    check('buildSystem evidence: ninja true', profile.buildSystem.ninja === true)
+    check('conventional build dir found (cmake-build-debug, ninja generator)', profile.buildDirs.some(d => d.path === join(ws, 'cmake-build-debug') && d.generator === 'ninja'), dirPaths.join(',') + profileHint)
+    check('preset binaryDir joins the candidates (configured via CMakeCache)', profile.buildDirs.some(d => d.path === join(ws, 'out', 'debug') && d.configured), dirPaths.join(',') + profileHint)
+    check('buildSystem evidence: ninja true', profile.buildSystem.ninja === true, JSON.stringify(profile.buildSystem) + profileHint)
 
     writeFileSync(join(ws, 'CMakePresets.json'), '{ not json')
     const broken = parseCMakePresets(ws)
-    check('malformed CMakePresets.json ⇒ typed presetsError', broken.presetsError !== undefined && broken.presets.length === 0, String(broken.presetsError))
+    check('malformed CMakePresets.json ⇒ typed presetsError', broken.presetsError !== undefined && broken.presets.length === 0, String(broken.presetsError) + ' | change parseCMakePresets in src/services/ide/cppProjectProfile.ts')
     _resetCppProjectForTesting()
     const listing = listCMakePresets(ws)
-    check('listCMakePresets surfaces the parse error as state error', listing.state === 'error' && listing.detail.includes('did not parse'), listing.detail)
+    check('listCMakePresets surfaces the parse error as state error', listing.state === 'error' && listing.detail.includes('did not parse'), listing.detail + ' | change listCMakePresets in src/services/ide/cppBuild.ts')
   } finally {
     rmSync(ws, { recursive: true, force: true })
   }
@@ -153,16 +156,16 @@ section('(3) build ops — typed refusals (deterministic, cmake-independent orde
     )
     _resetCppProjectForTesting()
     const conv = await configureConventional(ws)
-    check('configureConventional REFUSES when presets exist (names them)', !conv.ok && conv.exitCode === null && conv.argv.length === 0 && conv.detail.includes('debug') && conv.detail.includes('use configurePreset'), conv.detail)
+    check('configureConventional REFUSES when presets exist (names them)', !conv.ok && conv.exitCode === null && conv.argv.length === 0 && conv.detail.includes('debug') && conv.detail.includes('use configurePreset'), conv.detail + buildOpsHint)
     const unknown = await configurePreset('nope', ws)
-    check('unknown preset refusal names the declared set', !unknown.ok && unknown.detail.includes('debug') && unknown.detail.includes('nope'), unknown.detail)
+    check('unknown preset refusal names the declared set', !unknown.ok && unknown.detail.includes('debug') && unknown.detail.includes('nope'), unknown.detail + buildOpsHint)
     const build = await buildTarget({ from: ws })
-    check('build without a configured dir refuses with the remedy', !build.ok && build.detail.includes('configurePreset/configureConventional'), build.detail)
+    check('build without a configured dir refuses with the remedy', !build.ok && build.detail.includes('configurePreset/configureConventional'), build.detail + buildOpsHint)
     const badPreset = await buildTarget({ from: ws, preset: 'ghost' })
-    check('unknown build preset refuses (no build presets declared)', !badPreset.ok && badPreset.detail.includes('no build presets declared'), badPreset.detail)
+    check('unknown build preset refuses (no build presets declared)', !badPreset.ok && badPreset.detail.includes('no build presets declared'), badPreset.detail + buildOpsHint)
     _resetCppProjectForTesting()
     const cl = await clean(buildCppProjectProfile(ws))
-    check('clean without a configured dir refuses (never deletes paths itself)', !cl.ok && cl.detail.includes('never deletes'), cl.detail)
+    check('clean without a configured dir refuses (never deletes paths itself)', !cl.ok && cl.detail.includes('never deletes'), cl.detail + buildOpsHint)
 
     const noPresets = mkdtempSync(join(tmpdir(), 'cpp-nocmake-'))
     writeFileSync(join(noPresets, 'CMakeLists.txt'), 'project(x C)\n')
@@ -173,7 +176,7 @@ section('(3) build ops — typed refusals (deterministic, cmake-independent orde
     _resetCppProjectForTesting()
     try {
       const noCmake = await configureConventional(noPresets)
-      check('scrubbed PATH ⇒ typed cmake-missing refusal (never a throw)', !noCmake.ok && noCmake.exitCode === null && noCmake.detail.includes('cmake is not on PATH'), noCmake.detail)
+      check('scrubbed PATH ⇒ typed cmake-missing refusal (never a throw)', !noCmake.ok && noCmake.exitCode === null && noCmake.detail.includes('cmake is not on PATH'), noCmake.detail + buildOpsHint)
     } finally {
       process.env.PATH = savedPath
       _resetCppBuildForTesting()
@@ -206,19 +209,19 @@ section('(4) build ops — real cmake fixture (machine-dependent)')
       _resetCppBuildForTesting()
 
       const conf = await configureConventional(ws)
-      check('configureConventional exits 0 (typed run)', conf.ok && conf.exitCode === 0 && conf.argv.length >= 4, conf.detail)
-      check('…argv is the documented remedy verbatim', conf.argv.slice(1).join(' ') === '-B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON', conf.argv.join(' '))
-      check('…produces build/compile_commands.json', conf.compileDb === join(ws, 'build', 'compile_commands.json'), String(conf.compileDb))
-      check('…which probeCompileDb (the clangd walk) then FINDS', conf.compileDbVisibleToClangd === true && probeCompileDb(ws).compileDb === conf.compileDb, JSON.stringify(probeCompileDb(ws)))
-      check('…duration + bounded tail recorded', conf.durationMs > 0 && conf.outputTail.length > 0 && conf.outputTail.length <= 40)
+      check('configureConventional exits 0 (typed run)', conf.ok && conf.exitCode === 0 && conf.argv.length >= 4, conf.detail + buildOpsHint)
+      check('…argv is the documented remedy verbatim', conf.argv.slice(1).join(' ') === '-B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON', conf.argv.join(' ') + ' | change configureConventional argv in src/services/ide/cppBuild.ts')
+      check('…produces build/compile_commands.json', conf.compileDb === join(ws, 'build', 'compile_commands.json'), String(conf.compileDb) + ' | change configureConventional compileDb in src/services/ide/cppBuild.ts')
+      check('…which probeCompileDb (the clangd walk) then FINDS', conf.compileDbVisibleToClangd === true && probeCompileDb(ws).compileDb === conf.compileDb, JSON.stringify(probeCompileDb(ws)) + ' | change probeCompileDb in src/services/lsp/clangdLane.ts or compileDbVisibleToClangd in src/services/ide/cppBuild.ts')
+      check('…duration + bounded tail recorded', conf.durationMs > 0 && conf.outputTail.length > 0 && conf.outputTail.length <= 40, 'durationMs=' + conf.durationMs + ' outputTail lines=' + conf.outputTail.length + ' (must be 1 to 40)' + buildOpsHint)
 
       _resetCppProjectForTesting()
       const built = await buildTarget({ from: ws, target: 'demo' })
-      check('buildTarget demo exits 0 via the configured dir', built.ok && built.argv.includes('--build') && built.argv.includes('--target'), built.detail)
+      check('buildTarget demo exits 0 via the configured dir', built.ok && built.argv.includes('--build') && built.argv.includes('--target'), built.detail + buildOpsHint)
 
       _resetCppProjectForTesting()
       const cl = await clean(buildCppProjectProfile(ws))
-      check('clean runs the build system clean target', cl.ok && cl.argv.join(' ').includes('--target clean'), cl.detail)
+      check('clean runs the build system clean target', cl.ok && cl.argv.join(' ').includes('--target clean'), cl.detail + buildOpsHint)
     } finally {
       rmSync(ws, { recursive: true, force: true })
     }

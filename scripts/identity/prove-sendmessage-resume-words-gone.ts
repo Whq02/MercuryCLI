@@ -18,7 +18,7 @@ let failures = 0
 for (const words of forbidden) {
   const hits = sources.filter(([, text]) => text.includes(words)).map(([path]) => path)
   if (hits.length > 0) failures++
-  console.log(`[${hits.length === 0 ? 'PASS' : 'FAIL'}] retired resume-road words absent: ${JSON.stringify(words)}${hits.length ? ` — ${hits.join(', ')}` : ''}`)
+  console.log(`[${hits.length === 0 ? 'PASS' : 'FAIL'}] retired resume-road words absent: ${JSON.stringify(words)}${hits.length ? ` — ${hits.join(', ')} (reword these words out of each listed file under src/)` : ''}`)
 }
 console.log(`sendmessage-resume-words-gone: ${forbidden.length} checks, ${failures} failed`)
 process.exit(failures ? 1 : 0)
