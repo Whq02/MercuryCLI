@@ -18,6 +18,7 @@ import { getPlatform } from '../platform.js'
 import { rememberedPlatform } from '../platform/host.js'
 import { nativeCwdFromRecordedShell } from '../platform/paths.js'
 import { childGetsOwnProcessGroup } from '../platform/processes.js'
+import { systemBashLabel } from '../platform/words.js'
 import { getSessionEnvironmentScript } from '../sessionEnvironment.js'
 import { getSessionEnvVars } from '../sessionEnvVars.js'
 import { toolShellEnv, subprocessEnv, withLoginExports } from '../subprocessEnv.js'
@@ -71,7 +72,7 @@ function servingShellWords(): string {
   if (record === null) return 'a bash'
   if (record.origin === 'shipped') return 'the shipped bash'
   if (record.origin === 'engine') return 'the bundled engine'
-  return process.platform === 'win32' ? 'an installed bash' : "the system's bash"
+  return systemBashLabel()
 }
 
 export function resolveShellEngine(setting?: 'system' | 'brush'): ShellEngineResolution {
