@@ -45,5 +45,6 @@ prove-transcript-append-growth.ts
 prove-transcript-tick-coalesce.ts
 prove-turn-clock-owner.ts
 prove-unknown-command-one-notice.ts
+prove-verb-wires-recording.ts
 prove-work-counts.ts
 prove-work-scope.ts
