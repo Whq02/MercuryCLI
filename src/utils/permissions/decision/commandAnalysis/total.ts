@@ -120,9 +120,10 @@ export class Reading {
     const operands = move.operands
     const target = this.world.windows === true && operands.length > 1 && /^\/d$/i.test(operands[0]!) ? operands[1] : operands[0]
     const left = this.cwd
+    const old = this.world.returnsTo ?? this.oldpwd
     if (target === undefined) this.cwd = pushes ? undefined : (this.scope.get('HOME')?.at(-1) ?? this.world.home)
-    else if (target === '-') this.cwd = this.oldpwd
-    else if (command.dialect === 'posix' && this.oldpwd !== undefined && /^~-(?=\/|$)/.test(target)) this.cwd = absolutePath(this.oldpwd + target.slice(2), undefined, this.world)
+    else if (target === '-') this.cwd = old
+    else if (command.dialect === 'posix' && old !== undefined && /^~-(?=\/|$)/.test(target)) this.cwd = absolutePath(old + target.slice(2), undefined, this.world)
     else if (!wordKnown(target)) this.cwd = this.world.folderOf?.(target)
     else this.cwd = this.world.folderOf?.(target) ?? absolutePath(command.dialect === 'powershell' ? target.replace(/\\/g, '/') : target, this.cwd, this.world)
     this.oldpwd = left

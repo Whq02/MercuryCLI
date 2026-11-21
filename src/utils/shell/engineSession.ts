@@ -40,7 +40,7 @@ const SOH = String.fromCharCode(1)
 const STX = String.fromCharCode(2)
 const ETX = String.fromCharCode(3)
 const ENGINE_FLAGS = ['--norc', '--noprofile', '--no-config', '--disable-color'] as const
-const CLEAR_OLD_FOLDER = 'unset OLDPWD 2>/dev/null || :; dirs -c 2>/dev/null || :'
+const CLEAR_OLD_FOLDER = 'unset OLDPWD CDPATH 2>/dev/null || :; dirs -c 2>/dev/null || :'
 
 const PARSE_GUARD_TIMEOUT_MS = 5_000
 

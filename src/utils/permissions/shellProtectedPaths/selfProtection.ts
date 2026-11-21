@@ -6,8 +6,8 @@ import { protectedPathForms } from './paths.js'
 import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { walkShellCommands } from './walk.js'
-import { mercuryHomes, readForFloors } from './homes.js'
-import { foldersAfter } from './folders.js'
+import { floorsWorld, mercuryHomes, readForFloors } from './homes.js'
+import { foldersAfter, oldFolderPlaces } from './folders.js'
 import { GIT_OPTION_VALUED, sharesEarlierStage } from './listings.js'
 import { TREE_REMOVERS } from './credentialWrite.js'
 
@@ -17,7 +17,7 @@ const ATTRIBUTE_WRITERS = new Set(['chown', 'chgrp', 'chflags', 'xattr', 'touch'
 
 const PATTERN_READERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'awk', 'gawk', 'sed', 'pgrep', 'pidof'])
 const KILL_RECEIVERS = new Set(['kill', 'stop-process', 'spps'])
-const PS_NET_RUNTIME_WRITER = /\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
+const PS_NET_RUNTIME_WRITER = /(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
 
 function valuesOf(argv: string[], ...names: string[]): string[] {
   const out: string[] = []
@@ -105,7 +105,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
 async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
     if (ps) {
-      for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
+      for (const call of text.matchAll(PS_NET_RUNTIME_WRITER)) {
         const hit = runtimeWritePath(call[2]!, here, true)
         if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
       }
@@ -272,6 +272,14 @@ export async function readSelfProtection(command: string, powershell: boolean, c
     for (const word of words) {
       const hit = pathLike(word) ? runtimeWritePath(word, cwd, removes) : null
       if (hit !== null) return `${changing(word, hit)} ${UNREAD_ADVICE}.`
+    }
+  }
+  if (!powershell) {
+    for (const place of oldFolderPlaces(read, command, cwd, () => floorsWorld(cwd).home, mercuryHomes)) {
+      const again = await readForFloors(command, false, cwd, place)
+      if (again === null) continue
+      const found = await selfProtectionFromRead(again, cwd, changing)
+      if (found !== null) return again.exact.kind === 'parse-unavailable' ? `${found} ${UNREAD_ADVICE}.` : found
     }
   }
   return null

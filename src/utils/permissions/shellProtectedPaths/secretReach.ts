@@ -5,11 +5,11 @@ import { mercurySecretPath, spelling } from './paths.js'
 import { UNREAD_ADVICE, flaggedReadOperands, readOperands, unreadWords, verb } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptReads } from './inlineScripts.js'
 import { expandShellConstants, walkShellCommands } from './walk.js'
-import { GLOB_PART, SECRET_NAME_SAMPLES, UPLOADERS, couldNameSecret, globNamesStore, holdsMercuryHome, mercuryHomes, namesMercuryHome, readForFloors, secretNameBehindUnread, secretsHeld, spellingsOf, underOtherHomes } from './homes.js'
-import { foldersAfter, foldersRead } from './folders.js'
+import { GLOB_PART, SECRET_NAME_SAMPLES, UPLOADERS, couldNameSecret, floorsWorld, globNamesStore, holdsMercuryHome, mercuryHomes, namesMercuryHome, readForFloors, secretNameBehindUnread, secretsHeld, spellingsOf, underOtherHomes } from './homes.js'
+import { foldersAfter, foldersRead, oldFolderPlaces } from './folders.js'
 import { FILE_READERS, FIND_NON_READERS, POWERSHELL_LISTERS, callsUnreadName, filesSentOrPrinted, findMaxDepth, findNamesASecret, findstrFolderFiles, gitGrepRoots, joinedUnderStanding, keychainItemRead, namesNoSecret, powershellListing, readsHandedFiles, readsWholeTree, receivesListing, ripgrepReachesHidden, searcherOf, searchesNamesAsText, searchesTextOfListing, sharesEarlierStage, stagesApart, standingSpelled, storeBelowDepth, treeReadRoots } from './listings.js'
 
-const PS_NET_SECRET_READER = /\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
+const PS_NET_SECRET_READER = /(?:^|[;\n])\s*\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
 const PLAIN_CD_PROGRAMS = new Set(['cd', 'chdir', 'set-location', 'sl', 'pushd', 'push-location'])
 
 function literalSecretToken(command: string, cwd: string): string | null {
@@ -46,7 +46,7 @@ async function namedMercurySecretPath(command: string, powershell: boolean, cwd:
   if (literal !== null) return literal
   return walkShellCommands(command, powershell, ({ argv, cwd: here, text, powershell: ps }) => {
     if (ps) {
-      for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.File\]::(?:ReadAllText|ReadAllBytes|ReadAllLines|ReadLines|OpenRead)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
+      for (const call of text.matchAll(PS_NET_SECRET_READER)) {
         const hit = mercurySecretPath(call[2]!, here)
         if (hit !== null) return hit
       }
@@ -211,6 +211,14 @@ export async function readSecretReach(command: string, powershell: boolean, cwd:
         const names = mercurySecretPath(candidate, cwd) !== null || namesMercuryHome(candidate, cwd, homes) || (wordKnown(candidate) && couldNameSecret(candidate, cwd, homes)) || (!/^(?:[/~-]|[A-Za-z]:)/.test(candidate) && homes.some(home => mercurySecretPath(candidate, home) !== null))
         if (names) return `${word} (${UNREAD_ADVICE})`
       }
+    }
+  }
+  if (!powershell) {
+    for (const place of oldFolderPlaces(read, command, cwd, () => floorsWorld(cwd).home, () => homes)) {
+      const again = await readForFloors(command, false, cwd, place)
+      if (again === null) continue
+      const found = secretReachFromRead(again, false, cwd, homes)
+      if (found !== null) return again.exact.kind === 'parse-unavailable' ? `${found} (${UNREAD_ADVICE})` : found
     }
   }
   return null
