@@ -262,7 +262,7 @@ function otherUserNamed(word: string, command: ReadCommand, world: RefusalWorld)
   const stands = world.standing?.get(command)
   if (stands !== undefined && wordKnown(word) && !/^[\\/~%]/.test(word)) {
     const path = windowsPath(`${stands}/${word}`, world)
-    if (path !== undefined) return windowsOtherUser(path, world) && !insideStartingFolder(path, world)
+    if (path !== undefined && windowsOtherUser(path, world) && !insideStartingFolder(path, world)) return true
   }
   const path = posixPath(command.dialect === 'powershell' ? word.replace(/\\/g, '/') : word, command.cwd, world)
   return path !== undefined && otherUserHome(path, world) && !insideStartingFolder(path, world)
