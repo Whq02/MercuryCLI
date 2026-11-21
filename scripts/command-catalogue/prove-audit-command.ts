@@ -66,7 +66,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const fixture = await startFixtureApi([{ kind: 'text', text: 'No findings in this benign fixture.' }])
 try {
-  git(origin, 'init', '--bare', '-b', 'main')
+  git(origin, 'init', '-b', 'main')
+  git(origin, 'config', 'receive.denyCurrentBranch', 'ignore')
   git(scratch, 'clone', origin, work)
   writeFileSync(join(work, 'base.txt'), 'initial fixture content\n')
   git(work, 'add', 'base.txt')
