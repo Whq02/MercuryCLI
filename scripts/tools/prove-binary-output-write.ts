@@ -25,13 +25,14 @@ try {
   ]
   for (const [mime, ext] of cases) {
     const result = await persistBinaryContent(bytes, mime, `sample-${ext}`)
-    assert(!('error' in result))
+    assert(!('error' in result), `persistBinaryContent(${mime}) failed in src/services/mcp/mcpOutputStorage.ts: ${'error' in result ? result.error : ''}`)
     assert.equal(result.ext, ext)
     assert.equal(result.size, bytes.length)
-    assert(result.filepath.endsWith(`sample-${ext}.${ext}`))
+    assert(result.filepath.endsWith(`sample-${ext}.${ext}`), `persistBinaryContent(${mime}) filepath ${result.filepath} did not end with sample-${ext}.${ext} in src/services/mcp/mcpOutputStorage.ts`)
     assert.deepEqual(readFileSync(result.filepath), bytes)
   }
-  assert('error' in await persistBinaryContent(bytes, 'image/png', 'missing-parent/file'))
+  const missingParent = await persistBinaryContent(bytes, 'image/png', 'missing-parent/file')
+  assert('error' in missingParent, `persistBinaryContent with missing parent returned ${JSON.stringify(missingParent).slice(0, 160)} instead of an error object in src/services/mcp/mcpOutputStorage.ts`)
   const ensure = spyOn(storage, 'ensureToolResultsDir').mockRejectedValue(new Error('fixture directory failure'))
   try { await assert.rejects(persistBinaryContent(bytes, 'application/pdf', 'unwritten'), /fixture directory failure/) } finally { ensure.mockRestore() }
   console.log('PASS exact binary bytes, MIME extensions, write errors and directory failure boundary')
