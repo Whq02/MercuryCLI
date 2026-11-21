@@ -106,7 +106,7 @@ try {
   const invalidDocument = { version: 1, name: 'Refused', steps: [{ id: 'unknown', kind: 'invented', inputs: {} }] }
   const invalid = facts(await call('pipeline_validate', { pipeline: invalidDocument }))
   assert.equal(invalid.valid, false)
-  assert.ok(invalid.errors.some((error: { step: string }) => error.step === 'unknown'))
+  assert.ok(invalid.errors.some((error: { step: string }) => error.step === 'unknown'), `pipeline_validate errors missing step=unknown (errors=${JSON.stringify(invalid.errors).slice(0, 180)}); check pipeline validator`)
   await assert.rejects(call('pipeline_run', { pipeline: invalidDocument }), /unknown/)
   const dry = facts(await call('pipeline_run', { pipeline: 'landscape.pipeline.json', dry: true }))
   assert.equal(dry.dry, true)
@@ -130,7 +130,7 @@ try {
   await assert.rejects(call('pipeline_import_workflow', { workflow: 'workflow.json', destination: 'imported.pipeline.json' }), /exists/)
   const exported = facts(await call('pipeline_export_workflow', { pipeline: 'imported.pipeline.json', destination: 'export.json' }))
   assert.equal(exported.path, join(project, 'export.json'))
-  assert.ok(existsSync(exported.path))
+  assert.ok(existsSync(exported.path), 'pipeline_export_workflow returned path that does not exist on disk; check media workflow exporter')
   const round = facts(await call('pipeline_import_workflow', { workflow: exported.path }))
   assert.deepEqual(round.pipeline.steps.find((row: any) => row.kind === 'generate').inputs, imported.pipeline.steps.find((row: any) => row.kind === 'generate').inputs)
   const post = { version: 1, name: 'Post', steps: [{ id: 'draw', kind: 'generate', inputs: { prompt: 'landscape', model: 'image-one', width: 64, height: 64, seed: 11, cfg: 4.5, sampler: 'heun', scheduler: 'karras', steps: 3, count: 4, downsize: 2, sheet: { columns: 2 } } }] }
@@ -150,24 +150,24 @@ try {
   assert.equal(queued.kind, 'image')
   assert.equal(queued.pipeline.name, 'Landscape')
   const jobs = facts(await call('media_jobs'))
-  assert.ok(jobs.jobs.some((row: { jobId: string }) => row.jobId === queued.jobId))
+  assert.ok(jobs.jobs.some((row: { jobId: string }) => row.jobId === queued.jobId), `media_jobs missing queued pipeline jobId=${queued.jobId} (count=${jobs.jobs.length}); check media job registry`)
   const content = await call('media_result', { job_id: queued.jobId, timeout: 30 })
   const result = facts(content)
   assert.equal(result.status, 'completed')
   assert.equal(result.pipeline.name, 'Landscape')
   assert.equal(result.pipeline.hash, valid.pipelineHash)
-  assert.ok(content.some(part => part.type === 'image'))
+  assert.ok(content.some(part => part.type === 'image'), `media_result content missing image block (types=${content.map(p => p.type).join(',')}); check media pipeline server`)
   const record = await readMediaPipelineRunRecord(result.recordPath, project)
   assert.deepEqual(record.document, document)
   assert.equal(record.pipelineHash, valid.pipelineHash)
   assert.deepEqual(record.steps.map((row: { id: string }) => row.id), document.steps.map(row => row.id))
-  for (const path of result.outputs) { assert.ok(path.startsWith(join(project, 'media') + sep)); assert.ok(existsSync(path)) }
+  for (const path of result.outputs) { assert.ok(path.startsWith(join(project, 'media') + sep), `pipeline output landed outside project media dir (tail=${path.slice(-60)}); check pipeline output path`); assert.ok(existsSync(path), `pipeline output file missing on disk (tail=${path.slice(-60)}); check pipeline writer`) }
   assert.deepEqual(result.steps, record.steps)
   const allPaths = result.steps.flatMap((step: { files?: Array<{ path: string }> }) => (step.files ?? []).map(file => file.path))
   for (const step of record.steps) for (const file of step.files ?? []) {
     assert.ok(allPaths.includes(file.path), `Missing output ${file.path}`)
-    assert.ok(file.path.startsWith(join(project, 'media') + sep))
-    assert.ok(existsSync(file.path))
+    assert.ok(file.path.startsWith(join(project, 'media') + sep), `pipeline step file landed outside project media dir (tail=${file.path.slice(-60)}); check pipeline step output`)
+    assert.ok(existsSync(file.path), `pipeline step file missing on disk (tail=${file.path.slice(-60)}); check pipeline step writer`)
   }
   assert.equal(readFileSync(pipelinePath, 'utf8'), JSON.stringify(document))
   const calls = () => readFileSync(join(root, 'engine-calls.jsonl'), 'utf8').trim().split('\n').map(line => JSON.parse(line)).filter(row => row.route === 'img_gen')
@@ -194,7 +194,7 @@ try {
   const frame = await mountOffscreen(React.createElement(AppStoreContext.Provider, { value: createStore(getDefaultAppState()) }, card), 120, 28)
   try {
     assert.ok(await waitFor(() => frame.screen().includes('Pipeline: Landscape · step small'), 5000), frame.screen())
-    assert.ok(frame.screen().includes('Local image'))
+    assert.ok(frame.screen().includes('Local image'), 'MediaPermissionRequest card missing Local image heading; check MediaPermissionRequest.tsx')
     const frames = arg('--frames')
     if (frames) {
       mkdirSync(frames, { recursive: true })

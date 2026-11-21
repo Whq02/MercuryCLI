@@ -45,7 +45,7 @@ try {
   const options = { records: [record], now, lastTurnAt: () => undefined, release: async () => { releases++ } }
   assert.deepEqual(await sweepHostIdle(options), [])
   assert.equal(releases, 0)
-  assert.ok(requests >= 2)
+  assert.ok(requests >= 2, `sweepHostIdle made only requests=${requests} remote activity polls, expected >=2; check media host idle sweep`)
   activityAt = now - 3 * HOST_IDLE_LIMIT_MS
   writeFileSync(join(dirname(statePath), 'activity.json'), JSON.stringify({ at: activityAt }))
   assert.equal((await sweepHostIdle(options)).length, 1)
