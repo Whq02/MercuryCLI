@@ -1,4 +1,4 @@
-import { historyHead, sealedExtents } from './sessionStorage/historyParts.js'
+import { historyHead, sealedExtents } from '../utils/sessionStorage/historyParts.js'
 import { join } from 'node:path'
 
 import { CACHE_PATHS } from '../utils/cachePaths.js'
