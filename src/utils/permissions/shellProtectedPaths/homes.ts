@@ -33,7 +33,7 @@ export function floorsWorld(cwd: string): ReadWorld {
 
 let homeUnknownSaid = false
 
-export async function readForFloors(command: string, powershell: boolean, cwd: string): Promise<CommandReading | null> {
+export async function readForFloors(command: string, powershell: boolean, cwd: string, returnsTo?: string): Promise<CommandReading | null> {
   let world: ReadWorld
   try {
     world = floorsWorld(cwd)
@@ -44,7 +44,7 @@ export async function readForFloors(command: string, powershell: boolean, cwd: s
     }
     return null
   }
-  return readCommand(command, powershell ? 'powershell' : 'posix', world)
+  return readCommand(command, powershell ? 'powershell' : 'posix', returnsTo === undefined ? world : { ...world, returnsTo })
 }
 
 export function mercuryHomes(): string[] {

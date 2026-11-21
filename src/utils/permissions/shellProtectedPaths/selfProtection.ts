@@ -6,8 +6,8 @@ import { protectedPathForms } from './paths.js'
 import { OTHER_WRITERS, RUNTIME_WRITERS, TREE_MOVERS, UNREAD_ADVICE, WRITERS, WRITE_REDIRECT, expandedLayerArgvs, pathLike, pipedPrinterOperands, runtimeOperands, spelledTargetWord, spelledUserArgv, unreadWords, verb, writtenLayerArgv } from './words.js'
 import { inlineScriptOf, inlineScriptOfArgv, inlineScriptWrites } from './inlineScripts.js'
 import { walkShellCommands } from './walk.js'
-import { mercuryHomes, readForFloors } from './homes.js'
-import { foldersAfter } from './folders.js'
+import { floorsWorld, mercuryHomes, readForFloors } from './homes.js'
+import { foldersAfter, oldFolderPlaces } from './folders.js'
 import { GIT_OPTION_VALUED, sharesEarlierStage } from './listings.js'
 import { TREE_REMOVERS } from './credentialWrite.js'
 
@@ -272,6 +272,14 @@ export async function readSelfProtection(command: string, powershell: boolean, c
     for (const word of words) {
       const hit = pathLike(word) ? runtimeWritePath(word, cwd, removes) : null
       if (hit !== null) return `${changing(word, hit)} ${UNREAD_ADVICE}.`
+    }
+  }
+  if (!powershell) {
+    for (const place of oldFolderPlaces(read, command, cwd, () => floorsWorld(cwd).home, mercuryHomes)) {
+      const again = await readForFloors(command, false, cwd, place)
+      if (again === null) continue
+      const found = await selfProtectionFromRead(again, cwd, changing)
+      if (found !== null) return again.exact.kind === 'parse-unavailable' ? `${found} ${UNREAD_ADVICE}.` : found
     }
   }
   return null
