@@ -61,16 +61,7 @@ export async function* togetherCallModel(params: CallModelParams): CallModelStre
     yield* compatChatCallModel(togetherLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('together'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('together', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedTogetherCatalogue()
   const asked = togetherWireId(params.options.model)

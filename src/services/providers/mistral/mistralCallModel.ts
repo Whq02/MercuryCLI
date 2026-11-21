@@ -57,16 +57,7 @@ export async function* mistralCallModel(params: CallModelParams): CallModelStrea
     yield* compatChatCallModel(mistralLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('mistral'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('mistral', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedMistralCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)
