@@ -142,6 +142,19 @@ function receiptOf(gridPath: string): string {
   }
 }
 
+function stripSendReceiptStamps(gridPath: string): void {
+  const parsed = JSON.parse(readFileSync(gridPath, 'utf8')) as { sendReceipts?: Array<Record<string, unknown>> }
+  if (!Array.isArray(parsed.sendReceipts)) return
+  let changed = false
+  for (const receipt of parsed.sendReceipts) {
+    if (receipt && typeof receipt === 'object' && 'ts' in receipt) {
+      delete receipt.ts
+      changed = true
+    }
+  }
+  if (changed) writeFileSync(gridPath, JSON.stringify(parsed))
+}
+
 async function runPool(captures: Capture[], jobs: number): Promise<Map<string, { ok: boolean; line: string }>> {
   const results = new Map<string, { ok: boolean; line: string }>()
   let next = 0
@@ -154,6 +167,7 @@ async function runPool(captures: Capture[], jobs: number): Promise<Map<string, {
       const r = await c.run(scratch)
       const wall = ((Date.now() - started) / 1000).toFixed(1)
       if (r.ok && r.grid) {
+        stripSendReceiptStamps(r.grid)
         copyFileSync(r.grid, join(OUT, `${c.name}.json`))
         const line = `✅ ${c.name}.json — ${receiptOf(r.grid)} · ${wall}s`
         results.set(c.name, { ok: true, line })
