@@ -13,6 +13,7 @@ import { useFocusedWorkRoster } from './tasks/useFocusedWork.js'
 import type { SessionListing } from '../types/logs.js'
 import { saturnWakeGlanceOf, type SaturnWakeGlanceV1 } from '../daemon/saturn.js'
 import { boardHomedSessionIds, readSessionWorkers } from '../daemon/concourseWorkers.js'
+import { subscribeConcourseWorkers } from '../daemon/concourseWorkers/store.js'
 import { isProjectSession, isSubstantiveSession } from '../utils/sessionFilter.js'
 import { isSessionCleared } from '../utils/sessionStorage/clearedSessions.js'
 import { sessionIdOfListing, listSessionsAcrossProjects } from '../utils/sessionStorage.js'
@@ -38,7 +39,6 @@ import { processMainOwner } from '../utils/run/resolveOwner.js'
 import { isEnvDefinedFalsy } from '../utils/envUtils.js'
 import { flagEnv } from '../substrate/flagRegistry.js'
 import { buildLanesModel, fitPointerRows, soloOf, wrapRailRows, type LanesInput, type LanesRowSpec, type LanesSectionSpec } from '../services/cockpit/helmLanesModel.js'
-import { startInterval, stopInterval } from '../utils/timers.js'
 
 export { wrapRailRows }
 
@@ -348,11 +348,10 @@ function useWakeGlance(): SaturnWakeGlanceV1 | null {
       }
     }
     probe()
-    const t = startInterval(probe, 15_000)
-    t.unref?.()
+    const unsubscribe = subscribeConcourseWorkers(probe)
     return () => {
       alive = false
-      stopInterval(t)
+      unsubscribe()
     }
   }, [])
   return wakeGlance

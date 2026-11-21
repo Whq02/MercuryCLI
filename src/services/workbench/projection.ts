@@ -4,7 +4,9 @@ import { getCwd } from '../../utils/cwd.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { getGitState, getGitWorktreeLanes, subscribeGitFacts } from '../../utils/git.js'
 import {
+  getAgentMetadataPath,
   readAgentMetadata,
+  subscribeAgentMetadataPath,
 } from '../../utils/sessionStorage/paths.js'
 import { asAgentId } from '../../types/ids.js'
 import { computeWorkingTreeDigestAsync } from '../../utils/verification/verificationState.js'
@@ -42,7 +44,8 @@ import {
   type WorkbenchSourceInputs,
 } from './selectors.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 const REFRESH_DEBOUNCE_MS = 300
 const HEARTBEAT_MS = 20_000
@@ -192,6 +195,7 @@ export async function gatherWorkbenchInputs(opts?: {
     [...richTasks.values()]
       .filter(t => t.agentId)
       .map(async t => {
+        watchAgentMeta(t.agentId!)
         const meta = await agentMetaFor(t.agentId!)
         if (meta) agentMeta.set(t.agentId!, meta)
         const run = pickRunFacts(getRunSnapshot(processOwnerForLane(t.agentId!)))
@@ -315,10 +319,22 @@ function listArtifactHeadFacts(cwd: string): SourceState<WorkbenchSourceInputs['
 let snapshot: WorkbenchSnapshot | null = null
 const lastGood = new Map<string, unknown>()
 const listeners = new Set<() => void>()
-let heartbeat: ReturnType<typeof setInterval> | null = null
+let heartbeat: (() => void) | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const engineUnsubs: Array<() => void> = []
+const watchedAgentMeta = new Set<string>()
 let coalescer: SerialCoalescer | null = null
+
+function watchAgentMeta(agentId: string): void {
+  if (heartbeat === null || watchedAgentMeta.has(agentId)) return
+  watchedAgentMeta.add(agentId)
+  engineUnsubs.push(
+    subscribeAgentMetadataPath(getAgentMetadataPath(asAgentId(agentId)), () => {
+      agentMetaCache.delete(agentId)
+      scheduleDebounced()
+    }),
+  )
+}
 
 function emit(): void {
   for (const l of listeners) {
@@ -363,8 +379,7 @@ function startEngine(): void {
       logForDebugging(`[workbench] refresh failed (dropped): ${e}`)
     }
   }, 'workbench')
-  heartbeat = startInterval(() => pokeWorkbench(), HEARTBEAT_MS)
-  heartbeat.unref?.()
+  heartbeat = subscribeUiClock(HEARTBEAT_MS, () => pokeWorkbench())
   engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))
   engineUnsubs.push(subscribeRuns(() => scheduleDebounced()))
   engineUnsubs.push(subscribeExecutionEvents(() => scheduleDebounced()))
@@ -373,7 +388,7 @@ function startEngine(): void {
 
 function stopEngine(): void {
   if (heartbeat) {
-    stopInterval(heartbeat)
+    heartbeat()
     heartbeat = null
   }
   coalescer?.release()
@@ -382,6 +397,7 @@ function stopEngine(): void {
     stopTimeout(debounceTimer)
     debounceTimer = null
   }
+  watchedAgentMeta.clear()
   for (const unsub of engineUnsubs.splice(0)) {
     try {
       unsub()

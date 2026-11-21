@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { useClaim, useLoad, useTimer } from '../../hooks/effects.js'
+import { useClaim, useLoad } from '../../hooks/effects.js'
 import { MercuryModelPicker } from '../../components/MercuryModelPicker.js'
 import { ModelPickerPopupLease } from '../../components/ModelPickerPopupSlot.js'
 import { focusedSessionModelFacts } from '../../services/engine-connector/focusedConnector.js'
@@ -32,6 +32,7 @@ import {
   serveTensorFoldRow,
   setTensorFoldNotice,
   stopTensorFoldRow,
+  subscribeTensorFoldPods,
   subscribeTensorFoldRoad,
   supportFocusOf,
   switchToTensorFold,
@@ -46,10 +47,6 @@ import { TENSORFOLD_WORDS as W } from './words.js'
 import { consumeFirstRunServeAsk } from '../../substrate/splashHandover.js'
 import { bytesWords } from '../../services/host/bank.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
-import { startInterval, stopInterval } from '../../utils/timers.js'
-
-export const TENSORFOLD_REFRESH_MS = 1_000
-
 export type TensorFoldPanelIo = { facts?: FactsIo; road?: RoadIo; current?: () => string | undefined }
 
 function currentModelId(): string | undefined {
@@ -85,12 +82,12 @@ export function TensorFoldPanel({ onDone, io = {}, repo }: { onDone: (words?: st
       alive.current = false
     }
   }, [read, version])
-  useTimer(() => {
-    const inFlight = facts !== null && (Object.values(facts.acts).some(act => act.kind === 'pulling' || act.kind === 'starting' || act.kind === 'installing') || facts.pods.some(pod => pod.state === 'starting' || pod.state === 'stopping'))
-    if (!inFlight) return
-    const timer = startInterval(() => void read(), TENSORFOLD_REFRESH_MS)
-    return () => stopInterval(timer)
-  }, [facts, read])
+  const podStarting = facts !== null && facts.pods.some(pod => pod.state === 'starting')
+  const podStopping = facts !== null && facts.pods.some(pod => pod.state === 'stopping')
+  useClaim(() => {
+    if (!podStarting && !podStopping) return
+    return subscribeTensorFoldPods(podStopping && io.facts?.pods === undefined, () => { void read() })
+  }, [podStarting, podStopping, io.facts?.pods, read])
   useLoad(() => {
     if (repo !== undefined && repo !== '') void readOtherCheckpoint(repo, io.road)
   }, [repo, io.road])

@@ -16,6 +16,9 @@ import { cachedTensorFoldMachineTruth } from '../../services/tensorfold/engine.j
 import { TensorFoldStartError, readServedRecord, startTensorFold, stopTensorFold, tensorFoldExit, type ServeIo, type TensorFoldServedByEngine } from '../../services/tensorfold/serve.js'
 import { ADAPTER_ENGINE_WORDS, llamaCppWords, servedByAdapter } from '../../services/tensorfold/adapter/identity.js'
 import { readTensorFoldSupportLine, type TensorFoldSupportFocus } from '../../services/providers/local/tensorfoldSupport.js'
+import { subscribeHostRecords } from '../../services/host/store.js'
+import { settleStoppingTensorFoldPods } from '../../services/host/tensorfoldPod.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { mintImmediateReceipt } from '../../utils/model/seatReceipts.js'
 import { FEED, pullActOf, refusedActOf, servedAddress, type FactsState, type TensorFoldAct } from './scene.js'
 import { passedOver, passedOverAs } from '../../utils/passedOver.js'
@@ -53,6 +56,23 @@ export function subscribeTensorFoldRoad(listener: Listener): () => void {
   }
 }
 
+export function subscribeTensorFoldPods(hasStopping: boolean, onChange: () => void): () => void {
+  const stopRecords = subscribeHostRecords(onChange)
+  if (!hasStopping) return stopRecords
+  let settling = false
+  const stopClock = subscribeUiClock(1_000, () => {
+    if (settling) return
+    settling = true
+    void settleStoppingTensorFoldPods()
+      .then(settled => { if (settled > 0) onChange() })
+      .catch(passedOver)
+      .finally(() => { settling = false })
+  })
+  return () => {
+    stopClock()
+    stopRecords()
+  }
+}
 export function tensorFoldRoadVersion(): number {
   return state.version
 }

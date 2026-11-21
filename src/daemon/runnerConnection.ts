@@ -26,6 +26,8 @@ export class PendingQueueAck extends Error {
   }
 }
 
+export type QueueAckPolicy = 'bounded' | 'confirm-written'
+
 export type Verb = Exclude<HostRequestName, typeof SESSION_VERBS.initialize.runner.name>
 
 export type HeldAsk = { answer: Promise<PermissionAnswer>; withdraw: (cause?: string) => void }
@@ -46,7 +48,7 @@ export interface RunnerDoor {
   send<M extends Verb>(method: M, params: ParamsOf<M>, opts?: RequestOptions): { id: number; answer: Promise<ResultOf<M>> }
   request<M extends Verb>(method: M, params: ParamsOf<M>, opts?: RequestOptions): Promise<ResultOf<M>>
   notify<M extends HostNotificationName>(method: M, params: ParamsOf<M>): void
-  deliver(row: InputRow): Promise<boolean>
+  deliver(row: InputRow, policy?: QueueAckPolicy): Promise<boolean>
 }
 
 export class RunnerConnection implements RunnerDoor {
@@ -147,13 +149,13 @@ export class RunnerConnection implements RunnerDoor {
     this.peer.notify(method, params)
   }
 
-  async deliver(row: InputRow): Promise<boolean> {
+  async deliver(row: InputRow, policy: QueueAckPolicy = 'bounded'): Promise<boolean> {
     if (this.peer.closed) return false
     if ((await this.initialized) === null) return false
     if (!(await this.loaded)) return false
     return new Promise<boolean>((resolve, reject) => {
       const onWrittenDeadline = (): void => reject(new PendingQueueAck(confirmed))
-      const confirmed: Promise<boolean | null> = this.peer.request(SESSION_VERBS.sendWords.runner.name, row, row.id === undefined ? {} : { onWrittenDeadline }).then(answer => {
+      const confirmed: Promise<boolean | null> = this.peer.request(SESSION_VERBS.sendWords.runner.name, row, policy === 'confirm-written' && row.id !== undefined ? { onWrittenDeadline } : {}).then(answer => {
         if (!answer.accepted) this.hooks.log(`queue/add was not accepted: ${answer.reason}`)
         return answer.accepted
       }, (error: unknown) => {
