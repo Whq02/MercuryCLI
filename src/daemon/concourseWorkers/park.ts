@@ -7,7 +7,7 @@ import { workerPidAlive } from '../workerIdentity.js'
 import { tokenBinding } from '../processSweep.js'
 import { readProcessTreeUnder, readProcessBirth } from '../processTree.js'
 import { endProcessTree } from '../../utils/processGroup.js'
-import { pollUntil } from '../../utils/deadline.js'
+import { pollUntil, withDeadline } from '../../utils/deadline.js'
 import { updateConcourseWorkers, readSessionWorkers } from './store.js'
 import { isNewbornRecord, turnInFlightOf, stampParked, type ConcourseWorkerRecordV1, withdrawTerminalParkRequest, stampedTerminalPid } from './record.js'
 import { settleConcourseWorker } from './settle.js'
@@ -100,7 +100,7 @@ export function retirementRefusal(rec: Pick<ConcourseWorkerRecordV1, 'lastDelive
 export async function retireConcourseSession(
   sessionId: string,
   by: string,
-  roster: { kill(short: string): boolean; door(short: string): RunnerDoor | undefined; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean },
+  roster: { kill(short: string): boolean; door(short: string): RunnerDoor | undefined; has(short: string): { alive: boolean; present: boolean }; expectExit?(short: string, expected: boolean): boolean; onExit?(short: string, listener: () => void): () => void },
   dir?: string,
   opts?: { reason?: string; exitWaitMs?: number; requestStands?: true },
 ): Promise<ConcourseRetireOutcome> {
@@ -152,16 +152,35 @@ export async function retireConcourseSession(
     observeExit: async () => {
       const waitMs = opts?.exitWaitMs ?? RETIREMENT_EXIT_WAIT_MS
       if (waitMs <= 0) return false
-      return pollUntil(
-        () => {
-          const seat = roster.has(runnerId)
-          const now = current()
-          return !seat.alive && !(now !== undefined && workerPidAlive(now)) ? true : undefined
-        },
-        50,
-        waitMs,
-        () => false,
-      )
+      const exited = (): boolean => {
+        const seat = roster.has(runnerId)
+        const now = current()
+        return !seat.alive && !(now !== undefined && workerPidAlive(now))
+      }
+      if (roster.onExit === undefined) {
+        return pollUntil(() => (exited() ? true : undefined), 50, waitMs, () => false)
+      }
+      const until = Date.now() + waitMs
+      let stop: (() => void) | undefined
+      try {
+        const exitEvent = new Promise<void>(resolve => {
+          stop = roster.onExit!(runnerId, () => {
+            stop?.()
+            resolve()
+          })
+        })
+        if (exited()) return true
+        const leftForEvent = until - Date.now()
+        if (leftForEvent <= 0) return false
+        const waited = await withDeadline(exitEvent.then(() => 'exited' as const), leftForEvent, () => 'timeout' as const)
+        if (exited()) return true
+        if (waited === 'timeout') return false
+        const leftForPoll = until - Date.now()
+        if (leftForPoll <= 0) return false
+        return pollUntil(() => (exited() ? true : undefined), left => Math.min(50, Math.max(1, left)), leftForPoll, () => false)
+      } finally {
+        stop?.()
+      }
     },
     persistParked: token => {
       updateConcourseWorkers(workers => {

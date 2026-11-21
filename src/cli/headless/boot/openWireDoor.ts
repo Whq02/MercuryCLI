@@ -3,6 +3,7 @@ import { jsonStringify } from '../../../utils/slowOperations.js'
 import { noticeRow } from '../../../rows/project.js'
 import { DEFAULT_CAPABILITIES, checkProtocol, initializeResultOf, bindRunnerMethods } from '../runnerMethods.js'
 import { type Peer, createPeer } from '../../../runner/wire/peer.js'
+import { SESSION_VERBS } from '../../../runner/wire/sessionVerbs.js'
 import { ndjsonSafeStringify } from '../../ndjsonSafeStringify.js'
 import { logError } from '../../../utils/log.js'
 import { gracefulShutdownSync } from '../../../utils/gracefulShutdown.js'
@@ -60,29 +61,29 @@ function run(ports: RunnerPorts): BootMade<'io' | 'wire' | 'bootSettled' | 'boot
     : null
   const asks: AskHost = peer !== null ? createRunnerAsks(peer, () => live.capabilities) : createRuleOnlyAsks()
   if (peer !== null) {
-    registerScheduleEditDoor((edit, signal) => peer.request('schedule/edit', { edit: scheduleEditToWire(edit) }, { signal }))
+    registerScheduleEditDoor((edit, signal) => peer.request(SESSION_VERBS.scheduleEdit.runner.name, { edit: scheduleEditToWire(edit) }, { signal }))
     registerIdeToolDoor({
       capabilities: () => ({
         readTextFile: live.capabilities.fs_read_text_file === true,
         writeTextFile: live.capabilities.fs_write_text_file === true,
         terminal: live.capabilities.terminal === true,
       }),
-      readTextFile: (params, signal) => peer.request('fs/read_text_file', params, signal ? { signal } : {}),
-      writeTextFile: (params, signal) => peer.request('fs/write_text_file', params, signal ? { signal } : {}),
-      terminalCreate: (params, signal) => peer.request('terminal/create', params, signal ? { signal } : {}),
-      terminalOutput: (params, signal) => peer.request('terminal/output', params, signal ? { signal } : {}),
-      terminalWaitForExit: (params, signal) => peer.request('terminal/wait_for_exit', params, { deadlineMs: null, ...(signal ? { signal } : {}) }),
-      terminalKill: (params, signal) => peer.request('terminal/kill', params, signal ? { signal } : {}),
-      terminalRelease: (params, signal) => peer.request('terminal/release', params, signal ? { signal } : {}),
+      readTextFile: (params, signal) => peer.request(SESSION_VERBS.fsReadTextFile.runner.name, params, signal ? { signal } : {}),
+      writeTextFile: (params, signal) => peer.request(SESSION_VERBS.fsWriteTextFile.runner.name, params, signal ? { signal } : {}),
+      terminalCreate: (params, signal) => peer.request(SESSION_VERBS.terminalCreate.runner.name, params, signal ? { signal } : {}),
+      terminalOutput: (params, signal) => peer.request(SESSION_VERBS.terminalOutput.runner.name, params, signal ? { signal } : {}),
+      terminalWaitForExit: (params, signal) => peer.request(SESSION_VERBS.terminalWaitForExit.runner.name, params, { deadlineMs: null, ...(signal ? { signal } : {}) }),
+      terminalKill: (params, signal) => peer.request(SESSION_VERBS.terminalKill.runner.name, params, signal ? { signal } : {}),
+      terminalRelease: (params, signal) => peer.request(SESSION_VERBS.terminalRelease.runner.name, params, signal ? { signal } : {}),
     })
-    peer.onRequest('initialize', async params => {
+    peer.onRequest(SESSION_VERBS.initialize.runner.name, async params => {
       checkProtocol(params)
       live.capabilities = params.capabilities
       if (params.file_checkpoints !== undefined) requestFileCheckpoints(params.file_checkpoints)
       await bootReady
       if (params.schema !== undefined) {
         const compiled = compileJsonSchema(params.schema)
-        if (!compiled.ok) throw invalidParams('initialize', [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
+        if (!compiled.ok) throw invalidParams(SESSION_VERBS.initialize.runner.name, [{ path: ['schema'], message: `not a JSON schema — ${compiled.error}` }])
         live.initializeJsonSchema = params.schema
       }
       return initializeResultOf(live.awaitingSessionClaim ? null : String(getSessionId()), fileCheckpointsFact())

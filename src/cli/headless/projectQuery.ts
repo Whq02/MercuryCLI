@@ -15,6 +15,7 @@ import { processMainOwner } from '../../utils/run/resolveOwner.js'
 import { searchPointers } from '../../mneme/mnemePointers.js'
 import { invalidParams, refused, type RpcError } from '../../runner/wire/errors.js'
 import type { ParamsOf } from '../../runner/wire/methods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import type { ToolPermissionContext } from '../../Tool.js'
 import { checkReadPermissionForTool } from '../../utils/permissions/filesystem.js'
 
@@ -22,7 +23,7 @@ const DAEMON_REFUSED = 'EREFUSED'
 const DAEMON_REFUSED_THE_SIZE = 'ETOOLARGE'
 
 function badParameter(message: string, ...paths: string[]): RpcError {
-  return invalidParams('project/query', paths.map(path => ({ path, message })))
+  return invalidParams(SESSION_VERBS.projectQuery.runner.name, paths.map(path => ({ path, message })))
 }
 
 function projectSession(id: string | undefined, parameter: 'session_id' | 'ref' = 'session_id'): string {
@@ -32,7 +33,7 @@ function projectSession(id: string | undefined, parameter: 'session_id' | 'ref' 
   return file
 }
 
-export async function projectQuery(input: ParamsOf<'project/query'>, permissions: ToolPermissionContext): Promise<Record<string, unknown>> {
+export async function projectQuery(input: ParamsOf<typeof SESSION_VERBS.projectQuery.runner.name>, permissions: ToolPermissionContext): Promise<Record<string, unknown>> {
   const cwd = getOriginalCwd()
   if (!isPathTrusted(cwd)) throw refused('Trust this folder in Mercury before serving its project', 'trust')
   switch (input.op) {
@@ -63,7 +64,7 @@ export async function projectQuery(input: ParamsOf<'project/query'>, permissions
       if (live === null || !record) throw refused(`Session ${input.session_id} is not live`, 'project')
       if (resolve(record.workspaceId) !== resolve(cwd)) throw refused('The session belongs to another project', 'project')
       const reply = await daemonControlRpc({
-        op: 'sessionDispatch',
+        op: SESSION_VERBS.sendWords.daemon.op,
         proto: MERCURY_DAEMON_PROTO,
         clientMessageId: input.message_id ?? randomUUID(),
         targetSessionId: input.session_id!,

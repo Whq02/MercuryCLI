@@ -4,6 +4,7 @@ import { scheduleRosterToWire, sessionFactsFromWire, scheduleEditFromWire } from
 import { workRowRuns } from '../../services/engine-connector/workCounts.js'
 import { type ConcourseWorkerRecordV1, updateConcourseWorkers } from '../concourseWorkers.js'
 import type { ParamsOf, ResultOf } from '../../runner/wire/methods.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { PeerClosed } from '../../runner/wire/peer.js'
 import type { PermissionMode } from '../../types/permissions.js'
 import { refreshSignInReads } from '../signInView.js'
@@ -104,7 +105,7 @@ export function requestSessionFacts(
     const door = roster.door(short)
     if (door === undefined || door.closed) return
     const generation = seat.generation
-    door.request('session/facts', {}).then(
+    door.request(SESSION_VERBS.sessionFacts.runner.name, {}).then(
       result => {
         if (seats.get(short) !== seat || seat.generation !== generation) return
         onFactsAnswer(short, result, roster, dir)
@@ -165,7 +166,7 @@ export function pushScheduleRoster(short: string, roster: SeatRosterPort, dir?: 
   if (!rec) return false
   const door = roster.door(short)
   if (door === undefined || door.closed) return false
-  door.request('schedule/roster', { schedules: scheduleRosterToWire(saturnFactsOf(rec, Date.now()).schedules ?? []) }).catch((error: unknown) => {
+  door.request(SESSION_VERBS.scheduleRoster.runner.name, { schedules: scheduleRosterToWire(saturnFactsOf(rec, Date.now()).schedules ?? []) }).catch((error: unknown) => {
     if (!(error instanceof PeerClosed)) logForDebugging(`[daemon] schedule roster for ${short}: ${error instanceof Error ? error.message : String(error)}`)
   })
   return true
@@ -191,11 +192,11 @@ export function onFactsAnswer(short: string, result: unknown, roster: SeatRoster
 
 export function answerSeatScheduleEdit(
   short: string,
-  params: ParamsOf<'schedule/edit'>,
+  params: ParamsOf<typeof SESSION_VERBS.scheduleEdit.runner.name>,
   roster: SeatRosterPort,
   dir?: string,
   deps = seatScheduleDeps(),
-): ResultOf<'schedule/edit'> {
+): ResultOf<typeof SESSION_VERBS.scheduleEdit.runner.name> {
   const rec = liveRecordByShort(short, dir)
   if (!rec) return { outcome: 'refused', detail: 'unknown-session: no live worker record owns this session' }
   const raw = scheduleEditFromWire(params.edit)

@@ -16,6 +16,7 @@ import {
   type RpcErrorShape,
 } from './errors.js'
 import { METHODS, RUNNER_PROTOCOL, checkParams, checkResult, deadlineOf, isMethodName, type MethodName, type MethodScope, type MethodSpec, type ParamsOf, type ResultOf } from './methods.js'
+import { SESSION_VERBS } from './sessionVerbs.js'
 import { rowOf, RowSchemaMismatch } from '../../rows/read.js'
 import { afterMicrotask, startTimeout, stopTimeout } from '../../utils/timers.js'
 
@@ -352,7 +353,7 @@ export class Peer {
         deadlineMs !== null
           ? startTimeout(() => {
               if (!this.pending.delete(id)) return
-              if (!this.writer.withdraw(id)) this.notify('$/cancel_request', { request_id: id, reason: 'deadline' })
+              if (!this.writer.withdraw(id)) this.notify(SESSION_VERBS.cancelRequest.runner.name, { request_id: id, reason: 'deadline' })
               reject(new PeerDeadline(method, id, deadlineMs))
             }, deadlineMs)
           : null
@@ -379,7 +380,7 @@ export class Peer {
     if (entry === undefined) return false
     this.pending.delete(id)
     if (entry.timer !== null) stopTimeout(entry.timer)
-    if (!this.writer.withdraw(id)) this.notify('$/cancel_request', reason === undefined ? { request_id: id } : { request_id: id, reason })
+    if (!this.writer.withdraw(id)) this.notify(SESSION_VERBS.cancelRequest.runner.name, reason === undefined ? { request_id: id } : { request_id: id, reason })
     entry.reject(cancelled(reason))
     return true
   }
@@ -466,7 +467,7 @@ export class Peer {
       this.writer.write({ jsonrpc: '2.0', id, error: { code: RPC_INVALID_REQUEST, message: `id ${id} is already in flight` } }, true)
       return
     }
-    if (method === 'initialize' && this.side === 'runner') {
+    if (method === SESSION_VERBS.initialize.runner.name && this.side === 'runner') {
       if (this.initState !== 'none') {
         this.writer.write({ jsonrpc: '2.0', id, error: refused('already initialized', 'already-initialized').toJSON() }, true)
         return
@@ -506,7 +507,7 @@ export class Peer {
 
   answer(id: RpcId, method: string, body: { result: unknown } | { error: RpcErrorShape }): void {
     this.writer.write({ jsonrpc: '2.0', id, ...body }, true)
-    if (method !== 'initialize' || this.side !== 'runner' || this.initState !== 'pending') return
+    if (method !== SESSION_VERBS.initialize.runner.name || this.side !== 'runner' || this.initState !== 'pending') return
     if ('error' in body) {
       this.initState = 'none'
       const waiters = this.initWaiters
@@ -571,8 +572,8 @@ function onLineOf(this: Peer, line: Line): void {
 }
 
 function onNotificationLineOf(this: Peer, method: string, params: unknown): void {
-  if (method === '$/cancel_request') {
-    const check = checkParams('$/cancel_request', params)
+  if (method === SESSION_VERBS.cancelRequest.runner.name) {
+    const check = checkParams(SESSION_VERBS.cancelRequest.runner.name, params)
     if (!check.ok) return
     const waiting = this.initWaiters.findIndex(entry => entry.id === check.value.request_id)
     if (waiting >= 0) {
@@ -597,7 +598,7 @@ function onNotificationLineOf(this: Peer, method: string, params: unknown): void
     this.log(`runner wire: notification ${method} is not one this side reads`)
     return
   }
-  if (method === 'row') {
+  if (method === SESSION_VERBS.row.runner.name) {
     try {
       rowOf(params)
     } catch (error) {
@@ -625,7 +626,7 @@ function dispatchOf(this: Peer, id: RpcId, method: string, params: unknown): voi
     this.answer(id, method, { error: methodNotFound(method).toJSON() })
     return
   }
-  if (method === 'initialize' && isRecord(params) && typeof params.protocol === 'number' && params.protocol !== RUNNER_PROTOCOL) {
+  if (method === SESSION_VERBS.initialize.runner.name && isRecord(params) && typeof params.protocol === 'number' && params.protocol !== RUNNER_PROTOCOL) {
     this.answer(id, method, { error: refused(`runner protocol ${String(params.protocol)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }).toJSON() })
     return
   }
@@ -666,7 +667,7 @@ function onResponseLineOf(this: Peer, value: Record<string, unknown>): void {
     this.log(`runner wire: a response for ${id}, which is not pending, was ignored`)
     return
   }
-  if (entry.method === 'initialize' && !isRecord(value.error) && (!isRecord(value.result) || value.result.protocol !== RUNNER_PROTOCOL)) {
+  if (entry.method === SESSION_VERBS.initialize.runner.name && !isRecord(value.error) && (!isRecord(value.result) || value.result.protocol !== RUNNER_PROTOCOL)) {
     const received = isRecord(value.result) ? value.result.protocol : undefined
     this.failProtocol(refused(`runner protocol ${String(received)} is not supported; expected ${RUNNER_PROTOCOL}`, 'protocol', { protocol: RUNNER_PROTOCOL }))
     return

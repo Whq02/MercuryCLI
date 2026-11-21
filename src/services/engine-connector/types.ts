@@ -13,6 +13,7 @@ import type { SpawnSwitchFacts, SpawnSwitchKind } from '../switchboard/spawnSwit
 import type { BoardPostRequestV1, McpToolsV1, SessionRewindMode, SessionRewindOutcomeV1 } from '../../daemon/protocol.js'
 import type { JevStatusKind } from '../jev/jevContract.js'
 import type { ContextFillView } from '../context/contextFill.js'
+import type { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 
 export type EngineCarrierKind = 'in-process' | 'daemon'
 
@@ -426,7 +427,21 @@ export interface PermissionModeReceiptV1 {
   detail?: string
 }
 
-export interface EngineConnectorV1 {
+export type EmptyDetailControlVerbKey = {
+  [K in keyof typeof SESSION_VERBS]: (typeof SESSION_VERBS)[K] extends {
+    readonly daemon: { readonly op: typeof SESSION_VERBS.sessionControl.daemon.op; readonly action: string }
+    readonly runner: { readonly from: 'host'; readonly kind: 'request' }
+    readonly carrier: 'empty-detail'
+  }
+    ? K
+    : never
+}[keyof typeof SESSION_VERBS]
+
+export type EmptyDetailControlMethods = {
+  [K in EmptyDetailControlVerbKey]: () => Promise<AgentControlReceiptV1>
+}
+
+export interface EngineConnectorV1 extends EmptyDetailControlMethods {
   readonly carrier: EngineCarrierKind
 
   sessionId(): string
@@ -450,8 +465,6 @@ export interface EngineConnectorV1 {
 
   stopAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
   resumeAgent(agentId: string, note?: string): Promise<AgentControlReceiptV1>
-  backgroundShell(): Promise<AgentControlReceiptV1>
-  sendNow(): Promise<AgentControlReceiptV1>
   queuedSendCount(): number
   pauseGate(paused: boolean): Promise<AgentControlReceiptV1>
   postBoard(post: BoardPostRequestV1): Promise<BoardPostReceiptV1>
