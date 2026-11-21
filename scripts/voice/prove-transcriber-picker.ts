@@ -56,8 +56,8 @@ try {
   assert.equal(new t.TranscribeError('local', 'reason').kind, 'local', 'TranscribeError in src/services/voice/transcribe.ts should keep the kind it is given')
   const { getFlagSpec, flagEnv } = await import('../../src/substrate/flagRegistry.js')
   const retiredPin = 'MERCURY_VOICE_' + 'TRANSCRIBER'
-  assert.equal(getFlagSpec(retiredPin), undefined, 'the retired transcriber selection flag should not be registered; remove it from FLAG_REGISTRY in src/substrate/flagRegistry.ts')
-  assert.throws(() => flagEnv(retiredPin), /unregistered flag/, 'flagEnv in src/substrate/flagRegistry.ts should throw unregistered flag for the retired transcriber selection flag')
+  assert.equal(getFlagSpec(retiredPin), undefined, 'the retired transcriber selection flag should not be registered; remove it from FLAG_REGISTRY in the flag registry')
+  assert.throws(() => flagEnv(retiredPin), /unregistered flag/, 'flagEnv in the flag registry (FLAG_REGISTRY) should throw unregistered flag for the retired transcriber selection flag')
   console.log('prove-transcriber-picker: green — present, absent, CPU floor, cannot-load, no cloud wires or selection pin')
 } finally {
   globalThis.fetch = realFetch

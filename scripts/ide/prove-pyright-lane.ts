@@ -165,9 +165,9 @@ section('(5) the deliberate .py multi-provider merge order')
 
 section('(6) registry rows')
 {
-  check('MERCURY_LSP_PYTHON registered', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined, 'add the MERCURY_LSP_PYTHON row in src/substrate/flags/ide.ts')
-  check('MERCURY_PYRIGHT_VENDOR_DIR registered', getFlagSpec('MERCURY_PYRIGHT_VENDOR_DIR') !== undefined, 'add the MERCURY_PYRIGHT_VENDOR_DIR row in the flag registry (src/substrate/flags/ide.ts holds the Python lane flags)')
-  check('the Python language-server flag is a registered row', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined, 'add the MERCURY_LSP_PYTHON row in src/substrate/flags/ide.ts')
+  check('MERCURY_LSP_PYTHON registered', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined, 'add the MERCURY_LSP_PYTHON row in FLAG_REGISTRY')
+  check('MERCURY_PYRIGHT_VENDOR_DIR registered', getFlagSpec('MERCURY_PYRIGHT_VENDOR_DIR') !== undefined, 'add the MERCURY_PYRIGHT_VENDOR_DIR row in the flag registry (FLAG_REGISTRY holds the Python lane flags)')
+  check('the Python language-server flag is a registered row', getFlagSpec('MERCURY_LSP_PYTHON') !== undefined, 'add the MERCURY_LSP_PYTHON row in FLAG_REGISTRY')
 }
 
 console.log('\n============================================================')

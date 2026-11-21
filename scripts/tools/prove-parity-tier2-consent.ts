@@ -11,14 +11,12 @@ const bashDescription: string = bash.getSimplePrompt()
 t(
   'bash description says output reaches the model, not reliably the operator',
   bashDescription.includes('The output comes back to you; the operator sees at most a folded preview.'),
-  'getSimplePrompt in src/tools/BashTool/prompt.ts must contain that sentence verbatim',
 )
 const powershell = await import('../../src/tools/PowerShellTool/prompt.ts')
 const psDescription: string = await powershell.getPrompt()
 t(
   'PowerShell description carries the same sentence, in the same words',
   psDescription.includes('The output comes back to you; the operator sees at most a folded preview.'),
-  'getPrompt in src/tools/PowerShellTool/prompt.ts must contain that sentence verbatim, as the Bash prompt does',
 )
 
 process.exit(failures)

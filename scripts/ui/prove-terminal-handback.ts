@@ -197,7 +197,7 @@ section('S · one owner · every hand-off site · the one native spelling · the
   check("/health's Terminal profile row reads describeTerminalHandback() and carries its line in the detail", terminalSays?.detail?.split('\n').at(-1) === handbackNow.line, `${terminalSays?.detail?.split('\n').at(-1)} · the last detail line of the iface-terminal row must be describeTerminalHandback().line: ${HEALTH_FIX}`)
 
   const spec = FLAG_REGISTRY.find(f => f.env === TERMINAL_HANDBACK_FLAG)
-  check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', `${JSON.stringify(spec)} · fix the MERCURY_TERMINAL_HANDBACK entry in src/substrate/flags/screen.ts`)
+  check('the gate is registered: default-on, the owner as consumer, this prover as evidence', spec !== undefined && spec.kind === 'default-on' && spec.consumer === 'src/utils/terminalHandback.ts' && spec.evidence === 'scripts/ui/prove-terminal-handback.ts', `${JSON.stringify(spec)} · fix the MERCURY_TERMINAL_HANDBACK entry in FLAG_REGISTRY`)
 
 }
 

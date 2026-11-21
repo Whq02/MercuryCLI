@@ -10,10 +10,9 @@ const HOME = pinScratchHome('mercury-config-background-launch-row')
 delete process.env.MERCURY_CONCOURSE_WORKER
 
 let failures = 0
-const BACKGROUND_ROW_FIX_HINT = 'fix the Crewmates while backgrounded row in src/components/Settings/config/configRowsCrew.tsx (its place, its explanation, its write and its esc revert), or the valve evaluateLaunchAuthority in src/services/switchboard/launchAuthority.ts that reads backgroundSessionsLaunchCrewmates'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${BACKGROUND_ROW_FIX_HINT}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
 const React = await import('react')

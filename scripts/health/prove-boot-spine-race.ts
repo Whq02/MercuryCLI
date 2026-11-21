@@ -38,12 +38,12 @@ for (const scenario of scenarios) {
   check(
     `route-ready is on the spine the moment the resolver settles (${scenario.expectReason})`,
     mine.join('→') === 'runtime-entry→route-ready→first-frame→input-live',
-    `${resolution.reason}: ${mine.join('→')} — resolveInitialSurface in src/context/surfaceRoute.ts must call stampRouteReady (recordLaunchMilestone('route-ready')) as soon as the route settles, before first-frame`,
+    `${resolution.reason}: ${mine.join('→')}`,
   )
-  check(`the resolution is the expected arm (${scenario.expectReason})`, resolution.reason === scenario.expectReason, resolution.reason + ' — the arm picked by resolveInitialSurface in src/context/surfaceRoute.ts changed; check its policy/env branches')
+  check(`the resolution is the expected arm (${scenario.expectReason})`, resolution.reason === scenario.expectReason, resolution.reason)
   await new Promise(resolvePromise => setTimeout(resolvePromise, 25))
   const settled = milestones.readLaunchMilestones().slice(baseline).map(r => r.milestone)
-  check('after the microtask queue drains the spine is unchanged (no late append)', settled.join('→') === 'runtime-entry→route-ready→first-frame→input-live', settled.join('→') + ' — something in src/context/surfaceRoute.ts stamps route-ready after the resolver returned; stamp it once, synchronously, when the route settles')
+  check('after the microtask queue drains the spine is unchanged (no late append)', settled.join('→') === 'runtime-entry→route-ready→first-frame→input-live', settled.join('→'))
 }
 
 {
@@ -51,7 +51,7 @@ for (const scenario of scenarios) {
   const before = milestones.readLaunchMilestones().length
   await new Promise(resolvePromise => setTimeout(resolvePromise, 10))
   const after = milestones.readLaunchMilestones().length
-  check('importing the route owner alone records no milestone', before === after, `${before}→${after} — importing src/context/surfaceRoute.ts must not call recordLaunchMilestone; stamp only inside resolveInitialSurface`)
+  check('importing the route owner alone records no milestone', before === after, `${before}→${after}`)
 }
 
 const COLD_CHILD = `
@@ -98,7 +98,7 @@ for (const scenario of coldScenarios) {
   try {
     answer = JSON.parse(out.slice(out.lastIndexOf('{'))) as typeof answer
   } catch {
-    check('the cold boot answered', false, `${out.slice(-200)} ${child.stderr.toString().slice(-300)} — the child run of COLD_CHILD in this file failed to print its JSON answer; read its stderr above and the imports of src/context/surfaceRoute.ts`)
+    check('the cold boot answered', false, `${out.slice(-200)} ${child.stderr.toString().slice(-300)}`)
     continue
   }
   const file = join(home, 'launch-milestones.json')
@@ -108,14 +108,14 @@ for (const scenario of coldScenarios) {
   } catch {
     rows = []
   }
-  check(`the resolution is the expected arm (${scenario.expectReason})`, answer.reason === scenario.expectReason, String(answer.reason) + ' — the arm picked by resolveInitialSurface in src/context/surfaceRoute.ts changed for this cold boot; check its policy/env branches')
+  check(`the resolution is the expected arm (${scenario.expectReason})`, answer.reason === scenario.expectReason, String(answer.reason))
   check(
     'with the milestone store cold, route-ready is on the spine before the first frame and input-live',
     answer.atOnce === 'route-ready→first-frame→input-live',
-    String(answer.atOnce) + ' — with an empty store, route-ready must still be written before first-frame; check recordLaunchMilestone in src/substrate/launchMilestones.ts and stampRouteReady in src/context/surfaceRoute.ts',
+    String(answer.atOnce),
   )
-  check('nothing is appended to the spine after the boot settles (no late route-ready)', answer.settled === answer.atOnce, `${String(answer.atOnce)} then ${String(answer.settled)} — a milestone is written late; stamp route-ready synchronously in resolveInitialSurface (src/context/surfaceRoute.ts)`)
-  check('the store on disk reads the same spine', rows.map(r => r.milestone).join('→') === answer.settled, rows.map(r => r.milestone).join('→') + ' — the store written by recordLaunchMilestone (src/substrate/launchMilestones.ts) must match the spine the process read back; check writeRows and the read-modify-write in recordLaunchMilestone')
+  check('nothing is appended to the spine after the boot settles (no late route-ready)', answer.settled === answer.atOnce, `${String(answer.atOnce)} then ${String(answer.settled)}`)
+  check('the store on disk reads the same spine', rows.map(r => r.milestone).join('→') === answer.settled, rows.map(r => r.milestone).join('→'))
 }
 
 rmSync(HOME, { recursive: true, force: true })

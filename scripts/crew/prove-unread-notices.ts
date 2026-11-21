@@ -136,7 +136,7 @@ if (ledger === null) {
   check('N2 the agent\'s tool round drains it: read', drained.length === 1 && L.unreadNoticeCount('ag-3') === 0 && L.noticeRows()[0]?.state === 'consumed' && L.noticeRows()[0]?.consumedAtMs === 2_500, JSON.stringify(L.noticeRows()))
 }
 
-section('N3 — the idle nudge: the deadline reads the flag; an idle agent is woken once per notice; a read notice is never nudged', 'change noticeDeadlineMs, startIdleNudge (its sweep) and nudgeWords in src/services/notices/idleNudge.ts; the flag MERCURY_NOTICE_DEADLINE_MS is declared in src/substrate/flags/project.ts')
+section('N3 — the idle nudge: the deadline reads the flag; an idle agent is woken once per notice; a read notice is never nudged', 'change noticeDeadlineMs, startIdleNudge (its sweep) and nudgeWords in src/services/notices/idleNudge.ts; the flag MERCURY_NOTICE_DEADLINE_MS is declared in FLAG_REGISTRY')
 if (ledger === null || nudge === null) {
   check('N3 the idle nudge module exists', false, 'src/services/notices/idleNudge.ts is absent')
 } else {

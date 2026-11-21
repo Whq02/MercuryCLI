@@ -67,18 +67,16 @@ section('§1 · opt-in polarity (disarmed ⇒ nothing anywhere)')
 {
   restore()
   delete process.env.MERCURY_UNITY
-  check('disarmed: resolveAdapter(unity) is null', resolveAdapter(UNITY_DAP_ADAPTER_KEY) === null, 'with MERCURY_UNITY unset, resolveAdapter in src/services/dap/client/adapters.ts must return null for the unity key')
-  check('disarmed: unity not a known key', !knownAdapterKeys().includes(UNITY_DAP_ADAPTER_KEY), 'with MERCURY_UNITY unset, knownAdapterKeys in src/services/dap/client/adapters.ts must leave unity out')
+  check('disarmed: resolveAdapter(unity) is null', resolveAdapter(UNITY_DAP_ADAPTER_KEY) === null)
+  check('disarmed: unity not a known key', !knownAdapterKeys().includes(UNITY_DAP_ADAPTER_KEY))
   check(
     'disarmed: no dormant unity hint',
     !dormantBuiltinAdapterHints().some(h => h.key === UNITY_DAP_ADAPTER_KEY),
-    'with MERCURY_UNITY unset, dormantBuiltinAdapterHints in src/services/dap/client/adapters.ts must not list unity',
   )
   const rows = collectReadiness({ includeEnv: false }).records
   check(
     'disarmed: no lane:unity and no lane:dap:unity readiness rows',
     !rows.some(r => r.id === 'lane:unity' || r.id === 'lane:dap:unity'),
-    'with MERCURY_UNITY unset, collectReadiness in src/services/health/readiness.ts must add no unity rows (they sit behind mercuryUnityEnabled())',
   )
 }
 
@@ -90,16 +88,14 @@ section('§2 · resolver rungs (fixtures; pin honesty; both-roads remedy)')
   check(
     'broken pin refuses BY NAME',
     'reason' in r && r.reason.includes('MERCURY_UNITY_DEBUG_ADAPTER') && r.reason.includes('missing.dll'),
-    'resolveUnityDebugAdapter in src/services/dap/unityAdapter.ts must refuse a pin to a missing file with a reason naming MERCURY_UNITY_DEBUG_ADAPTER and the file',
   )
   process.env.MERCURY_UNITY_DEBUG_ADAPTER = fixtureDll
   r = resolveUnityDebugAdapter({ dotnetOverride: dotnetShim })
-  check('good pin resolves (source pin)', !('reason' in r) && r.source === 'pin' && r.dll === fixtureDll, 'reason' in r ? r.reason : `got source ${r.source}; resolveUnityDebugAdapter in src/services/dap/unityAdapter.ts must resolve the MERCURY_UNITY_DEBUG_ADAPTER pin first`)
+  check('good pin resolves (source pin)', !('reason' in r) && r.source === 'pin' && r.dll === fixtureDll)
   r = resolveUnityDebugAdapter({ dotnetOverride: null })
   check(
     'pinned dll without dotnet ⇒ the SDK refusal',
     'reason' in r && r.reason.includes('.NET SDK'),
-    'resolveUnityDebugAdapter in src/services/dap/unityAdapter.ts must return a reason naming the .NET SDK when no dotnet is found',
   )
   delete process.env.MERCURY_UNITY_DEBUG_ADAPTER
   const extRoot = path.join(scratch, 'vscode-ext')
@@ -129,7 +125,7 @@ section('§2 · resolver rungs (fixtures; pin honesty; both-roads remedy)')
   mkdirSync(path.dirname(unpack), { recursive: true })
   writeFileSync(unpack, 'x\n')
   r = resolveUnityDebugAdapter({ extensionRoots: [path.join(scratch, 'no-ext')], unpackDll: unpack, dotnetOverride: dotnetShim })
-  check('unpack spot is the fallback rung', !('reason' in r) && r.source === 'unpack' && r.dll === unpack, 'reason' in r ? r.reason : `got source ${r.source}; resolveUnityDebugAdapter in src/services/dap/unityAdapter.ts must fall back to the unpackDll rung`)
+  check('unpack spot is the fallback rung', !('reason' in r) && r.source === 'unpack' && r.dll === unpack)
   r = resolveUnityDebugAdapter({ extensionRoots: [path.join(scratch, 'no-ext')], unpackDll: path.join(scratch, 'no.dll'), dotnetOverride: dotnetShim })
   check(
     'absent ⇒ the both-roads remedy (extension AND env pin AND unpack)',
@@ -137,16 +133,15 @@ section('§2 · resolver rungs (fixtures; pin honesty; both-roads remedy)')
       r.reason.includes('visualstudiotoolsforunity.vstuc') &&
       r.reason.includes('MERCURY_UNITY_DEBUG_ADAPTER') &&
       r.reason.includes('.unity-dap'),
-    'reason' in r ? r.reason : 'resolved unexpectedly; resolveUnityDebugAdapter in src/services/dap/unityAdapter.ts must refuse with a reason naming the extension, the env pin and .unity-dap',
   )
 }
 
 section('§3 · the port law (56000 + pid % 1000)')
 {
-  check('pid 12345 ⇒ 56345', unityDebugPortForPid(12345) === 56345, 'unityDebugPortForPid in src/services/dap/unityAdapter.ts must return 56000 + pid % 1000')
+  check('pid 12345 ⇒ 56345', unityDebugPortForPid(12345) === 56345)
   check('pid 56000-aligned ⇒ 56000', unityDebugPortForPid(1000) === 56000)
   check('pid 999999 ⇒ 56999', unityDebugPortForPid(999999) === 56999)
-  check('float/negative guarded', unityDebugPortForPid(-123.9) === 56123, `got ${unityDebugPortForPid(-123.9)}; unityDebugPortForPid in src/services/dap/unityAdapter.ts must truncate and take the absolute value of the pid`)
+  check('float/negative guarded', unityDebugPortForPid(-123.9) === 56123)
 }
 
 section('§4 · EditorInstance.json → endpoint')
@@ -157,14 +152,13 @@ section('§4 · EditorInstance.json → endpoint')
   check(
     'absent file ⇒ the teaching line (editor not running)',
     'reason' in e && e.reason.includes('is the Unity editor running'),
-    'unityEditorEndpoint in src/services/dap/unityAdapter.ts must return a reason containing "is the Unity editor running" when Library/EditorInstance.json is absent',
   )
   writeFileSync(editorInstance, '{ not json')
   e = unityEditorEndpoint(proj)
-  check('malformed JSON ⇒ honest reason', 'reason' in e && e.reason.includes('not parseable'), 'unityEditorEndpoint in src/services/dap/unityAdapter.ts must return a reason containing "not parseable" for invalid JSON')
+  check('malformed JSON ⇒ honest reason', 'reason' in e && e.reason.includes('not parseable'))
   writeFileSync(editorInstance, JSON.stringify({ version: '6000.3.4f1' }))
   e = unityEditorEndpoint(proj)
-  check('no process_id ⇒ honest reason', 'reason' in e && e.reason.includes('process_id'), 'unityEditorEndpoint in src/services/dap/unityAdapter.ts must name process_id in its reason when the file lacks it')
+  check('no process_id ⇒ honest reason', 'reason' in e && e.reason.includes('process_id'))
   writeFileSync(
     editorInstance,
     JSON.stringify({ process_id: 12345, version: '6000.3.4f1', app_path: '/x' }),
@@ -173,7 +167,6 @@ section('§4 · EditorInstance.json → endpoint')
   check(
     'good file ⇒ 127.0.0.1:56345 with evidence',
     !('reason' in e) && e.host === '127.0.0.1' && e.port === 56345 && e.processId === 12345 && e.evidence === editorInstance,
-    'reason' in e ? e.reason : `got ${JSON.stringify(e)}; check unityEditorEndpoint in src/services/dap/unityAdapter.ts (host, port from process_id, evidence path)`,
   )
 }
 
@@ -183,12 +176,11 @@ section('§5 · buildUnityAttachArgs (port > pid > EditorInstance; honest throw)
   check(
     'explicit port ⇒ endPoint + projectPath + the vstuc type discriminator',
     byPort.endPoint === '127.0.0.1:56777' && byPort.projectPath === proj && byPort.type === 'vstuc',
-    `got ${JSON.stringify(byPort)}; check buildUnityAttachArgs in src/services/dap/unityAdapter.ts`,
   )
   const byPid = buildUnityAttachArgs({ program: proj, cwd: proj, pid: 777 })
-  check('explicit pid ⇒ derived endpoint', byPid.endPoint === '127.0.0.1:56777', `got ${String(byPid.endPoint)}; buildUnityAttachArgs in src/services/dap/unityAdapter.ts must derive the port with unityDebugPortForPid`)
+  check('explicit pid ⇒ derived endpoint', byPid.endPoint === '127.0.0.1:56777')
   const byFile = buildUnityAttachArgs({ program: path.join(proj, 'Assets'), cwd: scratch })
-  check('EditorInstance road (from a project subdir program)', byFile.endPoint === '127.0.0.1:56345', `got ${String(byFile.endPoint)}; buildUnityAttachArgs in src/services/dap/unityAdapter.ts must find the project root above program and read its Library/EditorInstance.json`)
+  check('EditorInstance road (from a project subdir program)', byFile.endPoint === '127.0.0.1:56345')
   rmSync(path.join(proj, 'Library', 'EditorInstance.json'), { force: true })
   let threw = ''
   try {
@@ -196,15 +188,15 @@ section('§5 · buildUnityAttachArgs (port > pid > EditorInstance; honest throw)
   } catch (err) {
     threw = (err as Error).message
   }
-  check('editor closed ⇒ throws the teaching line', threw.includes('is the Unity editor running'), `threw "${threw}"; buildUnityAttachArgs in src/services/dap/unityAdapter.ts must throw the editor-not-running reason`)
+  check('editor closed ⇒ throws the teaching line', threw.includes('is the Unity editor running'))
   threw = ''
   try {
     buildUnityAttachArgs({ program: path.join(scratch, 'nowhere'), cwd: scratch })
   } catch (err) {
     threw = (err as Error).message
   }
-  check('no project + no target ⇒ throws naming the markers', threw.includes('Assets/ + ProjectSettings/'), `threw "${threw}"; buildUnityAttachArgs in src/services/dap/unityAdapter.ts must name Assets/ + ProjectSettings/ when no Unity project is found`)
-  check('hint spells the port law', unityEditorHint().includes('56000 + pid % 1000'), 'unityEditorHint in src/services/dap/unityAdapter.ts must state the 56000 + pid % 1000 law')
+  check('no project + no target ⇒ throws naming the markers', threw.includes('Assets/ + ProjectSettings/'))
+  check('hint spells the port law', unityEditorHint().includes('56000 + pid % 1000'))
 }
 
 section('§6 · armed table shape + ladder + readiness')
@@ -225,7 +217,6 @@ section('§6 · armed table shape + ladder + readiness')
     check(
       'armed + unresolved ⇒ lane:dap:unity unavailable with the both-roads remedy',
       row !== undefined && row.state === 'unavailable' && row.remedy === UNITY_ADAPTER_ARM_HINT,
-      `got ${JSON.stringify(row)}; the lane:dap:unity record in src/services/health/readiness.ts must be unavailable with remedy UNITY_ADAPTER_ARM_HINT`,
     )
   } else {
     check('armed + resolved ⇒ attach-hosting row', spec.startRequest === 'attach')
@@ -242,7 +233,7 @@ section('§6 · armed table shape + ladder + readiness')
       (armed.fileTypes ?? []).includes('.cs') &&
       typeof armed.buildAttachArgs === 'function',
   )
-  check('known keys include unity', knownAdapterKeys().includes(UNITY_DAP_ADAPTER_KEY), 'with MERCURY_UNITY=1 and a pinned dll, knownAdapterKeys in src/services/dap/client/adapters.ts must include unity')
+  check('known keys include unity', knownAdapterKeys().includes(UNITY_DAP_ADAPTER_KEY))
   const csKey = adapterKeyForExtension('.cs')
   check(
     '.cs ladder: dotnet (netcoredbg) outranks by insertion; unity serves otherwise',
@@ -257,7 +248,6 @@ section('§6 · armed table shape + ladder + readiness')
       row.state === 'configured' &&
       row.detail.includes(fixtureDll) &&
       row.detail.includes('56000 + editor pid % 1000'),
-    `got ${JSON.stringify(row)}; the configured lane:dap:unity record in src/services/health/readiness.ts must name the dll, dotnet and the port law`,
   )
 }
 
@@ -291,7 +281,6 @@ section('§7 · the attach seam end-to-end (mock adapter, loopback)')
       (builderSaw as Record<string, unknown>).program === proj &&
       (builderSaw as Record<string, unknown>).cwd === proj &&
       (builderSaw as Record<string, unknown>).port === 56345,
-    `builder saw ${JSON.stringify(builderSaw)}; createDapSession in src/services/dap/dapClient.ts must pass program, cwd and port to the spec's buildAttachArgs`,
   )
   check('the attach choreography completed against the mock', session.terminated === false)
   await removeDapSession(owner, 'unity-proof')
@@ -316,23 +305,20 @@ section('§8 · inferAdapter Unity-root override (netcoredbg cannot shadow the e
     const msg = 'message' in perm ? String((perm as { message: string }).message) : ''
     return msg.match(/adapter (\w+)/)?.[1] ?? `?(${msg})`
   }
-  check('netcoredbg present ⇒ .cs declared-ladder resolves to dotnet', adapterKeyForExtension('.cs') === 'dotnet', `resolved ${adapterKeyForExtension('.cs')}; adapterKeyForExtension in src/services/dap/client/adapters.ts must pick dotnet for .cs when netcoredbg is on PATH`)
+  check('netcoredbg present ⇒ .cs declared-ladder resolves to dotnet', adapterKeyForExtension('.cs') === 'dotnet')
   process.env.MERCURY_UNITY = '1'
   check(
     'armed + Unity-root .cs + netcoredbg present ⇒ adapter unity (override wins)',
     (await adapterFor(path.join(proj, 'Assets', 'Player.cs'))) === UNITY_DAP_ADAPTER_KEY,
-    'inferAdapter in src/tools/DebugTool/DebugTool.ts must return unity for a .cs file under a Unity project root while MERCURY_UNITY=1',
   )
   check(
     'armed + bare .cs (no Unity root) ⇒ adapter dotnet (override does not overreach)',
     (await adapterFor(path.join(plain, 'bare.cs'))) === 'dotnet',
-    'inferAdapter in src/tools/DebugTool/DebugTool.ts must keep dotnet for a .cs file outside a Unity project root',
   )
   delete process.env.MERCURY_UNITY
   check(
     'disarmed + Unity-root .cs ⇒ adapter dotnet (no override while off)',
     (await adapterFor(path.join(proj, 'Assets', 'Player.cs'))) === 'dotnet',
-    'inferAdapter in src/tools/DebugTool/DebugTool.ts must not choose unity while MERCURY_UNITY is unset',
   )
 }
 

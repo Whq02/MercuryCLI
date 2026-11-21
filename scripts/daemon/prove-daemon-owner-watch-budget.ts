@@ -480,7 +480,7 @@ section('§8 THE PIPE EOF — an immediate beat, the grace, then owner-pipe-eof'
 
 section('§9 THE WIRING — source pins')
 {
-  check('the registry names the owner-fd stamp', getFlagSpec('MERCURY_DAEMON_OWNER_FD') !== undefined, 'register MERCURY_DAEMON_OWNER_FD in the flag registry (src/substrate/flags/session.ts)')
+  check('the registry names the owner-fd stamp', getFlagSpec('MERCURY_DAEMON_OWNER_FD') !== undefined, 'register MERCURY_DAEMON_OWNER_FD in the flag registry (FLAG_REGISTRY)')
   check('the back-off unit is the minute, four units long', ownerWatch.OWNER_IDENTITY_FLOOR_MS === 60_000 && ownerWatch.OWNER_PROBE_BACKOFF_FACTOR === 4, 'OWNER_IDENTITY_FLOOR_MS and OWNER_PROBE_BACKOFF_FACTOR in src/utils/ownerWatch.ts must be 60000 and 4')
   check('the beat and the grace stand where they were', ownerWatch.OWNER_WATCH_INTERVAL_MS === 4000 && ownerWatch.OWNER_WATCH_GRACE_CHECKS === 2, 'OWNER_WATCH_INTERVAL_MS and OWNER_WATCH_GRACE_CHECKS in src/utils/ownerWatch.ts must be 4000 and 2')
 }

@@ -12,7 +12,7 @@ import { getFlagSpec } from '../../src/substrate/flagRegistry.js'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: quicksilverMode, isQuicksilverLine and sampleSpinnerVerb are in src/constants/spinnerVerbs.ts; the MERCURY_HIP flag row is in src/substrate/flags/screen.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: quicksilverMode, isQuicksilverLine and sampleSpinnerVerb are in src/constants/spinnerVerbs.ts; the MERCURY_HIP flag row is in FLAG_REGISTRY'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

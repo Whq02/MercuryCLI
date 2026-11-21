@@ -6,7 +6,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const hint = cond ? '' : 'change the row in STARTUP_MENU or COMMAND_SETTINGS_ROWS, or the apply/write/resolve logic (applyBootMenuEnv, writeBootEnvChoice, resolveComputerAccess, resolveEffectiveSettingsSnapshot), in src/substrate/startupMenu.ts; a row missing from the registry is fixed in src/substrate/flagRegistry.ts'
+  const hint = cond ? '' : 'change the row in STARTUP_MENU or COMMAND_SETTINGS_ROWS, or the apply/write/resolve logic (applyBootMenuEnv, writeBootEnvChoice, resolveComputerAccess, resolveEffectiveSettingsSnapshot), in src/substrate/startupMenu.ts; a row missing from the registry is fixed in the flag registry (FLAG_REGISTRY)'
   const shown = [detail, hint].filter(Boolean).join(' · ')
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }

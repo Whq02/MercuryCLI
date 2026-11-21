@@ -4,9 +4,8 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 let failures = 0
-function check(label: string, ok: boolean, detail = '', hint = ''): void {
-  const shown = !ok && hint ? (detail ? `${detail} — ${hint}` : hint) : detail
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${shown ? ` — ${shown}` : ''}`)
+function check(label: string, ok: boolean, detail = ''): void {
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 
@@ -53,10 +52,10 @@ console.log('— §1 reconcileDaemonRecords behavior —')
 
 seedDeadRecords(deadPid)
 const dead = await reconcileDaemonRecords({ projectDir })
-check('seeded-dead ⇒ state reconciled', dead.state === 'reconciled', JSON.stringify(dead), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must judge a record of a dead pid reconciled')
-check('daemon.json removed', !existsSync(supPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must delete the daemon state file of a dead pid')
-check('daemon.lock removed', !existsSync(lockPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must delete the daemon.lock of a dead pid')
-check('control.key removed', !existsSync(keyPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must delete the control.key of a dead pid')
+check('seeded-dead ⇒ state reconciled', dead.state === 'reconciled', JSON.stringify(dead))
+check('daemon.json removed', !existsSync(supPath))
+check('daemon.lock removed', !existsSync(lockPath))
+check('control.key removed', !existsSync(keyPath))
 check(
   'receipt names all three artifacts',
   dead.cleaned.length === 3 &&
@@ -64,19 +63,18 @@ check(
       dead.cleaned.includes(n),
     ),
   dead.cleaned.join(','),
-  'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must list daemon.json, daemon.lock and control.key in cleaned',
 )
-check('receipt carries the dead pid', dead.deadPid === deadPid, `deadPid=${dead.deadPid}`, 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must return the recorded pid as deadPid')
+check('receipt carries the dead pid', dead.deadPid === deadPid)
 
 const again = await reconcileDaemonRecords({ projectDir })
-check('second pass ⇒ clean (idempotent)', again.state === 'clean' && again.cleaned.length === 0, JSON.stringify(again), 'a second reconcileDaemonRecords pass in src/daemon/reconcileRecords.ts must find nothing left and return clean')
+check('second pass ⇒ clean (idempotent)', again.state === 'clean' && again.cleaned.length === 0)
 
 seedDeadRecords(process.pid, Date.now())
 const live = await reconcileDaemonRecords({ projectDir })
-check('live daemon pid ⇒ state live, nothing touched', live.state === 'live' && live.cleaned.length === 0, JSON.stringify(live), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must return live and clean nothing while the recorded pid is alive')
-check('live: daemon.json intact', existsSync(supPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must not delete the state file of a live daemon')
-check('live: control.key intact', existsSync(keyPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must not delete the control.key of a live daemon')
-check('live: daemon.lock intact', existsSync(lockPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must not delete the daemon.lock of a live daemon')
+check('live daemon pid ⇒ state live, nothing touched', live.state === 'live' && live.cleaned.length === 0)
+check('live: daemon.json intact', existsSync(supPath))
+check('live: control.key intact', existsSync(keyPath))
+check('live: daemon.lock intact', existsSync(lockPath))
 
 {
   const seedIdentity = (lockPid: number): void => {
@@ -102,16 +100,15 @@ check('live: daemon.lock intact', existsSync(lockPath), '', 'reconcileDaemonReco
     'POISON (the immortal stale trio): a live pid under a WRONG recorded start token is judged recycled ⇒ reconciled',
     recycled.state === 'reconciled' && ['daemon.json', 'daemon.lock', 'control.key'].every(n => recycled.cleaned.includes(n)),
     JSON.stringify(recycled),
-    'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must compare the recorded start token with the live process and treat a mismatch as a recycled pid',
   )
-  check('the receipt names the recycled verdict, not "not running"', recycled.reason.includes('recycled') && recycled.reason.includes('start-token mismatch'), recycled.reason, 'the reason reconcileDaemonRecords returns in src/daemon/reconcileRecords.ts must say recycled and start-token mismatch')
-  check('recycled sweep: files gone', !existsSync(supPath) && !existsSync(lockPath) && !existsSync(keyPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must delete all three records of a recycled pid')
+  check('the receipt names the recycled verdict, not "not running"', recycled.reason.includes('recycled') && recycled.reason.includes('start-token mismatch'), recycled.reason)
+  check('recycled sweep: files gone', !existsSync(supPath) && !existsSync(lockPath) && !existsSync(keyPath))
   const otherLivePid = process.ppid
   if (otherLivePid && otherLivePid > 1) {
     seedIdentity(otherLivePid)
     const vetoed = await reconcileDaemonRecords({ projectDir })
-    check('a DIFFERENT live lock-holder pid still vetoes (the mid-boot hand-off is whole)', vetoed.state === 'live' && vetoed.cleaned.length === 0, JSON.stringify(vetoed), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must return live when the lock is held by a different live pid')
-    check('vetoed: records intact', existsSync(supPath) && existsSync(lockPath) && existsSync(keyPath), '', 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must delete nothing while a different live pid holds the lock')
+    check('a DIFFERENT live lock-holder pid still vetoes (the mid-boot hand-off is whole)', vetoed.state === 'live' && vetoed.cleaned.length === 0, JSON.stringify(vetoed))
+    check('vetoed: records intact', existsSync(supPath) && existsSync(lockPath) && existsSync(keyPath))
     rmSync(supPath, { force: true })
     rmSync(lockPath, { force: true })
     rmSync(keyPath, { force: true })
@@ -121,60 +118,57 @@ check('live: daemon.lock intact', existsSync(lockPath), '', 'reconcileDaemonReco
     JSON.stringify({ pid: process.pid, version: '0.0.0-proof', origin: 'transient', startedAt: Date.now() - 60_000, dir: projectDir, controlSock: join(daemonScratch, 'control.sock'), startToken: null }),
   )
   const fallbackRecycled = await reconcileDaemonRecords({ projectDir })
-  check('a baseline-less record + a process born after its stamp ⇒ the fallback arm judges recycled ⇒ reconciled', fallbackRecycled.state === 'reconciled' && fallbackRecycled.reason.includes('recycled'), JSON.stringify(fallbackRecycled), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must compare the process start time with the record startedAt when there is no start token')
+  check('a baseline-less record + a process born after its stamp ⇒ the fallback arm judges recycled ⇒ reconciled', fallbackRecycled.state === 'reconciled' && fallbackRecycled.reason.includes('recycled'), JSON.stringify(fallbackRecycled))
   writeFileSync(
     supPath,
     JSON.stringify({ pid: process.pid, version: '0.0.0-proof', origin: 'transient', startedAt: Date.now(), dir: projectDir, controlSock: join(daemonScratch, 'control.sock') }),
   )
   const fallbackSame = await reconcileDaemonRecords({ projectDir })
-  check('a pre-token record + a process born at-or-before its stamp ⇒ the recorded daemon ⇒ live hand-off', fallbackSame.state === 'live' && fallbackSame.cleaned.length === 0, JSON.stringify(fallbackSame), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must keep a pre-token record whose process started at or before its startedAt as live')
+  check('a pre-token record + a process born at-or-before its stamp ⇒ the recorded daemon ⇒ live hand-off', fallbackSame.state === 'live' && fallbackSame.cleaned.length === 0, JSON.stringify(fallbackSame))
   rmSync(supPath, { force: true })
 }
 
 rmSync(supPath, { force: true })
 writeFileSync(lockPath, JSON.stringify({ owner: 'proof-midboot', pid: process.pid, acquiredAt: Date.now() }))
 const midBoot = await reconcileDaemonRecords({ projectDir })
-check('live lock holder alone ⇒ live (mid-boot conservatism)', midBoot.state === 'live' && midBoot.cleaned.length === 0, JSON.stringify(midBoot), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must return live when only the daemon.lock exists and its holder is alive')
+check('live lock holder alone ⇒ live (mid-boot conservatism)', midBoot.state === 'live' && midBoot.cleaned.length === 0)
 rmSync(lockPath, { force: true })
 rmSync(keyPath, { force: true })
 
 const clean = await reconcileDaemonRecords({ projectDir })
-check('empty home ⇒ clean', clean.state === 'clean' && clean.cleaned.length === 0, JSON.stringify(clean), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must return clean when no record exists')
+check('empty home ⇒ clean', clean.state === 'clean' && clean.cleaned.length === 0)
 
 writeFileSync(keyPath, 'deadbeef'.repeat(8))
 const keyOnly = await reconcileDaemonRecords({ projectDir })
-check('orphan control.key alone ⇒ reconciled', keyOnly.state === 'reconciled' && keyOnly.cleaned.includes('control.key'), JSON.stringify(keyOnly), 'reconcileDaemonRecords in src/daemon/reconcileRecords.ts must remove a control.key left with no daemon record')
+check('orphan control.key alone ⇒ reconciled', keyOnly.state === 'reconciled' && keyOnly.cleaned.includes('control.key'))
 
 console.log('— §2 runBootRecovery integration —')
 const orchestrator = await import('../../src/substrate/recoveryOrchestrator.ts')
 orchestrator._resetBootRecoveryForTests()
 seedDeadRecords(deadPid)
 const report = await orchestrator.runBootRecovery({ scope: 'daemon', projectDir })
-check('report carries the daemonRecords step', report.daemonRecords !== null && report.daemonRecords !== undefined, '', 'runBootRecovery in src/substrate/recoveryOrchestrator.ts must run the daemon record reconcile for scope daemon and put it in daemonRecords')
+check('report carries the daemonRecords step', report.daemonRecords !== null && report.daemonRecords !== undefined)
 check(
   'boot recovery reconciled the seeded records',
   report.daemonRecords?.state === 'reconciled' && (report.daemonRecords?.cleaned.length ?? 0) === 3,
   JSON.stringify(report.daemonRecords),
-  'runBootRecovery in src/substrate/recoveryOrchestrator.ts must call reconcileDaemonRecords and keep its receipt',
 )
-check('boot recovery: files gone', !existsSync(supPath) && !existsSync(keyPath) && !existsSync(lockPath), '', 'runBootRecovery in src/substrate/recoveryOrchestrator.ts must leave the dead records deleted')
+check('boot recovery: files gone', !existsSync(supPath) && !existsSync(keyPath) && !existsSync(lockPath))
 check(
   'status line reports the reconcile',
   (orchestrator.bootRecoveryStatusLine(orchestrator.getBootRecovery())?.text ?? '').includes('daemon record'),
-  '',
-  'bootRecoveryStatusLine in src/substrate/recoveryOrchestrator.ts must name the daemon record reconcile in its text',
 )
 
 console.log('— §3 daemonExitTeardownSync (the sync exit backstop) —')
 seedDeadRecords(process.pid)
 controlSocket.daemonExitTeardownSync('proof-exit')
-check('sync teardown removes OWNED daemon.json', !existsSync(supPath), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must delete the state file of this process')
-check('sync teardown removes OWNED control.key', !existsSync(keyPath), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must delete the control.key of this process')
-check('sync teardown removes OWNED daemon.lock', !existsSync(lockPath), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must delete the daemon.lock of this process')
+check('sync teardown removes OWNED daemon.json', !existsSync(supPath))
+check('sync teardown removes OWNED control.key', !existsSync(keyPath))
+check('sync teardown removes OWNED daemon.lock', !existsSync(lockPath))
 seedDeadRecords(deadPid)
 controlSocket.daemonExitTeardownSync('proof-exit-foreign')
-check('sync teardown LEAVES a foreign daemon.json (the phone-line law)', existsSync(supPath), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must not delete a state file recorded for another pid')
-check('sync teardown LEAVES a foreign control.key', existsSync(keyPath), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must not delete the control.key while the state file belongs to another pid')
+check('sync teardown LEAVES a foreign daemon.json (the phone-line law)', existsSync(supPath))
+check('sync teardown LEAVES a foreign control.key', existsSync(keyPath))
 rmSync(supPath, { force: true })
 rmSync(keyPath, { force: true })
 rmSync(lockPath, { force: true })
@@ -186,7 +180,6 @@ check(
   'sync teardown ledgers a daemon exit row',
   rows.some(r => r.kind === 'daemon' && r.event === 'exit' && r.reason === 'proof-exit'),
   `${rows.length} row(s)`,
-  'daemonExitTeardownSync in src/daemon/controlSocket.ts must append a daemon exit row with the reason to the spawn ledger',
 )
 
 {
@@ -203,10 +196,10 @@ check(
     ;(process.stderr as unknown as { write: typeof realWrite }).write = realWrite
   }
   const line = written.join('')
-  check('the bypassed-roads death writes its one honest line with the code', line.includes('[daemon] exit (code 1) WITHOUT a shutdown road'), line, 'daemonExitTeardownSync in src/daemon/controlSocket.ts must write the exit WITHOUT a shutdown road line to stderr when called with reason exit-before-teardown')
-  check('the line carries the sweep verdict and the site-naming probe', line.includes('records swept') && line.includes('--trace-exit'), line, 'the bypassed-roads line from daemonExitTeardownSync in src/daemon/controlSocket.ts must say records swept and name --trace-exit')
+  check('the bypassed-roads death writes its one honest line with the code', line.includes('[daemon] exit (code 1) WITHOUT a shutdown road'))
+  check('the line carries the sweep verdict and the site-naming probe', line.includes('records swept') && line.includes('--trace-exit'))
   const ledgerRows = readFileSync(ledgerPath, 'utf8').trim().split('\n').map(l => JSON.parse(l))
-  check('the ledger row keeps the plain reason when the sweep succeeded', ledgerRows.some(r => r.kind === 'daemon' && r.reason === 'exit-before-teardown'), '', 'daemonExitTeardownSync in src/daemon/controlSocket.ts must ledger the plain reason when the sweep succeeded')
+  check('the ledger row keeps the plain reason when the sweep succeeded', ledgerRows.some(r => r.kind === 'daemon' && r.reason === 'exit-before-teardown'))
   seedDeadRecords(process.pid, Date.now())
   const writtenQuiet: string[] = []
   ;(process.stderr as unknown as { write: (chunk: unknown) => boolean }).write = (chunk: unknown): boolean => {
@@ -218,7 +211,7 @@ check(
   } finally {
     ;(process.stderr as unknown as { write: typeof realWrite }).write = realWrite
   }
-  check('an ordinary teardown reason stays wordless (the line is for bypassed roads only)', writtenQuiet.join('') === '', writtenQuiet.join(''), 'daemonExitTeardownSync in src/daemon/controlSocket.ts must write to stderr only for the exit-before-teardown reason')
+  check('an ordinary teardown reason stays wordless (the line is for bypassed roads only)', writtenQuiet.join('') === '')
 }
 
 {
@@ -231,7 +224,6 @@ check(
     'health daemon row runs the reconcile (verb-path cleanup)',
     daemonSays !== undefined && /reconciled stale records: removed /.test(daemonSays.evidence) && !fsH.existsSync(supPath),
     `${daemonSays?.status}: ${daemonSays?.evidence}`,
-    'the daemon row of crewChecks in src/services/health/sections/crew.ts must call reconcileDaemonRecords and report reconciled stale records: removed',
   )
 }
 

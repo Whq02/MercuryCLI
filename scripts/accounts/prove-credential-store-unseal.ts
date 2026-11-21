@@ -166,7 +166,7 @@ section('§1 the flag\'s second value, read in one place')
   check('under file it has none, as before', system.systemProtectorFor('win32', 'file') === null, 'systemProtectorFor in src/utils/secureStorage/systemProtector.ts must return null for the file value')
   check('on macOS and Linux unseal changes nothing: no protector, so no sealed store to open', sealsUnder !== undefined && system.systemProtectorFor('darwin', 'unseal') === null && system.systemProtectorFor('linux', 'unseal') === null)
   const row = (FLAG_REGISTRY as Array<{ env: string; summary: string; off: string }>).find(flag => flag.env === 'MERCURY_CREDENTIAL_STORE')
-  check('the flag\'s row names the value and what it does', row !== undefined && row.summary.includes("'unseal'") && row.summary.includes('written back in the clear') && row.off.includes('win32: the sealed file'), `${row?.off}; edit the MERCURY_CREDENTIAL_STORE row in src/substrate/flags/accounts.ts`)
+  check('the flag\'s row names the value and what it does', row !== undefined && row.summary.includes("'unseal'") && row.summary.includes('written back in the clear') && row.off.includes('win32: the sealed file'), `${row?.off}; edit the MERCURY_CREDENTIAL_STORE row in FLAG_REGISTRY`)
 }
 
 section('§2 a sealed home reads plain again at the next start, and stays plain')

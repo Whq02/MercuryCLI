@@ -14,9 +14,9 @@ delete process.env.MERCURY_HOME
 for (const d of [process.env.MERCURY_CONFIG_DIR, DIR_B, DIR_C, DIR_D]) mkdirSync(d!, { recursive: true })
 
 let failures = 0
-function check(label: string, cond: boolean, detail = '', hint = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — change: ${hint}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
 const proto = await import('../../src/daemon/protocol.ts')
@@ -81,19 +81,19 @@ console.log('B a proto-2 client\'s old spelling still answers (the real control 
   const path = sock.controlSockPath()
   try {
     const oldSpelling = await rawRequest(path, { op: 'concourseControl', proto: 2, auth: 'k', action: 'focus', sessionId: 's-old', by: 't' })
-    check('B1 the proto-2 old spelling answers ok', oldSpelling.ok === true, JSON.stringify(oldSpelling), 'src/daemon/controlServer.ts must still route the proto-2 op concourseControl to answerSessionControl (the case on SESSION_VERBS.sessionControl)')
-    check('B2 the reply echoes the ASKER\'s spelling', oldSpelling.op === 'concourseControl', String(oldSpelling.op), 'src/daemon/controlServer.ts answerSessionControl must reply with echoAliasedOp(requestedOp, ...), the name the client sent')
+    check('B1 the proto-2 old spelling answers ok', oldSpelling.ok === true, JSON.stringify(oldSpelling))
+    check('B2 the reply echoes the ASKER\'s spelling', oldSpelling.op === 'concourseControl', String(oldSpelling.op))
     const newSpelling = await rawRequest(path, { op: 'sessionControl', proto: 3, auth: 'k', action: 'focus', sessionId: 's-new', by: 't' })
-    check('B3 the new spelling answers ok and echoes its own name', newSpelling.ok === true && newSpelling.op === 'sessionControl', JSON.stringify(newSpelling), 'src/daemon/controlServer.ts must answer op sessionControl at proto 3 and echo sessionControl')
-    check('B4 ONE handler served both spellings', controlCalls.join(',') === 'focus:s-old,focus:s-new', controlCalls.join(','), 'both spellings must reach the one deps.concourseControl call in answerSessionControl in src/daemon/controlServer.ts')
+    check('B3 the new spelling answers ok and echoes its own name', newSpelling.ok === true && newSpelling.op === 'sessionControl', JSON.stringify(newSpelling))
+    check('B4 ONE handler served both spellings', controlCalls.join(',') === 'focus:s-old,focus:s-new', controlCalls.join(','))
     const relNew = await rawRequest(path, { op: 'sessionRelease', proto: 3, auth: 'k', runnerId: 'concourse-w9' })
     const relOld = await rawRequest(path, { op: 'concourseRelease', proto: 2, auth: 'k', workerId: 'concourse-w8' })
-    check('B5 the release door reads runnerId AND the legacy workerId (R2 on the wire)', relNew.ok === true && relOld.ok === true && releaseIds.join(',') === 'concourse-w9,concourse-w8', releaseIds.join(','), 'the release case in src/daemon/controlServer.ts (near the line reading raw.runnerId ?? raw.workerId) must accept both fields')
+    check('B5 the release door reads runnerId AND the legacy workerId (R2 on the wire)', relNew.ok === true && relOld.ok === true && releaseIds.join(',') === 'concourse-w9,concourse-w8', releaseIds.join(','))
     const admit = await rawRequest(path, { op: 'concourseAdmit', proto: 2, auth: 'k', workspaceDir: '/ws' })
-    check('B6 the admit reply carries the workerId MIRROR beside runnerId for proto≤2 readers', admit.ok === true && admit.runnerId === 'concourse-w1' && admit.workerId === 'concourse-w1', JSON.stringify(admit), 'the admit reply in src/daemon/controlServer.ts must keep the workerId mirror (workerId: r.runnerId) beside runnerId')
+    check('B6 the admit reply carries the workerId MIRROR beside runnerId for proto≤2 readers', admit.ok === true && admit.runnerId === 'concourse-w1' && admit.workerId === 'concourse-w1', JSON.stringify(admit))
     const effNew = await rawRequest(path, { op: 'sessionControl', proto: 3, auth: 'k', action: 'set-effort', sessionId: 's-eff', by: 't', effort: 'low' })
     const effOld = await rawRequest(path, { op: 'concourseControl', proto: 2, auth: 'k', action: 'set-effort', sessionId: 's-eff2', by: 't', effort: 'medium' })
-    check('B7 set-effort routes WITH its field through both spellings onto the one handler', effNew.ok === true && effOld.ok === true && controlCalls.slice(-2).join(',') === 'set-effort:s-eff:low,set-effort:s-eff2:medium', controlCalls.join(','), 'answerSessionControl in src/daemon/controlServer.ts must pass effort through to deps.concourseControl for both spellings')
+    check('B7 set-effort routes WITH its field through both spellings onto the one handler', effNew.ok === true && effOld.ok === true && controlCalls.slice(-2).join(',') === 'set-effort:s-eff:low,set-effort:s-eff2:medium', controlCalls.join(','))
   } finally {
     await handle.close()
   }
@@ -104,14 +104,14 @@ console.log('C the client helper picks the spelling by negotiated proto (both ar
 {
   const down2 = sock.sessionOpWireFrame({ op: 'sessionDispatch', proto: 2 })
   const keep3 = sock.sessionOpWireFrame({ op: 'sessionDispatch', proto: 3 })
-  check('C1 at proto 2 the frame re-spells to the old dialect', down2.op === 'concourseDispatch', JSON.stringify(down2), 'sessionOpWireFrame in src/daemon/controlSocket.ts must re-spell the op to the old dialect when proto is below 3')
-  check('C2 at proto 3 the frame keeps the session spelling', keep3.op === 'sessionDispatch', JSON.stringify(keep3), 'sessionOpWireFrame in src/daemon/controlSocket.ts must leave the session spelling at proto 3')
+  check('C1 at proto 2 the frame re-spells to the old dialect', down2.op === 'concourseDispatch')
+  check('C2 at proto 3 the frame keeps the session spelling', keep3.op === 'sessionDispatch')
   const rel2 = sock.sessionOpWireFrame({ op: 'sessionRelease', proto: 2, runnerId: 'w-1' } as never) as Record<string, unknown>
   const rel3 = sock.sessionOpWireFrame({ op: 'sessionRelease', proto: 3, runnerId: 'w-1' } as never) as Record<string, unknown>
-  check('C3 the release field re-spells with the op (runnerId → workerId below proto 3)', rel2.op === 'concourseRelease' && rel2.workerId === 'w-1' && rel2.runnerId === undefined, JSON.stringify(rel2), 'sessionOpWireFrame in src/daemon/controlSocket.ts must rename runnerId to workerId when it re-spells the release op')
-  check('C4 at proto 3 the field stays runnerId', rel3.op === 'sessionRelease' && rel3.runnerId === 'w-1' && rel3.workerId === undefined, JSON.stringify(rel3), 'sessionOpWireFrame in src/daemon/controlSocket.ts must keep runnerId at proto 3')
+  check('C3 the release field re-spells with the op (runnerId → workerId below proto 3)', rel2.op === 'concourseRelease' && rel2.workerId === 'w-1' && rel2.runnerId === undefined)
+  check('C4 at proto 3 the field stays runnerId', rel3.op === 'sessionRelease' && rel3.runnerId === 'w-1' && rel3.workerId === undefined)
   const home = sock.normalizeSessionOpReply({ ok: true, op: 'concourseAdmit', runnerId: undefined, workerId: 'w-2', sessionId: 's', workspaceId: '/w' } as never) as Record<string, unknown>
-  check('C5 an old daemon\'s reply folds home (op + the R2 field)', home.op === 'sessionAdmit' && home.runnerId === 'w-2', JSON.stringify(home), 'normalizeSessionOpReply in src/daemon/controlSocket.ts must fold an old reply back to the session op and runnerId')
+  check('C5 an old daemon\'s reply folds home (op + the R2 field)', home.op === 'sessionAdmit' && home.runnerId === 'w-2')
 
   process.env.MERCURY_DAEMON_DIR = DIR_C
   writeFileSync(join(DIR_C, 'control.key'), 'k2')
@@ -143,15 +143,13 @@ console.log('C the client helper picks the spelling by negotiated proto (both ar
       'C6 the EPROTO retry re-spells at the LOWER proto (never the new name at an old router)',
       seen.length === 2 && seen[0]!.op === 'sessionControl' && seen[0]!.proto === MERCURY_DAEMON_PROTO && seen[1]!.op === 'concourseControl' && seen[1]!.proto === 2,
       JSON.stringify(seen),
-      'daemonControlRpc in src/daemon/controlSocket.ts must retry after EPROTO with sessionOpWireFrame at the serverProto, so the op is re-spelled old',
     )
-    check('C7 the retried reply folds home to the canonical spelling', first.ok === true && first.op === 'sessionControl', JSON.stringify(first), 'daemonControlRpc in src/daemon/controlSocket.ts must pass the retried reply through normalizeSessionOpReply')
+    check('C7 the retried reply folds home to the canonical spelling', first.ok === true && first.op === 'sessionControl', JSON.stringify(first))
     const second = (await sock.daemonControlRpc({ op: 'sessionControl', action: 'focus', sessionId: 's2', by: 't' } as never)) as Record<string, unknown>
     check(
       'C8 the REMEMBERED dialect speaks old on the first frame (both arms of the choice)',
       second.ok === true && seen.length === 3 && seen[2]!.op === 'concourseControl' && seen[2]!.proto === 2,
       JSON.stringify(seen),
-      'daemonControlRpc in src/daemon/controlSocket.ts must remember the lowered proto after an EPROTO and use it on the next first frame',
     )
   } finally {
     sock.forgetDaemonProtoForTesting()
@@ -164,15 +162,15 @@ console.log('D the record fold: legacy workerId loads forever, writes land runne
   const legacyRow = { schema: 1, workerId: 'concourse-w1', sessionId: 's-legacy', workspaceId: '/ws', isolation: 'exclusive', modelKey: 'm', spawnedAt: 1, lastLiveAt: 1 }
   writeFileSync(join(DIR_D, 'concourse-workers.json'), JSON.stringify({ version: 1, workers: { 'concourse-w1': legacyRow } }))
   const loaded = sup.readSessionWorkers(DIR_D)['concourse-w1'] as unknown as Record<string, unknown>
-  check('D1 the old-spelling record loads with runnerId folded on', loaded !== undefined && loaded.runnerId === 'concourse-w1', JSON.stringify(loaded), 'readSessionWorkers in src/daemon/concourseWorkers/store.ts must fold a legacy workerId onto runnerId when it loads a record')
-  check('D2 the fold drops the legacy key from what callers see', loaded !== undefined && !('workerId' in loaded), JSON.stringify(loaded), 'readSessionWorkers in src/daemon/concourseWorkers/store.ts must drop the legacy workerId key from the record it returns')
+  check('D1 the old-spelling record loads with runnerId folded on', loaded !== undefined && loaded.runnerId === 'concourse-w1', JSON.stringify(loaded))
+  check('D2 the fold drops the legacy key from what callers see', loaded !== undefined && !('workerId' in loaded))
   sup.updateConcourseWorkers(ws => {
     if (ws['concourse-w1']) ws['concourse-w1'].title = 'retitled'
   }, DIR_D)
   const rawAfter = readFileSync(join(DIR_D, 'concourse-workers.json'), 'utf8')
-  check('D3 the NEXT write rewrites the record under the new spelling alone (poison: a record written with the old field)', rawAfter.includes('"runnerId"') && !rawAfter.includes('"workerId"'), rawAfter.slice(0, 200), 'updateConcourseWorkers in src/daemon/concourseWorkers/store.ts must write records with runnerId only')
+  check('D3 the NEXT write rewrites the record under the new spelling alone (poison: a record written with the old field)', rawAfter.includes('"runnerId"') && !rawAfter.includes('"workerId"'), rawAfter.slice(0, 200))
   const reread = sup.readSessionWorkers(DIR_D)['concourse-w1']
-  check('D4 the rewritten record reads back whole', reread?.runnerId === 'concourse-w1' && reread?.title === 'retitled' && reread?.sessionId === 's-legacy', JSON.stringify(reread), 'the record written by updateConcourseWorkers in src/daemon/concourseWorkers/store.ts must read back with runnerId, title and sessionId intact')
+  check('D4 the rewritten record reads back whole', reread?.runnerId === 'concourse-w1' && reread?.title === 'retitled' && reread?.sessionId === 's-legacy')
 }
 
 console.log('\n' + '═'.repeat(76))

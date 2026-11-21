@@ -103,7 +103,7 @@ section('§4 the CI scrub armed: every spelling and its INPUT_ twin')
 section('§5 the wiring, structural')
 {
   const isolationRow = getFlagSpec('MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION')
-  check('the isolation flag is registered with its off arm', isolationRow !== undefined && isolationRow.off.includes('ambient inheritance, byte-identical'), 'register MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION with an off text containing "ambient inheritance, byte-identical" in src/substrate/flags/permissions.ts')
+  check('the isolation flag is registered with its off arm', isolationRow !== undefined && isolationRow.off.includes('ambient inheritance, byte-identical'), 'register MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION with an off text containing "ambient inheritance, byte-identical" in FLAG_REGISTRY')
 }
 
 console.log('\n' + '='.repeat(60))

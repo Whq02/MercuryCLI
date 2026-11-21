@@ -27,8 +27,8 @@ function section(t: string): void {
 section('§A the seam — registered flag, known script, honest fallback')
 {
   const row = getFlagSpec('MERCURY_SCRIPTED_STREAM')
-  check('MERCURY_SCRIPTED_STREAM is registry-native', row !== undefined, 'register MERCURY_SCRIPTED_STREAM in src/substrate/flags/api.ts')
-  check('the registered consumer is the deps seam', row?.consumer === 'src/query/deps.ts', `consumer is ${row?.consumer}; set consumer to src/query/deps.ts on the MERCURY_SCRIPTED_STREAM row in src/substrate/flags/api.ts`)
+  check('MERCURY_SCRIPTED_STREAM is registry-native', row !== undefined, 'register MERCURY_SCRIPTED_STREAM in FLAG_REGISTRY')
+  check('the registered consumer is the deps seam', row?.consumer === 'src/query/deps.ts', `consumer is ${row?.consumer}; set consumer to src/query/deps.ts on the MERCURY_SCRIPTED_STREAM row in FLAG_REGISTRY`)
   check('the known script yields a generator', typeof scriptedCallModel('slow-text') === 'function', 'scriptedCallModel in src/query/scriptedStream.ts must return a generator function for the slow-text script')
   check('an unknown script yields null (fallback, never a dead lane)', scriptedCallModel('no-such-script') === null, 'scriptedCallModel in src/query/scriptedStream.ts must return null for a script name it does not know')
   const unset = productionDeps()

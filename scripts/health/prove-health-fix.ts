@@ -26,7 +26,7 @@ const fixAtBySection: Record<string, string> = {
   '(1)': 'isFixable and remedyPermitted in src/utils/healthCertCore.ts, healthFixEnabled in src/utils/healthFix.ts',
   '(2)': 'applyRemedy in src/utils/healthFix.ts',
   '(3)': 'runHeadlessFix in src/utils/healthFix.ts',
-  '(4)': 'the gate row in src/services/health/sections/proofs.ts, the build-fresh row in src/services/health/sections/identity.ts, the health command flags (--fix, --only, --yes) and MERCURY_HEALTH_FIX in src/substrate/flags/health.ts',
+  '(4)': 'the gate row in src/services/health/sections/proofs.ts, the build-fresh row in src/services/health/sections/identity.ts, the health command flags (--fix, --only, --yes) and MERCURY_HEALTH_FIX in FLAG_REGISTRY',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

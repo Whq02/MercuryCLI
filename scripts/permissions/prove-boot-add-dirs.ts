@@ -29,22 +29,22 @@ try {
   const { PermissionsSchema } = await import('../../src/utils/settings/types.js')
   for (const value of [[scratch], 'old-invalid-value', null, 17]) {
     const parsed = PermissionsSchema().safeParse({ mode: 'implement', additionalDirectories: value })
-    check('a saved directory key is accepted without validation errors, like any unknown key', parsed.success, JSON.stringify(value) + ' | change PermissionsSchema in src/utils/settings/types.ts so an unknown additionalDirectories key is accepted without a validation error')
-    check('the declared guardrail beside it applies', parsed.success && parsed.data.mode === 'implement', 'PermissionsSchema in src/utils/settings/types.ts must still parse the declared mode when an unknown directory key sits beside it')
+    check('a saved directory key is accepted without validation errors, like any unknown key', parsed.success, JSON.stringify(value))
+    check('the declared guardrail beside it applies', parsed.success && parsed.data.mode === 'implement')
   }
   writeFileSync(join(home, 'settings.json'), JSON.stringify({ guardrails: { additionalDirectories: [scratch], mode: 'implement' } }))
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
   enableConfigs()
   const { getSettingsWithErrors } = await import('../../src/utils/settings/settings.js')
   const loaded = getSettingsWithErrors()
-  check('a settings file carrying a saved directory boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors) + ' | change getSettingsWithErrors in src/utils/settings/settings.ts so a settings file with a saved directory key loads without errors')
-  check('the declared guardrail mode is read', loaded.settings.guardrails?.mode === 'implement', 'getSettingsWithErrors in src/utils/settings/settings.ts must return guardrails.mode from the settings file')
+  check('a settings file carrying a saved directory boots without errors', loaded.errors.length === 0, JSON.stringify(loaded.errors))
+  check('the declared guardrail mode is read', loaded.settings.guardrails?.mode === 'implement')
   const { initializeToolPermissionContext } = await import('../../src/utils/permissions/permissionSetup.js')
   const init = await initializeToolPermissionContext({ allowedToolsCli: [], disallowedToolsCli: [], permissionMode: 'implement', allowDangerouslySkipPermissions: false })
-  check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'), 'initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts must not put an additionalWorkingDirectories map on the context')
-  check('boot has no directory admission pass', !Object.hasOwn(init, 'admittedDirectories'), 'initializeToolPermissionContext in src/utils/permissions/permissionSetup.ts must not return an admittedDirectories result')
+  check('the live context has no added-root map', !Object.hasOwn(init.toolPermissionContext, 'additionalWorkingDirectories'))
+  check('boot has no directory admission pass', !Object.hasOwn(init, 'admittedDirectories'))
   const dist = join(repo, 'dist/mercury.mjs')
-  check('the CLI artifact is available', existsSync(dist), 'run bun run build.ts to write dist/mercury.mjs')
+  check('the CLI artifact is available', existsSync(dist))
   if (existsSync(dist)) {
     const result = spawnSync('node', [dist, '--add-dir'], {
       cwd: project,
@@ -52,7 +52,7 @@ try {
       encoding: 'utf8',
       timeout: 30_000,
     })
-    check('the CLI refuses --add-dir as an unknown option before any request', result.status !== 0 && /unknown option ['"]--add-dir['"]/.test(result.stderr + result.stdout), (result.stderr + result.stdout).slice(0, 250) + ' | the built CLI must reject --add-dir as an unknown option with a non-zero exit; remove any --add-dir option registration')
+    check('the CLI refuses --add-dir as an unknown option before any request', result.status !== 0 && /unknown option ['"]--add-dir['"]/.test(result.stderr + result.stdout), (result.stderr + result.stdout).slice(0, 250))
   }
   console.log(`starting-folder-estate: ${passed} passed, ${failed} failed`)
 } finally {

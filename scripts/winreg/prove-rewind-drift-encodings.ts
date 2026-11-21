@@ -72,12 +72,12 @@ console.log('============================================================')
 for (const [label, encode, eol] of encodings) {
   for (const toucher of ['edit', 'read'] as const) {
     const out = (await restoreAfter(label, encode, eol, toucher, false)) as { ok: boolean; kind?: string }
-    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, (out.ok ? '' : `refused ${out.kind}`) + ' · to fix: the drift comparison in fileHistoryRestore, src/services/changeTransaction/fileHistory.ts, must compare content (decoded for this encoding and line ending) and not only the timestamp')
+    check(`${label}, last touched by ${toucher}: a timestamp-only touch leaves it restorable`, out.ok === true, out.ok ? '' : `refused ${out.kind}`)
   }
 }
 for (const [label, encode, eol] of [encodings[0]!, encodings[1]!, encodings[4]!]) {
   const out = (await restoreAfter(label, encode, eol, 'edit', true)) as { ok: boolean; kind?: string }
-  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120) + ' · to fix: fileHistoryRestore in src/services/changeTransaction/fileHistory.ts must refuse with kind drift when the file content changed outside the session')
+  check(`${label}: a real change made outside the session still refuses as drift`, out.ok === false && out.kind === 'drift', JSON.stringify(out).slice(0, 120))
 }
 
 process.chdir(launchDir)

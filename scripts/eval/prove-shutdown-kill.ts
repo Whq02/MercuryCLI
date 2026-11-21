@@ -11,10 +11,10 @@ const called: string[] = []
 const kernel = { kill: () => called.push('graceful'), killNow: () => called.push('immediate') } as unknown as ProcKernel
 ;(manager as unknown as Seam).kernels.set('fixture', { kernel })
 manager.killAllForShutdown()
-check('the synchronous shutdown sweep uses immediate termination before forgetting a kernel', called.join(',') === 'immediate', `called: ${called.join(',')}; killAllForShutdown must call killNow, not kill: see EvalKernelManager.killAllForShutdown in src/services/eval/kernelManager.ts`)
-check('the shutdown sweep clears its map synchronously', manager.kernelCount() === 0, `kernelCount is ${manager.kernelCount()}; killAllForShutdown must clear its kernels map before returning: see src/services/eval/kernelManager.ts`)
+check('the synchronous shutdown sweep uses immediate termination before forgetting a kernel', called.join(',') === 'immediate', called.join(','))
+check('the shutdown sweep clears its map synchronously', manager.kernelCount() === 0)
 manager.killAllForShutdown()
-check('a second shutdown does not signal the forgotten process again', called.length === 1, `called: ${called.join(',')}; killAllForShutdown must forget a kernel once it has signalled it: see src/services/eval/kernelManager.ts`)
+check('a second shutdown does not signal the forgotten process again', called.length === 1)
 
 const real = new EvalKernelManager()
 let live: ProcKernel | undefined
@@ -25,9 +25,9 @@ try {
     abortSignal: new AbortController().signal,
     serveBridge: refusingBridge(),
   }))
-  check('the completed cell retains its final output before shutdown', result.status === 'ok' && result.stdout.text === 'final-line\n', `${JSON.stringify(result)}; the python cell must finish ok with its printed line before any shutdown: see runCell in src/services/eval/kernelManager.ts`)
+  check('the completed cell retains its final output before shutdown', result.status === 'ok' && result.stdout.text === 'final-line\n', JSON.stringify(result))
   live = [...(real as unknown as Seam).kernels.values()][0]?.kernel
-  check('the real kernel is retained after the completed cell', live !== undefined && live.alive, 'a kernel must stay in EvalKernelManager.kernels after its cell completes: see runCell in src/services/eval/kernelManager.ts')
+  check('the real kernel is retained after the completed cell', live !== undefined && live.alive)
   if (live) {
     const child = (live as unknown as { child: ChildProcess }).child
     const exit = once(child, 'exit')
@@ -35,10 +35,10 @@ try {
     const original = live.killNow.bind(live)
     live.killNow = () => { immediate = true; original() }
     real.killAllForShutdown()
-    check('the real sweep signals now rather than scheduling work after process exit', immediate, 'killAllForShutdown never called killNow on the live kernel: see src/services/eval/kernelManager.ts')
+    check('the real sweep signals now rather than scheduling work after process exit', immediate)
     const [code, signal] = await within('the resistant kernel exit', 5_000, exit)
-    check('a kernel that ignores the polite signal is ended by the final sweep', code === null && signal === 'SIGKILL', `${code}/${signal}; killNow must end a kernel that ignores SIGTERM with SIGKILL: see ProcKernel.killNow in src/services/eval/procKernel.ts`)
-    check('the kernel and its manager are both settled', !live.alive && real.kernelCount() === 0, `alive=${live.alive} kernelCount=${real.kernelCount()}; after the sweep the kernel must be dead and the manager empty: see src/services/eval/kernelManager.ts and procKernel.ts`)
+    check('a kernel that ignores the polite signal is ended by the final sweep', code === null && signal === 'SIGKILL', `${code}/${signal}`)
+    check('the kernel and its manager are both settled', !live.alive && real.kernelCount() === 0)
   }
 } finally {
   live?.killNow()

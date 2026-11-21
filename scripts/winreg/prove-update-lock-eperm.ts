@@ -7,10 +7,9 @@ import type { LayoutRoots } from '../../src/services/privateChannel/installLayou
 const { acquireUpdateLock, releaseUpdateLock, sweepUpdaterResidue } = await import('../../src/services/privateChannel/installLayout.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
 const PRIVILEGED = 4242420
@@ -41,20 +40,20 @@ console.log('============================================================')
 
 holdLock(PRIVILEGED)
 const privileged = acquireUpdateLock(roots)
-check('a lock whose holder answers EPERM stays held', privileged.state === 'held' && privileged.byPid === PRIVILEGED, JSON.stringify(privileged), 'change pidAlive in src/services/privateChannel/installLayout.ts so a process.kill(pid, 0) that throws EPERM counts as alive, and acquireUpdateLock returns held')
-check("the privileged holder's lock is left in place", existsSync(join(lockDir, 'pid')) && readFileSync(join(lockDir, 'pid'), 'utf8').trim() === String(PRIVILEGED), 'acquireUpdateLock in src/services/privateChannel/installLayout.ts must return held without removing the lock directory when the holder answers EPERM')
+check('a lock whose holder answers EPERM stays held', privileged.state === 'held' && privileged.byPid === PRIVILEGED, JSON.stringify(privileged))
+check("the privileged holder's lock is left in place", existsSync(join(lockDir, 'pid')) && readFileSync(join(lockDir, 'pid'), 'utf8').trim() === String(PRIVILEGED))
 rmSync(lockDir, { recursive: true, force: true })
 
 holdLock(DEAD)
 const dead = acquireUpdateLock(roots)
-check('a lock whose holder is gone is taken over as before', dead.state === 'acquired', JSON.stringify(dead), 'acquireUpdateLock in src/services/privateChannel/installLayout.ts must still remove the lock of a holder that answers ESRCH and take it')
+check('a lock whose holder is gone is taken over as before', dead.state === 'acquired', JSON.stringify(dead))
 releaseUpdateLock(roots)
 
 mkdirSync(join(roots.versionsDir, `.download-${PRIVILEGED}`), { recursive: true })
 mkdirSync(join(roots.versionsDir, `.download-${DEAD}`), { recursive: true })
 sweepUpdaterResidue(roots)
-check("a download in flight under a privileged updater survives the sweep", existsSync(join(roots.versionsDir, `.download-${PRIVILEGED}`)), '', 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must skip a residue whose pid pidAlive reports alive (EPERM counts as alive)')
-check("a dead updater's download is swept as before", !existsSync(join(roots.versionsDir, `.download-${DEAD}`)), '', 'sweepUpdaterResidue in src/services/privateChannel/installLayout.ts must still remove the .download-<pid> residue of a pid that answers ESRCH')
+check("a download in flight under a privileged updater survives the sweep", existsSync(join(roots.versionsDir, `.download-${PRIVILEGED}`)))
+check("a dead updater's download is swept as before", !existsSync(join(roots.versionsDir, `.download-${DEAD}`)))
 
 process.kill = realKill as typeof process.kill
 try {

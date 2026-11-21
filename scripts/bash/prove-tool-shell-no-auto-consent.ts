@@ -18,14 +18,14 @@ function check(label: string, ok: boolean, detail = ''): void {
 }
 console.log('refusals')
 for (const platform of ['darwin', 'linux', 'win32']) {
-  check(`${platform}: npm defaults to cancellation, never approval`, compose({}, {}, platform).npm_config_yes === 'false', 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: an explicit user choice still wins`, compose({ npm_config_yes: 'true' }, {}, platform).npm_config_yes === 'true', 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: cloud prompts are not auto-answered by default`, compose({}, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === undefined, 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: an explicit cloud prompt choice still wins`, compose({ CLOUDSDK_CORE_DISABLE_PROMPTS: '1' }, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === '1', 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: debconf prompts are not auto-answered by default`, compose({}, {}, platform).DEBIAN_FRONTEND === undefined, 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: an explicit debconf frontend choice still wins`, compose({ DEBIAN_FRONTEND: 'noninteractive' }, {}, platform).DEBIAN_FRONTEND === 'noninteractive', 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: composer prompts are not auto-answered by default`, compose({}, {}, platform).COMPOSER_NO_INTERACTION === undefined, 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
-  check(`${platform}: an explicit composer interaction choice still wins`, compose({ COMPOSER_NO_INTERACTION: '1' }, {}, platform).COMPOSER_NO_INTERACTION === '1', 'fix toolShellEnv and TOOL_SHELL_DEFAULTS in src/utils/subprocessEnv.ts')
+  check(`${platform}: npm defaults to cancellation, never approval`, compose({}, {}, platform).npm_config_yes === 'false')
+  check(`${platform}: an explicit user choice still wins`, compose({ npm_config_yes: 'true' }, {}, platform).npm_config_yes === 'true')
+  check(`${platform}: cloud prompts are not auto-answered by default`, compose({}, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === undefined)
+  check(`${platform}: an explicit cloud prompt choice still wins`, compose({ CLOUDSDK_CORE_DISABLE_PROMPTS: '1' }, {}, platform).CLOUDSDK_CORE_DISABLE_PROMPTS === '1')
+  check(`${platform}: debconf prompts are not auto-answered by default`, compose({}, {}, platform).DEBIAN_FRONTEND === undefined)
+  check(`${platform}: an explicit debconf frontend choice still wins`, compose({ DEBIAN_FRONTEND: 'noninteractive' }, {}, platform).DEBIAN_FRONTEND === 'noninteractive')
+  check(`${platform}: composer prompts are not auto-answered by default`, compose({}, {}, platform).COMPOSER_NO_INTERACTION === undefined)
+  check(`${platform}: an explicit composer interaction choice still wins`, compose({ COMPOSER_NO_INTERACTION: '1' }, {}, platform).COMPOSER_NO_INTERACTION === '1')
 }
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { bashToolCheckExactMatchPermission, bashToolCheckPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
@@ -37,8 +37,8 @@ const plainAllowed = bashToolCheckExactMatchPermission({ command: 'npx mercury-f
 const flagExact = bashToolCheckExactMatchPermission({ command: 'npx --yes mercury-fixture-no-auto-install' }, allowPlainCtx as never)
 const flagAsked = await bashToolCheckPermission({ command: 'npx --yes mercury-fixture-no-auto-install' }, allowPlainCtx as never)
 const flagDenied = await checkParsedCommand({ command: 'npx --yes mercury-fixture-no-auto-install' }, denyFlagCtx as never)
-check('permission layer: an allow rule for plain npx does not auto-allow explicit --yes', plainAllowed.behavior === 'allow' && flagExact.behavior === 'passthrough' && flagAsked.behavior === 'ask', `plain=${plainAllowed.behavior} exact=${flagExact.behavior} ask=${flagAsked.behavior}; fix bashToolCheckExactMatchPermission and bashToolCheckPermission in src/tools/BashTool/bashPermissions.ts`)
-check('permission layer: a deny rule on npx --yes * refuses explicit --yes on the command line', flagDenied.behavior === 'deny', `flag=${flagDenied.behavior}; a deny rule on npx --yes * must refuse in the bash permission check, src/tools/BashTool/bashPermissions.ts`)
+check('permission layer: an allow rule for plain npx does not auto-allow explicit --yes', plainAllowed.behavior === 'allow' && flagExact.behavior === 'passthrough' && flagAsked.behavior === 'ask', `plain=${plainAllowed.behavior} exact=${flagExact.behavior} ask=${flagAsked.behavior}`)
+check('permission layer: a deny rule on npx --yes * refuses explicit --yes on the command line', flagDenied.behavior === 'deny', `flag=${flagDenied.behavior}`)
 const npm = whichSync('npm')
 const node = whichSync('node')
 const resolved = npm ? realpathSync(npm) : null
@@ -92,13 +92,13 @@ if (!node || !cli || !existsSync(cli)) {
         child.once('close', resolve)
       })
       const downloads = requests.filter(url => url.endsWith('.tgz')).length
-      check(`${choice}: the fixture metadata was actually read`, requests.includes(`/${name}`), 'npm never reached the fixture registry: check that toolShellEnv in src/utils/subprocessEnv.ts keeps the npm_config_registry override')
+      check(`${choice}: the fixture metadata was actually read`, requests.includes(`/${name}`))
       if (choice === 'default') {
-        check('default: npm cancels without fetching a package tarball', code !== 0 && /cancel|no YES option/i.test(output) && downloads === 0, `rc=${code} tarball requests=${downloads}; ${output.split(/\r?\n/)[0] ?? ''}; npm_config_yes must default to 'false' in TOOL_SHELL_DEFAULTS, src/utils/subprocessEnv.ts`)
+        check('default: npm cancels without fetching a package tarball', code !== 0 && /cancel|no YES option/i.test(output) && downloads === 0, `rc=${code} tarball requests=${downloads}; ${output.split(/\r?\n/)[0] ?? ''}`)
       } else {
-        check(`${choice}: explicit consent reaches the download fixture, which refuses it`, code !== 0 && downloads > 0 && /403/.test(output), `rc=${code} tarball requests=${downloads}; an explicit --yes or npm_config_yes must pass through toolShellEnv in src/utils/subprocessEnv.ts unchanged`)
+        check(`${choice}: explicit consent reaches the download fixture, which refuses it`, code !== 0 && downloads > 0 && /403/.test(output), `rc=${code} tarball requests=${downloads}`)
       }
-      check(`${choice}: no package was installed or executed`, !existsSync(join(work, 'node_modules', name)), 'a package was installed under the scratch dir: toolShellEnv in src/utils/subprocessEnv.ts must not turn consent on')
+      check(`${choice}: no package was installed or executed`, !existsSync(join(work, 'node_modules', name)))
     }
   } finally {
     await new Promise<void>(resolve => server.close(() => resolve()))

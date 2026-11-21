@@ -160,8 +160,8 @@ async function main(): Promise<void> {
   section('4. wiring — catalog + registry')
   {
     const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
-    check('registry carries MERCURY_DAP', getFlagSpec('MERCURY_DAP') !== undefined, '', 'register the MERCURY_DAP flag in the flag registry (src/substrate/flagRegistry.ts, flag tables under src/substrate/flags)')
-    check('registry carries MERCURY_DAP_ADAPTERS', getFlagSpec('MERCURY_DAP_ADAPTERS') !== undefined, '', 'register the MERCURY_DAP_ADAPTERS flag in the flag registry (src/substrate/flagRegistry.ts, flag tables under src/substrate/flags)')
+    check('registry carries MERCURY_DAP', getFlagSpec('MERCURY_DAP') !== undefined, '', 'register the MERCURY_DAP flag in FLAG_REGISTRY')
+    check('registry carries MERCURY_DAP_ADAPTERS', getFlagSpec('MERCURY_DAP_ADAPTERS') !== undefined, '', 'register the MERCURY_DAP_ADAPTERS flag in FLAG_REGISTRY')
   }
 
   console.log('\n' + '='.repeat(60))

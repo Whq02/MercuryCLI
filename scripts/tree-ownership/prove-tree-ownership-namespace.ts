@@ -46,12 +46,12 @@ section('(2) one-spelling reader (real flagEnv over a mutated env)')
   const prev = process.env.MERCURY_OPERATOR
   try {
     process.env.MERCURY_OPERATOR = 'native'
-    check('flagEnv reads the MERCURY_* spelling', flagEnv('MERCURY_OPERATOR') === 'native', 'flagEnv in src/substrate/flagRegistry.ts must read the MERCURY_ spelling from process.env')
+    check('flagEnv reads the MERCURY_* spelling', flagEnv('MERCURY_OPERATOR') === 'native', 'flagEnv in the flag registry (FLAG_REGISTRY) must read the MERCURY_ spelling from process.env')
     delete process.env.MERCURY_OPERATOR
-    check('an unset flag reads undefined', flagEnv('MERCURY_OPERATOR') === undefined, 'flagEnv in src/substrate/flagRegistry.ts must return undefined when the variable is unset')
+    check('an unset flag reads undefined', flagEnv('MERCURY_OPERATOR') === undefined, 'flagEnv in the flag registry (FLAG_REGISTRY) must return undefined when the variable is unset')
     const pair = flagPair('MERCURY_OPERATOR', 'x')
-    check('flagPair stamps exactly one spelling', Object.keys(pair).length === 1 && pair.MERCURY_OPERATOR === 'x', `got ${JSON.stringify(pair)} — flagPair in src/substrate/flagRegistry.ts must return only the MERCURY_ key`)
-    check('flagSpellings names exactly one spelling', JSON.stringify(flagSpellings('MERCURY_OPERATOR')) === JSON.stringify(['MERCURY_OPERATOR']), `got ${JSON.stringify(flagSpellings('MERCURY_OPERATOR'))} — flagSpellings in src/substrate/flagRegistry.ts must list only the MERCURY_ spelling`)
+    check('flagPair stamps exactly one spelling', Object.keys(pair).length === 1 && pair.MERCURY_OPERATOR === 'x', `got ${JSON.stringify(pair)} — flagPair in the flag registry (FLAG_REGISTRY) must return only the MERCURY_ key`)
+    check('flagSpellings names exactly one spelling', JSON.stringify(flagSpellings('MERCURY_OPERATOR')) === JSON.stringify(['MERCURY_OPERATOR']), `got ${JSON.stringify(flagSpellings('MERCURY_OPERATOR'))} — flagSpellings in the flag registry (FLAG_REGISTRY) must list only the MERCURY_ spelling`)
   } finally {
     if (prev === undefined) delete process.env.MERCURY_OPERATOR
     else process.env.MERCURY_OPERATOR = prev

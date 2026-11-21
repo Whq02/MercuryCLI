@@ -12,18 +12,7 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  const parity2Hint = /earn|queued|pre-expansion/.test(name)
-    ? 'fix queuedCommandHistoryEntry in src/history.ts'
-    : /word boundaries|accented word/.test(name)
-      ? 'fix wordStartBefore and wordStartAfter in src/utils/intl.ts, or prevWord and nextWord of Cursor in src/utils/Cursor.ts, so both agree'
-      : /register/.test(name)
-        ? 'fix getSessionVimPersistentState in src/vim/types.ts so every mount shares one state'
-        : /↵/.test(name)
-          ? 'fix the Select component in src/components/CustomSelect/select.tsx so Enter in the same input chunk as Down acts on the option Down landed on'
-          : /completion|bare prefix/.test(name)
-            ? 'fix getPathCompletions in src/utils/suggestions/directoryCompletion.ts'
-            : 'fix collapseReadSearchGroups and isStatusUpdateTool in src/components/messages/collapseReadSearch.ts'
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' | ' : ''}${parity2Hint}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }
 

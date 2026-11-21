@@ -87,7 +87,7 @@ checkWithHint('the health check reads the SAME availability probe (the settled t
 section('registry + census rows')
 const flagNames = new Set((FLAG_REGISTRY as ReadonlyArray<{ env: string }>).map(row => row.env))
 for (const flag of ['MERCURY_EVAL', 'MERCURY_EVAL_PY', 'MERCURY_EVAL_JS', 'MERCURY_EVAL_PYTHON']) {
-  checkWithHint(`flag registry row ${flag}`, flagNames.has(flag), '', 'add a row for this flag to the eval group in src/substrate/flags/tools.ts, which FLAG_REGISTRY in src/substrate/flagRegistry.ts collects')
+  checkWithHint(`flag registry row ${flag}`, flagNames.has(flag), '', 'add a row for this flag to the eval group of FLAG_REGISTRY')
 }
 const { toolCensus } = await import('../builtin-tools/census-gen.ts')
 checkWithHint('census carries Eval', toolCensus().anchor.rows.some(row => row.name === 'Eval'), '', 'buildToolCensus in src/services/capability/census.ts must produce a row named Eval; the tool must be in the catalogue when the census is built')

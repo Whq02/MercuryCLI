@@ -150,17 +150,17 @@ console.log('── /update-notes: the running release on the chat, the earlier 
   const captured = existsSync(cfg.out) ? JSON.parse(readFileSync(cfg.out, 'utf8')) as { marks?: Mark[] } : {}
   const marks = new Map((captured.marks ?? []).map(mark => [mark.label, mark]))
   for (const mark of marks.values()) writeFileSync(join(output, `chat-${mark.label}.txt`), textOf(mark.grid) + '\n')
-  check('the chat journey ran to its marks', exit === 0 && marks.has('back'), `exit ${exit} marks ${[...marks.keys()].join(',')} ${stderr.slice(-240)} — the capture stopped before its last mark; check that /update-notes in src/commands/update-notes/index.ts opens and the awaited text of the stalled send appears`)
+  check('the chat journey ran to its marks', exit === 0 && marks.has('back'), `exit ${exit} marks ${[...marks.keys()].join(',')} ${stderr.slice(-240)}`)
   const card = marks.get('card') ? flat(marks.get('card')!.grid) : ''
   const cardUp = marks.get('card-up') ? flat(marks.get('card-up')!.grid) : ''
   const cardHead = marks.get('card-head') ? flat(marks.get('card-head')!.grid) : ''
   const cardBoth = `${card} ${cardUp} ${cardHead}`
-  check(`the running release's section is painted from its head (${head(shown[0])}) once the chat is paged up to it`, cardHead.includes(head(shown[0])) && cardHead.includes(shownFirstBullet.replace(/\s+/g, ' ')), `${cardHead.slice(0, 200)} — /update-notes (src/commands/update-notes/index.ts) must paint the running release section head and first bullet on the chat`)
-  check(`the card's last line offers the earlier releases behind the key: "${foldLine} (… to expand)"`, card.includes(foldLine) && card.includes(foldTail), `${card.slice(-200)} — the card must end with the earlierReleasesLine from src/utils/releaseNotes.ts followed by (… to expand)`)
-  check('no earlier release is painted on the chat before the key', earlier.every(([v]) => !cardBoth.includes(head(v)), 'an earlier release section was painted on the chat before the transcript key; /update-notes (src/commands/update-notes/index.ts) must fold them behind the key'))
+  check(`the running release's section is painted from its head (${head(shown[0])}) once the chat is paged up to it`, cardHead.includes(head(shown[0])) && cardHead.includes(shownFirstBullet.replace(/\s+/g, ' ')), cardHead.slice(0, 200))
+  check(`the card's last line offers the earlier releases behind the key: "${foldLine} (… to expand)"`, card.includes(foldLine) && card.includes(foldTail))
+  check('no earlier release is painted on the chat before the key', earlier.every(([v]) => !cardBoth.includes(head(v))))
   const pager = marks.get('pager') ? flat(marks.get('pager')!.grid) : ''
-  check('the transcript key shows the earlier releases (the oldest section reaches its last line)', pager.includes(oldestTail.replace(/\s+/g, ' ')), 'the transcript key pager must show every earlier release down to the oldest last line; see /update-notes in src/commands/update-notes/index.ts and src/utils/releaseNotes.ts')
-  check('the pager carries no fold line of its own', !pager.includes(foldLine), 'the pager shows the fold line; only the chat card may carry the earlierReleasesLine from src/utils/releaseNotes.ts')
+  check('the transcript key shows the earlier releases (the oldest section reaches its last line)', pager.includes(oldestTail.replace(/\s+/g, ' ')))
+  check('the pager carries no fold line of its own', !pager.includes(foldLine))
 }
 
 console.log('── the headless road prints every release ──')

@@ -9,10 +9,10 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 const { AgentTool } = await import('../../src/tools/AgentTool/AgentTool.tsx')
 const nameField = (name: string) =>
   AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p', name })
-t('a plain name is accepted', nameField('reviewer-2').success === true, 'the name field of inputSchema in src/tools/AgentTool/agent/schema.ts rejects an ordinary name')
-t('an unusual-but-safe name is accepted', nameField('café.worker_01').success === true, 'the name field of inputSchema in src/tools/AgentTool/agent/schema.ts must refuse only "@" and "*"')
-t("a name containing '@' is rejected (unmessageable)", nameField('worker@crew').success === false, 'the name field of inputSchema in src/tools/AgentTool/agent/schema.ts must refuse a name containing "@"')
-t("the name '*' is rejected (broadcast token)", nameField('*').success === false, 'the name field of inputSchema in src/tools/AgentTool/agent/schema.ts must refuse the name "*"')
-t('an omitted name is still valid', AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p' }).success === true, 'the name field of inputSchema in src/tools/AgentTool/agent/schema.ts must stay optional')
+t('a plain name is accepted', nameField('reviewer-2').success === true)
+t('an unusual-but-safe name is accepted', nameField('café.worker_01').success === true)
+t("a name containing '@' is rejected (unmessageable)", nameField('worker@crew').success === false)
+t("the name '*' is rejected (broadcast token)", nameField('*').success === false)
+t('an omitted name is still valid', AgentTool.inputSchema.safeParse({ description: 'd', prompt: 'p' }).success === true)
 
 process.exit(failures)

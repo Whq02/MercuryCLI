@@ -7,7 +7,7 @@ import * as path from 'node:path'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-const GODOT_LANE_FAIL_HINT = 'fix the gate, ports, project detection and LSP config in src/services/lsp/godotLane.ts (registered by src/services/lsp/builtinServers.ts), the DAP adapter in src/services/dap/dapClient.ts, the TCP bridge in src/services/tcpBridge/entry.ts, and the MERCURY_GODOT rows in src/substrate/flagRegistry.ts'
+const GODOT_LANE_FAIL_HINT = 'fix the gate, ports, project detection and LSP config in src/services/lsp/godotLane.ts (registered by src/services/lsp/builtinServers.ts), the DAP adapter in src/services/dap/dapClient.ts, the TCP bridge in src/services/tcpBridge/entry.ts, and the MERCURY_GODOT rows in the flag registry (FLAG_REGISTRY)'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

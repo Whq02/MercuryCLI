@@ -39,10 +39,10 @@ for (const [model, window, gauge, reference] of [
   publishContextUsage(25, window, 80)
   const report = await runHealthReport({ depth: 'fast' })
   const context = report.sections.flatMap((section: { checks: { id: string; evidence: string }[] }) => section.checks).find((row: { id: string }) => row.id === 'context')
-  check(`${model}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), `${context?.evidence ?? '(absent)'} (expected the gauge ${gauge}; fix the window label of the 'context' check in src/services/health/sections/memory.ts)`)
+  check(`${model}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)')
   const text = liveModelsReferenceText({ readAt: 'fixture', providers: [{ provider: model.startsWith('local/') ? 'local' : 'anthropic', providerName: 'Fixture', account: 'fixture', list: { kind: 'static', words: 'fixture' }, models: [{ id: model, displayName: model, contextWindow: window }] }], notSignedIn: [] })
   const row = text.split('\n').find((line: string) => line.startsWith(`  ${model}  `)) ?? '(absent)'
-  check(`${model}, ${window}: mercury://models`, row === `  ${model}  ${reference} window`, `${row} (expected "  ${model}  ${reference} window"; fix windowWords in src/services/resources/adapters/models.ts)`)
+  check(`${model}, ${window}: mercury://models`, row === `  ${model}  ${reference} window`, row)
 }
 const { DaemonSessionConnector } = await import(`${root}/src/services/engine-connector/daemonConnector.ts`)
 const { setFocusedSessionConnector, releaseFocusedSessionConnector } = await import(`${root}/src/services/engine-connector/focusedConnector.ts`)
@@ -57,7 +57,7 @@ for (const [focused, engine, window, gauge] of [
   publishContextUsage(25, window, 80)
   const report = await runHealthReport({ depth: 'fast' })
   const context = report.sections.flatMap((section: { checks: { id: string; evidence: string }[] }) => section.checks).find((row: { id: string }) => row.id === 'context')
-  check(`a focused session on ${focused} while the default is ${engine}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), `${context?.evidence ?? '(absent)'} (expected the gauge ${gauge} for the focused session's model ${focused}; fix the window label of the 'context' check in src/services/health/sections/memory.ts)`)
+  check(`a focused session on ${focused} while the default is ${engine}, ${window}: health's Context & resume`, context?.evidence.startsWith(`context 25% of ${gauge} ·`), context?.evidence ?? '(absent)')
   releaseFocusedSessionConnector()
 }
 setEngineModelOverride(null)

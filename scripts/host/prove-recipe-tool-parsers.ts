@@ -21,6 +21,6 @@ for (const [source, rows] of [['src/services/host/recipes.ts', HOST_RECIPES], ['
   }
   const gptOss = vllm.filter(row => row.model === 'openai/gpt-oss-120b')
   check(source + ' · both gpt-oss-120b shapes parse tool calls with the openai parser', gptOss.length === 2 && gptOss.every(row => parserOf(row.flags) === 'openai'), gptOss.map(row => row.id + ':' + parserOf(row.flags)).join(',') + ' | both openai/gpt-oss-120b recipes in ' + source + ' need --tool-call-parser openai')
-  check(source + ' · the gpt-oss-120b shapes keep prefix caching on', gptOss.every(row => row.flags.includes('--enable-prefix-caching'), 'a gpt-oss-120b recipe in ' + source + ' lacks --enable-prefix-caching in its flags'))
+  check(source + ' · the gpt-oss-120b shapes keep prefix caching on', gptOss.every(row => row.flags.includes('--enable-prefix-caching')), 'a gpt-oss-120b recipe in ' + source + ' lacks --enable-prefix-caching in its flags')
 }
 console.log('RECIPE TOOL PARSERS GREEN — ' + checks + ' checks; the shipped source and the exported file, no network')

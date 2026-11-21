@@ -28,10 +28,10 @@ try {
   ] as const
   for (const [index, [language, code]] of cells.entries()) {
     const result = await EvalTool.call({ language, code, timeoutSeconds: 60 }, context, allow as never)
-    check(`${language} ${index}: unframed complete file`, result.data.status === 'ok' && result.data.resultRepr === (index === 1 || index === 3 ? '42' : '200000'), `${result.data.error?.value ?? result.data.resultRepr}; read_file and Bash output inside a cell must arrive complete and unframed: see the rawFile branch of reenterTool in src/services/eval/evalBridge.ts`)
+    check(`${language} ${index}: unframed complete file`, result.data.status === 'ok' && result.data.resultRepr === (index === 1 || index === 3 ? '42' : '200000'), result.data.error?.value ?? result.data.resultRepr)
   }
   const denied = await EvalTool.call({ language: 'js', code: `await read_file(${file})` }, context, (async () => ({ behavior: 'deny', message: 'fixture denial' })) as never)
-  check('raw read still obeys the Read permission denial', denied.data.status === 'error' && /denied|denial|permission/i.test(denied.data.error?.value ?? ''), `${denied.data.error?.value}; the raw read_file road must still go through the Read tool's permission check: see reenterTool in src/services/eval/evalBridge.ts`)
+  check('raw read still obeys the Read permission denial', denied.data.status === 'error' && /denied|denial|permission/i.test(denied.data.error?.value ?? ''), denied.data.error?.value)
 } finally {
   await evalKernelManager.disposeAll()
   cleanup()

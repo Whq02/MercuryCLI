@@ -31,7 +31,7 @@ async function main(): Promise<void> {
     check(
       'resetMicrocompactState is owner-parameterized',
       mc.resetMicrocompactState.length >= 1,
-      `arity ${mc.resetMicrocompactState.length} — resetMicrocompactState() in src/services/compact/microCompact.ts must take the owner whose state it resets`,
+      `arity ${mc.resetMicrocompactState.length}`,
     )
   }
 
@@ -42,9 +42,8 @@ async function main(): Promise<void> {
     check(
       'releaseLspDocumentsForContext returns a Promise (awaitable sweep)',
       returned instanceof Promise,
-      'releaseLspDocumentsForContext() in src/services/lsp/manager.ts must return the promise of its sweep so a caller can await it',
     )
-    check('no-manager release resolves 0', (await (returned as Promise<number>)) === 0, 'with no LSP manager running, releaseLspDocumentsForContext() in src/services/lsp/manager.ts must resolve 0')
+    check('no-manager release resolves 0', (await (returned as Promise<number>)) === 0)
   }
 
   section('3. context epochs — owner-scoped, explicit, guarded')
@@ -52,7 +51,7 @@ async function main(): Promise<void> {
     const epochs = await import('../../src/services/run/contextEpochs.js')
     const A = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ep-A', lane: 'main' })
     const B = ok.makeOwnerKey({ workspace: '/tmp/w', sessionId: 'ep-B', lane: 'main' })
-    check('fresh owner starts at epoch 0', epochs.getContextEpoch(A).epoch === 0, 'a fresh owner must read epoch 0; check getContextEpoch() in src/services/run/contextEpochs.ts')
+    check('fresh owner starts at epoch 0', epochs.getContextEpoch(A).epoch === 0)
     const e1 = epochs.advanceContextEpoch(A, {
       kind: 'auto-compact',
       reason: 'threshold',
@@ -61,13 +60,12 @@ async function main(): Promise<void> {
       preservedTailCount: 12,
       capsule: { state: 'installed', reason: 'summary + capsule' },
     })
-    check('advance is monotonic', e1 === 1 && epochs.getContextEpoch(A).epoch === 1, 'advanceContextEpoch() in src/services/run/contextEpochs.ts must raise the owner epoch by one and return it')
-    check("B's epoch is untouched by A's compaction", epochs.getContextEpoch(B).epoch === 0, 'epochs must be kept per owner; check advanceContextEpoch() and getContextEpoch() in src/services/run/contextEpochs.ts')
+    check('advance is monotonic', e1 === 1 && epochs.getContextEpoch(A).epoch === 1)
+    check("B's epoch is untouched by A's compaction", epochs.getContextEpoch(B).epoch === 0)
     check(
       'the transition records honest token deltas',
       epochs.getContextEpoch(A).lastTransition?.tokensBefore === 180_000 &&
         epochs.getContextEpoch(A).lastTransition?.tokensAfter === 30_000,
-      'the lastTransition recorded by advanceContextEpoch() in src/services/run/contextEpochs.ts must carry the tokensBefore and tokensAfter it was given',
     )
     let staleRan = false
     let currentRan = false
@@ -84,8 +82,8 @@ async function main(): Promise<void> {
     epochs.ifEpochCurrent(A, 2, () => {
       currentRan = true
     })
-    check('a stale sweep (older epoch) is dropped', !staleRan, 'ifEpochCurrent() in src/services/run/contextEpochs.ts must skip the callback when the captured epoch is older than the owner epoch')
-    check('a current-epoch sweep runs', currentRan, 'ifEpochCurrent() in src/services/run/contextEpochs.ts must run the callback when the captured epoch equals the owner epoch')
+    check('a stale sweep (older epoch) is dropped', !staleRan)
+    check('a current-epoch sweep runs', currentRan)
     epochs.advanceContextEpoch(A, {
       kind: 'auto-compact',
       reason: 'threshold',
@@ -98,7 +96,6 @@ async function main(): Promise<void> {
     check(
       'a degraded continuation is marked on the epoch record',
       state.capsule.state === 'degraded' && state.degraded.length > 0,
-      'advanceContextEpoch() in src/services/run/contextEpochs.ts must keep a degraded capsule state and its reason on the epoch record',
     )
   }
 
@@ -111,13 +108,11 @@ async function main(): Promise<void> {
     check(
       'no run ⇒ null capsule (lightweight conversations compact as before)',
       capsuleMod.buildRunContinuationCapsule(owner) === null,
-      'buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must return null for an owner with no run',
     )
     coordinator.acceptUserRequest(owner, { objective: 'build the compiler', rootMessageId: 'u1' })
     check(
       'a non-substantive run still yields null (no run chrome for Q&A)',
       capsuleMod.buildRunContinuationCapsule(owner) === null,
-      'buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must return null until the run has a substantive event',
     )
     coordinator.noteRunEvent(owner, { type: 'substantive', at: 2, reason: 'edits landed' })
     coordinator.noteRunEvent(owner, {
@@ -137,11 +132,11 @@ async function main(): Promise<void> {
       changedPaths: [],
     })
     const capsule = capsuleMod.buildRunContinuationCapsule(owner, ['/tmp/w/a.ts', '/tmp/w/b.ts'])
-    check('capsule exists for a substantive run', capsule !== null, 'buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts returned null for a run with a substantive event')
-    check('capsule carries the objective', capsule!.includes('build the compiler'), `capsule was ${capsule}; buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must print the run objective`)
-    check('capsule lists the open deliverable', capsule!.includes('write the parser'), `capsule was ${capsule}; buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must list open tasks`)
-    check('capsule records the failed attempt', /lsp\.rename\.apply: failed/.test(capsule!), `capsule was ${capsule}; buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must list failed tool attempts as operation: outcome`)
-    check('capsule references re-readable files (no contents pasted)', capsule!.includes('/tmp/w/a.ts'), `capsule was ${capsule}; buildRunContinuationCapsule() in src/services/run/runContinuationCapsule.ts must list the file paths it is given`)
+    check('capsule exists for a substantive run', capsule !== null)
+    check('capsule carries the objective', capsule!.includes('build the compiler'))
+    check('capsule lists the open deliverable', capsule!.includes('write the parser'))
+    check('capsule records the failed attempt', /lsp\.rename\.apply: failed/.test(capsule!))
+    check('capsule references re-readable files (no contents pasted)', capsule!.includes('/tmp/w/a.ts'))
   }
 
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

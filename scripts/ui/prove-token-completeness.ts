@@ -6,8 +6,6 @@ import type { SnapshotState } from '../../src/utils/cockpit/types.js'
 import { TERRA } from '../../src/components/mercuryPalette.js'
 
 let fail = 0
-const tokenHint = 'fix resolveMercuryTokens in src/utils/mercuryTokens.ts for the family named in the label'
-const styleHint = 'fix stateStyleOf or gaugeColorOf in src/components/mercury-ui/theme.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) fail = 1
@@ -22,13 +20,13 @@ for (const family of THEME_NAMES) {
   const tok = resolveMercuryTokens(family, TERRA)
 
   const empties = listUnresolvedTokenRoles(tok)
-  t(`${family}: every semantic role maps to a nonempty value`, empties.length === 0, empties.join(',') + '. ' + tokenHint + ' (the roles listed are the unresolved ones; listUnresolvedTokenRoles is in the same file)')
+  t(`${family}: every semantic role maps to a nonempty value`, empties.length === 0, empties.join(','))
   const ramps = Object.entries(tok.spectral)
   t(
     `${family}: every spectral ramp has at least one usable stop`,
     ramps.length === 5 &&
       ramps.every(([, ramp]) => ramp.length >= 1 && ramp.every(stop => typeof stop === 'string' && stop.length > 0)),
-    ramps.map(([k, ramp]) => `${k}:${ramp.length}`).join(' ') + '. ' + tokenHint + ' so the spectral field has 5 ramps with at least one stop each',
+    ramps.map(([k, ramp]) => `${k}:${ramp.length}`).join(' '),
   )
 
   const seen = new Map<string, SnapshotState>()
@@ -41,8 +39,8 @@ for (const family of THEME_NAMES) {
     if (seen.has(key)) collided = `${seen.get(key)} vs ${st}`
     seen.set(key, st)
   }
-  t(`${family}: every state colours nonempty`, colorless === 0, `${colorless} blank. ${styleHint} so every state returns a color`)
-  t(`${family}: states stay distinct with colour stripped (glyph+label unique)`, collided === '', collided + '. ' + styleHint + ' so each state has its own glyph and label')
+  t(`${family}: every state colours nonempty`, colorless === 0, `${colorless} blank`)
+  t(`${family}: states stay distinct with colour stripped (glyph+label unique)`, collided === '', collided)
 
   t(
     `${family}: gauge ramp = success<80 · warning<95 · failure>=95`,
@@ -50,13 +48,11 @@ for (const family of THEME_NAMES) {
       gaugeColorOf(tok, 80) === tok.warning &&
       gaugeColorOf(tok, 94) === tok.warning &&
       gaugeColorOf(tok, 95) === tok.failure,
-    'gauge 79 reads ' + gaugeColorOf(tok, 79) + ', 80 ' + gaugeColorOf(tok, 80) + ', 94 ' + gaugeColorOf(tok, 94) + ', 95 ' + gaugeColorOf(tok, 95) + '. ' + styleHint + ' (thresholds 80 and 95)',
   )
 
   t(
     `${family}: 8 agent accents resolve nonempty`,
     tok.agentAccents.length === 8 && tok.agentAccents.every(a => a.color && a.name),
-    tokenHint + ' so agentAccents holds 8 entries with a color and a name',
   )
 }
 

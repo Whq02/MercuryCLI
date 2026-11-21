@@ -59,7 +59,7 @@ section('§1 · gate polarity')
   delete process.env.MERCURY_LSP
   delete process.env.MERCURY_LSP_CPP
   _resetClangdProbeCacheForTesting()
-  check('default (stamped build): cpp lane gate is ON', mercuryLspCppEnabled(), 'mercuryLspCppEnabled in src/services/lsp/clangdLane.ts must be true when neither MERCURY_LSP nor MERCURY_LSP_CPP is set; check the MERCURY_LSP_CPP default-on row in src/substrate/flags/ide.ts')
+  check('default (stamped build): cpp lane gate is ON', mercuryLspCppEnabled(), 'mercuryLspCppEnabled in src/services/lsp/clangdLane.ts must be true when neither MERCURY_LSP nor MERCURY_LSP_CPP is set; check the MERCURY_LSP_CPP default-on row in FLAG_REGISTRY')
   check(
     'default: builtin sources carry mercury-clangd',
     MERCURY_CLANGD_SERVER_NAME in getMercuryLspServerSources().builtin,
@@ -253,7 +253,7 @@ section('§6 · registry honesty')
     "flagRegistry: MERCURY_LSP_CPP row (default-on, this proof as evidence)",
     cppRow !== undefined &&
       cppRow.evidence === 'scripts/lsp/prove-clangd-lane.ts',
-    'the MERCURY_LSP_CPP row in src/substrate/flags/ide.ts must exist with evidence set to scripts/lsp/prove-clangd-lane.ts',
+    'the MERCURY_LSP_CPP row in FLAG_REGISTRY must exist with evidence set to scripts/lsp/prove-clangd-lane.ts',
   )
 }
 

@@ -13,7 +13,7 @@ const ARMED_FIX = 'change blenderBridgeEnabled in src/utils/blender/bridgeGates.
 const CATALOG_FIX = 'change blenderBridgeToolCatalogEnabled in src/utils/blender/bridgeGates.ts'
 const PORT_FIX = 'change blenderBridgePort in src/utils/blender/bridgeGates.ts'
 const OVERRIDE_FIX = 'change blenderBridgeTokenOverride or blenderBridgeAddonDirOverride in src/utils/blender/bridgeGates.ts'
-const ROW_FIX = 'change the MERCURY_BLENDER* rows in src/substrate/flags/ide.ts'
+const ROW_FIX = 'change the MERCURY_BLENDER* rows in FLAG_REGISTRY'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }

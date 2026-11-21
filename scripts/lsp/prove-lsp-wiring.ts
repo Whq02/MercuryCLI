@@ -66,7 +66,7 @@ function check(name: string, ok: boolean, detail?: string): void {
   check(
     'the flag registry carries MERCURY_LSP + MERCURY_LSP_SERVERS',
     getFlagSpec('MERCURY_LSP') !== undefined && getFlagSpec('MERCURY_LSP_SERVERS') !== undefined,
-    'register the missing flag in src/substrate/flagRegistry.ts',
+    'register the missing flag in the flag registry (FLAG_REGISTRY)',
   )
 }
 

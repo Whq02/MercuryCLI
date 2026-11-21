@@ -2,7 +2,7 @@
 (globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const querierFixHint = 'fix TerminalQuerier.settled, whenSettled or terminalQuerySettleMs in src/ink/session/querier.ts (the flag row is in src/substrate/flagRegistry.ts)'
+const querierFixHint = 'fix TerminalQuerier.settled, whenSettled or terminalQuerySettleMs in src/ink/session/querier.ts (the flag row is in the flag registry (FLAG_REGISTRY))'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${querierFixHint}` : ''}`)

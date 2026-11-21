@@ -21,7 +21,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
-  if (!ok) console.log('    what to change: make the allowance match this label in src/services/browser/session/owners.ts (browserSessionCap), src/services/browser/session/launch.ts (ensureBrowserSession refusal), src/tools/BrowserTool/browser/page.ts (the status line), the Session lifetime manual in src/tools/BrowserTool/BrowserTool.ts, or the MERCURY_BROWSER_MAX_SESSIONS row in src/substrate/flags/desktop.ts')
+  if (!ok) console.log('    what to change: make the allowance match this label in src/services/browser/session/owners.ts (browserSessionCap), src/services/browser/session/launch.ts (ensureBrowserSession refusal), src/tools/BrowserTool/browser/page.ts (the status line), the Session lifetime manual in src/tools/BrowserTool/BrowserTool.ts, or the MERCURY_BROWSER_MAX_SESSIONS row in FLAG_REGISTRY')
 }
 
 class Child extends EventEmitter {

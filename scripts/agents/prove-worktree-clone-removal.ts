@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' · ' : '') + 'change worktree removal (cleanupWorktree, cleanupStaleAgentWorktrees, which sweeps .removing- trees) in src/services/worktree.ts, setWorktreeAside, discardSetAside and sweepSetAside in src/utils/worktreeClone.ts, or reapWorkerWorktree in src/daemon/concourseWorktrees.ts' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

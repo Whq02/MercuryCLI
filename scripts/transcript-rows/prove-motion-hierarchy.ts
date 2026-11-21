@@ -22,9 +22,9 @@ import {
 } from '../../src/utils/cockpit/typingActivity.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = '', hint = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — fix: ${hint}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -35,26 +35,20 @@ check(
   'FOCAL divides the truth lattice (every 160 edge IS an 80 edge)',
   WORK_TICK_MS % FOCAL_TICK_MS === 0,
   `${WORK_TICK_MS} % ${FOCAL_TICK_MS}`,
-  'set WORK_TICK_MS and FOCAL_TICK_MS in src/utils/cockpit/liveGlyphs.ts so WORK_TICK_MS is a whole multiple of FOCAL_TICK_MS',
 )
 check(
   'DECOR is a multiple of the truth lattice (every 320 edge IS a 160 edge)',
   DECOR_TICK_MS % WORK_TICK_MS === 0,
   `${DECOR_TICK_MS} % ${WORK_TICK_MS}`,
-  'set DECOR_TICK_MS and WORK_TICK_MS in src/utils/cockpit/liveGlyphs.ts so DECOR_TICK_MS is a whole multiple of WORK_TICK_MS',
 )
-check('TWINKLE rides the DECOR tick', TWINKLE_TICK_MS === DECOR_TICK_MS, `${TWINKLE_TICK_MS} vs ${DECOR_TICK_MS}`, 'make TWINKLE_TICK_MS equal DECOR_TICK_MS in src/utils/cockpit/liveGlyphs.ts')
+check('TWINKLE rides the DECOR tick', TWINKLE_TICK_MS === DECOR_TICK_MS)
 check(
   'READY sampling is lattice-nested (160 or a nested multiple)',
   READY_TICK_MS % WORK_TICK_MS === 0 || WORK_TICK_MS % READY_TICK_MS === 0,
-  `${READY_TICK_MS} vs ${WORK_TICK_MS}`,
-  'make READY_TICK_MS a multiple or divisor of WORK_TICK_MS in src/utils/cockpit/liveGlyphs.ts',
 )
 check(
   'focal sampling of the WORK rotation stays frame-0 static at t=0',
   workGlyphForTime(0) === WORK_FRAMES[0],
-  `got ${workGlyphForTime(0)}`,
-  'workGlyphForTime(0) must return WORK_FRAMES[0]; check the index math in src/utils/cockpit/liveGlyphs.ts',
 )
 
 section('the GLOW greeting joins the lattice')
@@ -64,20 +58,15 @@ section('the GLOW greeting joins the lattice')
     'the greeting samples on the FOCAL lane (nested by construction)',
     shim.SHIMMER_TICK_MS === FOCAL_TICK_MS,
     `${shim.SHIMMER_TICK_MS}`,
-    'make SHIMMER_TICK_MS in src/utils/cockpit/greetingShimmer.ts equal FOCAL_TICK_MS from liveGlyphs.ts',
   )
   check(
     'the greeting is TRANSIENT: the phase law reaches its terminal token at the window',
     shim.shimmerPhaseKey(shim.SHIMMER_GREETING_MS, 27) === shim.SHIMMER_SETTLED &&
       shim.shimmerPhaseKey(shim.SHIMMER_GREETING_MS * 10, 27) === shim.SHIMMER_SETTLED,
-    '',
-    'shimmerPhaseKey in src/utils/cockpit/greetingShimmer.ts must return SHIMMER_SETTLED once elapsed reaches SHIMMER_GREETING_MS',
   )
   check(
     'frame 0 is the settled cell (gain 0 parses to a null phase)',
     shim.shimmerPhaseOf(shim.shimmerPhaseKey(0, 27), 27) === null,
-    '',
-    'shimmerPhaseKey(0, ...) must map to a key that shimmerPhaseOf parses to null, in src/utils/cockpit/greetingShimmer.ts',
   )
 }
 
@@ -86,7 +75,6 @@ check(
   'the glint outlives one DECOR sample (a 320ms sampler can never skip it)',
   TWINKLE_MS > DECOR_TICK_MS,
   `${TWINKLE_MS} > ${DECOR_TICK_MS}`,
-  'make TWINKLE_MS longer than DECOR_TICK_MS in src/utils/cockpit/liveGlyphs.ts, or the glint can fall between two decor samples',
 )
 {
   let allPhasesSee = true
@@ -97,7 +85,7 @@ check(
     }
     if (!saw) allPhasesSee = false
   }
-  check('every sampler phase sees the glint at least once per cycle', allPhasesSee, '', 'twinkleBright / TWINKLE_CYCLE / TWINKLE_MS in src/utils/cockpit/liveGlyphs.ts leave a sampling phase that never sees the glint')
+  check('every sampler phase sees the glint at least once per cycle', allPhasesSee)
 }
 {
   let minRun = Infinity
@@ -115,22 +103,21 @@ check(
     `READY bucket dwell ≥ its own tick (no rendered step skipped)`,
     minRun >= READY_TICK_MS,
     `min dwell ${minRun}ms ≥ ${READY_TICK_MS}`,
-    'readyBucket changes faster than READY_TICK_MS; adjust READY_PERIOD, READY_BUCKETS or READY_TICK_MS in src/utils/cockpit/liveGlyphs.ts',
   )
-  check(`READY buckets sane`, READY_BUCKETS >= 3, `${READY_BUCKETS}`, 'raise READY_BUCKETS to at least 3 in src/utils/cockpit/liveGlyphs.ts')
+  check(`READY buckets sane`, READY_BUCKETS >= 3)
 }
 
 section('typingActivity — the decor pause store')
 {
   __typingActivityResetForTest()
-  check('initially not typing', isTypingActive() === false, '', '__typingActivityResetForTest in src/utils/cockpit/typingActivity.ts must clear typingActive')
+  check('initially not typing', isTypingActive() === false)
   let notifications = 0
   const unsub = subscribeTypingActivity(() => notifications++)
   markTypingActivity()
-  check('keystroke ⇒ typing active', isTypingActive() === true, '', 'markTypingActivity in src/utils/cockpit/typingActivity.ts must set typingActive')
-  check('subscribers notified on the false→true edge', notifications === 1, `${notifications} notifications`, 'markTypingActivity in src/utils/cockpit/typingActivity.ts must call notify once on the false-to-true edge')
+  check('keystroke ⇒ typing active', isTypingActive() === true)
+  check('subscribers notified on the false→true edge', notifications === 1)
   markTypingActivity()
-  check('repeat keystrokes do not re-notify (edge-triggered)', notifications === 1, `${notifications} notifications`, 'markTypingActivity in src/utils/cockpit/typingActivity.ts must notify only when typingActive flips')
+  check('repeat keystrokes do not re-notify (edge-triggered)', notifications === 1)
   const flipped = await new Promise<boolean>(resolve => {
     const deadline = setTimeout(() => resolve(false), TYPING_HOLD_MS + 1000)
     const un2 = subscribeTypingActivity(() => {
@@ -141,9 +128,9 @@ section('typingActivity — the decor pause store')
       }
     })
   })
-  check(`typing releases ~${TYPING_HOLD_MS}ms after the last keystroke`, flipped, '', 'the hold timer in markTypingActivity (src/utils/cockpit/typingActivity.ts) did not clear typingActive and notify within TYPING_HOLD_MS + 1000ms')
-  check('post-release snapshot is false', isTypingActive() === false, '', 'the hold timer in src/utils/cockpit/typingActivity.ts must set typingActive back to false')
-  check('release notified subscribers', notifications === 2, `${notifications} notifications`, 'the hold timer in src/utils/cockpit/typingActivity.ts must call notify on release')
+  check(`typing releases ~${TYPING_HOLD_MS}ms after the last keystroke`, flipped)
+  check('post-release snapshot is false', isTypingActive() === false)
+  check('release notified subscribers', notifications === 2)
   unsub()
   __typingActivityResetForTest()
 }

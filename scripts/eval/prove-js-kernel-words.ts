@@ -97,7 +97,8 @@ try {
   hintedCheck('the segments still join back to the source byte for byte', splitTopLevelSegments(mixed).map(s => s.text).join('') === mixed, undefined, 'splitTopLevelSegments in src/services/eval/jsCellTransform.ts dropped or added text')
   const dense = 'for(var p of [1]){for(var r of [2]){}}var hookCount=0;var cohort=[];for(var cp of [1]){var parts=1}var trims=[]'
   const t2 = transformJsCell(dense)
-  check("the record's shape: a var after a nested loop's braces is read, and so are the hoisted vars of a for head and a loop body — never the of/in keyword", JSON.stringify(t2.persistedNames) === JSON.stringify(['p', 'r', 'hookCount', 'cohort', 'cp', 'parts', 'trims']), JSON.stringify(t2.persistedNames), 'fix the declared-name reader in transformJsCell in src/services/eval/jsCellTransform.ts')
+  const shapeRead = JSON.stringify(t2.persistedNames) === JSON.stringify(['p', 'r', 'hookCount', 'cohort', 'cp', 'parts', 'trims'])
+  check("the record's shape: a var after a nested loop's braces is read, and so are the hoisted vars of a for head and a loop body — never the of/in keyword", shapeRead, shapeRead ? JSON.stringify(t2.persistedNames) : `${JSON.stringify(t2.persistedNames)} — fix the declared-name reader in transformJsCell in src/services/eval/jsCellTransform.ts`)
   const t3 = transformJsCell('const s = `a${1}b`\nconst tpl = `${[1].map(v => `${v}`)}`var notSplit = 1')
   hintedCheck('a brace closing a template interpolation never ends a segment', t3.code.includes('`${[1].map(v => `${v}`)}`var notSplit') , t3.code, 'splitTopLevelSegments in src/services/eval/jsCellTransform.ts must track template interpolation depth')
 

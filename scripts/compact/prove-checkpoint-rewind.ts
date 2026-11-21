@@ -194,7 +194,7 @@ section('§D the machine, called + registry pins (structural)', '')
     t.reasonOf(closed.decision) === 'hand_over next_turn' && recordAt !== -1 && steerAt !== -1 && recordAt < steerAt && keptForTheModel,
     `after a settled Rewind with a line queued: ${t.reasonOf(closed.decision)}, the record at row ${recordAt}, the operator's line at row ${steerAt} of ${round.length}, the line in the model's view: ${keptForTheModel} — afterTools of src/run-core/turn/afterTools.ts adds the rewind record to the round before it drains the queue, so the line stands after the record and outside the rewound window`,
   )
-  check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined, 'add the MERCURY_CHECKPOINT_REWIND row to the flag list in src/substrate/flags/tools.ts')
+  check('MERCURY_CHECKPOINT_REWIND carries its registry row', getFlagSpec('MERCURY_CHECKPOINT_REWIND') !== undefined, 'add the MERCURY_CHECKPOINT_REWIND row to the flag list in FLAG_REGISTRY')
 }
 
 console.log('\n' + '='.repeat(60))

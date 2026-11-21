@@ -133,14 +133,14 @@ try {
   check(
     "registry: MERCURY_LSP is default-on/behavioral with evidence",
     !!lspRow && lspRow.kind === 'default-on' && lspRow.tier === 'behavioral' && !!lspRow.evidence,
-    'the MERCURY_LSP row in FLAG_REGISTRY (src/substrate/flagRegistry.ts) needs kind default-on, tier behavioral and an evidence path',
+    'the MERCURY_LSP row in FLAG_REGISTRY needs kind default-on, tier behavioral and an evidence path',
   )
   check(
     'registry: evidence artifact exists on disk',
     !!lspRow?.evidence && existsSync(path.resolve(import.meta.dir, '../..', lspRow.evidence)),
-    `${lspRow?.evidence ?? 'no evidence'} (the evidence path of the MERCURY_LSP row in src/substrate/flagRegistry.ts must name a file that exists in the repo)`,
+    `${lspRow?.evidence ?? 'no evidence'} (the evidence path of the MERCURY_LSP row in the flag registry (FLAG_REGISTRY) must name a file that exists in the repo)`,
   )
-  check("registry: MERCURY_LSP_SERVERS is a value knob", !!serversRow && serversRow.kind === 'value', 'FLAG_REGISTRY in src/substrate/flagRegistry.ts needs a MERCURY_LSP_SERVERS row with kind value')
+  check("registry: MERCURY_LSP_SERVERS is a value knob", !!serversRow && serversRow.kind === 'value', 'FLAG_REGISTRY in the flag registry needs a MERCURY_LSP_SERVERS row with kind value')
 } finally {
   restore()
 }

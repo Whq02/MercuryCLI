@@ -26,7 +26,7 @@ const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 
 let failures = 0
 const CAP_POSTURE_FAIL_HINT =
-  'fix the code this check exercises, not the check: the posture, return and candidate decisions (resolveCapPosture, decideCapAction, decideCapReturn, deriveCapFailoverCandidates, observedFamilyWindow, laneSpendPosture, capLaneLineWords, failoverLineMs, noteCapHandoff) in src/services/capFailover.ts; the mock limits seam in src/services/mockRateLimits.ts; header parsing in src/services/anthropicLimits.ts; the boot menu row in src/substrate/startupMenu.ts; the flag consumers in src/substrate/flagRegistry.ts'
+  'fix the code this check exercises, not the check: the posture, return and candidate decisions (resolveCapPosture, decideCapAction, decideCapReturn, deriveCapFailoverCandidates, observedFamilyWindow, laneSpendPosture, capLaneLineWords, failoverLineMs, noteCapHandoff) in src/services/capFailover.ts; the mock limits seam in src/services/mockRateLimits.ts; header parsing in src/services/anthropicLimits.ts; the boot menu row in src/substrate/startupMenu.ts; the flag consumers in the flag registry (FLAG_REGISTRY)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(

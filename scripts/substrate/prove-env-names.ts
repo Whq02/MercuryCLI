@@ -9,7 +9,7 @@ const J = (...parts: string[]): string => parts.join('')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  const envNamesHint = 'fix the module the check reads: flag rows in src/substrate/flagRegistry.ts (section 1), shell timeouts in src/utils/timeouts.ts (2), output cap in src/utils/shell/outputLimits.ts (3), SAFE_ENV_VARS and isProviderManagedEnvVar in src/utils/managedEnvConstants.ts (4), the CI scrub in src/utils/subprocessEnv.ts (5)'
+  const envNamesHint = 'fix the module the check reads: flag rows in the flag registry (FLAG_REGISTRY) (section 1), shell timeouts in src/utils/timeouts.ts (2), output cap in src/utils/shell/outputLimits.ts (3), SAFE_ENV_VARS and isProviderManagedEnvVar in src/utils/managedEnvConstants.ts (4), the CI scrub in src/utils/subprocessEnv.ts (5)'
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ' — ' + detail : '') : ` — ${detail ? detail + ' | ' : ''}${envNamesHint}`}`)
   if (!cond) failures++
 }

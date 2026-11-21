@@ -468,7 +468,7 @@ await keepWorktree()
 
 section('§8 the pages say what the code does')
 const cloneSwitch = getFlagSpec('MERCURY_WORKTREE_CLONE')
-check('the flag registry names the switch as the one the page gives a user, the two other values as proof seams', cloneSwitch !== undefined && cloneSwitch.summary.includes('the switch docs/CREW.md names for a user who wants the links, and the road a proof reads on a volume that can; proof seams: `files` takes') && cloneSwitch.retirement === 'permanent (a product switch; `files` and `cp` are proof seams)', 'the MERCURY_WORKTREE_CLONE entry in src/substrate/flags/project.ts must carry the summary and retirement this check reads')
+check('the flag registry names the switch as the one the page gives a user, the two other values as proof seams', cloneSwitch !== undefined && cloneSwitch.summary.includes('the switch docs/CREW.md names for a user who wants the links, and the road a proof reads on a volume that can; proof seams: `files` takes') && cloneSwitch.retirement === 'permanent (a product switch; `files` and `cp` are proof seams)', 'the MERCURY_WORKTREE_CLONE entry in FLAG_REGISTRY must carry the summary and retirement this check reads')
 
 enter(ROOT)
 for (const folder of [join(unreadable, 'node_modules', 'sealed')]) {

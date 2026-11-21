@@ -16,17 +16,15 @@ try {
 } catch {
   threw = true
 }
-t('real Bash namer on a non-string command degrades, never throws', !threw, 'safeUserFacingName in src/Tool.ts must catch a throwing userFacingName and return the fallback')
+t('real Bash namer on a non-string command degrades, never throws', !threw)
 t('degraded name is the fallback', named === 'Bash', `got ${JSON.stringify(named)}`)
 t(
   'empty-string chrome opt-out passes through',
   safeUserFacingName({ name: 'x', userFacingName: () => '' }, {}) === '',
-  'safeUserFacingName in src/Tool.ts must return an empty userFacingName result as is, not fall back (use ?? not ||)',
 )
 t(
   'absent namer falls back to the tool name',
   safeUserFacingName({ name: 'x' }, {}) === 'x',
-  'safeUserFacingName in src/Tool.ts must return tool.name when the tool has no userFacingName',
 )
 
 const { ProgressBar } = await import('../../src/components/design-system/ProgressBar.tsx')
@@ -37,7 +35,7 @@ for (const width of [-3, -1, 0, Number.NaN]) {
   } catch {
     barThrew = true
   }
-  t(`ProgressBar renders at width ${width} without throwing`, !barThrew, 'ProgressBar in src/components/design-system/ProgressBar.tsx must clamp a zero, negative or NaN width instead of throwing')
+  t(`ProgressBar renders at width ${width} without throwing`, !barThrew)
 }
 
 const { detectGitOperation } = await import('../../src/tools/shared/gitOperationTracking.ts')
@@ -45,7 +43,7 @@ const pathological = 'a..'.repeat(50_000)
 const startedAt = performance.now()
 detectGitOperation('git push origin main', pathological)
 const elapsedMs = performance.now() - startedAt
-t('pathological push output scans promptly', elapsedMs < 2000, `${Math.round(elapsedMs)}ms — detectGitOperation in src/tools/shared/gitOperationTracking.ts matches the push output with PUSH_REF_UPDATE_LINE; that pattern must stay linear on long input`)
+t('pathological push output scans promptly', elapsedMs < 2000, `${Math.round(elapsedMs)}ms`)
 const realPush = detectGitOperation(
   'git push origin main',
   'To github.com:acme/widget.git\n   ab12cd3..ef45ab6  main -> main\n',
@@ -53,7 +51,7 @@ const realPush = detectGitOperation(
 t(
   'a real ref-update line still reads as a push',
   (realPush as { push?: { branch?: string } }).push?.branch === 'main',
-  JSON.stringify(realPush) + ' — detectGitOperation in src/tools/shared/gitOperationTracking.ts must still parse a "ab12cd3..ef45ab6  main -> main" ref-update line into push.branch',
+  JSON.stringify(realPush),
 )
 
 process.exit(failures)

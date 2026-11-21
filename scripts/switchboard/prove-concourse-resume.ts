@@ -268,7 +268,7 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
 
 console.log('C — the renames: the idle knob speaks the session estate; the accent module says the screen; the in-process connector is gone')
 {
-  failHint = 'the knobs are read by concourseIdleRetireMs and concourseNewbornGraceMs in src/daemon/idleRetirement.ts and registered in FLAG_REGISTRY in src/substrate/flagRegistry.ts'
+  failHint = 'the knobs are read by concourseIdleRetireMs and concourseNewbornGraceMs in src/daemon/idleRetirement.ts and registered in FLAG_REGISTRY in the flag registry'
   const CANON = 'MERCURY_SESSION_IDLE_RETIRE_MINUTES'
   const OLD = 'MERCURY_CONCOURSE_' + 'IDLE_RETIRE_MINUTES'
   const saved = { canon: process.env[CANON], old: process.env[OLD] }

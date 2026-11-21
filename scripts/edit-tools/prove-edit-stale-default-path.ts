@@ -193,7 +193,7 @@ section('§5 the off arm is the pre-law surface exactly; validate agrees with ca
 section('§6 the wiring, structural')
 {
   const recoveryRow = getFlagSpec('MERCURY_EDIT_STALE_RECOVERY')
-  check('the flag row stands with its off arm', recoveryRow !== undefined && recoveryRow.off.includes('pre-law build exactly'), 'MERCURY_EDIT_STALE_RECOVERY needs a row whose off text says "pre-law build exactly"; edit it in src/substrate/flags/project.ts')
+  check('the flag row stands with its off arm', recoveryRow !== undefined && recoveryRow.off.includes('pre-law build exactly'), 'MERCURY_EDIT_STALE_RECOVERY needs a row whose off text says "pre-law build exactly"; edit it in FLAG_REGISTRY')
 }
 
 console.log('\n' + '='.repeat(60))

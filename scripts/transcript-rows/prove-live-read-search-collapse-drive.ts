@@ -183,7 +183,7 @@ try {
       check(`${tag}: the complete journey reached ready`, cap.code === 0, `the capture run did not exit 0; rerun with --frames <dir> and read capture.log there. ${cap.output}`)
       if (cap.code !== 0 || !existsSync(grid)) continue
       const payload = JSON.parse(readFileSync(grid, 'utf8')) as Payload
-      check(`${tag}: all calls executed and returned successfully`, wire.some(w => w.results.length === count && new Set(w.results.map(r => r.id)).size === count && w.results.every(r => !r.error), `the fixture server saw ${wire.length} requests and none carried all ${count} distinct successful tool results; a read, grep or bash call failed or was never sent back, see wire.json under --frames`))
+      check(`${tag}: all calls executed and returned successfully`, wire.some(w => w.results.length === count && new Set(w.results.map(r => r.id)).size === count && w.results.every(r => !r.error)), `the fixture server saw ${wire.length} requests and none carried all ${count} distinct successful tool results; a read, grep or bash call failed or was never sent back, see wire.json under --frames`)
       const replay = await run([join(ROOT, 'scripts/ui/tee-rows.py'), env.VSHOT_TEE!, String(cols), String(rows)], cwd, env)
       if (replay.code !== 0) throw new Error(replay.output)
       writeFileSync(join(dest, 'frames.jsonl'), replay.output)

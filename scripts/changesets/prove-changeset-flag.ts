@@ -28,9 +28,9 @@ console.log('── §1 registry rows ──')
   const rows = FLAG_REGISTRY as { env: string; kind?: string; tier?: string; evidence?: string }[]
   const gate = rows.find(r => r.env === 'MERCURY_CHANGESET')
   const seam = rows.find(r => r.env === 'MERCURY_CHANGESET_DIR')
-  check('MERCURY_CHANGESET is registered default-on/additive', gate?.kind === 'default-on' && gate?.tier === 'additive', `got kind ${gate?.kind} tier ${gate?.tier} | fix the MERCURY_CHANGESET row in FLAG_REGISTRY in src/substrate/flagRegistry.ts`)
-  check('the evidence path exists', typeof gate?.evidence === 'string' && existsSync(join(import.meta.dir, '..', '..', gate.evidence)), `evidence is ${gate?.evidence} | point the MERCURY_CHANGESET row in src/substrate/flagRegistry.ts at a file that exists`)
-  check('MERCURY_CHANGESET_DIR is registered as the value seam', seam?.kind === 'value', `got kind ${seam?.kind} | fix the MERCURY_CHANGESET_DIR row in FLAG_REGISTRY in src/substrate/flagRegistry.ts`)
+  check('MERCURY_CHANGESET is registered default-on/additive', gate?.kind === 'default-on' && gate?.tier === 'additive', `got kind ${gate?.kind} tier ${gate?.tier} | fix the MERCURY_CHANGESET row in FLAG_REGISTRY in the flag registry`)
+  check('the evidence path exists', typeof gate?.evidence === 'string' && existsSync(join(import.meta.dir, '..', '..', gate.evidence)), `evidence is ${gate?.evidence} | point the MERCURY_CHANGESET row in the flag registry (FLAG_REGISTRY) at a file that exists`)
+  check('MERCURY_CHANGESET_DIR is registered as the value seam', seam?.kind === 'value', `got kind ${seam?.kind} | fix the MERCURY_CHANGESET_DIR row in FLAG_REGISTRY in the flag registry`)
 }
 
 console.log('── §2 catalog byte-equivalence ──')

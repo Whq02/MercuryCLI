@@ -50,13 +50,13 @@ for (const file of tsFiles(join(ROOT, 'src'))) {
     }
   })
 }
-check(`every fs-event watcher root routes through resolveWatchRoot (${sites} sites, ${pollingSites} polling-exempt)`, offenders.length === 0, offenders.join(' · ') + ' — pass the watched path through resolveWatchRoot (src/utils/watchRoot.ts) at each listed file:line')
-check('census saw a realistic population (anti-rot: the grep still matches)', sites >= 10, `sites=${sites}; the watcher-call regexes in this census no longer match the watcher calls under src/, update them`)
+check(`every fs-event watcher root routes through resolveWatchRoot (${sites} sites, ${pollingSites} polling-exempt)`, offenders.length === 0, offenders.join(' · '))
+check('census saw a realistic population (anti-rot: the grep still matches)', sites >= 10, `sites=${sites}`)
 
 {
   const { resolveWatchRoot } = await import('../../src/utils/watchRoot.ts')
   const posixIn = '/tmp/some/root'
-  check('POSIX identity is untouched (symlink contract preserved)', resolveWatchRoot(posixIn) === posixIn, 'resolveWatchRoot in src/utils/watchRoot.ts must return a non-win32 path unchanged')
+  check('POSIX identity is untouched (symlink contract preserved)', resolveWatchRoot(posixIn) === posixIn)
   const desc = Object.getOwnPropertyDescriptor(process, 'platform')!
   Object.defineProperty(process, 'platform', { value: 'win32', configurable: true })
   try {
@@ -67,7 +67,7 @@ check('census saw a realistic population (anti-rot: the grep still matches)', si
       } catch {
         threw = true
       }
-      check(`win32 arm never throws for ${JSON.stringify(p)}`, !threw, 'resolveWatchRoot in src/utils/watchRoot.ts must catch the failure of its win32 path resolution and return the input')
+      check(`win32 arm never throws for ${JSON.stringify(p)}`, !threw)
     }
   } finally {
     Object.defineProperty(process, 'platform', desc)

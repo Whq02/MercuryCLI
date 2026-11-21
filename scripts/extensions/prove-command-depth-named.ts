@@ -49,12 +49,12 @@ console.log('§1 the buried file is a NAMED defect')
   check(
     'the contract stands: top and one-deep load',
     names.join(',') === 'depthy:sub:mid,depthy:top',
-    `${names.join(',')}; commands in the commands folder and one folder below it must load: see resolveContributions in src/extensions/load/contributions.ts`,
+    names.join(','),
   )
   check(
     'the exclusion is a defect naming the buried subtree and the one-folder contract',
     res.defects.some(d => d.includes('sub/deeper') && d.includes('one folder deep')),
-    `${res.defects.join('; ') || '(no defects)'}; a .md file nested deeper than one folder must be reported as a defect naming its subtree and the one-folder rule: see the commands walk in resolveContributions in src/extensions/load/contributions.ts`,
+    res.defects.join('; ') || '(no defects)',
   )
 }
 
@@ -62,7 +62,7 @@ console.log('\n§2 without the buried file the trees are distinguishable (contro
 {
   const root = buildTree(false, false)
   const res = contributions.resolveContributions(parsed.manifest, root, 'depthy@x', probes)
-  check('no depth defect when nothing is buried', !res.defects.some(d => d.includes('deeper')), `${res.defects.join('; ')}; the depth defect must only appear when a file is buried: see resolveContributions in src/extensions/load/contributions.ts`)
+  check('no depth defect when nothing is buried', !res.defects.some(d => d.includes('deeper')), res.defects.join('; '))
 }
 
 console.log('\n§3 an empty deep folder is not a finding')

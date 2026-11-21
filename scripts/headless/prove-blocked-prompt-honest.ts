@@ -19,7 +19,6 @@ section('§3 THE PRINT ROAD (the existing groove, pinned)')
   check(
     'a non-completed outcome answers its sentence on stderr',
     completed.stdout === 'DONE.\n' && completed.stderr === '' && failed.stdout === '' && failed.stderr.includes('the fixture says no'),
-    JSON.stringify({ completedStdout: completed.stdout, completedStderr: completed.stderr, failedStdout: failed.stdout, failedStderr: failed.stderr.slice(0, 200), hint: 'change src/cli/headless/printRunEnd.ts so a run that did not complete writes its sentence on stderr and nothing on stdout' }),
   )
   const asksToRead = { kind: 'tool_use', name: 'Read', input: { file_path: join(import.meta.dir, 'no-such-file') } } as const
   const ended = async (argv: string[]): Promise<{ exit: number | null; status: unknown }> => {
@@ -41,7 +40,7 @@ section('§3 THE PRINT ROAD (the existing groove, pinned)')
       limited.exit === exitCodeOf('turn_limit') &&
       blocked.status === 'blocked' &&
       blocked.exit === exitCodeOf('blocked'),
-    JSON.stringify({ completed: completed.status, failed: failed.status, limited, blocked, hint: 'the run exit code comes from exitCodeOf in src/rows/vocabulary.ts, applied in src/cli/headless/printRunEnd.ts; the status names turn_limit and blocked must come from the json outcome row' }),
+    JSON.stringify({ completed: completed.status, failed: failed.status, limited, blocked }),
   )
 }
 

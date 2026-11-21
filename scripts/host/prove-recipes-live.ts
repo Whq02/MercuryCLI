@@ -269,7 +269,7 @@ try {
   process.env.MERCURY_HOST_RECIPES_FILE = 'registered-spelling'
   const readsRegistered = flagEnv('MERCURY_HOST_RECIPES_FILE') === 'registered-spelling'
   delete process.env.MERCURY_HOST_RECIPES_FILE
-  check('MERCURY_HOST_RECIPES_FILE is registered and read through flagEnv, which refuses an unregistered spelling', readsRegistered && (() => { try { flagEnv('MERCURY_HOST_RECIPES_FILES'); return false } catch { return true } })(), 'register MERCURY_HOST_RECIPES_FILE in src/substrate/flagRegistry.ts and read it through flagEnv in src/services/host/recipesFile.ts')
+  check('MERCURY_HOST_RECIPES_FILE is registered and read through flagEnv, which refuses an unregistered spelling', readsRegistered && (() => { try { flagEnv('MERCURY_HOST_RECIPES_FILES'); return false } catch { return true } })(), 'register MERCURY_HOST_RECIPES_FILE in the flag registry (FLAG_REGISTRY) and read it through flagEnv in src/services/host/recipesFile.ts')
 
   const { llmhostFixture } = await import('../providers/lib/llmhostFixture.ts')
   const f = await llmhostFixture()

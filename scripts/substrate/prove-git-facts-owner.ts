@@ -23,7 +23,6 @@ async function waitUntil(cond: () => boolean, ms: number): Promise<boolean> {
   return cond()
 }
 
-const ownerFix = 'fix the git facts owner in src/utils/git.ts (getGitState, markGitTreeSuspect, _gitFactsForTesting)'
 process.env.NODE_ENV = 'test'
 const REAL_GIT = execFileSync('/bin/sh', ['-c', 'command -v git'], { encoding: 'utf8' }).trim()
 const SCRATCH = mkdtempSync(join(tmpdir(), 'git-facts-owner-'))
@@ -96,13 +95,13 @@ console.log('\n§1 two concurrent readers ⇒ one spawn set, one snapshot')
   resetMark()
   const [a, b, c] = await Promise.all([getGitState(), getGitState(), getGitState()])
   const rows = since()
-  check('three concurrent getGitState answer the live state', a !== null && a.branchName === 'main' && a.commitHash.length === 40, `${JSON.stringify(a)} — ${ownerFix}`)
-  check('the readers share ONE snapshot object', a === b && b === c, `${ownerFix}; concurrent getGitState calls must share one in-flight read`)
-  check('one status probe for three readers', countShape(rows, 'status --porcelain') === 1, `${rows.join(' | ')} — ${ownerFix}`)
-  check('one upstream probe (rev-list answers both upstream facts)', countShape(rows, 'rev-list --count @{upstream}..HEAD') === 1, `${rows.join(' | ')} — ${ownerFix}`)
-  check('no rev-parse --verify @{upstream} (the second upstream process is gone)', countShape(rows, 'rev-parse --verify') === 0, `${rows.join(' | ')} — ${ownerFix}`)
-  check('no worktree list until a lane reader demands it', countShape(rows, 'worktree list') === 0, `${rows.join(' | ')} — ${ownerFix}; getGitState must not list worktrees`)
-  check('the facts read true: an upstream exists, nothing unpushed, clean', a !== null && a.isHeadOnRemote && a.unpushedCount === 0 && a.isClean, `${JSON.stringify(a)} — ${ownerFix}`)
+  check('three concurrent getGitState answer the live state', a !== null && a.branchName === 'main' && a.commitHash.length === 40, JSON.stringify(a))
+  check('the readers share ONE snapshot object', a === b && b === c)
+  check('one status probe for three readers', countShape(rows, 'status --porcelain') === 1, rows.join(' | '))
+  check('one upstream probe (rev-list answers both upstream facts)', countShape(rows, 'rev-list --count @{upstream}..HEAD') === 1, rows.join(' | '))
+  check('no rev-parse --verify @{upstream} (the second upstream process is gone)', countShape(rows, 'rev-parse --verify') === 0)
+  check('no worktree list until a lane reader demands it', countShape(rows, 'worktree list') === 0)
+  check('the facts read true: an upstream exists, nothing unpushed, clean', a !== null && a.isHeadOnRemote && a.unpushedCount === 0 && a.isClean)
 }
 
 console.log('\n§2 an idle reader spawns nothing')
@@ -112,10 +111,10 @@ console.log('\n§2 an idle reader spawns nothing')
   for (let i = 0; i < 5; i++) {
     await sleep(120)
     const again = await getGitState()
-    if (again !== first) check('idle reads keep the snapshot identity', false, `read ${i} minted a new object — ${ownerFix}`)
+    if (again !== first) check('idle reads keep the snapshot identity', false, `read ${i} minted a new object`)
   }
-  check('five idle reads over 600 ms spawn nothing', since().length === 0, `${since().join(' | ')} — ${ownerFix}; an idle getGitState must serve the cached snapshot`)
-  check('the idle snapshot keeps its identity', (await getGitState()) === first, `${ownerFix}; an idle getGitState must return the same snapshot object`)
+  check('five idle reads over 600 ms spawn nothing', since().length === 0, since().join(' | '))
+  check('the idle snapshot keeps its identity', (await getGitState()) === first)
 }
 
 console.log('\n§3 the index moves ⇒ exactly one status probe within 2 s, one notification')
@@ -133,12 +132,12 @@ console.log('\n§3 the index moves ⇒ exactly one status probe within 2 s, one 
   const elapsed = realNow() - t0
   await sleep(300)
   const rows = since()
-  check('the owner recomputed and notified within 2 s', seen, `${elapsed} ms — ${ownerFix}; an index change under .git must reach subscribeGitFacts listeners (watch in src/utils/git/gitFilesystem.ts)`)
-  check('exactly one status probe', countShape(rows, 'status --porcelain') === 1, `${rows.join(' | ')} — ${ownerFix}`)
-  check('no upstream probe for an index move', countShape(rows, 'rev-list') === 0, `${rows.join(' | ')} — ${ownerFix}`)
-  check('exactly one notification', notified === 1, `${notified} — ${ownerFix}`)
+  check('the owner recomputed and notified within 2 s', seen, `${elapsed} ms`)
+  check('exactly one status probe', countShape(rows, 'status --porcelain') === 1, rows.join(' | '))
+  check('no upstream probe for an index move', countShape(rows, 'rev-list') === 0, rows.join(' | '))
+  check('exactly one notification', notified === 1, String(notified))
   const state = await getGitState()
-  check('the snapshot now reads dirty', state !== null && !state.isClean, `${ownerFix}; the clean verdict must be recomputed after an index change`)
+  check('the snapshot now reads dirty', state !== null && !state.isClean)
   unsub()
 }
 
@@ -152,24 +151,24 @@ console.log('\n§4 the floor: a signal inside the window dirties and arms the tr
   markGitTreeSuspect('git')
   await sleep(900)
   const opened = _gitFactsForTesting()
-  check('a signal outside the window recomputed at once and opened a new window', !opened.entries.upstream.dirty && opened.entries.upstream.notBefore > Date.now(), `${JSON.stringify(opened.entries.upstream)} — ${ownerFix}`)
+  check('a signal outside the window recomputed at once and opened a new window', !opened.entries.upstream.dirty && opened.entries.upstream.notBefore > Date.now(), JSON.stringify(opened.entries.upstream))
   resetMark()
   git(REPO, 'commit', '-qm', 'inside the window')
   await sleep(400)
   await sleep(400)
   const facts = _gitFactsForTesting()
-  check('the upstream entry is dirty and deferred (inside its floor)', facts.entries.upstream.dirty && facts.entries.upstream.notBefore > Date.now(), `${JSON.stringify(facts.entries.upstream)} — ${ownerFix}`)
-  check('the trailing recompute is armed', facts.trailingArmed, `${ownerFix}; a signal inside the floor must arm the trailing recompute`)
-  check('no upstream probe spawned inside the window', countShape(since(), 'rev-list') === 0, `${since().join(' | ')} — ${ownerFix}`)
+  check('the upstream entry is dirty and deferred (inside its floor)', facts.entries.upstream.dirty && facts.entries.upstream.notBefore > Date.now(), JSON.stringify(facts.entries.upstream))
+  check('the trailing recompute is armed', facts.trailingArmed)
+  check('no upstream probe spawned inside the window', countShape(since(), 'rev-list') === 0, since().join(' | '))
   const state = await getGitState()
   const head = git(REPO, 'rev-parse', 'HEAD')
-  check('the filesystem facts moved at once (HEAD)', state !== null && state.commitHash === head, `${ownerFix}; HEAD must be read from the filesystem facts, not deferred`)
-  check('the deferred upstream count still reads the last value (0)', state !== null && state.unpushedCount === 0, `${ownerFix}; inside the floor getGitState must keep the last upstream value`)
+  check('the filesystem facts moved at once (HEAD)', state !== null && state.commitHash === head)
+  check('the deferred upstream count still reads the last value (0)', state !== null && state.unpushedCount === 0)
   clockOffset += 61_000
   resetMark()
   const after = await getGitState()
-  check('a demand outside the window recomputes: one unpushed commit', after !== null && after.unpushedCount === 1, `${JSON.stringify(after)} — ${ownerFix}`)
-  check('exactly one upstream probe for the demand', countShape(since(), 'rev-list') === 1, `${since().join(' | ')} — ${ownerFix}`)
+  check('a demand outside the window recomputes: one unpushed commit', after !== null && after.unpushedCount === 1, JSON.stringify(after))
+  check('exactly one upstream probe for the demand', countShape(since(), 'rev-list') === 1, since().join(' | '))
   unsub()
   void notified
 }
@@ -183,19 +182,19 @@ console.log('\n§5 the seams poke the owner: a Bash git word, a mutation, a turn
   let before = _gitFactsForTesting()
   vs.observeCompletedToolCall('Bash', { command: 'git commit -m "x"' }, true, REPO, processMainOwner())
   let facts = _gitFactsForTesting()
-  check('a Bash git command dirties every spawned fact', facts.entries.upstream.dirty && facts.entries.clean.dirty && facts.entries.lanes.dirty, `${JSON.stringify(facts.entries)} — observeCompletedToolCall in src/utils/verification/verificationState.ts must call markGitTreeSuspect for a Bash git command`)
+  check('a Bash git command dirties every spawned fact', facts.entries.upstream.dirty && facts.entries.clean.dirty && facts.entries.lanes.dirty, JSON.stringify(facts.entries))
   clockOffset += 61_000
   await getGitState()
   before = _gitFactsForTesting()
-  check('a demand outside the window cleared the flags', !before.entries.upstream.dirty && !before.entries.clean.dirty, `${JSON.stringify(before.entries)} — ${ownerFix}`)
+  check('a demand outside the window cleared the flags', !before.entries.upstream.dirty && !before.entries.clean.dirty)
   vs.markMutation(processMainOwner(), [join(REPO, 'README.md')], REPO)
   facts = _gitFactsForTesting()
-  check('an Edit/Write mutation dirties the clean verdict only', facts.entries.clean.dirty && !facts.entries.upstream.dirty, `${JSON.stringify(facts.entries)} — markMutation in src/utils/verification/verificationState.ts must dirty only the clean verdict`)
+  check('an Edit/Write mutation dirties the clean verdict only', facts.entries.clean.dirty && !facts.entries.upstream.dirty, JSON.stringify(facts.entries))
   clockOffset += 61_000
   await getGitState()
   vs.markTreeSuspectAfterTurn()
   facts = _gitFactsForTesting()
-  check('a turn end dirties the clean verdict', facts.entries.clean.dirty, `${JSON.stringify(facts.entries)} — markTreeSuspectAfterTurn in src/utils/verification/verificationState.ts must dirty the clean verdict`)
+  check('a turn end dirties the clean verdict', facts.entries.clean.dirty)
 }
 
 console.log('\n§6 a faulting git speaks once and backs off 4×; a working git recovers')
@@ -211,24 +210,24 @@ console.log('\n§6 a faulting git speaks once and backs off 4×; a working git r
   markGitTreeSuspect('git')
   await sleep(900)
   const facts = _gitFactsForTesting()
-  check('every spawned fact faulted once', facts.entries.upstream.failures === 1 && facts.entries.clean.failures === 1, `${JSON.stringify(facts.entries)} — ${ownerFix}`)
-  check('the faulting entry backed off 4× the floor', facts.entries.clean.notBefore - facts.entries.clean.computedAt === 240_000, `${facts.entries.clean.notBefore - facts.entries.clean.computedAt} — ${ownerFix}; a failed probe must set notBefore to 4 times the floor`)
-  check('ONE notice speaks', facts.notice !== null && facts.notice.includes('probe failed') && gitProbeNote() === facts.notice, `${String(facts.notice)} — ${ownerFix}; gitProbeNote must return the single probe failed notice`)
+  check('every spawned fact faulted once', facts.entries.upstream.failures === 1 && facts.entries.clean.failures === 1, JSON.stringify(facts.entries))
+  check('the faulting entry backed off 4× the floor', facts.entries.clean.notBefore - facts.entries.clean.computedAt === 240_000, String(facts.entries.clean.notBefore - facts.entries.clean.computedAt))
+  check('ONE notice speaks', facts.notice !== null && facts.notice.includes('probe failed') && gitProbeNote() === facts.notice, String(facts.notice))
   const during = await getGitState()
-  check('the last good values stand while git is gone', during !== null && beforeState !== null && during.unpushedCount === beforeState.unpushedCount && during.isClean === beforeState.isClean, `${ownerFix}; a faulting git must leave the last good values in place`)
+  check('the last good values stand while git is gone', during !== null && beforeState !== null && during.unpushedCount === beforeState.unpushedCount && during.isClean === beforeState.isClean)
   markGitTreeSuspect('git')
   await sleep(900)
   const again = _gitFactsForTesting()
-  check('a second signal inside the back-off spawns no retry (failures stay 1)', again.entries.clean.failures === 1 && again.entries.upstream.failures === 1, `${JSON.stringify(again.entries)} — ${ownerFix}; a signal inside the back-off must not retry`)
-  check('the notice is still the one line', again.notice === facts.notice, `${String(again.notice)} — ${ownerFix}`)
+  check('a second signal inside the back-off spawns no retry (failures stay 1)', again.entries.clean.failures === 1 && again.entries.upstream.failures === 1, JSON.stringify(again.entries))
+  check('the notice is still the one line', again.notice === facts.notice)
   process.env.PATH = `${SHIM_DIR}:${REAL_PATH}`
   ;(gitMod.gitExe as unknown as { cache: { clear(): void } }).cache.clear()
   clockOffset += 241_000
   resetMark()
   const recovered = await getGitState()
   const post = _gitFactsForTesting()
-  check('a working git recovers on the next demand outside the back-off', recovered !== null && post.entries.clean.failures === 0 && post.entries.upstream.failures === 0, `${JSON.stringify(post.entries)} — ${ownerFix}; a successful probe must reset failures`)
-  check('the recovery spawned one probe per fact', countShape(since(), 'status --porcelain') === 1 && countShape(since(), 'rev-list') === 1, `${since().join(' | ')} — ${ownerFix}`)
+  check('a working git recovers on the next demand outside the back-off', recovered !== null && post.entries.clean.failures === 0 && post.entries.upstream.failures === 0, JSON.stringify(post.entries))
+  check('the recovery spawned one probe per fact', countShape(since(), 'status --porcelain') === 1 && countShape(since(), 'rev-list') === 1, since().join(' | '))
   unsub()
 }
 
@@ -237,10 +236,10 @@ console.log('\n§7 the lane list: one worktree list per change')
   clockOffset += 61_000
   resetMark()
   const lanes = await getGitWorktreeLanes()
-  check('the lane list reads the linked worktree', Array.isArray(lanes) && lanes.some(w => !w.isMain && w.branch === 'lane-1'), `${JSON.stringify(lanes)} — fix getGitWorktreeLanes in src/utils/git.ts`)
-  check('one worktree list process', countShape(since(), 'worktree list --porcelain') === 1, `${since().join(' | ')} — fix getGitWorktreeLanes in src/utils/git.ts`)
+  check('the lane list reads the linked worktree', Array.isArray(lanes) && lanes.some(w => !w.isMain && w.branch === 'lane-1'), JSON.stringify(lanes))
+  check('one worktree list process', countShape(since(), 'worktree list --porcelain') === 1, since().join(' | '))
   const againLanes = await getGitWorktreeLanes()
-  check('a second read spawns nothing and keeps the value', againLanes === lanes && countShape(since(), 'worktree list --porcelain') === 1, `${since().join(' | ')} — getGitWorktreeLanes in src/utils/git.ts must serve the cached lane list`)
+  check('a second read spawns nothing and keeps the value', againLanes === lanes && countShape(since(), 'worktree list --porcelain') === 1)
   let notified = 0
   const unsub = subscribeGitFacts(() => {
     notified++
@@ -250,10 +249,10 @@ console.log('\n§7 the lane list: one worktree list per change')
   git(REPO, 'worktree', 'add', '-q', '-b', 'lane-2', join(SCRATCH, 'lane-2'))
   const seen = await waitUntil(() => countShape(since(), 'worktree list --porcelain') >= 1, 2_000)
   await sleep(300)
-  check('the worktrees dir signal recomputed the list within 2 s', seen, `${ownerFix}; a change under the worktrees dir must dirty the lanes fact (watch in src/utils/git/gitFilesystem.ts)`)
-  check('exactly one worktree list process for the signal', countShape(since(), 'worktree list --porcelain') === 1, `${since().join(' | ')} — ${ownerFix}`)
+  check('the worktrees dir signal recomputed the list within 2 s', seen)
+  check('exactly one worktree list process for the signal', countShape(since(), 'worktree list --porcelain') === 1, since().join(' | '))
   const updated = await getGitWorktreeLanes()
-  check('the list now carries the new lane', Array.isArray(updated) && updated.some(w => w.branch === 'lane-2'), `${JSON.stringify(updated)} — fix getGitWorktreeLanes in src/utils/git.ts`)
+  check('the list now carries the new lane', Array.isArray(updated) && updated.some(w => w.branch === 'lane-2'))
   unsub()
   void notified
 }
@@ -262,10 +261,10 @@ console.log('\n§8 a reground drops every entry; the next read recomputes')
 {
   fsMod.regroundGitWatch()
   const facts = _gitFactsForTesting()
-  check('every entry is empty after the reground', !facts.entries.upstream.hasValue && !facts.entries.clean.hasValue && !facts.entries.lanes.hasValue, `${JSON.stringify(facts.entries)} — regroundGitWatch in src/utils/git/gitFilesystem.ts must drop every owner entry`)
+  check('every entry is empty after the reground', !facts.entries.upstream.hasValue && !facts.entries.clean.hasValue && !facts.entries.lanes.hasValue, JSON.stringify(facts.entries))
   resetMark()
   const state = await getGitState()
-  check('the next read recomputes (one spawn set)', state !== null && countShape(since(), 'status --porcelain') === 1 && countShape(since(), 'rev-list') === 1, `${since().join(' | ')} — ${ownerFix}`)
+  check('the next read recomputes (one spawn set)', state !== null && countShape(since(), 'status --porcelain') === 1 && countShape(since(), 'rev-list') === 1, since().join(' | '))
 }
 
 console.log('\n§9 the source pins')
@@ -280,10 +279,10 @@ console.log('\n§9 the source pins')
   resetMark()
   const gitContext = await healthContext()
   const freshSpawns = countShape(since(), 'status --porcelain')
-  check('/health asks for its git facts fresh: with the facts warm a plain read spawns no status and the report context spawns one', warmSpawns === 0 && freshSpawns === 1, `warm ${warmSpawns} · fresh ${freshSpawns} — healthContext in src/services/health/healthReport.ts must read git facts fresh and a plain getGitState must not`)
+  check('/health asks for its git facts fresh: with the facts warm a plain read spawns no status and the report context spawns one', warmSpawns === 0 && freshSpawns === 1, `warm ${warmSpawns} · fresh ${freshSpawns}`)
   const gitSays = await gitChecks(gitContext).find(row => row.id === 'git')?.run()
   const probeNote = noteNow()
-  check('/health demands a fresh read and prints the one notice', gitSays !== undefined && (gitContext.repo === null ? gitSays.status === 'info' || gitSays.status === 'unknown' : probeNote !== null ? gitSays.status === 'warn' && gitSays.evidence.endsWith(` · ${probeNote}`) : gitSays.status === 'ok' && gitSays.evidence.endsWith(' (getGitState)') && gitSays.evidence.includes(gitContext.repo.commitHash.slice(0, 7))), `${gitSays?.evidence} — fix the git row in src/services/health/sections/git.ts`)
+  check('/health demands a fresh read and prints the one notice', gitSays !== undefined && (gitContext.repo === null ? gitSays.status === 'info' || gitSays.status === 'unknown' : probeNote !== null ? gitSays.status === 'warn' && gitSays.evidence.endsWith(` · ${probeNote}`) : gitSays.status === 'ok' && gitSays.evidence.endsWith(' (getGitState)') && gitSays.evidence.includes(gitContext.repo.commitHash.slice(0, 7))), gitSays?.evidence)
 }
 
 Date.now = realNow

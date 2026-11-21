@@ -184,7 +184,7 @@ const resultsOf = (run: DistRun): (Envelope & { answer?: string; status?: string
 const failedOf = (results: ReturnType<typeof resultsOf>) => results.find(r => r.status !== 'completed')
 
 section('§2 — black-holed socket: the belt ends the run typed (real dist)')
-failHint = 'the unattended-turn belt is read from MERCURY_HEADLESS_IDLE_MINUTES (src/substrate/flags/session.ts) and applied in the headless turn (src/cli/headless/printTurn.ts); the run must end with a failed outcome naming the deadline and that variable; rebuild dist first'
+failHint = 'the unattended-turn belt is read from MERCURY_HEADLESS_IDLE_MINUTES (FLAG_REGISTRY) and applied in the headless turn (src/cli/headless/printTurn.ts); the run must end with a failed outcome naming the deadline and that variable; rebuild dist first'
 {
   const sockets = new Set<Socket>()
   const blackhole: NetServer = createNetServer(socket => {
@@ -250,7 +250,7 @@ failHint = 'with the belt off, MERCURY_API_TIMEOUT_MS and MERCURY_MAX_RETRIES al
 }
 
 section('§4 — mid-stream stall (hang turn): the belt fires; the abort reaches the wire')
-failHint = 'the belt (MERCURY_HEADLESS_IDLE_MINUTES, src/substrate/flags/session.ts and src/cli/headless/printTurn.ts) must abort a stalled stream once and the aborted turn must not be retried'
+failHint = 'the belt (MERCURY_HEADLESS_IDLE_MINUTES, FLAG_REGISTRY and src/cli/headless/printTurn.ts) must abort a stalled stream once and the aborted turn must not be retried'
 {
   const fixture: FixtureApi = await startFixtureApi([{ kind: 'hang', deltas: ['stall-head…'] }])
   const run = await runDistTurns(

@@ -2,10 +2,9 @@
 import sharp from 'sharp'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = '', hint = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = cond || !hint ? detail : detail ? `${detail}; ${hint}` : hint
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -45,9 +44,9 @@ for (const line of out.lines) {
     carry = s
   }
 }
-check('zero ▀ cells without an explicit fg', nakedUpper === 0, `naked=${nakedUpper}`, 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so a cell with a transparent bottom half and a painted top half sets an explicit fg before the half-block')
-check('top-silhouette cells use ▄ (lower half-block)', out.lines.some(l => l.includes('▄')), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so a cell with a transparent top half and a painted bottom half emits ▄')
-check('▄ cells carry a fg and a background: the terminal-bg reset (49) over a transparent top, the top pixel (48;2) over a painted one', out.lines.every(l => !l.includes('▄') || /(\[49m|\[48;2;[0-9;]+m)\x1b\[38;2;[0-9;]+m▄/.test(l)), '', 'change the ▄ branches of spriteToAnsi in src/services/visual/spriteToAnsi.ts so each emits a background (49 or 48;2) before the 38;2 foreground')
+check('zero ▀ cells without an explicit fg', nakedUpper === 0, `naked=${nakedUpper}`)
+check('top-silhouette cells use ▄ (lower half-block)', out.lines.some(l => l.includes('▄')))
+check('▄ cells carry a fg and a background: the terminal-bg reset (49) over a transparent top, the top pixel (48;2) over a painted one', out.lines.every(l => !l.includes('▄') || /(\[49m|\[48;2;[0-9;]+m)\x1b\[38;2;[0-9;]+m▄/.test(l)))
 
 section('B. flood matte — outside drops, fringe drops, interior white renders')
 const joined = out.lines.join('\n')
@@ -59,10 +58,10 @@ while ((m = colorRe.exec(joined)) !== null) {
   const mn = Math.min(r, g, b), mx = Math.max(r, g, b)
   if (mn >= 222 && mx - mn <= 32) paintedNearWhite++
 }
-check('interior white survives (some near-white IS painted — the chest)', paintedNearWhite > 0, `painted=${paintedNearWhite}`, 'change buildOutsideMask in src/services/visual/spriteToAnsi.ts so near-white pixels not reachable from the image edge are painted, not dropped')
-check('but bounded — the matte + fringe did NOT paint', paintedNearWhite <= 24, `painted=${paintedNearWhite}`, 'change buildOutsideMask in src/services/visual/spriteToAnsi.ts so the edge-connected near-white matte and its fringe are dropped, not painted')
+check('interior white survives (some near-white IS painted — the chest)', paintedNearWhite > 0, `painted=${paintedNearWhite}`)
+check('but bounded — the matte + fringe did NOT paint', paintedNearWhite <= 24, `painted=${paintedNearWhite}`)
 const firstLine = out.lines[0] ?? ''
-check('first row (pure matte) is all terminal-bg spaces', /^(?:\x1b\[0m )+\x1b\[0m$/.test(firstLine), JSON.stringify(firstLine).slice(0, 200), 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so a row whose two pixels are both matte emits a reset and a space')
+check('first row (pure matte) is all terminal-bg spaces', /^(?:\x1b\[0m )+\x1b\[0m$/.test(firstLine))
 
 section('C. alpha-matte sprite still clean (regression guard)')
 const px2 = Buffer.alloc(16 * 16 * 4)
@@ -75,7 +74,7 @@ for (let y = 0; y < 16; y++) {
 }
 const alphaPng = await sharp(px2, { raw: { width: 16, height: 16, channels: 4 } }).png().toBuffer()
 const out2 = await spriteToAnsi(alphaPng, 16)
-check('alpha sprite renders body cells', out2.lines.some(l => l.includes('38;2;')), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so opaque pixels of an alpha-matte sprite are painted with a 38;2 foreground')
+check('alpha sprite renders body cells', out2.lines.some(l => l.includes('38;2;')))
 check('alpha sprite has no naked-▀ cells either', out2.lines.every(l => {
   const cells = l.split('▀').slice(0, -1)
   let carry = ''
@@ -87,7 +86,7 @@ check('alpha sprite has no naked-▀ cells either', out2.lines.every(l => {
     carry = s
   }
   return true
-}), '', 'change spriteToAnsi in src/services/visual/spriteToAnsi.ts so every ▀ in an alpha-matte sprite follows an explicit 38;2 foreground')
+}))
 
 console.log('\n' + '='.repeat(60))
 if (failures > 0) {

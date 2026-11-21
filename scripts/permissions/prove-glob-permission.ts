@@ -51,27 +51,22 @@ section('WP-1: win32 deny-rule normalization (live, platform-seam primed)')
     check(
       'same-root native win32 deny rule SURVIVES (was dropped to null)',
       run('C:\\Users\\me\\proj', ['secrets/**'], 'C:\\Users\\me\\proj').includes('/secrets/**'),
-      'fix normalizePatternsToPath in src/utils/permissions/filesystem.ts so a deny pattern under the reference root is kept',
     )
     check(
       'child-root rule normalizes under the reference root',
       run('C:\\Users\\me\\proj\\sub', ['*.env'], 'C:\\Users\\me\\proj').includes('/sub/*.env'),
-      'fix normalizePatternsToPath in src/utils/permissions/filesystem.ts so a child-root pattern is re-based under the reference root',
     )
     check(
       'case-variant spelling still matches (win32 path equivalence)',
       run('c:\\users\\ME\\proj', ['secrets/**'], 'C:\\Users\\me\\proj').includes('/secrets/**'),
-      'fix the win32 path comparison in normalizePatternsToPath in src/utils/permissions/filesystem.ts so case differences still match',
     )
     check(
       'outside-root pattern stays skipped (no over-application)',
       run('D:\\Elsewhere', ['x/**'], 'C:\\Users\\me\\proj').length === 0,
-      'fix normalizePatternsToPath in src/utils/permissions/filesystem.ts so a root outside the reference root is skipped',
     )
     check(
       'forward-slash win32 spelling equivalent to backslash',
       run('C:/Users/me/proj', ['secrets/**'], 'C:\\Users\\me\\proj').includes('/secrets/**'),
-      'fix the win32 path comparison in normalizePatternsToPath in src/utils/permissions/filesystem.ts so / and \\ spellings are equal',
     )
   } finally {
     if (hadReal) cache.set(undefined, realValue)
@@ -81,15 +76,15 @@ section('WP-1: win32 deny-rule normalization (live, platform-seam primed)')
     new Map([['/home/u/proj', ['secrets/**']], ['/home/u/proj/sub', ['*.env']], ['/etc', ['x/**']]]),
     '/home/u/proj',
   )
-  check('posix same-root + child-root unchanged; outside-root skipped', posixOut.includes('/secrets/**') && posixOut.includes('/sub/*.env') && !posixOut.some(p => p.includes('x/**')), 'fix normalizePatternsToPath in src/utils/permissions/filesystem.ts for posix roots; got ' + JSON.stringify(posixOut))
+  check('posix same-root + child-root unchanged; outside-root skipped', posixOut.includes('/secrets/**') && posixOut.includes('/sub/*.env') && !posixOut.some(p => p.includes('x/**')))
 }
 
 section('WP siblings: file-URI construction, argv quoting, win32 tokens')
 {
   const { isPathLikeToken } = await import(join(ROOT, 'src', 'utils', 'suggestions', 'directoryCompletion.ts'))
-  check('WP-8: drive-letter forms are path-like', isPathLikeToken('C:\\Users\\me') && isPathLikeToken('C:/Users/me') && isPathLikeToken('c:\\'), 'fix isPathLikeToken in src/utils/suggestions/directoryCompletion.ts')
-  check('WP-8: UNC form is path-like', isPathLikeToken('\\\\server\\share'), 'fix isPathLikeToken in src/utils/suggestions/directoryCompletion.ts')
-  check('WP-8: POSIX + relative forms unchanged', isPathLikeToken('/etc') && isPathLikeToken('./x') && isPathLikeToken('~/y') && !isPathLikeToken('plainword') && !isPathLikeToken('C:'), 'fix isPathLikeToken in src/utils/suggestions/directoryCompletion.ts')
+  check('WP-8: drive-letter forms are path-like', isPathLikeToken('C:\\Users\\me') && isPathLikeToken('C:/Users/me') && isPathLikeToken('c:\\'))
+  check('WP-8: UNC form is path-like', isPathLikeToken('\\\\server\\share'))
+  check('WP-8: POSIX + relative forms unchanged', isPathLikeToken('/etc') && isPathLikeToken('./x') && isPathLikeToken('~/y') && !isPathLikeToken('plainword') && !isPathLikeToken('C:'))
 }
 
 console.log('\n' + '═'.repeat(76))

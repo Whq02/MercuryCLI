@@ -12,13 +12,11 @@ const scratch = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'mercury-memory
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'home')
 
 let failures = 0
-let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && where ? ` — to fix, look at: ${where}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-function section(t: string, w = ''): void {
-  where = w
+function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -28,7 +26,7 @@ try {
 } catch {
   front = null
 }
-check('the front page module exists', front !== null, 'src/mneme/mnemeFrontPage.ts must exist and import without throwing; run it alone with bun to see the import error')
+check('the front page module exists', front !== null)
 if (!front) {
   console.log('\n❌ FRONT PAGE: the module is absent — nothing more can be checked')
   process.exit(1)
@@ -51,14 +49,14 @@ const ownerSaid = (text: string) => ({ messageId: `owner-directive-${++directive
 const dir = join(scratch, 'library')
 const T0 = new Date('2026-10-01T12:00:00.000Z')
 
-section('an empty library renders a stable front page built by Mercury', 'renderFrontPage, readFrontPage and frontPageKey in src/mneme/mnemeFrontPage.ts (the empty-library page)')
+section('an empty library renders a stable front page built by Mercury')
 const empty1 = renderFrontPage({ dir, topics: [], archives: [], pins: [], usage: {}, now: T0 }).text
 const empty2 = renderFrontPage({ dir, topics: [], archives: [], pins: [], usage: {}, now: new Date('2027-01-01T00:00:00Z') }).text
 check('the empty page is the heading and one sentence that names the folder and says nothing is saved yet — no index or pinned tier is painted for an empty library', empty1.startsWith('# Memory\n') && empty1.split('\n').length === 2 && empty1.includes(dir) && empty1.includes('nothing saved yet') && !empty1.includes('## Index') && !empty1.includes('## Pinned'), empty1)
 check('the bytes do not depend on the clock', empty1 === empty2)
 check('no snapshot exists before the first consolidation', readFrontPage(dir) === null && frontPageKey(dir) === 'none')
 
-section('retaining facts does not move the front page; consolidation does', 'retainItems in src/mneme/memoryVerbs.ts must only stage rows; maybeConsolidate in src/mneme/mnemeConsolidate.ts publishes the page; renderFrontPage, readFrontPage and frontPageKey in src/mneme/mnemeFrontPage.ts')
+section('retaining facts does not move the front page; consolidation does')
 retainItems([{ content: 'the runtime is deployed from the mercury-working checkout', topic: 'deploy' }], { session: 'fp' }, dir)
 retainItems([{ content: 'the owner signs commits as Whq02', topic: 'owner' }], { session: 'fp' }, dir)
 retainItems([{ content: 'the deploy script is scripts/ops/deploy-runtime.sh and runs after the gate', topic: 'deploy' }], { session: 'fp' }, dir)
@@ -73,7 +71,7 @@ check('the index holds where things are, never the facts', !page1.includes('merc
 retainItems([{ content: 'a fact retained after the snapshot', topic: 'later' }], { session: 'fp' }, dir)
 check('a retain after the snapshot leaves the bytes and the key alone', readFrontPage(dir) === page1 && frontPageKey(dir) === key1)
 
-section('the pinned tier: word for word, pinned and unpinned by the operator', 'pinFact and unpinFact in src/mneme/mnemeUsage.ts, the pinned tier of renderFrontPage in src/mneme/mnemeFrontPage.ts, correctFact in src/mneme/mnemeCorrect.ts, memoryGrade in src/mneme/memoryEvidence.ts')
+section('the pinned tier: word for word, pinned and unpinned by the operator')
 const ownerSeq = listTopicDocs(dir).find(d => d.slug === 'owner')!.sections[0]!.entries[0]!.seq
 pinFact(ownerSeq, dir, T0)
 const c2 = maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 1000) })
@@ -90,7 +88,7 @@ unpinFact(fixed.ok ? fixed.seq : 0, dir)
 maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 3000) })
 check('unpin empties the tier', (readFrontPage(dir) ?? '').includes('no pinned rules'))
 
-section('the pinned shelf: never refuses, measured as text against the limit, every rule loaded', 'the pinned shelf of renderFrontPage and readPinnedStatus in src/mneme/mnemeFrontPage.ts, pinFact and pinnedTextLimit in src/mneme/mnemeUsage.ts, pinnedOverLimitLine in src/components/statusNotices/statusNoticeDefinitions.tsx')
+section('the pinned shelf: never refuses, measured as text against the limit, every rule loaded')
 const RULE_WORDS = ['deploys', 'commits', 'reviews', 'suites', 'worktrees', 'releases', 'docs', 'frames', 'keys', 'lanes', 'folds', 'censuses', 'drives', 'briefs']
 const RULES = RULE_WORDS.length
 for (let i = 0; i < RULES; i++) {
@@ -120,7 +118,7 @@ maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 60_000) })
 const status = readPinnedStatus(dir)
 check('the published status carries the fill and the limit', status !== null && status.used > 0 && status.limit === PINNED_TEXT_LIMIT_DEFAULT && status.pinned === RULES, JSON.stringify(status))
 
-section("a rule the user asked for is the user's: the model's Correct is refused, consolidation leaves it alone, only the user changes it", 'correctMemory in src/mneme/memoryVerbs.ts (the user-asked-rule refusal), the draft checker in maybeConsolidate in src/mneme/mnemeConsolidate.ts, correctFact in src/mneme/mnemeCorrect.ts, the pin slot in src/mneme/mnemeUsage.ts')
+section("a rule the user asked for is the user's: the model's Correct is refused, consolidation leaves it alone, only the user changes it")
 const { correctMemory } = await import('../../src/mneme/memoryVerbs.js')
 const { readBuffer } = await import('../../src/mneme/mnemeBuffer.js')
 const liveIn = (slug: string, seq: number): boolean => listTopicDocs(dir).find(d => d.slug === slug)?.sections.some(s => s.entries.some(e => e.seq === seq)) === true
@@ -141,7 +139,7 @@ maybeConsolidate({ force: true, dir, now: new Date(T0.getTime() + 75_000) })
 const userFix = correctFact({ targetSeq: askedSeq, text: 'about deploys: deploy from the mercury-working checkout, say so in the deploys report', source: 'operator', dir, now: new Date(T0.getTime() + 80_000), byUser: true })
 check("the user's own correction in /memory replaces the asked rule in place: the old words are history, the pin slot keeps the asked mark", userFix.ok && !liveIn('rules', askedSeq) && listTopicDocs(dir).find(d => d.slug === 'rules')!.history.some(e => e.seq === askedSeq && e.supersededBy === userFix.seq) && readPins(dir).some(p => p.seq === userFix.seq && p.asked) && !readPins(dir).some(p => p.seq === askedSeq), JSON.stringify(userFix))
 
-section('two rules conflict only when the newer one names the older: a named replacement takes the slot; rules that merely share words both stay', 'the replaces option of retainItems in src/mneme/memoryVerbs.ts, maybeConsolidate in src/mneme/mnemeConsolidate.ts, the pin slot handling in src/mneme/mnemeUsage.ts')
+section('two rules conflict only when the newer one names the older: a named replacement takes the slot; rules that merely share words both stay')
 const seqOfText = (slug: string, text: string): number => listTopicDocs(dir).find(d => d.slug === slug)?.sections.flatMap(s => s.entries).find(e => e.text === text)?.seq ?? -1
 retainItems([{ content: 'never run the pool before a fold', pin: true }], { session: 'fp-pool', pinIntent: ownerSaid('never run the pool before a fold') }, dir)
 _resetMemoryVerbSessionStateForTesting()
@@ -187,7 +185,7 @@ const restatedRun = maybeConsolidate({ force: true, dir: restateDir, now: new Da
 const restatedSeq = styleDoc().sections.flatMap(s => s.entries).find(e => e.text.startsWith('give me long'))?.seq ?? -1
 check('after consolidation ONE rule is current: the old wording is history under the new rule, which is pinned and marked asked for', restatedRun.consolidated && !styleDoc().sections.some(s => s.entries.some(e => e.seq === shortSeq)) && styleDoc().history.some(e => e.seq === shortSeq && e.supersededBy === restatedSeq) && styleDoc().sections.flatMap(s => s.entries).length === 1 && readPins(restateDir).some(p => p.seq === restatedSeq && p.asked === true), JSON.stringify({ restatedSeq, live: styleDoc().sections.flatMap(s => s.entries.map(e => e.text)), pins: readPins(restateDir) }))
 
-section('consolidation merges duplicates: the same fact retained again becomes one live copy with its history kept, nothing lost', 'normaliseFact and seqCensus in src/mneme/mnemeArchive.ts, the duplicate merge in maybeConsolidate in src/mneme/mnemeConsolidate.ts')
+section('consolidation merges duplicates: the same fact retained again becomes one live copy with its history kept, nothing lost')
 const { normaliseFact } = await import('../../src/mneme/mnemeArchive.js')
 const dupDir = join(scratch, 'library-dupes')
 const COPIES = ['The gate runs before every deploy.', 'the gate runs before every deploy', 'The gate runs before every deploy!']
@@ -219,7 +217,7 @@ _resetMemoryVerbSessionStateForTesting()
 maybeConsolidate({ force: true, dir: dupDir, now: new Date(T0.getTime() + 8000) })
 check('two copies the user asked for both stay — Mercury never merges an asked rule away', listTopicDocs(dupDir).flatMap(d => d.sections.flatMap(s => s.entries)).filter(e => e.text === 'Never push to main.').length === 2 && readPins(dupDir).filter(p => p.asked).length === 2)
 
-section('a crash between the pages and the pins loses no pin: the batch manifest carries the pin intent', 'the crashed-batch recovery and batch manifest in maybeConsolidate in src/mneme/mnemeConsolidate.ts, appendObservation in src/mneme/mnemeBuffer.ts, pin replay in src/mneme/mnemeUsage.ts')
+section('a crash between the pages and the pins loses no pin: the batch manifest carries the pin intent')
 const { unpinFact: unpinCrash } = await import('../../src/mneme/mnemeUsage.js')
 const { writeFileSync: writeCrash } = await import('node:fs')
 const crashDir = join(scratch, 'library-crash')
@@ -245,7 +243,7 @@ check('the pin is replayed from the manifest with its asked mark', readPins(cras
 check('the front page shows the rule pinned again', (readFrontPage(crashDir) ?? '').includes(`<seq=${crashSeq}, asked for by the user>`))
 check('no duplicate landed', listTopicDocs(crashDir).reduce((n, d) => n + d.sections.reduce((m, s) => m + s.entries.length, 0), 0) === 1)
 
-section('a rule the user asks to remember is on the shelf at once — the next fresh chat carries it without waiting for a maintenance pass', 'RetainTool in src/tools/MemoryTools/MemoryTools.ts, dueForMaintenance in src/mneme/mnemeMaintenance.ts, maybeConsolidate in src/mneme/mnemeConsolidate.ts, loadMemoryPrompt in src/mneme/mnemeFrontPage.ts')
+section('a rule the user asks to remember is on the shelf at once — the next fresh chat carries it without waiting for a maintenance pass')
 const { RetainTool } = await import('../../src/tools/MemoryTools/MemoryTools.js')
 const { dueForMaintenance, readMaintenanceReceipts } = await import('../../src/mneme/mnemeMaintenance.js')
 const { mnemeLibraryDir } = await import('../../src/mneme/mnemeGates.js')
@@ -272,7 +270,7 @@ _resetMemoryVerbSessionStateForTesting()
 const plainCall = (await RetainTool.call({ items: [{ content: 'a plain fact through the tool stays pending', topic: 'project' }] }, ownerTurn('note that a plain fact through the tool stays pending'))) as { data: { stored: number; shelf?: unknown } }
 check('a plain Retain still stages and waits for the usual thresholds (no shelf line, the row pending)', plainCall.data.stored === 1 && plainCall.data.shelf === undefined && readBuffer(onceDir).length === 1, JSON.stringify(plainCall.data))
 
-section("a standing rule needs the owner's own words: a crewmate's pin is refused outright, the owner's directive mints the asked mark, an intake pin stays a plain pin", 'the pin-intent refusal and replaces handling of retainItems and correctMemory in src/mneme/memoryVerbs.ts, appendObservation in src/mneme/mnemeBuffer.ts, readPins in src/mneme/mnemeUsage.ts')
+section("a standing rule needs the owner's own words: a crewmate's pin is refused outright, the owner's directive mints the asked mark, an intake pin stays a plain pin")
 const crewDir = join(scratch, 'library-crew')
 const rowOf = (dir: string, text: string) => readBuffer(dir).find(r => r.text === text)
 const crewPin = retainItems([{ content: 'crew rule: always deploy on Fridays', pin: true }], { session: 'sess-lead-0001', agent: 'agent_crewmate_77' }, crewDir)
@@ -300,7 +298,7 @@ const crewCorrect = correctMemory({ op: 'supersede', id: `seq:${seqIn('handover 
 check("a rule pinned without the owner asking stays correctable by the model — it was never the owner's", crewCorrect.ok, JSON.stringify(crewCorrect))
 _resetMemoryVerbSessionStateForTesting()
 
-section('the automatic lookup: up to five facts, pointing at the pages, never a loaded pin', 'lookupFacts and rankCandidates in src/mneme/mnemeLookup.ts')
+section('the automatic lookup: up to five facts, pointing at the pages, never a loaded pin')
 const hits = lookupFacts('how is the runtime deployed from the checkout', { dir })
 check('the deploy facts come back first', hits.length >= 1 && hits[0]!.slug === 'deploy', JSON.stringify(hits.map(h => [h.slug, h.score])))
 check('a hit points at its topic page', hits.every(h => h.pagePath.endsWith('.md') || h.pending))
@@ -318,7 +316,7 @@ check('a short fact made of the question\'s words outranks a long fact that ment
 check('the cap is five', lookupFacts('handle the careful way and say so in the report', { dir, exclude: new Set() }).length <= 5)
 check('a pending fact is findable before consolidation', lookupFacts('fact retained after the snapshot', { dir }).some(h => h.pending || h.slug === 'later'))
 
-section('archive: facts nobody has used in a long time leave the index, nothing is lost', 'the tidy-up in maybeConsolidate in src/mneme/mnemeConsolidate.ts, seqCensus in src/mneme/mnemeArchive.ts, recallQuery in src/mneme/memoryVerbs.ts, bumpUsage in src/mneme/mnemeUsage.ts')
+section('archive: facts nobody has used in a long time leave the index, nothing is lost')
 const before = seqCensus([...listTopicDocs(dir), ...listArchiveDocs(dir)])
 const later = new Date(Math.max(T0.getTime(), Date.now()) + (ARCHIVE_AFTER_DAYS + 10) * 24 * 60 * 60 * 1000)
 mkdirSync(dir, { recursive: true })
@@ -339,7 +337,7 @@ bumpUsage([Number(archivedSeq)], dir, later)
 const c4 = maybeConsolidate({ force: true, dir, now: new Date(later.getTime() + 1000) })
 check('a used archived fact is restored to its topic at the next tidy-up', (c4.tidy?.restored ?? 0) >= 1 && listTopicDocs(dir).some(d => d.slug === 'deploy'), JSON.stringify(c4.tidy))
 
-section('the index has a fixed size: splitting and archiving keep it under, nobody is asked', 'INDEX_LIMIT and indexTopics in src/mneme/mnemeArchive.ts, splitDoc and emptyDoc in src/mneme/mnemeTopicDocs.ts, the tidy-up in maybeConsolidate in src/mneme/mnemeConsolidate.ts')
+section('the index has a fixed size: splitting and archiving keep it under, nobody is asked')
 const dir2 = join(scratch, 'library-wide')
 for (let i = 0; i < INDEX_LIMIT + 5; i++) {
   appendObservation({ text: `fact for topic ${i}`, source: 'proof', topicHint: `topic-${String(i).padStart(2, '0')}` }, dir2)

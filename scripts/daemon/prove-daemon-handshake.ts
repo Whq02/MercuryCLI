@@ -5,10 +5,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shownHint = fixHint || 'change the verdict, heal or restart logic in src/daemon/handshake.ts (decideHandshake, handshakeDaemon, healDaemonVersion, applyHeal, restartDaemon) or the client in src/daemon/controlSocket.ts, whichever this step exercises'
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail} — ` : ''}${shownHint}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -375,7 +374,7 @@ section('E · the real control server: hello answers while starting and needs no
     })
     sock.on('error', () => resolve({ code: 'ENOCONN' }))
   })
-  check('E4 restart-when-idle without the key is EAUTH', bare.code === 'EAUTH', JSON.stringify(bare), 'startControlServer in src/daemon/controlServer.ts must refuse restart-when-idle without the control key')
+  check('E4 restart-when-idle without the key is EAUTH', bare.code === 'EAUTH')
   await server.close()
 }
 
@@ -455,7 +454,7 @@ section('G · wiring: ensureDaemon rides the handshake; main wires hello/restart
     const daemonRow = await crewChecks().find(row => row.id === 'daemon')?.run()
     const seen = await hsMod.handshakeDaemon({ timeoutMs: 500 })
     await old.close()
-    check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case, which carries the full way out, is driven over a real daemon by E1b of prove-field-e004-daemon-skew.ts)', seen.line === 'daemon v1.5.6 running with 1 live session — new features wait until it restarts · /daemon restart when ready' && daemonRow?.status === 'warn' && daemonRow.fix === seen.line && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(seen)}`) && daemonRow.link === '/daemon', JSON.stringify(daemonRow), 'the daemon row of crewChecks in src/services/health/sections/crew.ts must carry the handshake line as its fix, the handshake evidence, and the /daemon link')
+    check('G9 the certificate daemon row runs the handshake and the line IS the fix (the reopen case, which carries the full way out, is driven over a real daemon by E1b of prove-field-e004-daemon-skew.ts)', seen.line === 'daemon v1.5.6 running with 1 live session — new features wait until it restarts · /daemon restart when ready' && daemonRow?.status === 'warn' && daemonRow.fix === seen.line && daemonRow.evidence.startsWith('daemon.json: ') && daemonRow.evidence.endsWith(` · ${hsMod.daemonHandshakeEvidence(seen)}`) && daemonRow.link === '/daemon', JSON.stringify(daemonRow))
   }
 }
 

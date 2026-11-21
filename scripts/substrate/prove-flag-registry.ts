@@ -10,9 +10,8 @@ const { LIVE_ROLE_ENV_VARS, RETIRED_SEAT_ENV_VARS, assertSingleRole } = await im
 const { scrubDaemonRoleEnv } = await import('../../src/daemon/headlessRun.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
-  const shown = cond ? detail : [detail, hint].filter(Boolean).join(' — ')
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
+const check = (label: string, cond: boolean, detail = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -88,7 +87,6 @@ check(
   `all ${literalReads.size} referenced flags are registered (incl. ${quotedFlagLiterals.size} exact-quoted literals)`,
   unregistered.length === 0,
   unregistered.slice(0, 12).join(', '),
-  'add a row for each named flag under src/substrate/flags/ (collected by src/substrate/flagRegistry.ts), or stop reading it in src',
 )
 
 section('§2 every registry row has a live consumer')
@@ -117,7 +115,6 @@ check(
   `all ${FLAG_REGISTRY.length} rows are consumed (literal read or flagEnabled site)`,
   dead.length === 0,
   dead.map(d => d.env).slice(0, 5).join(', '),
-  'each named row under src/substrate/flags/ has no reader in src: read it through flagEnabled or flagEnv, or delete the row',
 )
 
 section('§2b every row names a consumer that exists and holds the flag')
@@ -125,7 +122,7 @@ const CONSUMER_PATH = /(?:src|scripts|assets)\/[A-Za-z0-9_@./-]+/g
 const consumerPaths = (f: (typeof FLAG_REGISTRY)[number]): string[] =>
   ((f as { consumer?: string }).consumer?.match(CONSUMER_PATH) ?? []).map(path => path.replace(/\.+$/, ''))
 const absentConsumers = FLAG_REGISTRY.flatMap(f => consumerPaths(f).filter(path => !existsSync(join(root, path))).map(path => `${f.env}→${path}`))
-check('every consumer path a row names exists', absentConsumers.length === 0, absentConsumers.slice(0, 6).join(', '), 'fix the consumer path of each named row under src/substrate/flags/ so it names a file that exists')
+check('every consumer path a row names exists', absentConsumers.length === 0, absentConsumers.slice(0, 6).join(', '))
 const strayConsumers = FLAG_REGISTRY.filter(f => !consumerPaths(f).some(path => {
   try {
     return readFileSync(join(root, path), 'utf8').includes(f.env)
@@ -137,7 +134,6 @@ check(
   `all ${FLAG_REGISTRY.length} rows name a consumer file that holds the flag's name`,
   strayConsumers.length === 0,
   strayConsumers.map(f => `${f.env}→${(f as { consumer?: string }).consumer}`).slice(0, 6).join(', '),
-  'set the consumer of each named row under src/substrate/flags/ to a src, scripts or assets file that contains the flag name',
 )
 
 section('§2c a default-on switch has one off rule: no reader compares its value with the bare string 0')
@@ -163,7 +159,6 @@ check(
   'no default-on switch is turned off by the bare string alone (0, false, no and off all turn it off through flagEnabled)',
   bareReads.length === 0,
   `${new Set(bareReads.map(r => r.split(' @ ')[0])).size} switches: ${bareReads.slice(0, 8).join(', ')}`,
-  'in each named file read the switch through flagEnabled (src/substrate/flagRegistry.ts) instead of comparing flagEnv or env with the string 0',
 )
 const OFF_RULE_READERS: Array<[env: string, file: string, reader: string]> = [
   ['MERCURY_CRITTER_GAZE', 'utils/cockpit/critterGaze.ts', 'critterGazeEnabled'],
@@ -195,7 +190,7 @@ for (const [env, file, reader] of OFF_RULE_READERS) {
   const offs = ['0', 'false', 'no', 'off'].map(read)
   if (held === undefined) delete process.env[env]
   else process.env[env] = held
-  check(`${env} through ${reader}: unset and 1 leave it on, and 0, false, no and off each turn it off`, unset && one && offs.every(answer => answer === false), JSON.stringify({ unset, one, offs }), `make ${reader} in src/${file} answer through flagEnabled(${JSON.stringify(env)}) so that unset and 1 leave it on and 0, false, no and off turn it off`)
+  check(`${env} through ${reader}: unset and 1 leave it on, and 0, false, no and off each turn it off`, unset && one && offs.every(answer => answer === false), JSON.stringify({ unset, one, offs }))
 }
 
 section('§3 gate behavior matrix under stamp-sim (LIVE env re-reads)')
@@ -207,30 +202,30 @@ for (const env of optOutSample) {
   const off = flagEnabled(env)
   delete process.env[env]
   const backOn = flagEnabled(env)
-  check(`${env}: unset ⇒ ON, '0' ⇒ OFF, re-unset ⇒ ON (live re-read)`, on && !off && backOn, '', `flagEnabled in src/substrate/flagRegistry.ts must re-read process.env on every call for ${env}, and its row under src/substrate/flags/ must be default-on`)
+  check(`${env}: unset ⇒ ON, '0' ⇒ OFF, re-unset ⇒ ON (live re-read)`, on && !off && backOn)
 }
 section('§3b DuckDuckGo page scraping is on by default; every off spelling turns it off, junk never silently disarms it')
 {
   const env = 'MERCURY_SEARCH_KEYLESS'
   const row = FLAG_REGISTRY.find(f => f.env === env)
-  check(`${env}: registered default-on at the security tier with its evidence on disk`, row?.kind === 'default-on' && row.tier === 'security' && row.evidence !== undefined && existsSync(join(root, row.evidence)), JSON.stringify(row?.evidence), `set the ${env} row under src/substrate/flags/ to kind default-on, tier security, with an evidence path that exists`)
+  check(`${env}: registered default-on at the security tier with its evidence on disk`, row?.kind === 'default-on' && row.tier === 'security' && row.evidence !== undefined && existsSync(join(root, row.evidence)), JSON.stringify(row?.evidence))
   for (const spelling of ['0', 'false', 'off', 'no', 'FALSE', 'Off', '"0"', "'0'", '0 ', ' false ']) {
     process.env[env] = spelling
-    check(`${env}=${JSON.stringify(spelling)} ⇒ OFF`, !flagEnabled(env), '', 'the off spellings are decided by flagReadsOff in src/substrate/flagOff.ts, which flagEnabled uses for default-on rows')
+    check(`${env}=${JSON.stringify(spelling)} ⇒ OFF`, !flagEnabled(env))
   }
   for (const spelling of ['1', 'junk', '2', 'treu']) {
     process.env[env] = spelling
-    check(`${env}=${JSON.stringify(spelling)} ⇒ ON (the default-on law: junk never silently disarms a gate)`, flagEnabled(env), '', 'only 0, false, no and off (quotes and case ignored) may turn it off: see flagReadsOff in src/substrate/flagOff.ts')
+    check(`${env}=${JSON.stringify(spelling)} ⇒ ON (the default-on law: junk never silently disarms a gate)`, flagEnabled(env))
   }
   delete process.env[env]
-  check(`${env}: unset ⇒ ON`, flagEnabled(env), '', 'the row for this flag under src/substrate/flags/ must be default-on')
+  check(`${env}: unset ⇒ ON`, flagEnabled(env))
 }
 
 const optInSample = ['MERCURY_SATURN_DISABLE', 'MERCURY_AGENT_NEEDS_YOU_LLM', 'MERCURY_ANTHROPIC_CONNECTORS']
 for (const env of optInSample) {
   const spec = FLAG_REGISTRY.find(f => f.env === env)
   if (spec?.kind !== 'opt-in') {
-    check(`${env}: registered as opt-in`, false, `kind=${spec?.kind}`, 'make the row for this flag under src/substrate/flags/ kind opt-in, or drop it from optInSample in this proof')
+    check(`${env}: registered as opt-in`, false, `kind=${spec?.kind}`)
     continue
   }
   delete process.env[env]
@@ -238,7 +233,7 @@ for (const env of optInSample) {
   process.env[env] = '1'
   const on = flagEnabled(env)
   delete process.env[env]
-  check(`${env}: unset ⇒ OFF, '1' ⇒ ON (live re-read)`, !off && on, '', 'flagEnabled in src/substrate/flagRegistry.ts must return true only when the flag is exactly 1, re-read on every call')
+  check(`${env}: unset ⇒ OFF, '1' ⇒ ON (live re-read)`, !off && on)
 }
 let threw = false
 try {
@@ -246,7 +241,7 @@ try {
 } catch {
   threw = true
 }
-check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw, '', 'flagEnabled in src/substrate/flagRegistry.ts must throw for a row whose kind is not default-on or opt-in')
+check("value flags refuse flagEnabled (MERCURY_DAEMON_OWNER_PID throws)", threw)
 
 section('§3c the registry reader honours the registered spelling only')
 {
@@ -254,8 +249,8 @@ section('§3c the registry reader honours the registered spelling only')
   delete process.env.MERCURY_DAEMON_CATCHUP
   delete process.env[otherSpelling]
   process.env[otherSpelling] = '0'
-  check('an unrelated spelling in env is inert (the gate stays at its default)', flagEnabled('MERCURY_DAEMON_CATCHUP') === true, '', 'flagEnv in src/substrate/flagRegistry.ts must read only the registered MERCURY_ spelling of the flag')
-  check('the reader returns undefined for the unset MERCURY_* spelling', flagEnv('MERCURY_DAEMON_CATCHUP') === undefined, '', 'flagEnv in src/substrate/flagRegistry.ts must return process.env of the registered spelling only')
+  check('an unrelated spelling in env is inert (the gate stays at its default)', flagEnabled('MERCURY_DAEMON_CATCHUP') === true)
+  check('the reader returns undefined for the unset MERCURY_* spelling', flagEnv('MERCURY_DAEMON_CATCHUP') === undefined)
   delete process.env[otherSpelling]
   let rejected = false
   try {
@@ -263,14 +258,14 @@ section('§3c the registry reader honours the registered spelling only')
   } catch {
     rejected = true
   }
-  check('an unregistered name is not a flag (flagEnabled throws)', rejected, '', 'flagEnabled in src/substrate/flagRegistry.ts must throw for a name with no row in FLAG_REGISTRY')
+  check('an unregistered name is not a flag (flagEnabled throws)', rejected)
 }
 {
   const canon = FLAG_REGISTRY.map(f => f.env)
   const canonSet = new Set(canon)
-  check('no duplicate flag names', canonSet.size === canon.length, '', 'two rows under src/substrate/flags/ share one env name: delete or rename the extra row')
+  check('no duplicate flag names', canonSet.size === canon.length)
   const nonMercury = canon.filter(e => !e.startsWith('MERCURY_'))
-  check('every flag name is MERCURY_-prefixed', nonMercury.length === 0, nonMercury.slice(0, 5).join(', '), 'rename the named rows under src/substrate/flags/ to start with MERCURY_')
+  check('every flag name is MERCURY_-prefixed', nonMercury.length === 0, nonMercury.slice(0, 5).join(', '))
 }
 
 section('§3b graduation ladder: tiers required on gates; behavioral defaults carry evidence')
@@ -281,26 +276,23 @@ check(
   `every gate-kind row carries a graduation tier (${gateRows.length} gates)`,
   tierless.length === 0,
   tierless.map(f => f.env).slice(0, 5).join(', '),
-  'give each named default-on or opt-in row under src/substrate/flags/ a tier (display, additive, behavioral, security or infra)',
 )
 const badTier = FLAG_REGISTRY.filter(f => f.tier !== undefined && !VALID_TIERS.has(f.tier))
-check('every tier is in the vocabulary', badTier.length === 0, badTier.map(f => `${f.env}=${f.tier}`).join(', '), 'change each named row tier under src/substrate/flags/ to display, additive, behavioral, security or infra')
+check('every tier is in the vocabulary', badTier.length === 0, badTier.map(f => `${f.env}=${f.tier}`).join(', '))
 const knobTiered = FLAG_REGISTRY.filter(f => (f.kind === 'value' || f.kind === 'mixed') && f.tier !== undefined)
-check('value/mixed knobs carry no tier (not graduation subjects)', knobTiered.length === 0, knobTiered.map(f => f.env).join(', '), 'remove the tier from each named value or mixed row under src/substrate/flags/')
+check('value/mixed knobs carry no tier (not graduation subjects)', knobTiered.length === 0, knobTiered.map(f => f.env).join(', '))
 const defaultOnBehavioral = FLAG_REGISTRY.filter(f => f.kind === 'default-on' && f.tier === 'behavioral')
 const unevidenced = defaultOnBehavioral.filter(f => !f.evidence)
 check(
   `every default-ON behavioral gate names evidence (${defaultOnBehavioral.length} rows)`,
   unevidenced.length === 0,
   unevidenced.map(f => f.env).join(', '),
-  'add an evidence path (an existing file) to each named default-on behavioral row under src/substrate/flags/',
 )
 const missingEvidenceFiles = FLAG_REGISTRY.filter(f => f.evidence && !existsSync(join(root, f.evidence)))
 check(
   'every named evidence artifact exists on disk',
   missingEvidenceFiles.length === 0,
   missingEvidenceFiles.map(f => `${f.env}→${f.evidence}`).slice(0, 3).join(', '),
-  'point the evidence of each named row under src/substrate/flags/ at a file that exists, or restore the file',
 )
 
 
@@ -313,7 +305,7 @@ section('§5 compat pairing is TYPED, never prose-only; paired spellings are liv
       proseOnly.push(`${spec.env} narrates ${m[1]} but compat=${(spec as { compat?: string }).compat ?? 'ABSENT'}`)
     }
   }
-  check('no prose-only compat pairing (typed field present wherever narrated)', proseOnly.length === 0, proseOnly.slice(0, 3).join(' · '), 'add the typed compat field to each named row under src/substrate/flags/, or remove the compat spelling from its summary')
+  check('no prose-only compat pairing (typed field present wherever narrated)', proseOnly.length === 0, proseOnly.slice(0, 3).join(' · '))
 
   const dead: string[] = []
   for (const spec of FLAG_REGISTRY) {
@@ -328,7 +320,7 @@ section('§5 compat pairing is TYPED, never prose-only; paired spellings are liv
     }
     if (!found) dead.push(`${spec.env}→${compat}`)
   }
-  check('every typed compat spelling is read at a boundary in src', dead.length === 0, dead.join(', '), 'read each named compat spelling somewhere in src, or remove the compat field from its row under src/substrate/flags/')
+  check('every typed compat spelling is read at a boundary in src', dead.length === 0, dead.join(', '))
 }
 
 
@@ -336,7 +328,7 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
 {
   const byEnv = new Map(FLAG_REGISTRY.map(f => [f.env, f]))
   const interacting = FLAG_REGISTRY.filter(f => f.requires || f.excludes || f.interactsWith)
-  check('≥20 interacting flags carry metadata', interacting.length >= 20, `${interacting.length} rows carry metadata`, 'restore the requires, excludes or interactsWith fields on the rows under src/substrate/flags/ that lost them')
+  check('≥20 interacting flags carry metadata', interacting.length >= 20)
   let refsExist = true
   let symmetric = true
   let retired = true
@@ -359,9 +351,9 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
       console.log(`     interacting flag without a retirement condition: ${f.env}`)
     }
   }
-  check('every interaction reference names a registered flag', refsExist, '', 'fix the dangling references printed above in the requires, excludes or interactsWith fields of the rows under src/substrate/flags/')
-  check('interactsWith is symmetric (a new interacting flag without metadata fails HERE)', symmetric, '', 'add the back-reference to interactsWith on each row printed above, under src/substrate/flags/')
-  check('every interacting flag carries a retirement condition', retired, '', 'give each flag printed above a retirement text of at least 5 characters in its row under src/substrate/flags/')
+  check('every interaction reference names a registered flag', refsExist)
+  check('interactsWith is symmetric (a new interacting flag without metadata fails HERE)', symmetric)
+  check('every interacting flag carries a retirement condition', retired)
   let closure = true
   for (const f of interacting) {
     for (const ref of f.requires ?? []) {
@@ -372,7 +364,7 @@ section('§6 interaction metadata is closed, symmetric, and retirement-dated')
       }
     }
   }
-  check('requires-targets carry their own interaction metadata (closure)', closure, '', 'give each requires-target printed above its own requires, excludes or interactsWith field in its row under src/substrate/flags/')
+  check('requires-targets carry their own interaction metadata (closure)', closure)
 }
 
 section('§7 swept-spelling totality — swept spellings never ride a registry reader')
@@ -382,10 +374,10 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
   const directHits = grep(`${READERS}\\((\\s*['"](${sweptAlt})['"])`)
     .split('\n')
     .filter(Boolean)
-  check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '), 'swept spellings are retired: remove the literal from the registry reader call in src and use src/utils/workerRole.ts for role variables')
+  check('no registry reader takes a swept literal', directHits.length === 0, directHits.slice(0, 4).join(' · '))
   const sameFive = (s: Set<string>): boolean =>
     s.size === SWEPT_SPELLINGS.size && [...s].every(v => SWEPT_SPELLINGS.has(v))
-  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(new Set(RETIRED_SEAT_ENV_VARS)), JSON.stringify([...RETIRED_SEAT_ENV_VARS]), 'RETIRED_SEAT_ENV_VARS in src/utils/workerRole.ts must list exactly MERCURY_TANK, MERCURY_HEALER, MERCURY_DPS1, MERCURY_DPS2 and MERCURY_DPS3')
+  check('workerRole sweeps exactly the five swept spellings (breadth never silently shrinks)', sameFive(new Set(RETIRED_SEAT_ENV_VARS)))
   {
     const allRoleVars = [...LIVE_ROLE_ENV_VARS.flatMap(flagSpellings), ...RETIRED_SEAT_ENV_VARS]
     const saved = new Map(allRoleVars.map(k => [k, process.env[k]]))
@@ -420,7 +412,6 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
         'assertSingleRole accepts a single live or retired role and throws when two roles are set together',
         roleOk,
         roleOk ? '' : JSON.stringify({ singleLive, singleRetired, livePlusRetired, twoRetired }),
-        'assertSingleRole in src/utils/workerRole.ts must pass for one role variable and throw, naming every set variable, when two are set',
       )
     } finally {
       for (const [k, v] of saved) {
@@ -443,7 +434,6 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
       'scrubDaemonRoleEnv clears every live role spelling and all five retired spellings while leaving other env keys',
       scrubOk,
       scrubOk ? '' : JSON.stringify({ removed, remaining: Object.keys(fakeEnv) }),
-      'scrubDaemonRoleEnv in src/daemon/headlessRun.ts must delete every role spelling it is given and return each removed name, and leave other keys',
     )
   }
   const READER_CALL = '(?:flagEnv|flagEnabled|flagSpellings|flagPair|stampFlagOnEnv|setFlagEnv|deleteFlagEnv)'
@@ -493,7 +483,7 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
       }
     }
   }
-  check('every array fed to a registry reader holds only registered members (every feeding shape)', arrayFlowHits.length === 0, arrayFlowHits.slice(0, 4).join(' · '), 'register each named member in a row under src/substrate/flags/, or take it out of the array in the named src file')
+  check('every array fed to a registry reader holds only registered members (every feeding shape)', arrayFlowHits.length === 0, arrayFlowHits.slice(0, 4).join(' · '))
   const sweptLiteral = "'MERCURY_" + "TANK'"
   const shapes: Array<[string, string, boolean]> = [
     ['flatMap(flagSpellings)', `const BAD = [${sweptLiteral}]\nconst x = BAD.flatMap(flagSpellings)`, true],
@@ -509,13 +499,11 @@ section('§7 swept-spelling totality — swept spellings never ride a registry r
   for (const [label, text, expectFed] of shapes) {
     const decls = declsOf(text)
     const fedIds = [...decls.keys()].filter(id => membersOfDecl(decls, id).some(m => !registered.has(m)) && feedsReader(id, text))
-    check(`§7 self-test: ${label} ${expectFed ? 'trips' : 'does not trip'} the array-flow law`, (fedIds.length > 0) === expectFed, fedIds.join(','), 'the array-flow detection (declsOf, membersOfDecl, feedsReader) in this proof no longer classifies this planted shape correctly: fix it there')
+    check(`§7 self-test: ${label} ${expectFed ? 'trips' : 'does not trip'} the array-flow law`, (fedIds.length > 0) === expectFed, fedIds.join(','))
   }
   check(
     '§7 self-test: a planted direct-literal call trips the reader needle',
     new RegExp(`${READERS}\\((\\s*['"](${sweptAlt})['"])`).test("flagPair('MERCURY_" + "TANK', '0')"),
-    '',
-    'the READERS needle in this proof no longer matches a direct swept-literal call: fix it in section 7 of this file',
   )
 }
 

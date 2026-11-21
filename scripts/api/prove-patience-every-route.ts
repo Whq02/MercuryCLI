@@ -23,7 +23,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${String(detail)}`}${ok ? '' : ' — budgets and the watchdog are in src/services/providers/streamIdleBudget.ts, the modes in src/services/providers/patience.ts, the flag words in src/substrate/flags/providers.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${String(detail)}`}${ok ? '' : ' — budgets and the watchdog are in src/services/providers/streamIdleBudget.ts, the modes in src/services/providers/patience.ts, the flag words in FLAG_REGISTRY'}`)
 }
 function setPatience(value: unknown): void {
   const { error } = updateSettingsForSource('userSettings', { patience: value } as never)

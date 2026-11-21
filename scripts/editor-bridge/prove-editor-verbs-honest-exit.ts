@@ -42,8 +42,8 @@ const run = async (action: string): Promise<{ rc: number; out: string; err: stri
 section('§1 UNINSTALL, NO CODE CLI')
 {
   const { rc, err } = await run('uninstall')
-  check('exits non-zero (nothing was uninstalled — FC-013)', rc !== 0, `rc=${rc} — the uninstall branch of editorBridgeMain in src/cli/editorBridge.ts must return 1 when no editor CLI is found`)
-  check('the manual guidance lands on stderr', /manual/i.test(err), JSON.stringify(err).slice(0, 120) + ' — the no-CLI uninstall branch of editorBridgeMain in src/cli/editorBridge.ts must write the manual uninstall guidance with err()')
+  check('exits non-zero (nothing was uninstalled — FC-013)', rc !== 0, `rc=${rc}`)
+  check('the manual guidance lands on stderr', /manual/i.test(err), JSON.stringify(err).slice(0, 120))
 }
 
 section('§2 INSTALL, NO CODE CLI, VSIX PRESENT')
@@ -54,8 +54,8 @@ section('§2 INSTALL, NO CODE CLI, VSIX PRESENT')
   process.argv[1] = join(bundleDir, 'mercury.mjs')
   try {
     const { rc, err } = await run('install')
-    check('exits non-zero (nothing was installed — FC-013)', rc !== 0, `rc=${rc} — the no-CLI install branch of editorBridgeMain in src/cli/editorBridge.ts must return 1`)
-    check('the manual guidance lands on stderr', /manual/i.test(err), JSON.stringify(err).slice(0, 120) + ' — the no-CLI install branch of editorBridgeMain in src/cli/editorBridge.ts must write the manual install steps with err()')
+    check('exits non-zero (nothing was installed — FC-013)', rc !== 0, `rc=${rc}`)
+    check('the manual guidance lands on stderr', /manual/i.test(err), JSON.stringify(err).slice(0, 120))
   } finally {
     process.argv[1] = origArgv1
     rmSync(bundleDir, { recursive: true, force: true })
@@ -65,14 +65,14 @@ section('§2 INSTALL, NO CODE CLI, VSIX PRESENT')
 section('§3 INSTALL, NO VSIX')
 {
   const { rc } = await run('install')
-  check('still exits non-zero', rc !== 0, `rc=${rc} — the missing-vsix install branch of editorBridgeMain in src/cli/editorBridge.ts must return 1`)
+  check('still exits non-zero', rc !== 0, `rc=${rc}`)
 }
 
 section('§4 STATUS, NO CODE CLI')
 {
   const { rc, out } = await run('status')
-  check('a report is not an action: rc=0', rc === 0, `rc=${rc} — the status branch of editorBridgeMain in src/cli/editorBridge.ts must return 0 when no editor CLI is found`)
-  check('and it says the CLI is missing', /not found/i.test(out), `${JSON.stringify(out).slice(0, 120)} — the status branch of editorBridgeMain in src/cli/editorBridge.ts must print 'editor CLI: not found' on stdout`)
+  check('a report is not an action: rc=0', rc === 0, `rc=${rc}`)
+  check('and it says the CLI is missing', /not found/i.test(out))
 }
 
 rmSync(EMPTY_BIN, { recursive: true, force: true })

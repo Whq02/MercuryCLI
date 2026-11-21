@@ -10,7 +10,7 @@ delete process.env.NODE_ENV
 delete process.env.CI
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = 'change isNameAnchoredSuggestion (or the ranking in generateCommandSuggestions) in src/utils/suggestions/commandSuggestions.ts so only a name, name part or alias match anchors'): void => {
+const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }

@@ -10,10 +10,9 @@ process.chdir(ROOT)
 const BUN = process.execPath
 
 let failures = 0
-let where = 'composeWindowsBashRoad, shellEnvForRoad and the notices in src/utils/shell/windowsShellRoad.ts, and shellEngineRequest and shellEngineArmWords in src/utils/shell/shellEngineArm.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} · ` : ''}fix ${where}`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const SEAM = 'MERCURY_WINDOWS_SHELL_ROAD'
 const PIN = 'MERCURY_GIT_BASH_PATH'
@@ -92,7 +91,6 @@ console.log('── §1 the composer and the arm ladder are pure ──')
 }
 
 console.log('── §2 the locator: typed answers, one loud refusal ──')
-where = 'locateGitBash, findGitBashPath and GIT_BASH_REMEDY in src/utils/windowsPaths.ts'
 {
   const location = locateGitBash()
   const found = 'path' in location
@@ -116,7 +114,6 @@ where = 'locateGitBash, findGitBashPath and GIT_BASH_REMEDY in src/utils/windows
 }
 
 console.log('── §3 the roster follows the road ──')
-where = 'windowsBashRoad, bashToolAvailable, windowsShellRoadNotice and describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts (the tool:shell readiness row is in src/services/health/readiness.ts)'
 {
   const probe = 'const d = road.describeWindowsShellRoad(); console.log(JSON.stringify({ active: road.windowsShellRoadActive(), kind: road.windowsBashRoad().kind, bash: road.bashToolAvailable(), ps: utils.isPowerShellToolEnabled(), notice: road.windowsShellRoadNotice(), line: d.line, fix: d.fix ?? null }))'
   type Roster = { active: boolean; kind: string; bash: boolean; ps: boolean; notice: string | null; line: string; fix: string | null }
@@ -203,7 +200,6 @@ where = 'windowsBashRoad, bashToolAvailable, windowsShellRoadNotice and describe
 }
 
 console.log('── §4 a bash-lane hook follows the road ──')
-where = 'hookBashShell in src/utils/shell/windowsShellRoad.ts'
 {
   const probeHook = "try { console.log('RETURNED ' + await road.hookBashShell('echo hi')) } catch (e) { console.log('THREW ' + (e instanceof Error ? e.message : String(e))) }\nprocess.exit(0)"
   const hook = roadSubprocess(probeHook, { [SEAM]: 'no-bash' })
@@ -234,7 +230,6 @@ where = 'hookBashShell in src/utils/shell/windowsShellRoad.ts'
 }
 
 console.log('── §5 the built bundle boots headless through the seam ──')
-where = 'describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts and the tool:shell readiness row in src/services/health/readiness.ts (rebuild dist with bun run build.ts if the source is right)'
 {
   const bundle = join(ROOT, 'dist', 'mercury.mjs')
   if (!existsSync(bundle)) {
@@ -333,7 +328,6 @@ where = 'describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts and the
 }
 
 console.log('── §6 the consumers are wired (source) ──')
-where = 'describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts, the iface-shell-engine check in src/services/health/sections/interface.ts, and the MERCURY_WINDOWS_SHELL_ROAD entry in src/substrate/flags/tools.ts'
 {
   const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')

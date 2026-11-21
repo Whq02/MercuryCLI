@@ -36,7 +36,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — see the permission path in src/utils/permissions/ and createRunnerAsks in src/cli/headless/runnerAsks.ts'}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 async function permissionContext(mode: PermissionMode, addDirs: string[] = []) {
   const args = { allowedToolsCli: [], disallowedToolsCli: [], permissionMode: mode, allowDangerouslySkipPermissions: mode === 'sovereign', addDirs }
@@ -83,7 +83,7 @@ try {
       const ctx = await permissionContext(mode, added)
       const result = (await checkPathConstraints({ command: 'mkdir inside' }, root, ctx))
       const words = 'message' in result ? result.message : ''
-      check(`${mode}, ancestor=${added.length > 0}: permission result`, result.behavior === (mode === 'default' ? 'ask' : 'passthrough'), `${result.behavior} — default mode must ask and implement mode must pass through a mkdir inside the starting folder; see the path check in src/tools/BashTool/pathValidation.ts`)
+      check(`${mode}, ancestor=${added.length > 0}: permission result`, result.behavior === (mode === 'default' ? 'ask' : 'passthrough'), result.behavior)
       check(`${mode}, ancestor=${added.length > 0}: no folder refusal or read-only grant`, !/ADDED directory|grants reads only|may only/.test(words), words)
     }
   }

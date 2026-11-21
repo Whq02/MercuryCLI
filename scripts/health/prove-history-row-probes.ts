@@ -27,12 +27,12 @@ const broken = await historyRow()
 check(
   'history.jsonl-as-a-DIRECTORY warns on a one-shot run (never appends healthy)',
   broken.status === 'warn' && broken.evidence.includes('DIRECTORY'),
-  `${broken.status}: ${broken.evidence.slice(0, 120)} — historyCheck in src/services/health/sections/crew/appends.ts must warn when <config-home>/history.jsonl is a directory`,
+  `${broken.status}: ${broken.evidence.slice(0, 120)}`,
 )
 
 rmSync(join(HOME, 'history.jsonl'), { recursive: true, force: true })
 const clean = await historyRow()
-check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)} — historyCheck in src/services/health/sections/crew/appends.ts must read ok when history.jsonl is absent`)
+check('an absent store reads ok (control — nothing has appended yet)', clean.status === 'ok', `${clean.status}: ${clean.evidence.slice(0, 80)}`)
 
 rmSync(HOME, { recursive: true, force: true })
 console.log(failures === 0 ? '\nprove-history-row-probes: all green' : `\nprove-history-row-probes: ${failures} FAILURE(S)`)

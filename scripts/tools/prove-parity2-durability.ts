@@ -11,9 +11,8 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_HOME
 
 let failures = 0
-const t = (name: string, ok: boolean, detail = '', hint = ''): void => {
-  const shown = ok ? detail : [detail, hint].filter(Boolean).join(' — ')
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
+const t = (name: string, ok: boolean, detail = ''): void => {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
@@ -25,7 +24,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
   const mcp = await import('../../src/services/mcp/client.ts')
   const { callMCPToolWithUrlElicitationRetry, mcpCallIdleLimitMs } = mcp
 
-  t('the idle knob reads 120ms from the minutes flag', mcpCallIdleLimitMs() === 120, '', 'mcpCallIdleLimitMs in src/services/mcp/client.ts must convert MERCURY_MCP_CALL_IDLE_MINUTES (minutes) to milliseconds')
+  t('the idle knob reads 120ms from the minutes flag', mcpCallIdleLimitMs() === 120)
 
   const server = new Server({ name: 'prover', version: '1.0.0' }, { capabilities: { tools: {} } })
   server.setRequestHandler('tools/list', async () => ({
@@ -92,9 +91,9 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     stallError = error
   }
   const stallMessage = stallError instanceof Error ? stallError.message : String(stallError)
-  t('a stalled tools/call settles as an unknown outcome', /unknown outcome/.test(stallMessage), stallMessage, 'callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts must reject a tools/call that goes silent with an error saying unknown outcome')
-  t('the stall settles at the idle limit, not the total cap', Date.now() - startedAt < 5_000, '', 'callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts must settle a silent call at the idle limit (MERCURY_MCP_CALL_IDLE_MINUTES), not wait for the total cap')
-  t('the error names the action and inspection before retrying', /tool "stall" on server "prover".*inspect the effect before retrying/.test(stallMessage), stallMessage, 'the stall error built in src/services/mcp/client.ts must name the tool and server and tell the reader to inspect the effect before retrying')
+  t('a stalled tools/call settles as an unknown outcome', /unknown outcome/.test(stallMessage), stallMessage)
+  t('the stall settles at the idle limit, not the total cap', Date.now() - startedAt < 5_000)
+  t('the error names the action and inspection before retrying', /tool "stall" on server "prover".*inspect the effect before retrying/.test(stallMessage))
 
   const slow = await callMCPToolWithUrlElicitationRetry({
     client: connection as never,
@@ -105,7 +104,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     onProgress: () => {},
   } as never)
   const slowText = JSON.stringify((slow as { content?: unknown }).content ?? slow)
-  t('a 280ms call that reports progress survives the 120ms idle limit', /slow done/.test(slowText), slowText, 'callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts must keep a call alive while it reports progress')
+  t('a 280ms call that reports progress survives the 120ms idle limit', /slow done/.test(slowText), slowText)
 
   const progressSeen: string[] = []
   const messageOf = (p: unknown): string => String((p as { data?: { progressMessage?: string } }).data?.progressMessage)
@@ -132,12 +131,11 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     } as never),
   ])
   const textOf = (r: unknown) => JSON.stringify((r as { content?: unknown }).content ?? r)
-  t('two concurrent calls both settle with their own results', /echo:A/.test(textOf(a)) && /echo:B/.test(textOf(b)), '', 'concurrent callMCPToolWithUrlElicitationRetry calls in src/services/mcp/client.ts must each return their own result')
+  t('two concurrent calls both settle with their own results', /echo:A/.test(textOf(a)) && /echo:B/.test(textOf(b)))
   t(
     'the progress ROUTER keeps concurrent progress separate (no last-handler-wins)',
     progressSeen.includes('A:from-A') && progressSeen.includes('B:from-B') && !progressSeen.some(s => s === 'A:from-B' || s === 'B:from-A'),
     JSON.stringify(progressSeen),
-    'the progress routing used by callMCPToolWithUrlElicitationRetry in src/services/mcp/client.ts must deliver each progress token to the handler of its own call',
   )
   delete process.env.MERCURY_MCP_CALL_IDLE_MINUTES
   unseat()
@@ -147,41 +145,41 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 {
   const { agentStalledError, declaredRecoveryWaitMs, agentIdleLimitMs, DEFAULT_AGENT_IDLE_MINUTES } = await import('../../src/tools/AgentTool/runAgent.ts')
-  t('agent idle default is 15 minutes', DEFAULT_AGENT_IDLE_MINUTES === 15 && agentIdleLimitMs() === 15 * 60_000, '', 'DEFAULT_AGENT_IDLE_MINUTES and agentIdleLimitMs in src/tools/AgentTool/runAgent.ts must default to 15 minutes')
+  t('agent idle default is 15 minutes', DEFAULT_AGENT_IDLE_MINUTES === 15 && agentIdleLimitMs() === 15 * 60_000)
   const zero = agentStalledError({ agentType: 'mercury-crew', agentId: 'a1', limitMs: 60_000, elapsedMs: 61_000, events: 0, toolUses: 0 })
-  t('a zero-tool-use stall says so (rider R1)', /never used a tool/.test(zero.message) && zero.code === 'DEADLINE_EXCEEDED', zero.message, 'agentStalledError in src/tools/AgentTool/runAgent.ts must say the agent never used a tool when toolUses is 0 and carry code DEADLINE_EXCEEDED')
+  t('a zero-tool-use stall says so (rider R1)', /never used a tool/.test(zero.message) && zero.code === 'DEADLINE_EXCEEDED', zero.message)
   const some = agentStalledError({ agentType: 'mercury-crew', agentId: 'a2', limitMs: 60_000, elapsedMs: 200_000, events: 9, toolUses: 3 })
-  t('a mid-run stall names its tool-use count', /3 tool uses before the silence/.test(some.message), some.message, 'agentStalledError in src/tools/AgentTool/runAgent.ts must name the tool-use count before the silence')
-  t('declared recovery: api_error retryInMs honored', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', retryInMs: 30_000 }) === 30_000, '', 'declaredRecoveryWaitMs in src/tools/AgentTool/runAgent.ts must return retryInMs of an api_error system message')
-  t('declared recovery: recoveryTimeoutMs honored when no retry delay', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', recoveryTimeoutMs: 45_000 }) === 45_000, '', 'declaredRecoveryWaitMs in src/tools/AgentTool/runAgent.ts must fall back to recoveryTimeoutMs when there is no retryInMs')
-  t('declared recovery: capped at ten minutes', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', retryInMs: 3_600_000 }) === 600_000, '', 'declaredRecoveryWaitMs in src/tools/AgentTool/runAgent.ts must cap the wait at ten minutes')
-  t('an ordinary message declares no recovery', declaredRecoveryWaitMs({ type: 'assistant' }) === 0, '', 'declaredRecoveryWaitMs in src/tools/AgentTool/runAgent.ts must return 0 for a message that is not an api_error')
+  t('a mid-run stall names its tool-use count', /3 tool uses before the silence/.test(some.message), some.message)
+  t('declared recovery: api_error retryInMs honored', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', retryInMs: 30_000 }) === 30_000)
+  t('declared recovery: recoveryTimeoutMs honored when no retry delay', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', recoveryTimeoutMs: 45_000 }) === 45_000)
+  t('declared recovery: capped at ten minutes', declaredRecoveryWaitMs({ type: 'system', subtype: 'api_error', retryInMs: 3_600_000 }) === 600_000)
+  t('an ordinary message declares no recovery', declaredRecoveryWaitMs({ type: 'assistant' }) === 0)
 }
 
 {
   const { boundHookContext, shapeBoundedContext, HOOK_CONTEXT_CAP_CHARS } = await import('../../src/utils/hooks/contextBound.ts')
   const small = boundHookContext('a modest note', 'prover-hook')
-  t('under the cap the text passes untouched', small.text === 'a modest note' && !small.truncated, '', 'boundHookContext in src/utils/hooks/contextBound.ts must return text under HOOK_CONTEXT_CAP_CHARS unchanged')
+  t('under the cap the text passes untouched', small.text === 'a modest note' && !small.truncated)
   const big = 'S'.repeat(HOOK_CONTEXT_CAP_CHARS + 5_000) + 'TAIL-MARKER'
   const bounded = boundHookContext(big, 'prover-hook')
-  t('past the cap the text is bounded with an omission marker', bounded.truncated && bounded.text.length < big.length && /characters omitted/.test(bounded.text), '', 'boundHookContext in src/utils/hooks/contextBound.ts must truncate past HOOK_CONTEXT_CAP_CHARS and add a characters-omitted marker')
-  t('the tail survives (head+tail preview)', bounded.text.endsWith('TAIL-MARKER'), '', 'boundHookContext in src/utils/hooks/contextBound.ts must keep the end of the text (head plus tail preview)')
+  t('past the cap the text is bounded with an omission marker', bounded.truncated && bounded.text.length < big.length && /characters omitted/.test(bounded.text))
+  t('the tail survives (head+tail preview)', bounded.text.endsWith('TAIL-MARKER'))
   t('the marker names the spill file and the spill holds the complete bytes',
-    bounded.spilledTo !== undefined && bounded.text.includes(bounded.spilledTo) && readFileSync(bounded.spilledTo, 'utf8') === big, '', 'boundHookContext in src/utils/hooks/contextBound.ts must write the full text to a spill file and name that path in the marker')
+    bounded.spilledTo !== undefined && bounded.text.includes(bounded.spilledTo) && readFileSync(bounded.spilledTo, 'utf8') === big)
   const failed = shapeBoundedContext('x'.repeat(100), 40, { error: 'disk said no' })
-  t('a failed spill stays honest in the marker', /could not be saved: disk said no/.test(failed.text), failed.text, 'shapeBoundedContext in src/utils/hooks/contextBound.ts must put the spill error in the marker as could not be saved')
+  t('a failed spill stays honest in the marker', /could not be saved: disk said no/.test(failed.text))
 }
 
 {
   const { shouldSkipHighlight, getCliHighlightPromise, MAX_HIGHLIGHT_LINE_CHARS } = await import('../../src/utils/cliHighlight.ts')
-  t('ordinary code is highlighted territory', !shouldSkipHighlight('const x = 1\nconst y = 2'), '', 'shouldSkipHighlight in src/utils/cliHighlight.ts must not skip short ordinary code')
+  t('ordinary code is highlighted territory', !shouldSkipHighlight('const x = 1\nconst y = 2'))
   const minified = 'x'.repeat(MAX_HIGHLIGHT_LINE_CHARS + 1)
-  t('a single over-long line skips', shouldSkipHighlight(minified), '', 'shouldSkipHighlight in src/utils/cliHighlight.ts must skip a line longer than MAX_HIGHLIGHT_LINE_CHARS')
-  t('a huge blob skips', shouldSkipHighlight('a\n'.repeat(150_000)), '', 'shouldSkipHighlight in src/utils/cliHighlight.ts must skip a very large input')
+  t('a single over-long line skips', shouldSkipHighlight(minified))
+  t('a huge blob skips', shouldSkipHighlight('a\n'.repeat(150_000)))
   const api = await getCliHighlightPromise()
   if (api) {
     const out = api.highlight(minified, { language: 'javascript' })
-    t('the guarded bundle returns pathological input unpainted (same bytes)', out === minified, '', 'the highlighter from getCliHighlightPromise in src/utils/cliHighlight.ts must return an over-long line unchanged')
+    t('the guarded bundle returns pathological input unpainted (same bytes)', out === minified)
   } else {
   }
 }
@@ -206,57 +204,57 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
     registerPendingLSPDiagnostic({ serverName: 'ts', files: [{ uri: 'file:///a.ts', diagnostics: [diag(`wave-${i}`)] }] })
   }
   const parked = _pendingForTesting().filter(entry => entry.uris.includes('file:///a.ts'))
-  t('fifty publishes for one file coalesce to ONE pending entry', parked.length === 1, String(parked.length), 'registerPendingLSPDiagnostic in src/services/lsp/LSPDiagnosticRegistry.ts must replace the pending entry of the same server and file')
+  t('fifty publishes for one file coalesce to ONE pending entry', parked.length === 1, String(parked.length))
   registerPendingLSPDiagnostic({ serverName: 'other', files: [{ uri: 'file:///a.ts', diagnostics: [diag('other-server')] }] })
   t('a different server\'s publish for the same file stays separate', _pendingForTesting().filter(e => e.uris.includes('file:///a.ts')).length === 2)
   for (let i = 0; i < MAX_PENDING_PUBLISHES + 40; i++) {
     registerPendingLSPDiagnostic({ serverName: 'flood', files: [{ uri: `file:///f${i}.ts`, diagnostics: [diag('x')] }] })
   }
-  t('the pending table is bounded', _pendingForTesting().length <= MAX_PENDING_PUBLISHES, '', 'registerPendingLSPDiagnostic in src/services/lsp/LSPDiagnosticRegistry.ts must keep the pending table within MAX_PENDING_PUBLISHES')
+  t('the pending table is bounded', _pendingForTesting().length <= MAX_PENDING_PUBLISHES)
   checkForLSPDiagnostics()
 }
 
 {
   const { renderFaultRecoveryPlan, RENDER_FAULT_RETRY_BUDGET } = await import('../../src/ink/ink.tsx')
-  t('faults within the budget repaint', renderFaultRecoveryPlan(1) === 'repaint' && renderFaultRecoveryPlan(RENDER_FAULT_RETRY_BUDGET) === 'repaint', '', 'renderFaultRecoveryPlan in src/ink/ink.tsx must answer repaint up to RENDER_FAULT_RETRY_BUDGET faults')
-  t('past the budget the fault goes loud', renderFaultRecoveryPlan(RENDER_FAULT_RETRY_BUDGET + 1) === 'loud', '', 'renderFaultRecoveryPlan in src/ink/ink.tsx must answer loud once the budget is exceeded')
+  t('faults within the budget repaint', renderFaultRecoveryPlan(1) === 'repaint' && renderFaultRecoveryPlan(RENDER_FAULT_RETRY_BUDGET) === 'repaint')
+  t('past the budget the fault goes loud', renderFaultRecoveryPlan(RENDER_FAULT_RETRY_BUDGET + 1) === 'loud')
 }
 
 {
   const { agentFanoutCap } = await import('../../src/constants/subagentDoctrine.ts')
   delete process.env.MERCURY_AGENT_FANOUT_CAP
-  t('fan-out cap unset ⇒ no mechanical cap', agentFanoutCap() === null, '', 'agentFanoutCap in src/constants/subagentDoctrine.ts must return null when MERCURY_AGENT_FANOUT_CAP is unset')
+  t('fan-out cap unset ⇒ no mechanical cap', agentFanoutCap() === null)
   process.env.MERCURY_AGENT_FANOUT_CAP = '3'
-  t('fan-out cap set ⇒ the integer', agentFanoutCap() === 3, '', 'agentFanoutCap in src/constants/subagentDoctrine.ts must return the integer in MERCURY_AGENT_FANOUT_CAP')
+  t('fan-out cap set ⇒ the integer', agentFanoutCap() === 3)
   process.env.MERCURY_AGENT_FANOUT_CAP = 'lots'
-  t('junk ⇒ no cap', agentFanoutCap() === null, '', 'agentFanoutCap in src/constants/subagentDoctrine.ts must return null for a value that is not an integer')
+  t('junk ⇒ no cap', agentFanoutCap() === null)
   delete process.env.MERCURY_AGENT_FANOUT_CAP
 }
 
 {
   const { boundNotificationResult, NOTIFICATION_RESULT_CAP_CHARS } = await import('../../src/tasks/LocalAgentTask/LocalAgentTask.tsx')
-  t('a normal final message passes untouched', boundNotificationResult('done, see the diff') === 'done, see the diff', '', 'boundNotificationResult in src/tasks/LocalAgentTask/LocalAgentTask.tsx must return a message under NOTIFICATION_RESULT_CAP_CHARS unchanged')
+  t('a normal final message passes untouched', boundNotificationResult('done, see the diff') === 'done, see the diff')
   const big = 'H'.repeat(NOTIFICATION_RESULT_CAP_CHARS * 3) + 'TAIL'
   const bounded = boundNotificationResult(big)
   t('an oversized final message is bounded and points at the output file',
-    bounded.length < big.length && /characters omitted/.test(bounded) && /output file named above/.test(bounded) && bounded.endsWith('TAIL'), '', 'boundNotificationResult in src/tasks/LocalAgentTask/LocalAgentTask.tsx must truncate past NOTIFICATION_RESULT_CAP_CHARS, keep the tail and point at the output file')
+    bounded.length < big.length && /characters omitted/.test(bounded) && /output file named above/.test(bounded) && bounded.endsWith('TAIL'))
 }
 
 {
   const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   const real = findToolForRender([BashTool] as never, BashTool.name)
-  t('a live tool resolves to itself', real === (BashTool as never), '', 'findToolForRender in src/tools/MCPTool/absentToolShim.ts must return the live tool when it is in the list')
+  t('a live tool resolves to itself', real === (BashTool as never))
   const shim = findToolForRender([BashTool] as never, 'mcp__gone__lookup')
-  t('an absent tool resolves to a named render shim', shim.name === 'mcp__gone__lookup' && shim.userFacingName({} as never) === 'mcp__gone__lookup', '', 'findToolForRender in src/tools/MCPTool/absentToolShim.ts must return a shim named after the absent tool')
-  t('the shim renders (tool-use message renderer present)', typeof shim.renderToolUseMessage === 'function', '', 'the shim built in src/tools/MCPTool/absentToolShim.ts must define renderToolUseMessage')
+  t('an absent tool resolves to a named render shim', shim.name === 'mcp__gone__lookup' && shim.userFacingName({} as never) === 'mcp__gone__lookup')
+  t('the shim renders (tool-use message renderer present)', typeof shim.renderToolUseMessage === 'function')
   let threw = false
   try {
     await (shim.call as unknown as (a: unknown, b: unknown) => Promise<unknown>)({}, {})
   } catch {
     threw = true
   }
-  t('the shim refuses execution', threw, '', 'the shim built in src/tools/MCPTool/absentToolShim.ts must throw when its call is invoked')
+  t('the shim refuses execution', threw)
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

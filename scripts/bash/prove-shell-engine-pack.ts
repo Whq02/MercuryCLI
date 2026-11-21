@@ -158,7 +158,7 @@ section('§2 engine resolution, the env pin, and the honest degrade')
 
 section('§3 the flag registry row and the settings key')
 {
-  hint = 'fix the MERCURY_SHELL_ENGINE / MERCURY_SHELL_ENGINE_SESSIONS rows in FLAG_REGISTRY (src/substrate/flagRegistry.ts), or resolveEngineSessionCeiling in src/utils/shell/engineSession.ts'
+  hint = 'fix the MERCURY_SHELL_ENGINE / MERCURY_SHELL_ENGINE_SESSIONS rows in FLAG_REGISTRY, or resolveEngineSessionCeiling in src/utils/shell/engineSession.ts'
   const { FLAG_REGISTRY } = await import(join(ROOT, 'src/substrate/flagRegistry.ts'))
   const row = (FLAG_REGISTRY as Array<{ env: string; kind: string; consumer: string }>).find(r => r.env === 'MERCURY_SHELL_ENGINE')
   check('MERCURY_SHELL_ENGINE is registered', row !== undefined)

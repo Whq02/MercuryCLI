@@ -21,15 +21,15 @@ const lines = wrapPlain(
   'The quick brown fox jumps over the lazy dog and keeps going for a while longer.',
   w,
 )
-check('every line ≤ budget', lines.every(l => displayWidth(l) <= w), lines.map(l => displayWidth(l)).join(',') + '; fix wrapPlain in src/utils/cockpit/wrapPlain.ts so no line is wider than the width argument')
-check('no content lost', lines.join(' ').replace(/\s+/g, ' ') === 'The quick brown fox jumps over the lazy dog and keeps going for a while longer.', 'wrapPlain in src/utils/cockpit/wrapPlain.ts dropped or changed words; got: ' + JSON.stringify(lines))
+check('every line ≤ budget', lines.every(l => displayWidth(l) <= w), lines.map(l => displayWidth(l)).join(','))
+check('no content lost', lines.join(' ').replace(/\s+/g, ' ') === 'The quick brown fox jumps over the lazy dog and keeps going for a while longer.')
 const cjk = wrapPlain('漢字がたくさん並んでいる行はセルの幅で折り返す必要がある', 10)
-check('CJK wraps by cell width', cjk.every(l => displayWidth(l) <= 10), cjk.map(l => displayWidth(l)).join(',') + '; wrapPlain in src/utils/cockpit/wrapPlain.ts must measure with displayWidth/charWidth, not string length')
+check('CJK wraps by cell width', cjk.every(l => displayWidth(l) <= 10), cjk.map(l => displayWidth(l)).join(','))
 const longWord = wrapPlain('averyveryverylongunbrokenidentifier_that_keeps_going', 12)
-check('long word hard-breaks within budget', longWord.every(l => displayWidth(l) <= 12), 'widths ' + longWord.map(l => displayWidth(l)).join(',') + '; fix breakWord in src/utils/cockpit/wrapPlain.ts')
-check('hard-broken word reassembles', longWord.join('') === 'averyveryverylongunbrokenidentifier_that_keeps_going', 'breakWord in src/utils/cockpit/wrapPlain.ts lost or reordered characters; got: ' + JSON.stringify(longWord))
+check('long word hard-breaks within budget', longWord.every(l => displayWidth(l) <= 12))
+check('hard-broken word reassembles', longWord.join('') === 'averyveryverylongunbrokenidentifier_that_keeps_going')
 const paras = wrapPlain('one\n\ntwo', 10)
-check('paragraph break survives as a blank line', paras.length === 3 && paras[1] === '', 'wrapPlain in src/utils/cockpit/wrapPlain.ts must push an empty line for a blank paragraph; got: ' + JSON.stringify(paras))
+check('paragraph break survives as a blank line', paras.length === 3 && paras[1] === '')
 
 
 console.log('')

@@ -32,16 +32,14 @@ section('§1 THE NARROWING LAW')
     'a declared tools: list narrows to exactly those tools',
     declared.resolvedTools.length === 2 &&
       declared.resolvedTools.every(t => ['Read', 'Grep'].includes((t as { name: string }).name)),
-    JSON.stringify(declared.resolvedTools.map(t => (t as { name: string }).name)) +
-      ' | fix the declared-tools loop in resolveAgentTools (src/tools/AgentTool/agentToolUtils.ts)',
+    JSON.stringify(declared.resolvedTools.map(t => (t as { name: string }).name)),
   )
   const denied = resolveAgentTools({ disallowedTools: ['Write'], source: 'user' } as never, pool as never)
   check(
     'a disallowedTools: entry removes exactly that tool',
     !denied.resolvedTools.some(t => (t as { name: string }).name === 'Write') &&
       denied.resolvedTools.some(t => (t as { name: string }).name === 'Read'),
-    JSON.stringify(denied.resolvedTools.map(t => (t as { name: string }).name)) +
-      ' | fix the deniedNames filter for disallowedTools in resolveAgentTools (src/tools/AgentTool/agentToolUtils.ts)',
+    JSON.stringify(denied.resolvedTools.map(t => (t as { name: string }).name)),
   )
 }
 
@@ -53,14 +51,13 @@ section('§3 THE SCOUT CONTROL')
     check('scout definition readable (export shape known)', true)
   } else {
     const scout = (getBuiltInAgents() as Array<{ agentType: string; tools?: string[] }>).find(a => a.agentType === 'mercury-scout')
-    check('mercury-scout exists', scout !== undefined, 'getBuiltInAgents (src/tools/AgentTool/builtInAgents.ts) must return the scout definition, agentType mercury-scout')
+    check('mercury-scout exists', scout !== undefined)
     if (scout) {
       const narrowed = resolveAgentTools(scout as never, pool as never)
       check(
         "the scout's dispatched pool carries NO editing tool",
         !narrowed.resolvedTools.some(t => ['Write', 'Edit'].includes((t as { name: string }).name)),
-        JSON.stringify(narrowed.resolvedTools.map(t => (t as { name: string }).name)) +
-          ' | the scout definition (src/tools/AgentTool/built-in/mercuryScoutAgent.ts) must declare tools without Write or Edit, and resolveAgentTools (src/tools/AgentTool/agentToolUtils.ts) must honour it',
+        JSON.stringify(narrowed.resolvedTools.map(t => (t as { name: string }).name)),
       )
     }
   }

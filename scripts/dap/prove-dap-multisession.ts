@@ -17,7 +17,7 @@ const SECTION_HINTS: Record<string, string> = {
   '7': 'look at src/tools/DebugTool/DebugTool.ts (op routing, launch, stack, breakpoints, status, continue, disconnect) and the tree helpers in src/services/dap/client/tree.ts',
   '7b': 'look at how src/tools/DebugTool/DebugTool.ts reports a continue that ends the tree (exit code from the DAP exited event or adapter output)',
   '8': 'look at treeVerifiedBreakpoints in src/services/dap/client/tree.ts and the breakpoint-changed handling in src/services/dap/client/messages.ts',
-  '9': 'look at resolveJsDebugServer and jsDebugSourceLabel in src/services/dap/jsDebugResolver.ts and the MERCURY_JS_DEBUG_DAP row in src/substrate/flags/ide.ts',
+  '9': 'look at resolveJsDebugServer and jsDebugSourceLabel in src/services/dap/jsDebugResolver.ts and the MERCURY_JS_DEBUG_DAP row in FLAG_REGISTRY',
 }
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++

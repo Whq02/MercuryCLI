@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
-const GATES_FIX_HINT = 'change the gate in src/utils/unity/bridgeGates.ts (unityBridgeEnabled, unityBridgeToolCatalogEnabled, unityBridgePort, unityBridgeTokenOverride) or, for the registry rows in section 5, the MERCURY_UNITY flag rows read through getFlagSpec in src/substrate/flagRegistry.ts'
+const GATES_FIX_HINT = 'change the gate in src/utils/unity/bridgeGates.ts (unityBridgeEnabled, unityBridgeToolCatalogEnabled, unityBridgePort, unityBridgeTokenOverride) or, for the registry rows in section 5, the MERCURY_UNITY flag rows read through getFlagSpec in the flag registry (FLAG_REGISTRY)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${GATES_FIX_HINT}` : GATES_FIX_HINT

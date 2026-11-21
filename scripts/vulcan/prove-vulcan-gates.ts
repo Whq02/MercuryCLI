@@ -13,7 +13,7 @@ const failHintsBySection: Record<string, string> = {
   '§3': 'change getGodotToolDescription in src/tools/GodotTool/prompt.ts or the lite and unknown-op refusals in src/tools/GodotTool/GodotTool.ts',
   '§4': 'change checkPermissions and isReadOnly in src/tools/GodotTool/GodotTool.ts so read, mutate and exec ops get the permission class this check names',
   '§5': 'change src/services/vulcan/addonInstaller.ts (vulcanInstallStatus, applyVulcanInstall, applyVulcanUninstall, describeVulcanStatus, readEnabledPlugins, readRuntimeAutoloadEntry) so install, refresh and uninstall report what this check names',
-  '§6': 'change the MERCURY_GODOT_TOOLS rows in src/substrate/flagRegistry.ts',
+  '§6': 'change the MERCURY_GODOT_TOOLS rows in the flag registry (FLAG_REGISTRY)',
   '§7': 'change src/services/cockpit/harnessMap.ts, src/constants/subagentDoctrine.ts, src/substrate/startupMenu.ts or the vulcan row in src/services/health/sections/runtime.ts, whichever this check names',
 }
 function check(label: string, cond: boolean, detail = ''): void {

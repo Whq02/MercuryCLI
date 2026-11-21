@@ -40,13 +40,13 @@ try {
       threw = true
       console.log(`      threw: ${e}`)
     }
-    check('appendEntryToFile creates the whole missing parent chain', !threw, 'appendEntryToFile threw; change its directory creation in src/utils/sessionStorage/writer.ts')
+    check('appendEntryToFile creates the whole missing parent chain', !threw)
     if (!threw) {
       const raw = readFileSync(deep, 'utf8')
       check(
         'the appended line carries the entry (tag round-trips)',
         raw.includes('"p1-proof"'),
-        raw.slice(0, 120) + ' | change appendEntryToFile in src/utils/sessionStorage/writer.ts',
+        raw.slice(0, 120),
       )
     }
   }
@@ -56,7 +56,7 @@ try {
     const sidecar = getAgentMetadataPath(agentId)
 
     const missing = await readAgentMetadata(agentId)
-    check('missing sidecar reads as null (fallback path)', missing === null, 'change readAgentMetadata in src/utils/sessionStorage/paths.ts')
+    check('missing sidecar reads as null (fallback path)', missing === null)
 
     mkdirSync(dirname(sidecar), { recursive: true })
     writeFileSync(sidecar, '{"agentType": "worker", TORN')
@@ -70,7 +70,6 @@ try {
     check(
       'corrupt sidecar reads as null instead of throwing',
       !corruptThrew && corruptResult === null,
-      'change readAgentMetadata in src/utils/sessionStorage/paths.ts to catch a torn sidecar and return null',
     )
 
     await writeAgentMetadata(agentId, { agentType: 'verifier', model: 'm-1' })
@@ -78,7 +77,6 @@ try {
     check(
       'valid sidecar round-trips agentType + model',
       roundTrip?.agentType === 'verifier' && roundTrip?.model === 'm-1',
-      'change writeAgentMetadata and readAgentMetadata in src/utils/sessionStorage/paths.ts',
     )
   }
 
@@ -109,13 +107,13 @@ try {
       ['bd', boundary],
     ])
     applySnipRemovals(map as never)
-    check('snip victims leave the map', !map.has('b') && !map.has('c'), 'change applySnipRemovals in src/utils/sessionStorage/chain.ts')
+    check('snip victims leave the map', !map.has('b') && !map.has('c'))
     check(
       'the dangling survivor re-links across the removed range',
       map.get('d')?.parentUuid === 'a',
-      `d.parentUuid=${map.get('d')?.parentUuid} | change the re-linking in applySnipRemovals in src/utils/sessionStorage/chain.ts`,
+      `d.parentUuid=${map.get('d')?.parentUuid}`,
     )
-    check('untouched entries keep their links', map.get('a')?.parentUuid === null, 'change applySnipRemovals in src/utils/sessionStorage/chain.ts')
+    check('untouched entries keep their links', map.get('a')?.parentUuid === null)
 
     const clean = new Map<string, Msg>([
       ['a', mk('a', null)],
@@ -125,7 +123,6 @@ try {
     check(
       'a map without snip boundaries is untouched',
       clean.size === 2 && clean.get('b')?.parentUuid === 'a',
-      'change applySnipRemovals in src/utils/sessionStorage/chain.ts so a map with no snip boundary is left alone',
     )
   }
 } finally {

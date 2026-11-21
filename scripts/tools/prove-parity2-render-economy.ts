@@ -19,7 +19,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
 }
 
 {
-  failHint = 'change the quiet update check in src/services/privateChannel/quietUpdateNotice.ts (runQuietUpdateCheck, decideQuietCheck, updateNoticeText, scheduleQuietUpdateNotice) or the MERCURY_UPDATE_NOTICE flag in src/substrate/flagRegistry.ts'
+  failHint = 'change the quiet update check in src/services/privateChannel/quietUpdateNotice.ts (runQuietUpdateCheck, decideQuietCheck, updateNoticeText, scheduleQuietUpdateNotice) or the MERCURY_UPDATE_NOTICE flag in the flag registry (FLAG_REGISTRY)'
   const { runQuietUpdateCheck, decideQuietCheck, updateNoticeText, readUpdateNoticeCache, writeUpdateNoticeCache, updateNoticeCachePath, UPDATE_NOTICE_DAILY_MS, scheduleQuietUpdateNotice } =
     await import('../../src/services/privateChannel/quietUpdateNotice.ts')
   const { flagEnabled } = await import('../../src/substrate/flagRegistry.ts')

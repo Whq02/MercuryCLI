@@ -31,7 +31,7 @@ console.log('entering a provider key has one home: /logins')
   console.log('\nthe flags and route-store retirement')
   const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
   for (const env of RETIRED_ENVS) {
-    check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env), 'remove the retired flag row from the flag rows under src/substrate/flags/')
+    check(`the flag registry carries no row for ${env}`, !FLAG_REGISTRY.some(row => row.env === env), 'remove the retired flag row from FLAG_REGISTRY')
   }
   const homeStores = await import('../../src/utils/projectHomeStores.ts')
   check('the project home stores carry no route-state store (a folder left on disk is never read)', !homeStores.PROJECT_HOME_STORES.some(segments => segments.join('/') === 'router'), 'remove the router store from PROJECT_HOME_STORES in src/utils/projectHomeStores.ts')

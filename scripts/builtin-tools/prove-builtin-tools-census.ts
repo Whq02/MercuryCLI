@@ -56,7 +56,7 @@ for (const row of census.rows) {
     badTransactions.push(`${row.name} → ${d.transaction.kind}`)
   }
 }
-check('declared gate flags exist in flagRegistry', badFlags.length === 0, `${badFlags.join('; ')} — fix the tool's declared gate, or add the flag to FLAG_REGISTRY in src/substrate/flagRegistry.ts`)
+check('declared gate flags exist in flagRegistry', badFlags.length === 0, `${badFlags.join('; ')} — fix the tool's declared gate, or add the flag to FLAG_REGISTRY in the flag registry`)
 check(
   'declared execution kinds are census-classified',
   badExecution.length === 0,

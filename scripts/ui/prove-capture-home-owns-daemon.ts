@@ -24,7 +24,7 @@ console.log('§1 every scratch-home scenario in the harness owns its daemon dir'
   })
   check('the harness has scratch-home scenarios to pin', sites > 0, 'no line in scripts/ui/renderScenarios.ts reads `process.env.MERCURY_CONFIG_DIR = scratch` any more; update the matcher in this prover to the harness\'s new spelling')
   check('no scratch-home scenario inherits the shared pid-keyed daemon dir', bare.length === 0, `bare at lines ${bare.join(', ')} of scripts/ui/renderScenarios.ts — set process.env.MERCURY_DAEMON_DIR within the next 6 lines after each process.env.MERCURY_CONFIG_DIR = scratch`)
-  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)"), 'scripts/ui/renderScenarios.ts must keep setting the shared default process.env.MERCURY_DAEMON_DIR to a pid-keyed folder under tmpdir()'))
+  check('the shared default stays keyed to the prover for captures on the shared home', lines.some(l => l.includes("process.env.MERCURY_DAEMON_DIR = join(tmpdir(), `mercury-render-daemon-${process.pid}`)")), 'scripts/ui/renderScenarios.ts must keep setting the shared default process.env.MERCURY_DAEMON_DIR to a pid-keyed folder under tmpdir()')
 }
 
 console.log('§2 a prover on two or more homes carries a daemon dir in each spawn env')

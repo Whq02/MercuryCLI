@@ -20,7 +20,7 @@ console.log('prove-stream-commit-throttle — live tail commits under a delta st
   })
   tail.subscribe(() => commits++)
   tail.update(() => '')
-  check('the opening publishes synchronously', commits === 1, `commits ${commits} (expected 1): the first update from an empty tail must publish at once; check update in createStreamingTailStore, src/utils/messages/streamingTailStore.ts`)
+  check('the opening publishes synchronously', commits === 1)
   for (let i = 0; i < 100; i++) {
     tail.update(cur => (cur ?? '') + 'x')
     clock += 10
@@ -29,20 +29,20 @@ console.log('prove-stream-commit-throttle — live tail commits under a delta st
   }
   const trailing = timer as { at: number; fire: () => void } | null
   if (trailing) { clock = trailing.at; trailing.fire() }
-  check('100 deltas stay within the live tail cadence', commits >= 1 && commits <= 40, `${commits} commits (expected 1 to 40): update in createStreamingTailStore, src/utils/messages/streamingTailStore.ts, must hold deltas inside its interval for one trailing publish`)
-  check('fresh and published tails contain every byte', tail.read() === 'x'.repeat(100) && tail.getSnapshot() === tail.read(), `read ${String(tail.read()).length} bytes and snapshot ${String(tail.getSnapshot()).length} bytes (expected 100 each): the trailing publish in src/utils/messages/streamingTailStore.ts must carry the latest text`)
+  check('100 deltas stay within the live tail cadence', commits >= 1 && commits <= 40, String(commits))
+  check('fresh and published tails contain every byte', tail.read() === 'x'.repeat(100) && tail.getSnapshot() === tail.read())
   const before = commits
   tail.update(cur => cur)
-  check('identity updates schedule no work', commits === before && timer === null, `commits ${commits} against ${before} before, timer ${timer === null ? 'none' : 'set'}: update in src/utils/messages/streamingTailStore.ts must do nothing when the function returns the current text`)
+  check('identity updates schedule no work', commits === before && timer === null)
   tail.update(() => null)
-  check('the close publishes immediately and retains the last text', tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100) && timer === null, `snapshot ${String(tail.getSnapshot())}, settled length ${String(tail.readSettled()).length} (expected null and 100), timer ${timer === null ? 'none' : 'set'}: update to null in src/utils/messages/streamingTailStore.ts must publish at once, keep the last text for readSettled and clear the timer`)
+  check('the close publishes immediately and retains the last text', tail.getSnapshot() === null && tail.readSettled() === 'x'.repeat(100) && timer === null)
   tail.update(() => 'next')
   tail.update(cur => cur + ' pending')
   tail.dispose()
-  check('dispose cancels the trailing publish', timer === null, 'dispose in src/utils/messages/streamingTailStore.ts must call clearTimer for a pending trailing publish')
+  check('dispose cancels the trailing publish', timer === null)
   const disposed = commits
   tail.update(() => 'late')
-  check('late updates never resurrect the subscriber', commits === disposed, `commits ${commits} against ${disposed} at dispose: update in src/utils/messages/streamingTailStore.ts must return early once disposed`)
+  check('late updates never resurrect the subscriber', commits === disposed)
 }
 
 {

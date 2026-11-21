@@ -38,21 +38,21 @@ section('§1 invocation trace — injection: unwritable sidecar retains + escala
   mkdirSync(tracePath, { recursive: true })
   trace.emitInvocationTrace(fakeTool, { durationMs: 5, ok: true })
   trace.emitInvocationTrace(fakeTool, { durationMs: 6, ok: false })
-  check('records buffer before any flush', trace.getTraceFlushHealth().pending === 2, 'emitInvocationTrace in src/utils/observability/invocationTrace.ts should queue each record in pendingLines until a flush')
+  check('records buffer before any flush', trace.getTraceFlushHealth().pending === 2)
   await trace.flushTraceNow()
   let h = trace.getTraceFlushHealth()
-  check('failed flush RETAINS both records', h.pending === 2, `pending=${h.pending}; flushTraceNow in src/utils/observability/invocationTrace.ts must put the snapshot back in pendingLines when appendFile throws`)
-  check('streak counts the failure', h.streak === 1, `streak=${h.streak}; flushTraceNow in src/utils/observability/invocationTrace.ts must do flushFailureStreak++ once per failed append`)
-  check('failure detail recorded', h.lastFailure !== null, 'flushTraceNow in src/utils/observability/invocationTrace.ts must set lastFlushFailure in its catch block')
+  check('failed flush RETAINS both records', h.pending === 2, `pending=${h.pending}`)
+  check('streak counts the failure', h.streak === 1)
+  check('failure detail recorded', h.lastFailure !== null)
   await trace.flushTraceNow()
   await trace.flushTraceNow()
   h = trace.getTraceFlushHealth()
-  check('streak reaches the escalation mark (3)', h.streak === 3, `streak=${h.streak}; flushTraceNow in src/utils/observability/invocationTrace.ts must count each failed flush`)
+  check('streak reaches the escalation mark (3)', h.streak === 3, `streak=${h.streak}`)
   {
     const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const says = await crewChecks().find(row => row.id === 'invocation-trace')?.run()
     const named = /^mercury-trace\.jsonl flush failing — streak (\d+), (\d+) pending/.exec(says?.evidence ?? '')
-    check('the /health trace row reads that streak from the owner: warn, the streak and the pending count named', says?.status === 'warn' && named !== null && Number(named[1]) >= h.streak && Number(named[1]) <= trace.getTraceFlushHealth().streak && Number(named[2]) === h.pending, `${says?.status}: ${says?.evidence.slice(0, 70)}; the invocation-trace row in src/services/health/sections/crew/boot.ts must report warn with the flush-failing streak and pending count from getTraceFlushHealth`)
+    check('the /health trace row reads that streak from the owner: warn, the streak and the pending count named', says?.status === 'warn' && named !== null && Number(named[1]) >= h.streak && Number(named[1]) <= trace.getTraceFlushHealth().streak && Number(named[2]) === h.pending, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
   }
   check('nothing landed on the occupied path', diskLines().length === 0)
 }
@@ -63,15 +63,14 @@ section('§2 invocation trace — recovery lands everything in order')
   trace.emitCompactionTrace('microcompact', { tokensFreed: 1234 })
   await trace.flushTraceNow()
   const h = trace.getTraceFlushHealth()
-  check('recovered flush drains the buffer', h.pending === 0, `pending=${h.pending}; flushTraceNow in src/utils/observability/invocationTrace.ts must clear pendingLines after a successful appendFile`)
-  check('streak resets on success', h.streak === 0, `streak=${h.streak}; flushTraceNow in src/utils/observability/invocationTrace.ts must set flushFailureStreak = 0 after a successful append`)
-  check('lastWriteOkAt stamped', h.lastWriteOkAt !== null, 'flushTraceNow in src/utils/observability/invocationTrace.ts must set lastWriteOkAt after a successful append')
+  check('recovered flush drains the buffer', h.pending === 0)
+  check('streak resets on success', h.streak === 0)
+  check('lastWriteOkAt stamped', h.lastWriteOkAt !== null)
   const lines = diskLines().map(l => JSON.parse(l))
-  check('EVERY record landed (2 invocations + 1 compaction)', lines.length === 3, `${lines.length}; records retained by a failed flushTraceNow in src/utils/observability/invocationTrace.ts must all reach the file once the path is writable`)
+  check('EVERY record landed (2 invocations + 1 compaction)', lines.length === 3, `${lines.length}`)
   check(
     'order held: the pre-failure records lead, the compaction record trails',
     lines[0]?.tool === 'ProofTool' && lines[1]?.tool === 'ProofTool' && lines[2]?.kind === 'compaction',
-    `${lines.map(l => l?.tool ?? l?.kind).join(',')}; flushTraceNow in src/utils/observability/invocationTrace.ts must restore retained lines ahead of newer ones (snapshot.concat(pendingLines))`,
   )
 }
 
@@ -85,8 +84,8 @@ section('§3 invocation trace — bounded buffer drops oldest, counted')
     trace.emitInvocationTrace(fakeTool, { durationMs: i })
   }
   const h = trace.getTraceFlushHealth()
-  check('pending bounded at the cap', h.pending === CAP, `pending=${h.pending}; enforcePendingCap in src/utils/observability/invocationTrace.ts must trim pendingLines to TRACE_PENDING_CAP (2000), and this CAP must match it`)
-  check('overflow counted as dropped', h.dropped === 50, `dropped=${h.dropped}; enforcePendingCap in src/utils/observability/invocationTrace.ts must add the trimmed overflow to droppedLines`)
+  check('pending bounded at the cap', h.pending === CAP, `pending=${h.pending}`)
+  check('overflow counted as dropped', h.dropped === 50, `dropped=${h.dropped}`)
   rmSync(tracePath, { recursive: true, force: true })
   trace._resetTraceFlushForTesting()
 }
@@ -95,9 +94,9 @@ section('§4 cache-clock rollups — counted streak + recovery')
 {
   clock.resetCacheClockForTesting()
   const decision = clock.cacheClockTtlDecision({ eligible: true, lastCompletionAt: null, now: Date.now() })
-  check('clock latched in the scratch home', decision !== null, `${String(decision)}; cacheClockTtlDecision in src/utils/cache/cacheClock.ts returned null, so the clock did not latch under MERCURY_CONFIG_DIR (the scratch home)`)
+  check('clock latched in the scratch home', decision !== null, String(decision))
   const snap = clock.cacheClockSnapshot()
-  check('snapshot reports engaged', snap.engaged === true, 'cacheClockSnapshot in src/utils/cache/cacheClock.ts should report engaged after cacheClockTtlDecision latched the clock')
+  check('snapshot reports engaged', snap.engaged === true)
   const observe = () =>
     clock.cacheClockObserve({
       cacheReadTokens: 10,
@@ -111,7 +110,7 @@ section('§4 cache-clock rollups — counted streak + recovery')
   observe()
   observe()
   let ch = clock.getCacheClockFlushHealth()
-  check('healthy rollup stamps lastRollupOkAt', ch.lastRollupOkAt !== null && ch.streak === 0, `streak=${ch.streak}; flushRollup in src/utils/cache/cacheClock.ts must set lastRollupOkAt and reset rollupFailureStreak after a successful write`)
+  check('healthy rollup stamps lastRollupOkAt', ch.lastRollupOkAt !== null && ch.streak === 0)
   const projectsRoot = join(HOME, 'projects')
   const sessionsDirs = ((): string[] => {
     const out: string[] = []
@@ -133,7 +132,7 @@ section('§4 cache-clock rollups — counted streak + recovery')
     walk(projectsRoot)
     return out
   })()
-  check('found the scratch sessions dir', sessionsDirs.length === 1, `${sessionsDirs.join(',')}; flushRollup in src/utils/cache/cacheClock.ts should create exactly one sessions dir under projects/ in the scratch config home`)
+  check('found the scratch sessions dir', sessionsDirs.length === 1, sessionsDirs.join(','))
   const sess = sessionsDirs[0]!
   rmSync(sess, { recursive: true, force: true })
   writeFileSync(sess, 'occupied')
@@ -141,20 +140,20 @@ section('§4 cache-clock rollups — counted streak + recovery')
   clock.flushCacheClockNow()
   clock.flushCacheClockNow()
   ch = clock.getCacheClockFlushHealth()
-  check('rollup failures count a streak (≥3 escalates)', ch.streak >= 3, `streak=${ch.streak}; flushRollup in src/utils/cache/cacheClock.ts must do rollupFailureStreak++ in its catch when the sessions dir cannot be created`)
+  check('rollup failures count a streak (≥3 escalates)', ch.streak >= 3, `streak=${ch.streak}`)
   {
     const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
     const says = await crewChecks().find(row => row.id === 'cache-clock')?.run()
     const named = /^session rollup writes failing — streak (\d+): /.exec(says?.evidence ?? '')
-    check('the /health metering row reads that streak from the owner: warn, the streak named', says?.status === 'warn' && named !== null && Number(named[1]) >= ch.streak && Number(named[1]) <= clock.getCacheClockFlushHealth().streak, `${says?.status}: ${says?.evidence.slice(0, 70)}; the cache-clock row in src/services/health/sections/crew/appends.ts must report warn with the rollup failure streak from getCacheClockFlushHealth`)
+    check('the /health metering row reads that streak from the owner: warn, the streak named', says?.status === 'warn' && named !== null && Number(named[1]) >= ch.streak && Number(named[1]) <= clock.getCacheClockFlushHealth().streak, `${says?.status}: ${says?.evidence.slice(0, 70)}`)
   }
-  check('failure detail recorded', ch.lastFailure !== null, 'flushRollup in src/utils/cache/cacheClock.ts must set lastRollupFailure in its catch block')
+  check('failure detail recorded', ch.lastFailure !== null)
   rmSync(sess, { force: true })
   clock.flushCacheClockNow()
   ch = clock.getCacheClockFlushHealth()
-  check('healed flush clears the streak', ch.streak === 0, `streak=${ch.streak}; flushRollup in src/utils/cache/cacheClock.ts must reset rollupFailureStreak after a successful write`)
+  check('healed flush clears the streak', ch.streak === 0)
   const rollups = require('node:fs').readdirSync(sess).filter((f: string) => f.endsWith('.json'))
-  check('rollup landed after heal', rollups.length === 1, `${rollups.join(',')}; flushRollup in src/utils/cache/cacheClock.ts must write one session rollup json once the sessions dir is writable`)
+  check('rollup landed after heal', rollups.length === 1, rollups.join(','))
   clock.resetCacheClockForTesting()
 }
 
@@ -165,7 +164,6 @@ section('§5 wiring anchors')
   check(
     '/health carries freshness probes for all three ledgers',
     ['history', 'invocation-trace', 'cache-clock'].every(id => crewRows.filter(row => row.id === id).length === 1),
-    `crewChecks in src/services/health/sections/crew.ts must list exactly one row each for history, invocation-trace and cache-clock; got ${crewRows.map(row => row.id).join(',')}`,
   )
   const traceOwner = await import('../../src/utils/observability/invocationTrace.ts')
   const clockOwner = await import('../../src/utils/cache/cacheClock.ts')
@@ -178,7 +176,7 @@ section('§5 wiring anchors')
     'the health probes read the owners’ health accessors',
     traceSays !== undefined && (!traceOwner.isInvocationTraceEnabled() ? traceSays.status === 'off' : traceHealth.streak >= 3 ? traceSays.status === 'warn' && traceSays.evidence.includes(`streak ${traceHealth.streak}`) : traceSays.status === 'ok' && traceSays.evidence.startsWith(traceHealth.pending === 0 ? 'appends healthy' : `${traceHealth.pending} pending`)) &&
       clockSays !== undefined && (!clockSnap.engaged ? clockSays.status === 'off' : clockHealth.streak >= 3 ? clockSays.status === 'warn' && clockSays.evidence.includes(`streak ${clockHealth.streak}`) : clockSays.status === 'ok'),
-    `${traceSays?.evidence} | ${clockSays?.evidence}; the invocation-trace row in src/services/health/sections/crew/boot.ts and the cache-clock row in src/services/health/sections/crew/appends.ts must read getTraceFlushHealth and getCacheClockFlushHealth`,
+    `${traceSays?.evidence} | ${clockSays?.evidence}`,
   )
 }
 

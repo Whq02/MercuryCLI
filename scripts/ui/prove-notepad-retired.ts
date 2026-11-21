@@ -62,7 +62,7 @@ const modules = files(join(ROOT, 'src')).filter(file => /tabula/i.test(file.slic
 check('no retired notepad module under src', modules.length === 0, modules.map(file => file.slice(ROOT.length + 1)).join(', '), 'delete the listed file or rename it so its path has no tabula under src/')
 check('the command catalogue has no /note', !builtinCommands().some(command => command.name === 'note' || command.aliases?.includes('note')), '', 'remove the note command or its alias from the list builtinCommands returns in src/commands.ts')
 check('the help domains carry no dead note name', !COMMAND_DOMAINS.some(domain => domain.names.includes('note')), '', 'remove the note name from COMMAND_DOMAINS in src/components/HelpV2/commandDomains.ts')
-check('the registry has no retired notepad flag or directory override', !FLAG_REGISTRY.some(flag => /^MERCURY_TABULA(?:_|$)/.test(flag.env)), '', 'remove the MERCURY_TABULA flag entry from FLAG_REGISTRY (src/substrate/flags, assembled in src/substrate/flagRegistry.ts)')
+check('the registry has no retired notepad flag or directory override', !FLAG_REGISTRY.some(flag => /^MERCURY_TABULA(?:_|$)/.test(flag.env)), '', 'remove the MERCURY_TABULA flag entry from FLAG_REGISTRY')
 
 class Output extends EventEmitter {
   isTTY = true

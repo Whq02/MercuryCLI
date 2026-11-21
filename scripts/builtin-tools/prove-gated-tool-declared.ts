@@ -55,7 +55,7 @@ try {
     check('…of a class: the census does not read it unclassified', !on.summary.unclassified.includes('Blender'), on.summary.unclassified.join(', ') + ' — give the Blender declaration a class (see declaredCapability in src/utils/capability/contract.ts)')
     const units = row?.declared?.units ?? []
     check('…its units in the closed vocabulary', units.length > 0 && units.every(u => (CAPABILITY_UNITS as readonly string[]).includes(u)), units.join(', ') + ' — the Blender declaration needs at least one unit, each in CAPABILITY_UNITS')
-    check('…gated on a flag the registry knows', typeof row?.declared?.gate === 'string' && getFlagSpec(row.declared.gate) !== undefined, String(row?.declared?.gate) + ' — the Blender declaration gate must name a flag registered in src/substrate/flagRegistry.ts')
+    check('…gated on a flag the registry knows', typeof row?.declared?.gate === 'string' && getFlagSpec(row.declared.gate) !== undefined, String(row?.declared?.gate) + ' — the Blender declaration gate must name a flag registered in the flag registry (FLAG_REGISTRY)')
     check('…saying what it waits on and where its proofs run', (row?.declared?.conditions ?? []).length > 0 && typeof row?.declared?.proof === 'string', 'the Blender declaration (see declaredCapability in src/utils/capability/contract.ts) needs a non-empty conditions list and a string proof')
     check('…so health\'s census row has nothing undeclared', on.rows.every(r => r.declared !== null), on.rows.filter(r => r.declared === null).map(r => r.name).join(', ') + ' — declare each tool listed here (see declaredCapability in src/utils/capability/contract.ts)')
   })

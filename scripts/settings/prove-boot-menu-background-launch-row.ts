@@ -9,12 +9,9 @@ const HOME = pinScratchHome('mercury-boot-menu-background-launch-row')
 for (const k of ['MERCURY_CONCOURSE_WORKER', 'MERCURY_ENTER_MENU', 'MERCURY_BOOT_ENV_APPLIED', 'MERCURY_SESSION_SUBAGENTS']) delete process.env[k]
 
 let failures = 0
-const ROW_FAILURE_HINT =
-  'fix the row in src/components/BootSettingsScreen.tsx (withJevRow) and its detail lines in src/components/bootSettings/detailLines.ts (backgroundLaunchBootDetailLines), or the switch in src/services/switchboard/backgroundLaunch.ts, whichever this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  const shown = detail ? `${detail}; ${ROW_FAILURE_HINT}` : ROW_FAILURE_HINT
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
 const React = await import('react')

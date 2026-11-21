@@ -24,9 +24,9 @@ const SHORT = 'concourse-cron-answer'
 const now = new Date('2026-10-07T14:52:20.000Z').getTime()
 const realNow = Date.now
 let failures = 0
-function check(label: string, ok: boolean, detail = '', hint = ''): void {
+function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!ok && hint ? ` — change: ${hint}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const context = { abortController: new AbortController() }
 const call = async (input: Record<string, unknown>, ctx = context): Promise<Record<string, any>> => (await tool.call(input as never, ctx as never) as { data: Record<string, any> }).data
@@ -57,8 +57,8 @@ try {
   seed()
   door({ deriveAccount: () => ({ ok: false, reason: 'no-credential:openai — /logins openai connects an account or an API key' }) })
   const refused = await rejection(() => call({ cron: '0 9 * * 1-5', prompt: 'nightly audit' }))
-  check('daemon refusal reaches the model instead of submitted success', refused.startsWith('CronCreate: the daemon refused this schedule, so nothing was scheduled.') && refused.includes('schedule refused — no-credential:openai') && refused.endsWith('Nothing was scheduled.'), refused, 'the call and scheduleRefusal in src/tools/ScheduleCronTool/CronCreateTool.ts and createAnswer.ts must throw the daemon refusal text for a refused answer')
-  check('refused add writes no schedule', rows().length === 0, `${rows().length} rows written`, 'applyConcourseScheduleOp in src/daemon/saturn.ts must not store a schedule when deriveAccount refuses')
+  check('daemon refusal reaches the model instead of submitted success', refused.startsWith('CronCreate: the daemon refused this schedule, so nothing was scheduled.') && refused.includes('schedule refused — no-credential:openai') && refused.endsWith('Nothing was scheduled.'), refused)
+  check('refused add writes no schedule', rows().length === 0)
   for (const [label, input, words] of [
     ['no time', { prompt: 'x' }, 'Say when: pass exactly one'],
     ['two times', { cron: '* * * * *', delayMinutes: 10, prompt: 'x' }, 'has cron and delayMinutes'],
@@ -79,53 +79,53 @@ try {
   ] as const) {
     let result: any
     try { result = await validate(input) } catch (error) { result = { message: String(error) } }
-    check(`validation ${label} refuses with a next step`, result.result === false && result.message.includes(words) && result.message.endsWith('Nothing was scheduled.'), result.result === false ? result.message : 'accepted or threw without validation', 'validateInput in src/tools/ScheduleCronTool/CronCreateTool.ts (time wording in createTime.ts) must refuse this input with a message that holds the expected words and ends with Nothing was scheduled.')
+    check(`validation ${label} refuses with a next step`, result.result === false && result.message.includes(words) && result.message.endsWith('Nothing was scheduled.'), result.result === false ? result.message : 'accepted or threw without validation')
   }
-  check('delay schema accepts numeric strings and remains strict', tool.inputSchema.safeParse({ delayMinutes: '10', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 0, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 525601, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 'ten', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 10, prompt: 'x', when: 'later' }).success, '', 'the delayMinutes field of the input schema in src/tools/ScheduleCronTool/CronCreateTool.ts must accept 1 to 525600 as number or numeric string and reject unknown keys')
+  check('delay schema accepts numeric strings and remains strict', tool.inputSchema.safeParse({ delayMinutes: '10', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 0, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 525601, prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 'ten', prompt: 'x' }).success && !tool.inputSchema.safeParse({ delayMinutes: 10, prompt: 'x', when: 'later' }).success)
   const old = { submitted: true, humanSchedule: 'Weekdays at 9:00 AM', recurring: true, title: 'morning brief', note: 'Submitted to the session record' }
-  check('saved result and cron input remain readable', tool.outputSchema.safeParse(old).success && ui.renderCreateResultMessage(old) !== null && tool.inputSchema.safeParse({ cron: '0 9 * * 1-5', prompt: 'x', recurring: true, onParked: 'queue', title: 't' }).success && ui.renderCreateToolUseMessage({ cron: '0 9 * * 1-5', prompt: 'x' }) === '0 9 * * 1-5: x', '', 'the output schema and input schema in src/tools/ScheduleCronTool/CronCreateTool.ts and the renderers in UI.tsx must still read the saved result and the cron input')
-  check('description says what comes back and the fire facts the answer cannot show, and names no other tool', (await tool.prompt()).includes("returns the schedule's id and its fire time in local time and UTC") && (await tool.prompt()).includes('a schedule outlives interrupts') && (await tool.prompt()).includes('only while the session is idle') && !/\b(?:ScheduleWakeup|CronList|CronDelete)\b/.test(await tool.prompt()) && !(await tool.prompt()).includes('this call answers "submitted"'), '', 'buildCronCreatePrompt in src/tools/ScheduleCronTool/prompt.ts must carry the id and fire-time sentence, the interrupt and idle sentences, and name no other schedule tool')
-  check('direct schedule answer door exists', register !== undefined, '', 'src/services/saturn/sessionScheduleBridge.ts must export registerScheduleEditDoor')
+  check('saved result and cron input remain readable', tool.outputSchema.safeParse(old).success && ui.renderCreateResultMessage(old) !== null && tool.inputSchema.safeParse({ cron: '0 9 * * 1-5', prompt: 'x', recurring: true, onParked: 'queue', title: 't' }).success && ui.renderCreateToolUseMessage({ cron: '0 9 * * 1-5', prompt: 'x' }) === '0 9 * * 1-5: x')
+  check('description says what comes back and the fire facts the answer cannot show, and names no other tool', (await tool.prompt()).includes("returns the schedule's id and its fire time in local time and UTC") && (await tool.prompt()).includes('a schedule outlives interrupts') && (await tool.prompt()).includes('only while the session is idle') && !/\b(?:ScheduleWakeup|CronList|CronDelete)\b/.test(await tool.prompt()) && !(await tool.prompt()).includes('this call answers "submitted"'))
+  check('direct schedule answer door exists', register !== undefined)
   if (register !== undefined) {
     seed(); bridge.latchSessionScheduleRoster([]); door()
     const data = await call({ delayMinutes: 10, prompt: 'deploy check', title: 'deploy check' })
     const row = rows()[0]!
-    check('answer returns daemon id and minute-rounded fire time', data.state === 'scheduled' && /^[0-9a-f]{8}$/.test(data.id) && data.id === row.id && row.when.kind === 'at' && data.nextFireMs === row.when.atMs && data.nextFireMs === 1791385380000, JSON.stringify({ data, row }), 'the call in src/tools/ScheduleCronTool/CronCreateTool.ts must return the id and nextFireMs the daemon wrote, rounded to the minute')
-    check('model result carries both clocks and cancel id', text(data).includes(`Scheduled ${data.id}`) && text(data).includes('Wed 7 Oct 2026 16:03 BST (2026-10-07T15:03:00.000Z), in 11 minutes') && text(data).includes(`CronDelete with id "${data.id}"`), text(data), 'createResultText in src/tools/ScheduleCronTool/createAnswer.ts must print the id, both clocks and the CronDelete id')
-    check('new id is immediately deletable before roster push', (await CronDeleteTool.validateInput!({ id: data.id } as never)).result, '', 'CronDeleteTool validateInput in src/tools/ScheduleCronTool/CronDeleteTool.ts must accept an id the create answer just returned, before the roster is pushed')
-    check('one-shot survives interruption rather than becoming a self-wake', row.when.spelling?.startsWith('once at ') === true && !saturn.isSaturnSelfWake(row) && !saturn.dropSaturnSelfWakes(SESSION, 'operator:test', 'interrupted', process.env.MERCURY_DAEMON_DIR).dropped.includes(row.id), JSON.stringify(row.when), 'a one-shot at-schedule must not count as a self-wake in src/daemon/saturn.ts (isSaturnSelfWake, dropSaturnSelfWakes)')
+    check('answer returns daemon id and minute-rounded fire time', data.state === 'scheduled' && /^[0-9a-f]{8}$/.test(data.id) && data.id === row.id && row.when.kind === 'at' && data.nextFireMs === row.when.atMs && data.nextFireMs === 1791385380000)
+    check('model result carries both clocks and cancel id', text(data).includes(`Scheduled ${data.id}`) && text(data).includes('Wed 7 Oct 2026 16:03 BST (2026-10-07T15:03:00.000Z), in 11 minutes') && text(data).includes(`CronDelete with id "${data.id}"`))
+    check('new id is immediately deletable before roster push', (await CronDeleteTool.validateInput!({ id: data.id } as never)).result)
+    check('one-shot survives interruption rather than becoming a self-wake', row.when.spelling?.startsWith('once at ') === true && !saturn.isSaturnSelfWake(row) && !saturn.dropSaturnSelfWakes(SESSION, 'operator:test', 'interrupted', process.env.MERCURY_DAEMON_DIR).dropped.includes(row.id))
     const recurrence = await call({ cron: '0 9 * * 1-5', prompt: 'morning brief' })
-    check('recurring result uses writer fire instant and explicit cron', recurrence.nextFireMs === 1791446400000 && text(recurrence).includes('(cron "0 9 * * 1-5"), read in Europe/London.'), text(recurrence), 'createResultText in src/tools/ScheduleCronTool/createAnswer.ts must print the daemon fire instant and the explicit cron with its zone')
+    check('recurring result uses writer fire instant and explicit cron', recurrence.nextFireMs === 1791446400000 && text(recurrence).includes('(cron "0 9 * * 1-5"), read in Europe/London.'))
     for (const [at, instant] of [['2026-10-07T17:52', '2026-10-07T16:52:00.000Z'], ['2026-10-25T01:30', '2026-10-25T00:30:00.000Z'], ['2026-10-25T01:30+00:00', '2026-10-25T01:30:00.000Z'], ['2026-10-07T15:52', '2026-10-07T14:52:00.000Z']] as const) {
       const absolute = await call({ at, prompt: 'absolute check' })
-      check(`absolute ${at} resolves without moving its instant`, absolute.nextFireUtc === instant, String(absolute.nextFireUtc), 'resolveCreateTime in src/tools/ScheduleCronTool/createTime.ts must resolve this local time to the expected UTC instant')
+      check(`absolute ${at} resolves without moving its instant`, absolute.nextFireUtc === instant)
     }
     door({ ...ready, preflight: () => ({ state: 'expiring', expiresAt: now + 60000, beforeFire: true }) })
     const warning = await call({ delayMinutes: 10, prompt: 'held check' })
-    check('write-time account warning reaches model', text(warning).includes('Warning: the fixture sign-in expires') && text(warning).includes('before this fire') && text(warning).includes('held (not dropped)'), text(warning), 'scheduleWarnings in src/tools/ScheduleCronTool/createAnswer.ts must print the preflight expiry warning for an expiring account')
+    check('write-time account warning reaches model', text(warning).includes('Warning: the fixture sign-in expires') && text(warning).includes('before this fire') && text(warning).includes('held (not dropped)'))
     seed(); register(async () => { throw { code: -32601 } })
     const queued = await call({ delayMinutes: 10, prompt: 'older host' })
-    check('unknown method queues exactly once without inventing an id', queued.state === 'queued' && queued.id === undefined && text(queued).startsWith('Queued, not confirmed:') && bridge.takePendingScheduleEdits().length === 1, JSON.stringify(queued), 'the call in src/tools/ScheduleCronTool/CronCreateTool.ts must queue exactly one edit with no id when the door answers method not found')
+    check('unknown method queues exactly once without inventing an id', queued.state === 'queued' && queued.id === undefined && text(queued).startsWith('Queued, not confirmed:') && bridge.takePendingScheduleEdits().length === 1)
     seed()
     const noDoor = await call({ delayMinutes: 10, prompt: 'no direct host' })
-    check('observed seat without door keeps facts fallback', noDoor.state === 'queued' && text(noDoor).includes('could not be asked directly') && bridge.takePendingScheduleEdits().length === 1, JSON.stringify(noDoor), 'the call in src/tools/ScheduleCronTool/CronCreateTool.ts must queue one edit and say it could not be asked directly when no door is registered')
+    check('observed seat without door keeps facts fallback', noDoor.state === 'queued' && text(noDoor).includes('could not be asked directly') && bridge.takePendingScheduleEdits().length === 1)
     for (let i = 0; i < 20; i++) bridge.submitSessionScheduleEdit({ op: 'remove', scheduleId: '12345678' })
-    check('full fallback queue refuses without losing an edit', (await rejection(() => call({ delayMinutes: 10, prompt: 'overflow' }))).includes('20 schedule edits are already waiting') && bridge.takePendingScheduleEdits().length === 20, '', 'submitSessionScheduleEdit in src/services/saturn/sessionScheduleBridge.ts and the call in CronCreateTool.ts must refuse the 21st edit and keep the 20 waiting')
+    check('full fallback queue refuses without losing an edit', (await rejection(() => call({ delayMinutes: 10, prompt: 'overflow' }))).includes('20 schedule edits are already waiting') && bridge.takePendingScheduleEdits().length === 20)
     seed(); process.env.MERCURY_SCHEDULE_ANSWER_DEADLINE_MS = '200'
     let cancelled = false
     register(async (_edit, signal) => { signal.addEventListener('abort', () => { cancelled = true }); return await new Promise(() => {}) })
     const start = performance.now()
     const deadline = await rejection(() => call({ delayMinutes: 10, prompt: 'no answer' }))
-    check('deadline is NOT confirmed and never resends', deadline.startsWith('CronCreate: NOT confirmed.') && deadline.includes('Call CronList next') && !deadline.includes('Nothing was scheduled.') && bridge.takePendingScheduleEdits().length === 0 && cancelled && performance.now() - start < 1000, deadline, 'the deadline path of the call in src/tools/ScheduleCronTool/CronCreateTool.ts and scheduleUnconfirmed in createAnswer.ts must say NOT confirmed, point to CronList, abort the door call and queue nothing')
+    check('deadline is NOT confirmed and never resends', deadline.startsWith('CronCreate: NOT confirmed.') && deadline.includes('Call CronList next') && !deadline.includes('Nothing was scheduled.') && bridge.takePendingScheduleEdits().length === 0 && cancelled && performance.now() - start < 1000, deadline)
     delete process.env.MERCURY_SCHEDULE_ANSWER_DEADLINE_MS
     seed(); register(async () => { throw new PeerClosed('schedule/edit', 'proof') })
-    check('closed connection is NOT confirmed and never resends', (await rejection(() => call({ delayMinutes: 10, prompt: 'closed' }))).includes('connection to the daemon closed') && bridge.takePendingScheduleEdits().length === 0, '', 'the PeerClosed branch of the call in src/tools/ScheduleCronTool/CronCreateTool.ts must throw the connection closed text and queue nothing')
+    check('closed connection is NOT confirmed and never resends', (await rejection(() => call({ delayMinutes: 10, prompt: 'closed' }))).includes('connection to the daemon closed') && bridge.takePendingScheduleEdits().length === 0)
     seed(); const controller = new AbortController(); register(async () => await new Promise(() => {}))
     const pending = rejection(() => call({ delayMinutes: 10, prompt: 'interrupt' }, { abortController: controller }))
     controller.abort(new Error('proof interrupted'))
-    check('interrupt retains turn reason and never queues', (await pending).includes('proof interrupted') && bridge.takePendingScheduleEdits().length === 0, '', 'the call in src/tools/ScheduleCronTool/CronCreateTool.ts must keep the abort reason of the turn in its error and queue nothing')
+    check('interrupt retains turn reason and never queues', (await pending).includes('proof interrupted') && bridge.takePendingScheduleEdits().length === 0)
     bridge._resetScheduleBridgeForTesting()
-    check('seatless refuses instead of queueing', (await rejection(() => call({ delayMinutes: 10, prompt: 'seatless' }))).includes('has no session record on the Mercury daemon'), '', 'the call in src/tools/ScheduleCronTool/CronCreateTool.ts must refuse with the no session record text when no seat was observed')
+    check('seatless refuses instead of queueing', (await rejection(() => call({ delayMinutes: 10, prompt: 'seatless' }))).includes('has no session record on the Mercury daemon'))
   }
 } finally {
   Date.now = realNow

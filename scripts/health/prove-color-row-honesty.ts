@@ -13,7 +13,6 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
-const COLOR_ROW_HINT = 'fix colorCheck in src/services/health/sections/runtime/host.ts so the color row words each chalk level and the not-a-TTY qualifier as the check states'
 
 const chalk = (await import('chalk')).default
 const report = await import('../../src/services/health/healthReport.js')
@@ -47,12 +46,12 @@ console.log('§1 FC-119 — each level wears its own name')
   check(
     'level 1 says basic 16-color ANSI, never 256',
     l1.evidence.includes('basic 16-color') && !l1.evidence.includes('256-color'),
-    `${l1.evidence}; ${COLOR_ROW_HINT}`,
+    l1.evidence,
   )
   const l2 = await colorRow(2, true)
-  check('level 2 keeps the 256-color reading', l2.evidence.includes('256-color'), `${l2.evidence}; ${COLOR_ROW_HINT}`)
+  check('level 2 keeps the 256-color reading', l2.evidence.includes('256-color'), l2.evidence)
   const l0 = await colorRow(0, true)
-  check('level 0 keeps the no-color reading', l0.evidence.includes('no color'), `${l0.evidence}; ${COLOR_ROW_HINT}`)
+  check('level 0 keeps the no-color reading', l0.evidence.includes('no color'), l0.evidence)
 }
 
 console.log('\n§2 FC-120 — computed is not applied')
@@ -61,16 +60,16 @@ console.log('\n§2 FC-120 — computed is not applied')
   check(
     'level 3 on a real TTY reads ok with exact brand hues, unqualified',
     appliedL3.status === 'ok' && appliedL3.evidence.includes('brand hues exact') && !appliedL3.evidence.includes('not a TTY'),
-    `${appliedL3.status}: ${appliedL3.evidence}; ${COLOR_ROW_HINT}`,
+    `${appliedL3.status}: ${appliedL3.evidence}`,
   )
   const forcedL3 = await colorRow(3, false)
   check(
     'level 3 with redirected stdout is NEVER ok — the row says the output itself carries no color',
     forcedL3.status === 'info' && forcedL3.evidence.includes('not a TTY') && forcedL3.evidence.includes('carries no color'),
-    `${forcedL3.status}: ${forcedL3.evidence}; ${COLOR_ROW_HINT}`,
+    `${forcedL3.status}: ${forcedL3.evidence}`,
   )
   const forcedL1 = await colorRow(1, false)
-  check('the qualifier rides the lower levels too', forcedL1.evidence.includes('not a TTY'), `${forcedL1.evidence}; ${COLOR_ROW_HINT}`)
+  check('the qualifier rides the lower levels too', forcedL1.evidence.includes('not a TTY'), forcedL1.evidence)
 }
 
 console.log(failures === 0 ? '\nprove-color-row-honesty: all green' : `\nprove-color-row-honesty: ${failures} FAILURE(S)`)

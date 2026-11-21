@@ -193,7 +193,7 @@ for (const [cols, rows] of SIZES) {
     const face = frameOf('face')
     const chat = frameOf('chat')
     check(`${tag}: the drive delivered every send (exit 0)`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}; exit ${status}`, 'a screen in the walk never painted its awaitText; re-run with --frames <dir> --keep 1 and read the last frame written to see which step (theme, provider, device code, guardrails, terminal, trust, face, chat) stalled')
-    check(`${tag}: the walk's sign-in landed through the device code (usercode, polls, the token exchange)`, wire.some(e => e.kind === 'usercode') && wire.some(e => e.kind === 'token'), wire.map(e => e.kind).join(','), 'the OpenAI device-code sign-in did not reach the fixture token endpoint; read src/components/OpenaiConnect.tsx and the MERCURY_OPENAI_AUTH_BASE handling in src/substrate/flags/providers.ts')
+    check(`${tag}: the walk's sign-in landed through the device code (usercode, polls, the token exchange)`, wire.some(e => e.kind === 'usercode') && wire.some(e => e.kind === 'token'), wire.map(e => e.kind).join(','), 'the OpenAI device-code sign-in did not reach the fixture token endpoint; read src/components/OpenaiConnect.tsx and the MERCURY_OPENAI_AUTH_BASE handling in FLAG_REGISTRY')
     check(`${tag}: the account's live list was read after the sign-in`, wire.some(e => e.kind === 'models'), wire.map(e => e.kind).join(','), 'after sign-in the account live model list must be fetched; see fetchOpenaiLiveModels in src/services/providers/openai/openaiClient.ts and who calls it after the sign-in completes')
     const modelRow = rowWith(face, 'Model ')
     if (cols >= 160) {

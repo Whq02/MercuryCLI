@@ -92,7 +92,7 @@ console.log('Q2 the drain ceiling knob')
   check('0 ⇒ no wait', idle.sessionParkDrainMs() === 0, `fix sessionParkDrainMs in src/daemon/idleRetirement.ts so MERCURY_SESSION_PARK_DRAIN_MINUTES=0 means no wait; got ${idle.sessionParkDrainMs()}`)
   delete process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES
   const knob = getFlagSpec('MERCURY_SESSION_PARK_DRAIN_MINUTES')
-  check('the knob is a registered row naming its consumer and the cut wording', knob !== undefined && knob.consumer.includes('sessionParkDrainMs') && knob.summary.includes("'parked — turn cut at the drain ceiling'"), 'fix the MERCURY_SESSION_PARK_DRAIN_MINUTES row in src/substrate/flagRegistry.ts so its consumer names sessionParkDrainMs and its summary quotes the cut wording')
+  check('the knob is a registered row naming its consumer and the cut wording', knob !== undefined && knob.consumer.includes('sessionParkDrainMs') && knob.summary.includes("'parked — turn cut at the drain ceiling'"), 'fix the MERCURY_SESSION_PARK_DRAIN_MINUTES row in the flag registry (FLAG_REGISTRY) so its consumer names sessionParkDrainMs and its summary quotes the cut wording')
   check('the cut reason has ONE owner', sup.PARK_DRAIN_CUT_REASON === 'parked — turn cut at the drain ceiling', 'PARK_DRAIN_CUT_REASON in src/daemon/concourseWorkers.ts must keep this wording; change the flag row summary and this check together if you rename it')
 }
 

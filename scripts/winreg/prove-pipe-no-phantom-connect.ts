@@ -6,10 +6,9 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 
 let failures = 0
-const PIPE_FAIL_HINT = 'to fix: startControlServer in src/daemon/controlServer.ts must not probe or connect to a name another process holds (removeStaleSocket there leaves a named pipe alone and unlinks only a stale socket file before listening); the path comes from controlSockPath in src/daemon/controlSocket.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${PIPE_FAIL_HINT}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 const ping = (path: string): Promise<string> =>
   new Promise(resolve => {

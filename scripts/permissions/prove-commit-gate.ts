@@ -29,10 +29,9 @@ for (const driveCwd of new Set([getCwd(), process.cwd(), realpathSync(process.cw
 }
 
 let failures = 0
-const commitGateFailHint = 'change evaluateCommitGate, the gate switch (commitGateEnabled, engageCommitGate, disengageCommitGate) or commitRepositoryRoot in src/guards/commitGate.ts, or the judgeToolCall and guardsEngaged wiring in src/guards/guards.ts; for the dist checks, rebuild with bun run build.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — ' + (detail ? detail + ' — ' : '') + commitGateFailHint}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

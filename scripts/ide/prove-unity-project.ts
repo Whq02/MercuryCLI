@@ -7,7 +7,7 @@ import * as path from 'node:path'
 
 let failures = 0
 const failureHint =
-  'change the function this check exercises in src/utils/unity/unityProject.ts (or, for the registry section, the MERCURY_UNITY and MERCURY_UNITY_EDITOR rows in src/substrate/flags/ide.ts) until it matches the label'
+  'change the function this check exercises in src/utils/unity/unityProject.ts (or, for the registry section, the MERCURY_UNITY and MERCURY_UNITY_EDITOR rows in FLAG_REGISTRY) until it matches the label'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   const shown = cond ? detail : detail ? `${detail}; ${failureHint}` : failureHint

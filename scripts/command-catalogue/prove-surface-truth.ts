@@ -7,10 +7,9 @@ const REPO = join(import.meta.dir, '..', '..')
 process.chdir(REPO)
 
 let failures = 0
-function check(label: string, cond: boolean, detail = '', hint = ''): void {
+function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  const shown = !cond && hint ? (detail ? detail + ' — ' : '') + hint : detail
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -50,7 +49,7 @@ section('§1 A DESCRIPTION IS A LABEL')
 const all = [...builtinCommands()]
 const byName = (n: string) => all.find(c => c.name === n)
 const modelCmd = byName('model')
-check("/model's description is the static label", modelCmd?.description === 'Choose the AI model', String(modelCmd?.description), 'restore the static description string on the model command under src/commands/')
+check("/model's description is the static label", modelCmd?.description === 'Choose the AI model', String(modelCmd?.description))
 const liveGetters = all
   .filter(c => {
     const d = Object.getOwnPropertyDescriptor(c, 'description')
@@ -63,7 +62,6 @@ check(
   'the live description getters are the judged set (concourse: the boot shape · orient: a constant · logins: which sentence, no account word)',
   liveGetters.every(n => JUDGED_GETTERS.includes(n)),
   liveGetters.join(','),
-  'the commands listed here use a description getter; make each a static string under src/commands/, or add its name to JUDGED_GETTERS in this proof if the owner judged it',
 )
 const displayWords = [
   ...configs.CANONICAL_MODEL_IDS.map(id => model.renderModelName(id)).filter(w => !w.startsWith('claude-')),
@@ -73,7 +71,7 @@ const describedLive = all.filter(c => {
   const d = String(c.description)
   return d.includes('(currently') || d.includes('(1M context)') || displayWords.some(w => d.includes(w)) || /\S+@\S+\.\S+/.test(d)
 })
-check('no built-in description carries a live model, window, or account word', describedLive.length === 0, describedLive.map(c => `${c.name}: ${c.description}`).join(' | '), 'remove the model, window or account word from each listed command description under src/commands/')
+check('no built-in description carries a live model, window, or account word', describedLive.length === 0, describedLive.map(c => `${c.name}: ${c.description}`).join(' | '))
 
 section("§2 THE VALUE COLUMN READS THE ONE OWNER (the focused session's facts)")
 type Facts = ReturnType<typeof focusedSlot.getFocusedSessionConnector>['modelFacts'] extends () => infer F ? F : never
@@ -83,33 +81,33 @@ function seatStub(facts: Facts, mode = 'implement'): ReturnType<typeof focusedSl
 }
 const value = (name: string): string | undefined => byName(name)?.currentValue?.()
 const screenLabel = model.renderModelName(model.getEngineModel())
-check('the screen\'s own default is the Fable row (the poison word)', screenLabel === 'Fable 5 (1M context)', screenLabel, 'renderModelName and getEngineModel in src/services/model/model.ts no longer give the Fable 5 (1M context) row for the screen default')
+check('the screen\'s own default is the Fable row (the poison word)', screenLabel === 'Fable 5 (1M context)', screenLabel)
 
 focusedSlot._resetFocusedSessionConnectorForTesting()
-check('no session holds the slot ⇒ the /model column is blank (never the process default)', value('model') === undefined, String(value('model')), 'the model command currentValue must return undefined while no session holds the focused-session slot')
-check('no session ⇒ the /effort column is blank', value('effort') === undefined, String(value('effort')), 'the effort command currentValue must return undefined while no session holds the focused-session slot')
-check('no session ⇒ the /permissions column is blank', value('permissions') === undefined, '', 'the permissions command currentValue must return undefined while no session holds the focused-session slot')
+check('no session holds the slot ⇒ the /model column is blank (never the process default)', value('model') === undefined, String(value('model')))
+check('no session ⇒ the /effort column is blank', value('effort') === undefined, String(value('effort')))
+check('no session ⇒ the /permissions column is blank', value('permissions') === undefined)
 
 const opusFacts: Facts = { effective: 'claude-opus-5', effectiveSource: 'live', main: 'claude-opus-5', setting: 'claude-opus-5', sessionPin: 'claude-opus-5', effort: 'xhigh', pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
-check("a seat on Opus 5 at xhigh ⇒ the /model column is the seat's row", value('model') === model.renderModelName('claude-opus-5') && value('model') !== screenLabel, String(value('model')), 'the model command currentValue must read the focused seat modelFacts (see focusedConnector.ts in src/services/engine-connector/), not the process default')
-check("⇒ the /effort column says the seat's word is ASKED while its runner has not said what it sends", value('effort') === 'xhigh (asked)', String(value('effort')), 'the effort command currentValue must add (asked) while the seat facts carry no effortSent')
+check("a seat on Opus 5 at xhigh ⇒ the /model column is the seat's row", value('model') === model.renderModelName('claude-opus-5') && value('model') !== screenLabel, String(value('model')))
+check("⇒ the /effort column says the seat's word is ASKED while its runner has not said what it sends", value('effort') === 'xhigh (asked)', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: 'xhigh' }))
-check("⇒ with the runner's sent word on the facts the column is that word", value('effort') === 'xhigh', String(value('effort')), 'the effort command currentValue must show the sent word bare once effortSent is on the facts')
+check("⇒ with the runner's sent word on the facts the column is that word", value('effort') === 'xhigh', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub({ ...opusFacts, effortSent: null }))
-check("⇒ with the runner's no-key word the column is the seat's word resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')), 'the effort command currentValue must resolve the seat word through resolveStampedEffortTruth in src/utils/effort.ts when effortSent is null')
+check("⇒ with the runner's no-key word the column is the seat's word resolved without this process's env pin", value('effort') === resolveStampedEffortTruth('claude-opus-5', 'xhigh').label && value('effort') === 'xhigh', String(value('effort')))
 focusedSlot.setFocusedSessionConnector(seatStub(opusFacts))
-check("⇒ the mode column reads the seat's own mode door", value('permissions') === permissionModeTitle('implement'), String(value('permissions')), 'the permissions command currentValue must return permissionModeTitle of the seat permissionMode (src/utils/permissions/PermissionMode.ts)')
+check("⇒ the mode column reads the seat's own mode door", value('permissions') === permissionModeTitle('implement'), String(value('permissions')))
 
 const gptFacts: Facts = { effective: 'gpt-5.5', effectiveSource: 'record', main: 'gpt-5.5', setting: 'gpt-5.5', sessionPin: 'gpt-5.5', effort: null, pendingSwitch: null }
 focusedSlot.setFocusedSessionConnector(seatStub(gptFacts))
-check("a seat born on the OpenAI row (the record, facts not yet read) ⇒ the /model column names it", value('model') === 'GPT-5.5', String(value('model')), 'the model command currentValue must name the seat model from its record facts when effectiveSource is record')
-check('a seat whose record carries no effort word ⇒ the /effort column is blank, never a guess', value('effort') === undefined, String(value('effort')), 'the effort command currentValue must return undefined when the seat facts carry no effort word')
+check("a seat born on the OpenAI row (the record, facts not yet read) ⇒ the /model column names it", value('model') === 'GPT-5.5', String(value('model')))
+check('a seat whose record carries no effort word ⇒ the /effort column is blank, never a guess', value('effort') === undefined, String(value('effort')))
 
 const ambientFacts: Facts = { ...opusFacts, effectiveSource: 'ambient' }
 focusedSlot.setFocusedSessionConnector(seatStub(ambientFacts))
-check("a seat whose facts are still this process's ambient state ⇒ every column is blank", value('model') === undefined && value('effort') === undefined, `${String(value('model'))} / ${String(value('effort'))}`, 'the model and effort commands must read focusedSessionModelFacts() (src/services/engine-connector/focusedConnector.ts), which is null on the ambient source')
-check('focusedSessionModelFacts() is null on the ambient source (the one gate every reader shares)', focusedSlot.focusedSessionModelFacts() === null, '', 'focusedSessionModelFacts in src/services/engine-connector/focusedConnector.ts must return null when effectiveSource is ambient')
+check("a seat whose facts are still this process's ambient state ⇒ every column is blank", value('model') === undefined && value('effort') === undefined, `${String(value('model'))} / ${String(value('effort'))}`)
+check('focusedSessionModelFacts() is null on the ambient source (the one gate every reader shares)', focusedSlot.focusedSessionModelFacts() === null)
 focusedSlot._resetFocusedSessionConnectorForTesting()
 
 {
@@ -152,36 +150,36 @@ focusedSlot._resetFocusedSessionConnectorForTesting()
 section('§5 THE GENERATION TABLE — one table per family, every reader derives')
 const strings = getModelStrings()
 const families = Object.keys(configs.FAMILY_GENERATIONS) as Array<keyof typeof configs.FAMILY_GENERATIONS>
-check('the table names the four first-party families', families.sort().join(',') === 'fable,haiku,opus,sonnet', families.join(','), 'FAMILY_GENERATIONS in src/utils/model/configs.ts must have exactly the keys fable, haiku, opus and sonnet')
+check('the table names the four first-party families', families.sort().join(',') === 'fable,haiku,opus,sonnet', families.join(','))
 for (const family of families) {
   const keys = configs.FAMILY_GENERATIONS[family]
-  check(`${family}: every row is a catalogue key, newest first`, keys.length > 0 && keys.every(k => k in configs.ALL_MODEL_CONFIGS), keys.join(','), 'every key in FAMILY_GENERATIONS (src/utils/model/configs.ts) must be a key of ALL_MODEL_CONFIGS in the same file')
+  check(`${family}: every row is a catalogue key, newest first`, keys.length > 0 && keys.every(k => k in configs.ALL_MODEL_CONFIGS))
   for (const key of keys) {
     const id = strings[key]
-    check(`${family}/${key}: a display name, a cost tier and a window`, model.renderModelName(id) !== id && MODEL_COSTS[model.getCanonicalName(id)] !== undefined && getContextWindowForModel(id) > 0, `${id}: name=${model.renderModelName(id)} cost=${String(MODEL_COSTS[model.getCanonicalName(id)] !== undefined)} window=${getContextWindowForModel(id)}`, 'give this model a display name in renderModelName (src/services/model/model.ts), a MODEL_COSTS row (src/services/usage/modelCost.ts) and a window in getContextWindowForModel (src/utils/model/capabilities.ts)')
+    check(`${family}/${key}: a display name, a cost tier and a window`, model.renderModelName(id) !== id && MODEL_COSTS[model.getCanonicalName(id)] !== undefined && getContextWindowForModel(id) > 0, `${id}: name=${model.renderModelName(id)} cost=${String(MODEL_COSTS[model.getCanonicalName(id)] !== undefined)} window=${getContextWindowForModel(id)}`)
   }
 }
 const head = (family: keyof typeof configs.FAMILY_GENERATIONS): string => strings[configs.newestGenerationKey(family)]
 check('the family defaults derive from the table heads (no env pins set)',
   model.getDefaultFableModel() === head('fable') && model.getDefaultOpusModel() === head('opus') && model.getDefaultSonnetModel() === head('sonnet') && model.getDefaultHaikuModel() === head('haiku'),
-  [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].join(','), 'the getDefault*Model functions in src/services/model/model.ts must return the newestGenerationKey head of each family in src/utils/model/configs.ts')
-check('the family words resolve to the table heads', model.parseUserSpecifiedModel('fable') === head('fable') && model.parseUserSpecifiedModel('opus') === head('opus') && model.parseUserSpecifiedModel('sonnet') === head('sonnet') && model.parseUserSpecifiedModel('haiku') === head('haiku'), '', 'parseUserSpecifiedModel in src/services/model/model.ts must resolve each family word to the head of its FAMILY_GENERATIONS row')
-check('the frontier family\'s newest is the 5.2 row (the catalogue names the newest: the vendor released it on 2026-11-09)', head('fable') === strings.fable52, head('fable'), 'put the fable52 key first in FAMILY_GENERATIONS.fable in src/utils/model/configs.ts')
+  [model.getDefaultFableModel(), model.getDefaultOpusModel(), model.getDefaultSonnetModel(), model.getDefaultHaikuModel()].join(','))
+check('the family words resolve to the table heads', model.parseUserSpecifiedModel('fable') === head('fable') && model.parseUserSpecifiedModel('opus') === head('opus') && model.parseUserSpecifiedModel('sonnet') === head('sonnet') && model.parseUserSpecifiedModel('haiku') === head('haiku'))
+check('the frontier family\'s newest is the 5.2 row (the catalogue names the newest: the vendor released it on 2026-11-09)', head('fable') === strings.fable52, head('fable'))
 const facts = frontier.gatherFrontierFacts()
-check('the frontier candidate is the table head', facts.fableId === head('fable'), facts.fableId, 'gatherFrontierFacts in src/services/model/frontierPolicy.ts must take fableId from the newest fable generation')
+check('the frontier candidate is the table head', facts.fableId === head('fable'), facts.fableId)
 const eligible = { ...facts, fableEnvPin: false, allowlistPresent: false, allowlistNamesFable: false, claudeAiSubscriber: true, maxSubscriber: true, rateLimitTier: frontier.FRONTIER_MAX_20X_TIER, oneMDisabled: false }
 const decision = frontier.evaluateFrontierDecision(eligible)
-check("a natively-1M frontier head wins as its bare id (no '[1m]' rider)", decision.source === 'frontier' && decision.setting === head('fable') && facts.fableNatively1M === true, `${decision.setting} natively1M=${String(facts.fableNatively1M)}`, 'evaluateFrontierDecision in src/services/model/frontierPolicy.ts must return the bare head id when the head is natively 1M')
+check("a natively-1M frontier head wins as its bare id (no '[1m]' rider)", decision.source === 'frontier' && decision.setting === head('fable') && facts.fableNatively1M === true, `${decision.setting} natively1M=${String(facts.fableNatively1M)}`)
 const suffixRow = frontier.evaluateFrontierDecision({ ...eligible, fableNatively1M: false })
-check("a suffix-1M row would keep its '[1m]' rider (parity for the older shape)", suffixRow.setting === `${head('fable')}[1m]`, suffixRow.setting, 'evaluateFrontierDecision in src/services/model/frontierPolicy.ts must add the [1m] rider when fableNatively1M is false')
-check("a crew record's legacy keys fold: the family word to the head; the exact-generation key stays on its own generation once a newer row leads", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === strings.fable51 && foldLegacyWorkerModelKey('fable51') !== foldLegacyWorkerModelKey('fable'), `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`, 'foldLegacyWorkerModelKey in src/services/concourse/workerModels.ts must fold family words to the head and keep exact-generation keys such as fable51 on their own row')
+check("a suffix-1M row would keep its '[1m]' rider (parity for the older shape)", suffixRow.setting === `${head('fable')}[1m]`, suffixRow.setting)
+check("a crew record's legacy keys fold: the family word to the head; the exact-generation key stays on its own generation once a newer row leads", foldLegacyWorkerModelKey('fable') === head('fable') && foldLegacyWorkerModelKey('opus') === head('opus') && foldLegacyWorkerModelKey('sonnet') === head('sonnet') && foldLegacyWorkerModelKey('fable51') === strings.fable51 && foldLegacyWorkerModelKey('fable51') !== foldLegacyWorkerModelKey('fable'), `${foldLegacyWorkerModelKey('fable51')} / ${foldLegacyWorkerModelKey('fable')}`)
 const routed = resolveAnthropicModel('fable')
-check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model), 'resolveAnthropicModel in src/services/providers/anthropic/anthropicAdapter.ts must return the fable head, bare when its window is at least 1M and with the [1m] rider otherwise')
+check("the router's fable class runs the head in its seat form (bare when natively 1M)", routed !== null && routed.model === (getContextWindowForModel(head('fable')) >= 1_000_000 ? head('fable') : `${head('fable')}[1m]`), String(routed?.model))
 const options = getModelOptions()
-check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','), 'getModelOptions in src/services/model/modelOptions.ts must carry the head full-id row labelled with renderModelName of the head')
-check('the picker carries a literal row per previous frontier generation', configs.previousGenerationKeys('fable').every(k => options.some(o => o.value === strings[k])), configs.previousGenerationKeys('fable').map(k => strings[k]).join(','), 'getModelOptions in src/services/model/modelOptions.ts must add a literal row for each previousGenerationKeys fable entry')
-check('the picker carries the previous large generations from the table', configs.previousGenerationKeys('opus').every(k => options.some(o => o.value === strings[k])), '', 'getModelOptions in src/services/model/modelOptions.ts must add a row for each previousGenerationKeys opus entry')
-check("the OpenAI family's display names come from the pins table", gptDisplayName('gpt-5.5') === 'GPT-5.5' && gptDisplayName('gpt-5.6-sol') === 'GPT-5.6 Sol', '', 'gptDisplayName and GPT_DISPLAY_PINS in src/utils/model/pins/gptPins.ts must give gpt-5.5 and gpt-5.6-sol these display names')
+check("the picker carries the family full-id row labelled with the head's display name", options.some(o => o.value === head('fable') && o.label === model.renderModelName(head('fable'))), options.filter(o => o.value === head('fable')).map(o => o.label).join(','))
+check('the picker carries a literal row per previous frontier generation', configs.previousGenerationKeys('fable').every(k => options.some(o => o.value === strings[k])), configs.previousGenerationKeys('fable').map(k => strings[k]).join(','))
+check('the picker carries the previous large generations from the table', configs.previousGenerationKeys('opus').every(k => options.some(o => o.value === strings[k])))
+check("the OpenAI family's display names come from the pins table", gptDisplayName('gpt-5.5') === 'GPT-5.5' && gptDisplayName('gpt-5.6-sol') === 'GPT-5.6 Sol')
 
 
 console.log(failures === 0 ? '\nprove-surface-truth: ALL LAWS HOLD' : `\nprove-surface-truth: ${failures} FAILURE(S)`)

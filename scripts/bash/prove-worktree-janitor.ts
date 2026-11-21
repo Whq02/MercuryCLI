@@ -25,7 +25,7 @@ const { runWithCwdOverride } = await import(join(ROOT, 'src/utils/cwd.ts'))
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} · ` : ''}fix cleanupStaleAgentWorktrees in src/services/worktree.ts`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
 }
 
 console.log('============================================================')
@@ -118,7 +118,7 @@ try {
   check('sweep count == 4 (A + E + F-copy + H)', removed === 4, `removed=${removed}`)
 } catch (err) {
   failures++
-  console.log(`  [FAIL] prover crashed — ${err} · the git fixture or cleanupStaleAgentWorktrees (src/services/worktree.ts) threw; read the error above`)
+  console.log(`  [FAIL] prover crashed — ${err}`)
 }
 
 console.log(failures === 0 ? '✅ worktree janitor proof PASS' : `❌ ${failures} failure(s)`)

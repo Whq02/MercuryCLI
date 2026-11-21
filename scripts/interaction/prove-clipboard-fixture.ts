@@ -71,7 +71,7 @@ unsubscribe()
 
 section('§4 the seam is registered and every capture road sets it')
 const spec = getFlagSpec('MERCURY_CLIPBOARD_FILE')
-check('MERCURY_CLIPBOARD_FILE is a registered value flag consumed by src/utils/clipboardFile.ts', spec?.kind === 'value' && spec.consumer === 'src/utils/clipboardFile.ts', `${JSON.stringify(spec ?? null)} — register MERCURY_CLIPBOARD_FILE as a value flag with consumer src/utils/clipboardFile.ts in the flag registry read by getFlagSpec (src/substrate/flagRegistry.ts)`)
+check('MERCURY_CLIPBOARD_FILE is a registered value flag consumed by src/utils/clipboardFile.ts', spec?.kind === 'value' && spec.consumer === 'src/utils/clipboardFile.ts', `${JSON.stringify(spec ?? null)} — register MERCURY_CLIPBOARD_FILE as a value flag with consumer src/utils/clipboardFile.ts in the flag registry read by getFlagSpec (the flag registry)`)
 const vshot = readFileSync(join(ROOT, 'scripts', 'ui', 'vshot.py'), 'utf8')
 const setdefault = vshot.indexOf('os.environ.setdefault("MERCURY_CLIPBOARD_FILE", out + ".clipboard")')
 check('vshot.py gives every pty capture a clipboard file beside its grid before the child becomes the product', setdefault >= 0 && setdefault < vshot.indexOf('os.execvp(argv[0], argv)'), 'scripts/ui/vshot.py must call os.environ.setdefault for MERCURY_CLIPBOARD_FILE with out + .clipboard before os.execvp starts the child')

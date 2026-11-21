@@ -42,7 +42,7 @@ const failureHint = (label: string): string => {
   if (/picker paints|parsed row stands above|hidden id paints|unserved pins/.test(label)) return 'change the OpenAI rows of getModelOptions in src/services/model/modelOptions.ts'
   if (/frontier|light fact/.test(label)) return 'change providerFrontierFact or providerLightFact in src/services/model/providerFrontier.ts'
   if (/utility call/.test(label)) return 'change utilityCallFor in src/services/model/utilityModel.ts'
-  if (/router adapter|seat listing|class resolves/.test(label)) return 'change describeOpenaiProvider, listOpenaiModels or resolveOpenaiModel in src/services/providers/openai/openaiAdapter.ts'
+  if (/seat listing|router adapter|class resolves/.test(label)) return 'change describeOpenaiProvider, listOpenaiModels or resolveOpenaiModel in src/services/providers/openai/openaiAdapter.ts'
   if (/sign-in ledger/.test(label)) return 'change recordSignIn in src/utils/accounts/signInLedger.ts'
   if (/computed default/.test(label)) return 'change computedDefault in src/services/model/computedDefault.ts'
   return 'change the live-list reads (cachedLiveIds, evaluateGptCandidate, qualifiedGptCandidates, getGptSeatAvailability, refreshOpenaiCatalogue) in src/services/providers/openai/openaiCatalogue.ts'

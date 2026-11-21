@@ -20,6 +20,7 @@ type Clip = { x1: number | undefined; x2: number | undefined; y1: number | undef
 const ctx = makeContext()
 const W = 48
 const H = 2
+const MEMO_HINT = 'the slice memo is sliceCache in clipLine, called from applyWrite of ComposeBuffer in src/ink/compose-buffer.ts; its key must hold the clip bounds'
 const LINE = '\x1b[31mred abcdefghijklmnop\x1b[39m 日本語 tail \x1b[1mbold\x1b[22m end'
 
 function signature(screen: { width: number }, y: number): string {
@@ -59,19 +60,19 @@ const firstA = composeWith(reused, clipA, 0)
 check('fixture: the clipped line lands cells', firstA.includes('a#') && !firstA.includes('r#'), `${firstA}\n   the fixture clip should drop the leading cells; check ComposeBuffer.clip and write in src/ink/compose-buffer.ts`)
 const oracleB = composeWith(fresh(), clipB, 0)
 const reusedB = composeWith(reused, clipB, 0)
-check('another clip on the remembered line composes that clip, not the first', reusedB === oracleB, `reused=${reusedB}\n   oracle=${oracleB}\n  ${H.strip()}`)
+check('another clip on the remembered line composes that clip, not the first', reusedB === oracleB, `reused=${reusedB}\n   oracle=${oracleB}\n  ${MEMO_HINT}`)
 const reusedA = composeWith(reused, clipA, 0)
-check('the first clip again reproduces the first cells', reusedA === firstA, `again=${reusedA}\n   first=${firstA}\n  ${H.strip()}`)
+check('the first clip again reproduces the first cells', reusedA === firstA, `again=${reusedA}\n   first=${firstA}\n  ${MEMO_HINT}`)
 const oracleEdge = composeWith(fresh(), clipEdge, 0)
 const reusedEdge = composeWith(reused, clipEdge, 0)
-check('a wide glyph on the clip edge takes the same retry from the memo as from a fresh buffer', reusedEdge === oracleEdge, `reused=${reusedEdge}\n   oracle=${oracleEdge}\n  ${H.strip()}`)
+check('a wide glyph on the clip edge takes the same retry from the memo as from a fresh buffer', reusedEdge === oracleEdge, `reused=${reusedEdge}\n   oracle=${oracleEdge}\n  ${MEMO_HINT}`)
 check('the edge clip never places a wide head in its last column', !reusedEdge.split(' ')[26]!.startsWith('日') && !reusedEdge.split(' ')[26]!.startsWith('本'), `${reusedEdge}\n   clipLine in src/ink/compose-buffer.ts must retry with to - 1 when the slice is wider than the clip`)
 const oracleShift = composeWith(fresh(), clipA, 3)
 const reusedShift = composeWith(reused, clipA, 3)
-check('the same clip with the line moved right is its own slice', reusedShift === oracleShift, `reused=${reusedShift}\n   oracle=${oracleShift}\n  ${H.strip()}`)
+check('the same clip with the line moved right is its own slice', reusedShift === oracleShift, `reused=${reusedShift}\n   oracle=${oracleShift}\n  ${MEMO_HINT}`)
 const oracleWhole = composeWith(fresh(), clipWhole, 0)
 const reusedWhole = composeWith(reused, clipWhole, 0)
-check('a clip wider than the line keeps every cell', reusedWhole === oracleWhole && reusedWhole.includes('r#'), `${reusedWhole}\n  ${H.strip()}`)
+check('a clip wider than the line keeps every cell', reusedWhole === oracleWhole && reusedWhole.includes('r#'), `${reusedWhole}\n  ${MEMO_HINT}`)
 
 if (failures > 0) {
   console.log(`\ncompose clip memo: RED (${failures}/${checks} checks failed)`)

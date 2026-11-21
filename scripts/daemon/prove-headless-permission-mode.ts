@@ -16,7 +16,7 @@ const { PERMISSION_MODES } = await import('../../src/types/permissions.js')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.js')
 
 let failures = 0
-const WHERE_TO_LOOK = 'fix the posture words in src/daemon/headlessRun.ts (getHeadlessPermissionMode, headlessPermissionArgv, buildRunnerInvocation, HEADLESS_PERMISSION_MODES) or the MERCURY_DAEMON_PERMISSION_MODE entry in src/substrate/flags/daemon.ts'
+const WHERE_TO_LOOK = 'fix the posture words in src/daemon/headlessRun.ts (getHeadlessPermissionMode, headlessPermissionArgv, buildRunnerInvocation, HEADLESS_PERMISSION_MODES) or the MERCURY_DAEMON_PERMISSION_MODE entry in FLAG_REGISTRY'
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` (${WHERE_TO_LOOK})`}`)
   if (!cond) failures++

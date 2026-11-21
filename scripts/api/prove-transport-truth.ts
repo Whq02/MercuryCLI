@@ -187,7 +187,7 @@ check(
   'both transport knobs are registered flags',
   getFlagSpec('MERCURY_CONNECT_TIMEOUT_MS') !== undefined && getFlagSpec('MERCURY_MAX_CONNECTIONS') !== undefined,
   '',
-  'register the missing flag in src/substrate/flagRegistry.ts',
+  'register the missing flag in the flag registry (FLAG_REGISTRY)',
 )
 
 if (failures > 0) {

@@ -34,7 +34,7 @@ const build = await Bun.build({
   ],
 })
 if (!build.success) {
-  console.error('❌ NODE TRANSPORT LANE — bundle failed — the bundle is built from src/utils/proxy.ts and src/utils/mtls.ts; fix the import or syntax error in the log below, or the plugin list in this script if a new dependency needs marking external')
+  console.error('❌ NODE TRANSPORT LANE — bundle failed — the bundle is built from src/utils/proxy.ts and src/utils/mtls.ts; fix the import or syntax error in the log below, or the external and resolver lists in the Bun.build options of this script if a new dependency needs marking external')
   for (const log of build.logs) console.error(String(log))
   process.exit(1)
 }

@@ -191,7 +191,7 @@ section('gate polarity — default-on')
 
 section('adoption + hygiene pins (source greps)')
 {
-  check('MERCURY_LIVE_GLYPHS registered in flagRegistry', getFlagSpec('MERCURY_LIVE_GLYPHS') !== undefined, '', 'register MERCURY_LIVE_GLYPHS in the flag registry read by getFlagSpec in src/substrate/flagRegistry.ts')
+  check('MERCURY_LIVE_GLYPHS registered in flagRegistry', getFlagSpec('MERCURY_LIVE_GLYPHS') !== undefined, '', 'register MERCURY_LIVE_GLYPHS in the flag registry read by getFlagSpec in the flag registry (FLAG_REGISTRY)')
 }
 
 

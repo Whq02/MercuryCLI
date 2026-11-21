@@ -25,12 +25,12 @@ section('dist ships the flow decision branches (the five, the floors, kill deny)
   } else {
     const present = (needle: string): boolean =>
       execSync(`grep -F -c ${JSON.stringify(needle)} ${JSON.stringify(dist)} || true`, { encoding: 'utf-8' }).trim() !== '0'
-    check('the ask sentence shape ships', present('Flow asks before '), 'rebuild with `bun run build.ts`; the ask sentence comes from the ask builder in src/utils/permissions/flowLaw.ts')
-    check('the five\'s reasons ship', present('it runs with elevated rights') && present('it publishes history') && present('it publishes a package') && present(', outside the project'), 'rebuild with `bun run build.ts`; the reason strings live in src/utils/permissions/flowLaw.ts')
-    check('the Flow allow log ships', present('none of the five'), 'rebuild with `bun run build.ts`; the log line is in src/utils/permissions/decision/wrapper.ts')
-    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'), 'remove the denial ledger text from src/ and rebuild with `bun run build.ts`')
-    check('capability kill-switch deny message ships', present('capability switched off by operator'), 'rebuild with `bun run build.ts`; the deny message is in src/utils/permissions/decision/engine.ts')
-    check('the old shortcuts do not ship', !present('implement mode would allow this outright') && !present('PowerShell runs only with interactive approval'), 'remove the old shortcut text from src/utils/permissions and rebuild with `bun run build.ts`')
+    check('the ask sentence shape ships', present('Flow asks before '))
+    check('the five\'s reasons ship', present('it runs with elevated rights') && present('it publishes history') && present('it publishes a package') && present(', outside the project'))
+    check('the Flow allow log ships', present('none of the five'))
+    check('no denial ledger ships', !present('actions were blocked this session') && !present('consecutive actions were blocked') && !present('denial limit reached'))
+    check('capability kill-switch deny message ships', present('capability switched off by operator'))
+    check('the old shortcuts do not ship', !present('implement mode would allow this outright') && !present('PowerShell runs only with interactive approval'))
   }
 }
 

@@ -27,7 +27,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — fix: a row already sent must keep its bytes: §1 is normalizeMessagesForAPI in src/services/messages/apiView.ts and enforceToolResultBudget in src/utils/toolResultStorage.ts; the tool roster freeze and restore are planToolPayload in src/services/providers/toolEconomy.ts and src/services/providers/anthropic/boundPrefixRecord.ts; later sections run dist/mercury.mjs, so rebuild with bun run build.ts after a src change' : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -35,7 +35,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — sent-prefix proofs exceeded 280s — the last section header printed above is the one that hung; the process sections (§7 to §10 among them) spawn dist/mercury.mjs against the fixture API (scripts/lib/fixtureApi.ts)')
+  console.log('\n❌ TIMEOUT — sent-prefix proofs exceeded 280s')
   process.exit(1)
 }, 280_000)
 guard.unref?.()

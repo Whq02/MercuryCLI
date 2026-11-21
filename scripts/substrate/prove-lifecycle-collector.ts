@@ -351,7 +351,7 @@ sectionHint = 'reconcileProvisionalSession in src/utils/provisionalSessionReconc
 }
 
 section('§9 WIRING')
-sectionHint = 'the lifecycle-collection row in src/services/health/sections/crew/scratch.ts, the MERCURY_DELIVERY_ARTIFACT summary in src/substrate/flags/permissions.ts, or scripts/substrate/gen-lifecycle-manifest.ts (run it with bun to see its error)'
+sectionHint = 'the lifecycle-collection row in src/services/health/sections/crew/scratch.ts, the MERCURY_DELIVERY_ARTIFACT summary in FLAG_REGISTRY, or scripts/substrate/gen-lifecycle-manifest.ts (run it with bun to see its error)'
 {
   const { crewChecks } = await import('../../src/services/health/sections/crew.ts')
   const { getLifecycleHealth: lifecycleNow } = await import('../../src/substrate/stateLifecycle.ts')

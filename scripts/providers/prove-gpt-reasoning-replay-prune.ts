@@ -74,7 +74,7 @@ section('P3 THE COUNT — bytes per request')
 
 section('P4 wiring')
 {
-  check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in', 'MERCURY_GPT_PRUNE_PRIOR_REASONING must be registered as an opt-in flag in src/substrate/flags/providers.ts')
+  check("the flag row is registered opt-in with a byte-identical off arm", getFlagSpec('MERCURY_GPT_PRUNE_PRIOR_REASONING')?.kind === 'opt-in', 'MERCURY_GPT_PRUNE_PRIOR_REASONING must be registered as an opt-in flag in FLAG_REGISTRY')
 }
 
 console.log(failures === 0 ? '\n✅ ALL GPT-REASONING-REPLAY-PRUNE PROOFS PASS' : `\n❌ ${failures} GPT-REASONING-REPLAY-PRUNE PROOF(S) FAILED`)

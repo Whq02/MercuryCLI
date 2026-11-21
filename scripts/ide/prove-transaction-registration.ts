@@ -11,6 +11,6 @@ for (const loop of ['0', '1']) for (const receipts of ['0', '1']) for (const cap
 }
 for (const env of ['MERCURY_IDE_LOOP', 'MERCURY_TX_AUTOCAPTURE']) {
   const spec = getFlagSpec(env)
-  check(`${env} retains its default-on additive flag metadata`, spec?.kind === 'default-on' && spec.tier === 'additive', `${JSON.stringify(spec)}; hint: restore ${env} as a default-on additive flag in src/substrate/flagRegistry.ts`)
+  check(`${env} retains its default-on additive flag metadata`, spec?.kind === 'default-on' && spec.tier === 'additive', `${JSON.stringify(spec)}; hint: restore ${env} as a default-on additive flag in the flag registry (FLAG_REGISTRY)`)
 }
 done('prove-transaction-registration')

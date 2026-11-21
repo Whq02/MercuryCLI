@@ -250,7 +250,7 @@ try {
   check('two requests, no throw, no refusal', c.threw === undefined && c.wire.length === 2 && fixture.refusals.length === 0, `the Computer call with the new field must run through the live tool without a refusal. ${c.threw ?? `${c.wire.length} requests; refusals ${j(fixture.refusals)}`}`)
   check('the call with the new field ran through the live tool', toolResultsOf(c).some(result => result.text === 'frontmost: Terminal on main' && !result.isError), j(toolResultsOf(c)))
   check('every request of the turn replayed the full thinking chain and dropped nothing', c.wire.every(request => bindingDropsFor(request.body).length === 0) && thinkingBlocksOn(c.wire[1]) === 5, `every request of the turn must keep the full thinking chain (src/services/providers/anthropic/thinkingBinding.ts). ${j(c.wire.map(request => [thinkingBlocksOn(request), bindingDropsFor(request.body).length]))}`)
-  check('Computer still rides its recorded definition on every request of the new build', c.wire.every(request => j(withoutCacheControl(toolNamed(request, COMPUTER))) === j(withoutCacheControl(toolNamed(lastBefore, COMPUTER))), 'Computer must keep its recorded definition on every request after the restart (src/services/providers/anthropic/boundPrefixRecord.ts)'))
+  check('Computer still rides its recorded definition on every request of the new build', c.wire.every(request => j(withoutCacheControl(toolNamed(request, COMPUTER))) === j(withoutCacheControl(toolNamed(lastBefore, COMPUTER)))), 'Computer must keep its recorded definition on every request after the restart (src/services/providers/anthropic/boundPrefixRecord.ts)')
 } finally {
   await fixture.close()
 }

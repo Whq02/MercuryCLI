@@ -167,8 +167,8 @@ console.log('the switch is a registered opt-in, read once')
 {
   const { FLAG_REGISTRY } = await import(`${SRC}/substrate/flagRegistry.ts`)
   const row = (FLAG_REGISTRY as Array<{ env: string; kind: string; tier?: string; evidence?: string; summary: string; off: string; consumer: string }>).find(flag => flag.env === SWITCH)
-  check('its row: opt-in, behavioral, this proof as its evidence, its reader named', row?.kind === 'opt-in' && row.tier === 'behavioral' && row.evidence === 'scripts/tools/prove-grep-ranked-unset.ts' && row.consumer === 'src/tools/GrepTool/prompt.ts' && existsSync(join(ROOT, row.consumer)), `${JSON.stringify(row)} — fix the ${SWITCH} row in FLAG_REGISTRY (src/substrate/flagRegistry.ts)`)
-  check('the row says where it must stand', row !== undefined && row.summary.includes('must stand in the environment Mercury starts in') && row.summary.includes('a settings env value arrives too late'), `${row?.summary} — reword the summary of the ${SWITCH} row in FLAG_REGISTRY (src/substrate/flagRegistry.ts)`)
+  check('its row: opt-in, behavioral, this proof as its evidence, its reader named', row?.kind === 'opt-in' && row.tier === 'behavioral' && row.evidence === 'scripts/tools/prove-grep-ranked-unset.ts' && row.consumer === 'src/tools/GrepTool/prompt.ts' && existsSync(join(ROOT, row.consumer)), `${JSON.stringify(row)} — fix the ${SWITCH} row in FLAG_REGISTRY`)
+  check('the row says where it must stand', row !== undefined && row.summary.includes('must stand in the environment Mercury starts in') && row.summary.includes('a settings env value arrives too late'), `${row?.summary} — reword the summary of the ${SWITCH} row in FLAG_REGISTRY`)
   const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
   const { getDescription } = await import(`${SRC}/tools/GrepTool/prompt.ts`)
   process.env[SWITCH] = '1'

@@ -13,7 +13,7 @@ const t = (name: string, ok: boolean, detail = ''): void => {
   delete process.env.MERCURY_FAULT_INJECT_SURFACE
   t('§4 unset ⇒ renders nothing (byte-identical)', SurfaceFaultInjection({ kind: 'concourse' }) === null, 'SurfaceFaultInjection in src/components/SurfaceRouter.tsx must return null when MERCURY_FAULT_INJECT_SURFACE is unset')
   process.env.MERCURY_FAULT_INJECT_SURFACE = 'concourse'
-  t('§4 the registry row exists (flagEnv resolves — an unregistered read THROWS)', flagEnv('MERCURY_FAULT_INJECT_SURFACE') === 'concourse', 'the MERCURY_FAULT_INJECT_SURFACE row must be registered in src/substrate/flags/screen.ts and flagEnv in src/substrate/flagRegistry.ts must return its value')
+  t('§4 the registry row exists (flagEnv resolves — an unregistered read THROWS)', flagEnv('MERCURY_FAULT_INJECT_SURFACE') === 'concourse', 'the MERCURY_FAULT_INJECT_SURFACE row must be registered in FLAG_REGISTRY and flagEnv in the flag registry (FLAG_REGISTRY) must return its value')
   let threw = false
   try {
     SurfaceFaultInjection({ kind: 'concourse' })

@@ -42,41 +42,36 @@ section('§1 · the listen expression (both debugpy roads)')
     'bundled road: sys.path.insert of the vendor tree, JSON-quoted',
     bundled.startsWith(`import sys; sys.path.insert(0, "/dist/vendor/debugpy"); `) &&
       bundled.includes("debugpy.listen(('127.0.0.1', 5678))"),
-    'fix blenderDebugListenExpr in src/services/ide/blenderDebug.ts; got ' + bundled,
   )
   const pip = blenderDebugListenExpr(5678, null)
   check(
     'pip road: no path arm — Blender-importable debugpy assumed',
     pip.startsWith('import debugpy; ') && !pip.includes('sys.path'),
-    'with a null vendor path blenderDebugListenExpr in src/services/ide/blenderDebug.ts must start with import debugpy and carry no sys.path; got ' + pip,
   )
   const other = blenderDebugListenExpr(6001, null)
-  check('the port spells through (listen + the print line)', other.includes("6001))") && other.includes(':6001'), 'blenderDebugListenExpr in src/services/ide/blenderDebug.ts must spell the port into the listen call and the print line; got ' + other)
-  check('the community default port is 5678', BLENDER_DEBUG_DEFAULT_PORT === 5678, 'BLENDER_DEBUG_DEFAULT_PORT in src/services/ide/blenderDebug.ts is ' + BLENDER_DEBUG_DEFAULT_PORT)
+  check('the port spells through (listen + the print line)', other.includes("6001))") && other.includes(':6001'))
+  check('the community default port is 5678', BLENDER_DEBUG_DEFAULT_PORT === 5678)
 }
 
 section('§2 · the steps contract')
 {
   const r = blenderDebugRecipe('/Applications/Blender.app/Contents/MacOS/Blender', 5678, null)
   const all = r.steps.join('\n')
-  check('step 1: the operator launch line with --python-expr', all.includes('--python-expr') && all.includes('/Applications/Blender.app'), 'blenderDebugRecipe in src/services/ide/blenderDebug.ts must put the launch line with --python-expr and the Blender path in its steps; steps: ' + all)
-  check('pip road named when no bundle', r.debugpySource === 'pip' && all.includes('pip install debugpy'), 'blenderDebugRecipe in src/services/ide/blenderDebug.ts must report debugpySource pip and a pip install debugpy step when given no bundle; got ' + r.debugpySource)
+  check('step 1: the operator launch line with --python-expr', all.includes('--python-expr') && all.includes('/Applications/Blender.app'))
+  check('pip road named when no bundle', r.debugpySource === 'pip' && all.includes('pip install debugpy'))
   check(
     'step 2: the Debug attach op naming adapter python + the connect contract',
     all.includes('op:"attach"') && all.includes('adapter:"python"') && all.includes('{connect:{host,port}}'),
-    'the Debug attach step in blenderDebugRecipe, src/services/ide/blenderDebug.ts, must name op attach, adapter python and the connect shape; steps: ' + all,
   )
-  check('step 3: wait_for_client teaching', all.includes('wait_for_client'), 'blenderDebugRecipe in src/services/ide/blenderDebug.ts must teach wait_for_client in its steps; steps: ' + all)
+  check('step 3: wait_for_client teaching', all.includes('wait_for_client'))
   check(
     'no vendor is blamed for the attach road: the steps carry no wedge note (the attach-by-port defect was ours and died with its fix)',
     !all.includes('wedge') && !all.includes('debugpyWaitingForServer') && r.steps.length === 4,
-    'blenderDebugRecipe in src/services/ide/blenderDebug.ts must return exactly 4 steps with no wedge note; got ' + r.steps.length + ' steps',
   )
   const bundled = blenderDebugRecipe('<blender>', 5678, '/v/debugpy')
   check(
     'bundled road named when the vendor tree exists',
     bundled.debugpySource === 'bundled' && bundled.steps.join('\n').includes('/v/debugpy'),
-    'blenderDebugRecipe in src/services/ide/blenderDebug.ts must report debugpySource bundled and carry the vendor path when given one; got ' + bundled.debugpySource,
   )
 }
 
@@ -91,7 +86,7 @@ section('§3 · the profile row (armed only)')
   process.env.MERCURY_BLENDER_BIN = shimBin
   const d = await discoverLaunchProfiles(scratch)
   const recipeRows = d.profiles.filter(p => p.source === 'blender' && p.kind === 'debug')
-  check('exactly ONE debug recipe row', recipeRows.length === 1, 'discoverLaunchProfiles in src/services/ide/launchProfiles.ts returned ' + recipeRows.length + ' blender debug rows with MERCURY_BLENDER armed')
+  check('exactly ONE debug recipe row', recipeRows.length === 1)
   const row = recipeRows[0]
   check(
     'the row carries the pinned shim and its version: no Blender this machine holds answered',
@@ -104,11 +99,10 @@ section('§3 · the profile row (armed only)')
     (row?.blenderHeadless?.args[0] ?? '') === '--python-expr' &&
       (row?.blenderHeadless?.note ?? '').includes('op:"attach"') &&
       !(row?.blenderHeadless?.note ?? '').includes('wedge'),
-    'the blender debug row built in src/services/ide/launchProfiles.ts must carry --python-expr as its first arg and the steps note from blenderDebugRecipe; got args ' + JSON.stringify(row?.blenderHeadless?.args),
   )
   delete process.env.MERCURY_BLENDER
   const off = await discoverLaunchProfiles(scratch)
-  check('off ⇒ no recipe row', off.profiles.every(p => !(p.source === 'blender' && p.kind === 'debug')), 'discoverLaunchProfiles in src/services/ide/launchProfiles.ts must add no blender debug row when MERCURY_BLENDER is unset')
+  check('off ⇒ no recipe row', off.profiles.every(p => !(p.source === 'blender' && p.kind === 'debug')))
   rmSync(scratch, { recursive: true, force: true })
 }
 
@@ -119,7 +113,6 @@ section('§4 · the attach side exists (the landed contract)')
   check(
     "the python adapter resolves with the connect attach shape (the recipe's other half)",
     python !== null && python.attachShape === 'connect',
-    'resolveAdapter in src/services/dap/client/adapters.ts must return the python adapter with attachShape connect; got ' + JSON.stringify(python?.attachShape),
   )
 }
 

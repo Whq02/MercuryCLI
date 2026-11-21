@@ -17,7 +17,7 @@ const { getHarnessMapDelta, getHarnessMapSection, harnessMapEnabled, resetHarnes
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change: the map lines, the delta and the enable gate in src/services/cockpit/harnessMap.ts (computeHarnessMapLines, getHarnessMapSection, getHarnessMapDelta, harnessMapEnabled); the delta text in src/services/messages/attachmentText.ts; the flag row in src/substrate/flags/cockpit.ts'}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — change: the map lines, the delta and the enable gate in src/services/cockpit/harnessMap.ts (computeHarnessMapLines, getHarnessMapSection, getHarnessMapDelta, harnessMapEnabled); the delta text in src/services/messages/attachmentText.ts; the flag row in FLAG_REGISTRY'}`)
   if (!cond) failures++
 }
 

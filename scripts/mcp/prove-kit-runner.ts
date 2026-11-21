@@ -20,7 +20,7 @@ const whereToLook = (name: string): string => {
   if (name.startsWith('KR')) return 'src/services/mcp/sessionKitPin.ts (noteRefusedKitOnSessionReceipt)'
   if (/^K(8|9|10)$/.test(name)) return 'src/daemon/concourseWorkers.ts (buildConcourseWorkerSpec)'
   if (name === 'K11') return 'src/daemon/sessionKit.ts (validateSessionKit)'
-  if (name === 'K17') return 'src/substrate/flagRegistry.ts (the MERCURY_SESSION_KIT row)'
+  if (name === 'K17') return 'the flag registry (FLAG_REGISTRY) (the MERCURY_SESSION_KIT row)'
   if (name.startsWith('K')) return 'src/services/mcp/sessionKitPin.ts (consumeSessionKitPin, sessionKitOf)'
   if (/^S/.test(name)) return 'src/services/mcp/membership.ts (isMcpCatalogueMember, isMcpOrgan, partitionMcpConfigsByMembership)'
   if (/^C(9|10|11)$/.test(name)) return 'src/daemon/sessionKit.ts (resolveSessionKitOnRecord)'

@@ -11,13 +11,11 @@ const home = join(scratch, 'home')
 process.env.MERCURY_CONFIG_DIR = home
 
 let failures = 0
-let where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && where ? ` — to fix, look at: ${where}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
-function section(t: string, w = ''): void {
-  where = w
+function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -27,7 +25,7 @@ try {
 } catch {
   intake = null
 }
-check('the intake module exists', intake !== null, 'src/mneme/mnemeHandover.ts must exist and import without throwing; run this file alone with bun to see the import error')
+check('the intake module exists', intake !== null)
 if (!intake) {
   console.log('\n❌ INTAKE: the module is absent — nothing more can be checked')
   process.exit(1)
@@ -70,7 +68,7 @@ writeFileSync(join(projectMem, 'logs', '2026', '09', '2026-09-30.md'), '# daily 
 const before = new Map(readdirSync(projectMem).map(n => [n, statSync(join(projectMem, n)).isFile() ? readFileSync(join(projectMem, n), 'utf8') : '']))
 const mtimes = new Map(readdirSync(projectMem).map(n => [n, statSync(join(projectMem, n)).mtimeMs]))
 
-section('the first open of a project with old notes hands every note to memory through retain, once', 'handoverIfDue, handoverDue, listOldNotes, chunkNote and renderHandoverReceipt in src/mneme/mnemeHandover.ts, pages and pins read back through listTopicDocs in src/mneme/mnemeConsolidate.ts, readPins in src/mneme/mnemeUsage.ts and readFrontPage in src/mneme/mnemeFrontPage.ts')
+section('the first open of a project with old notes hands every note to memory through retain, once')
 check('the intake is due on a project with old notes and no marker', handoverDue(projectMem) === true)
 check('the index, the audit copy and the taste mirror are not notes', !listOldNotes(projectMem).some(n => n === 'MEMORY.md' || n.includes('.superseded.') || n === 'TASTE.md'))
 const T0 = new Date('2026-10-02T09:00:00.000Z')
@@ -100,7 +98,7 @@ check('the index names the pages, never the facts', /^- project — ongoing proj
 check('the index pointer lines were not taken as facts', !front.includes('[Owner names models]') && !pages.some(p => p.sections.some(s => s.entries.some(e => e.text.includes('[Owner names models]')))))
 check('every fact carries the note it came from as its source', pages.every(p => p.sections.every(s => s.entries.every(e => e.source.startsWith('handover:')))))
 
-section('once, and nothing of anyone\'s is deleted', 'handoverIfDue, handoverMemoryDir and readHandoverReceipt in src/mneme/mnemeHandover.ts (the once-only marker, no rewrite of old notes)')
+section('once, and nothing of anyone\'s is deleted')
 check('a marker records that the intake ran', readHandoverReceipt(lib)?.ranAt === T0.toISOString())
 check('the intake is no longer due', handoverDue(projectMem) === false)
 const again = handoverIfDue(projectMem, new Date(T0.getTime() + 1000))
@@ -113,7 +111,7 @@ check('no old file was rewritten', [...mtimes.entries()].every(([n, m]) => statS
 check('the receipt renders for the memory centre', renderHandoverReceipt(receipt!)[0]!.startsWith('11 notes → ') && renderHandoverReceipt(receipt!)[1]!.startsWith('pages:'))
 check('no archive page was made of fresh facts', listArchiveDocs(lib).length === 0)
 
-section('a first intake past the pinned limit keeps every rule loaded and says so once per session', 'handoverIfDue in src/mneme/mnemeHandover.ts, readPinnedStatus in src/mneme/mnemeFrontPage.ts, pinFact in src/mneme/mnemeUsage.ts, pinnedOverLimitLine in src/components/statusNotices/statusNoticeDefinitions.tsx')
+section('a first intake past the pinned limit keeps every rule loaded and says so once per session')
 const bigMem = join(home, 'projects', '-Users-someone-code-big', 'memory')
 mkdirSync(bigMem, { recursive: true })
 const BIG = 40

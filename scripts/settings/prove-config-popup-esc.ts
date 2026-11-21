@@ -22,10 +22,9 @@ mock.module('../../src/services/providers/local/localCatalogue.js', () => ({
 }))
 
 let failures = 0
-const POPUP_ESC_FAIL_HINT = 'fix the esc revert and the enter save in src/components/Settings/config/useConfigExits.ts (escape, saveAndClose), the undo records in src/components/Settings/config/useConfigWrites.ts, the receipt in src/components/Settings/Settings.tsx (settingsPopupReceipt), or the outside press in src/ink/recessLayer.ts (escapeFromOutsidePress)'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${POPUP_ESC_FAIL_HINT}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

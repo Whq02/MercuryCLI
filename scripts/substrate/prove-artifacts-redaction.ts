@@ -32,12 +32,12 @@ section('#8 — content blob is secret-redacted on write')
     kind: 'output',
     content: `build output\nleaked: ${SECRET}\ndone`,
   })
-  check('storeArtifact returned a path', r.id !== null && typeof r.path === 'string', 'storeArtifact in src/utils/artifacts/store.ts returned no id or path; check why the write failed')
+  check('storeArtifact returned a path', r.id !== null && typeof r.path === 'string')
   if (r.path) {
     const blob = readFileSync(r.path, 'utf8')
-    check('the raw secret is NOT in the blob on disk', !blob.includes(SECRET), 'storeArtifact in src/utils/artifacts/store.ts must run redactSecrets on content before writing the blob')
-    check('the secret span is [REDACTED]', blob.includes('[REDACTED]'), 'storeArtifact in src/utils/artifacts/store.ts must replace the secret span with [REDACTED]')
-    check('surrounding content survives', blob.includes('build output') && blob.includes('done'), 'redaction in storeArtifact (src/utils/artifacts/store.ts) must replace only the secret span and keep the rest of the content')
+    check('the raw secret is NOT in the blob on disk', !blob.includes(SECRET))
+    check('the secret span is [REDACTED]', blob.includes('[REDACTED]'))
+    check('surrounding content survives', blob.includes('build output') && blob.includes('done'))
   }
 }
 
@@ -45,9 +45,9 @@ section('#9 — metadata value redaction (not just keys)')
 {
   const red = redactMetadata({ note: `the token is ${SECRET}`, apiKey: 'should-be-key-redacted' })
   const json = JSON.stringify(red)
-  check('a secret VALUE under a benign key ("note") is scrubbed', !json.includes(SECRET), 'redactMetadata in src/utils/artifacts/store.ts must scrub secret values under any key, not only sensitive keys')
-  check('the benign key is preserved, value [REDACTED]', json.includes('[REDACTED]'), 'redactMetadata in src/utils/artifacts/store.ts must keep the key and put [REDACTED] in the value')
-  check('a SENSITIVE key ("apiKey") is still redacted', !json.includes('should-be-key-redacted'), 'redactMetadata in src/utils/artifacts/store.ts must still redact the value of a sensitive key such as apiKey')
+  check('a secret VALUE under a benign key ("note") is scrubbed', !json.includes(SECRET))
+  check('the benign key is preserved, value [REDACTED]', json.includes('[REDACTED]'))
+  check('a SENSITIVE key ("apiKey") is still redacted', !json.includes('should-be-key-redacted'))
 }
 
 section('end-to-end: sidecar on disk has no secret value')
@@ -61,18 +61,18 @@ section('end-to-end: sidecar on disk has no secret value')
   })
   if (r.path) {
     const sidecar = readFileSync(r.path + '.meta.json', 'utf8')
-    check('sidecar JSON contains no raw secret', !sidecar.includes(SECRET), 'storeArtifact in src/utils/artifacts/store.ts must pass metadata through redactMetadata before writing the .meta.json sidecar')
+    check('sidecar JSON contains no raw secret', !sidecar.includes(SECRET))
   } else {
-    check('sidecar written', false, 'storeArtifact in src/utils/artifacts/store.ts returned no path for the sidecar write')
+    check('sidecar written', false)
   }
 }
 
 section('#11 — distinct project dirs ⇒ distinct artifact scopes')
 {
-  check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'), 'scopeSlugForDir in src/utils/artifacts/store.ts must map different directories to different slugs')
-  check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'), 'scopeSlugForDir in src/utils/artifacts/store.ts must map different directories to different slugs')
-  check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'), 'scopeSlugForDir in src/utils/artifacts/store.ts must be deterministic: same directory, same slug')
-  check('scope is still filesystem-safe', /^[A-Za-z0-9._-]+$/.test(scopeSlugForDir('/weird path/with spaces')), 'scopeSlugForDir in src/utils/artifacts/store.ts must emit only A-Z a-z 0-9 . _ - characters')
+  check('non-injective collision pair now maps to DISTINCT scopes', scopeSlugForDir('/a/b') !== scopeSlugForDir('/a_b'))
+  check('two distinct project dirs ⇒ distinct scopes', scopeSlugForDir('/home/u/projA') !== scopeSlugForDir('/home/u/projB'))
+  check('same dir ⇒ STABLE scope (writer & reader agree)', scopeSlugForDir('/home/u/proj') === scopeSlugForDir('/home/u/proj'))
+  check('scope is still filesystem-safe', /^[A-Za-z0-9._-]+$/.test(scopeSlugForDir('/weird path/with spaces')))
 }
 
 section('#10 — two adjacent azure secrets: the SECOND no longer leaks')
@@ -83,11 +83,11 @@ section('#10 — two adjacent azure secrets: the SECOND no longer leaks')
   const az1 = 'abc1Q~' + 'a'.repeat(33)
   const az2 = 'xyz9Q~' + 'b'.repeat(33)
   const nl = redactSecrets(`${az1}\n${az2}`)
-  check('newline-separated: az1 redacted', !nl.includes(az1), 'redactSecrets in src/utils/secrets/secretScanner.ts must redact the first Azure secret')
-  check('newline-separated: az2 redacted (was the leak)', !nl.includes(az2), 'redactSecrets in src/utils/secrets/secretScanner.ts must redact a second adjacent Azure secret; check how its pattern consumes the separator')
+  check('newline-separated: az1 redacted', !nl.includes(az1))
+  check('newline-separated: az2 redacted (was the leak)', !nl.includes(az2))
   const sp = redactSecrets(`${az1} ${az2}`)
-  check('space-separated: both redacted', !sp.includes(az1) && !sp.includes(az2), 'redactSecrets in src/utils/secrets/secretScanner.ts must redact both space-separated Azure secrets')
-  check('single secret still redacts', !redactSecrets(` ${az1} `).includes(az1), 'redactSecrets in src/utils/secrets/secretScanner.ts must redact a single Azure secret surrounded by spaces')
+  check('space-separated: both redacted', !sp.includes(az1) && !sp.includes(az2))
+  check('single secret still redacts', !redactSecrets(` ${az1} `).includes(az1))
 }
 
 console.log('\n' + '═'.repeat(76))

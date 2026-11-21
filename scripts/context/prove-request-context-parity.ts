@@ -69,12 +69,12 @@ async function main(): Promise<void> {
     check(
       'eleven results outweigh the newest-output protection, so the ten-result window decides and exactly three of thirteen are eligible',
       keepRecent === 10 && resultTokens * (keepRecent + 1) > PROTECT_NEWEST_TOOL_OUTPUT_TOKENS,
-      `${resultTokens} tokens per result, keep ${keepRecent}, protection ${PROTECT_NEWEST_TOOL_OUTPUT_TOKENS}; a limit moved in src/services/compact/timeBasedMCConfig.ts or src/services/compact/pruneProtections.ts, so resize RESULT_REPEATS in this script to match`,
+      `${resultTokens} tokens per result, keep ${keepRecent}, protection ${PROTECT_NEWEST_TOOL_OUTPUT_TOKENS}`,
     )
     check(
       'each turn is its own response group under the aggregate tool-result budget',
       resultText(0).length < MAX_TOOL_RESULTS_PER_MESSAGE_CHARS,
-      `${resultText(0).length} chars per result, budget ${MAX_TOOL_RESULTS_PER_MESSAGE_CHARS}; MAX_TOOL_RESULTS_PER_MESSAGE_CHARS in src/constants/toolLimits.ts moved, so lower RESULT_REPEATS in this script`,
+      `${resultText(0).length} chars per result, budget ${MAX_TOOL_RESULTS_PER_MESSAGE_CHARS}`,
     )
   }
 
@@ -104,21 +104,19 @@ async function main(): Promise<void> {
       },
       'apply',
     )
-    check('the time-based clear actually fired', applied.reductions.timeBasedCleared > 0, 'buildRequestContextPlan in src/services/run/requestContextPlan.ts did not apply the time-based clear to the stale 13-turn fixture')
+    check('the time-based clear actually fired', applied.reductions.timeBasedCleared > 0)
     check(
       'INSPECT digest === APPLY digest (one plan, one truth)',
       inspected.digest === applied.digest,
-      `${inspected.digest.slice(0, 12)} vs ${applied.digest.slice(0, 12)}; 'inspect' and 'apply' in buildRequestContextPlan (src/services/run/requestContextPlan.ts) must build the same plan`,
+      `${inspected.digest.slice(0, 12)} vs ${applied.digest.slice(0, 12)}`,
     )
     check(
       'reduction accounting matches across modes',
       inspected.reductions.timeBasedCleared === applied.reductions.timeBasedCleared,
-      `inspect ${inspected.reductions.timeBasedCleared} vs apply ${applied.reductions.timeBasedCleared}; buildRequestContextPlan in src/services/run/requestContextPlan.ts must count reductions the same in both modes`,
     )
     check(
       'the applied plan is cached by owner',
       planMod.getLastAppliedPlan(owner)?.digest === applied.digest,
-      'the apply mode of buildRequestContextPlan in src/services/run/requestContextPlan.ts must store the plan so getLastAppliedPlan(owner) returns it',
     )
   }
 
@@ -137,8 +135,8 @@ async function main(): Promise<void> {
       },
       'inspect',
     )
-    check('inspect never becomes the applied plan', planMod.getLastAppliedPlan(owner)?.digest === before, "the 'inspect' mode of buildRequestContextPlan in src/services/run/requestContextPlan.ts must not store an applied plan")
-    check('inspect never consumes the replacement state', state.seenIds.size === 0, "the 'inspect' mode of buildRequestContextPlan in src/services/run/requestContextPlan.ts must work on a clone of the replacement state (cloneContentReplacementState in src/utils/toolResultStorage.ts)")
+    check('inspect never becomes the applied plan', planMod.getLastAppliedPlan(owner)?.digest === before)
+    check('inspect never consumes the replacement state', state.seenIds.size === 0)
   }
 
   section('3. normal + tool-heavy turns are digest-stable across modes')
@@ -155,7 +153,7 @@ async function main(): Promise<void> {
         { messages: msgs as never, owner, querySource: 'main_thread' as never, contentReplacementState: undefined, skipToolNames: skip },
         'inspect',
       )
-      check(`${label} turn: apply/inspect digests match`, a.digest === b.digest, 'apply and inspect modes of buildRequestContextPlan in src/services/run/requestContextPlan.ts must build the same plan for this turn')
+      check(`${label} turn: apply/inspect digests match`, a.digest === b.digest)
     }
   }
 
@@ -179,12 +177,12 @@ async function main(): Promise<void> {
         ...(pressure ? { pressurePrune: true as const } : {}),
       }
       const pruned = await planMod.buildRequestContextPlan(input, 'apply')
-      check(label + ': exactly three replacements recorded', records.length === 3 && state.replacements.size === 3, `${records.length} records, ${state.replacements.size} replacements; buildRequestContextPlan in src/services/run/requestContextPlan.ts must clear exactly the three oldest results and persist each`)
+      check(label + ': exactly three replacements recorded', records.length === 3 && state.replacements.size === 3)
       check(label + ': each stored byte matches the applied result', records.every(record =>
         pruned.messages.some(message => message.type === 'user' && Array.isArray(message.message.content) &&
           message.message.content.some(block => block.type === 'tool_result' &&
-            block.tool_use_id === record.toolUseId && block.content === record.replacement))), 'the content of each applied tool_result in buildRequestContextPlan (src/services/run/requestContextPlan.ts) must equal the replacement it persisted')
-      check(label + ': pressure accounting remains conditional', Boolean(pruned.reductions.pressurePruned) === pressure, 'reductions.pressurePruned in buildRequestContextPlan (src/services/run/requestContextPlan.ts) must be set only when pressurePrune is passed')
+            block.tool_use_id === record.toolUseId && block.content === record.replacement))))
+      check(label + ': pressure accounting remains conditional', Boolean(pruned.reductions.pressurePruned) === pressure)
       const fresh: AnyMessage = {
         type: 'assistant', uuid: 'fresh-' + label, timestamp: new Date().toISOString(),
         message: { role: 'assistant', id: 'reply-' + label, content: [
@@ -197,14 +195,14 @@ async function main(): Promise<void> {
       const nextInput = { ...input, messages: nextMessages as never, pressurePrune: undefined }
       const inspected = await planMod.buildRequestContextPlan(nextInput, 'inspect')
       const next = await planMod.buildRequestContextPlan(nextInput, 'apply')
-      check(label + ': next query preserves the projected prefix', next.digest === expected, 'a later buildRequestContextPlan call (src/services/run/requestContextPlan.ts) must replay the stored replacements so the earlier projected prefix stays byte-identical')
-      check(label + ': inspection and application agree after clearing', inspected.digest === next.digest, 'inspect and apply modes of buildRequestContextPlan (src/services/run/requestContextPlan.ts) must agree once results are cleared')
-      check(label + ': the new reasoning survives', next.messages.includes(fresh as never), 'buildRequestContextPlan (src/services/run/requestContextPlan.ts) must keep the thinking message that arrived after the clearing')
-      check(label + ': later query does not persist duplicate records', records.length === 3, `${records.length} records; a later buildRequestContextPlan call (src/services/run/requestContextPlan.ts) must not persist replacements it already recorded`)
+      check(label + ': next query preserves the projected prefix', next.digest === expected)
+      check(label + ': inspection and application agree after clearing', inspected.digest === next.digest)
+      check(label + ': the new reasoning survives', next.messages.includes(fresh as never))
+      check(label + ': later query does not persist duplicate records', records.length === 3)
       const rebuilt = reconstructContentReplacementState(nextMessages as never, records)
       const resumed = await planMod.buildRequestContextPlan({ ...nextInput, contentReplacementState: rebuilt }, 'apply')
-      check(label + ': reconstruction preserves every replacement byte', resumed.digest === expected, 'reconstructContentReplacementState in src/utils/toolResultStorage.ts must rebuild every recorded replacement byte for the plan')
-      check(label + ': transcript input was not mutated', JSON.stringify(messages) === original, 'buildRequestContextPlan (src/services/run/requestContextPlan.ts) or enforceToolResultBudget (src/utils/toolResultStorage.ts) must copy messages, never edit the transcript input')
+      check(label + ': reconstruction preserves every replacement byte', resumed.digest === expected)
+      check(label + ': transcript input was not mutated', JSON.stringify(messages) === original)
     }
   }
 
@@ -216,12 +214,12 @@ async function main(): Promise<void> {
     messages[1].message.content[0].content = 'unchanged output '.repeat(20_000)
     const state = { ...createContentReplacementState(), budgetChars: Infinity }
     const first = await enforceToolResultBudget(messages, state)
-    check('uncapped output has no new aggregate replacement', first.messages === messages && first.replacements.length === 0, 'enforceToolResultBudget in src/utils/toolResultStorage.ts must return the input unchanged when budgetChars is Infinity and nothing is recorded')
+    check('uncapped output has no new aggregate replacement', first.messages === messages && first.replacements.length === 0)
     state.replacements.set('tu-0', '[stale tool result recorded earlier]')
     const replayed = await enforceToolResultBudget(messages, state)
-    check('an uncapped caller still reapplies recorded content', (replayed.messages[1] as any).message.content[0].content === state.replacements.get('tu-0'), 'enforceToolResultBudget in src/utils/toolResultStorage.ts must reapply recorded replacements even when budgetChars is Infinity')
-    check('inspection preserves the output policy', cloneContentReplacementState(state).budgetChars === Infinity, 'cloneContentReplacementState in src/utils/toolResultStorage.ts must copy budgetChars')
-    check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity, 'reconstructForSubagentResume in src/utils/toolResultStorage.ts must carry budgetChars into the resumed state')
+    check('an uncapped caller still reapplies recorded content', (replayed.messages[1] as any).message.content[0].content === state.replacements.get('tu-0'))
+    check('inspection preserves the output policy', cloneContentReplacementState(state).budgetChars === Infinity)
+    check('resumed agents preserve the inherited output policy', reconstructForSubagentResume(state, messages, [])?.budgetChars === Infinity)
     let release!: () => void
     const persisted = new Promise<void>(resolve => { release = resolve })
     let started!: () => void
@@ -240,12 +238,12 @@ async function main(): Promise<void> {
       persistenceStarted.then(() => true),
       new Promise<boolean>(resolve => setTimeout(() => resolve(false), 10_000)),
     ])
-    check('the applied projection asks for persistence instead of finishing silently', persistenceAsked, 'persistReplacements was not called within 10s; the apply mode of buildRequestContextPlan in src/services/run/requestContextPlan.ts must call it before finishing')
+    check('the applied projection asks for persistence instead of finishing silently', persistenceAsked)
     await new Promise<void>(resolve => setImmediate(resolve))
-    check('the applied projection cannot finish before its records persist', persistenceAsked && !settled, 'the apply mode of buildRequestContextPlan in src/services/run/requestContextPlan.ts must await persistReplacements before it resolves')
+    check('the applied projection cannot finish before its records persist', persistenceAsked && !settled)
     release()
     const applied = await pending
-    check('the persisted projection then finishes with three clearings', settled && applied.reductions.pressurePruned?.cleared === 3, `settled ${settled}, cleared ${applied.reductions.pressurePruned?.cleared}; the pressure prune in buildRequestContextPlan (src/services/run/requestContextPlan.ts) must clear the three oldest of thirteen results`)
+    check('the persisted projection then finishes with three clearings', settled && applied.reductions.pressurePruned?.cleared === 3)
   }
 
   console.log(`\n${failures === 0 ? 'ALL GREEN' : `${failures} FAILURE(S)`}`)

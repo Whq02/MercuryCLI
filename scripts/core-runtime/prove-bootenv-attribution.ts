@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     const where = label.startsWith('reader ')
       ? "the 'flags' row of settingsChecks in src/services/health/sections/settings.ts"
       : label.startsWith('registry:')
-        ? 'the MERCURY_BOOT_ENV_APPLIED row of FLAG_REGISTRY in src/substrate/flagRegistry.ts'
+        ? 'the MERCURY_BOOT_ENV_APPLIED row of FLAG_REGISTRY in the flag registry'
         : 'applyBootMenuEnv, bootEnvSelfApplied, realEnvPin, resolveEffectiveSettingsSnapshot and the boot admission snapshot in src/substrate/startupMenu.ts'
     console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}\n    fix: ${where}`)
   }

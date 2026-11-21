@@ -71,9 +71,9 @@ if (process.platform === 'win32') {
   const local = fsOps.getPathsForPermissionCheck(LOCAL_LINK)
   fsOps.setOriginalFsImplementation()
 
-  check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote) + ' · to fix: getPathsForPermissionCheck in src/utils/fsOperations.ts must keep a link target that is a UNC path in the set')
-  check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched) + ' · to fix: getPathsForPermissionCheck in src/utils/fsOperations.ts must not call realpath, stat or any fs call on a UNC path while building the set')
-  check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local) + ' · to fix: getPathsForPermissionCheck in src/utils/fsOperations.ts must still resolve a link to a local folder to its target')
+  check('the UNC target is in the resolution set, so the UNC ask still sees it', remote.includes(UNC), JSON.stringify(remote))
+  check('nothing on the share is touched while the set is built', remoteTouched.length === 0, JSON.stringify(remoteTouched))
+  check('a link to a local folder still resolves to its target', local.includes(LOCAL_LINK) && local.includes(PROJ), JSON.stringify(local))
 } else {
   const folder = join(PROJ, 'folder')
   const folderLink = join(PROJ, 'folder-link')
@@ -94,8 +94,8 @@ if (process.platform === 'win32') {
   const followed = fsOps.getPathsForPermissionCheck(folderLink)
   fsOps.setOriginalFsImplementation()
 
-  check('the walk follows a local link: the set holds the link and its target', followed.length === 2 && followed.includes(folderLink) && followed.includes(folder), JSON.stringify(followed) + ' · to fix: getPathsForPermissionCheck in src/utils/fsOperations.ts must return the link and its target for a local link')
-  check('realpath is consulted once, on the link itself', realpathCalls.length === 1 && realpathCalls[0] === folderLink, JSON.stringify(realpathCalls) + ' · to fix: getPathsForPermissionCheck in src/utils/fsOperations.ts must call realpathSync once, on the link itself')
+  check('the walk follows a local link: the set holds the link and its target', followed.length === 2 && followed.includes(folderLink) && followed.includes(folder), JSON.stringify(followed))
+  check('realpath is consulted once, on the link itself', realpathCalls.length === 1 && realpathCalls[0] === folderLink, JSON.stringify(realpathCalls))
 }
 
 for (const dir of [PROJ, HOME]) {

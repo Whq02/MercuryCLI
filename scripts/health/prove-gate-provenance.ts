@@ -39,9 +39,9 @@ const row = cert.sections.flatMap(s => s.checks).find(c => c.id === 'gate')
 check(
   'a forged verdict in a gate-less project reads INFO naming the provenance, never a green gate',
   String(row?.status) === 'info' && String(row?.evidence).includes('NO gate') && String(row?.evidence).includes('project-authored'),
-  `${row?.status}: ${String(row?.evidence).slice(0, 140)} — fix the 'gate' check in src/services/health/sections/proofs.ts so a verdict without scripts/run-all-suites.sh in the project reports info and never counts as evidence`,
+  `${row?.status}: ${String(row?.evidence).slice(0, 140)}`,
 )
-check('the forged suite count never rides the evidence', !String(row?.evidence).includes('12'), `${String(row?.evidence)} — the 'gate' check in src/services/health/sections/proofs.ts must not print counts from a verdict in a project without a gate`)
+check('the forged suite count never rides the evidence', !String(row?.evidence).includes('12'))
 
 rmSync(HOME, { recursive: true, force: true })
 rmSync(SCRATCH, { recursive: true, force: true })
