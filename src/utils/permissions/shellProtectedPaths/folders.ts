@@ -3,7 +3,7 @@ import { homedir } from 'node:os'
 import { posix } from 'node:path'
 import { flagEnv } from '../../../substrate/flagRegistry.js'
 import { getMercuryHome } from '../../envUtils.js'
-import { type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, wordKnown } from '../../wards/wardsShellRead.js'
+import { type ReadCommand, type ShellRead, UNREAD_PART, absolutePath, layersOf, moveOf, printedBy, wordKnown, wordsAsWritten } from '../decision/commandAnalysis.js'
 import { placedUnder } from '../runtimeProtection.js'
 import { expandPath } from '../../path.js'
 import { credentialStorePath, protectedPathForms, spelling } from './paths.js'
@@ -167,8 +167,9 @@ const UNCERTAIN_SYNTAX = /(?:^|[\s;|&{(])(?:function|export|declare|typeset|loca
 const PLAIN_CD = new Set(['cd', 'chdir', 'set-location', 'sl'])
 const PLAIN_PUSHD = new Set(['pushd', 'push-location'])
 const PLAIN_POPD = new Set(['popd', 'pop-location'])
-const ALLOWED_MOVE_OPTION = /^-[LPe@]+$/
-const STACK_INDEX = /^[+-]\d+$/
+const UNCERTAIN_MOVE_WORD = /[`$*?[\]{}\\<>()!'"]/
+const PLAIN_SEP = /^[ \t]*(?:;|\r?\n)[ \t]*/
+const AFTER_CMD = /[\s;|&})]/
 const SHELL_BUILTINS = new Set([
   '.', 'alias', 'autoload', 'bg', 'bind', 'bindkey', 'break', 'builtin',
   'caller', 'cd', 'chdir', 'command', 'compgen', 'complete', 'compopt',
@@ -182,6 +183,8 @@ const SHELL_BUILTINS = new Set([
   'unset', 'unsetopt', 'wait', 'whence', 'zmodload',
 ])
 
+type MoveKind = 'cd-entry' | 'cd-return' | 'pushd-entry' | 'popd-return'
+
 function printfAssigns(argv: readonly string[]): boolean {
   for (const word of argv.slice(1)) {
     if (word === '--') return false
@@ -190,31 +193,74 @@ function printfAssigns(argv: readonly string[]): boolean {
   return false
 }
 
+function plainLiteralOperand(arg: string): boolean {
+  if (arg === '' || UNCERTAIN_MOVE_WORD.test(arg)) return false
+  if (arg.startsWith('~') && arg !== '~' && !arg.startsWith('~/')) return false
+  return true
+}
+
+function plainMoveKind(turn: ReadCommand): MoveKind | undefined | null {
+  const move = moveOf(turn)
+  if (move === undefined) return undefined
+  if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.background || turn.stages.length > 0 || turn.substituted === true) return null
+  if (turn.redirects.length > 0 || turn.env.length > 0) return null
+  const raw = wordsAsWritten(turn)
+  if (raw === undefined || raw.length !== turn.argv.length) return null
+  const layer = layersOf(turn.argv).find(found => found.program === move.program)
+  if (layer === undefined || layer.wrappers.length > 0 || layer.argv.length !== turn.argv.length) return null
+  if (UNCERTAIN_MOVE_WORD.test(raw[0]!)) return null
+  if (PLAIN_CD.has(move.program)) {
+    if (raw.length !== 2) return null
+    const arg = raw[1]!
+    if (arg === '-') return 'cd-return'
+    if (arg.startsWith('-') || !plainLiteralOperand(arg)) return null
+    return 'cd-entry'
+  }
+  if (PLAIN_PUSHD.has(move.program)) {
+    if (raw.length !== 2) return null
+    const arg = raw[1]!
+    if (arg.startsWith('-') || arg.startsWith('+') || !plainLiteralOperand(arg)) return null
+    return 'pushd-entry'
+  }
+  if (PLAIN_POPD.has(move.program)) return raw.length === 1 ? 'popd-return' : null
+  return null
+}
+
+function startsWithReturnPair(text: string, prevText: string, turnText: string): boolean {
+  const start = text.length - text.trimStart().length
+  if (!text.startsWith(prevText, start)) return false
+  const afterPrev = start + prevText.length
+  const sep = PLAIN_SEP.exec(text.slice(afterPrev))
+  if (sep === null) return false
+  const turnAt = afterPrev + sep[0].length
+  const afterTurn = turnAt + turnText.length
+  return text.startsWith(turnText, turnAt) && (afterTurn === text.length || AFTER_CMD.test(text[afterTurn]!))
+}
+
 export function placesCertain(read: ShellRead, text: string): boolean {
   if (UNCERTAIN_PLACE_WORDS.test(text) || UNCERTAIN_SYNTAX.test(text)) return false
   if (read.exported.size > 0) return false
-  for (const turn of read.commands) {
+  let prevKind: MoveKind | undefined
+  let prevText = ''
+  for (let at = 0; at < read.commands.length; at++) {
+    const turn = read.commands[at]!
     if (turn.body !== undefined) return false
-    const move = moveOf(turn)
-    if (move !== undefined) {
-      if ((turn.gates?.length ?? 0) > 0 || (turn.maybes?.length ?? 0) > 0 || turn.background || turn.stages.length > 0 || turn.substituted === true) return false
-      const { program, operands } = move
-      if (PLAIN_CD.has(program)) {
-        if (operands.length > 1) return false
-      } else if (PLAIN_PUSHD.has(program)) {
-        if (operands.length !== 1 || STACK_INDEX.test(operands[0]!)) return false
-      } else if (PLAIN_POPD.has(program)) {
-        if (operands.length !== 0) return false
-      } else return false
-      const layer = layersOf(turn.argv).find(found => found.program === program)
-      if (layer === undefined) return false
-      for (const word of layer.argv.slice(1)) {
-        if (word === '--') break
-        if (word === '-') continue
-        if (word.startsWith('-') && !ALLOWED_MOVE_OPTION.test(word)) return false
+    const kind = plainMoveKind(turn)
+    if (kind === null) return false
+    if (kind !== undefined) {
+      if (kind === 'cd-return' || kind === 'popd-return') {
+        const expected: MoveKind = kind === 'cd-return' ? 'cd-entry' : 'pushd-entry'
+        if (at !== 1 || prevKind !== expected || !startsWithReturnPair(text, prevText, turn.text)) return false
+        prevKind = undefined
+        prevText = ''
+      } else {
+        prevKind = kind
+        prevText = turn.text
       }
       continue
     }
+    prevKind = undefined
+    prevText = ''
     if (turn.argv.length === 0) continue
     const head = turn.argv[0]!
     if (!wordKnown(head) || head.startsWith('$')) return false
