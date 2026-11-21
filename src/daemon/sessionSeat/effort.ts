@@ -1,4 +1,5 @@
 import { logForDebugging } from '../../utils/debug.js'
+import { SESSION_VERBS } from '../../runner/wire/sessionVerbs.js'
 import { normalizeEffortLevelString, EFFORT_LEVELS } from '../../utils/effort.js'
 import { updateConcourseWorkers, type ConcourseWorkerRecordV1 } from '../concourseWorkers.js'
 import { publishSeatFacts, requestSessionFacts } from './facts.js'
@@ -23,7 +24,7 @@ function unparkEffort(rec: ConcourseWorkerRecordV1, dir?: string): void {
 }
 
 export function landEffort(rec: ConcourseWorkerRecordV1, effort: string, roster: SeatRosterPort, dir?: string): void {
-  console.error(`[daemon] seat set-effort applied: ${rec.runnerId} → ${effort}`)
+  console.error(`[daemon] seat ${SESSION_VERBS.setEffort.daemon.action} applied: ${rec.runnerId} → ${effort}`)
   roster.patchSeatEffort(rec.runnerId, effort)
   updateConcourseWorkers(workers => {
     const w = workers[rec.runnerId]
@@ -40,10 +41,10 @@ export async function forwardEffort(rec: ConcourseWorkerRecordV1, effort: string
   const queued: SeatVerbOutcome = { outcome: 'queued', detail: `${effort} applies when this turn ends` }
   const door = roster.door(rec.runnerId)
   if (door === undefined || door.closed) return opts.parked ? queued : { outcome: 'refused', detail: NO_DOOR_DETAIL }
-  const sent = door.send('session/set_effort', { effort }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
+  const sent = door.send(SESSION_VERBS.setEffort.runner.name, { effort }, { deadlineMs: SEAT_VERB_ANSWER_DEADLINE_MS })
   const seat = seatOf(rec.runnerId)
   seat.heldEffort = { requestId: sent.id, effort }
-  const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, 'set-effort', SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
+  const asked = await sent.answer.then(result => ({ ok: true as const, result, id: sent.id }), (error: unknown) => ({ ok: false as const, failure: doorFailureOf(error, SESSION_VERBS.setEffort.daemon.action, SEAT_VERB_ANSWER_DEADLINE_MS), id: sent.id }))
   if (runnerAnswered(asked)) requestSessionFacts(rec.runnerId, roster, { immediate: true }, dir)
   const word = seatVerbAnswerOf(asked)
   if ('at' in word && word.at === 'turn_end') {
@@ -51,7 +52,7 @@ export async function forwardEffort(rec: ConcourseWorkerRecordV1, effort: string
       parkEffort(rec, effort, dir)
       publishSeatFacts(rec.runnerId, dir, roster)
     }
-    logForDebugging(`[daemon] seat set-effort held by the runner for its turn boundary: ${rec.runnerId} → ${effort}`)
+    logForDebugging(`[daemon] seat ${SESSION_VERBS.setEffort.daemon.action} held by the runner for its turn boundary: ${rec.runnerId} → ${effort}`)
     return queued
   }
   if (seat.heldEffort !== null && seat.heldEffort.requestId === sent.id) seat.heldEffort = null
@@ -79,7 +80,7 @@ export async function setSessionEffort(sessionId: string, effort: string, roster
   const parked = seatBusyForSwitch(rec.runnerId, roster)
   if (parked) {
     parkEffort(rec, effort, dir)
-    console.error(`[daemon] seat set-effort parked (the session is mid-turn): ${rec.runnerId} → ${effort}`)
+    console.error(`[daemon] seat ${SESSION_VERBS.setEffort.daemon.action} parked (the session is mid-turn): ${rec.runnerId} → ${effort}`)
     publishSeatFacts(rec.runnerId, dir, roster)
   }
   return forwardEffort(rec, effort, roster, dir, { parked })
