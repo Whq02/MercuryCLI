@@ -3,17 +3,23 @@ import { lazySchema } from '../../utils/lazySchema.js'
 import { permissionModeSchema } from '../../utils/permissions/PermissionMode.js'
 import { permissionUpdateSchema } from '../../utils/permissions/PermissionUpdateSchema.js'
 import { InputRowSchema, RowSchema } from '../../rows/vocabulary.js'
+import {
+  CAPABILITIES,
+  METHOD_SCOPES,
+  RUNNER_PROTOCOL,
+  SESSION_VERBS,
+  capabilitiesShape,
+  fileCheckpointsFactShape,
+  type Capability,
+  type MethodKind,
+  type MethodScope,
+  type RunnerSchemaKit,
+  type RunnerVerbKey,
+  type Sender,
+  type SessionVerbRow,
+} from './sessionVerbs.js'
 
-export const RUNNER_PROTOCOL = 1
-
-export const METHOD_SCOPES = ['none', 'queue', 'session', 'mcp'] as const
-export type MethodScope = (typeof METHOD_SCOPES)[number]
-
-export const CAPABILITIES = ['holds_asks', 'elicitation', 'partial_rows', 'fs_read_text_file', 'fs_write_text_file', 'terminal'] as const
-type Capability = (typeof CAPABILITIES)[number]
-
-type Sender = 'host' | 'runner' | 'both'
-type MethodKind = 'request' | 'notification'
+export { CAPABILITIES, METHOD_SCOPES, RUNNER_PROTOCOL, type MethodScope }
 
 export interface MethodSpec<P extends z.ZodType = z.ZodType, R extends z.ZodType = z.ZodType> {
   readonly name: string
@@ -26,613 +32,76 @@ export interface MethodSpec<P extends z.ZodType = z.ZodType, R extends z.ZodType
   readonly capability?: Capability
 }
 
-function method<P extends z.ZodType, R extends z.ZodType, F extends Sender, K extends MethodKind>(spec: MethodSpec<P, R> & { from: F; kind: K }): MethodSpec<P, R> & { from: F; kind: K } {
-  return spec
-}
-
 const empty = lazySchema(() => z.object({}))
 const record = lazySchema(() => z.record(z.string(), z.unknown()))
 const applied = lazySchema(() => z.enum(['now', 'turn_end']))
 
-export const CapabilitiesSchema = lazySchema(() =>
-  z.object({
-    holds_asks: z.boolean(),
-    elicitation: z.boolean(),
-    partial_rows: z.boolean(),
-    fs_read_text_file: z.boolean().optional(),
-    fs_write_text_file: z.boolean().optional(),
-    terminal: z.boolean().optional(),
-  }),
-)
+const SCHEMA_KIT: RunnerSchemaKit = {
+  z,
+  empty,
+  record,
+  applied,
+  permissionMode: permissionModeSchema,
+  permissionUpdate: permissionUpdateSchema,
+  inputRow: InputRowSchema,
+  row: RowSchema,
+}
+
+type HydratedSpec<K extends RunnerVerbKey> = MethodSpec<
+  ReturnType<(typeof SESSION_VERBS)[K]['runner']['params']>,
+  ReturnType<(typeof SESSION_VERBS)[K]['runner']['result']>
+> & {
+  readonly name: (typeof SESSION_VERBS)[K]['runner']['name']
+  readonly from: (typeof SESSION_VERBS)[K]['runner']['from']
+  readonly kind: (typeof SESSION_VERBS)[K]['runner']['kind']
+  readonly scope: (typeof SESSION_VERBS)[K]['runner']['scope']
+  readonly deadlineMs: (typeof SESSION_VERBS)[K]['runner']['deadlineMs']
+}
+
+type MethodsMap = {
+  readonly [K in RunnerVerbKey as (typeof SESSION_VERBS)[K]['runner']['name']]: HydratedSpec<K>
+}
+
+function hydrateMethods(): MethodsMap {
+  const out: Record<string, MethodSpec> = {}
+  for (const row of Object.values(SESSION_VERBS) as readonly SessionVerbRow[]) {
+    const r = row.runner
+    if (r === undefined) continue
+    out[r.name] = {
+      name: r.name,
+      from: r.from,
+      kind: r.kind,
+      params: lazySchema(() => r.params(SCHEMA_KIT)),
+      result: lazySchema(() => r.result(SCHEMA_KIT)),
+      scope: r.scope,
+      deadlineMs: r.deadlineMs,
+      ...(r.capability !== undefined ? { capability: r.capability } : {}),
+    }
+  }
+  return out as MethodsMap
+}
+
+export const METHODS: MethodsMap = hydrateMethods()
+
+export const CapabilitiesSchema = lazySchema(() => capabilitiesShape(SCHEMA_KIT))
 export type Capabilities = z.infer<ReturnType<typeof CapabilitiesSchema>>
 
-export const InitializeParamsSchema = lazySchema(() =>
-  z.object({
-    protocol: z.literal(RUNNER_PROTOCOL),
-    host: z.object({ name: z.string(), version: z.string() }),
-    capabilities: CapabilitiesSchema(),
-    schema: z.record(z.string(), z.unknown()).optional(),
-    file_checkpoints: z.boolean().optional(),
-  }),
-)
+export const InitializeParamsSchema = METHODS.initialize.params
 export type InitializeParams = z.infer<ReturnType<typeof InitializeParamsSchema>>
 
-export const FileCheckpointsFactSchema = lazySchema(() =>
-  z.object({
-    capture: z.boolean(),
-    source: z.enum(['interactive', 'seat', 'initialize', 'setting', 'headless']),
-  }),
-)
+export const FileCheckpointsFactSchema = lazySchema(() => fileCheckpointsFactShape(SCHEMA_KIT))
 export type FileCheckpointsFact = z.infer<ReturnType<typeof FileCheckpointsFactSchema>>
 
-export const InitializeResultSchema = lazySchema(() =>
-  z.object({
-    protocol: z.literal(RUNNER_PROTOCOL),
-    runner: z.object({ version: z.string(), pid: z.number().int() }),
-    session_id: z.string().nullable(),
-    file_checkpoints: FileCheckpointsFactSchema().optional(),
-  }),
-)
+export const InitializeResultSchema = METHODS.initialize.result
 export type InitializeResult = z.infer<ReturnType<typeof InitializeResultSchema>>
 
-export const PermissionRequestParamsSchema = lazySchema(() =>
-  z.object({
-    kind: z.literal('tool'),
-    tool_use_id: z.string(),
-    tool_name: z.string(),
-    input: z.record(z.string(), z.unknown()),
-    title: z.string().optional(),
-    display_name: z.string().optional(),
-    description: z.string().optional(),
-    suggestions: z.array(permissionUpdateSchema()).optional(),
-    blocked_path: z.string().optional(),
-    cwd: z.string().optional(),
-    reason: z.string().optional(),
-    reason_detail: z.unknown().optional(),
-    agent_id: z.string().optional(),
-    mode: permissionModeSchema().optional(),
-  }),
-)
+export const PermissionRequestParamsSchema = METHODS['permission/request'].params
 export type PermissionRequestParams = z.infer<ReturnType<typeof PermissionRequestParamsSchema>>
 
-export const PermissionAnswerSchema = lazySchema(() =>
-  z.discriminatedUnion('outcome', [
-    z.object({
-      outcome: z.literal('allow'),
-      input: z.record(z.string(), z.unknown()).optional(),
-      rules: z.array(permissionUpdateSchema()).optional(),
-    }),
-    z.object({
-      outcome: z.literal('deny'),
-      message: z.string().optional(),
-      stop: z.boolean().optional(),
-    }),
-  ]),
-)
-export type PermissionAnswer = z.infer<ReturnType<typeof PermissionAnswerSchema>>
-
-export const ElicitationRequestParamsSchema = lazySchema(() =>
-  z.object({
-    server: z.string(),
-    message: z.string(),
-    mode: z.enum(['form', 'url']).optional(),
-    url: z.string().optional(),
-    elicitation_id: z.string().optional(),
-    schema: z.record(z.string(), z.unknown()).optional(),
-    title: z.string().optional(),
-  }),
-)
-export type ElicitationRequestParams = z.infer<ReturnType<typeof ElicitationRequestParamsSchema>>
-
-export const ElicitationAnswerSchema = lazySchema(() =>
-  z.object({
-    action: z.enum(['accept', 'decline', 'cancel']),
-    content: z.record(z.string(), z.unknown()).optional(),
-  }),
-)
-export type ElicitationAnswer = z.infer<ReturnType<typeof ElicitationAnswerSchema>>
-
-export const CancelRequestParamsSchema = lazySchema(() =>
-  z.object({ request_id: z.number().int().positive(), reason: z.string().optional() }),
-)
-
-export const SessionAppliedParamsSchema = lazySchema(() =>
-  z.object({
-    request_id: z.number().int().positive(),
-    verb: z.enum(['set_model', 'set_effort', 'set_spawn_switch']),
-    model: z.string().optional(),
-    effort: z.string().optional(),
-    switch: z.enum(['subagents', 'workflows']).optional(),
-    on: z.boolean().optional(),
-  }),
-)
-export type SessionAppliedParams = z.infer<ReturnType<typeof SessionAppliedParamsSchema>>
-
-export const METHODS = {
-  initialize: method({
-    name: 'initialize',
-    from: 'host',
-    kind: 'request',
-    params: InitializeParamsSchema,
-    result: InitializeResultSchema,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'session/claim': method({
-    name: 'session/claim',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() =>
-      z.object({
-        session_id: z.string(),
-        model: z.string().optional(),
-        mode: z.string().optional(),
-        effort: z.string().optional(),
-        resume: z.boolean().optional(),
-        restart_reason: z.string().optional(),
-        title: z.string().optional(),
-        openai_catalogue: z.unknown().optional(),
-      }),
-    ),
-    result: lazySchema(() => z.object({ session_id: z.string() })),
-    scope: 'session',
-    deadlineMs: 45_000,
-  }),
-  'project/query': method({
-    name: 'project/query',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.strictObject({
-      op: z.enum(['sessions', 'rows', 'send', 'recall', 'resources', 'resource']),
-      session_id: z.string().optional(),
-      limit: z.number().int().min(1).max(200).optional(),
-      before: z.number().int().min(0).optional(),
-      sender: z.string().min(1).max(200).optional(),
-      message: z.string().min(1).optional(),
-      message_id: z.string().optional(),
-      query: z.string().min(1).optional(),
-      ref: z.string().optional(),
-    })),
-    result: record,
-    scope: 'none',
-    deadlineMs: 30_000,
-  }),
-  'session/facts': method({
-    name: 'session/facts',
-    from: 'host',
-    kind: 'request',
-    params: empty,
-    result: record,
-    scope: 'none',
-    deadlineMs: 30_000,
-  }),
-  'session/set_model': method({
-    name: 'session/set_model',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ model: z.string().optional(), words: z.string().optional() })),
-    result: lazySchema(() => z.object({ model: z.string(), at: applied() })),
-    scope: 'session',
-    deadlineMs: 5_000,
-  }),
-  'session/set_effort': method({
-    name: 'session/set_effort',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ effort: z.string() })),
-    result: lazySchema(() => z.object({ effort: z.string(), at: applied() })),
-    scope: 'session',
-    deadlineMs: 5_000,
-  }),
-  'session/set_mode': method({
-    name: 'session/set_mode',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ mode: z.string() })),
-    result: lazySchema(() => z.object({ mode: permissionModeSchema() })),
-    scope: 'session',
-    deadlineMs: 5_000,
-  }),
-  'session/set_spawn_switch': method({
-    name: 'session/set_spawn_switch',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ switch: z.enum(['subagents', 'workflows']), on: z.boolean() })),
-    result: lazySchema(() => z.object({ switch: z.enum(['subagents', 'workflows']), on: z.boolean(), at: applied() })),
-    scope: 'session',
-    deadlineMs: 5_000,
-  }),
-  'mcp/action': method({
-    name: 'mcp/action',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ name: z.string().min(1).max(200), action: z.enum(['authenticate', 'reconnect', 'cancel-auth']) })),
-    result: lazySchema(() => z.object({ outcome: z.enum(['applied', 'refused']), detail: z.string().optional() })),
-    scope: 'none',
-    deadlineMs: 300_000,
-  }),
-  'mcp/tools': method({
-    name: 'mcp/tools',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ name: z.string().min(1).max(200) })),
-    result: lazySchema(() =>
-      z.object({
-        server: z.string(),
-        state: z.enum(['connected', 'needs-auth', 'failed', 'disabled', 'pending', 'absent']),
-        tools: z.array(
-          z.object({
-            name: z.string(),
-            registered_as: z.string(),
-            description: z.string(),
-            description_cut: z.literal(true).optional(),
-            input_schema: z.record(z.string(), z.unknown()),
-            schema_withheld_bytes: z.number().int().nonnegative().optional(),
-            loading: z.enum(['deferred', 'listed', 'held']),
-          }),
-        ),
-        omitted: z.number().int().nonnegative(),
-        detail: z.string().optional(),
-      }),
-    ),
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'session/set_kit': method({
-    name: 'session/set_kit',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ kit: z.unknown() })),
-    result: lazySchema(() =>
-      z.object({
-        applied: z.literal(true),
-        connected: z.array(z.string()),
-        disconnected: z.array(z.string()),
-        errors: z.record(z.string(), z.string()),
-      }),
-    ),
-    scope: 'mcp',
-    deadlineMs: 30_000,
-  }),
-  'session/rewind': method({
-    name: 'session/rewind',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() =>
-      z.object({
-        user_message_id: z.string(),
-        mode: z.enum(['code', 'conversation', 'both']),
-        dry_run: z.boolean().optional(),
-      }),
-    ),
-    result: record,
-    scope: 'session',
-    deadlineMs: 30_000,
-  }),
-  'session/file_restore': method({
-    name: 'session/file_restore',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.discriminatedUnion('action', [
-      z.object({ action: z.literal('restore'), user_message_id: z.string(), file_path: z.string().min(1), dry_run: z.boolean().optional() }),
-      z.object({ action: z.literal('undo'), user_message_id: z.string(), dry_run: z.boolean().optional() }),
-    ])),
-    result: record,
-    scope: 'session',
-    deadlineMs: 30_000,
-  }),
-  'session/pause_gate': method({
-    name: 'session/pause_gate',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ paused: z.boolean() })),
-    result: lazySchema(() => z.object({ paused: z.boolean(), parked: z.number().int().min(0), changed: z.boolean() })),
-    scope: 'session',
-    deadlineMs: 10_000,
-  }),
-  'session/board_post': method({
-    name: 'session/board_post',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ client_op_id: z.string().min(1).max(160), channel: z.enum(['general', 'team', 'whisper']), target: z.string().optional(), text: z.string().min(1) })),
-    result: lazySchema(() =>
-      z.union([
-        z.object({ ok: z.literal(true), event_id: z.string(), seq: z.number().int(), replay: z.boolean(), address: z.string(), recipients: z.array(z.string()) }),
-        z.object({ ok: z.literal(false), reason: z.string(), candidates: z.array(z.string()).optional() }),
-      ]),
-    ),
-    scope: 'session',
-    deadlineMs: 10_000,
-  }),
-  'session/quiesce': method({
-    name: 'session/quiesce',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ action: z.enum(['prepare', 'commit', 'cancel']), token: z.string() })),
-    result: lazySchema(() => z.object({ token: z.string(), phase: z.string() })),
-    scope: 'session',
-    deadlineMs: 10_000,
-  }),
-  'session/leave': method({
-    name: 'session/leave',
-    from: 'host',
-    kind: 'request',
-    params: empty,
-    result: lazySchema(() => z.object({ note: z.enum(['stored', 'skipped', 'none']), ledger: z.enum(['closed', 'absent']), noteChars: z.number().int().min(0).optional() })),
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'queue/add': method({
-    name: 'queue/add',
-    from: 'host',
-    kind: 'request',
-    params: InputRowSchema,
-    result: lazySchema(() =>
-      z.discriminatedUnion('accepted', [
-        z.object({ accepted: z.literal(true) }),
-        z.object({ accepted: z.literal(false), reason: z.literal('duplicate') }),
-      ]),
-    ),
-    scope: 'queue',
-    deadlineMs: 5_000,
-  }),
-  'queue/withdraw': method({
-    name: 'queue/withdraw',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ id: z.string() })),
-    result: lazySchema(() =>
-      z.discriminatedUnion('withdrawn', [
-        z.object({ withdrawn: z.literal(true), text: z.string() }),
-        z.object({ withdrawn: z.literal(false), reason: z.enum(['taken', 'unknown']) }),
-      ]),
-    ),
-    scope: 'queue',
-    deadlineMs: 5_000,
-  }),
-  'turn/interrupt': method({
-    name: 'turn/interrupt',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ hard: z.boolean().optional(), op_id: z.string().optional(), turn_id: z.string().optional() })),
-    result: lazySchema(() => z.object({ interrupted: z.boolean() })),
-    scope: 'none',
-    deadlineMs: 5_000,
-  }),
-  'agent/stop': method({
-    name: 'agent/stop',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ agent_id: z.string(), note: z.string().optional() })),
-    result: record,
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'agent/resume': method({
-    name: 'agent/resume',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ agent_id: z.string(), note: z.string().optional() })),
-    result: record,
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'shell/background': method({
-    name: 'shell/background',
-    from: 'host',
-    kind: 'request',
-    params: empty,
-    result: lazySchema(() => z.object({ taken: z.number().int().positive() })),
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'session/send_now': method({
-    name: 'session/send_now',
-    from: 'host',
-    kind: 'request',
-    params: empty,
-    result: lazySchema(() => z.object({ queued: z.number().int().min(0), released: z.number().int().min(0), crewmates: z.number().int().min(0), shells: z.number().int().min(0) })),
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'schedule/edit': method({
-    name: 'schedule/edit',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() => z.object({ edit: z.unknown() })),
-    result: lazySchema(() => z.object({
-      outcome: z.enum(['applied', 'noop', 'refused']),
-      detail: z.string().optional(),
-      schedule_id: z.string().optional(),
-      next_fire_ms: z.number().nullable().optional(),
-      time_zone: z.string().optional(),
-      family: z.string().optional(),
-      preflight: z.object({ state: z.string(), expires_at: z.number().optional(), before_fire: z.boolean().optional(), retry_at: z.number().optional() }).optional(),
-    })),
-    scope: 'none',
-    deadlineMs: 10_000,
-  }),
-  'schedule/roster': method({
-    name: 'schedule/roster',
-    from: 'host',
-    kind: 'request',
-    params: lazySchema(() => z.object({ schedules: z.unknown() })),
-    result: empty,
-    scope: 'session',
-    deadlineMs: null,
-  }),
-  'credentials/changed': method({
-    name: 'credentials/changed',
-    from: 'host',
-    kind: 'notification',
-    params: empty,
-    result: empty,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  '$/cancel_request': method({
-    name: '$/cancel_request',
-    from: 'both',
-    kind: 'notification',
-    params: CancelRequestParamsSchema,
-    result: empty,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'permission/request': method({
-    name: 'permission/request',
-    from: 'runner',
-    kind: 'request',
-    params: PermissionRequestParamsSchema,
-    result: PermissionAnswerSchema,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'elicitation/request': method({
-    name: 'elicitation/request',
-    from: 'runner',
-    kind: 'request',
-    params: ElicitationRequestParamsSchema,
-    result: ElicitationAnswerSchema,
-    scope: 'none',
-    deadlineMs: null,
-    capability: 'elicitation',
-  }),
-  'fs/read_text_file': method({
-    name: 'fs/read_text_file',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() =>
-      z.object({
-        path: z.string(),
-        line: z.number().int().positive().nullable().optional(),
-        limit: z.number().int().positive().nullable().optional(),
-      }),
-    ),
-    result: lazySchema(() => z.object({ content: z.string() })),
-    scope: 'none',
-    deadlineMs: 30_000,
-    capability: 'fs_read_text_file',
-  }),
-  'fs/write_text_file': method({
-    name: 'fs/write_text_file',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() =>
-      z.object({
-        path: z.string(),
-        content: z.string(),
-      }),
-    ),
-    result: empty,
-    scope: 'none',
-    deadlineMs: 30_000,
-    capability: 'fs_write_text_file',
-  }),
-  'terminal/create': method({
-    name: 'terminal/create',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() =>
-      z.object({
-        command: z.string(),
-        args: z.array(z.string()).optional(),
-        env: z.array(z.object({ name: z.string(), value: z.string() })).optional(),
-        cwd: z.string().nullable().optional(),
-        output_byte_limit: z.number().int().positive().nullable().optional(),
-      }),
-    ),
-    result: lazySchema(() => z.object({ terminal_id: z.string() })),
-    scope: 'none',
-    deadlineMs: 30_000,
-    capability: 'terminal',
-  }),
-  'terminal/output': method({
-    name: 'terminal/output',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() => z.object({ terminal_id: z.string() })),
-    result: lazySchema(() =>
-      z.object({
-        output: z.string(),
-        truncated: z.boolean(),
-        exit_status: z
-          .object({
-            exit_code: z.number().int().nullable().optional(),
-            signal: z.string().nullable().optional(),
-          })
-          .nullable()
-          .optional(),
-      }),
-    ),
-    scope: 'none',
-    deadlineMs: 30_000,
-    capability: 'terminal',
-  }),
-  'terminal/wait_for_exit': method({
-    name: 'terminal/wait_for_exit',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() => z.object({ terminal_id: z.string() })),
-    result: lazySchema(() =>
-      z.object({
-        exit_code: z.number().int().nullable().optional(),
-        signal: z.string().nullable().optional(),
-      }),
-    ),
-    scope: 'none',
-    deadlineMs: null,
-    capability: 'terminal',
-  }),
-  'terminal/kill': method({
-    name: 'terminal/kill',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() => z.object({ terminal_id: z.string() })),
-    result: empty,
-    scope: 'none',
-    deadlineMs: 15_000,
-    capability: 'terminal',
-  }),
-  'terminal/release': method({
-    name: 'terminal/release',
-    from: 'runner',
-    kind: 'request',
-    params: lazySchema(() => z.object({ terminal_id: z.string() })),
-    result: empty,
-    scope: 'none',
-    deadlineMs: 15_000,
-    capability: 'terminal',
-  }),
-  row: method({
-    name: 'row',
-    from: 'runner',
-    kind: 'notification',
-    params: RowSchema,
-    result: empty,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'session/applied': method({
-    name: 'session/applied',
-    from: 'runner',
-    kind: 'notification',
-    params: SessionAppliedParamsSchema,
-    result: empty,
-    scope: 'none',
-    deadlineMs: null,
-  }),
-  'elicitation/complete': method({
-    name: 'elicitation/complete',
-    from: 'runner',
-    kind: 'notification',
-    params: lazySchema(() => z.object({ server: z.string(), elicitation_id: z.string() })),
-    result: empty,
-    scope: 'none',
-    deadlineMs: null,
-    capability: 'elicitation',
-  }),
-} as const
+export type PermissionAnswer = z.infer<ReturnType<(typeof METHODS)['permission/request']['result']>>
+export type ElicitationRequestParams = z.infer<ReturnType<(typeof METHODS)['elicitation/request']['params']>>
+export type ElicitationAnswer = z.infer<ReturnType<(typeof METHODS)['elicitation/request']['result']>>
+export type SessionAppliedParams = z.infer<ReturnType<(typeof METHODS)['session/applied']['params']>>
 
 export type MethodName = keyof typeof METHODS
 export type ParamsOf<M extends MethodName> = z.infer<ReturnType<(typeof METHODS)[M]['params']>>
