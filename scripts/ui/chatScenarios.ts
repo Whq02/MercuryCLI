@@ -180,8 +180,8 @@ export async function openStage(tag: string, options: StageOptions = {}): Promis
     }))
   }
   if (options.plant === 'housekeeping') {
-    const real = await import('../../src/utils/backgroundHousekeeping.ts')
-    mock.module('../../src/utils/backgroundHousekeeping.ts', () => ({
+    const real = await import('../../src/services/backgroundHousekeeping.ts')
+    mock.module('../../src/services/backgroundHousekeeping.ts', () => ({
       ...real,
       startBackgroundHousekeeping: () => {
         throw new Error('a planted fault of the housekeeping')

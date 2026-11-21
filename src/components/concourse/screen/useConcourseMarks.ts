@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from 'react'
-import { useClaim, useDerivedState } from '../../../hooks/effects.js'
+import { useTimer } from '../../../hooks/effects.js'
 import type { ConcourseRowV1 } from '../contracts.js'
 import { OLDER_CHATS_ROW_PREFIX } from '../../../services/concourse/concourseSnapshot.js'
 import { COMPACT_DOOR_NOTE_MS } from '../compactBoard.js'
@@ -8,48 +8,57 @@ import type { Filter, Panes, ScreenProps, Selection } from './state.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessionRows, setOlderList }: Pick<ScreenProps, 'snapshot'> & Pick<Selection, 'boardSel' | 'olderList' | 'setOlderList'> & Pick<Panes, 'region'> & Pick<Filter, 'sessionRows'>) {
-  useDerivedState(() => {
-    if (olderList !== null && (boardSel === null || !boardSel.startsWith(OLDER_CHATS_ROW_PREFIX))) setOlderList(null)
-  }, [boardSel, olderList])
-  const [boardArmed, setBoardArmed] = useState<string | null>(null)
+  if (olderList !== null && (boardSel === null || !boardSel.startsWith(OLDER_CHATS_ROW_PREFIX))) {
+    setOlderList(null)
+  }
+  const [rawBoardArmed, setBoardArmed] = useState<string | null>(null)
+  const boardArmed = rawBoardArmed !== null && boardSel !== rawBoardArmed ? null : rawBoardArmed
+  if (boardArmed !== rawBoardArmed) setBoardArmed(null)
   const boardArmedRef = useRef<string | null>(null)
   boardArmedRef.current = boardArmed
-  const [doorNote, setDoorNote] = useState(false)
+  const [doorNoteSeq, setDoorNoteSeq] = useState(0)
+  const [doorCtx, setDoorCtx] = useState({ boardSel, region })
+  let currentDoorSeq = doorNoteSeq
+  if (doorCtx.boardSel !== boardSel || doorCtx.region !== region) {
+    setDoorCtx({ boardSel, region })
+    if (doorNoteSeq !== 0) {
+      setDoorNoteSeq(0)
+      currentDoorSeq = 0
+    }
+  }
+  const doorNote = currentDoorSeq > 0
   const doorNoteRef = useRef(false)
   doorNoteRef.current = doorNote
-  const doorNoteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const clearDoorNote = (): void => {
-    if (doorNoteTimerRef.current !== null) {
-      stopTimeout(doorNoteTimerRef.current)
-      doorNoteTimerRef.current = null
-    }
     if (doorNoteRef.current) {
       doorNoteRef.current = false
-      setDoorNote(false)
+      setDoorNoteSeq(0)
     }
   }
   const showDoorNote = (): void => {
-    clearDoorNote()
     doorNoteRef.current = true
-    setDoorNote(true)
+    setDoorNoteSeq(seq => seq + 1)
+  }
+  useTimer(() => {
+    if (doorNoteSeq === 0) return
     const timer = startTimeout(() => {
-      doorNoteTimerRef.current = null
       doorNoteRef.current = false
-      setDoorNote(false)
+      setDoorNoteSeq(0)
     }, COMPACT_DOOR_NOTE_MS)
     timer.unref?.()
-    doorNoteTimerRef.current = timer
+    return () => stopTimeout(timer)
+  }, [doorNoteSeq])
+  const [rawMarkedIds, setMarkedIds] = useState<ReadonlySet<string>>(() => new Set())
+  const [markProject, setMarkProject] = useState(snapshot.context.projectLabel)
+  let markedIds = rawMarkedIds
+  if (markProject !== snapshot.context.projectLabel) {
+    setMarkProject(snapshot.context.projectLabel)
+    if (rawMarkedIds.size > 0) {
+      const empty = new Set<string>()
+      setMarkedIds(empty)
+      markedIds = empty
+    }
   }
-  useClaim(() => () => {
-    if (doorNoteTimerRef.current !== null) stopTimeout(doorNoteTimerRef.current)
-  }, [])
-  useDerivedState(() => {
-    if (doorNoteRef.current) clearDoorNote()
-  }, [boardSel, region])
-  useDerivedState(() => {
-    if (boardArmed !== null && boardSel !== boardArmed) setBoardArmed(null)
-  }, [boardSel, boardArmed])
-  const [markedIds, setMarkedIds] = useState<ReadonlySet<string>>(() => new Set())
   const markedIdsRef = useRef<ReadonlySet<string>>(markedIds)
   markedIdsRef.current = markedIds
   const markedRows = useMemo(() => sessionRows.filter(r => markedIds.has(r.sessionId)), [sessionRows, markedIds])
@@ -62,12 +71,6 @@ export function useConcourseMarks({ snapshot, boardSel, olderList, region, sessi
       return next
     })
   }
-  const markProjectRef = useRef(snapshot.context.projectLabel)
-  useDerivedState(() => {
-    if (markProjectRef.current === snapshot.context.projectLabel) return
-    markProjectRef.current = snapshot.context.projectLabel
-    setMarkedIds(new Set())
-  }, [snapshot.context.projectLabel])
   const [signInPicker] = useState(() => consumeSignInPickerReturn())
   const [rowPick, setRowPick] = useState<{ kind: 'model' | 'effort'; sessionId: string; title: string } | null>(
     signInPicker?.kind === 'session' ? { kind: 'model', sessionId: signInPicker.sessionId, title: signInPicker.title } : null,

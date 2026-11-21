@@ -32,7 +32,6 @@ src/utils/auth.ts	src/services/oauth/refresh.ts	load	shared credential and sign-
 src/utils/auth.ts	src/services/providers/modelRegistry.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
 src/utils/auth.ts	src/services/providers/providerUsage.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
 src/utils/auth.ts	src/services/wallet/wallet.ts	load	shared credential and sign-in state used across src/utils; checks live provider accounts
-src/utils/backgroundHousekeeping.ts	src/services/MagicDocs/magicDocs.ts	load	its move up rewrites src/services/health/healthReport.ts, which row 11 holds
 src/utils/bash/shellCompletion.ts	src/components/PromptInput/PromptInputFooterSuggestions.tsx	type	row 8
 src/utils/capability/manifest.ts	src/services/mcp/toolPolicy.ts	load	prompt and gate capability checks ask DAP, LSP, MCP policy and Godot readiness
 src/utils/cockpit/critterData.ts	src/components/mercuryPalette.ts	load	src/guards/wardsGuard.ts knows a Mercury checkout by this path
@@ -182,7 +181,6 @@ src/utils/model/subModelSlots.ts	src/services/providers/routeLaw.ts	load	shared 
 src/utils/model/utilityModel.ts	src/services/providers/local/tensorfoldHelper.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
 src/utils/model/utilityModel.ts	src/services/providers/routeLaw.ts	load	the utility-model picker reads route law and the local helper id for the hook runners
 src/utils/normalizeToolSchema.ts	src/services/providers/idSpaces.ts	type	low-level utils checking provider route, env spelling or usage type without owning a service
-src/utils/ocr.ts	src/services/desktop/pack.ts	load	its move up rewrites src/services/health/healthReport.ts, which row 11 holds
 src/utils/permissions/decision/engine.ts	src/services/instructions/engine.ts	load	row 8
 src/utils/permissions/decision/rules.ts	src/tools/MonitorTool/constants.ts	load	row 8
 src/utils/permissions/flowLaw.ts	src/tools/BashTool/bashPermissions.ts	load	row 8
