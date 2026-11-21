@@ -1,3 +1,4 @@
+import { featureReached } from '../substrate/featureReached.js'
 
 import { useCallback, useRef } from 'react'
 import { loadHistoryCorpus, makeHistoryReaderOver, type HistoryCorpus, type HistoryRecord } from '../history.js'
@@ -189,6 +190,7 @@ export function useHistorySearch(
     queryRef.current = ''
     matchRef.current = undefined
     failedRef.current = false
+    featureReached('screen', 'HistorySearchInput')
     setIsSearching(true)
     force()
   }, [closeReader, setIsSearching, force])

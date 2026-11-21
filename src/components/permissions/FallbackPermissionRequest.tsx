@@ -42,10 +42,11 @@ export function FallbackPermissionRequest({
   workerBadge,
   title = 'Tool use',
   body,
-}: PermissionRequestProps & { title?: string; body?: React.ReactNode }): React.ReactNode {
+  screen,
+}: PermissionRequestProps & { title?: string; body?: React.ReactNode; screen?: 'MediaPermissionRequest' }): React.ReactNode {
   const tool = toolUseConfirm.tool
 
-  usePermissionRequestLogging(toolUseConfirm)
+  usePermissionRequestLogging(toolUseConfirm, screen)
 
   const rawName = tool.userFacingName(toolUseConfirm.input) ?? ''
   const isMcpNamed = rawName.endsWith(MCP_SUFFIX)

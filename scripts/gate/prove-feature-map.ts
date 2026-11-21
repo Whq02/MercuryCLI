@@ -136,8 +136,16 @@ function catalogue(): Set<string> {
   const surface = nodes(syntax('src/context/surfaceRoute.ts'), ts.isTypeAliasDeclaration).find(t => t.name.text === 'SurfaceKind')
   if (!surface) throw Error('find the surface kinds for the feature census')
   add('screen', nodes(surface.type, ts.isStringLiteral).map(l => l.text))
-  const resume = nodes(syntax('src/dialogLaunchers.tsx'), ts.isJsxSelfClosingElement).find(n => n.tagName.getText() === 'ResumeConversation')
-  if (resume) add('screen', [resume.tagName.getText()])
+  const directScreens = [
+    ['src/dialogLaunchers.tsx', 'ResumeConversation'],
+    ['src/components/Settings/config/ConfigViews.tsx', 'MediaConfigPicker'],
+    ['src/components/PromptInput/composerView.tsx', 'HistorySearchInput'],
+    ['src/components/permissions/PermissionRequest.tsx', 'ChangeSetPermissionRequest', 'MediaPermissionRequest'],
+  ]
+  for (const [file, ...names] of directScreens) {
+    const mounted = nodes(syntax(file!), ts.isJsxSelfClosingElement).map(n => n.tagName.getText())
+    add('screen', mounted.filter(n => names.includes(n)))
+  }
   for (const c of nodes(syntax('src/components/bootSplash/rowActions.ts'), ts.isCaseClause)) if (ts.isStringLiteral(c.expression) && c.statements.some(s => ts.isExpressionStatement(s) && ts.isCallExpression(s.expression) && /^set\w+Open$/.test(calleeName(s.expression) ?? ''))) add('screen', [c.expression.text])
   return keys
 }
@@ -152,6 +160,9 @@ const sites: [string, string, string, number][] = [
   ['screen', 'src/components/bootSplash/rowActions.ts', 'runRowOf', 7],
   ['screen', 'src/context/surfaceRoute.ts', 'commitTransition', 1],
   ['screen', 'src/dialogLaunchers.tsx', 'launchResumeChooser', 1],
+  ['screen', 'src/components/Settings/config/useConfigExits.ts', 'useConfigExits', 1],
+  ['screen', 'src/hooks/useHistorySearch.ts', 'useHistorySearch', 1],
+  ['screen', 'src/components/permissions/hooks.ts', 'usePermissionRequestLogging', 1],
   ['tool', 'src/tools/McpAuthTool/McpAuthTool.ts', 'createMcpAuthTool', 1],
   ['tool', 'src/services/tools/toolExecution.ts', 'runToolCall', 1],
   ['verb', 'src/main.tsx', 'run', 1],
