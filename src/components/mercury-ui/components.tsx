@@ -1,12 +1,12 @@
 
 import * as React from 'react'
-import { useLayoutClaim, useMount, useSubscription } from '../../hooks/effects.js'
+import { useLayoutClaim, useMount } from '../../hooks/effects.js'
 import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
 import { useElevatedSurface } from './useElevatedSurface.js'
 import { Box, MotionParkContext, Text, useInput, useTheme, wrapText } from '../../ink.js'
 import { useCwdState } from '../../hooks/useCwdState.js'
 import { formatFreshness, freshnessTone } from '../../utils/cockpit/freshness.js'
-import { quantizedNow, subscribeUiClock } from '../../utils/cockpit/uiClock.js'
+import { lastClockTick, subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { useMercuryTokens } from './useMercuryTokens.js'
 import { markTransitionEnd } from '../../utils/observability/frictionStopwatch.js'
 import { resolveMercuryTokens, spectralRampFor } from '../../utils/mercuryTokens.js'
@@ -343,15 +343,26 @@ export function Divider({
 }
 
 
+const noopSubscribe = (): (() => void) => () => {}
+
 export function useNowTick(ms: number | null = 1000): number {
   const parked = React.useContext(MotionParkContext)
-  const [now, setNow] = React.useState(() => Date.now())
-  useSubscription(() => {
-    if (!ms || parked) return
-    setNow(quantizedNow(ms))
-    return subscribeUiClock(ms, () => setNow(quantizedNow(ms)))
-  }, [ms, parked])
-  return now
+  const cadence = !parked && ms ? ms : null
+  const frozenRef = React.useRef<number | null>(null)
+  const subscribe = React.useCallback(
+    (notify: () => void) => (cadence !== null ? subscribeUiClock(cadence, notify) : noopSubscribe()),
+    [cadence],
+  )
+  const snapshot = (): number => {
+    if (cadence !== null) {
+      const value = lastClockTick(cadence)
+      frozenRef.current = value
+      return value
+    }
+    if (frozenRef.current === null) frozenRef.current = Date.now()
+    return frozenRef.current
+  }
+  return React.useSyncExternalStore(subscribe, snapshot, snapshot)
 }
 
 export function FreshnessLine({
