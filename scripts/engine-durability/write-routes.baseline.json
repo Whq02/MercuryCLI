@@ -44,6 +44,7 @@
     "src/utils/accounts/accountIdentity.ts",
     "src/utils/accounts/providerSecrets.ts",
     "src/utils/accounts/signInLedger.ts",
+    "src/utils/artifacts/store.ts",
     "src/utils/bootCardFacts.ts",
     "src/utils/cache/cacheClock.ts",
     "src/utils/debug.ts",
@@ -67,6 +68,7 @@
     "src/substrate/fileStore.ts",
     "src/substrate/operationJournal.ts",
     "src/utils/config/globalConfig.ts",
+    "src/utils/secureStorage/sealedStoreStart.ts",
     "src/utils/settings/settings.ts"
   ],
   "reasons": {
