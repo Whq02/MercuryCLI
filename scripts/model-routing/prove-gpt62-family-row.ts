@@ -75,7 +75,7 @@ try {
   })
   for (const row of zenRows) check(`the Zen row of ${row.id}: the page's name, the Responses shape, its prices and the 272,000 tier`, () => {
     const pin = zenDisplayPin(`zen/${row.id}`)
-    assert.ok(pin)
+    assert.ok(pin, `src/utils/model/pins/zenPins.ts zenDisplayPin(zen/${row.id}) returned undefined`)
     assert.equal(pin.displayName, row.name)
     assert.equal(pin.shape, 'responses')
     assert.equal(zenServedShapeOf(`zen/${row.id}`), 'responses')
@@ -115,7 +115,7 @@ try {
     }
     assert.equal(catalogue.primeOpenaiCatalogue({ sourceKind: 'chatgpt-subscription', fetchedAtMs: now + 1, models: [{ id: sol, supportedReasoningEfforts: [], reasoningEffortsStated: false }] }), true)
     const unstated = catalogue.evaluateGptCandidate(sol, 'chatgpt-subscription')
-    assert.ok(unstated.ok)
+    assert.ok(unstated.ok, `src/services/providers/openai/openaiCatalogue.ts evaluateGptCandidate(${sol}, chatgpt-subscription) failed when efforts unstated`)
     assert.deepEqual(unstated.candidate.live.supportedReasoningEfforts, [])
     assert.equal(catalogue.resolveGptReasoningProfile('max', unstated.candidate.live).wireEffort, undefined)
     catalogue.__resetOpenaiCatalogueForTest()
