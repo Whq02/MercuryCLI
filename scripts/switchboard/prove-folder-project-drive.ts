@@ -310,8 +310,7 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
     home,
     cwd: OTHER,
     sends: [
-      g('↑↓', '', { ...FACE_WAIT, mark: 'face', awaitSettleTicks: 4 }),
-      { afterPrevTicks: 4, data: 'o' },
+      g('↑↓', 'o', { ...FACE_WAIT, mark: 'face', awaitSettleTicks: 4 }),
       g('SESSIONS', '\x07', { awaitSettleTicks: 3 }),
       g('foo', '', { mark: 'projects', awaitSettleTicks: 3 }),
     ],
