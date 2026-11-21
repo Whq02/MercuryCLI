@@ -47,16 +47,7 @@ export async function* xaiCallModel(params: CallModelParams): CallModelStream {
     yield* compatChatCallModel(xaiLaneProfile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('xai'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('xai', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedXaiCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)

@@ -85,16 +85,7 @@ export async function* qwenCallModel(params: CallModelParams): CallModelStream {
     yield* compatChatCallModel(profile, params)
     return
   }
-  let onAbort: () => void = () => {}
-  const cancelled = new Promise<void>(resolve => {
-    onAbort = resolve
-    params.signal.addEventListener('abort', onAbort, { once: true })
-  })
-  try {
-    await Promise.race([readCatalogueIfPending('qwen'), cancelled])
-  } finally {
-    params.signal.removeEventListener('abort', onAbort)
-  }
+  await readCatalogueIfPending('qwen', { signal: params.signal })
   if (params.signal.aborted) return
   const snapshot = getCachedQwenCatalogue()
   const asked = normalizeModelStringForAPI(params.options.model)

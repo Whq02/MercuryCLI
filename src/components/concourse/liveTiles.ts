@@ -18,9 +18,10 @@ import { MODEL_TURN_NOW_WORD, sanitizeLabel, tailActivity } from '../../services
 import { LOADING_PHASE_WORD, READING_PHASE_WORD, RETRY_PHASE_WORD } from '../Spinner/liveCounterWords.js'
 import { workerTranscriptPath } from '../../services/concourse/workerTranscript.js'
 import { resolveWatchRoot } from '../../utils/watchRoot.js'
+import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
 import { logForDebugging } from '../../utils/debug.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
+import { startTimeout, stopTimeout } from '../../utils/timers.js'
 
 
 type LiveTileNow =
@@ -113,7 +114,7 @@ export class LiveTileStore {
   private readonly entries = new Map<string, TileEntry>()
   private readonly byFile = new Map<string, TileEntry>()
   private watcher: FSWatcher | null = null
-  private heartbeat: ReturnType<typeof setInterval> | null = null
+  private heartbeat: (() => void) | null = null
   private drainTimer: ReturnType<typeof setTimeout> | null = null
 
   private degraded: boolean
@@ -178,12 +179,10 @@ export class LiveTileStore {
   private start(): void {
     if (!this.deps.armMachinery) return
     if (this.heartbeat !== null) return
-    const t = startInterval(() => {
+    this.heartbeat = subscribeUiClock(HEARTBEAT_MS, () => {
       for (const e of this.entries.values()) e.dirty = true
       this.drain()
-    }, HEARTBEAT_MS)
-    t.unref?.()
-    this.heartbeat = t
+    })
     try {
       const dir = this.deps.tailDir()
       const watcher = watch(resolveWatchRoot(dir), (_ev, filename) => {
@@ -212,7 +211,7 @@ export class LiveTileStore {
 
   private stop(): void {
     if (this.heartbeat !== null) {
-      stopInterval(this.heartbeat)
+      this.heartbeat()
       this.heartbeat = null
     }
     if (this.drainTimer !== null) {
