@@ -43,11 +43,11 @@ try {
       try { payload = JSON.parse(readFileSync(out, 'utf8')) as Capture } catch {}
       const frame = rowsOf(payload?.marks?.find(mark => mark.label === 'view')?.grid ?? payload?.grid ?? [])
       if (frameDir !== undefined) writeFileSync(join(frameDir, `${band.cols}x${band.rows}-${command}.txt`), frame.join('\n') + '\n')
-      check(`${band.cols}: /${command} completes its command road`, result.status === 0 && payload?.marks?.some(mark => mark.label === 'view') === true, `rc ${result.status} ${(result.stderr ?? '').slice(-300)}`)
+      check(`${band.cols}: /${command} completes its command road`, result.status === 0 && payload?.marks?.some(mark => mark.label === 'view') === true, `rc ${result.status} ${(result.stderr ?? '').slice(-300)} · the capture did not reach the Mercury — screen after /${command}; check that the command is registered in src/commands/crewmates/index.ts and that scripts/ui/vshot.py ran (stderr above)`)
       const heading = frame.find(row => row.includes(CREW_TITLE) || row.includes('Unknown command') || row.includes('Unknown skill')) ?? ''
-      check(`${band.cols}: /${command} opens the crew view`, heading.includes(CREW_TITLE) && !heading.includes('Unknown'), heading.trim())
+      check(`${band.cols}: /${command} opens the crew view`, heading.includes(CREW_TITLE) && !heading.includes('Unknown'), `${heading.trim()} · the crew view must paint the title Mercury — crew after /${command}; fix the command in src/commands/crewmates/index.ts and crewmates.tsx`)
       const stale = frame.filter(row => row.includes('/crewmates'))
-      check(`${band.cols}: the crew view's own doors say /crewmates, not /crewmates`, stale.length === 0, stale.map(row => row.trim()).join(' | '))
+      check(`${band.cols}: the crew view's own doors say /crewmates, not /crewmates`, stale.length === 0, `${stale.map(row => row.trim()).join(' | ')} · rows listed still carry the old door spelling; reword them in the crew view source (src/commands/crewmates/ and the crew view it opens)`)
       cleanupScenario('resume-2turn')
     }
   }

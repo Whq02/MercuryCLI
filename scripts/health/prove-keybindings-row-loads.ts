@@ -11,7 +11,10 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    what to change: keybindingsCheck in src/services/health/sections/settings/sources.ts (it reads loadKeybindingsSyncWithWarnings in src/keybindings/loadUserBindings.ts, and invalidateKeybindingsCache there resets the cache); the warn row must come from the warnings of the file in the config home')
+  }
 }
 
 writeFileSync(join(HOME, 'keybindings.json'), '{ "bindings": [ { "key": "ctrl+')

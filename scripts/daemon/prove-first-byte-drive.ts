@@ -15,7 +15,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: the first-byte budget and the typed wait row live in src/services/providers/streamIdleBudget.ts (firstByteBudgetMs, the no-first-byte words), the dispatch refusals in src/daemon/controlServer.ts; the daemon log and fixture captures sit in the world path printed as [forensics] below`}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {

@@ -94,7 +94,7 @@ await new Promise<void>(done => {
 })
 try {
   if (refusal !== null) {
-    check('the card paints at once and the chart lands inside the count’s budget', false, refusal.slice(0, 300))
+    check('the card paints at once and the chart lands inside the count’s budget', false, `${refusal.slice(0, 300)} — the capture driver stopped before the chart landed: the /context card in src/commands/context/context.tsx must paint at once and the chart must follow without waiting on the dead provider base`)
   } else {
     const payload = JSON.parse(readFileSync(outPath, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid; atTick?: number }> }
     const card = payload.marks?.find(m => m.label === 'card')
@@ -104,9 +104,9 @@ try {
       writeFileSync(join(FRAMES, `context-card-${cols}x${rows}.txt`), `${cardText}\n`)
       writeFileSync(join(FRAMES, `context-chart-${cols}x${rows}.txt`), `${final}\n`)
     }
-    check('the card painted at once, pending: the context lockup and the counting words', card !== undefined && cardText.includes('— context') && cardText.includes(CONTEXT_CARD_WORDS.counting), cardText.split('\n').filter(l => l.includes('context')).join(' | ').slice(0, 300))
-    check(`the chart landed with the honest-absence line inside the count’s budget (${elapsedS} s for the whole capture)`, final.includes('category sizes not measured on this source') && final.includes('Breakdown') && final.includes('Free space'), final.split('\n').filter(l => l.includes('Breakdown') || l.includes('measured')).join(' | ').slice(0, 300))
-    check('the composer is back and ready after the chart', final.includes('Type a prompt') && !final.includes(CONTEXT_CARD_WORDS.counting))
+    check('the card painted at once, pending: the context lockup and the counting words', card !== undefined && cardText.includes('— context') && cardText.includes(CONTEXT_CARD_WORDS.counting), cardText.split('\n').filter(l => l.includes('context')).join(' | ').slice(0, 300) + ' — /context must paint its card with CONTEXT_CARD_WORDS.counting before any count returns: see src/commands/context/context.tsx')
+    check(`the chart landed with the honest-absence line inside the count’s budget (${elapsedS} s for the whole capture)`, final.includes('category sizes not measured on this source') && final.includes('Breakdown') && final.includes('Free space'), final.split('\n').filter(l => l.includes('Breakdown') || l.includes('measured')).join(' | ').slice(0, 300) + ' — the chart must land with the honest-absence line when the count cannot be measured: see src/components/ContextVisualization.tsx and src/commands/context/context.tsx')
+    check('the composer is back and ready after the chart', final.includes('Type a prompt') && !final.includes(CONTEXT_CARD_WORDS.counting), 'the counting words are still on screen or the composer never returned: the card in src/commands/context/context.tsx must close once the chart lands')
   }
 } finally {
   if (failures === 0) rmSync(SCRATCH, { recursive: true, force: true })

@@ -8,7 +8,8 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix: step execution, cleanup and settling are in runJourney and cancelJourney in src/services/journeys/runner.ts; the description and step schema are in src/tools/JourneyTool/JourneyTool.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
 const { runJourney, cancelJourney, _resetJourneysForTesting } = await import(

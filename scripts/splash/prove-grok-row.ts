@@ -18,7 +18,7 @@ const splashSrc = readFileSync(SPLASH, 'utf8')
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: change the Grok rows in XAI_DISPLAY_PINS in src/utils/model/pins/xaiPins.ts, then run node scripts/splash/bake-menu.mjs to rebake the MODEL_NAMES block in assets/splash/splash-core.mjs; a label failure in section 3 reads computeModelLabel in assets/splash/mercury-splash.mjs' : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

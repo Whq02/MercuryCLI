@@ -53,6 +53,9 @@ const WIRE = 'api-permission_error: Cross-origin request not allowed (see --cors
 const NAMED_WORDS = `API Error: lab refused the request (${WIRE}) — start this llama.cpp server with --cors-origins http://${NAMED_HOST}, or reach it by a loopback address`
 const FORWARDED_WORDS = `API Error: lab refused the request (${WIRE}) — a forwarder in front of this llama.cpp server sent it another Host: start the server with --cors-origins naming the address its log shows after "host =", or forward the Host unchanged`
 const credentialWords = (name: string, wire: string): string => `API Error: ${name} rejected the credential (${wire}) — /logins compat/${name} replaces this endpoint's key; MERCURY_COMPAT_${name.toUpperCase()}_API_KEY takes precedence when set.`
+const MAP_HINT = 'the recorded 403 is read by mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts and compatFaultToTypedError in src/services/providers/openaicompat/compatChatCallModel/faults.ts; compare the fixture scripts/provider-compat/fixtures/llamacpp-origin-refusal.json'
+const WORDS_HINT = 'change compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel/faults.ts or llamacppOriginRemedy in src/services/providers/openaicompat/compatRefusals.ts so the sentence matches'
+const ROAD_HINT = 'the turn ends in compatTerminalFaultText (src/services/providers/openaicompat/compatChatCallModel/faults.ts), called from compatChatCallModel.ts via routedCallModel (src/services/providers/callModelRouter.ts)'
 
 const seen: Array<{ method: string; path: string; host: string; key: string }> = []
 function refusing(body: string): Promise<{ server: Server; root: string }> {
@@ -149,38 +152,38 @@ section('§0 the recorded answer is the one llama.cpp 1.0.0 gives a request it h
 const fault = mapCompatHttpFailure(RECORDED.status, JSON.parse(RECORDED.body))
 const typed = compatFaultToTypedError(fault)
 {
-  check('HTTP 403, a permission_error whose words name --cors-origins', RECORDED.status === 403 && fault.status === 403 && fault.message === 'Cross-origin request not allowed (see --cors-origins)' && fault.code === 'api-permission_error', `${fault.status} ${fault.code}: ${fault.message}`)
-  check('the server\'s own log names the Host it refused after "host ="', RECORDED.serverLog.includes(`host = '${NAMED_HOST}'`))
-  check('a 403 lands in the credential class, where the words of this proof are chosen', typed === 'authentication_failed', typed)
+  check('HTTP 403, a permission_error whose words name --cors-origins', RECORDED.status === 403 && fault.status === 403 && fault.message === 'Cross-origin request not allowed (see --cors-origins)' && fault.code === 'api-permission_error', `${fault.status} ${fault.code}: ${fault.message} · ${MAP_HINT}`)
+  check('the server\'s own log names the Host it refused after "host ="', RECORDED.serverLog.includes(`host = '${NAMED_HOST}'`), 'the fixture serverLog in scripts/provider-compat/fixtures/llamacpp-origin-refusal.json must name the Host the proof asks for')
+  check('a 403 lands in the credential class, where the words of this proof are chosen', typed === 'authentication_failed', `${typed} · ${MAP_HINT}`)
 }
 
 section('§1 the sentence — the endpoint first, the wire\'s words in parentheses, then what to do about the origin rule')
 {
   const profile = { dialect: 'llamacpp', providerLabel: 'lab', credentialHint: 'fixture', authRemedy: '/logins compat/lab replaces this endpoint\'s key; MERCURY_COMPAT_LAB_API_KEY takes precedence when set.' }
   const at = (requestUrl: string | undefined, dialect = 'llamacpp', from = fault): string => compatTerminalFaultText({ ...profile, dialect } as never, from, compatFaultToTypedError(from), requestUrl === undefined ? undefined : { requestUrl } as never)
-  check('an endpoint reached under a name of its own is told the exact address to allow', at(`http://${NAMED_HOST}/v1/chat/completions`) === NAMED_WORDS, at(`http://${NAMED_HOST}/v1/chat/completions`))
-  check('the address is the endpoint\'s scheme, host and port as the request\'s Host carried them: a default port is left out', at('https://llm.example.test/v1/chat/completions').includes('--cors-origins https://llm.example.test, or reach') && at('http://llm.example.test:80/v1/chat/completions').includes('--cors-origins http://llm.example.test, or reach'), at('https://llm.example.test/v1/chat/completions'))
+  check('an endpoint reached under a name of its own is told the exact address to allow', at(`http://${NAMED_HOST}/v1/chat/completions`) === NAMED_WORDS, at(`http://${NAMED_HOST}/v1/chat/completions`) + ' · ' + WORDS_HINT)
+  check('the address is the endpoint\'s scheme, host and port as the request\'s Host carried them: a default port is left out', at('https://llm.example.test/v1/chat/completions').includes('--cors-origins https://llm.example.test, or reach') && at('http://llm.example.test:80/v1/chat/completions').includes('--cors-origins http://llm.example.test, or reach'), at('https://llm.example.test/v1/chat/completions') + ' · ' + WORDS_HINT + ' (llamacppOriginRemedy builds the address from the request URL origin)')
   for (const address of ['http://127.0.0.1:27182', 'http://localhost:8080', 'http://[::1]:8080', 'http://127.8.9.10:8080', 'http://0.0.0.0:8080']) {
-    check(`an endpoint under a loopback name (${address}) is told a forwarder changed the Host, with no address Mercury cannot know`, at(`${address}/v1/chat/completions`) === FORWARDED_WORDS, at(`${address}/v1/chat/completions`))
+    check(`an endpoint under a loopback name (${address}) is told a forwarder changed the Host, with no address Mercury cannot know`, at(`${address}/v1/chat/completions`) === FORWARDED_WORDS, at(`${address}/v1/chat/completions`) + ' · ' + WORDS_HINT)
   }
   const otherFault = mapCompatHttpFailure(403, JSON.parse(OTHER_403))
-  check('a 403 of another cause reads as it read: the credential sentence and its remedy', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) === credentialWords('lab', 'api-permission_error: Forbidden'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault))
-  check('the same words from an engine of another dialect read as they read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') === credentialWords('lab', WIRE), at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm'))
+  check('a 403 of another cause reads as it read: the credential sentence and its remedy', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) === credentialWords('lab', 'api-permission_error: Forbidden'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', otherFault) + ' · llamacppOriginRefusal in src/services/providers/openaicompat/compatRefusals.ts must match only the cross-origin 403, and ' + WORDS_HINT)
+  check('the same words from an engine of another dialect read as they read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') === credentialWords('lab', WIRE), at(`http://${NAMED_HOST}/v1/chat/completions`, 'vllm') + ' · llamacppOriginRefusal in src/services/providers/openaicompat/compatRefusals.ts must match only the llamacpp dialect, and ' + WORDS_HINT)
   const unauthorised = mapCompatHttpFailure(401, { error: { message: 'Invalid API Key', type: 'authentication_error', code: 401 } })
-  check('llama.cpp\'s own refusal of a key reads as it read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised) === credentialWords('lab', 'api-authentication_error: Invalid API Key'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised))
+  check('llama.cpp\'s own refusal of a key reads as it read', at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised) === credentialWords('lab', 'api-authentication_error: Invalid API Key'), at(`http://${NAMED_HOST}/v1/chat/completions`, 'llamacpp', unauthorised) + ' · ' + WORDS_HINT)
 }
 
 section('§2 the road — a turn against a server that answers the recorded 403 ends in that sentence')
 {
   const named = await refusalOf(`compat/lab/${MODEL}`)
-  check('the request was addressed to the endpoint\'s own name', seen.some(hit => hit.method === 'POST' && hit.path === '/v1/chat/completions' && hit.host === NAMED_HOST) && named.posts === 1, JSON.stringify(seen.slice(-3)))
-  check('an endpoint under a name of its own ends in the address to allow', named.words.length === 1 && named.words[0] === NAMED_WORDS, named.words.join(' | '))
+  check('the request was addressed to the endpoint\'s own name', seen.some(hit => hit.method === 'POST' && hit.path === '/v1/chat/completions' && hit.host === NAMED_HOST) && named.posts === 1, JSON.stringify(seen.slice(-3)) + ' · the request must reach the endpoint host once; ' + ROAD_HINT)
+  check('an endpoint under a name of its own ends in the address to allow', named.words.length === 1 && named.words[0] === NAMED_WORDS, named.words.join(' | ') + ' · ' + ROAD_HINT)
   const near = await refusalOf(`compat/near/${MODEL}`)
-  check('an endpoint under a loopback name ends in the forwarder sentence', near.words.length === 1 && near.words[0] === FORWARDED_WORDS.replace('API Error: lab ', 'API Error: near '), near.words.join(' | '))
+  check('an endpoint under a loopback name ends in the forwarder sentence', near.words.length === 1 && near.words[0] === FORWARDED_WORDS.replace('API Error: lab ', 'API Error: near '), near.words.join(' | ') + ' · ' + ROAD_HINT)
   const gate = await refusalOf(`compat/gate/${MODEL}`)
-  check('a 403 of another cause ends as it ended', gate.words.length === 1 && gate.words[0] === credentialWords('gate', 'api-permission_error: Forbidden'), gate.words.join(' | '))
+  check('a 403 of another cause ends as it ended', gate.words.length === 1 && gate.words[0] === credentialWords('gate', 'api-permission_error: Forbidden'), gate.words.join(' | ') + ' · ' + ROAD_HINT)
   const rack = await refusalOf(`compat/rack/${MODEL}`)
-  check('the same 403 from a vLLM endpoint ends as it ended', rack.words.length === 1 && rack.words[0] === credentialWords('rack', WIRE), rack.words.join(' | '))
+  check('the same 403 from a vLLM endpoint ends as it ended', rack.words.length === 1 && rack.words[0] === credentialWords('rack', WIRE), rack.words.join(' | ') + ' · ' + ROAD_HINT)
 }
 
 section('§3 the origin rule is not a refused credential — no note of a refused key, no second key asked for, nothing sent twice')
@@ -189,17 +192,17 @@ section('§3 the origin rule is not a refused credential — no note of a refuse
   resetSettingsCache()
   writeStoredCompatApiKey('fixture-key-stored')
   const single = await refusalOf(`compat/${MODEL}`)
-  check('no key command, a key kept by /logins: the address to allow, the request sent once with that key', single.words.length === 1 && single.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: Custom endpoint ') && single.posts === 1 && single.keys.join(',') === 'Bearer fixture-key-stored', `${single.words.join(' | ')} · ${single.posts} ${single.keys.join(',')}`)
-  check('and no note is left that the endpoint refused that key', readSignInRefusal('openai-compat') === undefined, JSON.stringify(readSignInRefusal('openai-compat')))
+  check('no key command, a key kept by /logins: the address to allow, the request sent once with that key', single.words.length === 1 && single.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: Custom endpoint ') && single.posts === 1 && single.keys.join(',') === 'Bearer fixture-key-stored', `${single.words.join(' | ')} · ${single.posts} ${single.keys.join(',')} · ${ROAD_HINT}`)
+  check('and no note is left that the endpoint refused that key', readSignInRefusal('openai-compat') === undefined, JSON.stringify(readSignInRefusal('openai-compat')) + ' · the origin refusal must not call the sign-in refusal writer in src/services/providers/signInRefusal.ts; see the compat terminal fault path in src/services/providers/openaicompat/compatChatCallModel.ts')
   writeStoredCompatApiKey(null)
   writeFileSync(join(HOME, 'settings.json'), SETTINGS)
   resetSettingsCache()
   const sealed = await refusalOf(`compat/sealed/${MODEL}`)
-  check('a command that gives the same key: the address to allow, in place of an expired sign-in', sealed.words.length === 1 && sealed.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: sealed '), sealed.words.join(' | '))
-  check('the request went once with the command\'s key, and the command was asked once', sealed.posts === 1 && sealed.keys.join(',') === 'Bearer fixture-key-one' && keyRuns('sealed') === 1, `${sealed.posts} ${sealed.keys.join(',')} runs=${keyRuns('sealed')}`)
+  check('a command that gives the same key: the address to allow, in place of an expired sign-in', sealed.words.length === 1 && sealed.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: sealed '), sealed.words.join(' | ') + ' · ' + ROAD_HINT)
+  check('the request went once with the command\'s key, and the command was asked once', sealed.posts === 1 && sealed.keys.join(',') === 'Bearer fixture-key-one' && keyRuns('sealed') === 1, `${sealed.posts} ${sealed.keys.join(',')} runs=${keyRuns('sealed')} · a refused origin must not trigger a key-command rerun or a resend; ${ROAD_HINT}`)
   const turning = await refusalOf(`compat/turning/${MODEL}`)
-  check('a command that gives a new key each time: the same sentence', turning.words.length === 1 && turning.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: turning '), turning.words.join(' | '))
-  check('the request went once with the first key: no second key was asked for and nothing was sent again', turning.posts === 1 && turning.keys.join(',') === 'Bearer fixture-key-1' && keyRuns('turning') === 1, `${turning.posts} ${turning.keys.join(',')} runs=${keyRuns('turning')}`)
+  check('a command that gives a new key each time: the same sentence', turning.words.length === 1 && turning.words[0] === NAMED_WORDS.replace('API Error: lab ', 'API Error: turning '), turning.words.join(' | ') + ' · ' + ROAD_HINT)
+  check('the request went once with the first key: no second key was asked for and nothing was sent again', turning.posts === 1 && turning.keys.join(',') === 'Bearer fixture-key-1' && keyRuns('turning') === 1, `${turning.posts} ${turning.keys.join(',')} runs=${keyRuns('turning')} · a refused origin must not trigger a key-command rerun or a resend; ${ROAD_HINT}`)
 }
 
 origin.server.close()

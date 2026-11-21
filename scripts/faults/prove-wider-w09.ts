@@ -9,9 +9,17 @@ const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 let failures = 0
+const W09_WHERE: Record<string, string> = {
+  'w09-1': 'classCacheReport in src/services/vulcan/classCache.ts, staticGodotCapsule in src/services/vulcan/godotCapsule.ts and src/tools/GodotTool/GodotTool.ts',
+  'w09-2': 'scanVulcanInstances in src/services/vulcan/instances.ts, src/tools/GodotTool/GodotTool.ts and src/services/ide/godotSession.ts',
+  'w09-3': 'src/cli/godotEngineCli.ts, runningGodotProcesses in src/services/vulcan/godotProcessCensus.ts and resolveGodotExecutable in src/services/vulcan/portabilityHealth.ts',
+  'w09-4': 'vulcanInstallStatus in src/services/vulcan/addonInstaller.ts, vulcanCheck in src/services/health/sections/runtime/services.ts and src/services/ide/godotSession.ts',
+  'w09-5': 'src/services/unity/bridgeToken.ts, src/services/blender/bridgeToken.ts, src/services/ide/unityBridgeSession.ts and src/services/ide/blenderBridgeSession.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = W09_WHERE[label.split(' ')[0] ?? '']
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — to fix, change the code this check exercises: ${where}` : ''}`)
 }
 
 function startFakeVulcanServer(

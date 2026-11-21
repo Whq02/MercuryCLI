@@ -37,12 +37,21 @@ type Guts = {
 
 let failures = 0
 let checks = 0
+let sectionFixHint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const shown = !ok ? [sectionFixHint, detail.slice(0, 400)].filter(Boolean).join(' | ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${title}`)
+const SECTION_FIX_HINTS: Record<string, string> = {
+  '§1': 'fix the unknown-command branch of processSlashCommand and unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx (one warning notice, nothing the model reads), or requestConversationPlan in src/services/messages/apiPlan.ts for the last check',
+  '§3': 'fix resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx or expandPastedTextRefs in src/history.ts',
+}
+const section = (title: string): void => {
+  sectionFixHint = SECTION_FIX_HINTS[title.slice(0, 2)] ?? ''
+  console.log(`\n${title}`)
+}
 
 const PARAGRAPH = 'some long text here\nsecond line of the paste\nthird line of the paste'
 const roster = [

@@ -17,8 +17,10 @@ if (IS_WIN) {
 }
 
 let failures = 0
+const INSTALLER_FAIL_HINT = 'change the update verb in src/cli/update.ts, the consent and run helpers in src/services/privateChannel/installerUpgrade.ts (installerConsentQuestion, askYesNo, runInstallerUpgrade, readVersionAfterUpgrade), or the install-provenance and command-on-path rows in src/services/health/sections/identity.ts, whichever this check names'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = cond ? '' : detail ? `${detail} | hint: ${INSTALLER_FAIL_HINT}` : INSTALLER_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)

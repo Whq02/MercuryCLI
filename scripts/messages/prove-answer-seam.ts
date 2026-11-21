@@ -19,10 +19,18 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   check(
     'the malformed-frame sentence names the frame and the missing body',
     s.includes("'content_block_start'") && s.includes("'content_block'"),
-    s,
+    `${s} — fix malformedStreamFrameText in src/services/api/errors.ts so the sentence names the frame type and the missing body field`,
   )
-  check('…and names the expected wire shape', s.includes('Anthropic stream shape'))
-  check('…and never reads as a raw TypeError', !s.includes('Cannot read properties'))
+  check(
+    '…and names the expected wire shape',
+    s.includes('Anthropic stream shape'),
+    `${s} — fix malformedStreamFrameText in src/services/api/errors.ts to name the Anthropic stream shape`,
+  )
+  check(
+    '…and never reads as a raw TypeError',
+    !s.includes('Cannot read properties'),
+    `${s} — fix malformedStreamFrameText in src/services/api/errors.ts so it builds its own sentence`,
+  )
 
 
   const MSGS = await import('../../src/services/messages.ts')
@@ -34,7 +42,11 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   } catch {
     threw = true
   }
-  check('extractTextContent survives null holes and keeps the real text', !threw && holedOut === 'still here')
+  check(
+    'extractTextContent survives null holes and keeps the real text',
+    !threw && holedOut === 'still here',
+    `threw=${threw} out=${JSON.stringify(holedOut)} — make extractTextContent in src/utils/messages/text.ts skip null or undefined blocks`,
+  )
 
   const AV = await import('../../src/services/messages/apiView.ts')
   let normalized: unknown[] = []
@@ -50,6 +62,7 @@ section('§5 malformed frames refuse TYPED; the inbound normalizers survive null
   check(
     'normalizeContentFromAPI drops a null block instead of dereferencing it',
     !normThrew && normalized.length === 1 && (normalized[0] as { text?: string }).text === 'kept',
+    `threw=${normThrew} out=${JSON.stringify(normalized)} — make normalizeContentFromAPI in src/services/messages/apiView.ts drop null blocks before reading them`,
   )
 }
 

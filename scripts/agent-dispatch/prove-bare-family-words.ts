@@ -41,9 +41,10 @@ process.env.MERCURY_DEEPSEEK_API_BASE = 'http://127.0.0.1:1/deepseek'
 process.env.MERCURY_MOONSHOT_API_BASE = 'http://127.0.0.1:1/moonshot/v1'
 
 let failures = 0
+const bareWordsFailureHint = 'the table is src/services/model/bareFamilyWords.ts (BARE_FAMILY_WORDS, bareFamilyWordOf, resolveBareFamilyWord) and its aliases are declared in src/services/providers/idSpaces.ts; the session road is parseUserSpecifiedModel in src/services/model/model.ts, the agent road is resolveEngineDispatch in src/services/crew/engineDispatch.ts, the typing door is src/services/providers/validateModel.ts, and kimi qualifying is src/services/providers/moonshot/moonshotCatalogue.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 400) + ' | ' : ''}${bareWordsFailureHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

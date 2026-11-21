@@ -20,9 +20,10 @@ const contributionsMod = await import('../../src/extensions/load/contributions.t
 const handlerMod = await import('../../src/cli/handlers/agents.ts')
 
 let failures = 0
+const identifierChangeHint = ' — change: the identifier gate must apply at each loading door: getAgentDefinitionsWithOverrides in src/tools/AgentTool/loadAgentsDir.ts (agents dir), resolveContributions in src/extensions/load/contributions.ts (extension agents and skills), renderAgentLine in src/cli/handlers/agents.ts (inventory render)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? identifierChangeHint : ''}`)
 }
 
 let projectSeq = 0

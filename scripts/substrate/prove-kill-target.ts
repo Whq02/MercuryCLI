@@ -12,6 +12,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  if (!cond) console.log('         fix: this proof carries its own copy of extractKillTarget from src/services/tools/toolExecution.ts; change the two together, and for the dist-grep checks rebuild with bun run build.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

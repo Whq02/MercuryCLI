@@ -64,11 +64,11 @@ section('§1 parseTopicDoc reads a CRLF or BOM copy of the topic doc Mercury wri
       want.sections[0]?.entries.length === 2 &&
       want.history[0]?.supersededBy === 3 &&
       want.updateLog.length === 1,
-    JSON.stringify(want),
+    `fix parseTopicDoc or serializeTopicDoc in src/mneme/mnemeTopicDocs.ts; got ${JSON.stringify(want)}`,
   )
   for (const [label, shape] of copies) {
     const got = parseTopicDoc(shape(lf))
-    check(`${label}: parseTopicDoc returns the LF reading`, got !== null && JSON.stringify(got) === JSON.stringify(want), got === null ? 'null' : JSON.stringify(got).slice(0, 160))
+    check(`${label}: parseTopicDoc returns the LF reading`, got !== null && JSON.stringify(got) === JSON.stringify(want), `make parseTopicDoc in src/mneme/mnemeTopicDocs.ts strip the BOM and read CRLF like LF; got ${got === null ? 'null' : JSON.stringify(got).slice(0, 160)}`)
   }
 }
 

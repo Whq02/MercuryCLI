@@ -19,7 +19,7 @@ const frames = at < 0 ? undefined : process.argv[at + 1]
 let mounted: Mounted | undefined
 const { LLM_HOST_WORDS } = await import('../../src/commands/llmhost/words.ts')
 const words = LLM_HOST_WORDS.terminatedPod
-assert.equal(words, 'Machine terminated · its disk is deleted.')
+assert.equal(words, 'Machine terminated · its disk is deleted.', 'LLM_HOST_WORDS.terminatedPod in src/commands/llmhost/words.ts changed: restore the text or update this expectation')
 function Scene() {
   const [line, setLine] = React.useState('')
   const [hint, setHint] = React.useState<string | null>(null)
@@ -35,7 +35,7 @@ const road: NonNullable<Parameters<typeof LlmHostDialog>[0]['road']> = async (_a
 try {
   mounted = await mountOffscreen(React.createElement(Scene), 100, 24)
   const m = mounted
-  assert.ok(await waitFor(() => m.screen().includes(words), 5000), 'termination result reaches the frame\n' + m.screen())
+  assert.ok(await waitFor(() => m.screen().includes(words), 5000), 'termination result reaches the frame; the meter line of src/components/LlmHostDialog.tsx must paint words.terminatedPod for a TERMINATED host\n' + m.screen())
   if (frames) {
     mkdirSync(frames, { recursive: true })
     writeFileSync(join(frames, 'terminated.txt'), m.screen())
@@ -43,7 +43,7 @@ try {
     writeFileSync(join(frames, 'terminated.json'), JSON.stringify({ grid, cols: 100, rows: 24 }))
     await gridToPng(join(frames, 'terminated.json'), join(frames, 'terminated.png'))
   }
-  assert.equal(m.screen().split(words).length - 1, 1, 'the completion says the termination once, not once per event, result and meter')
-  assert.equal(m.screen().split('esc closes').length - 1, 1, 'the popup footer owns its close hint')
+  assert.equal(m.screen().split(words).length - 1, 1, 'the completion says the termination once, not once per event, result and meter; make LlmHostDialog (src/components/LlmHostDialog.tsx) paint words.terminatedPod from one place only')
+  assert.equal(m.screen().split('esc closes').length - 1, 1, 'the popup footer owns its close hint; keep esc closes in one place in src/components/LlmHostDialog.tsx (the exit text) and not in the result or meter')
   console.log('HOST COMPLETION GREEN · termination result and close hint each paint exactly once')
 } finally { mounted?.unmount() }

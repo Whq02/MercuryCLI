@@ -8,10 +8,11 @@ if (!process.env.MERCURY_CONFIG_DIR) throw new Error('A scratch MERCURY_CONFIG_D
 
 let checks = 0
 let failures = 0
+const DRIFT_HINT = 'the engine changed what this check reads (detail lists the missing words): update the probes that read it in src/services/providers/openaicompat/compatProbe.ts and src/services/providers/local/localDiscovery.ts, and the pinned sources in scripts/provider-compat/fixtures/engineRules.mjs, then rerun with MERCURY_DRIFT_SIGNALS=1'
 const check = (name: string, value: unknown, detail: unknown = ''): void => {
   checks++
   if (!value) failures++
-  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail)))
+  console.log((value ? 'PASS ' : 'FAIL ') + name + (value ? '' : ' — ' + JSON.stringify(detail) + ' · ' + DRIFT_HINT))
 }
 const raw = (blob: string): string => blob.replace('https://github.com/', 'https://raw.githubusercontent.com/').replace('/blob/', '/')
 const read = async (url: string): Promise<string> => {

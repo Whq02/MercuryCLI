@@ -18,6 +18,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('    where to look: the named tool validateInput (src/tools/<Tool>/<Tool>.ts) must return result false with NUL_PATH_MESSAGE from src/utils/path.ts for a path holding a NUL byte instead of throwing; its backfillObservableInput and backfillCloneForYield in src/run-core/model-lane.ts must not throw on it; BashTool checkPermissions (src/tools/BashTool/BashTool.tsx) must deny a cd with a NUL operand')
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

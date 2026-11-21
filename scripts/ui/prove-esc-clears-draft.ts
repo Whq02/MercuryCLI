@@ -98,20 +98,20 @@ const leg = async (tag: string, cols: number, rows: number, gapMs: number): Prom
       .map(s => sendStamp(run, s))
       .sort((a, b) => a - b)
     const draftSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString('utf8') === DRAFT)
-    check(`${tag}: the journey ran whole (draft + two escs sent)`, escSends.length === 2 && draftSend !== undefined, `escs at ${escSends.join(',')}`)
+    check(`${tag}: the journey ran whole (draft + two escs sent)`, escSends.length === 2 && draftSend !== undefined, `escs at ${escSends.join(',')} · the arena did not send the draft and both escs; check the sends list in this file and runArtifactArena in scripts/streaming/artifactArena.ts`)
     const [esc1Ms, esc2Ms] = [escSends[0] ?? 0, escSends[1] ?? 0]
     const grabs = grabScreens(run, cols, rows, [Math.max(0, esc1Ms - 500), Math.max(0, esc2Ms - 500), esc2Ms + 700, esc2Ms + 2000, esc2Ms + 4000])
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const before = grabs[0]
-    check(`${tag}: the draft was TYPED into the composer`, before !== undefined && text(before).includes(DRAFT), '')
+    check(`${tag}: the draft was TYPED into the composer`, before !== undefined && text(before).includes(DRAFT), 'the draft never showed in the composer; check the Type a prompt wait in the sends list of this file and that dist/mercury.mjs is built from the current source')
     const between = grabs[1]
-    check(`${tag}: the FIRST esc alone never clears (draft intact between the escs)`, between !== undefined && text(between).includes(DRAFT), '')
+    check(`${tag}: the FIRST esc alone never clears (draft intact between the escs)`, between !== undefined && text(between).includes(DRAFT), 'the first esc removed the draft; the esc clear in src/hooks/useTextInput.ts (ESC_CLEAR_WINDOW_MS) must only clear on the second esc inside the window')
     const after = grabs.slice(2)
     if (gapMs <= 3000) {
-      check(`${tag}: esc·esc inside 3 s CLEARS the draft (poison: the no-op / the 800 ms blink)`, after.length > 0 && after.every(g => !text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' '))
-      check(`${tag}: the receipt says so (draft cleared)`, after.some(g => /draft cleared/.test(text(g))) || grabs.some(g => /draft cleared/.test(text(g))), '')
+      check(`${tag}: esc·esc inside 3 s CLEARS the draft (poison: the no-op / the 800 ms blink)`, after.length > 0 && after.every(g => !text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · the double esc must clear the draft in src/hooks/useTextInput.ts (ESC_CLEAR_WINDOW_MS is 3000)')
+      check(`${tag}: the receipt says so (draft cleared)`, after.some(g => /draft cleared/.test(text(g))) || grabs.some(g => /draft cleared/.test(text(g))), 'no draft cleared receipt painted; the clear in src/hooks/useTextInput.ts posts it')
     } else {
-      check(`${tag}: esc · past the window · esc leaves the draft INTACT`, after.length > 0 && after.every(g => text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' '))
+      check(`${tag}: esc · past the window · esc leaves the draft INTACT`, after.length > 0 && after.every(g => text(g).includes(DRAFT)), after.map(g => `${g.atMs}:${text(g).includes(DRAFT)}`).join(' ') + ' · a second esc past ESC_CLEAR_WINDOW_MS in src/hooks/useTextInput.ts must not clear the draft')
     }
   } finally {
     run.cleanup()

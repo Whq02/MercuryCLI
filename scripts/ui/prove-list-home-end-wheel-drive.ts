@@ -186,13 +186,13 @@ if (CASE === undefined || CASE === 'picker') {
     { afterPrevTicks: 5, data: '', mark: 'home' },
     { afterPrevTicks: 2, data: ESC },
   ], 140)
-  check('the drive delivered every send', c.status === 0, `exit ${c.status}`)
+  check('the drive delivered every send', c.status === 0, `vshot exit ${c.status}: a send was not delivered, so read the frame and stderr printed above; rebuild dist with bun run build.ts if it is stale`)
   const picker = c.marks.get('picker') ?? []
   const wheeled = c.marks.get('wheeled') ?? []
   const back = c.marks.get('wheeled-back') ?? []
   const end = c.marks.get('end') ?? []
   const homeF = c.marks.get('home') ?? []
-  check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, picker.slice(2, 8).join(' | '))
+  check('the picker opened with a focus box', picker.some(l => l.includes('Mercury · model')) && focusBoxRow(picker) >= 0, `the /model picker must open with a highlighted row inside its box: ${picker.slice(2, 8).join(' | ')}`)
   const left = Math.max(0, pickerLeft(picker))
   const r0 = focusBoxRow(picker)
   const models = pickerWindow(picker).map(modelId).filter(id => id !== '')
@@ -203,12 +203,12 @@ if (CASE === undefined || CASE === 'picker') {
   console.log(`  [record] focused model: opened ${opened} · after two wheel notches down ${moved} · after one notch up ${returned}`)
   const moreAbove = (lines: string[]): boolean => lines.some(l => /↑ \d+ more/.test(l))
   const moreBelow = (lines: string[]): boolean => lines.some(l => /↓ \d+ more/.test(l))
-  check('the picker opened with rows past the window (the seat\'s group leads, the rest fold below)', moreBelow(picker), 'no fold marker below')
-  check('two wheel notches down move the highlight two models down the picker, one model a notch', first >= 0 && models[first + 2] !== undefined && moved === models[first + 2], `${opened} → ${moved}; expected ${models[first + 2]}`)
-  check('one notch up brings it back up one model', first >= 0 && models[first + 1] !== undefined && returned === models[first + 1], `${moved} → ${returned}; expected ${models[first + 1]}`)
-  check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left))
-  check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
-  check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
+  check('the picker opened with rows past the window (the seat\'s group leads, the rest fold below)', moreBelow(picker), 'no fold marker below: the picker must hide rows past its window and say how many with a line reading ↓ N more')
+  check('two wheel notches down move the highlight two models down the picker, one model a notch', first >= 0 && models[first + 2] !== undefined && moved === models[first + 2], `the wheel must move the picker highlight one model per notch: ${opened} → ${moved}; expected ${models[first + 2]}`)
+  check('one notch up brings it back up one model', first >= 0 && models[first + 1] !== undefined && returned === models[first + 1], `a wheel notch up must move the picker highlight up one model: ${moved} → ${returned}; expected ${models[first + 1]}`)
+  check('the columns left of the picker (the chat beneath) are unchanged by the wheel', outsideOf(picker, left) === outsideOf(wheeled, left), 'the wheel must act on the picker only and never scroll or redraw the chat beneath it')
+  check('End moves the highlight to the last row (the window at the tail, nothing folded below)', focusBoxRow(end) > r0 && !moreBelow(end), `End must jump the picker highlight to the last row and show the tail: row ${focusBoxRow(end)}; folded below: ${moreBelow(end)}`)
+  check('Home returns the highlight to the first stop, the top provider heading (the window at the head, nothing folded above)', homeF.some(l => /│ ❯ [A-Z.]+ · /.test(l)) && !moreAbove(homeF), `Home must put the picker highlight on the first provider heading and show the head: heading ${homeF.find(l => l.includes('❯')) ?? '(none)'}; folded above: ${moreAbove(homeF)}`)
 }
 
 if (CASE === undefined || CASE === 'help') {
@@ -230,7 +230,7 @@ if (CASE === undefined || CASE === 'help') {
     { afterPrevTicks: 5, data: '', mark: 'wheeled' },
     { afterPrevTicks: 2, data: ESC },
   ], 140)
-  check('the drive delivered every send', c.status === 0, `exit ${c.status}`)
+  check('the drive delivered every send', c.status === 0, `vshot exit ${c.status}: a send was not delivered, so read the frame and stderr printed above; rebuild dist with bun run build.ts if it is stale`)
   const list = c.marks.get('list') ?? []
   const end = c.marks.get('end') ?? []
   const homeF = c.marks.get('home') ?? []
@@ -238,14 +238,14 @@ if (CASE === undefined || CASE === 'help') {
   const pointerRow = (lines: string[]): string => (lines.find(l => /❯\s*\/\S+/.test(l)) ?? '').trim()
   const commandAt = (row: string): string => /❯\s*(\/\S+)/.exec(row)?.[1] ?? ''
   console.log(`  [record] focused command: list ${commandAt(pointerRow(list))} · End ${commandAt(pointerRow(end))} · Home ${commandAt(pointerRow(homeF))} · wheeled ${commandAt(pointerRow(wheeled))}`)
-  check('the commands list opened with the cursor on its first command', list.some(l => l.includes('Browse default commands')) && commandAt(pointerRow(list)) !== '', list.slice(4, 12).join(' | '))
+  check('the commands list opened with the cursor on its first command', list.some(l => l.includes('Browse default commands')) && commandAt(pointerRow(list)) !== '', `the /help commands tab must open with the cursor on its first command: ${list.slice(4, 12).join(' | ')}`)
   const first = commandAt(pointerRow(list))
-  check('End moves the cursor to the last command (a row the opening window did not show)', commandAt(pointerRow(end)) !== '' && commandAt(pointerRow(end)) !== first && !list.some(l => l.includes(` ${commandAt(pointerRow(end))} `)), commandAt(pointerRow(end)))
-  check('Home returns the cursor to the first command', commandAt(pointerRow(homeF)) === first, `${commandAt(pointerRow(homeF))} vs ${first}`)
+  check('End moves the cursor to the last command (a row the opening window did not show)', commandAt(pointerRow(end)) !== '' && commandAt(pointerRow(end)) !== first && !list.some(l => l.includes(` ${commandAt(pointerRow(end))} `)), `End must move the commands cursor to the last command, a row the opening window did not show: ${commandAt(pointerRow(end))}`)
+  check('Home returns the cursor to the first command', commandAt(pointerRow(homeF)) === first, `Home must return the commands cursor to the first command: ${commandAt(pointerRow(homeF))} vs ${first}`)
   const commandRows = list.map(l => /^\s*│\s*[❯↓↑]?\s*(\/\S+)\s*│?\s*$/.exec(l)?.[1] ?? '').filter(name => name !== '')
-  check('two wheel notches down move the cursor two commands down', commandRows.length > 2 && commandAt(pointerRow(wheeled)) === commandRows[2], `${first} → ${commandAt(pointerRow(wheeled))} (rows: ${commandRows.slice(0, 4).join(' ')})`)
+  check('two wheel notches down move the cursor two commands down', commandRows.length > 2 && commandAt(pointerRow(wheeled)) === commandRows[2], `the wheel must move the commands cursor one command per notch: ${first} → ${commandAt(pointerRow(wheeled))} (rows: ${commandRows.slice(0, 4).join(' ')})`)
   const rowOf = (lines: string[], needle: string): number => lines.findIndex(l => l.includes(needle))
-  check('the wheel moved the cursor, not the panel: the title row stays where it was', rowOf(wheeled, 'Browse default commands') === rowOf(list, 'Browse default commands'), `${rowOf(list, 'Browse default commands')} → ${rowOf(wheeled, 'Browse default commands')}`)
+  check('the wheel moved the cursor, not the panel: the title row stays where it was', rowOf(wheeled, 'Browse default commands') === rowOf(list, 'Browse default commands'), `the wheel must move the cursor and leave the panel in place: ${rowOf(list, 'Browse default commands')} → ${rowOf(wheeled, 'Browse default commands')}`)
 }
 
 if (!KEEP) rmSync(ROOT, { recursive: true, force: true })

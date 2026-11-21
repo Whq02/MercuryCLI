@@ -45,9 +45,10 @@ const sessionFolder = getCwd()
 
 let failed = 0
 let passed = 0
+const cwdChangeHint = ' — change: resolveAgentCwd or agentCwdQuestion in src/tools/AgentTool/agent/cwd.ts, or AgentTool.checkPermissions (a worktree check: preflightWorktreeCapability or createAgentWorktree in src/services/worktree.ts) must give what this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? cwdChangeHint : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

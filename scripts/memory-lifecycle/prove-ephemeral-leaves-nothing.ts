@@ -44,8 +44,8 @@ const { readLedger, recordHandoff } = await import('../../src/mneme/ledger.ts')
 
 section('§0 the note\'s content law: the asks name the user\'s own words, never Mercury\'s standing instructions as the user\'s constraints')
 for (const [name, text] of [['JOURNAL_ASK', JOURNAL_ASK], ['JOURNAL_DESCRIPTION', JOURNAL_DESCRIPTION], ['JOURNAL_PROMPT', JOURNAL_PROMPT]] as const) {
-  check(`${name} no longer asks for "constraints set by the operator"`, !text.includes('constraints set by the operator'), text.slice(0, 200))
-  check(`${name} asks for what the user said in this session and rules out Mercury's own standing instructions`, /what the user asked for in this session/.test(text) && /never Mercury's own standing instructions/.test(text), text.slice(0, 240))
+  check(`${name} no longer asks for "constraints set by the operator"`, !text.includes('constraints set by the operator'), `reword ${name} (JOURNAL_ASK in src/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/JournalTool/prompt.ts) to drop that phrase; ${text.slice(0, 200)}`)
+  check(`${name} asks for what the user said in this session and rules out Mercury's own standing instructions`, /what the user asked for in this session/.test(text) && /never Mercury's own standing instructions/.test(text), `reword ${name} (JOURNAL_ASK in src/mneme/journal.ts, JOURNAL_DESCRIPTION and JOURNAL_PROMPT in src/tools/JournalTool/prompt.ts) to ask for what the user asked for in this session and to rule out Mercury's own standing instructions; ${text.slice(0, 240)}`)
 }
 
 const project = realpathSync(mkdtempSync(join(tmpdir(), 'ephemeral-nothing-project-')))
@@ -141,7 +141,7 @@ if (!existsSync(DIST)) {
   check('the control run exits 0 and answers', one.exit === 0 && answeredWith(one.stdout, 'ANSWER-ONE'), `exit=${one.exit} stderr=${one.stderr.slice(0, 300)}`)
   check('no ask was put: the turn is the only request (the fixture\'s note turn stayed unserved)', one.requests.length === 1 && !one.requests.some(r => j(r.body).includes(HANDOFF_ASK_MARK)), String(one.requests.length))
   const closedControl = readLedger(projectKey)
-  check('the ledger holds the control session, closed with no note', closedControl.length === 1 && closedControl[0]!.sessionId === SID1 && closedControl[0]!.endedAt !== null && closedControl[0]!.handoff === null, j(closedControl))
+  check('the ledger holds the control session, closed with no note', closedControl.length === 1 && closedControl[0]!.sessionId === SID1 && closedControl[0]!.endedAt !== null && closedControl[0]!.handoff === null, `a plain run should join the lineage and close with no note; ${j(closedControl)}`)
   recordHandoff(projectKey, SID1, 'NOTE-ONE')
   const afterControl = readLedger(projectKey)
   check('a note left on the control\'s entry through the ledger (the road an attended session\'s ask writes by) is the control\'s note', afterControl.length === 1 && afterControl[0]!.sessionId === SID1 && afterControl[0]!.handoff?.text === 'NOTE-ONE', j(afterControl))
@@ -157,14 +157,14 @@ if (!existsSync(DIST)) {
   ], ['--ephemeral'])
   check('the ephemeral run exits 0 and answers', two.exit === 0 && answeredWith(two.stdout, 'ANSWER-EPHEMERAL'), `exit=${two.exit} stderr=${two.stderr.slice(0, 400)}`)
   const firstSystem = systemText(two.requests[0]?.body ?? {})
-  check('it still reads the lineage at its start (the control\'s note is on its entry page)', firstSystem.includes(ENTRY_PAGE_HEADING) && firstSystem.includes('NOTE-ONE'), firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 200))
+  check('it still reads the lineage at its start (the control\'s note is on its entry page)', firstSystem.includes(ENTRY_PAGE_HEADING) && firstSystem.includes('NOTE-ONE'), 'an ephemeral run must still get the entry page (composeEntryPage in src/mneme/entryPage.ts) in its system prompt; ' + firstSystem.slice(firstSystem.indexOf(ENTRY_PAGE_HEADING), firstSystem.indexOf(ENTRY_PAGE_HEADING) + 200))
   check('no request carried the handoff ask', !two.requests.some(r => j(r.body).includes(HANDOFF_ASK_MARK)), String(two.requests.length))
   const journalRows = frameLines(two.stdout).filter(f => f.type === 'tool_result')
   const journalResult = journalRows.map(f => String((f as { output?: unknown }).output ?? '')).find(text => /journal/i.test(text)) ?? ''
-  check('a Journal call inside the run is refused and says why (the run is ephemeral)', /refused/.test(journalResult) && /ephemeral/.test(journalResult), journalResult || j(journalRows).slice(0, 300))
-  check('the ledger file is byte-identical to before: the ephemeral session never joined it', readFileSync(ledgerFile, 'utf8') === ledgerBytesBefore, j(readLedger(projectKey).map(e => [e.ordinal, e.sessionId])))
+  check('a Journal call inside the run is refused and says why (the run is ephemeral)', /refused/.test(journalResult) && /ephemeral/.test(journalResult), 'the Journal tool must refuse inside an ephemeral run and say it is ephemeral; ' + journalResult || j(journalRows).slice(0, 300))
+  check('the ledger file is byte-identical to before: the ephemeral session never joined it', readFileSync(ledgerFile, 'utf8') === ledgerBytesBefore, 'an ephemeral run must not open a ledger row; ' + j(readLedger(projectKey).map(e => [e.ordinal, e.sessionId])))
   check('the journal gained no line', (existsSync(journalFile) ? readFileSync(journalFile, 'utf8') : null) === journalBefore, existsSync(journalFile) ? readFileSync(journalFile, 'utf8').slice(-300) : 'absent')
-  check('no transcript was written for the ephemeral session', transcriptFiles().length === transcriptsBefore && !transcriptFiles().some(f => f.includes(SID2)), j(transcriptFiles()))
+  check('no transcript was written for the ephemeral session', transcriptFiles().length === transcriptsBefore && !transcriptFiles().some(f => f.includes(SID2)), 'an ephemeral run must write no transcript; ' + j(transcriptFiles()))
   const bytes = homeBytes()
   check('nothing under the home carries a word of the ephemeral session: not the prompt, not the answer, not the journal line it tried to leave', !bytes.includes('EPHEMERAL-MARK-7731') && !bytes.includes('EPHEMERAL-JOURNAL-7731') && !bytes.includes('ANSWER-EPHEMERAL'), 'words on disk')
   const namesSession = (): string[] => {
@@ -197,10 +197,10 @@ if (!existsSync(DIST)) {
   const start = page.indexOf(ENTRY_PAGE_HEADING)
   const nextHeading = start >= 0 ? page.indexOf('\n# ', start + 1) : -1
   const lineage = start >= 0 ? page.slice(start, nextHeading > start ? nextHeading : start + 2000) : ''
-  check('its page counts one session before it, the control, and never a third', lineage.includes('Session 2 of this work; 1 session before it') && !lineage.includes(FIRST_SESSION_LINE), lineage)
+  check('its page counts one session before it, the control, and never a third', lineage.includes('Session 2 of this work; 1 session before it') && !lineage.includes(FIRST_SESSION_LINE), 'the entry page (composeEntryPage in src/mneme/entryPage.ts) must count only the plain sessions, so the ephemeral run is not counted; ' + lineage)
   check('its page carries the control\'s note as the last one left', lineage.includes('## The last note left (session 1, ') && lineage.includes('NOTE-ONE'), lineage)
   const final = readLedger(projectKey)
-  check('the ledger holds the two plain sessions as ordinals 1 and 2', final.length === 2 && final[0]!.sessionId === SID1 && final[1]!.ordinal === 2 && final[1]!.sessionId === SID3, j(final.map(e => [e.ordinal, e.sessionId])))
+  check('the ledger holds the two plain sessions as ordinals 1 and 2', final.length === 2 && final[0]!.sessionId === SID1 && final[1]!.ordinal === 2 && final[1]!.sessionId === SID3, 'the ledger must hold only the two plain sessions; ' + j(final.map(e => [e.ordinal, e.sessionId])))
 }
 
 console.log('\n============================================================')

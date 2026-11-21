@@ -36,6 +36,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix: this drive runs the built bundle, so rebuild with bun run build.ts first and read the printed frame above; the key-map row words "no chat open" come from NO_CHAT_HINT in src/context/surfaceRoute.ts, and the /config row "off this boot (--chat)" from src/components/Settings/config/configRowsView.tsx')
 }
 
 const driver = resolveCaptureDriver()

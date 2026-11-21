@@ -125,6 +125,9 @@ try {
   assert.ok(secondGeneration.words.startsWith('the engine died loading the weights: llama_model_load: error loading model: unable to read file') && !secondGeneration.words.includes('too small'), 'the cause is read from the last start, never from the generation before it: ' + secondGeneration.words)
   console.log('PASS after a Resume the cause comes from the current engine’s lines, not the generation before')
   console.log('ENGINE DEATH WORDS GREEN — the poll command ran in a real shell against a fixture of the owner’s log; no network, no GPU')
+} catch (error) {
+  console.error('what to change: the notice words and the poll of a dead engine in src/services/host/ssh.ts (engineDeathWords, engineDeathAfterReady, waitHostEngine); the assertion above names the case and the words that were produced')
+  throw error
 } finally {
   rmSync(scratch, { recursive: true, force: true })
 }

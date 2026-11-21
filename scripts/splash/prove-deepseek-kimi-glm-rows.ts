@@ -20,7 +20,7 @@ const splashSrc = readFileSync(SPLASH, 'utf8')
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: change the pin rows in the owner table (src/utils/model/pins/deepseekPins.ts, src/utils/model/pins/kimiPins.ts or GLM_STATIC_CATALOGUE in src/services/providers/zai/zaiAdapter.ts), then run node scripts/splash/bake-menu.mjs to rebake the MODEL_NAMES block in assets/splash/splash-core.mjs; a label failure in section 3 reads computeModelLabel in assets/splash/mercury-splash.mjs' : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

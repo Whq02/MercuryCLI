@@ -30,19 +30,19 @@ const manifest = JSON.parse(readFileSync(join(DIST, 'manifest.json'), 'utf8')) a
 
 section('(1) manifest truth')
 const row = manifest.imageProcessing
-check('the manifest carries an imageProcessing row', row !== undefined && typeof row.vendored === 'boolean')
+check('the manifest carries an imageProcessing row', row !== undefined && typeof row.vendored === 'boolean', 'build.ts must write imageProcessing.vendored into dist/manifest.json; rebuild with bun run build.ts')
 const packDir = join(DIST, IMAGE_PACK_PATH, platform)
 const packPresent = imagePackPackages(platform).every(name => existsSync(join(packDir, 'node_modules', ...name.split('/'), 'package.json')))
 if (row?.vendored === true) {
-  check('vendored ⇒ the pack holds every prebuilt package for this platform', packPresent, packDir)
-  check('the row names the runtime\'s own platform key and path', row.platform === platform && row.path === `${IMAGE_PACK_PATH}/${platform}`, `${row.platform} ${row.path}`)
-  check('the row names sharp\'s version', typeof row.sharp === 'string' && /^\d+\.\d+\.\d+/.test(row.sharp), String(row.sharp))
-  check('the row lists the packages', Array.isArray(row.packages) && row.packages.join(',') === imagePackPackages(platform).join(','))
-  check('image-processing is not among the degradations', !(manifest.degraded ?? []).includes('image-processing'))
+  check('vendored ⇒ the pack holds every prebuilt package for this platform', packPresent, `${packDir} — the manifest says vendored but a prebuilt package is missing there; fix the image pack step in build.ts (packages listed by imagePackPackages in src/utils/imageProcessor/imagePackArm.ts) and rebuild`)
+  check('the row names the runtime\'s own platform key and path', row.platform === platform && row.path === `${IMAGE_PACK_PATH}/${platform}`, `${row.platform} ${row.path} — the imageProcessing row written by build.ts must use imagePackPlatform() and IMAGE_PACK_PATH from src/utils/imageProcessor/imagePackArm.ts`)
+  check('the row names sharp\'s version', typeof row.sharp === 'string' && /^\d+\.\d+\.\d+/.test(row.sharp), `${String(row.sharp)} — build.ts must write the sharp version of the vendored pack (imagePackMeta.sharp) into the imageProcessing row`)
+  check('the row lists the packages', Array.isArray(row.packages) && row.packages.join(',') === imagePackPackages(platform).join(','), `manifest packages: ${JSON.stringify(row.packages)} — build.ts must list the packages that imagePackPackages returns in src/utils/imageProcessor/imagePackArm.ts`)
+  check('image-processing is not among the degradations', !(manifest.degraded ?? []).includes('image-processing'), 'build.ts lists image-processing in degraded only when the pack is not vendored; drop it from degraded when imageProcessing.vendored is true')
 } else {
-  check('absent ⇒ no pack on disk', !packPresent)
-  check('absent ⇒ image-processing is among the degradations', (manifest.degraded ?? []).includes('image-processing'))
-  check('absent ⇒ the remedy names bun install and the JavaScript road', typeof row?.remedy === 'string' && /bun install/.test(row.remedy) && /JavaScript/.test(row.remedy))
+  check('absent ⇒ no pack on disk', !packPresent, `${packDir} holds the packages although the manifest says not vendored; build.ts must set imageProcessing.vendored true when the pack is copied`)
+  check('absent ⇒ image-processing is among the degradations', (manifest.degraded ?? []).includes('image-processing'), 'build.ts must list image-processing in the manifest degraded array when the pack is not vendored')
+  check('absent ⇒ the remedy names bun install and the JavaScript road', typeof row?.remedy === 'string' && /bun install/.test(row.remedy) && /JavaScript/.test(row.remedy), `remedy: ${String(row?.remedy)} — the imageProcessing remedy text in build.ts must name bun install and the JavaScript road`)
 }
 
 function healthRow(node: string, bundle: string, home: string): { status?: string; evidence?: string; detail?: string } | null {
@@ -95,16 +95,16 @@ const node = nodeBinPath()
 
   section('(2) the isolated artifact without the pack takes the JavaScript road')
   const without = healthRow(node, join(payload, 'mercury.mjs'), home)
-  check('/health carries the Image processor row', without !== null, 'row missing')
-  check('the row names the JavaScript image road, as warn (an image that road cannot size is left out of the request)', without?.status === 'warn' && /JavaScript image road/.test(without.evidence ?? ''), `${without?.status}: ${without?.evidence}`)
-  check('…and says what the road still shrinks, what happens to an image it cannot size, and where the pack would sit', /PNG and BMP/.test(without?.detail ?? '') && /left out of the request/.test(without?.detail ?? '') && (without?.detail ?? '').includes(IMAGE_PACK_PATH), without?.detail ?? '')
+  check('/health carries the Image processor row', without !== null, 'row missing — the iface-image-processor entry in src/services/health/sections/interface.ts did not appear in health --json; see the health output printed above')
+  check('the row names the JavaScript image road, as warn (an image that road cannot size is left out of the request)', without?.status === 'warn' && /JavaScript image road/.test(without.evidence ?? ''), `${without?.status}: ${without?.evidence} — describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts must report a warn line naming the JavaScript image road when the pack is absent`)
+  check('…and says what the road still shrinks, what happens to an image it cannot size, and where the pack would sit', /PNG and BMP/.test(without?.detail ?? '') && /left out of the request/.test(without?.detail ?? '') && (without?.detail ?? '').includes(IMAGE_PACK_PATH), `${without?.detail ?? ''} — the detail built by describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts must carry all three statements`)
 
   if (row?.vendored === true && packPresent) {
     section('(3) the isolated artifact with the pack beside it takes the native road')
     cpSync(join(DIST, IMAGE_PACK_PATH), join(payload, IMAGE_PACK_PATH), { recursive: true })
     check('the pack copied beside the bundle', statSync(join(payload, IMAGE_PACK_PATH, platform, 'node_modules', '@img')).isDirectory())
     const withPack = healthRow(node, join(payload, 'mercury.mjs'), join(iso, 'home2'))
-    check('the row names the native processor from the vendored pack, ok', withPack?.status === 'ok' && /native image processor — sharp \d/.test(withPack.evidence ?? '') && /vendored pack/.test(withPack.evidence ?? ''), `${withPack?.status}: ${withPack?.evidence}`)
+    check('the row names the native processor from the vendored pack, ok', withPack?.status === 'ok' && /native image processor — sharp \d/.test(withPack.evidence ?? '') && /vendored pack/.test(withPack.evidence ?? ''), `${withPack?.status}: ${withPack?.evidence} — describeImageProcessor in src/utils/imageProcessor/imageProcessor.ts must report ok with the native sharp line when the vendored pack sits beside the bundle`)
   } else {
     console.log('  (3) skipped — no vendored pack in this dist (the manifest says so honestly)')
   }

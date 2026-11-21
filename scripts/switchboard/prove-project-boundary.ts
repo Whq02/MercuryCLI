@@ -54,10 +54,12 @@ delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
+const BOUNDARY_FIX = 'the owner is src/utils/projectBoundary.ts (projectBoundaryOf, projectScopePathspec, launchFolderBoundsProject)'
+const PROBE_FIX = 'the git call listed or counted came from one of the probes this script exercises (src/utils/git.ts, src/context.ts, src/services/health/healthReport.ts, src/services/gitGraph/observe.ts, src/daemon/concourseWorktrees.ts, src/hooks/fileSuggestions.ts); its pathspec tail comes from src/utils/projectBoundary.ts'
 
 const boundary = await import('../../src/utils/projectBoundary.js')
 const gitMod = await import('../../src/utils/git.js')
@@ -73,16 +75,16 @@ const suggestions = await import('../../src/hooks/fileSuggestions.js')
 
 console.log('B1 projectBoundaryOf — the owner')
 {
-  check('a real project answers its git root from a subfolder', boundary.projectBoundaryOf(SUB) === REAL, boundary.projectBoundaryOf(SUB))
-  check('… and appends no pathspec', boundary.projectScopePathspec(SUB).length === 0)
-  check('a folder under a HOME repository answers itself', boundary.projectBoundaryOf(PROJ) === PROJ, boundary.projectBoundaryOf(PROJ))
-  check('… and appends `-- .`', boundary.projectScopePathspec(PROJ).join(' ') === '-- .')
-  check('a folder under a user-folder repository (Pictures) answers itself', boundary.projectBoundaryOf(NOTES) === NOTES, boundary.projectBoundaryOf(NOTES))
-  check('a nested Documents folder resolves to the home root today (git says so)', realpathSync(voxelTop) === HOME_FX, voxelTop)
-  check('… and the boundary answers the nested Documents folder itself, with `-- .`', boundary.projectBoundaryOf(VOXEL) === VOXEL && boundary.projectScopePathspec(VOXEL).join(' ') === '-- .')
-  check('the home itself answers itself', boundary.projectBoundaryOf(HOME_FX) === HOME_FX)
-  check('a folder outside any repository answers itself and appends nothing', boundary.projectBoundaryOf(OUTSIDE) === OUTSIDE && boundary.projectScopePathspec(OUTSIDE).length === 0)
-  check('launchFolderBoundsProject is true only under a non-project root', boundary.launchFolderBoundsProject(PROJ) && boundary.launchFolderBoundsProject(NOTES) && !boundary.launchFolderBoundsProject(SUB) && !boundary.launchFolderBoundsProject(OUTSIDE))
+  check('a real project answers its git root from a subfolder', boundary.projectBoundaryOf(SUB) === REAL, boundary.projectBoundaryOf(SUB), BOUNDARY_FIX)
+  check('… and appends no pathspec', boundary.projectScopePathspec(SUB).length === 0, '', BOUNDARY_FIX)
+  check('a folder under a HOME repository answers itself', boundary.projectBoundaryOf(PROJ) === PROJ, boundary.projectBoundaryOf(PROJ), BOUNDARY_FIX)
+  check('… and appends `-- .`', boundary.projectScopePathspec(PROJ).join(' ') === '-- .', '', BOUNDARY_FIX)
+  check('a folder under a user-folder repository (Pictures) answers itself', boundary.projectBoundaryOf(NOTES) === NOTES, boundary.projectBoundaryOf(NOTES), BOUNDARY_FIX)
+  check('a nested Documents folder resolves to the home root today (git says so)', realpathSync(voxelTop) === HOME_FX, voxelTop, 'the fixture is wrong, not the product: git must resolve Documents/voxel to the home repository this script initialises')
+  check('… and the boundary answers the nested Documents folder itself, with `-- .`', boundary.projectBoundaryOf(VOXEL) === VOXEL && boundary.projectScopePathspec(VOXEL).join(' ') === '-- .', '', BOUNDARY_FIX)
+  check('the home itself answers itself', boundary.projectBoundaryOf(HOME_FX) === HOME_FX, '', BOUNDARY_FIX)
+  check('a folder outside any repository answers itself and appends nothing', boundary.projectBoundaryOf(OUTSIDE) === OUTSIDE && boundary.projectScopePathspec(OUTSIDE).length === 0, '', BOUNDARY_FIX)
+  check('launchFolderBoundsProject is true only under a non-project root', boundary.launchFolderBoundsProject(PROJ) && boundary.launchFolderBoundsProject(NOTES) && !boundary.launchFolderBoundsProject(SUB) && !boundary.launchFolderBoundsProject(OUTSIDE), '', BOUNDARY_FIX)
 }
 
 type Row = { cwd: string; args: string }
@@ -131,23 +133,23 @@ console.log('\nB2 the probes from a folder under a home repository carry the bou
   const probes = rows.filter(isProbe)
   console.log(`  [PROBES] ${probes.length} status/add/ls-files calls: ${probes.map(r => `${r.args} @ ${probeCwd(r).replace(SCRATCH, '$S')}`).join(' · ')}`)
   const kinds = (needle: RegExp): Row[] => probes.filter(r => needle.test(r.args))
-  check('the certificate clean flag ran bounded (status --untracked-files=all -- .)', kinds(/--untracked-files=all/).length >= 1 && kinds(/--untracked-files=all/).every(r => r.args.endsWith('-- .')))
-  check('the file status ran bounded (status --porcelain -z -- .)', kinds(/--porcelain -z/).length >= 1 && kinds(/--porcelain -z/).every(r => r.args.endsWith('-- .')))
-  check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')))
-  check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')))
-  check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')))
-  check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1)
+  check('the certificate clean flag ran bounded (status --untracked-files=all -- .)', kinds(/--untracked-files=all/).length >= 1 && kinds(/--untracked-files=all/).every(r => r.args.endsWith('-- .')), probes.map(r => r.args).join(' | '), PROBE_FIX)
+  check('the file status ran bounded (status --porcelain -z -- .)', kinds(/--porcelain -z/).length >= 1 && kinds(/--porcelain -z/).every(r => r.args.endsWith('-- .')), probes.map(r => r.args).join(' | '), PROBE_FIX)
+  check('the conversation status block ran bounded (status --short -- .)', kinds(/status --short/).length >= 1 && kinds(/status --short/).every(r => r.args.endsWith('-- .')), probes.map(r => r.args).join(' | '), PROBE_FIX)
+  check('the health digest ran bounded (add -A -- .)', kinds(/(^| )add -A/).length >= 1 && kinds(/(^| )add -A/).every(r => r.args.endsWith('-- .')), probes.map(r => r.args).join(' | '), PROBE_FIX)
+  check('the project-intel status ran bounded (porcelain=v2 -- .)', kinds(/--porcelain=v2/).length >= 1 && kinds(/--porcelain=v2/).every(r => r.args.endsWith('-- .')), probes.map(r => r.args).join(' | '), PROBE_FIX)
+  check("the board's dirt probe ran bounded (-C <folder> status --porcelain [--untracked-files=normal] -- .)", kinds(/-C .* status --porcelain( --untracked-files=normal)? -- \.$/).length >= 1, probes.map(r => r.args).join(' | '), PROBE_FIX)
   const lsFiles = kinds(/ls-files/)
-  check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '))
-  check('no status/add/ls-files probe ran unbounded', probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj'))).map(r => r.args).join(' | '))
-  check('every probe ran at or below the launch folder (never `-C <home>`)', probes.every(r => probeCwd(r) === PROJ || probeCwd(r) === HOME_FX && /ls-files/.test(r.args)), probes.map(r => probeCwd(r).replace(SCRATCH, '$S')).join(','))
+  check('the @-file index listed from the boundary (ls-files … -- Desktop/proj at the root)', lsFiles.length >= 1 && lsFiles.every(r => r.args.endsWith('-- Desktop/proj')), lsFiles.map(r => r.args).join(' | '), PROBE_FIX)
+  check('no status/add/ls-files probe ran unbounded', probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Desktop/proj'))).map(r => r.args).join(' | '), PROBE_FIX)
+  check('every probe ran at or below the launch folder (never `-C <home>`)', probes.every(r => probeCwd(r) === PROJ || probeCwd(r) === HOME_FX && /ls-files/.test(r.args)), probes.map(r => probeCwd(r).replace(SCRATCH, '$S')).join(','), PROBE_FIX)
 }
 
 console.log('\nB2b the same from a nested Documents folder (the home root, not the Desktop)')
 {
   const rows = await exercise(VOXEL)
   const probes = rows.filter(isProbe)
-  check('every status/add/ls-files probe from Documents/voxel carries the boundary', probes.length >= 6 && probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Documents/voxel')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Documents/voxel'))).map(r => r.args).join(' | '))
+  check('every status/add/ls-files probe from Documents/voxel carries the boundary', probes.length >= 6 && probes.every(r => r.args.endsWith('-- .') || r.args.endsWith('-- Documents/voxel')), probes.filter(r => !(r.args.endsWith('-- .') || r.args.endsWith('-- Documents/voxel'))).map(r => r.args).join(' | '), PROBE_FIX)
 }
 
 console.log('\nB3 the same probes from a real project carry no pathspec tail (nothing else changes)')
@@ -155,9 +157,9 @@ console.log('\nB3 the same probes from a real project carry no pathspec tail (no
   const rows = await exercise(SUB)
   const probes = rows.filter(isProbe)
   console.log(`  [PROBES] ${probes.length} status/add/ls-files calls: ${probes.map(r => `${r.args} @ ${probeCwd(r).replace(SCRATCH, '$S')}`).join(' · ')}`)
-  check('at least the six probe shapes ran', probes.length >= 6, String(probes.length))
-  check('no probe carries a `--` pathspec tail', probes.every(r => !/ -- /.test(r.args) && !r.args.endsWith('--')), probes.filter(r => / -- /.test(r.args)).map(r => r.args).join(' | '))
-  check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL))
+  check('at least the six probe shapes ran', probes.length >= 6, String(probes.length), PROBE_FIX)
+  check('no probe carries a `--` pathspec tail', probes.every(r => !/ -- /.test(r.args) && !r.args.endsWith('--')), probes.filter(r => / -- /.test(r.args)).map(r => r.args).join(' | '), 'a real project must get no pathspec tail: ' + PROBE_FIX)
+  check('the @-file index listed the whole repository from its root', probes.some(r => /ls-files --recurse-submodules$/.test(r.args) && probeCwd(r) === REAL), probes.map(r => r.args).join(' | '), 'the @-file index in a real project must list from the repository root: ' + PROBE_FIX)
 }
 }
 

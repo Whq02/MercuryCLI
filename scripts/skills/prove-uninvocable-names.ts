@@ -18,8 +18,8 @@ writeFileSync(join(skillsDir, 'fine', 'SKILL.md'), md('the fine skill'))
 process.chdir(PROJ)
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -35,13 +35,14 @@ const skillsMod = (await import('../../src/skills/loadSkillsDir.ts')) as unknown
 
 section("§1 THE PARSER'S GRAMMAR")
 {
-  check('the gate is exported (slashNameProblem)', typeof skillsMod.slashNameProblem === 'function')
-  check('the empty name is unparseable (/ alone is null)', parseSlashCommand('/') === null)
+  check('the gate is exported (slashNameProblem)', typeof skillsMod.slashNameProblem === 'function', '', 'export slashNameProblem from src/skills/loadSkillsDir.ts')
+  check('the empty name is unparseable (/ alone is null)', parseSlashCommand('/') === null, '', 'parseSlashCommand in src/utils/slashCommandParsing.ts must return null for a bare slash')
   const spaced = parseSlashCommand('/w5 has space')
   check(
     "a spaced name can never round-trip ('/w5 has space' parses as command 'w5')",
     spaced !== null && spaced.commandName === 'w5',
     JSON.stringify(spaced),
+    'parseSlashCommand in src/utils/slashCommandParsing.ts must stop the command name at the first space',
   )
 }
 
@@ -51,17 +52,19 @@ const refusals = skillsMod.getSkillLoadRefusals()
 
 section('§2 THE SKILLS ROAD')
 {
-  check('the fine skill registers', names.includes('fine'))
-  check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')))
+  check('the fine skill registers', names.includes('fine'), '', 'a valid skill under .mercury/skills is missing from getCommands in src/commands.ts; check the loader in src/skills/loadSkillsDir.ts')
+  check('no EMPTY-named command sits in the roster', !names.some(n => n === '' || n.endsWith(':')), '', 'refuse empty or trailing-colon skill names in slashNameProblem in src/skills/loadSkillsDir.ts')
   check(
     'no spaced command sits in the roster',
     !names.some(n => /\s/.test(n)),
     JSON.stringify(names.filter(n => /\s/.test(n))),
+    'refuse names with whitespace in slashNameProblem in src/skills/loadSkillsDir.ts so they never reach the roster',
   )
   check(
     'the spaced skill directory is refused, named uninvocable',
     refusals.some(r => r.path.includes('has space') && r.error.includes('uninvocable')),
     JSON.stringify(refusals.filter(r => r.path.includes('has space'))),
+    'the skill loader in src/skills/loadSkillsDir.ts must record a refusal whose error contains uninvocable for a name slashNameProblem rejects',
   )
 }
 

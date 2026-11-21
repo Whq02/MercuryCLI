@@ -12,7 +12,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-dotted-ids-')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fix = label.includes('canonical name') ? 'getCanonicalName in src/utils/model/modelNames.ts'
+    : label.includes('string sent to the provider') ? 'normalizeModelStringForAPI in src/utils/model/modelNames.ts'
+    : label.includes('output limit') || label.includes('context window') || label.includes('keeps the 200k') || label.includes('carrier road') || label.includes('dashed id') ? 'getContextWindowForModel and getModelMaxOutputTokens in src/utils/model/capabilities.ts'
+    : 'the model id readers in src/utils/model/capabilities.ts and src/utils/model/modelNames.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` (fix ${fix}, so a dotted id such as claude-sonnet-4.6 reads as its dashed spelling)`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

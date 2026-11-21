@@ -21,9 +21,9 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 process.env.NODE_ENV = 'test'
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', hint = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && hint ? ` — ${hint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
@@ -39,14 +39,14 @@ const parse = (body: unknown): ReturnType<typeof parseSettingsFile> => {
 section('§1 an unknown settings key is a named warning at load — the file still applies')
 {
   const root = parse({ zzzFieldWalkUnknownKey: true, engine: { model: 'claude-opus-5-5' } })
-  check('a root-level unknown key is one validation record', root.errors.length === 1, JSON.stringify(root.errors))
+  check('a root-level unknown key is one validation record', root.errors.length === 1, JSON.stringify(root.errors), 'parseSettingsFile in src/utils/settings/settings.ts must return one validation record for an unknown root key')
   const first = root.errors[0]
-  check('…with the generic unknown-field words and the key named', first?.message === 'Unrecognized field: zzzFieldWalkUnknownKey', first?.message)
+  check('…with the generic unknown-field words and the key named', first?.message === 'Unrecognized field: zzzFieldWalkUnknownKey', first?.message, 'the unknown-field message is built in src/utils/settings/validation.ts; it must read Unrecognized field: and the key')
   check('…at the root path', first?.path === '', JSON.stringify(first?.path))
-  check('…graded a warning (the rest of the file applies), with the generic tip', first?.severity === 'warning' && /typos/.test(first?.suggestion ?? ''), JSON.stringify(first))
-  check('…and the known keys beside it still load', root.settings?.engine?.model === 'claude-opus-5-5', JSON.stringify(root.settings))
+  check('…graded a warning (the rest of the file applies), with the generic tip', first?.severity === 'warning' && /typos/.test(first?.suggestion ?? ''), JSON.stringify(first), 'an unknown key must be graded warning with the generic typos tip; see src/utils/settings/validation.ts')
+  check('…and the known keys beside it still load', root.settings?.engine?.model === 'claude-opus-5-5', JSON.stringify(root.settings), 'parseSettingsFile in src/utils/settings/settings.ts must still apply known keys when an unknown key is present')
   const nested = parse({ engine: { modell: 'x', model: 'claude-opus-5-5' } })
-  check('a typo inside a known group is named with its group path', nested.errors.length === 1 && nested.errors[0]?.path === 'engine' && nested.errors[0]?.message === 'Unrecognized field: modell', JSON.stringify(nested.errors))
+  check('a typo inside a known group is named with its group path', nested.errors.length === 1 && nested.errors[0]?.path === 'engine' && nested.errors[0]?.message === 'Unrecognized field: modell', JSON.stringify(nested.errors), 'the record for a nested unknown key must carry the group path; see src/utils/settings/validation.ts')
   const both = parse({ zzFieldUnknownKey: true, engine: { modell: 'x' } })
   check('two unknown keys are two records', both.errors.length === 2 && both.errors.every(e => e.severity === 'warning'), JSON.stringify(both.errors.map(e => `${e.path}:${e.message}`)))
   const clean = parse({ $schema: 'x', engine: { model: 'claude-opus-5-5', effort: 'high' }, guardrails: { allow: ['Read'] }, events: { hooks: { 'tool.before': [{ match: '*', run: 'true' }] } } })
@@ -54,7 +54,7 @@ section('§1 an unknown settings key is a named warning at load — the file sti
   const beside = parse({ engine: { modell: 'x' }, events: { hooks: { 'tool.before': [{ match: 'startu[p', run: 'true' }] } } })
   check('an unknown key beside a refused hook entry: both named, both warnings', beside.errors.length === 2 && beside.errors.some(e => /not a valid regular expression/.test(e.message)) && beside.errors.some(e => e.message === 'Unrecognized field: modell'), JSON.stringify(beside.errors.map(e => e.message)))
   const line = settingsFaultLine(nested.errors[0]!)
-  check('the one-line form names the file, the path, the words and the effect', /settings: .*case-1\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies$/.test(line), line)
+  check('the one-line form names the file, the path, the words and the effect', /settings: .*case-1\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies$/.test(line), line, 'fix settingsFaultLine in src/utils/settings/validation.ts so it prints file, path, words and effect')
 }
 
 const API_KEY = 'fixture-key-000'
@@ -115,7 +115,7 @@ section('§2 the built product: health names the unknown key where it reports se
   const world = mkWorld('u', { zzzFieldWalkUnknownKey: true, engine: { modell: 'x' } }, null)
   const h = await run(world, ['health', '--json'])
   const row = settingsRow(h.out)
-  check('health --json carries the settings row (exit 0 or 3)', (h.code === 0 || h.code === 3) && row !== undefined, `${h.code} · ${h.err.trim().slice(0, 160)}`)
+  check('health --json carries the settings row (exit 0 or 3)', (h.code === 0 || h.code === 3) && row !== undefined, `${h.code} · ${h.err.trim().slice(0, 160)}`, 'run bun run build.ts first, then node dist/mercury.mjs health --json must print a settings check row')
   check('the row is a warning counting both unknown keys', row?.status === 'warn' && /^2 settings validation error\(s\)/.test(row?.evidence ?? ''), JSON.stringify(row))
   check('…and its evidence names a key with the generic unknown-field words', /Unrecognized field: (zzzFieldWalkUnknownKey|modell)/.test(row?.evidence ?? ''), row?.evidence)
 }
@@ -124,12 +124,12 @@ section('§3 the built product: a headless run names every settings fault on std
 {
   const world = mkWorld('r', { engine: { modell: 'x' }, events: { hooks: { 'tool.after': [{ match: 'startu[p', run: 'true' }] } } }, null)
   const r = await run(world, ['run', '--format', 'text', '--resume', 'notauuid', 'hi'])
-  check('the run still refuses the bad resume target as a usage error (exit 2) — no model call', r.code === 2, `${r.code} · ${r.err.trim().slice(0, 160)}`)
+  check('the run still refuses the bad resume target as a usage error (exit 2) — no model call', r.code === 2, `${r.code} · ${r.err.trim().slice(0, 160)}`, 'mercury run with a bad --resume id must exit 2 as a usage error before any model call')
   const lines = r.err.split('\n').filter(l => /settings: /.test(l))
-  check('two settings lines on stderr, one per fault', lines.length === 2, r.err.trim().slice(0, 400))
+  check('two settings lines on stderr, one per fault', lines.length === 2, r.err.trim().slice(0, 400), 'a headless run must print one settings: line on stderr per settings fault, using settingsFaultLine in src/utils/settings/validation.ts')
   check('the refused hook entry is named with its path and words', lines.some(l => /settings\.json · events\.hooks\.tool\.after\.0 · match is not a valid regular expression: "startu\[p" — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
   check('the unknown key is named with the generic words', lines.some(l => /settings\.json · engine · Unrecognized field: modell — this value is skipped; the rest of the file applies/.test(l)), lines.join(' | '))
-  check('nothing about settings reaches stdout', !/settings: /.test(r.out), r.out.slice(0, 200))
+  check('nothing about settings reaches stdout', !/settings: /.test(r.out), r.out.slice(0, 200), 'settings fault lines belong on stderr only')
   const clean = mkWorld('k', { engine: { model: 'claude-opus-5-5' } }, null)
   const c = await run(clean, ['run', '--format', 'text', '--resume', 'notauuid', 'hi'])
   check('a clean settings file draws no settings line', c.code === 2 && !/settings: /.test(c.err), c.err.trim().slice(0, 200))
@@ -154,7 +154,7 @@ section('§4 the built product: a "*" tool.after hook written as docs/HOOKS.md t
   check('the run answers (exit 0, the scripted text)', r.code === 0 && /Read it\./.test(r.out), `${r.code} · ${(r.out + r.err).trim().slice(0, 200)}`)
   check('no settings fault line was drawn', !/settings: /.test(r.err), r.err.trim().slice(0, 200))
   const fired = existsSync(mark) ? readFileSync(mark, 'utf8').split('\n').filter(l => l.trim() !== '') : []
-  check('the hook fired once, for the one tool call', fired.length === 1, `${fired.length} record(s)`)
+  check('the hook fired once, for the one tool call', fired.length === 1, `${fired.length} record(s)`, 'a tool.after hook with match * must fire exactly once for the one Read call; see docs/HOOKS.md')
   let record: Record<string, unknown> = {}
   try { record = JSON.parse(fired[0] ?? '{}') as Record<string, unknown> } catch { record = {} }
   check('…with the documented tool.after input (event, tool, input, output, ok)', record.event === 'tool.after' && record.tool === 'Read' && typeof record.input === 'object' && 'output' in record && record.ok === true, JSON.stringify(Object.keys(record)))

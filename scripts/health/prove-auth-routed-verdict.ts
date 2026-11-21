@@ -13,6 +13,8 @@ function check(name: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
+const HEALTH_AUTH_HINT = 'fix the auth rows in authChecks in src/services/health/sections/auth.ts (status, evidence, fix text)'
+const AUTH_STATUS_HINT = 'fix authStatus and routedProviderRows in src/cli/handlers/auth.ts (providers rows, routedProvider, exit code)'
 
 const scratchHome = mkdtempSync(join(tmpdir(), 'auth-routed-home-'))
 mkdirSync(join(scratchHome, '.mercury'), { recursive: true })
@@ -95,9 +97,9 @@ section('§1 engine-routed with its credential: Anthropic absence is info, exit 
   const anthropicRow = rowOf(r.json, 'auth-anthropic')
   const deepseekRow = rowOf(r.json, 'auth-deepseek')
   check('health --json parsed', r.json !== null, r.stdout.slice(0, 200))
-  check('the Anthropic row reads info (absence is a fact, not a failure)', anthropicRow?.status === 'info', JSON.stringify(anthropicRow))
-  check('the routed DeepSeek row is present and not failing', deepseekRow !== undefined && deepseekRow.status !== 'fail', JSON.stringify(deepseekRow))
-  check('exit 0 (no FAULT from the unused lane)', r.status === 0, `status=${r.status} verdict=${String(r.json?.verdict)}`)
+  check('the Anthropic row reads info (absence is a fact, not a failure)', anthropicRow?.status === 'info', `${JSON.stringify(anthropicRow)}; ${HEALTH_AUTH_HINT}`)
+  check('the routed DeepSeek row is present and not failing', deepseekRow !== undefined && deepseekRow.status !== 'fail', `${JSON.stringify(deepseekRow)}; ${HEALTH_AUTH_HINT}`)
+  check('exit 0 (no FAULT from the unused lane)', r.status === 0, `status=${r.status} verdict=${String(r.json?.verdict)}; ${HEALTH_AUTH_HINT}, so an unused Anthropic lane cannot fail the report`)
 }
 
 section('§2 engine-routed with the engine credential MISSING: warn, caution, exit 0 — signed out is not a fault')
@@ -107,21 +109,21 @@ section('§2 engine-routed with the engine credential MISSING: warn, caution, ex
     MERCURY_MODEL: 'deepseek-chat',
   })
   const deepseekRow = rowOf(r.json, 'auth-deepseek')
-  check('the routed family with no credential reads warn and says not signed in', deepseekRow?.status === 'warn' && (deepseekRow.evidence ?? '').startsWith('not signed in'), JSON.stringify(deepseekRow))
-  check('its fix names the way in', ((deepseekRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), JSON.stringify(deepseekRow))
-  check('verdict caution, exit 0 (a missing sign-in never reads as a broken install)', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}`)
+  check('the routed family with no credential reads warn and says not signed in', deepseekRow?.status === 'warn' && (deepseekRow.evidence ?? '').startsWith('not signed in'), `${JSON.stringify(deepseekRow)}; ${HEALTH_AUTH_HINT}`)
+  check('its fix names the way in', ((deepseekRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), `${JSON.stringify(deepseekRow)}; ${HEALTH_AUTH_HINT}`)
+  check('verdict caution, exit 0 (a missing sign-in never reads as a broken install)', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}; ${HEALTH_AUTH_HINT}, so a missing sign-in is warn and not fail`)
 }
 
 section('§3 anthropic-routed with no credential anywhere: warn, not signed in, exit 0')
 {
   const r = run(['health', '--json'], {})
   const anthropicRow = rowOf(r.json, 'auth-anthropic')
-  check('anthropic-routed with no credential: the anthropic row reads warn and says not signed in', anthropicRow?.status === 'warn' && (anthropicRow.evidence ?? '').startsWith('not signed in'), JSON.stringify(anthropicRow))
-  check('its fix names /logins', ((anthropicRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), JSON.stringify(anthropicRow))
-  check('…and the report exits 0 with verdict caution, never fault', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}`)
+  check('anthropic-routed with no credential: the anthropic row reads warn and says not signed in', anthropicRow?.status === 'warn' && (anthropicRow.evidence ?? '').startsWith('not signed in'), `${JSON.stringify(anthropicRow)}; ${HEALTH_AUTH_HINT}`)
+  check('its fix names /logins', ((anthropicRow as { fix?: string } | undefined)?.fix ?? '').includes('/logins'), `${JSON.stringify(anthropicRow)}; ${HEALTH_AUTH_HINT}`)
+  check('…and the report exits 0 with verdict caution, never fault', r.status === 0 && String(r.json?.verdict ?? '') === 'caution', `status=${r.status} verdict=${String(r.json?.verdict)}; ${HEALTH_AUTH_HINT}, so a missing sign-in is warn and not fail`)
   const ok = run(['health', '--json'], { ANTHROPIC_API_KEY: 'fixture-anthropic-key' })
   const okRow = rowOf(ok.json, 'auth-anthropic')
-  check('anthropic-routed with the credential: the row is ok', okRow?.status === 'ok', JSON.stringify(okRow))
+  check('anthropic-routed with the credential: the row is ok', okRow?.status === 'ok', `${JSON.stringify(okRow)}; ${HEALTH_AUTH_HINT}`)
 }
 
 section('§4 auth status --json: per-family rows, frozen fields, routed exit')
@@ -131,28 +133,29 @@ section('§4 auth status --json: per-family rows, frozen fields, routed exit')
     DEEPSEEK_API_KEY: 'fixture-deepseek-key',
     MERCURY_MODEL: 'deepseek-chat',
   })
-  check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}`)
+  check('stdout is JSON-only', engineRouted.json !== null, `stdout: ${engineRouted.stdout.slice(0, 120)} · stderr: ${engineRouted.stderr.slice(0, 200)}; ${AUTH_STATUS_HINT}, and print nothing but the JSON payload with --json`)
   const providers = (engineRouted.json?.providers ?? []) as Array<{ id: string; kind: string; source: string; present: boolean }>
-  check('one row per declared family (twenty-four including Anthropic)', providers.length === 24 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'].every(id => providers.some(provider => provider.id === id)), String(providers.length))
+  check('one row per declared family (twenty-four including Anthropic)', providers.length === 24 && ['xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'].every(id => providers.some(provider => provider.id === id)), `${String(providers.length)} rows; ${AUTH_STATUS_HINT}`)
   check(
     'each row carries id, kind, source, present — and no value is secret-shaped',
     providers.every(p => typeof p.id === 'string' && typeof p.kind === 'string' && typeof p.source === 'string' && typeof p.present === 'boolean') &&
       !engineRouted.stdout.includes('fixture-deepseek-key'),
+    `${AUTH_STATUS_HINT}; every row needs string id, kind, source and boolean present, and the key value must never be printed`,
   )
-  check('the routed family is named', engineRouted.json?.routedProvider === 'deepseek', String(engineRouted.json?.routedProvider))
-  check('the DeepSeek row reads present', providers.find(p => p.id === 'deepseek')?.present === true)
-  check('the frozen Anthropic fields are retained, and no constant provider field rides beside them', 'loggedIn' in (engineRouted.json ?? {}) && 'authMethod' in (engineRouted.json ?? {}) && !('apiProvider' in (engineRouted.json ?? {})))
-  check('the exit answers for the ROUTED family (present ⇒ 0, Anthropic ladder empty or not)', engineRouted.status === 0, `status=${engineRouted.status}`)
+  check('the routed family is named', engineRouted.json?.routedProvider === 'deepseek', `${String(engineRouted.json?.routedProvider)}; ${AUTH_STATUS_HINT}`)
+  check('the DeepSeek row reads present', providers.find(p => p.id === 'deepseek')?.present === true, `${AUTH_STATUS_HINT}; DEEPSEEK_API_KEY is set in this run`)
+  check('the frozen Anthropic fields are retained, and no constant provider field rides beside them', 'loggedIn' in (engineRouted.json ?? {}) && 'authMethod' in (engineRouted.json ?? {}) && !('apiProvider' in (engineRouted.json ?? {})), `${AUTH_STATUS_HINT}; keep loggedIn and authMethod and do not add apiProvider`)
+  check('the exit answers for the ROUTED family (present ⇒ 0, Anthropic ladder empty or not)', engineRouted.status === 0, `status=${engineRouted.status}; ${AUTH_STATUS_HINT}`)
 
   const engineMissing = run(['auth', 'status', '--json'], {
     ANTHROPIC_API_KEY: 'fixture-anthropic-key',
     MERCURY_MODEL: 'deepseek-chat',
   })
-  check('engine-routed with the credential missing exits 1', engineMissing.status === 1, `status=${engineMissing.status}`)
-  check('…while the Anthropic ladder still reports loggedIn true (frozen field, unchanged meaning)', engineMissing.json?.loggedIn === true)
+  check('engine-routed with the credential missing exits 1', engineMissing.status === 1, `status=${engineMissing.status}; ${AUTH_STATUS_HINT}`)
+  check('…while the Anthropic ladder still reports loggedIn true (frozen field, unchanged meaning)', engineMissing.json?.loggedIn === true, `${AUTH_STATUS_HINT}; loggedIn must still follow the Anthropic credential`)
 
   const anthropicDefault = run(['auth', 'status', '--json'], { ANTHROPIC_API_KEY: 'fixture-anthropic-key' })
-  check('the Anthropic-routed default exits 0 exactly as before', anthropicDefault.status === 0 && anthropicDefault.json?.loggedIn === true, `status=${anthropicDefault.status}`)
+  check('the Anthropic-routed default exits 0 exactly as before', anthropicDefault.status === 0 && anthropicDefault.json?.loggedIn === true, `status=${anthropicDefault.status}; ${AUTH_STATUS_HINT}`)
 }
 
 for (const lane of [
@@ -164,11 +167,11 @@ for (const lane of [
     const env = { MERCURY_MODEL: lane.model, ...(present ? { [lane.key]: key } : { ANTHROPIC_API_KEY: 'fixture-anthropic-key' }) }
     const health = run(['health', '--json'], env)
     const row = rowOf(health.json, `auth-${lane.family}`)
-    check(`${lane.family}: health follows its own ${present ? 'present' : 'missing'} credential`, row !== undefined && health.status === 0 && (present ? row.status !== 'fail' && row.status !== 'warn' : row.status === 'warn' && (row.evidence ?? '').startsWith('not signed in')), JSON.stringify({ row, exit: health.status }))
+    check(`${lane.family}: health follows its own ${present ? 'present' : 'missing'} credential`, row !== undefined && health.status === 0 && (present ? row.status !== 'fail' && row.status !== 'warn' : row.status === 'warn' && (row.evidence ?? '').startsWith('not signed in')), `${JSON.stringify({ row, exit: health.status })}; ${HEALTH_AUTH_HINT}`)
     const auth = run(['auth', 'status', '--json'], { ...env, CI: 'true' })
     const providers = (auth.json?.providers ?? []) as Array<{ id: string; present: boolean }>
-    check(`${lane.family}: auth status names the routed family and its own presence`, auth.json?.routedProvider === lane.family && providers.find(provider => provider.id === lane.family)?.present === present && auth.status === (present ? 0 : 1), auth.stdout)
-    check(`${lane.family}: neither machine surface reveals the fixture credential`, !health.stdout.includes(key) && !auth.stdout.includes(key))
+    check(`${lane.family}: auth status names the routed family and its own presence`, auth.json?.routedProvider === lane.family && providers.find(provider => provider.id === lane.family)?.present === present && auth.status === (present ? 0 : 1), `${auth.stdout}; ${AUTH_STATUS_HINT}`)
+    check(`${lane.family}: neither machine surface reveals the fixture credential`, !health.stdout.includes(key) && !auth.stdout.includes(key), `a credential value is printed; ${HEALTH_AUTH_HINT} and ${AUTH_STATUS_HINT}`)
   }
 }
 

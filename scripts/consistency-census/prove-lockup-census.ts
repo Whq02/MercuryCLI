@@ -9,7 +9,12 @@ const ROOT = join(import.meta.dir, '..', '..')
 let failed = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failed++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const fix = label.startsWith('§A zero') ? 'classify the site in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts, or remove the lockup site'
+    : label.startsWith('§A') ? 'drop or rename the stale entry in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts'
+    : label.startsWith('§B') ? 'ProductLockup in src/components/mercury-ui/components.tsx must still paint the title; check its use in src/components/MercuryModelPicker.tsx and CommandCenter in src/components/mercury-ui/components.tsx'
+    : label.startsWith('§C') ? 'draw the crab glyph only through src/components/mercury-ui/assets.tsx or src/utils/cockpit/critterData.ts, or add the file to ALLOWED_GLYPH_AUTHORS in this script'
+    : 'give every role a site in ROLE_BY_FILE in scripts/consistency-census/gen-lockup-census.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ` (${fix})`}`)
 }
 
 const census = lockupCensus(ROOT)

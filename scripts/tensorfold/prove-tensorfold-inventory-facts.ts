@@ -14,12 +14,17 @@ const { ON_DISK, QWEN_4B_REPO, fakeEngine, tStateFacts, tStates } = await import
 type Facts = import('./fixtures/tstates.ts').Facts
 
 let failures = 0
+let whereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  if (!cond && whereToLook !== '') console.log(`    where to look: ${whereToLook}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
+  whereToLook = title.startsWith('the inventory')
+    ? 'compare the expected value in this check with what readTensorFoldInventory (and bestTensorFoldFit, hfCacheRoot) in src/services/tensorfold/inventory.ts returns, and change that function (or the cache seed in scripts/tensorfold/fixtures/world.ts if the seed is wrong)'
+    : 'compare the expected text in this check with the row, heading or card that tensorFoldPickerRows in src/components/tensorfold/tensorfoldRows.ts builds from pickerFactsOf in src/commands/tensorfold/pickerFacts.ts (the serve and pull lines come from tensorFoldWillRun in src/services/tensorfold/serve.ts), and change the builder; the t-state facts are built in scripts/tensorfold/fixtures/tstates.ts'
 }
 
 const ENGINE = await fakeEngine()

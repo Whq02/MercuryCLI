@@ -20,7 +20,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — proof exceeded 240s')
+  console.log('\n❌ TIMEOUT — proof exceeded 240s; an interpreter probe or debug adapter resolution hung, see selectPythonInterpreter and projectPythonDebugAdapter in src/services/ide/pythonProject.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -75,18 +75,18 @@ try {
     process.env.MERCURY_PYTHON = SYS_PY
     proj._resetPythonProjectForTesting()
     const pinned = proj.selectPythonInterpreter(bare)
-    check('A1 explicit pin selected verbatim', pinned.state === 'ok' && pinned.command === SYS_PY && pinned.envKind === 'explicit', JSON.stringify(pinned).slice(0, 160))
+    check('A1 explicit pin selected verbatim', pinned.state === 'ok' && pinned.command === SYS_PY && pinned.envKind === 'explicit', JSON.stringify(pinned).slice(0, 160) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must return the MERCURY_PYTHON pin verbatim as envKind explicit')
 
     process.env.MERCURY_PYTHON = '/nonexistent/python-pin'
     proj._resetPythonProjectForTesting()
     const broken = proj.selectPythonInterpreter(bare)
     check('A2 broken pin ⇒ unavailable NAMING the pin (no silent substitute)',
       broken.state === 'unavailable' && broken.detail.includes('MERCURY_PYTHON') && broken.remedy.includes('MERCURY_PYTHON'),
-      JSON.stringify(broken).slice(0, 200))
+      JSON.stringify(broken).slice(0, 200) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must return unavailable with detail and remedy naming MERCURY_PYTHON for a broken pin')
 
     process.env.MERCURY_PYTHON = SYS_PY
     const reselected = proj.selectPythonInterpreter(bare)
-    check('A3 env change re-selects immediately (no TTL wait, no reset)', reselected.state === 'ok' && reselected.command === SYS_PY)
+    check('A3 env change re-selects immediately (no TTL wait, no reset)', reselected.state === 'ok' && reselected.command === SYS_PY, JSON.stringify(reselected).slice(0, 160) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must not cache across an env change')
 
     delete process.env.MERCURY_PYTHON
     const activeVenv = join(arena, 'active-venv')
@@ -96,7 +96,7 @@ try {
     const active = proj.selectPythonInterpreter(bare)
     check('A4 $VIRTUAL_ENV selected (active-venv rung)',
       active.state === 'ok' && active.command === venvPy(activeVenv) && active.envKind === 'active-venv',
-      JSON.stringify(active).slice(0, 160))
+      JSON.stringify(active).slice(0, 160) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must pick VIRTUAL_ENV as the active-venv rung')
     delete process.env.VIRTUAL_ENV
 
     const withVenvs = join(arena, 'proj-venvs')
@@ -107,14 +107,14 @@ try {
     const projVenv = proj.selectPythonInterpreter(withVenvs)
     check('A5 project .venv selected over venv/ and PATH',
       projVenv.state === 'ok' && projVenv.command === venvPy(join(withVenvs, '.venv')) && projVenv.envKind === 'project-venv',
-      JSON.stringify(projVenv).slice(0, 160))
+      JSON.stringify(projVenv).slice(0, 160) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must prefer the project .venv over venv and PATH')
 
     const rooted = proj.findPythonProjectRoot(withVenvs)
-    check('A6 root detection carries marker evidence', rooted.root === withVenvs && rooted.markers.includes('pyproject.toml') && rooted.markers.includes('.venv'), JSON.stringify(rooted))
+    check('A6 root detection carries marker evidence', rooted.root === withVenvs && rooted.markers.includes('pyproject.toml') && rooted.markers.includes('.venv'), JSON.stringify(rooted) + ' — findPythonProjectRoot in src/services/ide/pythonProject.ts must return the root and its marker evidence')
 
     proj._resetPythonProjectForTesting()
     const system = proj.selectPythonInterpreter(bare)
-    check('A7 bare dir falls to PATH python3 (system rung)', system.state === 'ok' && system.envKind === 'system', JSON.stringify(system).slice(0, 160))
+    check('A7 bare dir falls to PATH python3 (system rung)', system.state === 'ok' && system.envKind === 'system', JSON.stringify(system).slice(0, 160) + ' — selectPythonInterpreter in src/services/ide/pythonProject.ts must fall to PATH python3 as envKind system')
   }
 
 
@@ -132,19 +132,19 @@ try {
       proj._resetPythonProjectForTesting()
       resolver._resetDebugpyResolverForTesting()
       const viaPin = proj.projectPythonDebugAdapter(arena)
-      check('C1 pinned interpreter drives the debug adapter', viaPin.state === 'ok' && viaPin.provenance.interpreter === SYS_PY && viaPin.provenance.adapterSource === 'bundled', JSON.stringify(viaPin.state === 'ok' ? viaPin.provenance : viaPin).slice(0, 200))
+      check('C1 pinned interpreter drives the debug adapter', viaPin.state === 'ok' && viaPin.provenance.interpreter === SYS_PY && viaPin.provenance.adapterSource === 'bundled', JSON.stringify(viaPin.state === 'ok' ? viaPin.provenance : viaPin).slice(0, 200) + ' — projectPythonDebugAdapter in src/services/ide/pythonProject.ts must use the pinned interpreter with the bundled adapter')
 
       process.env.MERCURY_PYTHON = '/nonexistent/python-pin'
       proj._resetPythonProjectForTesting()
       resolver._resetDebugpyResolverForTesting()
       const brokenPin = proj.projectPythonDebugAdapter(arena)
-      check('C2 broken pin ⇒ debug unavailable naming the pin (exclusive)', brokenPin.state === 'unavailable' && brokenPin.reason.includes('/nonexistent/python-pin'), JSON.stringify(brokenPin).slice(0, 220))
+      check('C2 broken pin ⇒ debug unavailable naming the pin (exclusive)', brokenPin.state === 'unavailable' && brokenPin.reason.includes('/nonexistent/python-pin'), JSON.stringify(brokenPin).slice(0, 220) + ' — projectPythonDebugAdapter in src/services/ide/pythonProject.ts must return unavailable naming the broken pin, not fall through')
 
       delete process.env.MERCURY_PYTHON
       proj._resetPythonProjectForTesting()
       resolver._resetDebugpyResolverForTesting()
       const walked = proj.projectPythonDebugAdapter(arena)
-      check('C3 unpinned resolution lands on a HEALTHY interpreter (walks past pydevd-broken selections)', walked.state === 'ok' && walked.provenance.lastProbe.includes('pydevd import chain OK'), JSON.stringify(walked.state === 'ok' ? walked.provenance : walked).slice(0, 220))
+      check('C3 unpinned resolution lands on a HEALTHY interpreter (walks past pydevd-broken selections)', walked.state === 'ok' && walked.provenance.lastProbe.includes('pydevd import chain OK'), JSON.stringify(walked.state === 'ok' ? walked.provenance : walked).slice(0, 220) + ' — projectPythonDebugAdapter in src/services/ide/pythonProject.ts must walk past selections whose pydevd import chain is broken')
       delete process.env.MERCURY_DEBUGPY_VENDOR_DIR
       resolver._resetDebugpyResolverForTesting()
     }
@@ -159,15 +159,15 @@ try {
     process.env.MERCURY_PYTHON = SYS_PY
     proj._resetPythonProjectForTesting()
     const res = await resolveResource('mercury://ide/python/project', { owner, cwd: withVenvs })
-    check('D1 resource resolves ok', res.state === 'ok', res.state !== 'ok' ? res.note : '')
+    check('D1 resource resolves ok', res.state === 'ok', (res.state !== 'ok' ? res.note : '') + ' — fix the mercury://ide/python/project projection in src/services/resources/adapters/ide.ts')
     if (res.state === 'ok') {
       const structured = res.resource.structured as { projectRoot?: string; interpreter?: { command?: string } }
-      check('D2 profile roots at the fixture project', structured.projectRoot === withVenvs, String(structured.projectRoot))
-      check('D3 profile carries the pinned interpreter', structured.interpreter?.command === SYS_PY)
-      check('D4 summary is a one-line truth', res.resource.summary.includes(SYS_PY) && res.resource.summary.includes('debugpy'), res.resource.summary)
+      check('D2 profile roots at the fixture project', structured.projectRoot === withVenvs, String(structured.projectRoot) + ' — the python project resource in src/services/resources/adapters/ide.ts must root the profile at findPythonProjectRoot of the cwd')
+      check('D3 profile carries the pinned interpreter', structured.interpreter?.command === SYS_PY, 'got ' + String(structured.interpreter?.command) + ' — the python project resource in src/services/resources/adapters/ide.ts must carry the selectPythonInterpreter command')
+      check('D4 summary is a one-line truth', res.resource.summary.includes(SYS_PY) && res.resource.summary.includes('debugpy'), res.resource.summary + ' — the summary of the python project resource in src/services/resources/adapters/ide.ts must name the interpreter and debugpy')
     }
     const listing = await resolveResource('mercury://ide', { owner, cwd: withVenvs })
-    check('D5 kind listing names the projection', listing.state === 'ok' && (listing.state === 'ok' ? listing.resource.children?.some(c => c.ref === 'mercury://ide/python/project') === true : false))
+    check('D5 kind listing names the projection', listing.state === 'ok' && (listing.state === 'ok' ? listing.resource.children?.some(c => c.ref === 'mercury://ide/python/project') === true : false), 'list mercury://ide/python/project among the children of mercury://ide in src/services/resources/adapters/ide.ts')
   }
 } finally {
   restoreEnv()

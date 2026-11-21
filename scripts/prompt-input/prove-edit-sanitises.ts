@@ -10,7 +10,8 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = 'every road into the composer must go through the one edit path in src/input-core/pending-input.ts, which strips escape and control bytes and stores NFC text; draft loading is in src/utils/promptDraft.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${hint}` : ''}`)
 }
 
 const pending = await import('../../src/input-core/pending-input.ts')

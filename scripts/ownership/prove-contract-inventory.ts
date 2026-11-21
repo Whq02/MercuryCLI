@@ -37,7 +37,7 @@ let settingsKeys: string[] = []
     schema.shape ??
     (schema as unknown as { _def?: { shape?: () => Record<string, unknown> } })._def?.shape?.()
   settingsKeys = shape ? Object.keys(shape).sort() : []
-  check('SettingsSchema shape enumerable', settingsKeys.length > 0)
+  check('SettingsSchema shape enumerable', settingsKeys.length > 0, 'SettingsSchema in src/utils/settings/types.ts no longer exposes a readable key shape; keep it a zod object, or change how this script reads it')
 }
 
 interface Inventory {
@@ -56,7 +56,7 @@ if (record) {
 } else {
   section('(2) verify against the recorded inventory')
   if (!existsSync(INVENTORY)) {
-    check('inventory exists (run --record first)', false)
+    check('inventory exists (run --record first)', false, 'run bun scripts/ownership/prove-contract-inventory.ts --record to write scripts/ownership/contract-inventory.json')
   } else {
     const inv = JSON.parse(readFileSync(INVENTORY, 'utf-8')) as Inventory
     const curKeys = new Set(settingsKeys)
@@ -71,7 +71,7 @@ if (record) {
         addedKeys.length ? `UNRECORDED: ${addedKeys.join(', ')}` : '',
       ]
         .filter(Boolean)
-        .join(' · '),
+        .join(' · ') + ' · if the change is intended, run bun scripts/ownership/prove-contract-inventory.ts --record and commit scripts/ownership/contract-inventory.json; otherwise restore the key in SettingsSchema (src/utils/settings/types.ts)',
     )
   }
 }

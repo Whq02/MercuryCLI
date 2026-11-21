@@ -53,12 +53,12 @@ const lock = JSON.parse(readFileSync(LOCK, 'utf8')) as {
   licenseFiles: string[]
   serverEntry: string
 }
-check('lock pins pyright', lock.name === 'pyright' && /^\d+\.\d+\.\d+$/.test(lock.version))
-check('sha512 is a 128-hex digest', /^[0-9a-f]{128}$/.test(lock.sha512))
-check('sha512 hex EQUALS the recorded npm integrity (base64)', Buffer.from(lock.sha512, 'hex').toString('base64') === lock.integrity.replace(/^sha512-/, ''))
-check('url points at the pinned tarball', lock.url.endsWith(lock.tarball) && lock.tarball.includes(lock.version))
-check('licence declared (MIT + LICENSE.txt)', lock.license === 'MIT' && lock.licenseFiles.includes('LICENSE.txt'))
-check('server entry is the langserver bundle', lock.serverEntry === 'langserver.index.js')
+check('lock pins pyright', lock.name === 'pyright' && /^\d+\.\d+\.\d+$/.test(lock.version), 'fix name and version in vendor/pyright.lock.json; got ' + lock.name + ' ' + lock.version)
+check('sha512 is a 128-hex digest', /^[0-9a-f]{128}$/.test(lock.sha512), 'fix sha512 in vendor/pyright.lock.json')
+check('sha512 hex EQUALS the recorded npm integrity (base64)', Buffer.from(lock.sha512, 'hex').toString('base64') === lock.integrity.replace(/^sha512-/, ''), 'make sha512 and integrity in vendor/pyright.lock.json describe the same digest')
+check('url points at the pinned tarball', lock.url.endsWith(lock.tarball) && lock.tarball.includes(lock.version), 'make url and tarball in vendor/pyright.lock.json agree with version; url is ' + lock.url)
+check('licence declared (MIT + LICENSE.txt)', lock.license === 'MIT' && lock.licenseFiles.includes('LICENSE.txt'), 'fix license and licenseFiles in vendor/pyright.lock.json')
+check('server entry is the langserver bundle', lock.serverEntry === 'langserver.index.js', 'fix serverEntry in vendor/pyright.lock.json; got ' + lock.serverEntry)
 
 section('(2) fetch --check honesty (no network)')
 {
@@ -69,10 +69,10 @@ section('(2) fetch --check honesty (no network)')
     env: { ...process.env },
   })
   if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
-    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)}`)
+    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)} — the --check mode of scripts/vendor/fetch-pyright.ts must pass for a present cache; re-run bun run scripts/vendor/fetch-pyright.ts`)
   } else {
-    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status}`)
-    check('--check names the remedy', (r.stderr ?? '').includes('fetch-pyright.ts'), r.stderr.slice(0, 200))
+    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status} — the --check mode of scripts/vendor/fetch-pyright.ts must exit 2 when the cache is absent`)
+    check('--check names the remedy', (r.stderr ?? '').includes('fetch-pyright.ts'), r.stderr.slice(0, 200) + ' — the --check mode of scripts/vendor/fetch-pyright.ts must name itself as the remedy on stderr')
   }
 }
 
@@ -84,13 +84,13 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
     fileCount: number
     treeDigest: string
   }
-  check('vendor manifest matches the lock', vman.version === lock.version && vman.tarballSha512 === lock.sha512)
+  check('vendor manifest matches the lock', vman.version === lock.version && vman.tarballSha512 === lock.sha512, 're-run bun run scripts/vendor/fetch-pyright.ts so vendor/pyright/extracted matches vendor/pyright.lock.json')
   const files = walkFiles(EXTRACT)
-  check(`file count matches (${vman.fileCount})`, files.length === vman.fileCount, `${files.length} on disk`)
+  check(`file count matches (${vman.fileCount})`, files.length === vman.fileCount, `${files.length} on disk — re-run bun run scripts/vendor/fetch-pyright.ts to re-extract vendor/pyright/extracted`)
   const digest = sha256(files.map(f => `${f.rel} ${f.sha256}`).sort().join('\n'))
-  check('treeDigest recomputes identically from the bytes', digest === vman.treeDigest, digest.slice(0, 16))
-  check('server entry present', existsSync(join(EXTRACT, lock.serverEntry)))
-  check('licence preserved', existsSync(join(EXTRACT, 'LICENSE.txt')))
+  check('treeDigest recomputes identically from the bytes', digest === vman.treeDigest, digest.slice(0, 16) + ' — vendor/pyright/extracted differs from its manifest; re-run bun run scripts/vendor/fetch-pyright.ts')
+  check('server entry present', existsSync(join(EXTRACT, lock.serverEntry)), 're-run bun run scripts/vendor/fetch-pyright.ts; vendor/pyright/extracted lacks ' + lock.serverEntry)
+  check('licence preserved', existsSync(join(EXTRACT, 'LICENSE.txt')), 're-run bun run scripts/vendor/fetch-pyright.ts; vendor/pyright/extracted lacks LICENSE.txt')
 } else {
   console.log('  [SKIP — LOUD] no local vendor cache; run: bun run scripts/vendor/fetch-pyright.ts')
   failures++
@@ -102,16 +102,16 @@ if (existsSync(DIST_MANIFEST)) {
     pyright?: { vendored: boolean; version?: string; sha512?: string; serverEntry?: string; remedy?: string }
     degraded: string[]
   }
-  check('manifest carries the pyright record', m.pyright !== undefined)
+  check('manifest carries the pyright record', m.pyright !== undefined, 'build.ts must write a pyright record into dist/manifest.json; rebuild with bun run build.ts')
   if (m.pyright?.vendored) {
-    check('vendored claim ⇒ the server entry ships', existsSync(join(DIST_VENDOR, 'langserver.index.js')))
-    check('vendored version matches the lock', m.pyright.version === lock.version)
-    check('vendored sha512 matches the lock', m.pyright.sha512 === lock.sha512)
-    check("degraded[] carries no 'python-intelligence'", !m.degraded.includes('python-intelligence'))
+    check('vendored claim ⇒ the server entry ships', existsSync(join(DIST_VENDOR, 'langserver.index.js')), 'build.ts must copy vendor/pyright/extracted into dist/vendor/pyright when the manifest says vendored')
+    check('vendored version matches the lock', m.pyright.version === lock.version, 'dist/manifest.json is stale against vendor/pyright.lock.json; rebuild with bun run build.ts')
+    check('vendored sha512 matches the lock', m.pyright.sha512 === lock.sha512, 'dist/manifest.json is stale against vendor/pyright.lock.json; rebuild with bun run build.ts')
+    check("degraded[] carries no 'python-intelligence'", !m.degraded.includes('python-intelligence'), 'build.ts must not list python-intelligence in degraded when the manifest says pyright is vendored')
   } else {
-    check("not-vendored ⇒ degraded[] carries 'python-intelligence'", m.degraded.includes('python-intelligence') === true)
-    check('not-vendored ⇒ no tree ships', !existsSync(DIST_VENDOR))
-    check('not-vendored carries the remedy', typeof m.pyright?.remedy === 'string' && m.pyright.remedy.includes('fetch-pyright'))
+    check("not-vendored ⇒ degraded[] carries 'python-intelligence'", m.degraded.includes('python-intelligence') === true, 'build.ts must list python-intelligence in degraded when pyright is not vendored')
+    check('not-vendored ⇒ no tree ships', !existsSync(DIST_VENDOR), 'build.ts must not create dist/vendor/pyright when pyright is not vendored')
+    check('not-vendored carries the remedy', typeof m.pyright?.remedy === 'string' && m.pyright.remedy.includes('fetch-pyright'), 'build.ts must write a pyright.remedy naming fetch-pyright into dist/manifest.json')
   }
 } else {
   console.log('  [SKIP — LOUD] no dist/manifest.json; build first.')
@@ -134,14 +134,14 @@ section('(5) degraded-build seam (MERCURY_BUILD_NO_VENDOR_PYRIGHT=1, scratch out
         MERCURY_BUILD_TIME: '2026-01-01T00:00:00.000Z',
       },
     })
-    check('degraded build succeeds (pyright is optional)', r.status === 0, (r.stderr || r.stdout).slice(-300))
+    check('degraded build succeeds (pyright is optional)', r.status === 0, (r.stderr || r.stdout).slice(-300) + ' — build.ts must succeed with MERCURY_BUILD_NO_VENDOR_PYRIGHT=1')
     const m = JSON.parse(readFileSync(join(scratch, 'manifest.json'), 'utf8')) as {
       pyright?: { vendored: boolean; remedy?: string }
       degraded: string[]
     }
-    check('scratch manifest: vendored=false', m.pyright?.vendored === false)
-    check("scratch manifest: degraded includes 'python-intelligence'", m.degraded.includes('python-intelligence'))
-    check('scratch dist ships NO pyright tree', !existsSync(join(scratch, 'vendor', 'pyright')))
+    check('scratch manifest: vendored=false', m.pyright?.vendored === false, 'build.ts must honour MERCURY_BUILD_NO_VENDOR_PYRIGHT=1 by writing pyright.vendored false')
+    check("scratch manifest: degraded includes 'python-intelligence'", m.degraded.includes('python-intelligence'), 'build.ts must list python-intelligence in degraded under MERCURY_BUILD_NO_VENDOR_PYRIGHT=1')
+    check('scratch dist ships NO pyright tree', !existsSync(join(scratch, 'vendor', 'pyright')), 'build.ts must not copy the pyright tree under MERCURY_BUILD_NO_VENDOR_PYRIGHT=1')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

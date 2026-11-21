@@ -10,9 +10,10 @@ import {
 } from '../../src/components/mercuryPalette.js'
 
 let failures = 0
+const diffSpineHint = 'for a theme role, fix getTheme in src/utils/theme.ts or the DIFF_* constants in src/components/mercuryPalette.ts; for the CRLF line, fix getPatchForDisplay in src/utils/diff.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail} · ` : ''}${diffSpineHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -9,12 +9,21 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
+let hintSection = ''
+const failureHints: Array<[string, string]> = [
+  ['§1', 'getAssistantMessageFromError in src/services/api/errors.ts must paint an unrecognised 4xx as the status plus the provider sentence, unescaped, with no envelope bytes'],
+  ['§2', 'mapOpenaiHttpFailure in src/services/providers/openai/openaiWire.ts must carry the sentence the body stated, never the raw body'],
+  ['§3', 'mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts, compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel.ts and classifyCredentialWall in src/services/providers/credentialWall.ts'],
+  ['§4', 'the three roads (errors.ts, openaiWire.ts, compatChatCallModel.ts under src/services) must never put a brace or a different prefix on a transcript row'],
+]
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = failureHints.find(([mark]) => hintSection.startsWith(mark))?.[1]
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && hint ? ` — Fix: ${hint}` : ''}`)
 }
 function section(title: string): void {
+  hintSection = title
   console.log(`\n${title}`)
 }
 

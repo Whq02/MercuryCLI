@@ -131,7 +131,7 @@ if (ROAD === 'obligation') {
   const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
   const daemon = spawn('node', [BIN, 'daemon', 'run', CWD], { cwd: CWD, env: childEnv, stdio: ['ignore', logFd, logFd] })
   const daemonLog = (): string => (existsSync(join(SCRATCH, 'daemon.log')) ? readFileSync(join(SCRATCH, 'daemon.log'), 'utf8') : '')
-  check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), daemonLog().slice(-300))
+  check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), `${daemonLog().slice(-300)}; the daemon never logged control socket up within 60s, read daemon.log in the scratch folder`)
   const ESC = String.fromCharCode(27)
   type Grid = { grid: { c: string }[][]; marks?: { label: string; grid: { c: string }[][] }[] }
   const rowsOf = (g: { c: string }[][]): string[] => g.map(r => r.map(c => c.c || ' ').join('').replace(/\s+$/, ''))
@@ -160,10 +160,10 @@ if (ROAD === 'obligation') {
   } catch {
     payload = null
   }
-  check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+  check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}; scripts/ui/vshot.py must exit 0 and write grid.json, read its stderr above`)
   const markRows = (label: string): string[] => rowsOf((payload?.marks ?? []).find(m => m.label === label)?.grid ?? [])
   const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
-  check('the JPEG attached from disk (the chip landed)', composer(markRows('chip')).includes('[Image #1]'), composer(markRows('chip')))
+  check('the JPEG attached from disk (the chip landed)', composer(markRows('chip')).includes('[Image #1]'), `${composer(markRows('chip'))}; the pasted file path must attach as an image chip, see src/components/PromptInput/useComposerAttachments.ts`)
   const ledgerPath = join(DAEMON_DIR, 'concourse-dispatches.json')
   await untilAsync(() => existsSync(ledgerPath) && /obl-answer:/.test(readFileSync(ledgerPath, 'utf8')), 30_000)
   let count = 0
@@ -179,7 +179,7 @@ if (ROAD === 'obligation') {
     oblState = 'unreadable'
   }
   console.log(`  ${TAG}: the obligation-answer dispatch is '${oblState}', contentImageBlocks=${count}`)
-  check('the pasted image rode the obligation answer to the daemon (contentImageBlocks >= 1)', count >= 1, `contentImageBlocks=${count} on a '${oblState}' dispatch`)
+  check('the pasted image rode the obligation answer to the daemon (contentImageBlocks >= 1)', count >= 1, `contentImageBlocks=${count} on a '${oblState}' dispatch; the obligation answer must carry its image blocks into the dispatch record, see src/daemon/concourseDispatch.ts`)
   const requests = api.messageRequests()
   const wireImages = requests.flatMap(r => {
     const body = r.body as { messages?: { content?: unknown }[] }
@@ -190,7 +190,7 @@ if (ROAD === 'obligation') {
     check(
       'the provider request carried the image block',
       wireImages.length >= 1 && wireImages.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'),
-      `${requests.length} requests, ${wireImages.length} image blocks`,
+      `${requests.length} requests, ${wireImages.length} image blocks; the image must reach the provider request as a base64 block, see src/daemon/concourseDispatch.ts`,
     )
   } else {
     console.log(`  ${TAG}: no provider request landed in the window — the ledger count is the wire witness`)
@@ -231,7 +231,7 @@ const svg = Buffer.from(
 )
 await sharp(svg).png().toFile(clipboard)
 const clipboardMeta = await sharp(readFileSync(clipboard)).metadata()
-check('the fixture clipboard image is over the provider\'s 8000 px side', (clipboardMeta.width ?? 0) === 9000 && (clipboardMeta.height ?? 0) === 3000, `${clipboardMeta.width}x${clipboardMeta.height}`)
+check('the fixture clipboard image is over the provider\'s 8000 px side', (clipboardMeta.width ?? 0) === 9000 && (clipboardMeta.height ?? 0) === 3000, `${clipboardMeta.width}x${clipboardMeta.height}; the 9000x3000 fixture SVG built above did not render to that size`)
 
 const cfg = scenario('resume-2turn', 120, 40)
 writeSyntheticSession('short', SID)
@@ -251,7 +251,7 @@ const childEnv: Record<string, string> = {
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 const daemon = spawn('node', [BIN, 'daemon', 'run', CWD], { cwd: CWD, env: childEnv, stdio: ['ignore', logFd, logFd] })
 const daemonLog = (): string => (existsSync(join(SCRATCH, 'daemon.log')) ? readFileSync(join(SCRATCH, 'daemon.log'), 'utf8') : '')
-check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), daemonLog().slice(-300))
+check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), `${daemonLog().slice(-300)}; the daemon never logged control socket up within 60s, read daemon.log in the scratch folder`)
 
 const ESC = String.fromCharCode(27)
 const CTRL_V = String.fromCharCode(22)
@@ -285,29 +285,29 @@ try {
 } catch {
   payload = null
 }
-check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+check('the capture ran whole', res.status === 0 && payload !== null, `vshot exit ${res.status}: ${(res.stderr ?? '').slice(-400)}; scripts/ui/vshot.py must exit 0 and write grid.json, read its stderr above`)
 const markRows = (label: string): string[] => rowsOf((payload?.marks ?? []).find(m => m.label === label)?.grid ?? [])
 const finalRows = payload ? rowsOf(payload.grid) : []
 const everywhere = [...(payload?.marks ?? []).flatMap(m => rowsOf(m.grid)), ...finalRows].join('\n')
 const composer = (rows: string[]): string => rows.filter(r => r.includes('│❯')).join(' | ')
 
-check('the first paste lands as [Image #1]', composer(markRows('chip1')).includes('[Image #1]'), composer(markRows('chip1')))
-check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 3000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | '))
-check('the second paste keeps both chips', /\[Image #1\].*\[Image #2\]/.test(composer(markRows('chip2'))), composer(markRows('chip2')))
-check('a focus regain with an image on the clipboard tells the chord', /clipboard holds an image — \S+ attaches it/.test(markRows('hint').join('\n')), markRows('hint').filter(r => /clipboard/.test(r)).join(' | '))
-check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere))
-check('Enter sends the message (the composer clears, the turn runs)', !composer(markRows('reply')).includes('[Image #1]'), composer(markRows('reply')))
+check('the first paste lands as [Image #1]', composer(markRows('chip1')).includes('[Image #1]'), `${composer(markRows('chip1'))}; the clipboard image paste must add an [Image #1] chip, see src/components/PromptInput/useComposerAttachments.ts and src/utils/imagePaste.ts`)
+check('the composer says what was attached and what it was shrunk to', /\[Image #1\] attached — 9000x3000 shrunk to 3000x\d+ · [\d.]+(MB|KB)/.test(everywhere), [...everywhere.matchAll(/\[Image #1\] attached[^\n]*/g)].map(m => m[0]).join(' | ') + '; the attached notice is built in src/components/PromptInput/useComposerAttachments.ts and must say the original and shrunk sizes')
+check('the second paste keeps both chips', /\[Image #1\].*\[Image #2\]/.test(composer(markRows('chip2'))), `${composer(markRows('chip2'))}; a second paste must add [Image #2] beside [Image #1], see src/components/PromptInput/useComposerAttachments.ts`)
+check('a focus regain with an image on the clipboard tells the chord', /clipboard holds an image — \S+ attaches it/.test(markRows('hint').join('\n')), `${markRows('hint').filter(r => /clipboard/.test(r)).join(' | ')}; the focus-regain notice is built in src/hooks/useClipboardImageHint.ts`)
+check('Enter never meets the 1MB frame wall', !/request exceeds \d+MB/.test(everywhere), 'the control frame cap in src/daemon/controlServer.ts refused the send; the pasted image must be shrunk before it is sent')
+check('Enter sends the message (the composer clears, the turn runs)', !composer(markRows('reply')).includes('[Image #1]'), `${composer(markRows('reply'))}; Enter must send the message and clear the composer`)
 const replied = markRows('reply').join('\n').includes('Seen both.') || finalRows.join('\n').includes('Seen both.')
 console.log(`  ${TAG}: the fixture's reply ${replied ? 'painted' : 'had not painted by the reply mark\'s deadline'} (${(markRows('reply').find(r => /spend|ingesting|thinking/.test(r)) ?? '').trim().slice(0, 120)})`)
 const store = join(HOME, 'image-cache')
 const sessions = existsSync(store) ? readdirSync(store) : []
 const files = sessions.flatMap(s => readdirSync(join(store, s)).map(f => `${s}/${f}`))
-check('each paste is its own file in the session\'s image store', files.some(f => /\/1\.(png|jpeg)$/.test(f)) && files.some(f => /\/2\.(png|jpeg)$/.test(f)), files.join(', '))
+check('each paste is its own file in the session\'s image store', files.some(f => /\/1\.(png|jpeg)$/.test(f)) && files.some(f => /\/2\.(png|jpeg)$/.test(f)), `${files.join(', ')}; each paste must be saved as N.png or N.jpeg under image-cache in the config home, see src/utils/imageStore.ts`)
 for (const f of files) {
   try {
     const bytes = readFileSync(join(store, f))
     const meta = await sharp(bytes).metadata()
-    check(`${f} is the shrunk image (3000 px side, under the ceiling)`, Math.ceil(bytes.length / 3) * 4 <= 10 * 1024 * 1024 && (meta.width ?? 0) === 3000, `${meta.width}x${meta.height} · ${bytes.length} bytes`)
+    check(`${f} is the shrunk image (3000 px side, under the ceiling)`, Math.ceil(bytes.length / 3) * 4 <= 10 * 1024 * 1024 && (meta.width ?? 0) === 3000, `${meta.width}x${meta.height} · ${bytes.length} bytes; the stored image must be shrunk to a 3000 px side and stay under the 10 MB ceiling`)
   } catch (e) {
     check(`${f} decodes`, false, String(e))
   }
@@ -321,7 +321,7 @@ const imageBlocks = requests.flatMap(r => {
   return (body.messages ?? []).flatMap(m => (Array.isArray(m.content) ? (m.content as { type: string }[]).filter(b => b.type === 'image') : []))
 })
 console.log(`  ${TAG}: ${requests.length} request(s) reached the fixture (${requests.map(r => r.path).join(', ')}), ${imageBlocks.length} image block(s) across them — ${landed ? `on the wire ${((Date.now() - wireT0) / 1000).toFixed(1)}s after the capture` : `none within ${(wireWaitMs / 1000).toFixed(0)}s of the capture`}`)
-check('the wire carried the two images as base64 blocks', imageBlocks.length >= 2 && imageBlocks.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'), `${requests.length} requests, ${imageBlocks.length} image blocks`)
+check('the wire carried the two images as base64 blocks', imageBlocks.length >= 2 && imageBlocks.every(b => (b as { source?: { type?: string } }).source?.type === 'base64'), `${requests.length} requests, ${imageBlocks.length} image blocks; both pasted images must ride the message as base64 image blocks`)
 
 if (failures > 0) {
   for (const label of ['t10', 't30', 't60', 'chip1', 'second-t10', 'chip2', 'hint', 'reply']) {

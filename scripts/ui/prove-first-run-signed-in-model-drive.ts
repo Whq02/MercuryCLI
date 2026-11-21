@@ -31,9 +31,9 @@ const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'first-run
 if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 
 const DEAD = 'http://127.0.0.1:9'
@@ -192,18 +192,18 @@ for (const [cols, rows] of SIZES) {
     const wire = readFileSync(captureFile, 'utf8').split('\n').filter(Boolean).map(line => JSON.parse(line) as Wire)
     const face = frameOf('face')
     const chat = frameOf('chat')
-    check(`${tag}: the drive delivered every send (exit 0)`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}; exit ${status}`)
-    check(`${tag}: the walk's sign-in landed through the device code (usercode, polls, the token exchange)`, wire.some(e => e.kind === 'usercode') && wire.some(e => e.kind === 'token'), wire.map(e => e.kind).join(','))
-    check(`${tag}: the account's live list was read after the sign-in`, wire.some(e => e.kind === 'models'), wire.map(e => e.kind).join(','))
+    check(`${tag}: the drive delivered every send (exit 0)`, status === 0 && payload.sendReceipts?.length === sends.length, `${payload.sendReceipts?.length}/${sends.length}; ${payload.endReason}; exit ${status}`, 'a screen in the walk never painted its awaitText; re-run with --frames <dir> --keep 1 and read the last frame written to see which step (theme, provider, device code, guardrails, terminal, trust, face, chat) stalled')
+    check(`${tag}: the walk's sign-in landed through the device code (usercode, polls, the token exchange)`, wire.some(e => e.kind === 'usercode') && wire.some(e => e.kind === 'token'), wire.map(e => e.kind).join(','), 'the OpenAI device-code sign-in did not reach the fixture token endpoint; read src/components/OpenaiConnect.tsx and the MERCURY_OPENAI_AUTH_BASE handling in src/substrate/flags/providers.ts')
+    check(`${tag}: the account's live list was read after the sign-in`, wire.some(e => e.kind === 'models'), wire.map(e => e.kind).join(','), 'after sign-in the account live model list must be fetched; see fetchOpenaiLiveModels in src/services/providers/openai/openaiClient.ts and who calls it after the sign-in completes')
     const modelRow = rowWith(face, 'Model ')
     if (cols >= 160) {
-      check(`${tag}: the Boot face's model line names the signed-in account's newest usable row (${NEWEST})`, modelRow.includes(NEWEST), modelRow)
-      check(`${tag}: the Boot face's model line names no Claude row`, modelRow !== '' && !/Opus|Sonnet|Fable|Haiku/.test(modelRow), modelRow)
-      check(`${tag}: the Boot face's status line carries Dir:`, modelRow.includes('Dir:'), modelRow)
+      check(`${tag}: the Boot face's model line names the signed-in account's newest usable row (${NEWEST})`, modelRow.includes(NEWEST), modelRow, 'the Boot face must pick the signed-in account newest usable row from its live list (priority 1 in the fixture catalogue); read how the live list from fetchOpenaiLiveModels in src/services/providers/openai/openaiClient.ts becomes the default model')
+      check(`${tag}: the Boot face's model line names no Claude row`, modelRow !== '' && !/Opus|Sonnet|Fable|Haiku/.test(modelRow), modelRow, 'a Claude default leaks into a fresh OpenAI sign-in; the default model for a signed-in OpenAI account must come from that account list, not from a Claude fallback')
+      check(`${tag}: the Boot face's status line carries Dir:`, modelRow.includes('Dir:'), modelRow, 'the Boot face status line must still carry Dir: after the model name; the model name may have grown past the width')
     } else {
-      check(`${tag}: the Boot face paints no Claude row as the model`, face !== '' && !/Model (Opus|Sonnet|Fable|Haiku)/.test(face), rowWith(face, 'Model '))
+      check(`${tag}: the Boot face paints no Claude row as the model`, face !== '' && !/Model (Opus|Sonnet|Fable|Haiku)/.test(face), rowWith(face, 'Model '), 'the compact Boot face must not default to a Claude model after an OpenAI sign-in; the default must come from the signed-in account list')
     }
-    check(`${tag}: the chat's first frame names ${NEWEST} and no Claude row as its model`, (chat.includes(NEWEST) || chat.includes(NEWEST_ID)) && !/Opus 5|Fable 5|Sonnet 5/.test(chat), chat.split('\n').filter(l => /Opus|Fable|Sonnet|GPT|gpt-/.test(l)).map(l => l.trim()).join(' | '))
+    check(`${tag}: the chat's first frame names ${NEWEST} and no Claude row as its model`, (chat.includes(NEWEST) || chat.includes(NEWEST_ID)) && !/Opus 5|Fable 5|Sonnet 5/.test(chat), chat.split('\n').filter(l => /Opus|Fable|Sonnet|GPT|gpt-/.test(l)).map(l => l.trim()).join(' | '), 'the chat must start on the model the Boot face showed (the signed-in account newest row), not a Claude row')
   } finally {
     await new Promise<void>(done => {
       execFile(NODE, [DIST, 'daemon', 'stop'], { env, cwd, timeout: 30_000 }, () => done())

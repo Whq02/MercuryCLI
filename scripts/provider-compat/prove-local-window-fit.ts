@@ -13,11 +13,25 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
+const FIT_HINTS: Record<string, string> = {
+  '1': 'change decideLocalWindow or chooseLocalWindow in src/services/providers/local/localWindow.ts (the automatic ceiling and the words), or the discovery record in src/services/providers/local/localDiscovery.ts',
+  '2': 'change fitLocalWindow, localWindowRefusal or the rung words in src/services/localServer/localWindowFit.ts, or the memory arithmetic in src/services/localServer/localServerMemory.ts',
+  '3': 'change decideLocalWindow (hold and setting handling) in src/services/providers/local/localWindow.ts',
+  '4': 'change chooseLocalWindow or doubledRequestWindow in src/services/providers/local/localWindow.ts (the unread-machine fallback and its words)',
+  '5': 'change localCallModel in src/services/providers/local/localCallModel.ts or decideLocalWindow in src/services/providers/local/localWindow.ts so the first send carries the held num_ctx',
+  '6': 'change localWindowChoiceLine, localWindowValueWords, localWindowReasonTag or localWindowRuleWords in src/services/providers/local/localWindow.ts, or localModelWindowRow in src/components/Settings/config/configRowFacts.ts',
+  '7': 'change chooseWindowFrom or chooseWindow in src/services/localSetup/setupWindow.ts so step 5 matches chooseLocalWindow in src/services/providers/local/localWindow.ts',
+  '8': 'change the hybrid geometry (kvGeometryOf) in src/services/localServer/localServerMemory.ts or the measured arm in src/services/localServer/localWindowFit.ts',
+  '9': 'change localWindowRoomWarning or localWindowRoomFloor in src/services/localServer/localWindowFit.ts',
+}
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && sectionHint ? `${detail ? `${detail} · ` : ''}${sectionHint}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = FIT_HINTS[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 function finish(): never {

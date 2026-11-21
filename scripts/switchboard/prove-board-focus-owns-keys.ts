@@ -18,6 +18,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix: legend rows and key law live in regionKeysFor, newSessionTabLabel and helpKeyFiresFor (src/components/concourse/controlManifest.ts); the New Session line words in newSessionDoorWords (src/components/concourse/layout/shared.ts); the frame checks read the built bundle, so rebuild with bun run build.ts before judging them')
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 

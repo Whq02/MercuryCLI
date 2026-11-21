@@ -8,7 +8,7 @@ import { DAEMON_USAGE, looksLikeDirectoryArg, parseDaemonVerb, START_TOKEN_SKEW_
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: src/daemon/verbs.ts (parseDaemonVerb, DAEMON_USAGE, staleStopVerdict, daemonRecordIdentity); the live-verb checks of section 6 run scripts/daemon/hosted-caller-client.ts`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

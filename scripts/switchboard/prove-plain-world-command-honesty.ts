@@ -22,9 +22,9 @@ const API_KEY = 'fixture-key-000'
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fixHint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
 const home = mkdtempSync(join(tmpdir(), 'plainworld-honesty-home-'))
@@ -113,7 +113,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`, 'a send of the drive ladder never fired because the screen text it waits for did not appear: read the drive file under the scratch home and rebuild with bun run build.ts if dist is stale')
 const submitAt = Math.round((sendRecs[4]?.sent ?? firstOut) - firstOut)
 
 const res = spawnSync(
@@ -131,8 +131,10 @@ const joined = screens.map(s => s.rows.join('\n')).join('\n@@@\n')
 check(
   '§1 the honest plain-world sentence paints (the router speaks)',
   /opens a Session Concourse surface/.test(joined) && /off in this boot/.test(joined),
+  '',
+  'typing a Concourse-only command such as /crew in a plain-world boot must paint the sentence built in src/services/processUserInput/processSlashCommand.tsx (the The /name command opens a Session Concourse surface line)',
 )
-check('§2 POISON: the headless-form refusal never paints', !/no headless form/.test(joined))
+check('§2 POISON: the headless-form refusal never paints', !/no headless form/.test(joined), '', 'the plain-world /crew must not paint the headless-form refusal: see the branch order in src/services/processUserInput/processSlashCommand.tsx')
 const projectsDir = join(configDir, 'projects')
 let transcriptBytes = ''
 if (existsSync(projectsDir)) {
@@ -143,19 +145,21 @@ if (existsSync(projectsDir)) {
     }
   }
 }
-check('§3 a transcript exists (the seeded turn persisted)', transcriptBytes.includes('hello plain world'))
+check('§3 a transcript exists (the seeded turn persisted)', transcriptBytes.includes('hello plain world'), '', 'the first typed turn was not written under projects/ in the scratch config folder: the drive never reached the first reply, read the drive file')
 check(
   '§3 NO transcript byte carries the gated command or a refusal sentence',
   !transcriptBytes.includes('/crew') && !transcriptBytes.includes('no headless form') && !transcriptBytes.includes('Session Concourse surface'),
+  '',
+  'the gated /crew line and the router reply must not be written to the transcript: see the plain-world branch in src/services/processUserInput/processSlashCommand.tsx',
 )
 const doubled = /· ready · [^\n·]+ · ready/
-check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean')
+check('§3b the status row never repeats "· <project> · ready" twice', !doubled.test(joined), joined.split('\n').filter(r => doubled.test(r)).map(r => r.trim().slice(0, 110)).join(' | ') || 'clean', 'the status row paints the project and ready twice; the row text is printed above')
 const titleRows = joined.split('\n').filter(r => /✶ VIEW/.test(r))
 const statusRows = joined.split('\n').filter(r => /^ ?ready · |· thinking|· running a tool|· replying|esc interrupts/.test(r))
-check('§3c no title row paints and "new session" is nowhere after the first words; the status row leads with the model and its effort while a turn runs and rests on ready · the model · the effort, the folder at its right end', titleRows.length === 0 && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith('Opus 5.5 · ') || r.trimStart().startsWith('ready · Opus 5.5')) && statusRows.some(r => new RegExp(`^ ?ready · Opus 5\\.5 · \\S+ {2,}${basename(cwd)}(?: ⌥ \\S+)? {2}`).test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row')
+check('§3c no title row paints and "new session" is nowhere after the first words; the status row leads with the model and its effort while a turn runs and rests on ready · the model · the effort, the folder at its right end', titleRows.length === 0 && !/new session/.test(joined) && statusRows.length > 0 && statusRows.every(r => r.trimStart().startsWith('Opus 5.5 · ') || r.trimStart().startsWith('ready · Opus 5.5')) && statusRows.some(r => new RegExp(`^ ?ready · Opus 5\\.5 · \\S+ {2,}${basename(cwd)}(?: ⌥ \\S+)? {2}`).test(r)) && !statusRows.some(r => r.includes(`${basename(cwd)} · ready`)), [...titleRows.slice(0, 1), ...statusRows.slice(0, 1)].map(r => r.trim().slice(0, 100)).join(' | ') || 'no title or status row', 'expected no title row, no new session text, and a status row that leads with the model and effort and rests on ready, the model, the effort, then the folder; the rows seen are printed above')
 const typedNeedle = /(?<![:/\w])\/crew\b/
 const wireHits = api.requests.filter((r: { raw: string }) => typedNeedle.test(r.raw))
-check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`)
+check('§4 the wire never saw /crew', wireHits.length === 0, `${wireHits.length} of ${api.requests.length}`, 'the typed /crew line reached the model request: the plain-world slash command must be answered locally in src/services/processUserInput/processSlashCommand.tsx, the wire evidence is printed below')
 for (const hit of wireHits.slice(0, 2)) {
   const raw = (hit as { raw: string }).raw
   const idx = raw.search(typedNeedle)

@@ -5,9 +5,10 @@ process.env.NODE_ENV = 'test'
 import { join } from 'node:path'
 
 let failures = 0
+const launchPlanChangeHint = ' — change: buildAgentLaunchPlan in src/services/crew/agentLaunchPlan.ts must resolve the type, model, isolation, async decision or worker mode this check names (the roster comes from getBuiltInAgents in src/tools/AgentTool/builtInAgents.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? launchPlanChangeHint : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

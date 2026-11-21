@@ -11,8 +11,10 @@ process.env.NODE_ENV = 'test'
 const { shimContent, powershellEntryContent } = await import('../../src/services/privateChannel/installLayout.ts')
 
 let failures = 0
+const SHIM_FAIL_HINT = 'change shimContent (the cmd and POSIX shim text) or powershellEntryContent (the PowerShell entry) in src/services/privateChannel/installLayout.ts so the shim reads and guards the current.txt pointer as this check expects'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : detail ? `${detail} | hint: ${SHIM_FAIL_HINT}` : SHIM_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

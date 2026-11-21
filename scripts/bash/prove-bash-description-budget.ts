@@ -40,44 +40,45 @@ const text = getSimplePrompt(new Set(POOL))
 const size = bytes(text)
 const fields = (BashTool as { inputJSONSchema: { properties: Record<string, { description?: string }> } }).inputJSONSchema.properties
 const field = (name: string): string => fields[name]?.description ?? ''
-check(`the description is at most 800 bytes, a fifth of .28's 7,126 (${size})`, size <= 800, `${size} bytes`)
-check('it opens with what the tool runs and what comes back', text.startsWith('Runs one shell command and returns its output, stdout and stderr merged in the order written.'))
-check('it says once who sees the output', text.includes('The output comes back to you; the operator sees at most a folded preview.'))
-check('the output rule names the inline size, the saved file with its path and the preview', text.includes('Up to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end.'))
-check('the exit-1 rule lists which and command -v beside grep and the others', text.includes('grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`'))
-check('the shell rule says what persists and what does not, and where', text.includes("In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do"))
-check('three paragraphs on this branch: the tool, its output, its shell', text.split('\n\n').length === 3, String(text.split('\n\n').length))
+const budgetWhere = ' | edit getSimplePrompt or the describe functions in src/tools/BashTool/prompt.ts (field texts are built in buildModelSchema in src/tools/BashTool/BashTool.tsx)'
+check(`the description is at most 800 bytes, a fifth of .28's 7,126 (${size})`, size <= 800, `${size} bytes | shorten the text getSimplePrompt returns in src/tools/BashTool/prompt.ts; move facts into the field descriptions`)
+check('it opens with what the tool runs and what comes back', text.startsWith('Runs one shell command and returns its output, stdout and stderr merged in the order written.'), text.slice(0, 200) + budgetWhere)
+check('it says once who sees the output', text.includes('The output comes back to you; the operator sees at most a folded preview.'), text.slice(0, 300) + budgetWhere)
+check('the output rule names the inline size, the saved file with its path and the preview', text.includes('Up to 30000 characters come back inline; a longer output is saved to a file, and the result carries its path with about 2000 characters from its start and end.'), 'the output paragraph of getSimplePrompt comes from buildOutputParagraph in src/tools/BashTool/prompt.ts' + budgetWhere)
+check('the exit-1 rule lists which and command -v beside grep and the others', text.includes('grep, rg, find, diff, cmp, pgrep, test, `[`, which or `command -v`'), 'the exit-1 rule is missing from the output paragraph of getSimplePrompt' + budgetWhere)
+check('the shell rule says what persists and what does not, and where', text.includes("In the main conversation the working directory persists between calls (a crewmate's does not); shell variables, functions and options never do"), text.slice(-400) + budgetWhere)
+check('three paragraphs on this branch: the tool, its output, its shell', text.split('\n\n').length === 3, String(text.split('\n\n').length) + ' | getSimplePrompt in src/tools/BashTool/prompt.ts must join exactly three paragraphs on the default engine')
 console.log(`  paragraph bytes: ${text.split('\n\n').map(p => bytes(p)).join(' · ')}`)
 
 section('§2 each fact lives once, in the field that causes it')
-check('the timeout field alone carries the default, the maximum, the move to the background, the task id and the sleep exception', /^Milliseconds the call waits \(default 120000, max 600000\)\. When it passes, the command moves to the background and keeps running, and the result names the task id TaskStop takes; a `sleep`-first command, or any command under the shell engine, is killed instead\.$/.test(field('timeout')) && !text.includes('timeout') && !text.includes('`sleep`'))
-check('the run_in_background field alone carries the lifetime: the exit notice, and the stop when the run that started it ends', field('run_in_background').includes('A notice with its exit code reaches you when it ends; the command is stopped when the run that started it ends.') && !text.includes('run_in_background') && !text.includes('Background:'))
-check('the max_output_chars field alone carries the cap, the floor, the clamp and the head-and-tail cut', field('max_output_chars').includes('Default and cap 30000, floor 512') && field('max_output_chars').includes('head and tail around a notice of the cut') && !text.includes('max_output_chars') && !text.includes('512'))
-check('the description field asks for a few words shown to the operator, with no example and no forbidden words', field('description') === 'A few words naming what the command does, shown to the operator.')
+check('the timeout field alone carries the default, the maximum, the move to the background, the task id and the sleep exception', /^Milliseconds the call waits \(default 120000, max 600000\)\. When it passes, the command moves to the background and keeps running, and the result names the task id TaskStop takes; a `sleep`-first command, or any command under the shell engine, is killed instead\.$/.test(field('timeout')) && !text.includes('timeout') && !text.includes('`sleep`'), field('timeout') + ' | the timeout facts live only in describeTimeout in src/tools/BashTool/prompt.ts; remove timeout or sleep words from getSimplePrompt')
+check('the run_in_background field alone carries the lifetime: the exit notice, and the stop when the run that started it ends', field('run_in_background').includes('A notice with its exit code reaches you when it ends; the command is stopped when the run that started it ends.') && !text.includes('run_in_background') && !text.includes('Background:'), field('run_in_background') + ' | the lifetime facts live only in describeRunInBackground in src/tools/BashTool/prompt.ts; remove them from getSimplePrompt')
+check('the max_output_chars field alone carries the cap, the floor, the clamp and the head-and-tail cut', field('max_output_chars').includes('Default and cap 30000, floor 512') && field('max_output_chars').includes('head and tail around a notice of the cut') && !text.includes('max_output_chars') && !text.includes('512'), field('max_output_chars') + ' | the budget facts live only in describeMaxOutputChars in src/tools/BashTool/prompt.ts; remove them from getSimplePrompt')
+check('the description field asks for a few words shown to the operator, with no example and no forbidden words', field('description') === 'A few words naming what the command does, shown to the operator.', field('description') + ' | edit describeCommandDescription in src/tools/BashTool/prompt.ts')
 
 section('§3 what the description no longer carries: other tools, incident rules, repeats')
 for (const name of ['Glob', 'Grep', 'Read', 'Edit', 'Write', 'WebFetch', 'Browser', 'Service', 'TaskStop', 'ToolSearch', 'Test', 'Debug']) {
-  check(`no other tool is described: ${name}`, !new RegExp(`\\b${name}\\b`).test(text))
+  check(`no other tool is described: ${name}`, !new RegExp(`\\b${name}\\b`).test(text), 'remove the mention of ' + name + ' from getSimplePrompt in src/tools/BashTool/prompt.ts; other tools are described in their own definitions')
 }
 for (const phrase of ['watchdog', 'Never poll', 'install a browser driver', 'bare newline', 'Prefer the dedicated tools', 'Chain dependent commands', 'identify Mercury honestly', 'Semantic shortcut', 'Use `Test`']) {
-  check(`no incident rule: "${phrase}"`, !text.includes(phrase))
+  check(`no incident rule: "${phrase}"`, !text.includes(phrase), 'remove this phrase from getSimplePrompt in src/tools/BashTool/prompt.ts')
 }
-check('no git workflow, no instructions list, no sandbox words, no trailing blank', !text.includes('# Committing changes with git') && !text.includes('gh pr create') && !text.includes('# Instructions') && !/sandbox/i.test(text) && !text.endsWith('\n'))
-check('the pool does not change the text: no tool is named, so none is withheld', getSimplePrompt(new Set(['Bash'])) === text && getSimplePrompt(null) === text)
+check('no git workflow, no instructions list, no sandbox words, no trailing blank', !text.includes('# Committing changes with git') && !text.includes('gh pr create') && !text.includes('# Instructions') && !/sandbox/i.test(text) && !text.endsWith('\n'), 'getSimplePrompt in src/tools/BashTool/prompt.ts carries git workflow, instructions, sandbox words or a trailing newline; remove them')
+check('the pool does not change the text: no tool is named, so none is withheld', getSimplePrompt(new Set(['Bash'])) === text && getSimplePrompt(null) === text, 'getSimplePrompt in src/tools/BashTool/prompt.ts must ignore its offered-tools argument')
 
 section('§4 the whole definition as the wire carries it')
 const definition = JSON.stringify({ name: 'Bash', description: text, input_schema: (BashTool as { inputJSONSchema: unknown }).inputJSONSchema, eager_input_streaming: true })
-check(`the definition with eager_input_streaming is at most 2,400 bytes (${bytes(definition)}; .28 sent 9,302, 1.0.4 sent 4,138 + the envelope)`, bytes(definition) <= 2400, `${bytes(definition)} bytes`)
+check(`the definition with eager_input_streaming is at most 2,400 bytes (${bytes(definition)}; .28 sent 9,302, 1.0.4 sent 4,138 + the envelope)`, bytes(definition) <= 2400, `${bytes(definition)} bytes | shorten the description (getSimplePrompt in src/tools/BashTool/prompt.ts) or the field texts of the input schema (buildModelSchema in src/tools/BashTool/BashTool.tsx)`)
 
 section('§5 the brush engine variant')
 process.env.MERCURY_SHELL_ENGINE = 'brush'
 const brush = resolveShellEngine()
 if (brush.engine === 'brush') {
   const brushText = getSimplePrompt(new Set(POOL))
-  check('under the brush engine the timeout rule says the command is killed (exit 143) and the session resets', brushText.includes('When `timeout` passes, the command is killed (exit 143) and the shell session resets.'), brushText.slice(0, 600))
-  check('…and never says it moves to the background', !brushText.includes('moves to the background'))
-  check('the engine session paragraphs say what one session is, what resets it, and the ceiling', brushText.includes('One shell session serves the whole conversation') && brushText.includes('resets the session') && (brushText.includes('engine sessions are kept alive at once') || brushText.includes('The shell.sessions setting is 1')))
-  check(`the brush description is under 1,500 bytes (${bytes(brushText)})`, bytes(brushText) <= 1500)
+  check('under the brush engine the timeout rule says the command is killed (exit 143) and the session resets', brushText.includes('When `timeout` passes, the command is killed (exit 143) and the shell session resets.'), 'getSimplePrompt in src/tools/BashTool/prompt.ts must add that sentence on the engine shell | ' + brushText.slice(0, 600))
+  check('…and never says it moves to the background', !brushText.includes('moves to the background'), 'remove the moves-to-the-background wording from the brush branch of getSimplePrompt in src/tools/BashTool/prompt.ts')
+  check('the engine session paragraphs say what one session is, what resets it, and the ceiling', brushText.includes('One shell session serves the whole conversation') && brushText.includes('resets the session') && (brushText.includes('engine sessions are kept alive at once') || brushText.includes('The shell.sessions setting is 1')), 'the engine session paragraphs of getSimplePrompt in src/tools/BashTool/prompt.ts lost one of: what a session is, what resets it, the ceiling | ' + brushText.slice(0, 600))
+  check(`the brush description is under 1,500 bytes (${bytes(brushText)})`, bytes(brushText) <= 1500, 'shorten the brush branch of getSimplePrompt in src/tools/BashTool/prompt.ts')
 } else {
   console.log(`  [INFO] the brush engine does not resolve here (${brush.reason}); the variant is not measured on this box`)
 }

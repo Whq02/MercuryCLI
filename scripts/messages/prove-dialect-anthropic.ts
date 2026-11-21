@@ -81,6 +81,8 @@ async function captureBody(messages: import('../../src/types/message.ts').Messag
   return captured.body
 }
 
+const anthropicWireHint = 'fix how queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts builds the request body or folds the stream'
+
 function pinnedBody(body: Record<string, unknown>): Record<string, unknown> {
   const clone = JSON.parse(JSON.stringify(body)) as Record<string, unknown>
   if (typeof clone.metadata?.user_id === 'string') clone.metadata = '<id>'
@@ -99,26 +101,28 @@ section('the fixture conversation request — byte-pinned (canonical JSON)')
   if (process.env.DIALECT_PRINT === '1') console.log('  PRINTED: ' + pinWire(canonicalJson(body)))
   console.log('  body: ' + pinWire(canonicalJson(body)).slice(0, 900))
   const messages = body.messages as Array<Record<string, unknown>>
-  check('the body is an object with messages', Array.isArray(messages))
+  check('the body is an object with messages', Array.isArray(messages), anthropicWireHint)
   const roles = messages.map(m => `${m.role}`)
   check(
     'roles alternate user/assistant with no empty rows',
     roles.length >= 6 && roles.every(r => r === 'user' || r === 'assistant') && !roles.includes(''),
-    roles.join(','),
+    `${anthropicWireHint}; roles: ${roles.join(',')}`,
   )
   const wire = pinWire(canonicalJson(body))
   check(
     'the opus thinking blocks are NOT on this sonnet-bound wire (thinking disabled strips every thinking block by law)',
     !wire.includes('sig-fixture-opus-1') && !wire.includes('sig-fixture-opus-2') && !wire.includes('sig-fixture-sonnet-1'),
+    anthropicWireHint + ' so thinking blocks are stripped when thinking is disabled',
   )
-  check('the image rides as a base64 source block', wire.includes('aWF0dG9rZW4='))
-  check('both tool calls and both results ride, paired', wire.includes('"toolu_A"') && wire.includes('"toolu_B"'))
+  check('the image rides as a base64 source block', wire.includes('aWF0dG9rZW4='), anthropicWireHint + ' so the image block keeps its base64 source')
+  check('both tool calls and both results ride, paired', wire.includes('"toolu_A"') && wire.includes('"toolu_B"'), anthropicWireHint + ' so tool_use and tool_result ids stay paired')
   check(
     `the billing header names the client-contract version the constant carries (${ANTHROPIC_CLIENT_CONTRACT_VERSION})`,
     canonicalJson(body).includes(`cc_version=${ANTHROPIC_CLIENT_CONTRACT_VERSION}.`),
+    'the billing header must carry ANTHROPIC_CLIENT_CONTRACT_VERSION from src/constants/oauth.ts; ' + anthropicWireHint,
   )
   const GOLDEN_BODY = `{"diagnostics":{"previous_message_id":"msg_o1"},"max_tokens":128000,"messages":[{"content":[{"text":"Count the words in my notes file.","type":"text"}],"role":"user"},{"content":[{"text":"I will read the file first.","type":"text"}],"role":"assistant"},{"content":[{"text":"here is the screenshot of the file too","type":"text"},{"source":{"data":"aWF0dG9rZW4=","media_type":"image/png","type":"base64"},"type":"image"}],"role":"user"},{"content":[{"text":"Reading and counting now.","type":"text"},{"id":"toolu_A","input":{"file_path":"/proj/notes.txt"},"name":"Read","type":"tool_use"},{"id":"toolu_B","input":{"command":"wc -w /proj/notes.txt"},"name":"Bash","type":"tool_use"}],"role":"assistant"},{"content":[{"content":[{"text":"the quick brown fox jumps over the lazy dog","type":"text"}],"tool_use_id":"toolu_A","type":"tool_result"},{"content":[{"text":"9 words","type":"text"}],"is_error":false,"tool_use_id":"toolu_B","type":"tool_result"}],"role":"user"},{"content":[{"text":"The file holds nine words.","type":"text"}],"role":"assistant"},{"content":[{"cache_control":{"type":"ephemeral"},"text":"Summarise what you found in one sentence.","type":"text"}],"role":"user"}],"metadata":"<id>","model":"claude-sonnet-5","output_config":{"effort":"high"},"stream":true,"system":[{"text":"x-anthropic-billing-header: cc_version=<cc>.<fp>;cc_entrypoint=unknown;","type":"text"},{"cache_control":{"type":"ephemeral"},"text":"You are the dialect fixture.","type":"text"}],"tools":[]}`
-  check('the composed body is byte-identical to the golden (two system blocks: the billing header, then the caller prompt — no identity prefix between them; the cache diagnostics field names the previous response)', wire === GOLDEN_BODY, `first divergence near ${firstDivergence(wire, GOLDEN_BODY)}`)
+  check('the composed body is byte-identical to the golden (two system blocks: the billing header, then the caller prompt — no identity prefix between them; the cache diagnostics field names the previous response)', wire === GOLDEN_BODY, `${anthropicWireHint}, or update GOLDEN_BODY here if the wire change is intended; first divergence near ${firstDivergence(wire, GOLDEN_BODY)}`)
 }
 
 function firstDivergence(a: string, b: string): string {
@@ -132,18 +136,18 @@ section('the two-model compaction shape (finding 9) — the request a sonnet-bou
   const body = pinnedBody(await captureBody(TWO_MODEL_COMPACTION))
   if (process.env.DIALECT_PRINT === '1') console.log('  PRINTED: ' + pinWire(canonicalJson(body)))
   const wire = pinWire(canonicalJson(body))
-  check('the opus thinking stays off the sonnet-bound request', !wire.includes('sig-fixture-opus') && !wire.includes('opus weighed'))
+  check('the opus thinking stays off the sonnet-bound request', !wire.includes('sig-fixture-opus') && !wire.includes('opus weighed'), anthropicWireHint + ' so thinking from another model is dropped')
   const messages = body.messages as Array<Record<string, unknown>>
   const opusRow = messages.find(m => canonicalJson(m).includes('tool sketch'))
   check(
     'the opus text row survives as a plain text assistant row (no placeholder, no empty content)',
     opusRow !== undefined && !canonicalJson(opusRow).includes('[reasoning written by another model'),
-    opusRow ? canonicalJson(opusRow).slice(0, 220) : 'row missing',
+    `${anthropicWireHint}; ` + (opusRow ? canonicalJson(opusRow).slice(0, 220) : 'row missing'),
   )
   check(
     'every assistant row carries non-empty content and every tool_use has its result (the lawful-shape check)',
     messages.every(m => Array.isArray(m.content) && (m.content as unknown[]).length > 0) && !wire.includes('[Tool result missing due to internal error]'),
-    canonicalJson(messages.map(m => (m.content as unknown[]).length)),
+    `${anthropicWireHint}; content lengths: ` + canonicalJson(messages.map(m => (m.content as unknown[]).length)),
   )
 }
 
@@ -151,14 +155,14 @@ section('a virtual (display-only) row never reaches the wire')
 {
   const withVirtual = [...DIALECT_CONVERSATION.slice(0, 2), VIRTUAL_ROW as never, ...DIALECT_CONVERSATION.slice(2)]
   const body = pinnedBody(await captureBody(withVirtual))
-  check('the virtual row is absent from the composed request', !canonicalJson(body).includes('a display-only row'))
+  check('the virtual row is absent from the composed request', !canonicalJson(body).includes('a display-only row'), anthropicWireHint + ' so virtual rows are filtered out')
 }
 
 section('the structured-output ask rides the output_config the wire documents')
 {
   const body = pinnedBody(await captureBody(DIALECT_CONVERSATION, { outputFormat: STRUCTURED_OUTPUT_ASK as never }))
   const wire = canonicalJson(body.output_config)
-  check('output_config.format carries the json_schema ask', wire.includes('json_schema') && wire.includes('word_count'), wire.slice(0, 200))
+  check('output_config.format carries the json_schema ask', wire.includes('json_schema') && wire.includes('word_count'), `${anthropicWireHint} so outputFormat lands in output_config; got ${wire.slice(0, 200)}`)
 }
 
 section('the stream side — fixture SSE frames fold into the lane\'s own content blocks')
@@ -209,16 +213,16 @@ section('the stream side — fixture SSE frames fold into the lane\'s own conten
   }
   clearTimeout(deadline)
   const settled = rows.at(-1)
-  check('the lane settled one assistant message', settled !== undefined)
+  check('the lane settled one assistant message', settled !== undefined, anthropicWireHint + ' so a finished stream yields an assistant message')
   if (settled) {
     const blocks = settled.message.content.map(b => ({ ...(b as object) }))
     check(
       'the stream settled exactly one text block with the wire\'s own words (the streamed thinking block rides its own row)',
       settled.message.content.length === 1 && (settled.message.content[0] as { type?: string; text?: string }).type === 'text'
         && (settled.message.content[0] as { text?: string }).text === 'Nine words, four of them unique.',
-      JSON.stringify(blocks).slice(0, 300),
+      `${anthropicWireHint}; blocks: ` + JSON.stringify(blocks).slice(0, 300),
     )
-    check('the settled row carries the stream\'s model and id', settled.message.model === 'claude-sonnet-5' && settled.message.id === 'msg_fixture_stream')
+    check('the settled row carries the stream\'s model and id', settled.message.model === 'claude-sonnet-5' && settled.message.id === 'msg_fixture_stream', anthropicWireHint + ' so the settled row keeps the stream model and message id')
   }
 }
 

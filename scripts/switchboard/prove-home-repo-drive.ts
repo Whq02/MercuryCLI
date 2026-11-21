@@ -28,9 +28,9 @@ const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -223,16 +223,16 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
     : null
   const c = await shown
   delete process.env.MERCURY_DAEMON_DIR
-  check('D1 the launch was asked of the daemon while the board was on screen, and the daemon did not start it', boardUp && asked !== null && asked.ok !== true && asked.sessionId === undefined, JSON.stringify(asked).slice(0, 300))
+  check('D1 the launch was asked of the daemon while the board was on screen, and the daemon did not start it', boardUp && asked !== null && asked.ok !== true && asked.sessionId === undefined, JSON.stringify(asked).slice(0, 300), 'a defaulted launch in the plain home folder must be refused: check the sessionDispatch handling in src/daemon/controlServer.ts and src/daemon/concourseDispatch.ts; if boardUp is false the board never showed, so rerun with MERCURY_HOMEREPO_CAPTURE_DIR set to read the frames')
   const receipt = c.marks.receipt ?? ''
   const settled = c.marks.settled ?? ''
   printFrame('d1 (the board after the refused launch)', settled || c.text)
-  check('D1 the receipt reached the rail ("no git offer for …")', receipt.includes(RECEIPT), c.tail.slice(-300))
-  check('D1 no "Start a git repository" card was offered', !receipt.includes(OFFER_TITLE) && !settled.includes(OFFER_TITLE))
-  check('D1 the home has NO .git afterwards', !existsSync(join(e.home, '.git')))
+  check('D1 the receipt reached the rail ("no git offer for …")', receipt.includes(RECEIPT), c.tail.slice(-300), 'mintGitRefusedReceipt in src/daemon/permissionAsks.ts (called from src/daemon/concourseDispatch.ts) must write the no git offer for receipt that the board shows')
+  check('D1 no "Start a git repository" card was offered', !receipt.includes(OFFER_TITLE) && !settled.includes(OFFER_TITLE), '', 'no git-init offer may be raised for the home folder: the refusal for it is in src/utils/projectBoundary.ts and the offer is minted in src/daemon/permissionAsks.ts')
+  check('D1 the home has NO .git afterwards', !existsSync(join(e.home, '.git')), '', 'nothing may run git init in the home folder: see the refusal in src/utils/projectBoundary.ts and the offer path in src/daemon/permissionAsks.ts')
   const sidecar = join(e.cfg, 'daemon', 'git-init-asks.json')
   const sidecarRows = existsSync(sidecar) ? (JSON.parse(readFileSync(sidecar, 'utf8')) as Record<string, string>) : {}
-  check('D1 no git-init ask row was minted for the home', !Object.values(sidecarRows).includes(e.home), JSON.stringify(sidecarRows))
+  check('D1 no git-init ask row was minted for the home', !Object.values(sidecarRows).includes(e.home), JSON.stringify(sidecarRows), 'no git-init ask may be minted for the home folder: see src/daemon/permissionAsks.ts and the refusal in src/utils/projectBoundary.ts')
   let receiptRow: { ref: string; question: string } | undefined
   let askRow = false
   try {
@@ -243,8 +243,8 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
     }
   } catch {
   }
-  check('D1 the obligation store holds the refusal receipt and no git-init ask', receiptRow !== undefined && !askRow)
-  check('D1 the receipt names the reason and says kept without git', receiptRow?.question.includes('this is your home folder') === true && receiptRow?.question.includes('kept without git') === true, receiptRow?.question)
+  check('D1 the obligation store holds the refusal receipt and no git-init ask', receiptRow !== undefined && !askRow, '', 'mintGitRefusedReceipt in src/daemon/permissionAsks.ts must write a git-refused: obligation naming the home folder, and no permission:git-init: ask may exist')
+  check('D1 the receipt names the reason and says kept without git', receiptRow?.question.includes('this is your home folder') === true && receiptRow?.question.includes('kept without git') === true, receiptRow?.question, 'the reason words come from src/utils/projectBoundary.ts and mintGitRefusedReceipt in src/daemon/permissionAsks.ts adds kept without git')
   let rows: Array<{ heldReason?: string; reason?: string; sessionId?: string; state?: string }> = []
   try {
     const ledger = JSON.parse(readFileSync(join(e.cfg, 'daemon', 'concourse-dispatches.json'), 'utf8')) as { dispatches?: Record<string, { heldReason?: string; reason?: string; sessionId?: string; state?: string }> } & Record<string, unknown>
@@ -253,8 +253,8 @@ console.log('D1 — a defaulted launch colliding in the (plain) home gets NO git
   } catch {
   }
   const summary = rows.map(r => `${r.state}/${r.heldReason ?? '-'}/${r.sessionId !== undefined ? 'started' : 'no-session'}: ${(r.reason ?? '').slice(0, 90)}`).join(' | ')
-  check('D1 no launch was ever held on the git offer (no-repository / unborn-head)', rows.length > 0 && rows.every(r => r.heldReason !== 'no-repository' && r.heldReason !== 'unborn-head'), summary)
-  check('D1 the launch waits as a plain collision whose reason says kept without git', rows.some(r => r.sessionId === undefined && (r.reason ?? '').includes('kept without git')), summary)
+  check('D1 no launch was ever held on the git offer (no-repository / unborn-head)', rows.length > 0 && rows.every(r => r.heldReason !== 'no-repository' && r.heldReason !== 'unborn-head'), summary, 'a launch in a refused home folder must not be held for a git offer: see src/daemon/concourseDispatch.ts and src/daemon/concourseWorkers/admission.ts')
+  check('D1 the launch waits as a plain collision whose reason says kept without git', rows.some(r => r.sessionId === undefined && (r.reason ?? '').includes('kept without git')), summary, 'src/daemon/concourseWorkers/admission.ts must queue the launch with a reason that says kept without git and starts no session')
   reap(e)
 }
 
@@ -264,7 +264,7 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
   const NEST = 'Documents/voxel'
   const e = estate('d2', { homeIsRepo: true, bulkFiles: BULK, nest: NEST })
   const top = spawnSync(REAL_GIT, ['-C', e.proj, 'rev-parse', '--show-toplevel'], { encoding: 'utf8', env: { ...process.env, HOME: e.home } }).stdout.trim()
-  check('D2 the nested Documents folder resolves to the home root today (git says so)', realpathSync(top) === realpathSync(e.home), top)
+  check('D2 the nested Documents folder resolves to the home root today (git says so)', realpathSync(top) === realpathSync(e.home), top, 'the fixture is wrong, not the product: the nested project must sit under the home repository that estate() initialises')
   const c = await capture(e, 'd2-nested-boot', e.proj, [
     { atTick: 150, awaitText: READY_NEEDLE, awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '', mark: 'face' },
     { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' },
@@ -276,7 +276,7 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
     { afterPrevTicks: 60, data: '', mark: 'board' },
     ...QUIT,
   ], 700)
-  check('D2 the chat ran (the reply landed)', (c.marks.reply ?? '').includes('Spare.'), c.tail.slice(-300))
+  check('D2 the chat ran (the reply landed)', (c.marks.reply ?? '').includes('Spare.'), c.tail.slice(-300), 'the chat never got its reply: rerun with MERCURY_HOMEREPO_CAPTURE_DIR set to read the frames and see where the boot stopped')
   reap(e)
   const rows = existsSync(e.shimLog) ? readFileSync(e.shimLog, 'utf8').split('\n').filter(Boolean) : []
   const visited = (pid: string): number => {
@@ -302,14 +302,14 @@ console.log('\nD2 — from a project nested under a home repository (Documents/v
     shapes.set(key, cur)
   }
   for (const [k, v] of shapes) console.log(`    ${String(v.n).padStart(3)}×  paths-visited≤${v.max}  ${k}`)
-  check('D2 the boot issued status/add/ls-files probes at all', probes.length >= 3, String(probes.length))
+  check('D2 the boot issued status/add/ls-files probes at all', probes.length >= 3, String(probes.length), 'the git shim log in the estate holds too few status/add/ls-files calls: the boot did not reach its git probes, or the shim was not first on PATH')
   const bare = (args: string): string => args.replace(/(?: :\(exclude,glob\)\S+)+$/, '')
   const unbounded = probes.filter(r => !(bare(r.args).endsWith('-- .') || bare(r.args).endsWith(`-- ${NEST}`)))
-  check('D2 every status/add/ls-files probe carries the boundary pathspec (the exclude globs may follow it)', unbounded.length === 0, unbounded.map(r => r.args).join(' | '))
+  check('D2 every status/add/ls-files probe carries the boundary pathspec (the exclude globs may follow it)', unbounded.length === 0, unbounded.map(r => r.args).join(' | '), 'each listed git call needs a trailing -- . or -- Documents/voxel pathspec; find the call that builds these arguments and add it')
   const heavy = probes.filter(r => visited(r.pid) > 200)
-  check(`D2 no probe visited more than 200 paths (the home holds ${BULK}+ entries)`, heavy.length === 0, heavy.map(r => `${r.args}=${visited(r.pid)}`).join(' | '))
+  check(`D2 no probe visited more than 200 paths (the home holds ${BULK}+ entries)`, heavy.length === 0, heavy.map(r => `${r.args}=${visited(r.pid)}`).join(' | '), 'each listed git call scanned the home folder: bound its pathspec to the launch folder')
   const atHome = probes.filter(r => r.effCwd === e.home && !r.args.endsWith(`-- ${NEST}`))
-  check('D2 no probe ran at the home root without the boundary pathspec', atHome.length === 0, atHome.map(r => r.args).join(' | '))
+  check('D2 no probe ran at the home root without the boundary pathspec', atHome.length === 0, atHome.map(r => r.args).join(' | '), 'each listed git call ran at the home root: run it in the launch folder or add the boundary pathspec')
 }
 
 if (process.env.MERCURY_HOMEREPO_KEEP !== '1') removeScratch(SCRATCH)

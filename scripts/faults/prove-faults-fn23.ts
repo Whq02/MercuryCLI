@@ -9,9 +9,19 @@ const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 let failures = 0
+const AREA_FIX_HINTS: Record<string, string> = {
+  godotCapsule: 'fix staticGodotCapsule in src/services/vulcan/godotCapsule.ts so a read error is thrown, not swallowed into a low census',
+  portabilityHealth: 'fix godotPortabilityReport in src/services/vulcan/portabilityHealth.ts so a read error rejects, not a clean report',
+  projection: 'fix gatherWorkbenchInputs in src/services/workbench/projection.ts so a lane run snapshot error is not swallowed',
+  loadSkillsDir: 'fix getSkillDirCommands and getSkillLoadRefusals in src/skills/loadSkillsDir.ts so a failed skill load is recorded as a refusal',
+  bootBeacon: 'fix clearBootAttempts or readBootAttemptResidue in src/substrate/bootBeacon.ts',
+  invocationRecord: 'fix recordInvocation or readInvocationRecords in src/substrate/invocationRecord.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = AREA_FIX_HINTS[label.split(':')[0] ?? '']
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

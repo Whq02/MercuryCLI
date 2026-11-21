@@ -13,9 +13,17 @@ import { focusedOptionSupports1m } from '../../src/services/model/modelOptions.t
 import { validateModel } from '../../src/services/providers/validateModel.ts'
 
 let failures = 0
+const WIRE_ID_HINT = 'change openrouterWireModelId in src/services/providers/openrouter/openrouterCallModel.ts (the slug the request carries)'
+const WIRE_ID_HINTS: Record<string, string> = {
+  the: 'change refreshOpenrouterCatalogue in src/services/providers/openrouter/openrouterCatalogue.ts, or the fixture catalogue in this file',
+  W6: 'change getOpenrouterModelOptions in src/services/providers/openrouter/openrouterCatalogue.ts (the picker rows) or focusedOptionSupports1m in src/services/model/modelOptions.ts',
+  W7: 'change validateModel in src/services/providers/validateModel.ts (its answer for an openrouter id)',
+  W8: 'change compatDispatchModelId in src/services/providers/openaicompat/compatChatCallModel.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond ? `${detail ? `${detail} · ` : ''}${WIRE_ID_HINTS[label.split(' ')[0]!] ?? WIRE_ID_HINT}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 
 const LIVE_IDS = [

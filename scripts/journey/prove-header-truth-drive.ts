@@ -29,6 +29,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }
 
+const HINT_ROW = 'change statusLine in src/components/SwitchboardTagBar.tsx (the bottom row words)'
+const HINT_CLOCK = 'change crewClockOf or statusLine in src/components/SwitchboardTagBar.tsx (the crew clock on the bottom row)'
 const SEAT_MARK = 'hdr-seat:'
 const NOTE_FILES = 30
 const noteFile = (n: number): string => `hdr-notes-${n}.txt`
@@ -514,91 +516,91 @@ if (cap !== null) {
 
   console.log('\n— H1 no title row —')
   const chatFrames = scenes.filter(s => m[s] !== undefined && statusIndex(m[s]) >= 0)
-  check(`the bottom row stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(','))
+  check(`the bottom row stands in every chat frame (${chatFrames.length} frames)`, chatFrames.length >= 12, chatFrames.join(',') + ' — the bottom row (back hint) was not found in enough frames; read the dumped frames above and ' + HINT_ROW)
   const titled = chatFrames.filter(s => titleRowIndex(m[s]) >= 0)
-  check('H1 no chat frame carries a title row above the view', titled.length === 0, `title row on: ${titled.join(',')}`)
+  check('H1 no chat frame carries a title row above the view', titled.length === 0, `title row on: ${titled.join(',')} — no chat frame may carry a title row above the view; find what paints the VIEW title row in the chat layout and remove it`)
   const paneTops = chatFrames.filter(s => !/╭─+╮/.test(rows(m[s])[0] ?? ''))
-  check('H1 the pane opens on its top border in every chat frame (row 0)', paneTops.length === 0, `no border on row 0: ${paneTops.join(',')}`)
+  check('H1 the pane opens on its top border in every chat frame (row 0)', paneTops.length === 0, `no border on row 0: ${paneTops.join(',')} — the pane must open on its top border on row 0; read the dumped frames above for what sits on row 0`)
   const EXPECTED_NAME: Record<string, string> = { idle: 'new session', thinking: 'hdr: launch', 'after-esc': 'hdr: launch', 'first-byte': 'hdr: launch', stuck: 'hdr: launch' }
   for (const s of ['idle', 'thinking', 'after-esc', 'first-byte', 'stuck']) {
     if (m[s] === undefined) continue
     const title = EXPECTED_NAME[s]!
-    check(`H1 ${s}: the bottom row carries neither the name ("${title}") nor a glyph`, !statusRow(m[s]).includes(title) && noGlyph(m[s]), flat(statusRow(m[s])))
+    check(`H1 ${s}: the bottom row carries neither the name ("${title}") nor a glyph`, !statusRow(m[s]).includes(title) && noGlyph(m[s]), flat(statusRow(m[s])) + ' — ' + HINT_ROW + ' so it carries neither the session name nor a spinner glyph')
   }
 
   console.log('\n— H6 no row of the frame moves —')
   const statusRows = new Set(chatFrames.map(s => statusIndex(m[s])))
-  check(`H6 the bottom row keeps one row index across every frame (row ${[...statusRows].join('/')})`, statusRows.size === 1)
+  check(`H6 the bottom row keeps one row index across every frame (row ${[...statusRows].join('/')})`, statusRows.size === 1, 'the bottom row moved between frames; read the dumped frames above and ' + HINT_ROW)
 
   console.log('\n— thinking, two agents running —')
   const thinkingRow = statusRow(m['thinking'])
-  check('the main agent is thinking (the card under the critter narrates it)', /thinking|…/.test(berth(m['thinking'])), flat(berth(m['thinking'])).slice(0, 160))
-  check('H3 the bottom row carries no main-agent phase word', !PHASE_WORDS.test(thinkingRow), flat(thinkingRow))
-  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bcrewmates thought for\b/.test(thinkingRow), flat(thinkingRow))
+  check('the main agent is thinking (the card under the critter narrates it)', /thinking|…/.test(berth(m['thinking'])), flat(berth(m['thinking'])).slice(0, 160) + ' — the card under the critter must narrate the main agent thinking; read the dumped thinking frame above')
+  check('H3 the bottom row carries no main-agent phase word', !PHASE_WORDS.test(thinkingRow), flat(thinkingRow) + ' — ' + HINT_ROW + ' so it carries no main-agent phase word')
+  check('H3 the bottom row carries the crew\'s clock, past tense ("crewmates thought for …")', CREW_CLOCK.test(thinkingRow) && /\bcrewmates thought for\b/.test(thinkingRow), flat(thinkingRow) + ' — ' + HINT_CLOCK)
   const thinkingWordRows = rows(m['thinking']).filter(r => /\bthinking\b/.test(r))
   console.log(`  rows carrying the word "thinking": ${thinkingWordRows.length} — ${thinkingWordRows.map(flat).join(' | ').slice(0, 300)}`)
-  check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])}`)
+  check('H2 the crew clock advances while the agents run (no glyph on the row)', crewClockAdvances(m['thinking'], m['thinking+']) && noGlyph(m['thinking']), `${crewClock(m['thinking'])} → ${crewClock(m['thinking+'])} — ${HINT_CLOCK} so it advances while agents run and the row wears no glyph`)
 
   console.log('\n— esc with the crew running —')
   const interruptingRow = statusRow(m['interrupting'])
   if (/interrupting|stopping/.test(interruptingRow)) {
-    check('the interrupting words carry no phase word (the arm stands)', !PHASE_WORDS.test(interruptingRow), flat(interruptingRow))
+    check('the interrupting words carry no phase word (the arm stands)', !PHASE_WORDS.test(interruptingRow), flat(interruptingRow) + ' — ' + HINT_ROW + ' so the interrupting words carry no phase word')
   } else {
     console.log(`  (the interrupt settled within a tick — the interrupting words were not on screen at +200 ms: "${flat(interruptingRow).slice(0, 120)}")`)
   }
   const escRow = statusRow(m['after-esc'])
-  check('after esc the composer is back (the turn ended)', rows(m['after-esc']).some(r => r.includes('ype a prompt')))
-  check('H4 after esc the card under the critter no longer narrates the main agent', !/\bthinking\b/.test(berth(m['after-esc'])), flat(berth(m['after-esc'])).slice(0, 160))
-  check('the crew run on after esc — the status row carries their clock (the hosted chat\'s own word)', CREW_CLOCK.test(escRow), flat(escRow))
-  check('H3 after esc the bottom row carries the crew\'s clock, not "ready"', CREW_CLOCK.test(escRow) && !/\bready\b/.test(escRow), flat(escRow))
-  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc'], m['after-esc+']), `${crewClock(m['after-esc'])} → ${crewClock(m['after-esc+'])}`)
+  check('after esc the composer is back (the turn ended)', rows(m['after-esc']).some(r => r.includes('ype a prompt')), 'the composer did not return after esc; read the dumped after-esc frame above')
+  check('H4 after esc the card under the critter no longer narrates the main agent', !/\bthinking\b/.test(berth(m['after-esc'])), flat(berth(m['after-esc'])).slice(0, 160) + ' — after esc the card under the critter must stop narrating the main agent; read the dumped after-esc frame above')
+  check('the crew run on after esc — the status row carries their clock (the hosted chat\'s own word)', CREW_CLOCK.test(escRow), flat(escRow) + ' — ' + HINT_CLOCK)
+  check('H3 after esc the bottom row carries the crew\'s clock, not "ready"', CREW_CLOCK.test(escRow) && !/\bready\b/.test(escRow), flat(escRow) + ' — ' + HINT_ROW + ' so the crew clock shows rather than ready')
+  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc'], m['after-esc+']), `${crewClock(m['after-esc'])} → ${crewClock(m['after-esc+'])} — ${HINT_CLOCK} so it keeps advancing`)
 
   console.log('\n— x x on each crew row —')
   const crewRow = (frame: string | undefined, name: string): string[] => rows(frame).filter(r => r.includes(name) && /✕|◐|◓|◑|◒/.test(r) && /stopped|running|waiting|reasoning|request sent|Read/.test(r))
-  check('both crew rows read stopped after x x on each', crewRow(m['x4'], SEATS.one).some(r => /stopped/.test(r)) && crewRow(m['x4'], SEATS.two).some(r => /stopped/.test(r)), [...crewRow(m['x4'], SEATS.one), ...crewRow(m['x4'], SEATS.two)].map(flat).join(' | ').slice(0, 240))
+  check('both crew rows read stopped after x x on each', crewRow(m['x4'], SEATS.one).some(r => /stopped/.test(r)) && crewRow(m['x4'], SEATS.two).some(r => /stopped/.test(r)), [...crewRow(m['x4'], SEATS.one), ...crewRow(m['x4'], SEATS.two)].map(flat).join(' | ').slice(0, 240) + ' — x x on a crew row in the /crewmates view must stop that crewmate; read the dumped crew and x4 frames above')
   const doneRow = statusRow(m['crew-done'])
-  check('H2 after the last stop the crew clock is gone from the row (both frames)', crewClock(m['crew-done']) === '' && crewClock(m['crew-done+']) === '', `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])}`)
-  check('H3 after the last stop the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(doneRow) && !CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow))
+  check('H2 after the last stop the crew clock is gone from the row (both frames)', crewClock(m['crew-done']) === '' && crewClock(m['crew-done+']) === '', `${crewClock(m['crew-done'])} → ${crewClock(m['crew-done+'])} — ${HINT_CLOCK} so the clock goes once the last crewmate stops`)
+  check('H3 after the last stop the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(doneRow) && !CREW_CLOCK.test(doneRow) && !PHASE_WORDS.test(doneRow), flat(doneRow) + ' — ' + HINT_ROW + ' so it reads ready with no clock or phase word')
 
   console.log('\n— waiting on crewmates —')
   const waitingRow = statusRow(m['waiting'])
-  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow))
-  check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow))
+  check('the wait words stand ("waiting on 2 crewmates")', /waiting on 2 crewmates/.test(waitingRow), flat(waitingRow) + ' — change waitingStatusWords in src/components/SwitchboardTagBar.tsx (the wait words)')
+  check('the wait words carry no phase word', !PHASE_WORDS.test(waitingRow), flat(waitingRow) + ' — ' + HINT_ROW + ' so the wait words carry no phase word')
   const esc2Row = statusRow(m['after-esc-2'])
-  check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row))
-  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc-2'], m['after-esc-2+']), `${crewClock(m['after-esc-2'])} → ${crewClock(m['after-esc-2+'])}`)
+  check('H3 after esc the bottom row carries the crew\'s clock', CREW_CLOCK.test(esc2Row), flat(esc2Row) + ' — ' + HINT_CLOCK)
+  check('H2 after esc the crew clock keeps advancing', crewClockAdvances(m['after-esc-2'], m['after-esc-2+']), `${crewClock(m['after-esc-2'])} → ${crewClock(m['after-esc-2+'])} — ${HINT_CLOCK} so it keeps advancing`)
   const landedRow = statusRow(m['crew-landed'])
   const seatsThreeFour = fixture.hits.filter(h => h.seat === 'three' || h.seat === 'four').length
-  check(`the second crew landed on their own (${seatsThreeFour} seat calls)`, seatsThreeFour >= 8)
-  check('H2 after the crew land the crew clock is gone from the row (both frames)', crewClock(m['crew-landed']) === '' && crewClock(m['crew-landed+']) === '', `${crewClock(m['crew-landed'])} → ${crewClock(m['crew-landed+'])}`)
-  check('H3 after the crew land the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(landedRow) && !CREW_CLOCK.test(landedRow) && !PHASE_WORDS.test(landedRow), flat(landedRow))
+  check(`the second crew landed on their own (${seatsThreeFour} seat calls)`, seatsThreeFour >= 8, 'the second crew made too few seat calls to finish; read the routes line above for where the fixture stopped hearing from them')
+  check('H2 after the crew land the crew clock is gone from the row (both frames)', crewClock(m['crew-landed']) === '' && crewClock(m['crew-landed+']) === '', `${crewClock(m['crew-landed'])} → ${crewClock(m['crew-landed+'])} — ${HINT_CLOCK} so the clock goes once the crew land`)
+  check('H3 after the crew land the row reads "ready" — no settled clock, no phase word', /\bready\b/.test(landedRow) && !CREW_CLOCK.test(landedRow) && !PHASE_WORDS.test(landedRow), flat(landedRow) + ' — ' + HINT_ROW + ' so it reads ready with no clock or phase word')
   const landedBeat = statusRow(m['landed-beat'])
-  check('H3 the beat after the last crewmate\'s completed row paints, the row already reads "ready"', /\bready\b/.test(landedBeat) && !CREW_CLOCK.test(landedBeat), flat(landedBeat))
+  check('H3 the beat after the last crewmate\'s completed row paints, the row already reads "ready"', /\bready\b/.test(landedBeat) && !CREW_CLOCK.test(landedBeat), flat(landedBeat) + ' — ' + HINT_ROW + ' so it reads ready as soon as the last crewmate completes')
 
   console.log('\n— the first-byte wait —')
   const fbRow = statusRow(m['first-byte'])
-  check('the request-wait words stand ("first byte")', /first byte/.test(fbRow), flat(fbRow))
-  check('the request-wait words carry no phase word', !PHASE_WORDS.test(fbRow), flat(fbRow))
-  check('H2 with no crew running the row wears no glyph', noGlyph(m['first-byte']) && noGlyph(m['first-byte+']), flat(statusRow(m['first-byte'])))
+  check('the request-wait words stand ("first byte")', /first byte/.test(fbRow), flat(fbRow) + ' — change requestWaitLine (used by statusLine in src/components/SwitchboardTagBar.tsx), the request-wait words')
+  check('the request-wait words carry no phase word', !PHASE_WORDS.test(fbRow), flat(fbRow) + ' — ' + HINT_ROW + ' so the request-wait words carry no phase word')
+  check('H2 with no crew running the row wears no glyph', noGlyph(m['first-byte']) && noGlyph(m['first-byte+']), flat(statusRow(m['first-byte'])) + ' — ' + HINT_ROW + ' so it wears no glyph when no crew runs')
 
   console.log('\n— the shell nap —')
   const toolRow = statusRow(m['tool'])
-  check('the transcript narrates the tool (its own card)', rows(m['tool']).some(r => /eight second nap|sleep 8/.test(r)), rows(m['tool']).filter(r => /nap|sleep/.test(r)).map(flat).join(' | ').slice(0, 200))
-  check('H3 the bottom row carries no "running a tool" word', !PHASE_WORDS.test(toolRow), flat(toolRow))
-  check('H2 with no crew running the row wears no glyph', noGlyph(m['tool']) && noGlyph(m['tool+']), flat(statusRow(m['tool'])))
+  check('the transcript narrates the tool (its own card)', rows(m['tool']).some(r => /eight second nap|sleep 8/.test(r)), rows(m['tool']).filter(r => /nap|sleep/.test(r)).map(flat).join(' | ').slice(0, 200) + ' — the transcript must show the Bash tool card for the nap; read the dumped tool frame above')
+  check('H3 the bottom row carries no "running a tool" word', !PHASE_WORDS.test(toolRow), flat(toolRow) + ' — ' + HINT_ROW + ' so it carries no running a tool word')
+  check('H2 with no crew running the row wears no glyph', noGlyph(m['tool']) && noGlyph(m['tool+']), flat(statusRow(m['tool'])) + ' — ' + HINT_ROW + ' so it wears no glyph when no crew runs')
   const idle2Row = statusRow(m['idle-2'])
-  check('between turns the row reads "ready", the landed crew\'s clock gone, never a phase word', /\bready\b/.test(idle2Row) && !CREW_CLOCK.test(idle2Row) && !PHASE_WORDS.test(idle2Row), flat(idle2Row))
+  check('between turns the row reads "ready", the landed crew\'s clock gone, never a phase word', /\bready\b/.test(idle2Row) && !CREW_CLOCK.test(idle2Row) && !PHASE_WORDS.test(idle2Row), flat(idle2Row) + ' — ' + HINT_ROW + ' so it reads ready between turns with no clock or phase word')
 
   console.log('\n— the foreground agent —')
   const foreRow = statusRow(m['fore'])
-  check('H3 one running agent: "crewmate thought for …" (singular), no tool word', /\bcrewmate thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow))
-  check('H2 the crew clock advances for the foreground agent', crewClockAdvances(m['fore'], m['fore+']), `${crewClock(m['fore'])} → ${crewClock(m['fore+'])}`)
+  check('H3 one running agent: "crewmate thought for …" (singular), no tool word', /\bcrewmate thought for \d+[sm]\b/.test(foreRow) && !PHASE_WORDS.test(foreRow), flat(foreRow) + ' — ' + HINT_CLOCK + ' so one running agent reads in the singular')
+  check('H2 the crew clock advances for the foreground agent', crewClockAdvances(m['fore'], m['fore+']), `${crewClock(m['fore'])} → ${crewClock(m['fore+'])} — ${HINT_CLOCK} so it advances for the foreground agent`)
 
   console.log('\n— the silent stream —')
   const stuckRow = statusRow(m['stuck'])
-  check('the row never accuses before the budget: no "may be stuck" at 11 s of a 16 s budget', !/may be stuck/.test(stuckRow), flat(stuckRow))
-  check('the silent row carries no phase word', !PHASE_WORDS.test(stuckRow), flat(stuckRow))
-  check('the silent stream ended through the watchdog’s own ladder: the fallback reply landed', /HDR-STUCK-DONE/.test(m['end'] ?? ''), rows(m['end']).filter(r => /HDR-STUCK/.test(r)).map(flat).join(' | ').slice(0, 200))
+  check('the row never accuses before the budget: no "may be stuck" at 11 s of a 16 s budget', !/may be stuck/.test(stuckRow), flat(stuckRow) + ' — change the stuck branch of statusLine in src/components/SwitchboardTagBar.tsx so the notice waits for the watchdog budget')
+  check('the silent row carries no phase word', !PHASE_WORDS.test(stuckRow), flat(stuckRow) + ' — ' + HINT_ROW + ' so the silent row carries no phase word')
+  check('the silent stream ended through the watchdog’s own ladder: the fallback reply landed', /HDR-STUCK-DONE/.test(m['end'] ?? ''), rows(m['end']).filter(r => /HDR-STUCK/.test(r)).map(flat).join(' | ').slice(0, 200) + ' — the stream watchdog did not recover the silent stream into the fallback reply; read the dumped end frame and the routes line above')
 }
 
 if (!KEEP) {

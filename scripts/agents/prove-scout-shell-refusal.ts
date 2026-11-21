@@ -24,9 +24,10 @@ const { scoutRefusal } = await import('../../src/tools/AgentTool/scoutPolicy.js'
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.js')
 
 let failures = 0
+const scoutChangeHint = ' — change: scoutRefusal in src/tools/AgentTool/scoutPolicy.ts must return the sentence this check names (or null for a read-only command); its Bash screen is src/tools/BashTool/readOnlyValidation.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? scoutChangeHint : ''}`)
 }
 const refusal = (command: string, extra: Record<string, unknown> = {}): Promise<string | null> => scoutRefusal(BashTool as never, { command, ...extra })
 const bigPy = join(root, 'b_big.py')

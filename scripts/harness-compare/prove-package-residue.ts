@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path'
 const repoRoot = resolve(new URL('../..', import.meta.url).pathname)
 
 let failures = 0
+const RESIDUE_FIX_HINT = 'a FORBIDDEN word in dist/mercury.mjs means a file under src/ reaches the bundle with benchmark text: find the word with grep in src/ and remove it from that file, then rebuild; a missing IS in the bundle line means the repair or nudge text in src/services/api/errors.ts was removed or reworded'
 function ok(name: string, pass: boolean, detail = ''): void {
-  console.log((pass ? '  ok  ' : '  FAIL ') + name + (detail && !pass ? ' — ' + detail : ''))
+  console.log((pass ? '  ok  ' : '  FAIL ') + name + (detail && !pass ? ' — ' + detail : '') + (pass ? '' : ' — ' + RESIDUE_FIX_HINT))
   if (!pass) failures = 1
 }
 

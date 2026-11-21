@@ -25,9 +25,9 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -120,7 +120,7 @@ try {
     seedHome: async (configDir, cwd) => {
       seedFirstRun(configDir, [cwd, work])
       spawnDaemonWithHome(configDir)
-      check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+      check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon (node dist/mercury.mjs daemon run) did not answer ping within 60s; read daemon.log in the scratch folder this run created, or rebuild dist with bun run build.ts')
       const dispatched = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'enter-live-1',
@@ -130,16 +130,18 @@ try {
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; state?: string }
-      check('the session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
+      check('the session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched), 'the daemon concourseDispatch op refused or failed the dispatch; the reply above says why')
       sessionId = dispatched.sessionId ?? ''
       transcript = join(paths.getProjectDir(cwd), `${sessionId}.jsonl`)
-      check('the worker transcript was born at the law home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript)
+      check('the worker transcript was born at the law home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript, 'the dispatched worker never wrote its transcript under the project dir (getProjectDir in src/utils/sessionStorage/paths.ts); read daemon.log in the scratch folder')
       check(
         'the runner is mid-thought (the first stage landed; the tool call is unresolved)',
         await untilAsync(async () => readFileSync(transcript, 'utf8').includes('stage-01 live-body'), 30_000),
+        '',
+        'the worker never streamed stage-01 from the fixture API; check the fixture script at the top of this file and daemon.log in the scratch folder',
       )
       const recBefore = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
-      check('the record is WORKING before the enter (no pausedAt)', recBefore !== undefined && recBefore.pausedAt === undefined && recBefore.attachedAt === undefined)
+      check('the record is WORKING before the enter (no pausedAt)', recBefore !== undefined && recBefore.pausedAt === undefined && recBefore.attachedAt === undefined, '', 'the worker record in readSessionWorkers (src/daemon/concourseWorkers.ts) was already paused or attached before the enter; nothing should set pausedAt or attachedAt at dispatch')
     },
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
@@ -161,17 +163,17 @@ try {
       }
     }
     const entered = grabs.filter(g => !text(g).includes('SESSIONS') && /stage-\d\d live-body/.test(text(g)))
-    check('§1 the entered view paints the live transcript', entered.length > 0, `entered frames: ${entered.map(g => g.atMs).join(',') || 'none'}`)
+    check('§1 the entered view paints the live transcript', entered.length > 0, `entered frames: ${entered.map(g => g.atMs).join(',') || 'none'}`, 'after tab then enter the screen must show the followed runner live transcript instead of the SESSIONS board; rerun with ENTER_LIVE_KEEP=1 to print the frames')
     const tokenMax = (g: { rows: string[] }): number =>
       Math.max(-1, ...[...text(g).matchAll(/stage-(\d\d) live-body/g)].map(m => Number(m[1])))
     const maxes = entered.map(tokenMax)
-    check('§1 …and keeps painting as the thought grows (later frames carry later stages)', maxes.length >= 2 && maxes[maxes.length - 1]! > maxes[0]!, `stage highs: ${maxes.join(',')}`)
+    check('§1 …and keeps painting as the thought grows (later frames carry later stages)', maxes.length >= 2 && maxes[maxes.length - 1]! > maxes[0]!, `stage highs: ${maxes.join(',')}`, 'the followed view stopped repainting as the transcript grew; rerun with ENTER_LIVE_KEEP=1 to print the frames')
     const lifted = entered.filter(g => /\b\d+s\b/.test(text(g)) && /esc|interrupt|thinking|✻|✶|responding/i.test(text(g)))
-    check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`)
+    check('§2 THE ONE THINKING LIFT is up while the followed runner works', lifted.length > 0, `lifted frames: ${lifted.map(g => g.atMs).join(',') || 'none'}`, 'the entered view must show the thinking lift (seconds counter plus interrupt hint) while the followed runner works; rerun with ENTER_LIVE_KEEP=1 to print the frames')
     const recDuring = Object.values(sup.readSessionWorkers(daemonDir)).find(r => r.sessionId === sessionId)
     const { concourseRecordState } = await import('../../src/daemon/concourseWorkers.ts')
     const stateDuring = recDuring ? concourseRecordState(recDuring, { needsYou: false, alive: true }) : 'missing'
-    check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`)
+    check("§3 the record never reads PAUSED while the operator watches (enter valve ≠ pause)", stateDuring !== 'paused', `state=${stateDuring} attachRequestedAt=${recDuring?.attachRequestedAt} pausedAt=${recDuring?.pausedAt}`, 'concourseRecordState in src/daemon/concourseWorkers.ts reported paused for a record whose operator is only watching; entering must not set pausedAt')
     const hostHome = paths.getProjectDir(run.paths.cwd)
     const foreignFiles = ((): string[] => {
       try {
@@ -180,10 +182,10 @@ try {
         return []
       }
     })()
-    check('§4 the host terminal wrote ZERO transcript rows of its own during the follow (a follow is a READ; the session’s own receipts sidecar is the runner’s)', foreignFiles.length === 0, `${hostHome}: ${foreignFiles.join(',')}`)
+    check('§4 the host terminal wrote ZERO transcript rows of its own during the follow (a follow is a READ; the session’s own receipts sidecar is the runner’s)', foreignFiles.length === 0, `${hostHome}: ${foreignFiles.join(',')}`, 'following a session from the host terminal must only read; find what writes a transcript row in the host process during the follow')
     const followedText = readFileSync(transcript, 'utf8')
-    check("§4 the followed transcript carries no synthetic continuation rows", !followedText.includes('The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.') && !followedText.includes('No response requested'))
-    check("§4 the followed transcript carries no foreign session id", !followedText.split('\n').some(l => l.includes('"sessionId"') && !l.includes(sessionId)))
+    check("§4 the followed transcript carries no synthetic continuation rows", !followedText.includes('The previous run ended before its turn finished — stopped from outside or crashed; continue from where you left off.') && !followedText.includes('No response requested'), '', 'the followed worker transcript holds a synthetic continuation row; find what appended the previous run ended before its turn finished or No response requested row')
+    check("§4 the followed transcript carries no foreign session id", !followedText.split('\n').some(l => l.includes('"sessionId"') && !l.includes(sessionId)), '', 'a row in the followed worker transcript carries a different sessionId; find what wrote another session row into this transcript file')
   } finally {
     run.cleanup()
   }

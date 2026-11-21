@@ -6,9 +6,19 @@ import { fileURLToPath } from 'node:url'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 let failures = 0
+const AREA_FIX_HINTS: Record<string, string> = {
+  crashReport: 'fix listCrashReports or unnoticedCrashReports in src/utils/crashReport.ts so an unreadable report dir is answered as the check expects',
+  editorExtensionPackage: 'fix installedEditorExtensions in src/utils/editorExtensionPackage.ts so an unreadable extensions dir throws',
+  envUtils: 'fix ensurePrivateConfigHome in src/utils/envUtils.ts so an unreadable parent throws',
+  errorLogSink: 'fix the error log writer in src/utils/errorLogSink.ts so a failed stat does not stop the line being appended',
+  file: 'fix getFileModificationTimeAsync or writeFileAndFlushAtomically in src/utils/file.ts',
+  fileHistory: 'fix fileHistoryRestore in src/services/changeTransaction/fileHistory.ts so a failed stat refuses the restore with kind restore-failed',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = AREA_FIX_HINTS[label.split(/[.: ]/)[0] ?? '']
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

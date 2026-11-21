@@ -4,8 +4,10 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+const WORKFLOW_FAIL_HINT = 'this proof reads the workflow text: change the named file in .github/workflows/ (private-release.yml, windows-launcher.yml, windows-functional.yml or windows-ui.yml) or the script path it references, so the line this check looks for is present again'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = cond ? '' : detail ? `${detail} | hint: ${WORKFLOW_FAIL_HINT}` : WORKFLOW_FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 

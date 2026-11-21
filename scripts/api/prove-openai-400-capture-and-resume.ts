@@ -33,10 +33,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
+const OPENAI_400_FAIL_HINT = 'to fix, change the 400 fault row in src/services/providers/openai/openaiWire.ts (mapOpenaiHttpFailure), the capture file and its bound in src/services/api/dumpPrompts.ts (MAX_FAULT_CAPTURES_PER_SESSION), the overflow signal in src/services/api/overflowSignal.ts (classifyOverflowFault), or the resume retry reached through src/services/providers/callModelRouter.ts (the compacted tool result carries the text stale tool result, from src/services/compact/microCompactDigest.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${OPENAI_400_FAIL_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

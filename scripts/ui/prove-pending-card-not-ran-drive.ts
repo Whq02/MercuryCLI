@@ -61,21 +61,21 @@ try {
     const openRows = open!.rows
     dump('card-open', openRows)
     const openText = flat(openRows)
-    check('the card is on the frame while the call waits', openText.includes(NEEDLE) && openText.includes(`touch ${MARKER}`), transcriptRow(openRows))
-    check('the row above the waiting card does NOT say "Ran 1 bash command"', !RAN.test(openText), transcriptRow(openRows))
-    check('the row says the command is still running (unsettled), never settled', RUNNING.test(openText), transcriptRow(openRows))
+    check('the card is on the frame while the call waits', openText.includes(NEEDLE) && openText.includes(`touch ${MARKER}`), 'the permission card for the Bash call did not paint; check the Bash permission prompt in src/components and the arena fixture. row: ' + transcriptRow(openRows))
+    check('the row above the waiting card does NOT say "Ran 1 bash command"', !RAN.test(openText), 'a waiting call is counted as ran; fix bashRan and the past/running choice in src/components/messages/CollapsedReadSearchContent.tsx. row: ' + transcriptRow(openRows))
+    check('the row says the command is still running (unsettled), never settled', RUNNING.test(openText), 'the folded row should say Running 1 bash command while the call waits; see the running fragment in src/components/messages/CollapsedReadSearchContent.tsx. row: ' + transcriptRow(openRows))
     check('the card names the folder the command runs in', /\bin \S*flux-arena-cwd/.test(openText), openRows.filter(r => r.includes(' in ')).join(' | ').slice(0, 200))
 
     const [after] = grabScreens(run, 120, 50, [-1])
     const afterRows = after!.rows
     dump('after-decline', afterRows)
     const afterText = flat(afterRows)
-    check('the card is gone after esc', !afterText.includes(NEEDLE))
-    check('the declined call is counted as blocked, never as ran', BLOCKED.test(afterText) && !RAN.test(afterText), transcriptRow(afterRows))
-    check('the decline line rides under the row', afterText.includes(DECLINED), afterRows.filter(r => r.includes('└')).join(' | ').slice(0, 200))
-    check('the turn settled (the fixture\'s closing text landed)', afterText.includes('Done.'), transcriptRow(afterRows))
+    check('the card is gone after esc', !afterText.includes(NEEDLE), 'the permission card is still on the frame after esc; the esc send may not have reached the card, check the capture with MERCURY_PENDING_CARD_CAPTURE_DIR')
+    check('the declined call is counted as blocked, never as ran', BLOCKED.test(afterText) && !RAN.test(afterText), 'a declined Bash call must fold as Blocked, never Ran; see bashDenied, bashRan and bashBlocked in src/components/messages/CollapsedReadSearchContent.tsx. row: ' + transcriptRow(afterRows))
+    check('the decline line rides under the row', afterText.includes(DECLINED), 'the decline text should render under the folded row; its wording lives in src/utils/messages/rejectionText.ts. rows: ' + afterRows.filter(r => r.includes('└')).join(' | ').slice(0, 200))
+    check('the turn settled (the fixture\'s closing text landed)', afterText.includes('Done.'), 'the turn did not settle after the decline, so the fixture closing text never landed; check the capture with MERCURY_PENDING_CARD_CAPTURE_DIR. row: ' + transcriptRow(afterRows))
   }
-  check('the canary holds — the marker file was never created, so nothing ran', !existsSync(join(run.paths.cwd, MARKER)))
+  check('the canary holds — the marker file was never created, so nothing ran', !existsSync(join(run.paths.cwd, MARKER)), 'the Bash command ran although the operator declined it; the permission gate let it through, check the Bash permission path in src')
 } finally {
   run.cleanup()
 }

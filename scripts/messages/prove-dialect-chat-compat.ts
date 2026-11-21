@@ -28,6 +28,10 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n  ' + t + '\n' + '─'.repeat(76))
 }
 
+const geminiDialectHint = 'fix buildGeminiRequest in src/services/providers/gemini/geminiCodec.ts (or update the golden here if the wire change is intended)'
+const chatDialectHint = 'fix mapMessagesToZai in src/services/providers/zai/zaiCodec.ts (or update the golden here if the wire change is intended)'
+const ollamaDialectHint = 'fix ollamaChatBody or ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts (or update the golden here if the wire change is intended)'
+
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
@@ -53,15 +57,15 @@ section('GEMINI — the native codec over the fixture conversation (contents, pa
   const body = buildGeminiRequest(compatRequest as never, DIALECT_CONVERSATION)
   if (process.env.DIALECT_PRINT === '1') console.log('  PRINTED: ' + canonicalJson(body))
   const wire = canonicalJson(body)
-  check('systemInstruction carries the system text as one part', canonicalJson(body.systemInstruction) === '{"parts":[{"text":"You are the dialect fixture."}]}')
-  check('the user image rides as inlineData with the base64 payload', wire.includes('"inlineData"') && wire.includes('aWF0dG9rZW4='))
-  check('the tool calls pair as functionCall parts with parsed args', wire.includes('"functionCall"') && wire.includes('{"name":"Read"') && wire.includes('{"name":"Bash"'))
-  check('the results pair as functionResponse with output text', wire.includes('"functionResponse"') && wire.includes('the quick brown fox jumps over the lazy dog'))
-  check('the sonnet thinking never rides (cross-provider reasoning stays off)', !wire.includes('sig-fixture-sonnet-1') && !wire.includes('considering the count'))
-  check('roles read user/model with no empty parts array', !wire.includes('"parts":[]'))
-  check('the response order follows the assistant\'s own call order', body.contents.flatMap(row => row.parts).filter(part => part.functionResponse).map(part => part.functionResponse?.name).join(',') === 'Read,Bash')
+  check('systemInstruction carries the system text as one part', canonicalJson(body.systemInstruction) === '{"parts":[{"text":"You are the dialect fixture."}]}', geminiDialectHint)
+  check('the user image rides as inlineData with the base64 payload', wire.includes('"inlineData"') && wire.includes('aWF0dG9rZW4='), geminiDialectHint)
+  check('the tool calls pair as functionCall parts with parsed args', wire.includes('"functionCall"') && wire.includes('{"name":"Read"') && wire.includes('{"name":"Bash"'), geminiDialectHint)
+  check('the results pair as functionResponse with output text', wire.includes('"functionResponse"') && wire.includes('the quick brown fox jumps over the lazy dog'), geminiDialectHint)
+  check('the sonnet thinking never rides (cross-provider reasoning stays off)', !wire.includes('sig-fixture-sonnet-1') && !wire.includes('considering the count'), geminiDialectHint)
+  check('roles read user/model with no empty parts array', !wire.includes('"parts":[]'), geminiDialectHint)
+  check('the response order follows the assistant\'s own call order', body.contents.flatMap(row => row.parts).filter(part => part.functionResponse).map(part => part.functionResponse?.name).join(',') === 'Read,Bash', geminiDialectHint)
   const GOLDEN_BODY = `{"contents":[{"parts":[{"text":"Count the words in my notes file."}],"role":"user"},{"parts":[{"text":"I will read the file first."}],"role":"model"},{"parts":[{"text":"here is the screenshot of the file too"},{"inlineData":{"data":"aWF0dG9rZW4=","mimeType":"image/png"}}],"role":"user"},{"parts":[{"text":"Reading and counting now."},{"functionCall":{"args":{"file_path":"/proj/notes.txt"},"name":"Read"},"thoughtSignature":"skip_thought_signature_validator"},{"functionCall":{"args":{"command":"wc -w /proj/notes.txt"},"name":"Bash"}}],"role":"model"},{"parts":[{"functionResponse":{"name":"Read","response":{"output":"the quick brown fox jumps over the lazy dog"}}},{"functionResponse":{"name":"Bash","response":{"output":"9 words"}}}],"role":"user"},{"parts":[{"text":"The file holds nine words."}],"role":"model"},{"parts":[{"text":"Summarise what you found in one sentence."}],"role":"user"}],"systemInstruction":{"parts":[{"text":"You are the dialect fixture."}]}}`
-  check('the complete Gemini body is byte-identical to the base golden', wire === GOLDEN_BODY, firstDivergence(wire, GOLDEN_BODY))
+  check('the complete Gemini body is byte-identical to the base golden', wire === GOLDEN_BODY, `${geminiDialectHint}; ${firstDivergence(wire, GOLDEN_BODY)}`)
 }
 
 section('GEMINI — the two-model shape: the other model\'s thinking stays off, its text stays')
@@ -70,8 +74,8 @@ section('GEMINI — the two-model shape: the other model\'s thinking stays off, 
   const compatRequest = buildZaiChatRequest({ model: 'gemini-3.5-flash', system: 'You are the dialect fixture.', messages: rows as never })
   const body = buildGeminiRequest(compatRequest as never, TWO_MODEL_COMPACTION)
   const wire = canonicalJson(body)
-  check('the opus thinking blocks are absent', !wire.includes('sig-fixture-opus') && !wire.includes('opus weighed'))
-  check('the opus text survives as a model turn', wire.includes('Here is the tool sketch.'))
+  check('the opus thinking blocks are absent', !wire.includes('sig-fixture-opus') && !wire.includes('opus weighed'), geminiDialectHint)
+  check('the opus text survives as a model turn', wire.includes('Here is the tool sketch.'), geminiDialectHint)
 }
 
 section('OPENAI-COMPATIBLE CHAT — mapMessagesToZai over the fixture conversation')
@@ -80,13 +84,13 @@ section('OPENAI-COMPATIBLE CHAT — mapMessagesToZai over the fixture conversati
   const body = mapMessagesToZai('You are the dialect fixture.', rows as never)
   if (process.env.DIALECT_PRINT === '1') console.log('  PRINTED: ' + canonicalJson(body))
   const wire = canonicalJson(body)
-  check('the system row leads', (body[0] as { role?: string })?.role === 'system' && (body[0] as { content?: string })?.content === 'You are the dialect fixture.')
-  check('a plain user row rides as one string content', canonicalJson(body[1]) === '{"content":"Count the words in my notes file.","role":"user"}', canonicalJson(body[1]))
-  check('the tool round: assistant tool_calls then role:tool rows, ids paired', wire.includes('"tool_calls"') && wire.includes('"tool_call_id":"toolu_A"') && wire.includes('"tool_call_id":"toolu_B"'))
-  check('the image rides as an image_url data part', wire.includes('"image_url"') && wire.includes('data:image/png;base64,aWF0dG9rZW4='))
-  check('the thinking blocks never ride (keepReasoningHistory defaults off)', !wire.includes('sig-fixture') && !wire.includes('considering the count'))
+  check('the system row leads', (body[0] as { role?: string })?.role === 'system' && (body[0] as { content?: string })?.content === 'You are the dialect fixture.', chatDialectHint)
+  check('a plain user row rides as one string content', canonicalJson(body[1]) === '{"content":"Count the words in my notes file.","role":"user"}', `${chatDialectHint}; got ${canonicalJson(body[1])}`)
+  check('the tool round: assistant tool_calls then role:tool rows, ids paired', wire.includes('"tool_calls"') && wire.includes('"tool_call_id":"toolu_A"') && wire.includes('"tool_call_id":"toolu_B"'), chatDialectHint)
+  check('the image rides as an image_url data part', wire.includes('"image_url"') && wire.includes('data:image/png;base64,aWF0dG9rZW4='), chatDialectHint)
+  check('the thinking blocks never ride (keepReasoningHistory defaults off)', !wire.includes('sig-fixture') && !wire.includes('considering the count'), chatDialectHint)
   const GOLDEN = `[{"content":"You are the dialect fixture.","role":"system"},{"content":"Count the words in my notes file.","role":"user"},{"content":"I will read the file first.","role":"assistant"},{"content":[{"text":"here is the screenshot of the file too","type":"text"},{"image_url":{"url":"data:image/png;base64,aWF0dG9rZW4="},"type":"image_url"}],"role":"user"},{"content":"Reading and counting now.","role":"assistant","tool_calls":[{"function":{"arguments":"{\\"file_path\\":\\"/proj/notes.txt\\"}","name":"Read"},"id":"toolu_A","type":"function"},{"function":{"arguments":"{\\"command\\":\\"wc -w /proj/notes.txt\\"}","name":"Bash"},"id":"toolu_B","type":"function"}]},{"content":"the quick brown fox jumps over the lazy dog","role":"tool","tool_call_id":"toolu_A"},{"content":"9 words","role":"tool","tool_call_id":"toolu_B"},{"content":"The file holds nine words.","role":"assistant"},{"content":"Summarise what you found in one sentence.","role":"user"}]`
-  check('the chat-completions rows are byte-identical to the base golden', wire === GOLDEN, `first divergence near ${firstDivergence(wire, GOLDEN)}`)
+  check('the chat-completions rows are byte-identical to the base golden', wire === GOLDEN, `${chatDialectHint}; first divergence near ${firstDivergence(wire, GOLDEN)}`)
 }
 
 section('OPENAI-COMPATIBLE CHAT — a virtual row (the family-lane wire truth, recorded)')
@@ -95,7 +99,7 @@ section('OPENAI-COMPATIBLE CHAT — a virtual row (the family-lane wire truth, r
   const rows = bridgeRows(withVirtual)
   const body = mapMessagesToZai(undefined, rows as never)
   const wire = canonicalJson(body)
-  check('the shared request plan keeps a display-only virtual row off the chat wire', !wire.includes('a display-only row'), wire.slice(0, 260))
+  check('the shared request plan keeps a display-only virtual row off the chat wire', !wire.includes('a display-only row'), `fix the request plan that mapMessagesToZai in src/services/providers/zai/zaiCodec.ts shares so virtual rows are dropped; got ${wire.slice(0, 260)}`)
 }
 
 section('LOCAL (Ollama) — the /api/chat body over the fixture conversation')
@@ -105,15 +109,15 @@ section('LOCAL (Ollama) — the /api/chat body over the fixture conversation')
   const body = ollamaChatBody(compatRequest as never, { numCtx: 8192 })
   if (process.env.DIALECT_PRINT === '1') console.log('  PRINTED: ' + canonicalJson(body))
   const wire = canonicalJson(body)
-  check('the model and stream flags ride', body.model === 'qwen3.5:9b' && body.stream === true)
-  check('truncate is false (the silent-truncation guard)', body.truncate === false)
-  check('the image rides as a bare base64 images entry', wire.includes('"images":["aWF0dG9rZW4="]'))
-  check('tool calls ride as parsed argument objects with tool_name on the tool rows', wire.includes('"tool_name":"Read"') && wire.includes('"tool_name":"Bash"') && wire.includes('"tool_calls"'))
-  check('num_ctx rides under options', canonicalJson(body.options) === '{"num_ctx":8192}')
-  check('the thinking blocks never ride', !wire.includes('sig-fixture') && !wire.includes('considering the count'))
+  check('the model and stream flags ride', body.model === 'qwen3.5:9b' && body.stream === true, ollamaDialectHint)
+  check('truncate is false (the silent-truncation guard)', body.truncate === false, ollamaDialectHint)
+  check('the image rides as a bare base64 images entry', wire.includes('"images":["aWF0dG9rZW4="]'), ollamaDialectHint)
+  check('tool calls ride as parsed argument objects with tool_name on the tool rows', wire.includes('"tool_name":"Read"') && wire.includes('"tool_name":"Bash"') && wire.includes('"tool_calls"'), ollamaDialectHint)
+  check('num_ctx rides under options', canonicalJson(body.options) === '{"num_ctx":8192}', ollamaDialectHint)
+  check('the thinking blocks never ride', !wire.includes('sig-fixture') && !wire.includes('considering the count'), ollamaDialectHint)
   const messages = ollamaMessagesOf(compatRequest.messages as never)
   const GOLDEN_MESSAGES = `[{"content":"You are the dialect fixture.","role":"system"},{"content":"Count the words in my notes file.","role":"user"},{"content":"I will read the file first.","role":"assistant"},{"content":"here is the screenshot of the file too","images":["aWF0dG9rZW4="],"role":"user"},{"content":"Reading and counting now.","role":"assistant","tool_calls":[{"function":{"arguments":{"file_path":"/proj/notes.txt"},"name":"Read"},"id":"toolu_A"},{"function":{"arguments":{"command":"wc -w /proj/notes.txt"},"name":"Bash"},"id":"toolu_B"}]},{"content":"the quick brown fox jumps over the lazy dog","role":"tool","tool_call_id":"toolu_A","tool_name":"Read"},{"content":"9 words","role":"tool","tool_call_id":"toolu_B","tool_name":"Bash"},{"content":"The file holds nine words.","role":"assistant"},{"content":"Summarise what you found in one sentence.","role":"user"}]`
-  check('the Ollama rows are byte-identical to the base golden', canonicalJson(messages) === GOLDEN_MESSAGES, `first divergence near ${firstDivergence(canonicalJson(messages), GOLDEN_MESSAGES)}`)
+  check('the Ollama rows are byte-identical to the base golden', canonicalJson(messages) === GOLDEN_MESSAGES, `${ollamaDialectHint}; first divergence near ${firstDivergence(canonicalJson(messages), GOLDEN_MESSAGES)}`)
 }
 
 console.log(failures === 0 ? '\n✅ CHAT DIALECTS CONTRACT GREEN (gemini · openai-compatible · local)' : `\n❌ ${failures} CHAT DIALECT CHECK(S) FAILED`)

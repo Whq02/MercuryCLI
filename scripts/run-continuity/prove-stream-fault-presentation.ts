@@ -76,8 +76,8 @@ console.log('recovered stream-fault presentation ──')
       mk.assistant('a3', '— finished.'),
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
-    check('recovered fault lands in the set', lookups.recoveredStreamFaultUuids.has('a2'))
-    check('the set holds ONLY the fault', lookups.recoveredStreamFaultUuids.size === 1)
+    check('recovered fault lands in the set', lookups.recoveredStreamFaultUuids.has('a2'), 'recoveryTracker in src/services/messages/lookups.ts must add an API-error assistant row to recoveredStreamFaultUuids when the stream-fault nudge follows it; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
+    check('the set holds ONLY the fault', lookups.recoveredStreamFaultUuids.size === 1, 'recoveryTracker in src/services/messages/lookups.ts must add only the fault row; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
   }
   {
     const messages = [
@@ -86,7 +86,7 @@ console.log('recovered stream-fault presentation ──')
       mk.assistant('a2', faultText, true),
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
-    check('a TERMINAL fault (no nudge after) stays out', lookups.recoveredStreamFaultUuids.size === 0)
+    check('a TERMINAL fault (no nudge after) stays out', lookups.recoveredStreamFaultUuids.size === 0, 'recoveryTracker in src/services/messages/lookups.ts must not mark a fault recovered until a nudge or stream_cut row follows; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
   }
   {
     const { createStreamCutMessage, createSystemMessage } = await import('../../src/utils/messages/systemMessages.ts')
@@ -99,7 +99,7 @@ console.log('recovered stream-fault presentation ──')
       mk.assistant('a3', '— finished.'),
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
-    check('the typed stream_cut row after a fault marks it recovered without the nudge (the live road)', lookups.recoveredStreamFaultUuids.has('a2') && lookups.recoveredStreamFaultUuids.size === 1)
+    check('the typed stream_cut row after a fault marks it recovered without the nudge (the live road)', lookups.recoveredStreamFaultUuids.has('a2') && lookups.recoveredStreamFaultUuids.size === 1, 'recoveryTracker in src/services/messages/lookups.ts must treat a stream_cut system row as the recovery marker; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
     const warning = createSystemMessage('OpenAI ended the stream after partial content — stream died (server_error); stopped after 1 continuation; the reply so far stands', 'warning')
     const exhausted = [
       mk.user('u1', 'summarize'),
@@ -108,7 +108,7 @@ console.log('recovered stream-fault presentation ──')
       warning as never,
     ]
     const exhaustedLookups = buildMessageLookups(normalizeMessages(exhausted), exhausted)
-    check('the exhausted branch\u2019s warning row never marks the fault recovered', exhaustedLookups.recoveredStreamFaultUuids.size === 0)
+    check('the exhausted branch\u2019s warning row never marks the fault recovered', exhaustedLookups.recoveredStreamFaultUuids.size === 0, 'recoveryTracker in src/services/messages/lookups.ts must ignore a plain warning system row; the set holds ' + JSON.stringify([...exhaustedLookups.recoveredStreamFaultUuids]))
   }
   {
     const messages = [
@@ -117,7 +117,7 @@ console.log('recovered stream-fault presentation ──')
       mk.user('u2', 'some unrelated meta note', true),
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
-    check('a non-continuable error never enters the set', lookups.recoveredStreamFaultUuids.size === 0)
+    check('a non-continuable error never enters the set', lookups.recoveredStreamFaultUuids.size === 0, 'recoveryTracker in src/services/messages/lookups.ts must admit only stream-fault rows, not other API errors; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
   }
   {
     const messages = [
@@ -134,12 +134,13 @@ console.log('recovered stream-fault presentation ──')
       mk.assistant('a4', 'done.'),
     ]
     const lookups = buildMessageLookups(normalizeMessages(messages), messages)
-    check('run 1 recovered fault stays in', lookups.recoveredStreamFaultUuids.has('faultA'))
+    check('run 1 recovered fault stays in', lookups.recoveredStreamFaultUuids.has('faultA'), 'recoveryTracker in src/services/messages/lookups.ts; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
     check(
       'a TERMINAL fault is never repainted by a later run’s nudge',
       !lookups.recoveredStreamFaultUuids.has('faultB'),
+      'recoveryTracker in src/services/messages/lookups.ts must clear its pending faults when a real user turn starts; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]),
     )
-    check('the later run’s own recovered fault lands', lookups.recoveredStreamFaultUuids.has('faultC'))
+    check('the later run’s own recovered fault lands', lookups.recoveredStreamFaultUuids.has('faultC'), 'recoveryTracker in src/services/messages/lookups.ts; the set holds ' + JSON.stringify([...lookups.recoveredStreamFaultUuids]))
   }
 }
 
@@ -164,11 +165,11 @@ for (const cols of [80, 120]) {
     grid: Array<Array<{ c: string }>>
   }
   const text = grid.grid.map(row => row.map(cell => cell.c).join('')).join('\n')
-  check(`@${cols}: the one calm line paints`, text.includes('Continued after 1 stream cut · context sent again'))
-  check(`@${cols}: no warning triangle names the cut`, !text.split('\n').some(line => line.includes('▲') && /stream|continu/i.test(line)))
-  check(`@${cols}: NO terminal API-error card in the default view`, !text.includes('API Error:'))
-  check(`@${cols}: the partial prose stands above`, text.includes('first the schema swap'))
-  check(`@${cols}: the continuation prose renders beneath`, text.includes('completing the summary'))
+  check(`@${cols}: the one calm line paints`, text.includes('Continued after 1 stream cut · context sent again'), 'the stream_cut row is painted by src/components/messages/SystemTextMessage.tsx; the scenario stream-fault-recovered is in scripts/ui/renderScenarios.ts')
+  check(`@${cols}: no warning triangle names the cut`, !text.split('\n').some(line => line.includes('▲') && /stream|continu/i.test(line)), 'a recovered cut must paint the calm line in src/components/messages/SystemTextMessage.tsx, not a warning row')
+  check(`@${cols}: NO terminal API-error card in the default view`, !text.includes('API Error:'), 'a recovered fault listed in recoveredStreamFaultUuids (src/services/messages/lookups.ts) must be hidden from the default view')
+  check(`@${cols}: the partial prose stands above`, text.includes('first the schema swap'), 'the scenario stream-fault-recovered in scripts/ui/renderScenarios.ts must render the partial reply; the recovered fault must not hide it')
+  check(`@${cols}: the continuation prose renders beneath`, text.includes('completing the summary'), 'the scenario stream-fault-recovered in scripts/ui/renderScenarios.ts must render the continuation reply after the calm line')
 }
 
 console.log(failures === 0 ? '\nALL GREEN' : `\n${failures} FAILURE(S)`)

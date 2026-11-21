@@ -37,7 +37,10 @@ delete process.env.MERCURY_HOME
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    what to change: homeRepositoryCheck and homeRepositoryRemovalWords in src/services/health/healthReport.ts (rows and fix words); for the section 5 checks rebuild with `bun run build.ts` and read the home-repository row of `node dist/mercury.mjs health --json`')
+  }
 }
 
 const { setCwd } = await import('../../src/utils/Shell.js')

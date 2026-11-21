@@ -30,7 +30,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — rewind capture proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — rewind capture proofs exceeded 240s; read the last [dbg] waitFor line above for the row that never came, and rebuild dist/mercury.mjs (bun run build.ts) if it is stale')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -44,21 +44,21 @@ section('§1 — the capture gate: the seat runner captures under the interactiv
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   setIsInteractive(false)
-  check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession())
-  check('a plain run process without the worker stamp captures nothing: capture OFF (control)', fileHistoryEnabled() === false)
+  check('the run posture reads non-interactive (the premise)', getIsNonInteractiveSession(), 'setIsInteractive(false) must make getIsNonInteractiveSession() in src/bootstrap/state.ts return true')
+  check('a plain run process without the worker stamp captures nothing: capture OFF (control)', fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a non-interactive process that is not a session runner')
 
   process.env.MERCURY_CONCOURSE_WORKER = '1'
-  check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true)
+  check('THE FIX: the seat runner (worker stamp under run) captures — the audit red', fileHistoryEnabled() === true, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return seat when isSessionRunnerProcess() is true')
 
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: false }))
-  check("the operator's Settings off-switch reaches the seat runner", fileHistoryEnabled() === false)
+  check("the operator's Settings off-switch reaches the seat runner", fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
   delete process.env.MERCURY_CONCOURSE_WORKER
 
   setIsInteractive(true)
-  check('an interactive process is unchanged (on)', fileHistoryEnabled() === true)
+  check('an interactive process is unchanged (on)', fileHistoryEnabled() === true, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return interactive when the session is interactive')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: false }))
-  check('…and its off-switch still holds', fileHistoryEnabled() === false)
+  check('…and its off-switch still holds', fileHistoryEnabled() === false, 'fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return setting when fileCheckpointingEnabled is false')
   saveGlobalConfig(c => ({ ...c, fileCheckpointingEnabled: true }))
 }
 
@@ -156,24 +156,24 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
   const init = await peer
     .request('initialize', { protocol: RUNNER_PROTOCOL, host: { name: 'prove-rewind-capture', version: '0' }, capabilities: { holds_asks: true, elicitation: false, partial_rows: false } }, { deadlineMs: 60_000 })
     .catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
-  check(`${opts.label}: initialize answered with the pinned session id`, typeof init === 'object' && init.session_id === pinnedSessionId, j(init).slice(0, 200))
+  check(`${opts.label}: initialize answered with the pinned session id`, typeof init === 'object' && init.session_id === pinnedSessionId, j(init).slice(0, 200) + '; the runner (node dist/mercury.mjs runner) must echo the --session-id it was given in its initialize reply; rebuild dist with bun run build.ts if stale')
 
   const accepted = await peer.request('queue/add', { type: 'prompt', content: 'overwrite note.txt with ONE' }, { deadlineMs: 60_000 }).catch((error: unknown) => (error instanceof Error ? error.message : String(error)))
-  check(`${opts.label}: the prompt row was accepted`, typeof accepted === 'object' && accepted.accepted === true, j(accepted))
+  check(`${opts.label}: the prompt row was accepted`, typeof accepted === 'object' && accepted.accepted === true, j(accepted) + '; the runner must accept a queue/add prompt row after initialize')
   const sessionRow = await waitFor(isSessionRow, 'session')
   const sessionId = typeof sessionRow?.session_id === 'string' ? sessionRow.session_id : ''
-  check(`${opts.label}: the stream opened with the session row carrying the session id`, /^[0-9a-f-]{36}$/.test(sessionId), j(sessionRow ?? {}).slice(0, 200))
+  check(`${opts.label}: the stream opened with the session row carrying the session id`, /^[0-9a-f-]{36}$/.test(sessionId), j(sessionRow ?? {}).slice(0, 200) + '; the runner must emit a session row with a session_id once the prompt is accepted')
   const outcome = await waitFor(isOutcome, 'outcome')
-  check(`${opts.label}: the tool turn settled (outcome completed)`, outcome?.status === 'completed', j({ status: outcome?.status, answer: outcome?.answer, stderr: stderr.slice(-300) }))
+  check(`${opts.label}: the tool turn settled (outcome completed)`, outcome?.status === 'completed', j({ status: outcome?.status, answer: outcome?.answer, stderr: stderr.slice(-300) }) + '; the fixture provider drives a Read then a Write then text, so look at the runner stderr for the tool step that failed')
   const toolResultText = rows
     .filter(row => row.type === 'tool_result')
     .map(row => j(row).slice(0, 400))
     .join(' | ')
-  check(`${opts.label}: the Write landed on disk (the tool ran in THIS process)`, existsSync(target) && readFileSync(target, 'utf8') === 'ONE\n', `${existsSync(target) ? readFileSync(target, 'utf8') : 'absent'} tool_result=${toolResultText}`)
+  check(`${opts.label}: the Write landed on disk (the tool ran in THIS process)`, existsSync(target) && readFileSync(target, 'utf8') === 'ONE\n', `${existsSync(target) ? readFileSync(target, 'utf8') : 'absent'} tool_result=${toolResultText}; the Write tool must run inside the runner process and the permission request is denied only for asks, so check the tool_result text`)
 
   child.stdin.end()
   const exit = await exited
-  check(`${opts.label}: the runner exited clean`, exit === 0, `exit=${exit} stderr=${stderr.slice(-300)}`)
+  check(`${opts.label}: the runner exited clean`, exit === 0, `exit=${exit} stderr=${stderr.slice(-300)}; the runner must exit 0 when its stdin closes after the turn`)
   await fixture.close()
 
   const blobDir = join(configDir, 'file-history', sessionId)
@@ -192,16 +192,16 @@ async function driveRunner(opts: { stamp: boolean; label: string }): Promise<voi
     return null
   })()
   if (opts.stamp) {
-    check('§2 a backup blob exists under <home>/file-history/<sid>/ (the pre-edit bytes)', blobs.length >= 1, `dir=${blobDir} blobs=${j(blobs)}`)
+    check('§2 a backup blob exists under <home>/file-history/<sid>/ (the pre-edit bytes)', blobs.length >= 1, `dir=${blobDir} blobs=${j(blobs)}; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must back up the file before the Write in the seat runner`)
     const preEdit = blobs.map(b => readFileSync(join(blobDir, b), 'utf8'))
-    check('§2 the blob holds the PRE-EDIT bytes (ZERO), never the post-edit content', preEdit.includes('ZERO\n'), j(preEdit))
-    check('§2 the transcript carries a file-history-snapshot row (resume rehydrates it)', snapshotRows.length >= 1, transcript ?? 'no transcript found')
+    check('§2 the blob holds the PRE-EDIT bytes (ZERO), never the post-edit content', preEdit.includes('ZERO\n'), j(preEdit) + '; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must copy the file before the edit lands')
+    check('§2 the transcript carries a file-history-snapshot row (resume rehydrates it)', snapshotRows.length >= 1, (transcript ?? 'no transcript found') + '; fileHistoryMakeSnapshot in src/services/changeTransaction/fileHistory.ts must run for the turn and src/utils/sessionStorage/writer.ts must write the row')
     const keyed = snapshotRows.some(l => userUuid !== null && l.includes(userUuid))
-    check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}`)
-    check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | '))
+    check("§2 the snapshot is keyed by the turn's own user message (the restore point /rewind names)", keyed, `userUuid=${userUuid} rows=${snapshotRows.map(r => r.slice(0, 160)).join(' | ')}; the snapshot messageId written by src/utils/sessionStorage/writer.ts must be the turn's user message uuid`)
+    check('§2 the snapshot tracks note.txt', snapshotRows.some(l => l.includes('note.txt')), snapshotRows.map(r => r.slice(0, 200)).join(' | ') + '; fileHistoryTrackEdit in src/services/changeTransaction/fileHistory.ts must record the edited file in the snapshot')
   } else {
-    check('§3 CONTROL — the plain run captured no blob (an unstamped run keeps its hands off)', blobs.length === 0, j(blobs))
-    check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length))
+    check('§3 CONTROL — the plain run captured no blob (an unstamped run keeps its hands off)', blobs.length === 0, j(blobs) + '; fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
+    check('§3 CONTROL — and wrote no snapshot row', snapshotRows.length === 0, String(snapshotRows.length) + ' snapshot rows; fileCheckpointSource in src/services/changeTransaction/fileHistory.ts must return headless for a plain runner without the worker stamp')
   }
 }
 

@@ -8,7 +8,8 @@ const root = join(import.meta.dir, '..', '..')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix: the committed evidence is scripts/cache/fixtures/corpus.json and verdict.json, regenerated with bench-sim.ts --write in scripts/cache; the policy under test is src/utils/cache/cacheClock.ts and the MERCURY_CACHE_CLOCK row is in src/substrate/flags/api.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

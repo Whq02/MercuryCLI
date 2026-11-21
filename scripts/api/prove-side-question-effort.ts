@@ -25,15 +25,16 @@ process.env.MERCURY_EFFORT_LEVEL = 'max'
 
 let failures = 0
 let checks = 0
+const SIDE_EFFORT_FAIL_HINT = 'to fix, change how the request is built in src/services/providers/anthropic/streamCore.ts (queryWithModel must send no effort and no thinking, queryUtility must pin effort low on the main seat model), or the stamp words in src/utils/effortStamp.ts (effortStampLine); the turn itself goes through src/services/providers/callModelRouter.ts (routedCallModel)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${SIDE_EFFORT_FAIL_HINT}${detail ? ` — ${detail.slice(0, 600)}` : ''}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const j = (v: unknown): string => JSON.stringify(v)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the side-question effort prover exceeded 120s')
+  console.log('\nTIMEOUT — the side-question effort prover exceeded 120s; a request to the fixture (scripts/compact/overflowFixture.ts) never completed, so read the last section header above and the call it makes in src/services/providers/anthropic/streamCore.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

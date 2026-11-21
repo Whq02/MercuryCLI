@@ -47,9 +47,9 @@ const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -263,15 +263,15 @@ console.log(`D1 — a bare boot in a fresh folder writes nothing (${gitOk ? 'a g
   })
   printFrame('d1 (the face, then the exit)', c.lines)
   const face = markText(c, 'face')
-  check('D1 the boot landed on the face', face.includes('New Session'), face.slice(0, 160))
-  check('D1 the face names the folder without history ("Dir: foo")', face.includes('Dir: foo'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '))
-  check('D1 the folder is byte-identical after the boot (the poison: any write)', treeHash(FOO) === before)
-  check('D1 no `.mercury/` was created in the folder', !existsSync(join(FOO, '.mercury')))
-  check('D1 no session-store dir names the folder (no card, no transcript)', storeDirsFor(home, FOO).length === 0, storeDirsFor(home, FOO).join(','))
-  check('D1 no session was born behind the face (the warm runner keeps no record)', Object.keys(liveRecords(home)).length === 0 && transcriptsOf(home).length === 0)
+  check('D1 the boot landed on the face', face.includes('New Session'), face.slice(0, 160), 'the built app did not reach the boot face in this folder; rebuild dist with bun run build.ts and read the frame printed above')
+  check('D1 the face names the folder without history ("Dir: foo")', face.includes('Dir: foo'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '), 'the boot face must name a folder without history as Dir: followed by the folder name')
+  check('D1 the folder is byte-identical after the boot (the poison: any write)', treeHash(FOO) === before, '', 'a bare boot wrote into the folder; find which startup step writes there before any session is born')
+  check('D1 no `.mercury/` was created in the folder', !existsSync(join(FOO, '.mercury')), '', 'a bare boot created the .mercury estate; creation belongs to the first birth only')
+  check('D1 no session-store dir names the folder (no card, no transcript)', storeDirsFor(home, FOO).length === 0, storeDirsFor(home, FOO).join(','), 'a bare boot created a session-store dir or project card for the folder; the card belongs to the first birth only')
+  check('D1 no session was born behind the face (the warm runner keeps no record)', Object.keys(liveRecords(home)).length === 0 && transcriptsOf(home).length === 0, '', 'the warm runner behind the face left a live worker record or a transcript; a bare boot must keep neither')
   const rec = projectRecord(home, FOO) ?? {}
   const extra = Object.keys(rec).filter(k => !TOLERATED_PROJECT_KEYS.has(k))
-  check('D1 the folder\'s config record carries only the tolerated keys (no cost row, no session id, no metrics)', extra.length === 0, `extra: ${extra.join(',') || '∅'} · status ${c.status}`)
+  check('D1 the folder\'s config record carries only the tolerated keys (no cost row, no session id, no metrics)', extra.length === 0, `extra: ${extra.join(',') || '∅'} · status ${c.status}`, 'a bare boot wrote keys beyond the tolerated list into the folder config record; stop that write, or extend TOLERATED_PROJECT_KEYS in this file if the key is intended')
   console.log(`  [FOOTPRINT] config record keys after the bare boot: ${Object.keys(rec).join(', ') || '∅'} (exit status ${c.status})`)
   reapHome(home)
 }
@@ -289,21 +289,21 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
     total: 200,
   })
   printFrame('d2 (the chat after ↵)', c.lines)
-  check('D2 the chat is on screen after ↵', c.text.includes(COMPOSER), c.tail.slice(-200))
+  check('D2 the chat is on screen after ↵', c.text.includes(COMPOSER), c.tail.slice(-200), 'enter on New Session did not open the chat; read the frame printed above')
   const estate = join(FOO, '.mercury')
-  check('D2 the first birth created exactly `<folder>/.mercury/`', existsSync(estate) && statSync(estate).isDirectory(), c.tail.slice(-120))
-  check('D2 the estate is an empty directory (nothing speculative inside)', existsSync(estate) && readdirSync(estate).length === 0, existsSync(estate) ? readdirSync(estate).join(',') : 'absent')
+  check('D2 the first birth created exactly `<folder>/.mercury/`', existsSync(estate) && statSync(estate).isDirectory(), c.tail.slice(-120), 'the first birth must create the empty <folder>/.mercury directory')
+  check('D2 the estate is an empty directory (nothing speculative inside)', existsSync(estate) && readdirSync(estate).length === 0, existsSync(estate) ? readdirSync(estate).join(',') : 'absent', 'the .mercury estate must stay an empty directory at the first birth')
   removeScratch(estate)
-  check('D2 beyond the estate the folder is byte-identical (the birth wrote nothing else)', treeHash(FOO) === before)
+  check('D2 beyond the estate the folder is byte-identical (the birth wrote nothing else)', treeHash(FOO) === before, '', 'the first birth wrote files into the folder besides the .mercury estate')
   const stores = storeDirsFor(home, FOO)
-  check('D2 the project card sits in the folder\'s session-store dir', stores.length === 1 && existsSync(join(stores[0]!, 'project.json')), stores.join(','))
+  check('D2 the project card sits in the folder\'s session-store dir', stores.length === 1 && existsSync(join(stores[0]!, 'project.json')), stores.join(','), 'the first birth must write exactly one project.json card in the folder session-store dir; see src/utils/projectStoreIdentity.ts')
   if (stores.length === 1) {
     const card = JSON.parse(readFileSync(join(stores[0]!, 'project.json'), 'utf8')) as Record<string, unknown>
     const live = Object.values(liveRecords(home))
-    check('D2 the card names the folder and the born session', card.schema === 1 && card.dir === FOO && typeof card.firstChatAt === 'number' && live.some(r => r.sessionId === card.firstSessionId), JSON.stringify(card))
-    check('D2 the born session works in the folder (the record\'s workspace)', live.length === 1 && live[0]?.workspaceId === realpathSync(FOO), JSON.stringify(live.map(r => r.workspaceId)))
+    check('D2 the card names the folder and the born session', card.schema === 1 && card.dir === FOO && typeof card.firstChatAt === 'number' && live.some(r => r.sessionId === card.firstSessionId), JSON.stringify(card), 'the project card must hold schema 1, the folder, firstChatAt and the born session id')
+    check('D2 the born session works in the folder (the record\'s workspace)', live.length === 1 && live[0]?.workspaceId === realpathSync(FOO), JSON.stringify(live.map(r => r.workspaceId)), 'exactly one live worker record must carry the folder as its workspaceId')
   }
-  check('D2 no transcript yet — the first chat is wordless', transcriptsOf(home).length === 0, transcriptsOf(home).join(','))
+  check('D2 no transcript yet — the first chat is wordless', transcriptsOf(home).length === 0, transcriptsOf(home).join(','), 'a first chat with no words must not write a transcript')
   reapHome(home)
   const d = await capture({
     id: 'd2b-listed-from-other',
@@ -321,9 +321,9 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
   printFrame('d2b (the face from another folder)', d.lines)
   const face = markText(d, 'face')
   const projects = markText(d, 'projects')
-  check('D2 the other folder is named as itself', face.includes('Dir: other'))
-  check('D2 foo is a selectable project now — the Session Manager project picker lists it (no transcript needed)', projects.includes('foo'), projects.split('\n').filter(l => /foo|other/i.test(l)).join(' | '))
-  check('D2 foo\'s wordless chat is never a Continue target', !face.includes('Continue Last Session'), face.split('\n').filter(l => l.includes('Continue')).join(' | '))
+  check('D2 the other folder is named as itself', face.includes('Dir: other'), '', 'the boot face must name the launch folder as Dir: followed by its name')
+  check('D2 foo is a selectable project now — the Session Manager project picker lists it (no transcript needed)', projects.includes('foo'), projects.split('\n').filter(l => /foo|other/i.test(l)).join(' | '), 'a folder with a born wordless chat must be listed by the Session Manager project picker without a transcript')
+  check('D2 foo\'s wordless chat is never a Continue target', !face.includes('Continue Last Session'), face.split('\n').filter(l => l.includes('Continue')).join(' | '), 'a wordless chat must not make Continue Last Session appear on the boot face')
   reapHome(home)
 }
 
@@ -341,7 +341,7 @@ console.log('D3 — booting inside `gamma/.mercury` names the project "gamma" an
   })
   printFrame('d3 (the face inside gamma/.mercury)', c.lines)
   const face = markText(c, 'face')
-  check('D3 the face names the parent folder ("Dir: gamma"), never the dot-dir', face.includes('Dir: gamma') && !face.includes('Dir: .mercury'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '))
+  check('D3 the face names the parent folder ("Dir: gamma"), never the dot-dir', face.includes('Dir: gamma') && !face.includes('Dir: .mercury'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '), 'booting inside a .mercury folder must name the parent folder on the face and write nothing')
   reapHome(home)
 }
 

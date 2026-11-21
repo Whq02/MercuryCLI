@@ -19,6 +19,7 @@ const webfetch = await import('../../src/tools/WebFetchTool/UI.tsx')
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log(`    where to look: ${name.startsWith('§1') ? 'the renderToolUseMessage of each tool named above (under src/tools/<Tool>/); it must return a string or Text, never a Box, so the use line stays inline' : 'renderToolUseMessage in src/tools/WebSearchTool/UI.tsx and src/tools/WebFetchTool/UI.tsx; the verbose arm must return a plain string with the query or url, prompt and domain lines, and the quiet arm must stay unchanged'}`)
   if (!ok) failures = 1
 }
 

@@ -4,7 +4,10 @@
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('         fix: gate in toolDeferralEnabled (src/utils/model/capabilities.ts), mode ladder in getToolSearchMode (src/services/messages/toolSearch.ts), wire form in toolReferenceWireAccepted (src/services/providers/deferralWire.ts)')
+  }
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

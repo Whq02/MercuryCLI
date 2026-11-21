@@ -93,7 +93,7 @@ if (scenario !== null) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${cond ? '' : ' — the rows come from loginFamilyRows in src/components/loginFamilyRows.ts, the offer from src/components/tensorfold/tensorfoldFacts.ts, and arming or disarming the /tensorfold deep link is in src/components/ConsoleOAuthFlow.tsx; if the detail is a child exit status and stderr, the scenario crashed, so fix what it names'}`)
 }
 const DEAD = 'http://127.0.0.1:9'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'tensorfold-first-run-'))

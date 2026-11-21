@@ -69,7 +69,7 @@ if (childAt !== -1) {
   writeFileSync(join(f.home, 'settings.json'), JSON.stringify({ compatProvider: { boundary: { baseUrl: f.baseUrl, dialect: 'vllm', models: [f.model] } } }))
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '')) }
+  const check = (name: string, truth: unknown, detail?: unknown, hint?: string) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '') + (!truth && hint ? ' — change: ' + hint : '')) }
   const child = async (mode: string) => {
     const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], {
       cwd: f.home,
@@ -89,14 +89,14 @@ if (childAt !== -1) {
   }
   try {
     const launch = await child('launch')
-    check('the original process dispatches the configured max effort without a per-call override', f.captures[0]?.body.reasoning_effort === 'max' && launch.metadata?.effort === 'max' && launch.metadata.effortOverride === undefined, launch)
+    check('the original process dispatches the configured max effort without a per-call override', f.captures[0]?.body.reasoning_effort === 'max' && launch.metadata?.effort === 'max' && launch.metadata.effortOverride === undefined, launch, 'resolveAgentEffort in src/tools/AgentTool/runAgent.ts must use the configured agents.defaultEffort when no per-call effort is given, and the recorded metadata must hold max with no effortOverride')
     const resumed = await child('resume')
-    check('a fresh process resumes the same endpoint and wire model', f.captures.length === 2 && f.captures[1]?.body.model === f.model)
-    check('the resumed request retains its recorded max effort despite a new low default', f.captures[1]?.body.reasoning_effort === 'max', f.captures[1]?.body.reasoning_effort)
-    check('the resumed metadata records max instead of silently replacing it', resumed.metadata?.effort === 'max', resumed.metadata)
-    check('both turns and the earlier reasoning text survive the process boundary', resumed.hasFirst && resumed.hasSecond && f.captures[1]?.body.messages.some((row: any) => row.role === 'assistant' && row.reasoning_content === 'reasoning-0'))
+    check('a fresh process resumes the same endpoint and wire model', f.captures.length === 2 && f.captures[1]?.body.model === f.model, { captures: f.captures.length, model: f.captures[1]?.body.model }, 'the resumed crewmate must send its second turn to the same compat endpoint and wire model as the first; read the model recorded for the crewmate in src/tools/AgentTool/resumeAgent.ts')
+    check('the resumed request retains its recorded max effort despite a new low default', f.captures[1]?.body.reasoning_effort === 'max', f.captures[1]?.body.reasoning_effort, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must restore the recorded effort (restoredEffort) ahead of the current agents.defaultEffort')
+    check('the resumed metadata records max instead of silently replacing it', resumed.metadata?.effort === 'max', resumed.metadata, 'the resumed crewmate record must keep the effort it was launched with; see restoredEffort in src/tools/AgentTool/resumeAgent.ts')
+    check('both turns and the earlier reasoning text survive the process boundary', resumed.hasFirst && resumed.hasSecond && f.captures[1]?.body.messages.some((row: any) => row.role === 'assistant' && row.reasoning_content === 'reasoning-0'), { hasFirst: resumed.hasFirst, hasSecond: resumed.hasSecond }, 'the resumed request must carry both turns from the stored crewmate transcript, including the assistant reasoning_content of the first turn')
     const overridden = await child('override')
-    check('an explicit resume effort still overrides the retained tier', f.captures[2]?.body.reasoning_effort === 'medium' && overridden.metadata?.effort === 'medium')
+    check('an explicit resume effort still overrides the retained tier', f.captures[2]?.body.reasoning_effort === 'medium' && overridden.metadata?.effort === 'medium', { wire: f.captures[2]?.body.reasoning_effort, recorded: overridden.metadata?.effort }, 'an explicit effort passed to resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts (args.effort) must win over the recorded effort, on the wire and in the metadata')
     console.log('BOUNDARY CREWMATE ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; actual launch and resumes in separate processes, loopback model only')
   } finally { f.close() }
   process.exitCode = failures ? 1 : 0

@@ -23,7 +23,7 @@ const { initialPermissionModeFromCLI } = await import('../../src/utils/permissio
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — fix initialPermissionModeFromCLI in src/utils/permissions/permissionSetup.ts: sovereign boots only with the --sovereign launch flag and a refusal carries a notification naming it; a settings-borne mode other than sovereign must still apply'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

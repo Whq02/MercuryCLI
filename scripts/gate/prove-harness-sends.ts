@@ -6,10 +6,11 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const SELF = relative(ROOT, import.meta.path)
 let failures = 0
 let checks = 0
+const SENDS_FIX_HINT = 'fix: the Boot face pattern and its pass-through live in paintsBootFaceReady and arenaBootFacePass in scripts/lib/bootFace.ts; a line or file named above is the one to change in the script or stored frame it names'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${cond ? '' : ` — ${SENDS_FIX_HINT}`}`)
 }
 
 console.log('a harness sends a key of its own only to the Boot face, through one helper, and never drops a send from the record')

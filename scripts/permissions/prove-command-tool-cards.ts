@@ -20,7 +20,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.replaceAll(PROJECT, '<project>').slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — change the permission card that src/components/permissions/PermissionRequest.tsx draws for this tool, or its decision in src/utils/permissions/decision/wrapper.ts (the tool is under src/tools/ and is named in the section above) — ${detail.replaceAll(PROJECT, '<project>').slice(0, 900)}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

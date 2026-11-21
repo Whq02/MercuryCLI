@@ -18,19 +18,20 @@ const asks = await import('../../src/services/run/unansweredAsk.ts')
 const sdkRows = existsSync(join(ROOT, 'sdk', 'src', 'rows.ts')) ? await import('../../sdk/src/rows.ts') : null
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (!existsSync(dist)) {
-  console.error(`FAIL run bundle exists: ${dist}`)
+  console.error(`FAIL run bundle exists: ${dist} (build it first with bun run build.ts)`)
   process.exit(1)
 }
 const node = Bun.which('node')
 if (node === null) {
-  console.error('FAIL a node binary is on PATH')
+  console.error('FAIL a node binary is on PATH (install Node 24 or put it on PATH; the proof runs dist/mercury.mjs with it)')
   process.exit(1)
 }
 
 let failures = 0
+const BLOCKED_FIX_HINT = 'section 1 reads src/rows/vocabulary.ts and outcomeRow in src/rows/project.ts; the blocker text and its resume line come from unansweredAsksBlocker in src/services/run/unansweredAsk.ts; the door sections run dist/mercury.mjs, so rebuild with bun run build.ts after a change under src/'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${BLOCKED_FIX_HINT}`}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}`)

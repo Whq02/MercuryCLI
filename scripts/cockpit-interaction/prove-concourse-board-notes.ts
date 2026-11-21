@@ -102,7 +102,7 @@ function capture(name: string, cfg: Drive, env: NodeJS.ProcessEnv): string[] {
   writeFileSync(cfgPath, JSON.stringify({ argv: ['node', BIN], readyText: cfg.readyText, readySettleTicks: 4, stableTicks: 3, cols: cfg.cols, rows: cfg.rows, total: cfg.total, sends: cfg.sends, resizes, out }))
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env, cwd: REPO })
   if (!existsSync(out)) {
-    check(`${name}: the drive ran to its end (vshot exit ${res.status ?? '?'}, no frame)`, false, (res.stderr ?? '').slice(-600))
+    check(`${name}: the drive ran to its end (vshot exit ${res.status ?? '?'}, no frame)`, false, `${(res.stderr ?? '').slice(-600)} — vshot wrote no frame: run scripts/ui/vshot.py on the config named ${name}.cfg.json under ${scratch} and read its error`)
     return []
   }
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid
@@ -112,7 +112,7 @@ function capture(name: string, cfg: Drive, env: NodeJS.ProcessEnv): string[] {
     marked.set(`${name}:${m.label}`, linesOf(m.grid))
     writeFileSync(join(OUT_DIR, `${name}-mark-${m.label}.txt`), linesOf(m.grid).map(l => l.trimEnd()).join('\n') + '\n')
   }
-  check(`${name}: the drive ran to its end (vshot exit ${res.status ?? '?'}, ${payload.endReason ?? '?'})`, res.status === 0 && (payload.endReason === 'ready' || payload.endReason === 'stable'), (res.stderr ?? '').trim().split('\n').slice(-3).join(' | '))
+  check(`${name}: the drive ran to its end (vshot exit ${res.status ?? '?'}, ${payload.endReason ?? '?'})`, res.status === 0 && (payload.endReason === 'ready' || payload.endReason === 'stable'), `${(res.stderr ?? '').trim().split('\n').slice(-3).join(' | ')} — the drive did not reach its ready text or stop: open ${name}.txt in ${OUT_DIR} to see where the scripted keys left the board`)
   return lines
 }
 
@@ -142,7 +142,7 @@ const notePlace = (lines: string[], text: string): string => {
   return `foot: ${foot.join(' | ') || '(empty)'}${at >= 0 ? ` · row ${at}: ${lines[at]!.trim().slice(0, 140)}` : ''}`
 }
 const noteLaw = (tag: string, lines: string[], what: string, text: string): void =>
-  check(`${tag}: ${what} answers in the live view's message-box foot — "${text}" (whole, or cut in the middle where the foot is narrower)`, inLiveFoot(lines, text), notePlace(lines, text))
+  check(`${tag}: ${what} answers in the live view's message-box foot — "${text}" (whole, or cut in the middle where the foot is narrower)`, inLiveFoot(lines, text), `${notePlace(lines, text)} — the note must be set with setNote and painted in the live view foot: see src/components/concourse/ConcourseScreen.tsx, src/components/concourse/splitView.ts and src/components/concourse/screen/useConcourseCloseChord.ts`)
 
 console.log(`the board notices (${COLS}×${ROWS}, two panes, the list focused): every setNote answer paints in the live view's message-box foot`)
 {
@@ -187,7 +187,7 @@ console.log(`the board notices (${COLS}×${ROWS}, two panes, the list focused): 
     ],
   }, boardEnv(home, boardFixture(home), 'notes-off'))
   const split = markOf('notes-off', 'split')
-  check('the board is two panes with the list focused and no coordinator pane', split.some(l => l.includes('+ new session · n')) && split.some(l => l.includes('STATUS & TITLE')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /new session|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
+  check('the board is two panes with the list focused and no coordinator pane', split.some(l => l.includes('+ new session · n')) && split.some(l => l.includes('STATUS & TITLE')) && !split.some(l => l.includes('COORDINATOR')), split.filter(l => /new session|COORDINATOR/.test(l)).map(l => l.trim().slice(0, 100)).join(' | ') + ' — the board must open as the list pane and the live pane with no coordinator pane: see src/components/concourse/ConcourseLayout.tsx')
   noteLaw('split', split, 's where the frame is too narrow for the split view (the refusal)', SPLIT_REFUSED)
   noteLaw('queued', markOf('notes-off', 'queued'), '↵ on a queued row (the in-place disclaimer with the seat count and the m door)', QUEUED_NOTE)
   noteLaw('parked', markOf('notes-off', 'parked'), '⌃x ⌃x on a parked row (the arm before the delete)', ARMED_NOTE)
@@ -195,7 +195,7 @@ console.log(`the board notices (${COLS}×${ROWS}, two panes, the list focused): 
   noteLaw('door', markOf('notes-off', 'door'), '⌃x ⌃x on a project door row', DOOR_NOTE)
   noteLaw('ground', markOf('notes-off', 'ground'), '⌃g then ↵ on the boot folder (the repo switch receipt)', GROUND_NOTE)
   const ground = markOf('notes-off', 'ground')
-  check('the notes replace one another in the one foot row: the ground receipt stands alone there, the earlier notes gone', liveFootRows(ground).filter(row => [SPLIT_REFUSED, QUEUED_NOTE, ARMED_NOTE, OLDER_NOTE, DOOR_NOTE, GROUND_NOTE].some(note => row.includes(note))).length === 1, liveFootRows(ground).join(' | '))
+  check('the notes replace one another in the one foot row: the ground receipt stands alone there, the earlier notes gone', liveFootRows(ground).filter(row => [SPLIT_REFUSED, QUEUED_NOTE, ARMED_NOTE, OLDER_NOTE, DOOR_NOTE, GROUND_NOTE].some(note => row.includes(note))).length === 1, `${liveFootRows(ground).join(' | ')} — a new setNote must replace the earlier note, not stack beside it: see setNote in src/components/concourse/ConcourseScreen.tsx`)
 }
 
 console.log('the capacity ask answered on entry (a home that never answered it): its receipt paints in the same foot')
@@ -213,9 +213,9 @@ console.log('the capacity ask answered on entry (a home that never answered it):
   }, boardEnv(home, boardFixture(home), 'capacity-off'))
   const ask = markOf('capacity-off', 'ask')
   const receipt = markOf('capacity-off', 'receipt')
-  check('the capacity ask stood on entry', ask.some(l => /capacity|probe/i.test(l)), ask.filter(l => /capacity|probe/i.test(l)).map(l => l.trim().slice(0, 100)).join(' | '))
+  check('the capacity ask stood on entry', ask.some(l => /capacity|probe/i.test(l)), `${ask.filter(l => /capacity|probe/i.test(l)).map(l => l.trim().slice(0, 100)).join(' | ')} — a home that never answered the capacity ask must show it on entry: see src/utils/switchboard/capacityCheck.ts`)
   const seats = Number(/(\d+) seats/.exec(liveFootRows(receipt).join(' '))?.[1])
-  check(`capacity: n on the ask answers in the live view's message-box foot — "no probe — the machine's own reading decides — right now N seats"`, Number.isFinite(seats) && inLiveFoot(receipt, `no probe — the machine's own reading decides — right now ${seats} seats`), receipt.filter(l => /probe|seats/.test(l)).map(l => l.trim().slice(0, 140)).join(' | '))
+  check(`capacity: n on the ask answers in the live view's message-box foot — "no probe — the machine's own reading decides — right now N seats"`, Number.isFinite(seats) && inLiveFoot(receipt, `no probe — the machine's own reading decides — right now ${seats} seats`), `${receipt.filter(l => /probe|seats/.test(l)).map(l => l.trim().slice(0, 140)).join(' | ')} — the receipt for n must read as the line built in src/utils/switchboard/capacityCheck.ts and paint in the live view foot`)
 }
 
 console.log('the split view collapsing under a resize (130×40 → 120×40): the warning paints in the same foot')
@@ -236,7 +236,7 @@ console.log('the split view collapsing under a resize (130×40 → 120×40): the
   }, boardEnv(home, boardFixture(home), 'collapse-off'))
   const on = markOf('collapse-off', 'split-on')
   const after = markOf('collapse-off', 'after-resize')
-  check('s at 130 columns opens the split view (a chat pane beside the board)', on.length > 0 && !inLiveFoot(on, 'split needs'), liveFootRows(on).join(' | '))
+  check('s at 130 columns opens the split view (a chat pane beside the board)', on.length > 0 && !inLiveFoot(on, 'split needs'), `${liveFootRows(on).join(' | ')} — s at 130 columns must open the split view, not refuse it: see src/components/concourse/splitView.ts`)
   noteLaw('collapse', after, 'the frame shrinking under the split minimum (the collapse warning)', COLLAPSED)
 }
 

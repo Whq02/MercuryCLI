@@ -212,10 +212,12 @@ function judge(read: Reading, held: Record<string, number>): { faults: Fault[]; 
 }
 
 let failures = 0
+let failureHint = ''
 function check(label: string, ok: boolean, detail: string[] = []): void {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`)
   if (!ok) for (const line of detail) console.log(`         ${line}`)
+  if (!ok && failureHint !== '') console.log(`         ${failureHint}`)
 }
 const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 const told = (faults: Fault[], law: string): string[] => faults.filter(fault => fault.law === law).flatMap(fault => [fault.where, `  instead: ${fault.fix}`])
@@ -225,6 +227,7 @@ const ROOT = at < 0 ? resolve(import.meta.dir, '..', '..') : resolve(process.arg
 const heldTotal = Object.values(HOOK_CALLS_IN_CHAT).reduce((sum, count) => sum + count, 0)
 
 section('§0 the reader on a planted estate: each breach is refused by its own line')
+failureHint = `the planted estate is read by readTree and judged by judge in ${SELF}: change that reader, not the screen`
 {
   const estate = mkdtempSync(join(tmpdir(), 'chat-parts-law-'))
   const plant = (file: string, lines: string[]): void => {
@@ -273,6 +276,7 @@ section('§0 the reader on a planted estate: each breach is refused by its own l
   rmSync(estate, { recursive: true, force: true })
 }
 
+failureHint = ''
 section(`§1 the tree at ${ROOT}`)
 const read = readTree(ROOT)
 const verdict = judge(read, HOOK_CALLS_IN_CHAT)
@@ -288,7 +292,7 @@ if (at < 0) {
   section('§2 the door as a running module')
   ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
   const door = (await import('../../src/screens/Chat.tsx')) as Record<string, unknown>
-  check(`${DOOR} loads and its one runtime export is the component ${UNIT}`, Object.keys(door).join() === UNIT && typeof door[UNIT] === 'function', [Object.keys(door).join(', ')])
+  check(`${DOOR} loads and its one runtime export is the component ${UNIT}`, Object.keys(door).join() === UNIT && typeof door[UNIT] === 'function', [Object.keys(door).join(', '), `change the runtime exports of ${DOOR} so that only ${UNIT} remains`])
 }
 
 console.log(`\n${failures === 0 ? 'prove-chat-parts-law: ALL PASS' : `prove-chat-parts-law: ${failures} FAILURE(S)`}`)

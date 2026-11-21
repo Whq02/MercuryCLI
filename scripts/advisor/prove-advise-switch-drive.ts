@@ -27,16 +27,17 @@ const frameDir = ((): string | null => {
 
 let failures = 0
 let checks = 0
+const adviseFailureHint = 'fix the /advise command (src/commands/advise/advise.ts), the advisor settings and cadence (src/services/advisor/advisorSettings.ts), the note and memory code under src/services/advisor/, or the --advise flag (src/main/rootOptions.ts); the drive runs the built bundle, so rebuild it with bun run build.ts after a source change'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${adviseFailureHint}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the advise switch drive exceeded 600s')
+  console.log('\nTIMEOUT — the advise switch drive exceeded 600s; it waits on the child runs of dist/mercury.mjs (a note landing in an advisor memory file or a result row); see the last section header printed above and the advisor code under src/services/advisor/')
   process.exit(1)
 }, 600_000)
 watchdog.unref?.()

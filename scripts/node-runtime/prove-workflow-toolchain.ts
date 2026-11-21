@@ -8,7 +8,7 @@ const check = (name: string, cond: boolean, detail?: string): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''} | edit the workflow named in this check's section: .github/workflows/gate.yml or .github/workflows/private-release.yml`)
   }
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

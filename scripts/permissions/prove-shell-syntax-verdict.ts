@@ -21,8 +21,9 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { decideToolPermissionWithModes } = await import('../../src/utils/permissions/decision/wrapper.ts')
 const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPermissions.ts')
 let failures = 0
+const syntaxVerdictHint = 'a shell construct must get the verdict of the commands inside it: fix bashToolHasPermission in src/tools/BashTool/bashPermissions.ts, or the Flow wording in src/utils/permissions/flowLaw.ts, reached through decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts'
 function check(label: string, ok: boolean, detail = '') {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' — ' + (detail ? detail + ' — ' : '') + syntaxVerdictHint}`)
   if (!ok) failures++
 }
 const tool = { name: 'Bash', inputSchema: z.object({ command: z.string() }), checkPermissions: (input: any, context: any) => bashToolHasPermission(input, context.getAppState().toolPermissionContext) } as never

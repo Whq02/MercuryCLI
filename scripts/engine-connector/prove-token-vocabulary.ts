@@ -15,9 +15,19 @@ for (const k of ['MERCURY_CRITTER_IDLE', 'MERCURY_CRITTER_GAZE', 'MERCURY_CRITTE
 }
 
 let failures = 0
+const SECTION_FIX_HINTS: Record<string, string> = {
+  '§1': 'fix mapOpenaiUsageToAnthropic or buildProviderUsageReceipt in src/services/providers/openai/openaiCallModel/attemptSettle.ts, or getTokenCountFromUsage in src/utils/tokenUsage.ts',
+  '§2': 'fix the progress ledger functions (updateProgressFromMessage, getContextTokensFromTracker, getTokenCountFromTracker, getProgressUpdate) in src/tasks/LocalAgentTask/LocalAgentTask.tsx',
+  '§3': 'fix projectWorkRoster in src/services/engine-connector/workRoster.ts or the crew label functions (crewTokensLabel, crewSpendLabel, crewTokensBreakdown, crewRowLine, crewUsageLine) in src/services/engine-connector/crewFacts.ts',
+  '§4': 'fix contextFill in src/services/context/tokens.ts, or addToTotalSessionCost and formatTotalCost in src/cost-tracker.ts',
+  '§5': 'fix the surface that painted the wrong text: RosterWorkDetail in src/components/tasks/backgroundTasks/rows.tsx, src/components/mercury-ui/screens/CrewView.tsx, or the agent card renderers in src/tools/AgentTool/UI.tsx',
+  '§6': 'fix finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = SECTION_FIX_HINTS[label.slice(0, 2)]
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const stripAnsi = (s: string): string => s.replace(/\x1b\[[0-9;]*m/g, '')
 const BARE = /\b\d[\d.]*k? tokens\b/

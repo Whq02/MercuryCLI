@@ -10,9 +10,11 @@ const REPO = resolve(import.meta.dir, '..', '..')
 const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'dist-build-inputs-')))
 
 let failures = 0
+const BUILD_INPUTS_HINT = 'change distBuildInputs (its stale flag and line) and NOT_A_BUILD_INPUT in scripts/lib/distProvenance.ts, or for §9 the order of distBuildInputs(ROOT), the bundle.stale refusal and the first spawnSync in scripts/engine-pass/prove-frames-identical.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' — ' : ''}${BUILD_INPUTS_HINT}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

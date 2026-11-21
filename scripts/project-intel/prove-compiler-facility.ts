@@ -35,7 +35,7 @@ for (const file of sourceFiles(SRC)) {
   }
 }
 
-assert.ok(scanned > 100, `scanned ${scanned} source files`)
+assert.ok(scanned > 100, `scanned ${scanned} source files; the walk of src/ in sourceFiles found too few, so check that SRC resolves to the repository src directory`)
 assert.deepEqual(
   offenders,
   [],

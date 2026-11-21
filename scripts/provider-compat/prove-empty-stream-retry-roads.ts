@@ -69,10 +69,10 @@ import type { CompatCallModelParams, CompatLaneProfile } from '../../src/service
 
 let checks = 0
 let failures = 0
-function check(label: string, condition: boolean, detail = ''): void {
+function check(label: string, condition: boolean, detail = '', repairHint = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail.slice(0, 700)}` : ''}${!condition && repairHint ? ` — change: ${repairHint}` : ''}`)
 }
 const escape = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 const MARKER = 'ended the stream before its first event'
@@ -80,7 +80,7 @@ const REASON = 'an empty stream'
 const TRIES = 3
 
 console.log('── the law, pure')
-check('three tries in all', law.EMPTY_STREAM_TRIES === 3)
+check('three tries in all', law.EMPTY_STREAM_TRIES === 3, String(law.EMPTY_STREAM_TRIES), 'set EMPTY_STREAM_TRIES back to 3 in src/services/providers/emptyStreamRetry.ts, or update this proof if the law changed on purpose')
 const realRandom = Math.random
 const waitAt = (r: number, scale?: number): number => {
   Math.random = () => r
@@ -90,29 +90,29 @@ const waitAt = (r: number, scale?: number): number => {
     Math.random = realRandom
   }
 }
-check("the wait is the capacity ladder's first rung (1 s) with its symmetric jitter: 750 ms at the low end, 1 s in the middle, 1250 ms at the top — never outside", waitAt(0, 1) === 750 && waitAt(0.5, 1) === 1000 && waitAt(0.999, 1) === 1250 && waitAt(0.25, 1) === 875, JSON.stringify([waitAt(0, 1), waitAt(0.25, 1), waitAt(0.5, 1), waitAt(0.999, 1)]))
-check('the scale knob the busy ladder reads scales this wait the same way (0.1 → 75–125 ms)', waitAt(0, 0.1) === 75 && waitAt(0.5, 0.1) === 100 && waitAt(0.999, 0.1) === 125, JSON.stringify([waitAt(0, 0.1), waitAt(0.5, 0.1), waitAt(0.999, 0.1)]))
-check('the env scale (0.1 in this proof) is the default scale', waitAt(0.5) === 100, String(waitAt(0.5)))
+check("the wait is the capacity ladder's first rung (1 s) with its symmetric jitter: 750 ms at the low end, 1 s in the middle, 1250 ms at the top — never outside", waitAt(0, 1) === 750 && waitAt(0.5, 1) === 1000 && waitAt(0.999, 1) === 1250 && waitAt(0.25, 1) === 875, JSON.stringify([waitAt(0, 1), waitAt(0.25, 1), waitAt(0.5, 1), waitAt(0.999, 1)]), 'fix emptyStreamRetryWaitMs in src/services/providers/emptyStreamRetry.ts so it returns 1000 ms scaled by 0.75 to 1.25 jitter')
+check('the scale knob the busy ladder reads scales this wait the same way (0.1 → 75–125 ms)', waitAt(0, 0.1) === 75 && waitAt(0.5, 0.1) === 100 && waitAt(0.999, 0.1) === 125, JSON.stringify([waitAt(0, 0.1), waitAt(0.5, 0.1), waitAt(0.999, 0.1)]), 'fix the scale argument of emptyStreamRetryWaitMs in src/services/providers/emptyStreamRetry.ts')
+check('the env scale (0.1 in this proof) is the default scale', waitAt(0.5) === 100, String(waitAt(0.5)), 'emptyStreamRetryWaitMs in src/services/providers/emptyStreamRetry.ts must default its scale to busyRetryScale() (MERCURY_BUSY_RETRY_SCALE)')
 const empty = (code: string, extra: Record<string, unknown> = {}): boolean => law.isEmptyStreamFault({ code, retryable: true, ...extra } as never)
-check('a stream that closed or broke before any event is an empty stream: no-finish, no-terminal-event, no-body, read-failed', empty('no-finish') && empty('no-terminal-event') && empty('no-body') && empty('read-failed'))
-check('an HTTP refusal, a timeout, a silence, a fetch that never got headers, a malformed chunk, an in-stream fault and a cancel keep their own roads', !empty('no-finish', { status: 503 }) && !empty('http-503', { status: 503 }) && !empty('first-byte-timeout') && !empty('idle-timeout') && !empty('silent-after-headers') && !empty('fetch-failed') && !law.isEmptyStreamFault({ code: 'bad-json-chunk', retryable: false }) && !empty('no-finish', { inStream: true }) && !law.isEmptyStreamFault({ code: 'cancelled', retryable: false }))
-check('the spent line: "<Provider> ended the stream before its first event 3 times in a row over N s"', law.emptyStreamSpentWords('Fixture', 2345) === `Fixture ${MARKER} 3 times in a row over 2 s`, law.emptyStreamSpentWords('Fixture', 2345))
+check('a stream that closed or broke before any event is an empty stream: no-finish, no-terminal-event, no-body, read-failed', empty('no-finish') && empty('no-terminal-event') && empty('no-body') && empty('read-failed'), '', 'isEmptyStreamFault in src/services/providers/emptyStreamRetry.ts must accept these four codes when the fault is retryable and has no status')
+check('an HTTP refusal, a timeout, a silence, a fetch that never got headers, a malformed chunk, an in-stream fault and a cancel keep their own roads', !empty('no-finish', { status: 503 }) && !empty('http-503', { status: 503 }) && !empty('first-byte-timeout') && !empty('idle-timeout') && !empty('silent-after-headers') && !empty('fetch-failed') && !law.isEmptyStreamFault({ code: 'bad-json-chunk', retryable: false }) && !empty('no-finish', { inStream: true }) && !law.isEmptyStreamFault({ code: 'cancelled', retryable: false }), '', 'isEmptyStreamFault in src/services/providers/emptyStreamRetry.ts must refuse HTTP statuses, timeouts, silences, fetch failures, bad chunks, in-stream faults and cancels')
+check('the spent line: "<Provider> ended the stream before its first event 3 times in a row over N s"', law.emptyStreamSpentWords('Fixture', 2345) === `Fixture ${MARKER} 3 times in a row over 2 s`, law.emptyStreamSpentWords('Fixture', 2345), 'fix emptyStreamSpentWords in src/services/providers/emptyStreamRetry.ts')
 
 console.log('── the words, pure: the notice, the spinner, the status row, the agent row')
 const notice = law.emptyStreamRetryNotice({ provider: 'Fixture', detail: 'no-finish', attempt: 2, waitMs: 1000 })
-check('the notice is the capacity retry notice: system/api_error, attempt 2 of 3, the wait as its delay', notice.type === 'system' && notice.subtype === 'api_error' && notice.retryAttempt === 2 && notice.maxRetries === TRIES && notice.retryInMs === 1000 && notice.error.message === `Fixture ${MARKER} (no-finish)`, JSON.stringify([notice.retryAttempt, notice.maxRetries, notice.retryInMs, notice.error.message]))
+check('the notice is the capacity retry notice: system/api_error, attempt 2 of 3, the wait as its delay', notice.type === 'system' && notice.subtype === 'api_error' && notice.retryAttempt === 2 && notice.maxRetries === TRIES && notice.retryInMs === 1000 && notice.error.message === `Fixture ${MARKER} (no-finish)`, JSON.stringify([notice.retryAttempt, notice.maxRetries, notice.retryInMs, notice.error.message]), 'fix emptyStreamRetryNotice in src/services/providers/emptyStreamRetry.ts')
 const wait = idle.retryNoticeWait(notice, 0)
-check('the wait row is the retry row: kind retry, attempt 2 of 3, the reason "an empty stream"', wait.kind === 'retry' && wait.attempt === 2 && wait.of === TRIES && wait.reason === REASON && wait.delayMs === 1000, JSON.stringify(wait))
-check('the status row reads "retrying — attempt 2 of 3 after an empty stream · in 1 s"', idle.requestWaitLine(wait) === 'retrying — attempt 2 of 3 after an empty stream · in 1 s', idle.requestWaitLine(wait))
+check('the wait row is the retry row: kind retry, attempt 2 of 3, the reason "an empty stream"', wait.kind === 'retry' && wait.attempt === 2 && wait.of === TRIES && wait.reason === REASON && wait.delayMs === 1000, JSON.stringify(wait), 'fix retryNoticeWait in src/services/providers/streamIdleBudget.ts (or retryReasonWords there) so the notice reads as a retry wait with the reason an empty stream')
+check('the status row reads "retrying — attempt 2 of 3 after an empty stream · in 1 s"', idle.requestWaitLine(wait) === 'retrying — attempt 2 of 3 after an empty stream · in 1 s', idle.requestWaitLine(wait), 'fix requestWaitLine in src/services/providers/streamIdleBudget.ts')
 const promise = spinner.liveCounterPromise(wait, 0)
-check('the spinner names the actual retry once, without repeating its diagnostic', promise === 'retrying 2 of 3', promise ?? '(null)')
+check('the spinner names the actual retry once, without repeating its diagnostic', promise === 'retrying 2 of 3', promise ?? '(null)', 'fix liveCounterPromise in src/components/Spinner/liveCounterWords.ts')
 const words = spinner.liveCounterWords({ replyChars: 0, thinkingChars: 0, wireOutputTokens: null, firstByteAtMs: null, wait, phase: 'waiting', sentAtMs: 0 }, 0)
-check('the spinner\'s phase word is "retrying", as for the capacity retries', words.phase === spinner.RETRY_PHASE_WORD && words.promise === promise, JSON.stringify(words))
+check('the spinner\'s phase word is "retrying", as for the capacity retries', words.phase === spinner.RETRY_PHASE_WORD && words.promise === promise, JSON.stringify(words), 'fix liveCounterWords and RETRY_PHASE_WORD in src/components/Spinner/liveCounterWords.ts')
 const third = idle.retryNoticeWait(law.emptyStreamRetryNotice({ provider: 'Fixture', detail: 'no-finish', attempt: 3, waitMs: 900 }), 0)
-check('the second retry says "attempt 3 of 3"', idle.requestWaitLine(third) === 'retrying — attempt 3 of 3 after an empty stream · in 1 s', idle.requestWaitLine(third))
+check('the second retry says "attempt 3 of 3"', idle.requestWaitLine(third) === 'retrying — attempt 3 of 3 after an empty stream · in 1 s', idle.requestWaitLine(third), 'fix retryNoticeWait and requestWaitLine in src/services/providers/streamIdleBudget.ts')
 const facts = budget.recoveryNoticeFacts(notice)
-check('an agent\'s row reads the same cause: "an empty stream", a fault, retry 2 of 3', facts !== null && facts.kind === 'fault' && facts.cause === REASON && facts.attempt === 2 && facts.of === TRIES, JSON.stringify(facts))
-check('a capacity retry\'s words are untouched: a 529 still reads "a 529", a connection error still reads "a connection error"', idle.retryReasonWords(529) === 'a 529' && idle.retryReasonWords(undefined, 'socket hang up') === 'a connection error' && idle.retryReasonWords(undefined, 'no first byte from X after 2m (…)') === 'a first-byte timeout')
+check('an agent\'s row reads the same cause: "an empty stream", a fault, retry 2 of 3', facts !== null && facts.kind === 'fault' && facts.cause === REASON && facts.attempt === 2 && facts.of === TRIES, JSON.stringify(facts), 'fix recoveryNoticeFacts in src/services/api/recoveryBudget.ts')
+check('a capacity retry\'s words are untouched: a 529 still reads "a 529", a connection error still reads "a connection error"', idle.retryReasonWords(529) === 'a 529' && idle.retryReasonWords(undefined, 'socket hang up') === 'a connection error' && idle.retryReasonWords(undefined, 'no first byte from X after 2m (…)') === 'a first-byte timeout', '', 'retryReasonWords in src/services/providers/streamIdleBudget.ts must keep its capacity-retry words')
 
 console.log('── every road, at the seam, against a stubbed wire')
 const ANSWER = 'road answer'
@@ -203,24 +203,24 @@ try {
     reset({ empties: 2 })
     const door: unknown[] = []
     const recovered = await drain(road.call(params(road.model, w => door.push(w))))
-    check(`${road.name}: two empty streams then an answer — three requests, the answer, no red line`, hits.length === 3 && answers(recovered).includes(ANSWER) && redLines(recovered).length === 0, `${hits.length} requests, answers ${JSON.stringify(answers(recovered))}, red ${JSON.stringify(redLines(recovered))}`)
-    check(`${road.name}: the two notices say attempt 2 of 3 and attempt 3 of 3 and name the empty stream (${road.code})`, places(recovered) === `2 of ${TRIES}, 3 of ${TRIES}` && lawNotices(recovered).every(item => (item.error as { message?: string }).message === `${road.provider} ${MARKER} (${road.code})`), `${places(recovered) || '(none)'} · ${JSON.stringify(lawNotices(recovered).map(item => (item.error as { message?: string }).message))}`)
+    check(`${road.name}: two empty streams then an answer — three requests, the answer, no red line`, hits.length === 3 && answers(recovered).includes(ANSWER) && redLines(recovered).length === 0, `${hits.length} requests, answers ${JSON.stringify(answers(recovered))}, red ${JSON.stringify(redLines(recovered))}`, `the empty-stream retry in src/services/api/withRetry.ts (EMPTY_STREAM_TRIES) must retry the ${road.name} road, whose call is in src/services/providers`)
+    check(`${road.name}: the two notices say attempt 2 of 3 and attempt 3 of 3 and name the empty stream (${road.code})`, places(recovered) === `2 of ${TRIES}, 3 of ${TRIES}` && lawNotices(recovered).every(item => (item.error as { message?: string }).message === `${road.provider} ${MARKER} (${road.code})`), `${places(recovered) || '(none)'} · ${JSON.stringify(lawNotices(recovered).map(item => (item.error as { message?: string }).message))}`, 'emptyStreamRetryNotice in src/services/providers/emptyStreamRetry.ts builds the notice, withRetry in src/services/api/withRetry.ts sends it, and the road must report this fault code')
     const waits = lawNotices(recovered).map(item => item.retryInMs ?? -1)
-    check(`${road.name}: each wait is the scaled first rung (75–125 ms)`, waits.length === 2 && waits.every(ms => ms >= 75 && ms <= 125), JSON.stringify(waits))
+    check(`${road.name}: each wait is the scaled first rung (75–125 ms)`, waits.length === 2 && waits.every(ms => ms >= 75 && ms <= 125), JSON.stringify(waits), 'withRetry in src/services/api/withRetry.ts must wait emptyStreamRetryWaitMs() before each retry and carry it as the notice retryInMs')
     const gaps = hits.slice(1).map((hit, i) => hit.atMs - hits[i]!.atMs)
-    check(`${road.name}: the wire shows the wait between the tries`, gaps.length === 2 && gaps.every(ms => ms >= 60), JSON.stringify(gaps))
-    check(`${road.name}: the status row says "retrying — attempt 2 of 3 after an empty stream · in 1 s" then "attempt 3 of 3"`, JSON.stringify(rows(door)) === JSON.stringify(['retrying — attempt 2 of 3 after an empty stream · in 1 s', 'retrying — attempt 3 of 3 after an empty stream · in 1 s']), JSON.stringify(rows(door)))
+    check(`${road.name}: the wire shows the wait between the tries`, gaps.length === 2 && gaps.every(ms => ms >= 60), JSON.stringify(gaps), 'withRetry in src/services/api/withRetry.ts must sleep for the wait before the next request')
+    check(`${road.name}: the status row says "retrying — attempt 2 of 3 after an empty stream · in 1 s" then "attempt 3 of 3"`, JSON.stringify(rows(door)) === JSON.stringify(['retrying — attempt 2 of 3 after an empty stream · in 1 s', 'retrying — attempt 3 of 3 after an empty stream · in 1 s']), JSON.stringify(rows(door)), 'the road must pass the retry notice to onWait; see retryNoticeWait and requestWaitLine in src/services/providers/streamIdleBudget.ts')
 
     reset({ empties: Infinity })
     const spent = await drain(road.call(params(road.model)))
     const red = redLines(spent)
-    check(`${road.name}: three empty streams — exactly three requests, never a fourth`, hits.length === TRIES, `${hits.length} requests`)
-    check(`${road.name}: the turn ends with one red line in the spent ladder's register: "API Error: ${road.provider} ended the stream before its first event 3 times in a row over N s — ${road.provider} stream failed (${road.code}) — …"`, red.length === 1 && new RegExp(`^API Error: ${escape(road.provider)} ${escape(MARKER)} 3 times in a row over \\d+ s — ${escape(road.provider)} stream failed \\(${escape(road.code)}\\) — `).test(red[0] ?? '') && spent.some(item => item.type === 'assistant' && item.error === 'server_error'), red[0] ?? '(no red line)')
-    check(`${road.name}: the two notices before the failure say attempt 2 of 3 and 3 of 3`, places(spent) === `2 of ${TRIES}, 3 of ${TRIES}`, places(spent) || '(none)')
+    check(`${road.name}: three empty streams — exactly three requests, never a fourth`, hits.length === TRIES, `${hits.length} requests`, 'the empty-stream count in src/services/api/withRetry.ts must stop at EMPTY_STREAM_TRIES for this road')
+    check(`${road.name}: the turn ends with one red line in the spent ladder's register: "API Error: ${road.provider} ended the stream before its first event 3 times in a row over N s — ${road.provider} stream failed (${road.code}) — …"`, red.length === 1 && new RegExp(`^API Error: ${escape(road.provider)} ${escape(MARKER)} 3 times in a row over \\d+ s — ${escape(road.provider)} stream failed \\(${escape(road.code)}\\) — `).test(red[0] ?? '') && spent.some(item => item.type === 'assistant' && item.error === 'server_error'), red[0] ?? '(no red line)', `the spent line comes from emptyStreamSpentWords (src/services/providers/emptyStreamRetry.ts) and is put into the red line by the ${road.name} road in src/services/providers`)
+    check(`${road.name}: the two notices before the failure say attempt 2 of 3 and 3 of 3`, places(spent) === `2 of ${TRIES}, 3 of ${TRIES}`, places(spent) || '(none)', 'withRetry in src/services/api/withRetry.ts must send both retry notices before the spent line')
 
     reset({ mid: true })
     const mid = await drain(road.call(params(road.model)))
-    check(`${road.name}: a stream that dies AFTER its first event is not retried by this law — one request, the partial words stand, no attempt-of-3 notice`, hits.length === 1 && answers(mid).includes(PARTIAL) && lawNotices(mid).length === 0, `${hits.length} requests, answers ${JSON.stringify(answers(mid))}, law notices ${lawNotices(mid).length}`)
+    check(`${road.name}: a stream that dies AFTER its first event is not retried by this law — one request, the partial words stand, no attempt-of-3 notice`, hits.length === 1 && answers(mid).includes(PARTIAL) && lawNotices(mid).length === 0, `${hits.length} requests, answers ${JSON.stringify(answers(mid))}, law notices ${lawNotices(mid).length}`, `isEmptyStreamFault in src/services/providers/emptyStreamRetry.ts must refuse a stream that already gave an event, or the ${road.name} road must not report it as empty`)
   }
 
   console.log('── the responses wire OpenRouter and the Grok subscription ride: its empty close is an empty stream under the law')
@@ -229,7 +229,7 @@ try {
     const events: Array<{ type: string; fault?: { kind: string; code: string; retryable: boolean; status?: number } }> = []
     for await (const event of streamOpenrouterResponses({ url: 'https://openrouter.fixture.invalid/api/v1/responses', request: { model: 'vendor/model', messages: [] }, signal: new AbortController().signal, idleTimeoutMs: 5000 }, JSON.stringify({ model: 'vendor/model', input: [], stream: true }), { model: 'vendor/model', items: [] })) events.push(event as never)
     const fault = events.find(event => event.type === 'stream-fault')?.fault
-    check('the responses transport ends an empty body as a retryable no-terminal-event fault, and the law counts it as an empty stream', fault !== undefined && fault.code === 'no-terminal-event' && fault.retryable && law.isEmptyStreamFault(fault), JSON.stringify(fault))
+    check('the responses transport ends an empty body as a retryable no-terminal-event fault, and the law counts it as an empty stream', fault !== undefined && fault.code === 'no-terminal-event' && fault.retryable && law.isEmptyStreamFault(fault), JSON.stringify(fault), 'streamOpenrouterResponses in src/services/providers/openrouter/openrouterResponsesTransport.ts must end an empty body with a retryable no-terminal-event fault')
   }
 
   console.log('── the Anthropic road, at the seam (the stream generator with a scripted wire)')
@@ -277,11 +277,11 @@ try {
     const door: unknown[] = []
     const run = homeCall({ empties: 2 }, w => door.push(w))
     const recovered = await drain(run.generator)
-    check('anthropic: two empty streams then an answer — three streamed requests, the answer streamed, no collected request, no red line', run.homeHits.length === 3 && run.homeHits.every(hit => hit.stream) && answers(recovered).includes(ANSWER) && redLines(recovered).length === 0, `${run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(',')} · answers ${JSON.stringify(answers(recovered))} · red ${JSON.stringify(redLines(recovered))}`)
-    check('anthropic: the two notices say attempt 2 of 3 and 3 of 3 and read "Anthropic ended the stream before its first event (closed with no events)"', places(recovered) === `2 of ${TRIES}, 3 of ${TRIES}` && lawNotices(recovered).every(item => (item.error as { message?: string }).message === `Anthropic ${MARKER} (closed with no events)`), `${places(recovered) || '(none)'} · ${JSON.stringify(lawNotices(recovered).map(item => (item.error as { message?: string }).message))}`)
-    check('anthropic: the status row says "retrying — attempt 2 of 3 after an empty stream · in 1 s" then "attempt 3 of 3"', JSON.stringify(rows(door)) === JSON.stringify(['retrying — attempt 2 of 3 after an empty stream · in 1 s', 'retrying — attempt 3 of 3 after an empty stream · in 1 s']), JSON.stringify(rows(door)))
+    check('anthropic: two empty streams then an answer — three streamed requests, the answer streamed, no collected request, no red line', run.homeHits.length === 3 && run.homeHits.every(hit => hit.stream) && answers(recovered).includes(ANSWER) && redLines(recovered).length === 0, `${run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(',')} · answers ${JSON.stringify(answers(recovered))} · red ${JSON.stringify(redLines(recovered))}`, 'the Anthropic stream retry in src/services/providers/anthropic/streamCore.ts and src/services/api/withRetry.ts must retry an empty stream with a streamed request')
+    check('anthropic: the two notices say attempt 2 of 3 and 3 of 3 and read "Anthropic ended the stream before its first event (closed with no events)"', places(recovered) === `2 of ${TRIES}, 3 of ${TRIES}` && lawNotices(recovered).every(item => (item.error as { message?: string }).message === `Anthropic ${MARKER} (closed with no events)`), `${places(recovered) || '(none)'} · ${JSON.stringify(lawNotices(recovered).map(item => (item.error as { message?: string }).message))}`, 'fix the empty-stream notice in src/services/api/withRetry.ts or the closed-with-no-events detail in src/services/providers/anthropic/streamCore.ts')
+    check('anthropic: the status row says "retrying — attempt 2 of 3 after an empty stream · in 1 s" then "attempt 3 of 3"', JSON.stringify(rows(door)) === JSON.stringify(['retrying — attempt 2 of 3 after an empty stream · in 1 s', 'retrying — attempt 3 of 3 after an empty stream · in 1 s']), JSON.stringify(rows(door)), 'streamCore must pass the retry notice to onWait; see retryNoticeWait and requestWaitLine in src/services/providers/streamIdleBudget.ts')
     const gaps = run.homeHits.slice(1).map((hit, i) => hit.atMs - run.homeHits[i]!.atMs)
-    check('anthropic: the wire shows the scaled wait between the tries', gaps.length === 2 && gaps.every(ms => ms >= 60), JSON.stringify(gaps))
+    check('anthropic: the wire shows the scaled wait between the tries', gaps.length === 2 && gaps.every(ms => ms >= 60), JSON.stringify(gaps), 'withRetry in src/services/api/withRetry.ts must sleep for the wait before the next request')
   }
   {
     const run = homeCall({ empties: Infinity })
@@ -293,20 +293,20 @@ try {
       threw = error
     }
     const red = redLines(spent)
-    check('anthropic: three empty streams — exactly three streamed requests, never a fourth, no collected fallback', run.homeHits.length === TRIES && run.homeHits.every(hit => hit.stream), run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(','))
-    check('anthropic: the turn ends with one red line in the register of the exhausted ladder: "API Error: Anthropic ended the stream before its first event 3 times in a row over N s — closed with no events; try again shortly"', threw === undefined && red.length === 1 && /^API Error: Anthropic ended the stream before its first event 3 times in a row over \d+ s — closed with no events; try again shortly$/.test(red[0] ?? ''), threw !== undefined ? `threw ${String(threw)}` : (red[0] ?? '(no red line)'))
-    check('anthropic: the two notices before the failure say attempt 2 of 3 and 3 of 3', places(spent) === `2 of ${TRIES}, 3 of ${TRIES}`, places(spent) || '(none)')
+    check('anthropic: three empty streams — exactly three streamed requests, never a fourth, no collected fallback', run.homeHits.length === TRIES && run.homeHits.every(hit => hit.stream), run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(','), 'the empty-stream count in src/services/api/withRetry.ts must stop at EMPTY_STREAM_TRIES with no collected fallback')
+    check('anthropic: the turn ends with one red line in the register of the exhausted ladder: "API Error: Anthropic ended the stream before its first event 3 times in a row over N s — closed with no events; try again shortly"', threw === undefined && red.length === 1 && /^API Error: Anthropic ended the stream before its first event 3 times in a row over \d+ s — closed with no events; try again shortly$/.test(red[0] ?? ''), threw !== undefined ? `threw ${String(threw)}` : (red[0] ?? '(no red line)'), 'the thrown message in src/services/providers/anthropic/streamCore.ts must read emptyStreamSpentWords then the detail then try again shortly')
+    check('anthropic: the two notices before the failure say attempt 2 of 3 and 3 of 3', places(spent) === `2 of ${TRIES}, 3 of ${TRIES}`, places(spent) || '(none)', 'withRetry in src/services/api/withRetry.ts must send both retry notices before the spent line')
   }
   {
     const run = homeCall({ empties: 1, cut: true })
     const cut = await drain(run.generator)
-    check('anthropic: a connection cut before any event is a stream that ended before its first event: one retry notice naming the cut code, the answer streamed on the second request', run.homeHits.length === 2 && run.homeHits.every(hit => hit.stream) && places(cut) === `2 of ${TRIES}` && (lawNotices(cut)[0]?.error as { message?: string } | undefined)?.message === `Anthropic ${MARKER} (UND_ERR_SOCKET)` && answers(cut).includes(ANSWER), `${run.homeHits.length} requests · ${places(cut) || '(none)'} · ${JSON.stringify(lawNotices(cut).map(item => (item.error as { message?: string }).message))} · ${JSON.stringify(answers(cut))}`)
+    check('anthropic: a connection cut before any event is a stream that ended before its first event: one retry notice naming the cut code, the answer streamed on the second request', run.homeHits.length === 2 && run.homeHits.every(hit => hit.stream) && places(cut) === `2 of ${TRIES}` && (lawNotices(cut)[0]?.error as { message?: string } | undefined)?.message === `Anthropic ${MARKER} (UND_ERR_SOCKET)` && answers(cut).includes(ANSWER), `${run.homeHits.length} requests · ${places(cut) || '(none)'} · ${JSON.stringify(lawNotices(cut).map(item => (item.error as { message?: string }).message))} · ${JSON.stringify(answers(cut))}`, 'a connection cut before any event must count as an empty stream in src/services/api/withRetry.ts (isEmptyStreamFault), with the cut code in the notice detail')
   }
   {
     const run = homeCall({ empties: 1, mid: true })
     const mid = await drain(run.generator)
     const recovery = notices(mid).filter(item => item.retryInMs === 0 && (item.recoveryTimeoutMs ?? 0) > 0)
-    check("anthropic: a stream that dies AFTER its first event keeps today's road — the collected recovery with its notice (attempt 1 of 1), the answer, no attempt-of-3 notice", run.homeHits.length === 2 && run.homeHits[0]?.stream === true && run.homeHits[1]?.stream === false && recovery.length === 1 && recovery[0]?.retryAttempt === 1 && recovery[0].maxRetries === 1 && lawNotices(mid).length === 0 && answers(mid).includes(ANSWER), `${run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(',')} · recovery ${recovery.length} · law notices ${lawNotices(mid).length} · ${JSON.stringify(answers(mid))}`)
+    check("anthropic: a stream that dies AFTER its first event keeps today's road — the collected recovery with its notice (attempt 1 of 1), the answer, no attempt-of-3 notice", run.homeHits.length === 2 && run.homeHits[0]?.stream === true && run.homeHits[1]?.stream === false && recovery.length === 1 && recovery[0]?.retryAttempt === 1 && recovery[0].maxRetries === 1 && lawNotices(mid).length === 0 && answers(mid).includes(ANSWER), `${run.homeHits.map(hit => (hit.stream ? 'stream' : 'json')).join(',')} · recovery ${recovery.length} · law notices ${lawNotices(mid).length} · ${JSON.stringify(answers(mid))}`, 'a stream that gave an event must keep the collected recovery in src/services/providers/anthropic/streamCore.ts and stay out of the empty-stream law in src/services/api/withRetry.ts')
   }
 } finally {
   globalThis.fetch = realFetch

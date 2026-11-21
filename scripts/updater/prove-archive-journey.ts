@@ -39,8 +39,10 @@ const FLOOR = readCompatFloor()
 const NODE_POLICY = parseEnginesNode(pkg.engines?.node)
 
 let failures = 0
+const FAIL_HINT = 'change the install verb in src/cli/installVerb.ts, the update verb in src/cli/update.ts, or the layout functions in src/services/privateChannel/installLayout.ts (installPayload, switchCurrent, uninstallLayout) so the output named by this check holds'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = cond ? '' : detail ? `${detail} | hint: ${FAIL_HINT}` : FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 

@@ -39,12 +39,14 @@ const { FileReadTool } = await load('src/tools/FileReadTool/FileReadTool.ts')
 const { BashTool } = await load('src/tools/BashTool/BashTool.tsx')
 const { PowerShellTool } = await load('src/tools/PowerShellTool/PowerShellTool.tsx')
 const { runWithCwdOverride } = await load('src/utils/cwd.ts')
+const credentialFloorHint = 'fix the protected credential path refusal: file tools in src/utils/permissions/filesystem.ts, shell commands in src/utils/permissions/shellProtectedPaths.ts, both reached through decideToolPermission in src/utils/permissions/decision/engine.ts'
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : `${detail ? `${detail} — ` : ''}${credentialFloorHint}`
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function context(mode: string, rules: { allow?: string[]; deny?: string[]; ask?: string[] } = {}) {
   const state = { toolPermissionContext: {

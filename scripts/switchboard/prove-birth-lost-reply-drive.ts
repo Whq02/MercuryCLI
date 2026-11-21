@@ -41,6 +41,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('         fix: the door re-sends the birth in admitAndEnter and admitWithDaemonRecheck (src/services/switchboard/bornSession.ts); the daemon replays a birth by birthKey in src/daemon/concourseWorkers/admit.ts; the drive runs the built bundle, so rebuild with bun run build.ts first, and the stand-in is scripts/switchboard/lost-reply-standin.ts')
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 const text = (v: unknown): string => JSON.stringify(v)

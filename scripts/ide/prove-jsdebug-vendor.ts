@@ -52,12 +52,12 @@ const lock = JSON.parse(readFileSync(LOCK, 'utf8')) as {
   licenseFiles: string[]
   serverEntry: string
 }
-check('lock pins js-debug-dap', lock.name === 'js-debug-dap' && /^\d+\.\d+\.\d+$/.test(lock.version))
-check('sha512 is a 128-hex digest', /^[0-9a-f]{128}$/.test(lock.sha512))
-check('url points at the pinned release asset', lock.url.endsWith(lock.tarball) && lock.tarball.includes(`v${lock.version}`))
-check('url is the vscode-js-debug releases home', lock.url.startsWith('https://github.com/microsoft/vscode-js-debug/releases/download/'))
-check('licence declared (MIT + LICENSE)', lock.license === 'MIT' && lock.licenseFiles.includes('LICENSE'))
-check('server entry is the standalone DAP server', lock.serverEntry === 'src/dapDebugServer.js')
+check('lock pins js-debug-dap', lock.name === 'js-debug-dap' && /^\d+\.\d+\.\d+$/.test(lock.version), 'fix name and version in vendor/js-debug.lock.json; got ' + lock.name + ' ' + lock.version)
+check('sha512 is a 128-hex digest', /^[0-9a-f]{128}$/.test(lock.sha512), 'fix sha512 in vendor/js-debug.lock.json')
+check('url points at the pinned release asset', lock.url.endsWith(lock.tarball) && lock.tarball.includes(`v${lock.version}`), 'make url and tarball in vendor/js-debug.lock.json agree with version; url is ' + lock.url)
+check('url is the vscode-js-debug releases home', lock.url.startsWith('https://github.com/microsoft/vscode-js-debug/releases/download/'), 'fix url in vendor/js-debug.lock.json; got ' + lock.url)
+check('licence declared (MIT + LICENSE)', lock.license === 'MIT' && lock.licenseFiles.includes('LICENSE'), 'fix license and licenseFiles in vendor/js-debug.lock.json')
+check('server entry is the standalone DAP server', lock.serverEntry === 'src/dapDebugServer.js', 'fix serverEntry in vendor/js-debug.lock.json; got ' + lock.serverEntry)
 
 section('(2) fetch --check honesty (no network)')
 {
@@ -68,10 +68,10 @@ section('(2) fetch --check honesty (no network)')
     env: { ...process.env },
   })
   if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
-    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)}`)
+    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)} — the --check mode of scripts/vendor/fetch-js-debug.ts must pass for a present cache; re-run bun run scripts/vendor/fetch-js-debug.ts`)
   } else {
-    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status}`)
-    check('--check names the remedy', (r.stderr ?? '').includes('fetch-js-debug.ts'), r.stderr.slice(0, 200))
+    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status} — the --check mode of scripts/vendor/fetch-js-debug.ts must exit 2 when the cache is absent`)
+    check('--check names the remedy', (r.stderr ?? '').includes('fetch-js-debug.ts'), r.stderr.slice(0, 200) + ' — the --check mode of scripts/vendor/fetch-js-debug.ts must name itself as the remedy on stderr')
   }
 }
 
@@ -83,11 +83,11 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
     fileCount: number
     treeDigest: string
   }
-  check('vendor manifest matches the lock', vman.version === lock.version && vman.tarballSha512 === lock.sha512)
+  check('vendor manifest matches the lock', vman.version === lock.version && vman.tarballSha512 === lock.sha512, 're-run bun run scripts/vendor/fetch-js-debug.ts so vendor/js-debug/extracted matches vendor/js-debug.lock.json')
   const files = walkFiles(EXTRACT)
-  check(`file count matches (${vman.fileCount})`, files.length === vman.fileCount, `${files.length} on disk`)
+  check(`file count matches (${vman.fileCount})`, files.length === vman.fileCount, `${files.length} on disk — re-run bun run scripts/vendor/fetch-js-debug.ts to re-extract vendor/js-debug/extracted`)
   const digest = sha256(files.map(f => `${f.rel} ${f.sha256}`).sort().join('\n'))
-  check('treeDigest recomputes identically from the bytes', digest === vman.treeDigest, digest.slice(0, 16))
+  check('treeDigest recomputes identically from the bytes', digest === vman.treeDigest, digest.slice(0, 16) + ' — vendor/js-debug/extracted differs from its manifest; re-run bun run scripts/vendor/fetch-js-debug.ts')
   check('server entry present', existsSync(join(EXTRACT, lock.serverEntry)))
   check('licence preserved', existsSync(join(EXTRACT, 'LICENSE')))
 } else {
@@ -101,16 +101,16 @@ if (existsSync(DIST_MANIFEST)) {
     jsDebug?: { vendored: boolean; version?: string; sha512?: string; serverEntry?: string; remedy?: string }
     degraded: string[]
   }
-  check('manifest carries the jsDebug record', m.jsDebug !== undefined)
+  check('manifest carries the jsDebug record', m.jsDebug !== undefined, 'build.ts must write a jsDebug record into dist/manifest.json; rebuild with bun run build.ts')
   if (m.jsDebug?.vendored) {
-    check('vendored claim ⇒ the server entry ships', existsSync(join(DIST_VENDOR, 'src', 'dapDebugServer.js')))
-    check('vendored version matches the lock', m.jsDebug.version === lock.version)
-    check('vendored sha512 matches the lock', m.jsDebug.sha512 === lock.sha512)
-    check("degraded[] carries no 'js-debugger'", !m.degraded.includes('js-debugger'))
+    check('vendored claim ⇒ the server entry ships', existsSync(join(DIST_VENDOR, 'src', 'dapDebugServer.js')), 'build.ts must copy vendor/js-debug/extracted into dist/vendor/js-debug when the manifest says vendored')
+    check('vendored version matches the lock', m.jsDebug.version === lock.version, 'dist/manifest.json is stale against vendor/js-debug.lock.json; rebuild with bun run build.ts')
+    check('vendored sha512 matches the lock', m.jsDebug.sha512 === lock.sha512, 'dist/manifest.json is stale against vendor/js-debug.lock.json; rebuild with bun run build.ts')
+    check("degraded[] carries no 'js-debugger'", !m.degraded.includes('js-debugger'), 'build.ts must not list js-debugger in degraded when the manifest says jsDebug is vendored')
     const fencePath = join(DIST_VENDOR, 'package.json')
-    check('the module-class fence ships ({"type":"commonjs"})', existsSync(fencePath) && (JSON.parse(readFileSync(fencePath, 'utf8')) as { type?: string }).type === 'commonjs')
+    check('the module-class fence ships ({"type":"commonjs"})', existsSync(fencePath) && (JSON.parse(readFileSync(fencePath, 'utf8')) as { type?: string }).type === 'commonjs', 'build.ts must write dist/vendor/js-debug/package.json with type commonjs')
     const repoPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as { type?: string }
-    check('the hostile scope is REAL (the repo package.json is type:module — the boot below proves the fence, not the default)', repoPkg.type === 'module')
+    check('the hostile scope is REAL (the repo package.json is type:module — the boot below proves the fence, not the default)', repoPkg.type === 'module', 'package.json at the repo root no longer has type module; this proof needs it to show the fence works')
     const bootPort = 49152 + Math.floor(Math.random() * 16000)
     const boot = spawnSync('node', [join(DIST_VENDOR, 'src', 'dapDebugServer.js'), String(bootPort), '127.0.0.1'], {
       encoding: 'utf8',
@@ -120,12 +120,12 @@ if (existsSync(DIST_MANIFEST)) {
     check(
       'the vendored server BOOTS inside the type:module scope (listening line read; bounded spawn reaped)',
       (boot.stdout ?? '').includes(`Debug server listening at 127.0.0.1:${bootPort}`),
-      ((boot.stderr || boot.stdout) ?? '').slice(0, 160),
+      ((boot.stderr || boot.stdout) ?? '').slice(0, 160) + ' — dist/vendor/js-debug/src/dapDebugServer.js must start under node inside the type:module scope; check the commonjs package.json fence that build.ts writes beside it',
     )
   } else {
-    check("not-vendored ⇒ degraded[] carries 'js-debugger'", m.degraded.includes('js-debugger') === true)
-    check('not-vendored ⇒ no tree ships', !existsSync(DIST_VENDOR))
-    check('not-vendored carries the remedy', typeof m.jsDebug?.remedy === 'string' && m.jsDebug.remedy.includes('fetch-js-debug'))
+    check("not-vendored ⇒ degraded[] carries 'js-debugger'", m.degraded.includes('js-debugger') === true, 'build.ts must list js-debugger in degraded when jsDebug is not vendored')
+    check('not-vendored ⇒ no tree ships', !existsSync(DIST_VENDOR), 'build.ts must not create dist/vendor/js-debug when jsDebug is not vendored')
+    check('not-vendored carries the remedy', typeof m.jsDebug?.remedy === 'string' && m.jsDebug.remedy.includes('fetch-js-debug'), 'build.ts must write a jsDebug.remedy naming fetch-js-debug into dist/manifest.json')
   }
 } else {
   console.log('  [SKIP — LOUD] no dist/manifest.json; build first.')
@@ -148,14 +148,14 @@ section('(5) degraded-build seam (MERCURY_BUILD_NO_VENDOR_JSDEBUG=1, scratch out
         MERCURY_BUILD_TIME: '2026-01-01T00:00:00.000Z',
       },
     })
-    check('degraded build succeeds (js-debug is optional)', r.status === 0, (r.stderr || r.stdout).slice(-300))
+    check('degraded build succeeds (js-debug is optional)', r.status === 0, (r.stderr || r.stdout).slice(-300) + ' — build.ts must succeed with MERCURY_BUILD_NO_VENDOR_JSDEBUG=1')
     const m = JSON.parse(readFileSync(join(scratch, 'manifest.json'), 'utf8')) as {
       jsDebug?: { vendored: boolean; remedy?: string }
       degraded: string[]
     }
-    check('scratch manifest: vendored=false', m.jsDebug?.vendored === false)
-    check("scratch manifest: degraded includes 'js-debugger'", m.degraded.includes('js-debugger'))
-    check('scratch dist ships NO js-debug tree', !existsSync(join(scratch, 'vendor', 'js-debug')))
+    check('scratch manifest: vendored=false', m.jsDebug?.vendored === false, 'build.ts must honour MERCURY_BUILD_NO_VENDOR_JSDEBUG=1 by writing jsDebug.vendored false')
+    check("scratch manifest: degraded includes 'js-debugger'", m.degraded.includes('js-debugger'), 'build.ts must list js-debugger in degraded under MERCURY_BUILD_NO_VENDOR_JSDEBUG=1')
+    check('scratch dist ships NO js-debug tree', !existsSync(join(scratch, 'vendor', 'js-debug')), 'build.ts must not copy the js-debug tree under MERCURY_BUILD_NO_VENDOR_JSDEBUG=1')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -197,21 +197,21 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
         MERCURY_BUILD_TIME: '2026-01-01T00:00:00.000Z',
       },
     })
-    check('poisoned cache FAILS the build (exit 1)', r.status === 1, `exit ${r.status}: ${(r.stderr || r.stdout || '').slice(-300)}`)
+    check('poisoned cache FAILS the build (exit 1)', r.status === 1, `exit ${r.status}: ${(r.stderr || r.stdout || '').slice(-300)} — build.ts must exit 1 when vendor/js-debug/extracted does not match vendor/js-debug.lock.json`)
     const err = `${r.stderr ?? ''}${r.stdout ?? ''}`
-    check('…naming the mismatch', err.includes('vendor/js-debug cache does not match vendor/js-debug.lock.json'))
-    check('…and the fetch remedy', err.includes('bun run scripts/vendor/fetch-js-debug.ts'))
+    check('…naming the mismatch', err.includes('vendor/js-debug cache does not match vendor/js-debug.lock.json'), 'build.ts must print that mismatch message; output tail: ' + err.slice(-200))
+    check('…and the fetch remedy', err.includes('bun run scripts/vendor/fetch-js-debug.ts'), 'build.ts must name bun run scripts/vendor/fetch-js-debug.ts as the remedy; output tail: ' + err.slice(-200))
   } finally {
     rmSync(mirror, { recursive: true, force: true })
     rmSync(scratch, { recursive: true, force: true })
   }
-  check('the shared cache manifest was never written (bytes unchanged)', readFileSync(vmanPath).equals(original))
+  check('the shared cache manifest was never written (bytes unchanged)', readFileSync(vmanPath).equals(original), 'build.ts or fetch-js-debug.ts wrote vendor/js-debug/extracted/.vendor-manifest.json during the poisoned build; they must never write the shared cache')
   const recheck = spawnSync(
     process.env.BUN ?? join(process.env.HOME ?? '', '.bun', 'bin', 'bun'),
     ['run', join(ROOT, 'scripts', 'vendor', 'fetch-js-debug.ts'), '--check'],
     { encoding: 'utf8', timeout: 120_000, env: { ...process.env } },
   )
-  check('the shared cache still passes --check', recheck.status === 0, (recheck.stderr || '').slice(0, 200))
+  check('the shared cache still passes --check', recheck.status === 0, (recheck.stderr || '').slice(0, 200) + ' — the shared vendor/js-debug cache was damaged; re-run bun run scripts/vendor/fetch-js-debug.ts')
 } else {
   console.log('  [SKIP — LOUD] no local vendor cache; the mismatch arm needs it.')
   failures++

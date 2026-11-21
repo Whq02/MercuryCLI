@@ -76,24 +76,24 @@ async function measure(leg: Leg): Promise<number> {
     assert(frames.some(f => /Sleep\s+2s/.test(f)), 'the pending Sleep call must be visible')
     const rows = history(run.paths.home)
     const results = rows.flatMap(row => Array.isArray(row.payload.content) ? row.payload.content.filter(b => b.kind === 'tool-result').map(block => ({ ...block, at: Date.parse(row.occurredAt) })) : [])
-    assert(!JSON.stringify(results).includes(MISSING), 'a live batch must never acquire an ended-call row on disk')
+    assert(!JSON.stringify(results).includes(MISSING), 'a live batch must never acquire an ended-call row on disk (a call still running was settled as ended: see settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts, which should only settle calls of a run that really ended)')
     const bodies = ids.map(id => {
       const own = results.filter(b => b.callId === id)
-      assert.equal(own.length, 1, `${id} must have its own single recorded result`)
+      assert.equal(own.length, 1, `${id} must have its own single recorded result (found ${own.length}; check where the tool result is written to the session history in the daemon-hosted turn)`)
       return JSON.stringify(own[0]!.body)
     })
-    assert(bodies[0]!.includes('KNOWN-RESULT') && bodies[1]!.includes('waited') && /slept|woke|waited/i.test(bodies[2]!), `wrong batch results: ${bodies.join(', ')}`)
+    assert(bodies[0]!.includes('KNOWN-RESULT') && bodies[1]!.includes('waited') && /slept|woke|waited/i.test(bodies[2]!), `wrong batch results: ${bodies.join(', ')} (each call must keep its own result: Read the file text, Bash waited, Sleep done; a result landed on the wrong call or was replaced by an ended-run row, see settleToolUsesOfEndedRun in src/services/messages/apiFilters.ts)`)
     assert(frames.some(f => f.includes(END)), 'the batch must finish in the window')
     const started = run.fixture.toolEmits.find(e => e.id === ids[1])!.at
     const ended = results.find(b => b.callId === ids[1])!.at
     if (leg === 'queued') {
       const enter = run.sendLog.at(-1)!.sent
-      assert(enter >= started && enter < ended, `the second Enter must land inside the slow call: ${started} <= ${enter} < ${ended}`)
+      assert(enter >= started && enter < ended, `the second Enter must land inside the slow call: ${started} <= ${enter} < ${ended} (the Bash sleep ended outside the Enter window; a timing change in the fixture or a slow start, rerun before changing code)`)
       assert(frames.some(f => f.includes('queued') && f.includes(QUEUED)), 'the window must show the queued input')
     }
     if (leg === 'crew') {
       const notices = run.fixture.requests.filter(r => r.raw.includes('<task-notification>') && r.raw.includes(CHILD_REPLY))
-      assert(notices.length > 0, 'a real crewmate completion must reach the parent')
+      assert(notices.length > 0, 'a real crewmate completion must reach the parent (no request to the model carried a task-notification with the child reply; check how a background Crewmate completion is delivered to the parent turn, src/tools/AgentTool/runAgent/crewmateEnd.ts)')
     }
     const falseFrames = frames.filter(f => f.includes(MISSING)).length
     console.log(`${leg}: ${falseFrames}/${frames.length} delivered frames said the run ended; 3/3 real results, none missing on disk`)

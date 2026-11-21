@@ -83,10 +83,11 @@ const providerAuth = existsSync(`${root}/src/cli/handlers/providerAuth.ts`)
 
 let checks = 0
 let failures = 0
-function check(name: string, pass: unknown) {
+const failureHint = 'change the matching handler in src/cli/handlers/providerAuth.ts (providerAuthLogin, providerAuthList, providerAuthStatus, providerAuthLogout); refusal checks also read src/services/providers/openrouter/openrouterUsageState.ts, src/cli/handlers/auth.ts (authStatus) and loginsRowStateOf in src/components/BootLoginsScreen.tsx; key storage is src/utils/accounts/providerSecrets.ts'
+function check(name: string, pass: unknown, detail = '') {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${pass ? '' : ` | ${detail ? detail + ' | ' : ''}${failureHint}`}`)
 }
 
 try {

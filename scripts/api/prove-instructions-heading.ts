@@ -32,10 +32,11 @@ process.chdir(project)
 
 let failures = 0
 let checks = 0
+const HEADING_FAIL_HINT = 'to fix, change the heading or the reminder body in src/utils/userContextReminder.ts (INSTRUCTIONS_CONTEXT_KEY, userContextReminderBody), the composed context in src/context.ts (getUserContext), or the resume row in src/utils/attachments/userContext.ts (getUserContextAttachment, latestUserContextBody); for the wire checks under section 4 rebuild dist/mercury.mjs first (bun run build.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${HEADING_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

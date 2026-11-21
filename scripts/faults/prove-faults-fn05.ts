@@ -15,9 +15,21 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const AREA_FIX_HINTS: Record<string, string> = {
+  tree: 'fix hashTree, treeFileDigests or folderSize in src/extensions/tree.ts so an unreadable subfolder is marked, not skipped silently',
+  commitGate: 'fix generatedAssetsRefusal in src/guards/commitGate.ts so an unreadable candidate file does not refuse the commit',
+  guards: 'fix judgeToolCall in src/guards/guards.ts so a throwing or timed-out tool guard lets the call go on with one note',
+  runStopAdapter: 'fix headlessMintAllowed, evaluateStopAttempt or mintDeliveryArtifact in src/guards/runStopAdapter.ts',
+  wardsGuard: 'fix src/guards/wardsGuard.ts (registerWardsGuard, realTargetPath, makeTargetResolver or homeSpellings)',
+  history: 'fix historyPasteHashes in src/history.ts so an unreadable history.jsonl rejects instead of answering empty',
+  useAuthWallHold: 'fix afterDoor in src/hooks/useAuthWallHold.ts so a failed sign-in refresh notifies the user',
+  useExtensions: 'fix src/hooks/useExtensions.ts so a failed boot load clears pending and notifies the user',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = AREA_FIX_HINTS[label.split(':')[0] ?? '']
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

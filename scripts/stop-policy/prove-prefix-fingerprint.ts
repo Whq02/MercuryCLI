@@ -12,7 +12,7 @@ const { buildSystemPromptBlocks } = await import('../../src/services/providers/a
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: read fingerprintCacheablePrefix and diffPrefixFingerprints in src/services/api/prefixFingerprint.ts, and buildSystemPromptBlocks in src/services/providers/anthropic/cacheAndUsage.ts, which produces the blocks being fingerprinted' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

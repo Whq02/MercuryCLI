@@ -165,17 +165,17 @@ const focus = marks.get('focus') ?? []
 const toggled = marks.get('toggled') ?? []
 const back = marks.get('toggled-back') ?? []
 const top = marks.get('group-top') ?? []
-check('the drive delivered every send (exit 0)', res.status === 0, `exit ${res.status}`)
-check('the picker opened with the current row boxed', opened.some(l => l.includes('Mercury · model')) && opened.some(l => /│ │ \S.* {2,}current {2,}/.test(l)), opened.filter(l => l.includes('│ │')).join(' | '))
+check('the drive delivered every send (exit 0)', res.status === 0, `the vshot.py drive of /model did not deliver every send (exit ${res.status}); read the stderr tail printed above and run scripts/ui/vshot.py by hand`)
+check('the picker opened with the current row boxed', opened.some(l => l.includes('Mercury · model')) && opened.some(l => /│ │ \S.* {2,}current {2,}/.test(l)), `/model must open with the current model row boxed; check the picker under src/commands/model/picker. Boxed rows: ${opened.filter(l => l.includes('│ │')).join(' | ')}`)
 const group = anthropicGroup(top)
 const names = group.map(nameOf)
 console.log(`  [record] the Anthropic group: ${names.join(' · ')}`)
-check('the Anthropic group lists no "(1M context)" row', group.length > 0 && names.every(n => !n.endsWith('(1M context)')), names.join(' · '))
-check('no display name repeats in the Anthropic group', names.length > 0 && new Set(names).size === names.length, names.join(' · '))
-check('the previous generations with a suffix window (Opus 4.8, 4.7, 4.6) are one row each', ['Opus 4.8', 'Opus 4.7', 'Opus 4.6'].every(n => names.filter(x => x === n).length === 1), names.join(' · '))
-check('four ↓ from the current row focus the Opus 4.6 row, its window 1M', nameOf(focusLine(focus)) === 'Opus 4.6' && windowOf(focusLine(focus)) === '1M', focusLine(focus))
-check('ctrl+w keeps the cursor on the row and drops its window to 200k', nameOf(focusLine(toggled)) === 'Opus 4.6' && windowOf(focusLine(toggled)) === '200k', focusLine(toggled))
-check('ctrl+w again brings the window back to 1M on the same row', nameOf(focusLine(back)) === 'Opus 4.6' && windowOf(focusLine(back)) === '1M', focusLine(back))
+check('the Anthropic group lists no "(1M context)" row', group.length > 0 && names.every(n => !n.endsWith('(1M context)')), `merge the (1M context) variants into one row per model; the picker rows are grouped in src/utils/model/modelPickerGroups.ts. Group: ${names.join(' · ')}`)
+check('no display name repeats in the Anthropic group', names.length > 0 && new Set(names).size === names.length, `one row per model: a display name repeats in the Anthropic group; the grouping is in src/utils/model/modelPickerGroups.ts. Group: ${names.join(' · ')}`)
+check('the previous generations with a suffix window (Opus 4.8, 4.7, 4.6) are one row each', ['Opus 4.8', 'Opus 4.7', 'Opus 4.6'].every(n => names.filter(x => x === n).length === 1), `each of Opus 4.8, 4.7 and 4.6 must appear as exactly one row in the Anthropic group (src/utils/model/modelPickerGroups.ts). Group: ${names.join(' · ')}`)
+check('four ↓ from the current row focus the Opus 4.6 row, its window 1M', nameOf(focusLine(focus)) === 'Opus 4.6' && windowOf(focusLine(focus)) === '1M', `four down arrows from the current row must land on the Opus 4.6 row showing 1M ctx; check the row order in src/utils/model/modelPickerGroups.ts and the picker under src/commands/model/picker. Focused row: ${focusLine(focus)}`)
+check('ctrl+w keeps the cursor on the row and drops its window to 200k', nameOf(focusLine(toggled)) === 'Opus 4.6' && windowOf(focusLine(toggled)) === '200k', `ctrl+w on the focused row must switch its window to 200k without moving the cursor (picker under src/commands/model/picker). Focused row: ${focusLine(toggled)}`)
+check('ctrl+w again brings the window back to 1M on the same row', nameOf(focusLine(back)) === 'Opus 4.6' && windowOf(focusLine(back)) === '1M', `a second ctrl+w must switch the focused row back to 1M on the same row (picker under src/commands/model/picker). Focused row: ${focusLine(back)}`)
 
 if (KEEP) console.log(`  [keep] ${ROOT}`)
 else rmSync(ROOT, { recursive: true, force: true })

@@ -165,9 +165,10 @@ writeFileSync(process.argv[2]!, JSON.stringify({ roads, loaded: files.map((f: an
 
 let passed = 0
 let failed = 0
+const SHARE_IMPORT_HINT = 'What to change: the external-import block in the include loop of src/services/instructions/discovery.ts (isExternal, followed, pathInInstructionRoots, withinInstructionDir), or shouldShowExternalInstructionIncludesWarning in src/services/instructions/engine.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — ${SHARE_IMPORT_HINT}`}`)
 }
 
 const MIRROR = 'mirror-share'

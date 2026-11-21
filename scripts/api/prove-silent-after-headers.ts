@@ -16,16 +16,17 @@ delete process.env.MERCURY_SILENT_AFTER_HEADERS_MS
 
 let failures = 0
 let checks = 0
+const SILENCE_FAIL_HINT = 'to fix, change the fence window, its fault words or the retry row in src/services/providers/streamIdleBudget.ts (silentAfterHeadersMsForRoute, silentAfterHeadersWindowMs, silentAfterHeadersFaultWords, retryReasonWords, requestWaitLine), or the transport named in the label under src/services/providers (openaicompat/compatChatClient.ts, openai/openaiClient.ts, zai/zaiClient.ts, gemini/geminiClient.ts, openrouter/openrouterResponsesTransport.ts, callModelRouter.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${SILENCE_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the silent-after-headers proof exceeded 180s')
+  console.log('\nTIMEOUT — the silent-after-headers proof exceeded 180s; a transport or the retry path under src/services/providers (streamIdleBudget.ts, callModelRouter.ts) never settled, so find the last section header printed above and read that transport')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

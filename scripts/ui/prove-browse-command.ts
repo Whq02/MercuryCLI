@@ -188,7 +188,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
   ink.render(h(App, { initialState: getDefaultAppState(), getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const painted = await until(() => lines().join('\n').includes(COMPOSER))
-  check(`the chat painted at ${cols}x${rows}`, painted, lines().slice(0, 4).join(' | '))
+  check(`the chat painted at ${cols}x${rows}`, painted, lines().slice(0, 4).join(' | ') + ' — the chat never showed the composer text; the scene could not render, so look for a render fault above and in the Harness of this script')
   await sleep(400)
   return {
     lines,
@@ -219,34 +219,34 @@ const zenChipRow = (frame: string[]): number => frame.findIndex(line => /(^|·\s
 
 function cockpitReadsAsPlanned(label: string, frame: string[], cols: number, rows: number): void {
   const cockpit = cols >= LAYOUT_BREAKPOINTS.cockpitMin && rows >= LAYOUT_BREAKPOINTS.cockpitMinRows
-  check(`${label}: no zen chip while zen is off`, zenChipRow(frame) < 0, frame[zenChipRow(frame)] ?? '')
+  check(`${label}: no zen chip while zen is off`, zenChipRow(frame) < 0, (frame[zenChipRow(frame)] ?? '') + ' — a zen chip is painted while zen is off; zenModeOn in src/utils/cockpit/zenMode.ts must read false after setZenMode(false)')
   if (!cockpit) {
-    check(`${label}: below the cockpit size the chat is rail-less as before (no lanes rail, no vitals rail, the band rule spans the width)`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals') && fullWidthRule(frame, cols), frame.slice(0, 4).join(' | '))
+    check(`${label}: below the cockpit size the chat is rail-less as before (no lanes rail, no vitals rail, the band rule spans the width)`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals') && fullWidthRule(frame, cols), frame.slice(0, 4).join(' | ') + ' — below the cockpit breakpoints (LAYOUT_BREAKPOINTS in src/hooks/useLayoutTier.ts) the chat must paint no rails and a full-width band rule')
     return
   }
   const plan = railPlan(cols)
   const shape = plan.vitals ? 'both rails' : plan.lanesW < 24 ? 'the slim lanes rail' : 'the lanes rail alone'
-  check(`${label}: ${shape} exactly as railPlan gives them at ${cols} columns (lanes ${plan.lanesW} wide${plan.vitals ? `, vitals ${plan.vitalsW} wide` : ''})`, hasRail(frame, 'lanes') && hasRail(frame, 'vitals') === plan.vitals && centreBorderAt(frame, plan.lanesW) && (!plan.vitals || centreBorderAt(frame, cols - 1 - plan.vitalsW)), frame.slice(0, 3).map(line => line.slice(0, 60)).join(' | '))
+  check(`${label}: ${shape} exactly as railPlan gives them at ${cols} columns (lanes ${plan.lanesW} wide${plan.vitals ? `, vitals ${plan.vitalsW} wide` : ''})`, hasRail(frame, 'lanes') && hasRail(frame, 'vitals') === plan.vitals && centreBorderAt(frame, plan.lanesW) && (!plan.vitals || centreBorderAt(frame, cols - 1 - plan.vitalsW)), frame.slice(0, 3).map(line => line.slice(0, 60)).join(' | ') + ' — the painted rails must follow railPlan in src/utils/helmGeometry.ts at this width: lanes rail, vitals rail and their border columns')
 }
 
 function zenReadsRight(label: string, frame: string[], cols: number, lastRow: RegExp = /sessions? on/): void {
-  check(`${label}: no lanes rail and no vitals rail`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals'), frame.slice(0, 2).join(' | '))
-  check(`${label}: the chat takes the full width (the band rule spans ${cols} columns, the transcript starts at the edge)`, fullWidthRule(frame, cols) && frame.some(line => line.startsWith('13:00:01 [op]')), frame.slice(0, 6).join(' | '))
-  check(`${label}: the composer is whole across the width`, composerWhole(frame, cols), frame.slice(composerRow(frame) - 1, composerRow(frame) + 2).join(' | '))
-  check(`${label}: the status row is whole (${lastRow.source} at the last row)`, lastRow.test(summaryRow(frame)) && cells(summaryRow(frame)).length === cols, summaryRow(frame))
+  check(`${label}: no lanes rail and no vitals rail`, !hasRail(frame, 'lanes') && !hasRail(frame, 'vitals'), frame.slice(0, 2).join(' | ') + ' — zen must hide both rails; see zenRailsHidden in src/utils/cockpit/zenMode.ts and railPlan in src/utils/helmGeometry.ts')
+  check(`${label}: the chat takes the full width (the band rule spans ${cols} columns, the transcript starts at the edge)`, fullWidthRule(frame, cols) && frame.some(line => line.startsWith('13:00:01 [op]')), frame.slice(0, 6).join(' | ') + ' — the chat must take the full width in zen: a full-width band rule and the transcript starting at column 0')
+  check(`${label}: the composer is whole across the width`, composerWhole(frame, cols), frame.slice(composerRow(frame) - 1, composerRow(frame) + 2).join(' | ') + ' — the composer box must keep its four corners at the frame edges')
+  check(`${label}: the status row is whole (${lastRow.source} at the last row)`, lastRow.test(summaryRow(frame)) && cells(summaryRow(frame)).length === cols, summaryRow(frame) + ' — the last row must be the status row, exactly as wide as the screen')
   const chipRow = zenChipRow(frame)
-  check(`${label}: the zen chip sits on the status row above the composer`, chipRow >= 0 && chipRow < composerRow(frame) && chipRow > composerRow(frame) - 4, chipRow < 0 ? 'no zen chip' : `chip row ${chipRow}, composer row ${composerRow(frame)}`)
+  check(`${label}: the zen chip sits on the status row above the composer`, chipRow >= 0 && chipRow < composerRow(frame) && chipRow > composerRow(frame) - 4, chipRow < 0 ? 'no zen chip' : `chip row ${chipRow}, composer row ${composerRow(frame)} — the zen chip must paint on the status row within three rows above the composer; zenModeOn in src/utils/cockpit/zenMode.ts drives it`)
 }
 
 
 section('§1 the command exists, in the catalogue and the help domain (the README roster is the command-catalogue suite\'s pin)')
 {
   const entry = builtinCommands().find(command => command.name === 'browse')
-  check('/browse is a built-in local command', entry !== undefined && entry.type === 'local-jsx', JSON.stringify(entry?.name))
-  check('…whose description names the FILES card\'s browser', (entry?.description ?? '').includes('file browser the FILES card opens'), entry?.description)
-  check('…immediate exactly as /zen is (the same navigation-command law)', browseCommand.immediate === zenCommand.immediate)
+  check('/browse is a built-in local command', entry !== undefined && entry.type === 'local-jsx', JSON.stringify(entry?.name) + ' — register the browse command (src/commands/browse/index.ts) in builtinCommands in src/commands.ts as a local-jsx command')
+  check('…whose description names the FILES card\'s browser', (entry?.description ?? '').includes('file browser the FILES card opens'), (entry?.description ?? 'no browse command') + ' — change description in src/commands/browse/index.ts to name the file browser the FILES card opens')
+  check('…immediate exactly as /zen is (the same navigation-command law)', browseCommand.immediate === zenCommand.immediate, 'change the immediate getter in src/commands/browse/index.ts to use shouldNavCommandBeImmediate as src/commands/zen/index.ts does')
   const domain = COMMAND_DOMAINS.find(d => d.names.includes('browse'))
-  check('the help domain lists it under appearance & cockpit', domain?.label === 'appearance & cockpit', domain?.label)
+  check('the help domain lists it under appearance & cockpit', domain?.label === 'appearance & cockpit', (domain?.label ?? 'no domain lists browse') + ' — list browse under the appearance & cockpit domain in src/components/HelpV2/commandDomains.ts')
 }
 
 section('§2 /browse opens exactly the browser the FILES card opens, from the composer, in every layout')
@@ -255,18 +255,18 @@ for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [100, 30, tru
   setZenMode(zen)
   const scene = await openScene(cols, rows)
   await scene.settle(300)
-  check(`${label}: the browser is closed before the command`, !isFilesMenuOpen() && !scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12))))
+  check(`${label}: the browser is closed before the command`, !isFilesMenuOpen() && !scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12))), 'the files browser was already open or painted before /browse ran; the previous loop pass must close it with closeFilesMenu (src/utils/cockpit/filesMenu.ts)')
   let done: unknown[] = []
   await callBrowse(((...args: unknown[]) => { done = args }) as never, {} as never, '')
-  check(`${label}: the command opens the files browser and says nothing in the transcript`, isFilesMenuOpen() && done[0] === undefined && (done[1] as { display?: string } | undefined)?.display === 'skip', JSON.stringify(done))
-  check(`${label}: the browser paints with its own hint row`, await until(() => scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12)))), scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | '))
+  check(`${label}: the command opens the files browser and says nothing in the transcript`, isFilesMenuOpen() && done[0] === undefined && (done[1] as { display?: string } | undefined)?.display === 'skip', JSON.stringify(done) + ' — call in src/commands/browse/browse.tsx must run openFilesMenu and then onDone(undefined, { display: "skip" })')
+  check(`${label}: the browser paints with its own hint row`, await until(() => scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12)))), scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ') + ' — the open files menu must paint FILES_MENU_HINT; see src/components/FilesMenuSlot.tsx and src/components/MercuryFilesMenu.tsx')
   scene.push('\x1b')
-  check(`${label}: esc closes it`, await until(() => !isFilesMenuOpen()))
+  check(`${label}: esc closes it`, await until(() => !isFilesMenuOpen()), 'esc did not close the files menu; see the escape handling in src/components/MercuryFilesMenu.tsx and closeFilesMenu in src/utils/cockpit/filesMenu.ts')
   section(`§3 ${label}: the control — the card's own road is the same owner`)
   openFilesMenu()
-  check(`${label}: the FILES card's opener paints the same browser`, await until(() => isFilesMenuOpen() && scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12)))))
+  check(`${label}: the FILES card's opener paints the same browser`, await until(() => isFilesMenuOpen() && scene.lines().some(line => line.includes(FILES_MENU_HINT.slice(0, 12)))), 'openFilesMenu in src/utils/cockpit/filesMenu.ts did not paint the browser; see src/components/FilesMenuSlot.tsx')
   await callBrowse((() => {}) as never, {} as never, '')
-  check(`${label}: /browse while it is open changes nothing (one browser, never two)`, isFilesMenuOpen() && scene.lines().filter(line => line.includes(FILES_MENU_HINT.slice(0, 12))).length === 1)
+  check(`${label}: /browse while it is open changes nothing (one browser, never two)`, isFilesMenuOpen() && scene.lines().filter(line => line.includes(FILES_MENU_HINT.slice(0, 12))).length === 1, 'a second /browse while the menu is open must change nothing; openFilesMenu in src/utils/cockpit/filesMenu.ts returns early when already open')
   closeFilesMenu()
   await scene.settle(200)
   await scene.close()
@@ -274,12 +274,12 @@ for (const [cols, rows, zen] of [[80, 24, false], [64, 20, false], [100, 30, tru
 
 section('§4 refusals: the card\'s road and the command share one owner in the source; /browser (the web browser) is another command')
 {
-  check('/browser stays its own command', builtinCommands().some(command => command.name === 'browser'))
+  check('/browser stays its own command', builtinCommands().some(command => command.name === 'browser'), 'browse must not replace or rename the web-browser command; keep browser registered in builtinCommands in src/commands.ts')
 }
 
 setZenMode(false)
 clearTimeout(hardLimit)
-check('no render fault', faults.length === 0, faults.join(' | ').slice(0, 300))
+check('no render fault', faults.length === 0, faults.join(' | ').slice(0, 300) + ' — a console.error fired during the run; read the first fault line above and fix the component that logged it')
 releaseScratchHome(HOME)
 console.log(`\n${failures === 0 ? '✅' : '❌'} browse-command — ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

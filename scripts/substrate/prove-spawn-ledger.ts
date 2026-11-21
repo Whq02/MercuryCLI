@@ -5,7 +5,10 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('      fix: the behaviour named in this label lives in src/daemon/spawnLedger.ts (recordSpawn, recordSpawnExit, assertSpawnCwd, spawnedByStamp, recordBashAudit, spawnLedgerPath, bashAuditPath)')
+  }
 }
 
 const home = mkdtempSync(join(tmpdir(), 'spawn-ledger-proof-'))

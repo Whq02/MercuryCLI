@@ -53,12 +53,16 @@ const lock = JSON.parse(readFileSync(LOCK, 'utf8')) as {
   licenseFiles: string[]
   adapterEntry: string
 }
-check('lock pins debugpy', lock.name === 'debugpy' && /^\d+\.\d+\.\d+$/.test(lock.version))
-check('sha256 is a 64-hex digest', /^[0-9a-f]{64}$/.test(lock.sha256))
-check('url points at the pinned wheel file', lock.url.endsWith(lock.wheel))
-check('wheel filename carries the pinned version', lock.wheel.includes(lock.version))
-check('licence + notice files declared', lock.license === 'MIT' && lock.licenseFiles.length >= 2)
-check('adapter entry is the proven directory invocation', lock.adapterEntry === 'debugpy/adapter')
+check(
+  'lock pins debugpy',
+  lock.name === 'debugpy' && /^\d+\.\d+\.\d+$/.test(lock.version),
+  `name ${lock.name}, version ${lock.version}; fix name and version in vendor/debugpy.lock.json`,
+)
+check('sha256 is a 64-hex digest', /^[0-9a-f]{64}$/.test(lock.sha256), 'fix sha256 in vendor/debugpy.lock.json')
+check('url points at the pinned wheel file', lock.url.endsWith(lock.wheel), 'make url and wheel agree in vendor/debugpy.lock.json')
+check('wheel filename carries the pinned version', lock.wheel.includes(lock.version), 'make wheel and version agree in vendor/debugpy.lock.json')
+check('licence + notice files declared', lock.license === 'MIT' && lock.licenseFiles.length >= 2, 'fix license and licenseFiles in vendor/debugpy.lock.json')
+check('adapter entry is the proven directory invocation', lock.adapterEntry === 'debugpy/adapter', `adapterEntry is ${lock.adapterEntry}; fix it in vendor/debugpy.lock.json`)
 
 section('(2) fetch --check honesty (no network)')
 {
@@ -70,10 +74,10 @@ section('(2) fetch --check honesty (no network)')
   })
   const cacheValidOnDisk = existsSync(join(EXTRACT, '.vendor-manifest.json'))
   if (cacheValidOnDisk) {
-    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)}`)
+    check('--check exits 0 for a present cache', r.status === 0, `exit ${r.status}: ${(r.stderr || r.stdout).slice(0, 200)}; the --check branch of scripts/vendor/fetch-debugpy.ts must exit 0 when the extracted cache and its .vendor-manifest.json are valid`)
   } else {
-    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status}`)
-    check('--check names the remedy', (r.stderr ?? '').includes('fetch-debugpy.ts'), r.stderr.slice(0, 200))
+    check('--check exits 2 for an absent cache', r.status === 2, `exit ${r.status}; the --check branch of scripts/vendor/fetch-debugpy.ts must exit 2 when vendor/debugpy/extracted is absent`)
+    check('--check names the remedy', (r.stderr ?? '').includes('fetch-debugpy.ts'), `${r.stderr.slice(0, 200)}; the absent-cache message in scripts/vendor/fetch-debugpy.ts must name fetch-debugpy.ts`)
   }
 }
 
@@ -90,15 +94,17 @@ section('(2b) the extractor candidate chain (small-fix bundle item 6, TASK-E007)
     if (at === -1 || at < lastIndex) inOrder = false
     lastIndex = at
   }
-  check('all five candidates present, in order (unzip → python3 → tar.exe → python → py)', inOrder)
-  check("`py` invokes the -3 launcher form", listSrc.includes("'-3', '-m', 'zipfile'"))
+  check('all five candidates present, in order (unzip → python3 → tar.exe → python → py)', inOrder, 'restore the five names, in this order, in EXTRACT_CANDIDATES in scripts/vendor/fetch-debugpy.ts')
+  check("`py` invokes the -3 launcher form", listSrc.includes("'-3', '-m', 'zipfile'"), 'the py entry of EXTRACT_CANDIDATES in scripts/vendor/fetch-debugpy.ts must run py -3 -m zipfile')
   check(
     'the failure message names the whole candidate list',
     src.includes("EXTRACT_CANDIDATES.map(c => `'${c.name}'`).join(', ')"),
+    'the extraction failure message in extractWheel of scripts/vendor/fetch-debugpy.ts must list EXTRACT_CANDIDATES by name',
   )
   check(
     'a failed attempt resets the tmp tree (no merged-tree digest)',
     /attempts\.push[\s\S]{0,400}rmSync\(tmp, \{ recursive: true, force: true \}\)\s*\n\s*mkdirSync\(tmp/.test(src),
+    'extractWheel in scripts/vendor/fetch-debugpy.ts must rmSync and mkdirSync the tmp tree right after attempts.push on a failed candidate',
   )
 }
 
@@ -110,14 +116,14 @@ if (existsSync(join(EXTRACT, '.vendor-manifest.json'))) {
     fileCount: number
     treeDigest: string
   }
-  check('vendor manifest matches the lock', vman.version === lock.version && vman.wheelSha256 === lock.sha256)
+  check('vendor manifest matches the lock', vman.version === lock.version && vman.wheelSha256 === lock.sha256, 'the extracted cache is stale against vendor/debugpy.lock.json: rerun bun run scripts/vendor/fetch-debugpy.ts')
   const files = walkFiles(EXTRACT)
   check(`file count matches (${vman.fileCount})`, files.length === vman.fileCount, `${files.length} on disk`)
   const digest = sha256(files.map(f => `${f.rel} ${f.sha256}`).sort().join('\n'))
   check('treeDigest recomputes identically from the bytes', digest === vman.treeDigest, digest.slice(0, 16))
-  check('adapter entry present', existsSync(join(EXTRACT, lock.adapterEntry, '__main__.py')))
+  check('adapter entry present', existsSync(join(EXTRACT, lock.adapterEntry, '__main__.py')), 'the extracted cache lacks the adapter: rerun bun run scripts/vendor/fetch-debugpy.ts')
   for (const lf of lock.licenseFiles) {
-    check(`licence/notice preserved: ${lf}`, existsSync(join(EXTRACT, lf)))
+    check(`licence/notice preserved: ${lf}`, existsSync(join(EXTRACT, lf)), 'the extracted cache lacks this file: rerun bun run scripts/vendor/fetch-debugpy.ts or fix licenseFiles in vendor/debugpy.lock.json')
   }
 } else {
   console.log('  [SKIP — LOUD] no local vendor cache; extraction-determinism legs need it.')
@@ -130,18 +136,18 @@ if (existsSync(DIST_MANIFEST)) {
     pythonDebugger?: { vendored: boolean; version?: string; sha256?: string; adapterEntry?: string; remedy?: string }
     degraded: string[]
   }
-  check('manifest carries the pythonDebugger record', m.pythonDebugger !== undefined)
+  check('manifest carries the pythonDebugger record', m.pythonDebugger !== undefined, 'build.ts must write pythonDebugger into dist/manifest.json; rebuild with bun run build.ts')
   if (m.pythonDebugger?.vendored) {
     check('vendored claim ⇒ the tree ships', existsSync(join(DIST_VENDOR, 'debugpy', 'adapter', '__main__.py')))
     check('vendored version matches the lock', m.pythonDebugger.version === lock.version)
     check('vendored sha256 matches the lock', m.pythonDebugger.sha256 === lock.sha256)
-    check("degraded[] carries no 'python-debugger'", !m.degraded.includes('python-debugger'))
+    check("degraded[] carries no 'python-debugger'", !m.degraded.includes('python-debugger'), 'build.ts lists python-debugger in degraded only when debugpy is not vendored')
     const shippedVman = join(DIST_VENDOR, '.vendor-manifest.json')
     check('the shipped tree carries its vendor manifest', existsSync(shippedVman))
   } else {
-    check("not-vendored claim ⇒ degraded[] carries 'python-debugger'", m.degraded.includes('python-debugger') === true)
-    check('not-vendored claim ⇒ no tree ships', !existsSync(DIST_VENDOR))
-    check('not-vendored claim carries the remedy', typeof m.pythonDebugger?.remedy === 'string' && m.pythonDebugger.remedy.includes('fetch-debugpy'))
+    check("not-vendored claim ⇒ degraded[] carries 'python-debugger'", m.degraded.includes('python-debugger') === true, 'build.ts must add python-debugger to degraded when debugpy is not vendored')
+    check('not-vendored claim ⇒ no tree ships', !existsSync(DIST_VENDOR), 'dist/vendor/debugpy exists though the manifest says not vendored: rebuild dist with bun run build.ts')
+    check('not-vendored claim carries the remedy', typeof m.pythonDebugger?.remedy === 'string' && m.pythonDebugger.remedy.includes('fetch-debugpy'), 'the pythonDebugger record built by build.ts must carry a remedy naming fetch-debugpy')
   }
 } else {
   console.log('  [SKIP — LOUD] no dist/manifest.json; build first (the pooled gate prebuilds dist).')
@@ -169,10 +175,10 @@ section('(5) degraded-build seam (MERCURY_BUILD_NO_VENDOR_DEBUGPY=1, scratch out
       pythonDebugger?: { vendored: boolean; remedy?: string }
       degraded: string[]
     }
-    check('scratch manifest: vendored=false', m.pythonDebugger?.vendored === false)
-    check("scratch manifest: degraded includes 'python-debugger'", m.degraded.includes('python-debugger'))
-    check('scratch manifest names the remedy', (m.pythonDebugger?.remedy ?? '').includes('fetch-debugpy'))
-    check('scratch dist ships NO vendor tree', !existsSync(join(scratch, 'vendor', 'debugpy')))
+    check('scratch manifest: vendored=false', m.pythonDebugger?.vendored === false, 'build.ts must honour MERCURY_BUILD_NO_VENDOR_DEBUGPY=1 and write pythonDebugger.vendored false')
+    check("scratch manifest: degraded includes 'python-debugger'", m.degraded.includes('python-debugger'), 'build.ts must add python-debugger to degraded under MERCURY_BUILD_NO_VENDOR_DEBUGPY=1')
+    check('scratch manifest names the remedy', (m.pythonDebugger?.remedy ?? '').includes('fetch-debugpy'), 'the pythonDebugger remedy built by build.ts must name fetch-debugpy')
+    check('scratch dist ships NO vendor tree', !existsSync(join(scratch, 'vendor', 'debugpy')), 'build.ts must skip copying the debugpy tree under MERCURY_BUILD_NO_VENDOR_DEBUGPY=1')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

@@ -176,6 +176,6 @@ try {
   closeHostTunnel(pod.id)
   check('OOM proof makes no public network calls', escaped.length === 0)
   removeHostRecord(pod.id)
-  if (failures.length) throw new Error(failures.length + ' OOM-after-ready cases failed\n' + failures.join('\n'))
+  if (failures.length) throw new Error(failures.length + ' OOM-after-ready cases failed\n' + failures.join('\n') + '\nwhat to change: the engine-death reading in src/services/host/ssh.ts (shortEngineLine, engineDeathAfterReadyWords), the worker that pauses the record in src/services/host/worker.ts (runHostJob), the words in src/commands/llmhost/words.ts (hostEngineOomWords, hostEngineDeadChatWords), the two-hour rule in src/services/host/idle.ts (hostIdleVerdict)')
   console.log('ENGINE OOM AFTER READY GREEN · ' + checks + ' checks; the record pauses on the engine’s own words, the chat gets one line and no reconnect ladder, Resume restarts from the weights on the machine; loopback fixtures, zero billable calls')
 } finally { globalThis.fetch = nativeFetch; ssh?.close(); await rp.close(); f.close() }

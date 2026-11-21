@@ -23,9 +23,15 @@ delete process.env.MERCURY_HOME
 process.chdir(project)
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+const UNREAD_FIX =
+  'the reader of that file in src/mneme must call recordMnemeUnread(path, error) on failure and clearMnemeUnread(path) on success (src/mneme/mnemeUnread.ts), and the screen must show mnemeUnreadSentence'
+const CREW_NOTE_FIX =
+  'the note comes from subagentMemoryLoadNote in src/constants/subagentDoctrine.ts; check where src/tools/AgentTool/agent/call.ts and src/tools/AgentTool/runAgent.ts use it when loadMemoryPrompt fails'
+const PROBE_FIX =
+  'the preserved-thinking row is built in src/services/health/sections/memory.ts from readThinkingDropLedger in src/services/providers/anthropic/thinkingBinding.ts'
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -115,12 +121,14 @@ try {
       'Memory Centre note shows the unread sentence for corrupt pins.json',
       centre.includes(`${p} could not be read (`) && centre.includes('so what it holds is not shown — fix or remove the file.'),
       centre,
+      UNREAD_FIX,
     )
     const stats = await memoryStatsText()
     check(
       '/memory stats shows the unread sentence for corrupt pins.json',
       stats.includes(`${p} could not be read (`) && stats.includes('so what it holds is not shown — fix or remove the file.'),
       stats,
+      UNREAD_FIX,
     )
     unlinkSync(p)
     readPins(dir)
@@ -136,6 +144,7 @@ try {
       'Memory Centre note shows the unread sentence for corrupt usage.json',
       centreUsage.includes(`${u} could not be read (`) && centreUsage.includes('so what it holds is not shown — fix or remove the file.'),
       centreUsage,
+      UNREAD_FIX,
     )
     writeFileSync(u, JSON.stringify({ version: 1, rows: {} }))
     readUsage(dir)
@@ -151,12 +160,14 @@ try {
       '/memory stats shows the unread sentence for corrupt library.json',
       statsLib.includes(`${l} could not be read (`) && statsLib.includes('so what it holds is not shown — fix or remove the file.'),
       statsLib,
+      UNREAD_FIX,
     )
     const centreLib = await renderMemoryCentre()
     check(
       'Memory Centre note shows the unread sentence for corrupt library.json',
       centreLib.includes(`${l} could not be read (`) && centreLib.includes('so what it holds is not shown — fix or remove the file.'),
       centreLib,
+      UNREAD_FIX,
     )
     if (POSIX_MODES) {
       writeFileSync(l, JSON.stringify({ version: 1, seqCounter: 3, lastConsolidatedAt: null }), { mode: 0o600 })
@@ -168,6 +179,7 @@ try {
           '/memory stats shows the unread sentence for EACCES library.json',
           statsEacces.includes(`${l} could not be read (`) && statsEacces.includes('so what it holds is not shown — fix or remove the file.'),
           statsEacces,
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(l, 0o600)
@@ -195,6 +207,7 @@ try {
       'memory health row warns with unread sentence for corrupt pinned-status.json',
       memPinned.status === 'warn' && memPinned.evidence.includes(`${ps} could not be read (`) && memPinned.evidence.includes('so what it holds is not shown — fix or remove the file.'),
       JSON.stringify(memPinned),
+      UNREAD_FIX,
     )
     const cfgRows = configMemoryRows({
       config: {} as never,
@@ -213,6 +226,7 @@ try {
       'configMemoryRows warning shows unread sentence for corrupt pinned-status.json',
       typeof pinnedRow?.warning === 'string' && pinnedRow.warning.includes(`${ps} could not be read (`) && !pinnedRow.warning.includes('0 rules pinned'),
       String(pinnedRow?.warning),
+      UNREAD_FIX,
     )
     unlinkSync(ps)
     readPinnedStatus(dir)
@@ -227,6 +241,7 @@ try {
       'memory health row warns with unread sentence for corrupt handover.json',
       memHandover.status === 'warn' && memHandover.evidence.includes(`${ho} could not be read (`) && memHandover.evidence.includes('so what it holds is not shown — fix or remove the file.'),
       JSON.stringify(memHandover),
+      UNREAD_FIX,
     )
     unlinkSync(ho)
     readHandoverReceipt(dir)
@@ -242,6 +257,7 @@ try {
           'memory-lifecycle health row warns with unread sentence for unreadable current.jsonl',
           lifeBuf.status === 'warn' && lifeBuf.evidence.includes(`${bufPath} could not be read (`) && lifeBuf.evidence.includes('so what it holds is not shown — fix or remove the file.'),
           JSON.stringify(lifeBuf),
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(bufPath, 0o600)
@@ -259,6 +275,7 @@ try {
           'memory-lifecycle health row warns with unread sentence for unreadable consuming-*.jsonl',
           lifeCons.status === 'warn' && lifeCons.evidence.includes(`${consPath} could not be read (`),
           JSON.stringify(lifeCons),
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(consPath, 0o600)
@@ -276,6 +293,7 @@ try {
           'mnemeUnread records unread sentence for unreadable library dir',
           dirUnread !== null && dirUnread.includes(`${dir} could not be read (`),
           String(dirUnread),
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(dir, 0o700)
@@ -293,6 +311,7 @@ try {
           '/memory stats shows unread sentence for unreadable maintenance.jsonl',
           statsMaint.includes(`${maintPath} could not be read (`),
           statsMaint,
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(maintPath, 0o600)
@@ -311,6 +330,7 @@ try {
           '/memory stats shows unread sentence for unreadable ledger.jsonl',
           statsLed.includes(`${ledPath} could not be read (`),
           statsLed,
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(ledPath, 0o600)
@@ -329,12 +349,14 @@ try {
           '/memory stats shows unread sentence for unreadable journal.md',
           statsJournal.includes(`${jPath} could not be read (`) && statsJournal.includes('so what it holds is not shown — fix or remove the file.'),
           statsJournal,
+          UNREAD_FIX,
         )
         const centreJournal = await renderMemoryCentre()
         check(
           'Memory Centre note shows unread sentence for unreadable journal.md',
           centreJournal.includes(`${jPath} could not be read (`),
           centreJournal.slice(-400),
+          UNREAD_FIX,
         )
       } finally {
         chmodSync(jPath, 0o600)
@@ -363,6 +385,7 @@ try {
       'corrupt thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
       corruptRow.status === 'unknown' && corruptRow.evidence.startsWith('probe threw:'),
       JSON.stringify(corruptRow),
+      PROBE_FIX,
     )
 
     if (POSIX_MODES) {
@@ -375,6 +398,7 @@ try {
           'unreadable thinking-drop ledger reads unknown (probe threw) in preserved-thinking health row',
           eaccesRow.status === 'unknown' && eaccesRow.evidence.startsWith('probe threw:'),
           JSON.stringify(eaccesRow),
+          PROBE_FIX,
         )
       } finally {
         chmodSync(ledgerPath, 0o600)
@@ -435,6 +459,7 @@ try {
         'async launch receipt carries the pinned-rules memory load note',
         receiptText.includes('this crewmate runs without your pinned rules: memory could not be loaded ('),
         receiptText,
+        CREW_NOTE_FIX,
       )
 
       resetCommandQueue()
@@ -456,6 +481,7 @@ try {
         'runAgent enqueues receipt note when buildAgentSystemPrompt hits loadMemoryPrompt failure',
         queued.includes('this crewmate runs without your pinned rules: memory could not be loaded ('),
         queued,
+        CREW_NOTE_FIX,
       )
       resetCommandQueue()
     } finally {

@@ -21,7 +21,7 @@ const SETTLE_MS = 8_000
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a launch listed above is a process an idle daemon must not start, so stop the code path that spawns it (the census names its kind and command, scripts/daemon/census-preload.cjs records it); a daemon that stayed up after its owner died is the reap in src/utils/ownerWatch.ts; daemon logs are in the [forensics] worlds kept below`}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -36,7 +36,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-idle-daemon-launches-nothing exceeded 240s')
+  console.log('\n❌ TIMEOUT — prove-idle-daemon-launches-nothing exceeded 240s; a daemon never reached a step above (set IDLE_LAUNCH_KEEP=1 and read the daemon logs in the scratch worlds, or run the daemon with scripts/daemon/census-preload.cjs)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

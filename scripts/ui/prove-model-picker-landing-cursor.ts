@@ -84,33 +84,33 @@ section('THE GATE off-screen: the landing line while a landing is in flight, the
     const landing = focused.withLanding(sleep(800))
     const view = await mount()
     await sleep(300)
-    check('300 ms into an 800 ms landing the slot paints the landing line', view.seen().includes(WORDS), view.seen().slice(-200))
-    check('…and not the picker', !view.seen().includes(PICKER))
+    check('300 ms into an 800 ms landing the slot paints the landing line', view.seen().includes(WORDS), `MercuryModelLandingGate in src/commands/model/modelPickerLandingGate.tsx must paint MODEL_PICKER_LANDING_WORDS while focusedConnector.withLanding is in flight; screen tail: ${view.seen().slice(-200)}`)
+    check('…and not the picker', !view.seen().includes(PICKER), 'the gate in src/commands/model/modelPickerLandingGate.tsx must not render its children while a landing is in flight')
     view.clear()
     await landing
     await sleep(150)
-    check('once the landing settles the picker paints', view.seen().includes(PICKER), view.seen().slice(-200))
-    check('the landing edge cleared the gate (no landing in flight)', !focused.landingInFlight())
+    check('once the landing settles the picker paints', view.seen().includes(PICKER), `MercuryModelLandingGate in src/commands/model/modelPickerLandingGate.tsx must render its children once the landing settles; screen tail: ${view.seen().slice(-200)}`)
+    check('the landing edge cleared the gate (no landing in flight)', !focused.landingInFlight(), 'withLanding in src/services/engine-connector/focusedConnector.ts must clear its in-flight mark when the landing promise settles')
     view.unmount()
   }
   {
     void focused.withLanding(new Promise<void>(() => {}))
     const view = await mount(300)
     await sleep(120)
-    check('a landing that never settles holds the landing line first', view.seen().includes(WORDS) && !view.seen().includes(PICKER))
+    check('a landing that never settles holds the landing line first', view.seen().includes(WORDS) && !view.seen().includes(PICKER), `the gate in src/commands/model/modelPickerLandingGate.tsx must show the landing line before its ceiling; screen tail: ${view.seen().slice(-200)}`)
     view.clear()
     await sleep(450)
-    check('…and past the ceiling the picker paints anyway', view.seen().includes(PICKER), view.seen().slice(-200))
+    check('…and past the ceiling the picker paints anyway', view.seen().includes(PICKER), `the gate in src/commands/model/modelPickerLandingGate.tsx must give up waiting at its ceilingMs and render the picker; screen tail: ${view.seen().slice(-200)}`)
     view.unmount()
     focused._resetFocusedSessionConnectorForTesting()
   }
   {
     const view = await mount()
     await sleep(120)
-    check('with no landing in flight the picker paints at once', view.seen().includes(PICKER) && !view.seen().includes(WORDS))
+    check('with no landing in flight the picker paints at once', view.seen().includes(PICKER) && !view.seen().includes(WORDS), `the gate in src/commands/model/modelPickerLandingGate.tsx must render its children at once when focusedConnector.landingInFlight() is false; screen tail: ${view.seen().slice(-200)}`)
     view.unmount()
   }
-  check(`the ceiling is a bounded moment (${gate.MODEL_PICKER_LANDING_CEILING_MS} ms), well under the daemon door's timeout`, gate.MODEL_PICKER_LANDING_CEILING_MS >= 1_000 && gate.MODEL_PICKER_LANDING_CEILING_MS < 30_000)
+  check(`the ceiling is a bounded moment (${gate.MODEL_PICKER_LANDING_CEILING_MS} ms), well under the daemon door's timeout`, gate.MODEL_PICKER_LANDING_CEILING_MS >= 1_000 && gate.MODEL_PICKER_LANDING_CEILING_MS < 30_000, 'set MODEL_PICKER_LANDING_CEILING_MS in src/commands/model/modelPickerLandingGate.tsx between 1000 and 30000 ms')
 }
 
 
@@ -184,13 +184,13 @@ if (driver.kind !== 'posix-pty') {
     const walked = frame('walked')
     const settled = frame('settled')
     console.log(`  [info] the landing line was on screen at the open: ${opened.includes(WORDS.slice(0, 28)) ? 'yes — the open fell inside the landing window' : 'no — this box landed before the picker opened'}`)
-    check('the picker painted', painted.includes('Mercury · model'), painted.split('\n').filter(l => l.trim()).slice(0, 6).join(' / '))
-    check('the picker painted after the landing: the served model row is current at the first paint', /\S\s{2,}current\s{2,}/.test(painted) && !painted.includes(WORDS.slice(0, 28)), painted.split('\n').find(l => l.includes('current')) ?? '(no current row)')
-    check('the two arrow keys moved the cursor', focusRow(walked) !== '' && focusRow(walked) !== focusRow(painted), `painted: ${focusRow(painted)} · walked: ${focusRow(walked)}`)
-    check('five seconds on, the cursor is where the keys put it', focusRow(settled) === focusRow(walked), `walked: ${focusRow(walked)} · settled: ${focusRow(settled)}`)
-    check('…in the same open (the picker never closed)', settled.includes('Mercury · model') && /\S\s{2,}current\s{2,}/.test(settled))
+    check('the picker painted', painted.includes('Mercury · model'), `the /model picker never reached its first paint in the drive; check the landing gate in src/commands/model/modelPickerLandingGate.tsx and run scripts/ui/vshot.py by hand; first rows: ${painted.split('\n').filter(l => l.trim()).slice(0, 6).join(' / ')}`)
+    check('the picker painted after the landing: the served model row is current at the first paint', /\S\s{2,}current\s{2,}/.test(painted) && !painted.includes(WORDS.slice(0, 28)), `the first paint must come after the landing, with the served model marked current and the landing line gone (src/commands/model/modelPickerLandingGate.tsx); current row: ${painted.split('\n').find(l => l.includes('current')) ?? '(no current row)'}`)
+    check('the two arrow keys moved the cursor', focusRow(walked) !== '' && focusRow(walked) !== focusRow(painted), `the two down arrows sent at the first paint must move the picker cursor (src/commands/model/picker); painted: ${focusRow(painted)} · walked: ${focusRow(walked)}`)
+    check('five seconds on, the cursor is where the keys put it', focusRow(settled) === focusRow(walked), `nothing may reset the cursor after the landing settles (the gate in src/commands/model/modelPickerLandingGate.tsx and the picker under src/commands/model/picker); walked: ${focusRow(walked)} · settled: ${focusRow(settled)}`)
+    check('…in the same open (the picker never closed)', settled.includes('Mercury · model') && /\S\s{2,}current\s{2,}/.test(settled), 'the picker closed or lost its current row before the settled frame; the gate in src/commands/model/modelPickerLandingGate.tsx must not remount the picker after the landing')
   } else {
-    check('the capture wrote its grid', false)
+    check('the capture wrote its grid', false, 'vshot.py wrote no grid file; run scripts/ui/vshot.py by hand with the config and read its stderr')
   }
   try {
     const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')

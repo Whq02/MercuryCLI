@@ -20,7 +20,8 @@ const usage = await import('../../src/services/providers/xai/xaiUsageState.ts')
 const key = 'xai-fixture-key-not-real-12345678'
 const env = { MERCURY_XAI_API_BASE: 'http://127.0.0.1:1/v1' } as NodeJS.ProcessEnv
 let checks = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); checks++; console.log(`[PASS] ${name}`) }
+const failureHint = 'change the xAI sign-in code this check names: src/services/providers/xai/xaiLogin.ts (key and device login receipts), xaiAccounts.ts and xaiOauth.ts (account resolution, tokens), xaiUsageState.ts (usage), src/services/providers/accountSlots.ts (slots), src/utils/accounts/providerSecrets.ts (stored keys), src/components/BootLoginsScreen.tsx (key prompt pane)'
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} | ${failureHint}`); checks++; console.log(`[PASS] ${name}`) }
 const reply = (status: number, data: unknown = { data: [{ id: 'grok-4.7' }] }): typeof fetch => (async (url, init) => {
   assert.equal(String(url), 'http://127.0.0.1:1/v1/models')
   assert.equal(new Headers(init?.headers).get('authorization'), `Bearer ${key}`)

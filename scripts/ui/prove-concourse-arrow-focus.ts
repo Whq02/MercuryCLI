@@ -23,15 +23,17 @@ console.log('§1 the resolver — every region of the board keeps the ↑↓ row
   const keysOf = (rows: ReadonlyArray<{ keys: string; label: string }>): string[] => rows.map(k => k.keys)
   for (const region of ['list', 'live', 'chat', 'rail'] as const) {
     const rows = browseKeysFor({ chatPresent: true, region })
-    check(`the ${region} legend keeps '↑↓ browse' (the key fires there)`, rows.some(k => k.keys === '↑↓' && k.label === 'browse'), keysOf(rows).join(','))
+    check(`the ${region} legend keeps '↑↓ browse' (the key fires there)`, rows.some(k => k.keys === '↑↓' && k.label === 'browse'), `${keysOf(rows).join(',')} | change browseKeysFor or CONCOURSE_BROWSE_KEYS in src/components/concourse/controlManifest.ts`)
   }
   check(
     'the region-less rows (the atlas) name where the key fires',
     browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓')?.label === 'browse (list · live · split)',
+    `got ${JSON.stringify(browseKeysFor({ chatPresent: true }).find(k => k.keys === '↑↓'))} | change browseKeysFor in src/components/concourse/controlManifest.ts`,
   )
   check(
     'esc is relabelled by chat presence in every region',
     (['list', 'live', 'chat', 'rail'] as const).every(region => browseKeysFor({ chatPresent: false, region }).find(k => k.keys === 'esc')?.label === 'boot face' && browseKeysFor({ chatPresent: true, region }).find(k => k.keys === 'esc')?.label === 'focused chat'),
+    'change the esc relabel in browseKeysFor, src/components/concourse/controlManifest.ts',
   )
 }
 
@@ -106,7 +108,7 @@ function capture(tag: string, scratch: string, sends: Send[], total: number): st
     ANTHROPIC_BASE_URL: 'http://127.0.0.1:9',
   }
   const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], { encoding: 'utf8', timeout: vshotBudgetMs(240_000), env })
-  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${(res.stderr ?? '').slice(-600)}`)
+  if (res.status !== 0) throw new Error(`vshot ${tag} failed: ${(res.stderr ?? '').slice(-600)} | rerun scripts/ui/vshot.py with ${cfgPath} to see the full error`)
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: ({ label: string } & Grid)[] }
   const lines = linesOf(payload)
   writeFileSync(join(OUT_DIR, `${tag}-${cols}x${rows}.txt`), lines.join('\n') + '\n')
@@ -143,10 +145,10 @@ const scratches: string[] = []
   check(
     'list: on entry the rows hold focus, and ONE ↓ moved the ▸ selection onto the second row',
     rowBefore >= 0 && rowAfter > rowBefore && sameTitle(titleOf(afterDown[rowAfter]), titleOf(before[nextRow])),
-    `before=${rowBefore}:${JSON.stringify(titleOf(before[rowBefore]))} after=${rowAfter}:${JSON.stringify(titleOf(afterDown[rowAfter]))} expected=${JSON.stringify(titleOf(before[nextRow]))}`,
+    `before=${rowBefore}:${JSON.stringify(titleOf(before[rowBefore]))} after=${rowAfter}:${JSON.stringify(titleOf(afterDown[rowAfter]))} expected=${JSON.stringify(titleOf(before[nextRow]))} | the drive runs dist/mercury.mjs, so rebuild it (bun run build.ts) after a source change; the frames are in ${OUT_DIR}`,
   )
   const legend = afterEnter.find(l => /enters \(armed\)/.test(l)) ?? ''
-  check('list: ↵ on the rows ARMS the selected row (the legend says enters (armed) — the second ↵ enters)', legend !== '', afterEnter.find(l => l.includes('tab panes'))?.trim().slice(0, 118) ?? '(no legend row)')
+  check('list: ↵ on the rows ARMS the selected row (the legend says enters (armed) — the second ↵ enters)', legend !== '', afterEnter.find(l => l.includes('tab panes'))?.trim().slice(0, 118) ?? `(no legend row) | the legend comes from the armed rows of the list region in src/components/concourse/controlManifest.ts and the live composer rows in src/components/concourse/ConcourseLayout.tsx; frames are in ${OUT_DIR}`)
 }
 
 for (const s of scratches) rmSync(s, { recursive: true, force: true })

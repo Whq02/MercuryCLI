@@ -7,9 +7,25 @@ import { join } from 'node:path'
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 let failures = 0
 
+const AREA_FIX_HINTS: Record<string, string> = {
+  launchMilestones: 'fix readLaunchMilestones, recordLaunchMilestone or lastBootReachedInputLive in src/substrate/launchMilestones.ts so a torn file heals and an unreadable file is kept',
+  operationJournal: 'fix listJournalOperations or recoverJournalDir in src/substrate/operationJournal.ts so an unreadable op file is reported and ledgered',
+  pidLock: 'fix probePidLock in src/substrate/pidLock.ts so a failed relink restores a live holder or keeps the moved record',
+  storeRecovery: 'fix readStoreRecoveryEvents in src/substrate/storeRecovery.ts so an unreadable ledger throws',
+  recoveryOrchestrator: 'fix runBootRecovery or countOrphanDurableTemps in src/substrate/recoveryOrchestrator.ts so a read failure is reported, not swallowed',
+  splashHandover: 'fix consumeSplashHandover in src/substrate/splashHandover.ts so a failure leaves a warn boot note and keeps the receipt',
+  startupMenu: 'fix applyBootMenuEnv, writeBootEnvChoice or saveBootDefaultsProfile in src/substrate/startupMenu.ts so a corrupt or unreadable boot-env file is refused and left as it was',
+  stateLifecycle: 'fix installedBuildFacts in src/substrate/stateLifecycle.ts so a corrupt build manifest throws',
+  pauseCarry: 'fix readAgentPauseRecord or carryPausedCrewmatesOnResume in src/tasks/LocalAgentTask/pauseCarry.ts',
+  taskLaunchLedger: 'fix recordTaskLaunch or settleTaskLaunch in src/tasks/taskLaunchLedger.ts so a corrupt or unreadable ledger is preserved',
+  taskOutcomeEnvelope: 'fix recordTaskOutcome or loadTaskOutcomes in src/tasks/taskOutcomeEnvelope.ts so a corrupt or unreadable file is preserved',
+  tools: 'fix getTools in src/tools.ts so a tool whose isEnabled throws is logged and left out alone',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = AREA_FIX_HINTS[label.split(':')[0] ?? '']
+  const shown = !cond ? [detail, hint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 async function withScratchHome(fn: (home: string) => Promise<void> | void): Promise<void> {

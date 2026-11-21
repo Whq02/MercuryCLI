@@ -4,9 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const RELAY_FAIL_HINT = 'change publishSessionFacts or readSessionFacts in src/services/engine-connector/seatProjections.ts, preferSessionLimitWarning in src/services/providers/limitWarning.ts, or usage() in src/services/engine-connector/noSessionConnector.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? '' : detail ? `${detail} | hint: ${RELAY_FAIL_HINT}` : RELAY_FAIL_HINT
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

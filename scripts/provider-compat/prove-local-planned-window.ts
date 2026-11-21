@@ -15,11 +15,23 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_DISABLE_1M_CONTEXT
 
 let failures = 0
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'change localPlannedWindow in src/services/providers/local/localWindow.ts (the setting, trained max and served figure it plans from)',
+  '2': 'change decideLocalWindow, adoptLocalWindow, releaseOutgrownLocalWindow or localPlannedWindow in src/services/providers/local/localWindow.ts (which hold stays current)',
+  '3': 'change localGuardWindow or localCallModel in src/services/providers/local/localCallModel.ts, or localPlannedWindow in src/services/providers/local/localWindow.ts, so the guard, the context window and the request carry one figure',
+  '4': 'change writeLocalWindowSetting, decideLocalWindow or localWindowReasonTag in src/services/providers/local/localWindow.ts so each change bumps catalogueEpoch (src/services/providers/catalogueEpoch.ts) as expected',
+  '5': 'change localPlannedWindow in src/services/providers/local/localWindow.ts or localGuardWindow in src/services/providers/local/localCallModel.ts so a vLLM record reads its served window whatever the setting',
+  '6': 'change localPromptFitRefusal in src/services/providers/local/localCallModel.ts (its sentence and when it refuses)',
+  '7': 'change localPlannedWindow, chooseLocalWindow, localWindowValueWords or localWindowChoiceLine in src/services/providers/local/localWindow.ts, or localPromptFitRefusal in src/services/providers/local/localCallModel.ts, so a Modelfile num_ctx is the plan under auto',
+}
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && sectionHint ? `${detail ? `${detail} · ` : ''}${sectionHint}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.charAt(0)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''

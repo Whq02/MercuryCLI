@@ -6,10 +6,12 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const HEAL_FAIL_HINT = 'to fix, change the heal, peek or refusal words in src/services/api/clientContractLearned.ts (clientContractHealOf, clientContractStory, peekClientContract), the presented number in src/constants/oauth.ts (describeAnthropicClientContract), the health row in src/services/health/healthReport.ts (clientContractCheck), or the side query in src/services/api/sideQuery.ts, whichever this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : detail ? `${detail} — ${HEAL_FAIL_HINT}` : HEAL_FAIL_HINT
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}\n${'─'.repeat(76)}`)

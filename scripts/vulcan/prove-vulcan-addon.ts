@@ -6,10 +6,11 @@ import * as path from 'node:path'
 import { VULCAN_OPS } from '../../src/utils/vulcan/optable.generated.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
+const REGEN_ADDON = 'then run node scripts/vulcan/regen-addon.mjs to refresh src/services/vulcan/addonFiles.generated.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -27,7 +28,7 @@ for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
   const body = m ? m[1]! : ''
   for (const om of body.matchAll(/"([a-z0-9_]+)"/g)) {
     const op = om[1]!
-    check(`no double-claim: ${op}`, !owned.has(op), owned.get(op) ?? '')
+    check(`no double-claim: ${op}`, !owned.has(op), owned.get(op) ?? '', 'list the op in only one assets/vulcan/addon/categories/*.gd func ops() body')
     owned.set(op, f)
     claimed.push(op)
   }
@@ -35,23 +36,23 @@ for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
 const expected = VULCAN_OPS.filter(o => o.side !== 'mercury').map(o => o.name)
 const missing = expected.filter(o => !owned.has(o))
 const extra = claimed.filter(o => !expected.includes(o))
-check(`every editor-side op owned (${expected.length})`, missing.length === 0, missing.slice(0, 8).join(','))
-check('no undeclared handler ops', extra.length === 0, extra.slice(0, 8).join(','))
+check(`every editor-side op owned (${expected.length})`, missing.length === 0, missing.slice(0, 8).join(','), 'add each missing op to func ops() of its category in assets/vulcan/addon/categories/*.gd with a handler, or correct its side in src/utils/vulcan/optable.generated.js')
+check('no undeclared handler ops', extra.length === 0, extra.slice(0, 8).join(','), 'remove each op from func ops() in assets/vulcan/addon/categories/*.gd, or declare it in src/utils/vulcan/optable.generated.js')
 const frontierText = readFileSync(path.join(catDir, 'frontier.gd'), 'utf8')
 const frontierOps = [...owned].filter(([, f]) => f === 'frontier.gd').map(([op]) => op)
 const unhandled = frontierOps.filter(op => !new RegExp(`^\\t\\t"${op}":\\n`, 'm').test(frontierText))
-check(`every frontier op has its match arm in handle() (${frontierOps.length})`, frontierOps.length > 0 && unhandled.length === 0, unhandled.join(','))
+check(`every frontier op has its match arm in handle() (${frontierOps.length})`, frontierOps.length > 0 && unhandled.length === 0, unhandled.join(','), 'give each listed op a tab-indented match arm in handle() of assets/vulcan/addon/categories/frontier.gd')
 
 section('2. sandbox + safety pins')
 const server = readFileSync(path.join(addon, 'core', 'server.gd'), 'utf8')
-check('loopback bind literal', server.includes('127.0.0.1'))
-check('token gate before dispatch', /token/.test(server) && /hello/.test(server))
+check('loopback bind literal', server.includes('127.0.0.1'), '', 'bind the server to 127.0.0.1 in assets/vulcan/addon/core/server.gd')
+check('token gate before dispatch', /token/.test(server) && /hello/.test(server), '', 'restore the token and hello handshake in assets/vulcan/addon/core/server.gd')
 const classesTable = readFileSync(path.join(addon, 'core', 'op_classes.gd'), 'utf8')
-check('the server reads the Mercury-side table the optable generates', /OpClassesScript\.mercury_side\(op\)/.test(server) && !/MERCURY_SIDE_OPS/.test(server) && /^const MERCURY_SIDE := \[/m.test(classesTable) && VULCAN_OPS.filter(o => o.side === 'mercury').every(o => classesTable.includes(`\t"${o.name}",`)))
+check('the server reads the Mercury-side table the optable generates', /OpClassesScript\.mercury_side\(op\)/.test(server) && !/MERCURY_SIDE_OPS/.test(server) && /^const MERCURY_SIDE := \[/m.test(classesTable) && VULCAN_OPS.filter(o => o.side === 'mercury').every(o => classesTable.includes(`\t"${o.name}",`)), '', 'assets/vulcan/addon/core/op_classes.gd must list every Mercury-side op of src/utils/vulcan/optable.generated.js in MERCURY_SIDE, and core/server.gd must call OpClassesScript.mercury_side(op)')
 const undo = readFileSync(path.join(addon, 'core', 'undo.gd'), 'utf8')
-check('undo helper wraps EditorUndoRedoManager', /create_action|undo_redo/i.test(undo))
+check('undo helper wraps EditorUndoRedoManager', /create_action|undo_redo/i.test(undo), '', 'assets/vulcan/addon/core/undo.gd must go through the editor undo/redo manager')
 const paths = readFileSync(path.join(addon, 'core', 'paths.gd'), 'utf8')
-check('res:// guard exists and refuses escapes', paths.includes('res://') && /\.\./.test(paths))
+check('res:// guard exists and refuses escapes', paths.includes('res://') && /\.\./.test(paths), '', 'assets/vulcan/addon/core/paths.gd must keep its res:// guard that rejects .. escapes')
 let osExecViolations: string[] = []
 for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
   if (f === 'editor.gd') continue
@@ -60,9 +61,9 @@ for (const f of readdirSync(catDir).filter(f => f.endsWith('.gd'))) {
 for (const core of readdirSync(path.join(addon, 'core')).filter(f => f.endsWith('.gd'))) {
   if (readFileSync(path.join(addon, 'core', core), 'utf8').includes('OS.execute')) osExecViolations.push(`core/${core}`)
 }
-check('no OS.execute outside categories/editor.gd', osExecViolations.length === 0, osExecViolations.join(','))
-check('plugin.cfg present + named', existsSync(path.join(addon, 'plugin.cfg')) && /mercury/i.test(readFileSync(path.join(addon, 'plugin.cfg'), 'utf8')))
-check('runtime bridge present', existsSync(path.join(addon, 'core', 'runtime_bridge.gd')))
+check('no OS.execute outside categories/editor.gd', osExecViolations.length === 0, osExecViolations.join(','), 'remove OS.execute from the listed files under assets/vulcan/addon; only categories/editor.gd may run processes')
+check('plugin.cfg present + named', existsSync(path.join(addon, 'plugin.cfg')) && /mercury/i.test(readFileSync(path.join(addon, 'plugin.cfg'), 'utf8')), '', 'restore assets/vulcan/addon/plugin.cfg with a name that contains mercury')
+check('runtime bridge present', existsSync(path.join(addon, 'core', 'runtime_bridge.gd')), '', 'restore assets/vulcan/addon/core/runtime_bridge.gd')
 
 section('3. regen drift')
 let checkOk = true
@@ -71,7 +72,7 @@ try {
 } catch {
   checkOk = false
 }
-check('regen-addon --check clean', checkOk)
+check('regen-addon --check clean', checkOk, '', 'run node scripts/vulcan/regen-addon.mjs to regenerate src/services/vulcan/addonFiles.generated.ts from assets/vulcan/addon, and keep the result')
 
 section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
 {
@@ -89,8 +90,8 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       text: text + '\n[mercury_vulcan]\n\nport=6010\n',
       edits: [{ section: 'mercury_vulcan', key: 'port', next: '6010', why: 'the addon listens here' }],
     }))
-    check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40))
-    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120))
+    check('mutation publishes atomically and preserves unrelated bytes', r1.ok === true && rf(proj, 'utf8').startsWith(BASE), rf(proj, 'utf8').slice(0, 40), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must write the result once and leave bytes outside the edit unchanged')
+    check('the seam returns one receipt line per edited row', r1.ok === true && r1.receipts.length === 1 && r1.receipts[0] === 'project.godot [mercury_vulcan] port: (absent) → 6010 — the addon listens here', JSON.stringify(r1).slice(0, 120), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must return one receipt per edits row in the form shown by the condition')
 
     wf(proj, BASE)
     let calls = 0
@@ -102,7 +103,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
     const after = rf(proj, 'utf8')
-    check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`)
+    check('concurrent editor save survives (re-merge on fresh content)', r2.ok === true && calls === 2 && after.includes('[editor_saved]') && after.includes('[mercury_added]'), `calls=${calls}`, 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must reread project.godot and run the mutator again when the file changed under it')
 
     wf(proj, BASE)
     let always = 0
@@ -111,7 +112,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
       wf(proj, BASE + `\n[churn]\n\nv=${always}\n`)
       return { text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }
     })
-    check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90))
+    check('exhaustion ⇒ conflict receipt, zero partial writes', r3.ok === false && !rf(proj, 'utf8').includes('[mercury_added]'), JSON.stringify(r3).slice(0, 90), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must give up with ok false and write nothing after its retries run out')
 
     wf(proj, BASE)
     const trace: string[] = []
@@ -125,7 +126,7 @@ section('4. SM-09 — fenced, atomic, conflict-honest project.godot mutation')
     }
     const r4 = await mutateProjectGodot(scratch, (text: string) => ({ text: text + '\n[mercury_added]\n\nx=1\n', edits: [] }), road)
     const r5 = await mutateProjectGodot(scratch, (text: string) => ({ text, edits: [] }), road)
-    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace))
+    check('the road fires before (file still original) then after (previous/next), never for a no-op', r4.ok === true && r5.ok === true && JSON.stringify(trace) === JSON.stringify(['before:true', 'after:true:true']), JSON.stringify(trace), 'mutateProjectGodot in src/services/vulcan/addonInstaller.ts must call road.before before the write and road.after with previous and next, and skip both when the text is unchanged')
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }
@@ -137,35 +138,35 @@ section('5. the one injection road — a press is an event; step mode is served'
   const bodies = new Map<string, string>()
   for (const m of bridge.matchAll(/^(?:static )?func (\w+)\([^\n]*\n([\s\S]*?)(?=^(?:static )?func |(?![\s\S]))/gm)) bodies.set(m[1]!, m[2]!)
   const parsers = [...bodies].filter(([, body]) => /Input\.parse_input_event\(/.test(body)).map(([name]) => name).sort()
-  check('Input.parse_input_event is called only by _inject and _deliver_queued', JSON.stringify(parsers) === JSON.stringify(['_deliver_queued', '_inject']), parsers.join(','))
-  check('the action-state-only road is gone (no Input.action_press / action_release)', !/Input\.action_(press|release)\(/.test(bridge))
+  check('Input.parse_input_event is called only by _inject and _deliver_queued', JSON.stringify(parsers) === JSON.stringify(['_deliver_queued', '_inject']), parsers.join(','), 'route the extra functions listed through _inject in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
+  check('the action-state-only road is gone (no Input.action_press / action_release)', !/Input\.action_(press|release)\(/.test(bridge), '', 'replace Input.action_press and Input.action_release in assets/vulcan/addon/core/runtime_bridge.gd with an InputEventAction sent through _inject, ' + REGEN_ADDON)
   const action = bodies.get('_rop_input_action') ?? ''
-  check('input_action builds an InputEventAction with action, pressed, strength and injects it', /InputEventAction\.new\(\)/.test(action) && /ev\.action = action/.test(action) && /ev\.pressed = pressed/.test(action) && /ev\.strength = /.test(action) && /_inject\(ev\)/.test(action))
+  check('input_action builds an InputEventAction with action, pressed, strength and injects it', /InputEventAction\.new\(\)/.test(action) && /ev\.action = action/.test(action) && /ev\.pressed = pressed/.test(action) && /ev\.strength = /.test(action) && /_inject\(ev\)/.test(action), '', 'fix _rop_input_action in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
   for (const road of ['_rop_input_key', '_rop_input_mouse_button', '_rop_input_mouse_move', '_rop_click', '_rop_navigate', '_rop_replay', '_rop_input_sequence']) {
     const body = bodies.get(road) ?? ''
-    check(`${road} rides the injection road (or the rops that do)`, /_inject\(|_rop_input_(key|mouse_button|action)\(/.test(body), road)
+    check(`${road} rides the injection road (or the rops that do)`, /_inject\(|_rop_input_(key|mouse_button|action)\(/.test(body), road, 'make ' + road + ' in assets/vulcan/addon/core/runtime_bridge.gd call _inject or one of the rops that does, ' + REGEN_ADDON)
   }
   const inject = bodies.get('_inject') ?? ''
-  check('_inject queues only while step mode holds the tree paused', /_step_mode and get_tree\(\)\.paused/.test(inject) && /_queued_input\.append\(ev\)/.test(inject))
+  check('_inject queues only while step mode holds the tree paused', /_step_mode and get_tree\(\)\.paused/.test(inject) && /_queued_input\.append\(ev\)/.test(inject), '', 'fix _inject in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
   const deliver = bodies.get('_deliver_queued') ?? ''
-  check('the queue is delivered by parsing AND flushing (the callbacks see it before the first stepped frame)', /Input\.parse_input_event\(ev\)/.test(deliver) && /Input\.flush_buffered_events\(\)/.test(deliver))
+  check('the queue is delivered by parsing AND flushing (the callbacks see it before the first stepped frame)', /Input\.parse_input_event\(ev\)/.test(deliver) && /Input\.flush_buffered_events\(\)/.test(deliver), '', 'fix _deliver_queued in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
   const advance = bodies.get('_advance') ?? ''
-  check('a step window is frame-aligned: unpause and re-pause at process_frame boundaries, exact frames', /await tree\.process_frame\n\tvar delivered/.test(advance) && /tree\.paused = false\n\t\tdelivered = _deliver_queued\(\)/.test(advance) && /while ran < frames and/.test(advance) && /if stepped:\n\t\ttree\.paused = true\n\t_stepping = false/.test(advance))
-  check('the bridge serves the three step rops', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(r => new RegExp(`"${r}":\\n\\t\\t\\treturn (await )?_rop_`).test(bridge)))
-  check('runtime_status names the mode (live | step)', /"mode": "step" if _step_mode else "live"/.test(bridge) && /st\.merge\(_mode_state\(\)\)/.test(bodies.get('_rop_status') ?? ''))
+  check('a step window is frame-aligned: unpause and re-pause at process_frame boundaries, exact frames', /await tree\.process_frame\n\tvar delivered/.test(advance) && /tree\.paused = false\n\t\tdelivered = _deliver_queued\(\)/.test(advance) && /while ran < frames and/.test(advance) && /if stepped:\n\t\ttree\.paused = true\n\t_stepping = false/.test(advance), '', 'fix _advance in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
+  check('the bridge serves the three step rops', ['runtime_step', 'runtime_pause', 'runtime_resume'].every(r => new RegExp(`"${r}":\\n\\t\\t\\treturn (await )?_rop_`).test(bridge)), '', 'add the missing runtime_step, runtime_pause or runtime_resume match arm in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
+  check('runtime_status names the mode (live | step)', /"mode": "step" if _step_mode else "live"/.test(bridge) && /st\.merge\(_mode_state\(\)\)/.test(bodies.get('_rop_status') ?? ''), '', 'fix _mode_state and _rop_status in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
   const runtime = readFileSync(path.join(catDir, 'runtime.gd'), 'utf8')
-  check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime))
-  check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime))
-  check('the proxy deadline budgets stepped frames from the ONE generated figure (no constant of its own)', /int\(args\["frames"\]\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server) && !/STEP_WALL_MS_PER_FRAME :=/.test(server))
-  check('the bridge caps a frame window from the same generated figure (no constant of its own)', /const OpClassesScript := preload\("op_classes\.gd"\)/.test(bridge) && /OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(advance) && !/STEP_WALL_MS_PER_FRAME :=/.test(bridge))
+  check('the editor side forwards the three verbs from the runtime category', /"runtime_step", "runtime_pause", "runtime_resume",/.test(runtime), '', 'list the three verbs in func ops() of assets/vulcan/addon/categories/runtime.gd, ' + REGEN_ADDON)
+  check('the editor pre-flights the step window (frames or ms, never both) before the wire', /if op == "runtime_step":\n\t\tvar bad := step_window_error\(args, "frames", "ms", ctx\)/.test(runtime) && /pass %s or %s, not both/.test(runtime), '', 'fix the runtime_step pre-flight in assets/vulcan/addon/categories/runtime.gd, ' + REGEN_ADDON)
+  check('the proxy deadline budgets stepped frames from the ONE generated figure (no constant of its own)', /int\(args\["frames"\]\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server) && !/STEP_WALL_MS_PER_FRAME :=/.test(server), '', 'read the frame budget from OpClassesScript.STEP_WALL_MS_PER_FRAME in assets/vulcan/addon/core/server.gd and define no constant there, ' + REGEN_ADDON)
+  check('the bridge caps a frame window from the same generated figure (no constant of its own)', /const OpClassesScript := preload\("op_classes\.gd"\)/.test(bridge) && /OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(advance) && !/STEP_WALL_MS_PER_FRAME :=/.test(bridge), '', 'preload op_classes.gd and read OpClassesScript.STEP_WALL_MS_PER_FRAME in _advance of assets/vulcan/addon/core/runtime_bridge.gd, defining no constant there, ' + REGEN_ADDON)
   const opClasses = readFileSync(path.join(addon, 'core', 'op_classes.gd'), 'utf8')
-  check('op_classes.gd carries the generated figure', /^const STEP_WALL_MS_PER_FRAME := \d+$/m.test(opClasses))
+  check('op_classes.gd carries the generated figure', /^const STEP_WALL_MS_PER_FRAME := \d+$/m.test(opClasses), '', 'assets/vulcan/addon/core/op_classes.gd must define STEP_WALL_MS_PER_FRAME as an integer, ' + REGEN_ADDON)
   const sequence = bodies.get('_rop_input_sequence') ?? ''
-  check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence))
-  check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence))
+  check('input_sequence steps carry step_frames | step_ms and advance after the input', /_step_window\(step, "step_frames", "step_ms", false\)/.test(sequence) && /await _advance\(int\(window\["frames"\]\), int\(window\["ms"\]\)\)/.test(sequence), '', 'fix _rop_input_sequence in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
+  check('a wait_ms is game time while stepped, a timer while live', /if _step_mode:\n\t\t\t\tvar w: Dictionary = await _advance\(0, /.test(sequence) && /create_timer\(wait_ms \/ 1000\.0\)\.timeout/.test(sequence), '', 'fix the wait_ms branch of _rop_input_sequence in assets/vulcan/addon/core/runtime_bridge.gd, ' + REGEN_ADDON)
   const input = readFileSync(path.join(catDir, 'input.gd'), 'utf8')
-  check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input))
-  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server))
+  check('input_sequence validation admits step_frames | step_ms and checks their shape', /step\.has\("step_frames"\) or step\.has\("step_ms"\)/.test(input) && /MercuryVulcanRuntime\.step_window_error\(step, "step_frames", "step_ms", ctx\)/.test(input), '', 'fix the input_sequence validation in assets/vulcan/addon/categories/input.gd, ' + REGEN_ADDON)
+  check('the proxy deadline sums a sequence\'s advances too', /for key in \["wait_ms", "step_ms"\]/.test(server) && /int\(step\["step_frames"\]\)\) \* OpClassesScript\.STEP_WALL_MS_PER_FRAME/.test(server), '', 'make the proxy deadline in assets/vulcan/addon/core/server.gd add the wait_ms and step_ms of each sequence step, ' + REGEN_ADDON)
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan addon proof PASS' : `❌ ${failures} FAILURES`))

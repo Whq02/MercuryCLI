@@ -66,7 +66,7 @@ for (const { cap, symbol } of WIRING) {
   if (consumers.length >= 1) {
     console.log(`  ✓ ${cap}: ${symbol} used by ${consumers.length} real consumer(s) (loop closed)`)
   } else {
-    console.error(`  ✗ ${cap}: ${symbol} has NO real src consumer — SEVERED (comment / import-path / type-only is not a wire)`)
+    console.error(`  ✗ ${cap}: ${symbol} has NO real src consumer — SEVERED (comment / import-path / type-only is not a wire). Fix: import and call ${symbol} from the src code that should use it, or drop it from WIRING in this file if it was removed on purpose`)
     fail = 1
   }
 }
@@ -76,7 +76,7 @@ for (const name of COMMANDS) {
   if (registeredCommands.has(name)) {
     console.log(`  ✓ /${name} registered in builtinCommands()`)
   } else {
-    console.error(`  ✗ /${name} NOT registered in builtinCommands()`)
+    console.error(`  ✗ /${name} NOT registered in builtinCommands(). Fix: add the /${name} command to the list built by builtinCommands in src/commands.ts`)
     fail = 1
   }
 }
@@ -87,7 +87,7 @@ const commandFiles = [
 ]
 for (const f of commandFiles) {
   if (existsSync(resolve(REPO, f))) console.log(`  ✓ ${f} exists`)
-  else { console.error(`  ✗ ${f} MISSING`); fail = 1 }
+  else { console.error(`  ✗ ${f} MISSING. Fix: restore ${f}, or update commandFiles in this file if the command moved`); fail = 1 }
 }
 
 if (fail) {

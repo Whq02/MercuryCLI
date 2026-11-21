@@ -24,12 +24,12 @@ try {
   const connect = rows.filter(row => row.value !== 'openai' && row.value !== 'anthropic')
   const names = connect.map(row => row.label.split(' — ')[0]!)
   console.log(`  intro: ${intro}`)
-  check('the /logins opening sentence names every family the list below it carries, by the row\'s own name', names.every(name => intro.includes(name)), `missing: ${names.filter(name => !intro.includes(name)).join(', ') || 'none'}`)
-  check('the last family on the list is the last named (OpenCode Zen, the box\'s missing one)', intro.includes(`or ${names[names.length - 1]}.`), names[names.length - 1])
+  check('the /logins opening sentence names every family the list below it carries, by the row\'s own name', names.every(name => intro.includes(name)), `missing: ${names.filter(name => !intro.includes(name)).join(', ') || 'none'} — make the sign-in intro (signInIntro in src/components/Onboarding.tsx) name every family row from loginFamilyRows in src/components/loginFamilyRows.ts`)
+  check('the last family on the list is the last named (OpenCode Zen, the box\'s missing one)', intro.includes(`or ${names[names.length - 1]}.`), `${names[names.length - 1]} — end the sign-in intro (signInIntro in src/components/Onboarding.tsx) with or and the last family row name from loginFamilyRows`)
   const named = intro.slice(intro.indexOf('or connect ') + 'or connect '.length, intro.lastIndexOf('.'))
   const spoken = named.split(/, | or /).map(s => s.trim()).filter(Boolean)
-  check('the sentence names the families in the list\'s order and nothing the list does not carry', spoken.join('|') === names.join('|'), `${spoken.join('|')} vs ${names.join('|')}`)
-  check('the three leading roads keep their words', intro.startsWith('Use a Claude or OpenAI subscription, usage-based billing, or connect ') && intro.endsWith('.') && !intro.includes('API key from the terminal'), intro)
+  check('the sentence names the families in the list\'s order and nothing the list does not carry', spoken.join('|') === names.join('|'), `${spoken.join('|')} vs ${names.join('|')} — list the families in signInIntro (src/components/Onboarding.tsx) in the order of loginFamilyRows (src/components/loginFamilyRows.ts) and name no family that list lacks`)
+  check('the three leading roads keep their words', intro.startsWith('Use a Claude or OpenAI subscription, usage-based billing, or connect ') && intro.endsWith('.') && !intro.includes('API key from the terminal'), `${intro} — restore the leading words of signInIntro in src/components/Onboarding.tsx`)
 } finally {
   rmSync(home, { recursive: true, force: true })
 }

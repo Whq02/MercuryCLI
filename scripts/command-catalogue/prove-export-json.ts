@@ -3,8 +3,8 @@ import { join } from 'node:path'
 import { at, exportFixture, fixtureId, longResult, thought } from './exportFixture.js'
 
 let failures = 0
-function check(label: string, ok: boolean): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+function check(label: string, ok: boolean, detail = ''): void {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)
   if (!ok) failures++
 }
 
@@ -13,19 +13,19 @@ const before = JSON.stringify(fixture.messages)
 try {
   const { receipt, view } = await fixture.write('chat.json')
   const path = join(fixture.scratch, 'chat.json')
-  check('/export chat.json writes JSON, not chat.txt', existsSync(path) && !existsSync(join(fixture.scratch, 'chat.txt')))
-  check('the receipt names the session workspace JSON file', receipt === `Conversation exported to: ${path}` && view === null)
+  check('/export chat.json writes JSON, not chat.txt', existsSync(path) && !existsSync(join(fixture.scratch, 'chat.txt')), 'a .json filename must write JSON only: see the file-name handling in src/commands/export/export.tsx')
+  check('the receipt names the session workspace JSON file', receipt === `Conversation exported to: ${path}` && view === null, `the receipt was ${JSON.stringify(receipt)}; the receipt line and the view result come from src/commands/export/export.tsx`)
   if (existsSync(path)) {
     const raw = readFileSync(path, 'utf8')
     const doc = JSON.parse(raw)
-    check('one pretty-printed UTF-8 document with a trailing newline', raw === JSON.stringify(doc, null, 2) + '\n' && raw.includes('café'))
-    check('session facts come from this session and its transcript', doc.session.id === fixtureId && doc.session.cwd === fixture.scratch && doc.session.started === at(1) && JSON.stringify(doc.session.models) === '["fixture-model"]' && !('cost' in doc.session))
-    check('plain document keys and ordered text turns', Object.keys(doc).join(',') === 'session,messages' && doc.messages.length === 3 && doc.messages.map((m: any) => m.role).join(',') === 'user,assistant,assistant' && doc.messages[0].at === at(1) && doc.messages[0].text === 'Please check café.' && doc.messages[2].text === 'Both files checked.')
+    check('one pretty-printed UTF-8 document with a trailing newline', raw === JSON.stringify(doc, null, 2) + '\n' && raw.includes('café'), 'the JSON file must be JSON.stringify(doc, null, 2) plus a newline in UTF-8: see src/commands/export/export.tsx')
+    check('session facts come from this session and its transcript', doc.session.id === fixtureId && doc.session.cwd === fixture.scratch && doc.session.started === at(1) && JSON.stringify(doc.session.models) === '["fixture-model"]' && !('cost' in doc.session), 'session id, cwd, start time and models are built in transcriptExport in src/commands/export/transcript.ts, and the session has no cost key')
+    check('plain document keys and ordered text turns', Object.keys(doc).join(',') === 'session,messages' && doc.messages.length === 3 && doc.messages.map((m: any) => m.role).join(',') === 'user,assistant,assistant' && doc.messages[0].at === at(1) && doc.messages[0].text === 'Please check café.' && doc.messages[2].text === 'Both files checked.', 'the document keys and message order are built in transcriptExport in src/commands/export/transcript.ts')
     const tools = doc.messages[1].tools
-    check('both calls retain structured inputs and join results by id', tools.length === 2 && tools[0].name === 'Read' && tools[0].input.file_path === 'first.txt' && tools[0].result === 'First file.' && tools[1].input.file_path === 'second.txt')
-    check('the long result keeps 2000 characters and states the omitted count', tools[1].result === longResult.slice(0, 2000) + '… [truncated 8000 characters]')
-    check('thinking, signatures and encrypted reasoning are absent', ![thought, 'private-signature', 'private-reasoning-ciphertext'].some(value => raw.includes(value)))
-    check('every message uses role, at, text and tools', doc.messages.every((m: any) => Object.keys(m).join(',') === 'role,at,text,tools'))
+    check('both calls retain structured inputs and join results by id', tools.length === 2 && tools[0].name === 'Read' && tools[0].input.file_path === 'first.txt' && tools[0].result === 'First file.' && tools[1].input.file_path === 'second.txt', 'tool calls must keep their inputs and take results by tool_use id: see transcriptExport in src/commands/export/transcript.ts')
+    check('the long result keeps 2000 characters and states the omitted count', tools[1].result === longResult.slice(0, 2000) + '… [truncated 8000 characters]', 'long results are cut by truncateExportResults in src/commands/export/transcript.ts')
+    check('thinking, signatures and encrypted reasoning are absent', ![thought, 'private-signature', 'private-reasoning-ciphertext'].some(value => raw.includes(value)), 'transcriptExport in src/commands/export/transcript.ts must drop thinking blocks, signatures and encrypted reasoning')
+    check('every message uses role, at, text and tools', doc.messages.every((m: any) => Object.keys(m).join(',') === 'role,at,text,tools'), 'every message object built in transcriptExport in src/commands/export/transcript.ts must carry exactly role, at, text and tools')
     const { transcriptExport, truncateExportResults } = await import('../../src/commands/export/transcript.js')
     const source = JSON.parse(before)
     source[2].message.content.unshift({ type: 'tool_result', tool_use_id: 'unknown_call', content: { status: 'orphan preserved' } })
@@ -33,21 +33,21 @@ try {
     source[3].message.content.push({ type: 'tool_use', id: 'pending_call', name: 'Read', input: {} })
     source.push({ ...source[0], isMeta: true, message: { role: 'user', content: 'hidden metadata' } })
     const edge = transcriptExport(source, { id: fixtureId, cwd: fixture.scratch })
-    check('orphan results retain their position and structured content', edge.messages[2]?.role === 'tool' && edge.messages[2]?.text === '{"status":"orphan preserved"}' && edge.messages[3]?.role === 'assistant')
-    check('pending results remain null and all recorded models survive', edge.messages[3]?.tools[0]?.result === null && edge.session.models.join(',') === 'fixture-model,fixture-second-model')
-    check('hidden metadata stays out', !JSON.stringify(edge).includes('hidden metadata'))
+    check('orphan results retain their position and structured content', edge.messages[2]?.role === 'tool' && edge.messages[2]?.text === '{"status":"orphan preserved"}' && edge.messages[3]?.role === 'assistant', 'a tool result with no matching call must stay in its place as a tool message: see transcriptExport in src/commands/export/transcript.ts')
+    check('pending results remain null and all recorded models survive', edge.messages[3]?.tools[0]?.result === null && edge.session.models.join(',') === 'fixture-model,fixture-second-model', 'an unanswered call must have result null and every model seen must be listed: see transcriptExport in src/commands/export/transcript.ts')
+    check('hidden metadata stays out', !JSON.stringify(edge).includes('hidden metadata'), 'transcriptExport in src/commands/export/transcript.ts must skip isMeta messages')
     edge.messages[1]!.tools[0]!.result = '𝄞'.repeat(2001)
-    check('the character budget never splits a Unicode character', truncateExportResults(edge).messages[1]?.tools[0]?.result === '𝄞'.repeat(2000) + '… [truncated 1 characters]')
-    check('an empty transcript reports no invented start or models', JSON.stringify(transcriptExport([], { id: fixtureId, cwd: fixture.scratch }).session) === JSON.stringify({ id: fixtureId, started: null, cwd: fixture.scratch, models: [] }))
+    check('the character budget never splits a Unicode character', truncateExportResults(edge).messages[1]?.tools[0]?.result === '𝄞'.repeat(2000) + '… [truncated 1 characters]', 'truncateExportResults in src/commands/export/transcript.ts must count and cut by whole characters, not UTF-16 units')
+    check('an empty transcript reports no invented start or models', JSON.stringify(transcriptExport([], { id: fixtureId, cwd: fixture.scratch }).session) === JSON.stringify({ id: fixtureId, started: null, cwd: fixture.scratch, models: [] }), 'transcriptExport in src/commands/export/transcript.ts must give started null and models empty for an empty transcript')
   }
   await fixture.write('chat.txt')
   const text = readFileSync(join(fixture.scratch, 'chat.txt'), 'utf8')
-  check('text also omits thinking and caps each tool result', !text.includes(thought) && !text.includes(longResult) && text.includes('… [truncated 8000 characters]'))
+  check('text also omits thinking and caps each tool result', !text.includes(thought) && !text.includes(longResult) && text.includes('… [truncated 8000 characters]'), 'the text export must omit thinking and cut long results: see transcriptExportText in src/commands/export/transcript.ts')
   await fixture.write('chat.other')
-  check('non-JSON filenames still normalize to txt', existsSync(join(fixture.scratch, 'chat.txt')) && !existsSync(join(fixture.scratch, 'chat.other')))
+  check('non-JSON filenames still normalize to txt', existsSync(join(fixture.scratch, 'chat.txt')) && !existsSync(join(fixture.scratch, 'chat.other')), 'a filename that is not .json must be written as .txt: see the file-name handling in src/commands/export/export.tsx')
   const dialog = await fixture.write('')
-  check('no argument still offers text copy or save', dialog.view !== null && (dialog.view as any).props.defaultFilename.endsWith('.txt'))
-  check('export never mutates transcript rows', JSON.stringify(fixture.messages) === before)
+  check('no argument still offers text copy or save', dialog.view !== null && (dialog.view as any).props.defaultFilename.endsWith('.txt'), 'with no argument the command must return the save dialog with a .txt default file name: see src/commands/export/export.tsx')
+  check('export never mutates transcript rows', JSON.stringify(fixture.messages) === before, 'the export path must read the transcript rows and never edit them: see src/commands/export/transcript.ts and export.tsx')
 } finally {
   fixture.close()
 }

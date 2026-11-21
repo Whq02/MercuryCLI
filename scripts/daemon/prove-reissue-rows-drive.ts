@@ -15,7 +15,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}fix: a refusal answered inside the quiet window must record no api_error row and publish no retry wait (the wait shape is RequestWaitV1 in src/services/providers/streamIdleBudget.ts), and the reply must land after the 529 refusals; the daemon log is in the [forensics] world kept below, and dist/mercury.mjs must be rebuilt with bun run build.ts after a source change`}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {

@@ -18,6 +18,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 300) : ''}`)
 }
 
+const gateHint = 'gate the caller in src/services/providers/catalogueGate.ts (catalogueTrafficVerdict) | '
+const driveHint = 'drive failed: rebuild dist/mercury.mjs (bun run build.ts), rerun scripts/ui/vshot.py | '
+const tripHint = 'the tripwire preload in this file (tripwire.cjs) did not trip or log | '
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`no POSIX pty capture driver on this host (${driver.kind}) — the tripwire drives cannot run here`)
@@ -182,9 +185,9 @@ console.log('[0] poison controls — the tripwire trips, and loopback passes')
     tlsTripped = true
   }
   const seen = netlines(netlog)
-  check('control: http.get to a poison host trips and logs', httpTripped && seen.some(l => l.startsWith('http.get')), seen.join(' · '))
-  check('control: fetch to a poison host trips and logs (a /models spelling counts as catalogue)', fetchTripped && seen.some(l => l.startsWith('fetch ')) && catalogueLines(seen).length > 0, seen.join(' · '))
-  check('control: raw TLS to a poison host trips and logs', tlsTripped && seen.some(l => l.startsWith('tls ')), seen.join(' · '))
+  check('control: http.get to a poison host trips and logs', httpTripped && seen.some(l => l.startsWith('http.get')), tripHint + seen.join(' · '))
+  check('control: fetch to a poison host trips and logs (a /models spelling counts as catalogue)', fetchTripped && seen.some(l => l.startsWith('fetch ')) && catalogueLines(seen).length > 0, tripHint + seen.join(' · '))
+  check('control: raw TLS to a poison host trips and logs', tlsTripped && seen.some(l => l.startsWith('tls ')), tripHint + seen.join(' · '))
   const fixture = spawn(process.execPath, ['run', FIXTURE, '0', join(scratch, 'poison-ledger.log')], { stdio: ['ignore', 'pipe', 'pipe'] })
   const port = await new Promise<number>((resolvePort, reject) => {
     const killer = setTimeout(() => reject(new Error('fixture never printed PORT')), 15_000)
@@ -207,7 +210,7 @@ console.log('[0] poison controls — the tripwire trips, and loopback passes')
   } catch {
     loopbackOk = false
   }
-  check('control: a loopback GET passes the tripwire and answers (2 rows)', loopbackOk)
+  check('control: a loopback GET passes the tripwire and answers (2 rows)', loopbackOk, 'the loopback fixture did not answer 2 rows: check isLocal in the tripwire preload here and scripts/ui/huggingface-catalogue-fixture-server.ts')
   fixture.kill('SIGTERM')
   rmSync(netlog, { force: true })
   rmSync(shimLog, { force: true })
@@ -274,10 +277,10 @@ console.log('[A] plain boot on a fresh scratch home, signed out — zero catalog
     55,
     {},
   )
-  check('the boot reached the composer (a real boot, not a crash)', res.status === 0 && res.gridText.includes('❯'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
+  check('the boot reached the composer (a real boot, not a crash)', res.status === 0 && res.gridText.includes('❯'), `${driveHint}vshot ${res.status}: ${res.stderr.slice(-200)}`)
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
-  check('ZERO catalogue requests at boot (count 0)', catalogue.length === 0, catalogue.join(' · '))
+  check('ZERO catalogue requests at boot (count 0)', catalogue.length === 0, gateHint + catalogue.join(' · '))
   check('zero non-loopback requests of any kind at boot', lines.every(l => l.startsWith('tcp-local') || l.startsWith('tls-local') || l.includes('-local.') || l.startsWith('fetch-local')), lines.filter(l => !(l.startsWith('tcp-local') || l.startsWith('tls-local') || l.includes('-local.') || l.startsWith('fetch-local'))).join(' · '))
 }
 
@@ -313,10 +316,10 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     130,
     {},
   )
-  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('Mercury · model'), `vshot ${res.status}: ${res.stderr.slice(-200)}`)
+  check('the picker opened (a real drive)', res.status === 0 && res.gridText.includes('Mercury · model'), `${driveHint}vshot ${res.status}: ${res.stderr.slice(-200)}`)
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
-  check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, catalogue.join(' · '))
+  check('ZERO catalogue requests from the signed-out picker (count 0)', catalogue.length === 0, gateHint + catalogue.join(' · '))
   const rowsOf = (needle: string): string => [...new Set(res.gridText.split('\n').filter(l => l.toLowerCase().includes(needle)).map(l => l.replace(/[│╭╮╰╯─]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90)))].join(' | ') || '(no row)'
   const hfOnScreen = res.gridText.includes('connect Hugging Face to browse its models')
   if (!hfOnScreen) {
@@ -324,8 +327,8 @@ console.log('[B] the /model picker opened signed out — zero catalogue requests
     console.log(`  the walk's rows (${seen.length} distinct):`)
     for (const row of seen) console.log(`    ${row.slice(0, 110)}`)
   }
-  check('the ruled Hugging Face row is on the screen', hfOnScreen, `${rowsOf('hugging')} · headings seen: ${rowsOf('▾ ')} ${rowsOf('▸ ')}`)
-  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'), rowsOf('openrouter'))
+  check('the ruled Hugging Face row is on the screen', hfOnScreen, `row text: src/services/providers/catalogueGate.ts, src/services/providers/huggingface/huggingfaceCatalogue.ts | ${rowsOf('hugging')} · headings seen: ${rowsOf('▾ ')} ${rowsOf('▸ ')}`)
+  check('the ruled OpenRouter row is on the screen', res.gridText.includes('connect OpenRouter to browse its models'), `row text: src/services/providers/catalogueGate.ts | ${rowsOf('openrouter')}`)
 }
 
 console.log('[C] a fixture HF credential — the catalogue fetch happens against the loopback fixture and renders')
@@ -363,13 +366,13 @@ console.log('[C] a fixture HF credential — the catalogue fetch happens against
     },
   )
   fixture.kill('SIGTERM')
-  check('the drive delivered (picker opened, fixture rows landed)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-250)}`)
+  check('the drive delivered (picker opened, fixture rows landed)', res.status === 0, `${driveHint}vshot ${res.status}: ${res.stderr.slice(-250)}`)
   const served = existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.includes('/models')) : []
-  check('the fixture served the catalogue fetch (request count ≥ 1)', served.length >= 1, `served ${served.length}`)
-  check('the fixture rows RENDER in the picker', res.gridText.includes('catgate'), res.gridText.split('\n').filter(l => l.includes('Hugging Face')).join(' · '))
+  check('the fixture served the catalogue fetch (request count ≥ 1)', served.length >= 1, `the picker must fetch /models from MERCURY_HUGGINGFACE_API_BASE (refreshHuggingfaceCatalogue, src/services/providers/huggingface/huggingfaceCatalogue.ts) | served ${served.length}`)
+  check('the fixture rows RENDER in the picker', res.gridText.includes('catgate'), 'the picker rows come from getHuggingfaceModelOptions in src/services/providers/huggingface/huggingfaceCatalogue.ts | ' + res.gridText.split('\n').filter(l => l.includes('Hugging Face')).join(' · '))
   const lines = netlines(netlog)
   const nonLoopbackCatalogue = catalogueLines(lines, { allowLoopbackModels: true })
-  check('no catalogue request left loopback (count 0 beyond the fixture)', nonLoopbackCatalogue.length === 0, nonLoopbackCatalogue.join(' · '))
+  check('no catalogue request left loopback (count 0 beyond the fixture)', nonLoopbackCatalogue.length === 0, gateHint + nonLoopbackCatalogue.join(' · '))
 }
 
 console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero catalogue requests, the named switch')
@@ -408,13 +411,13 @@ console.log('[D] credential + MERCURY_DISABLE_NONESSENTIAL_TRAFFIC — zero cata
     },
   )
   fixture.kill('SIGTERM')
-  check('the drive delivered (picker opened under the switch)', res.status === 0, `vshot ${res.status}: ${res.stderr.slice(-250)}`)
+  check('the drive delivered (picker opened under the switch)', res.status === 0, `${driveHint}vshot ${res.status}: ${res.stderr.slice(-250)}`)
   const served = existsSync(ledger) ? readFileSync(ledger, 'utf8').split('\n').filter(l => l.trim() !== '') : []
-  check('the fixture served NOTHING (request count 0, credential present)', served.length === 0, served.join(' · '))
+  check('the fixture served NOTHING (request count 0, credential present)', served.length === 0, gateHint + served.join(' · '))
   const lines = netlines(netlog)
   const catalogue = catalogueLines(lines)
-  check('ZERO catalogue requests with the switch on (count 0)', catalogue.length === 0, catalogue.join(' · '))
-  check('the screen carries the traffic-off row on the Hugging Face group', res.gridText.includes('Hugging Face — catalogue off'), res.gridText.split('\n').filter(l => l.includes('Hugging Face')).join(' · '))
+  check('ZERO catalogue requests with the switch on (count 0)', catalogue.length === 0, gateHint + catalogue.join(' · '))
+  check('the screen carries the traffic-off row on the Hugging Face group', res.gridText.includes('Hugging Face — catalogue off'), 'the row is built by the trafficOff branch in src/services/providers/huggingface/huggingfaceCatalogue.ts | ' + res.gridText.split('\n').filter(l => l.includes('Hugging Face')).join(' · '))
 }
 
 rmSync(scratch, { recursive: true, force: true })

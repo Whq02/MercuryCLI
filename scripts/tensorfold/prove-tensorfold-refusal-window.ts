@@ -24,9 +24,11 @@ const fit = await import('../../src/services/tensorfold/fit.ts')
 const starting = await import('../../src/services/tensorfold/starting.ts')
 
 let failures = 0
+const lookWhere = 'the card text above is what the panel showed; the refusal words (needed · free) are built in src/commands/tensorfold/pickerFacts.ts, the row and card lines in src/components/tensorfold/tensorfoldRows.ts, and the engine own refusal is thrown in src/services/tensorfold/serve.ts; change the one whose output differs from this check, and a refusal must follow the window that was asked and clear when the window moves'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  if (!cond) console.log(`    where to look: ${lookWhere}`)
 }
 async function sealed(p: PanelCard): Promise<void> {
   check('before any key: the card offers no install and no download (the stand-in engine counts as installed, its model as on disk; a proof fetches nothing)', p.offer === undefined, p.offer ?? '')

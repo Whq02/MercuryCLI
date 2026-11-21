@@ -23,9 +23,9 @@ const QUERY = 'small folder'
 const README = '# a small folder for the first boot\n'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 700) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 700) : ''}${!cond && hint ? ' — to fix: ' + hint : ''}`)
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const arg = (key: string): string | undefined => (process.argv.includes(key) ? process.argv[process.argv.indexOf(key) + 1] : undefined)
@@ -71,13 +71,13 @@ try {
   }
   check('every layout root lies under scratch', true)
   const installed = installPayload(roots, fixture.dir, FIXTURE_VERSION)
-  check('the payload installs through the updater\'s own install road', installed.state === 'installed', JSON.stringify(installed))
+  check('the payload installs through the updater\'s own install road', installed.state === 'installed', JSON.stringify(installed), 'read installPayload in src/services/privateChannel/installLayout.ts to see why the fixture payload was not accepted')
   const versionDir = join(versionsDir, FIXTURE_VERSION)
   const installedRg = join(versionDir, 'vendor', 'ripgrep', `${process.arch}-${process.platform}`, 'rg')
   const shippedSha = sha256Of(installedRg)
-  check('the installed rg is the shipped one, still linker-signed', shippedSha === fixture.rgSha256 && isLinkerSigned(installedRg), codesignFlags(installedRg))
+  check('the installed rg is the shipped one, still linker-signed', shippedSha === fixture.rgSha256 && isLinkerSigned(installedRg), codesignFlags(installedRg), 'installPayload in src/services/privateChannel/installLayout.ts must copy vendor/ripgrep/<arch>-<platform>/rg byte for byte and leave its signature alone')
   const control = verifyPayloadDir(versionDir, { depth: 'deep', roster: fixture.roster })
-  check('deep verification before any boot reads signed', control.verdict.state === 'signed', JSON.stringify(control.verdict))
+  check('deep verification before any boot reads signed', control.verdict.state === 'signed', JSON.stringify(control.verdict), 'verifyPayloadDir in src/services/privateChannel/artifactVerify.ts reads this freshly installed payload as not signed; fix it there before looking at the boot')
 
   section('§2 boot the installed payload once, as a stranger would, and search the folder\'s contents (the road that re-signed the binary)')
   let configDir = ''
@@ -100,31 +100,31 @@ try {
     const chatPaint = painted(run, COMPOSER_READY)
     const searchPaint = painted(run, SEARCH_READY, chatPaint?.ts ?? 0)
     const hitPaint = painted(run, 'README.md', searchPaint?.ts ?? 0)
-    check('the installed payload booted to the chat', chatPaint !== undefined, unfired(run))
-    check('the content search opened (ctrl+x g)', searchPaint !== undefined, unfired(run))
-    check('the search found the folder\'s file — the search binary ran through the product\'s own road', hitPaint !== undefined, unfired(run))
+    check('the installed payload booted to the chat', chatPaint !== undefined, unfired(run), 'the installed payload did not reach the chat composer; boot it by hand with node <versions dir>/mercury.mjs and read the first error')
+    check('the content search opened (ctrl+x g)', searchPaint !== undefined, unfired(run), 'ctrl+x g should open the content search; look at src/components/MercuryContentSearch.tsx and the ctrl+x key binding')
+    check('the search found the folder\'s file — the search binary ran through the product\'s own road', hitPaint !== undefined, unfired(run), 'the search did not list README.md; look at the ripgrep run in src/utils/ripgrep.ts (resolveRipgrep, maybeRepairCodesign) and src/components/MercuryContentSearch.tsx')
     if (hitPaint !== undefined) {
       const [frame] = grabScreens(run, COLS, ROWS, [Math.max(0, hitPaint.ts - firstOutputTs(run) + 700)])
       const rows = frame ? frame.rows : []
       saveFrame(`first-boot-search-hit-${COLS}x${ROWS}`, rows)
-      check('the hit row names the file and the matched words', rows.some(l => l.includes('README.md') && l.includes(QUERY)), rows.filter(l => l.includes('README')).join(' | '))
+      check('the hit row names the file and the matched words', rows.some(l => l.includes('README.md') && l.includes(QUERY)), rows.filter(l => l.includes('README')).join(' | '), 'the hit row in src/components/MercuryContentSearch.tsx must show the file name and the matched words')
     }
 
     section('§3 the payload is exactly what was signed; the re-signed copy lives under the config home')
-    check('the installed rg bytes are unchanged by the boot', sha256Of(installedRg) === shippedSha, `${sha256Of(installedRg).slice(0, 12)} vs shipped ${shippedSha.slice(0, 12)} · ${codesignFlags(installedRg)}`)
-    check('…and still linker-signed, as shipped', isLinkerSigned(installedRg), codesignFlags(installedRg))
+    check('the installed rg bytes are unchanged by the boot', sha256Of(installedRg) === shippedSha, `${sha256Of(installedRg).slice(0, 12)} vs shipped ${shippedSha.slice(0, 12)} · ${codesignFlags(installedRg)}`, 'the boot rewrote the shipped rg; src/utils/ripgrep.ts prepareSignedCopy must sign a copy under <home>/cache/ripgrep and never the installed file')
+    check('…and still linker-signed, as shipped', isLinkerSigned(installedRg), codesignFlags(installedRg), 'the boot re-signed the installed rg; src/utils/ripgrep.ts maybeRepairCodesign must re-sign only the cached copy')
     const after = verifyPayloadDir(versionDir, { depth: 'deep', roster: fixture.roster })
-    check('deep verification after the first boot reads signed — a clean install never reads TAMPERED', after.verdict.state === 'signed', JSON.stringify(after.verdict))
+    check('deep verification after the first boot reads signed — a clean install never reads TAMPERED', after.verdict.state === 'signed', JSON.stringify(after.verdict), 'the first boot changed the installed tree; src/utils/ripgrep.ts must not write under the version dir, and verifyPayloadDir in src/services/privateChannel/artifactVerify.ts is what reads it')
     const cacheDir = join(configDir, 'cache', 'ripgrep')
     const copy = join(cacheDir, shippedSha.slice(0, 16), 'rg')
-    check('the re-signed copy sits under <home>/cache/ripgrep/<digest>/rg, keyed by the shipped file\'s digest', existsSync(copy), existsSync(cacheDir) ? readdirSync(cacheDir).join(' · ') : `no cache dir under ${configDir}`)
-    check('the copy carries a full ad-hoc signature, no longer linker-signed', existsSync(copy) && !isLinkerSigned(copy) && codesignFlags(copy).includes('adhoc'), existsSync(copy) ? codesignFlags(copy) : '')
-    check('nothing under the installed version dir was written by the boot (no new member)', readdirSync(versionDir).sort().join(',') === readdirSync(fixture.dir).sort().join(','), readdirSync(versionDir).join(','))
+    check('the re-signed copy sits under <home>/cache/ripgrep/<digest>/rg, keyed by the shipped file\'s digest', existsSync(copy), existsSync(cacheDir) ? readdirSync(cacheDir).join(' · ') : `no cache dir under ${configDir}`, 'preparedRipgrepPath and prepareSignedCopy in src/utils/ripgrep.ts decide this path')
+    check('the copy carries a full ad-hoc signature, no longer linker-signed', existsSync(copy) && !isLinkerSigned(copy) && codesignFlags(copy).includes('adhoc'), existsSync(copy) ? codesignFlags(copy) : '', 'prepareSignedCopy in src/utils/ripgrep.ts must run codesign --sign - on the copy so it is no longer linker-signed')
+    check('nothing under the installed version dir was written by the boot (no new member)', readdirSync(versionDir).sort().join(',') === readdirSync(fixture.dir).sort().join(','), readdirSync(versionDir).join(','), 'something wrote into the installed version dir during boot; find the writer, the signed copy belongs under <home>/cache/ripgrep in src/utils/ripgrep.ts')
 
     section('§4 a real change to the installed payload still reads TAMPERED')
     flipOneByte(installedRg)
     const tampered = verifyPayloadDir(versionDir, { depth: 'deep', roster: fixture.roster })
-    check('one flipped byte in the installed rg: deep verification reads tampered', tampered.verdict.state === 'tampered' && tampered.verdict.note.includes('payload tree differs'), JSON.stringify(tampered.verdict))
+    check('one flipped byte in the installed rg: deep verification reads tampered', tampered.verdict.state === 'tampered' && tampered.verdict.note.includes('payload tree differs'), JSON.stringify(tampered.verdict), 'verifyPayloadDir in src/services/privateChannel/artifactVerify.ts must still read a changed file in the payload as tampered with a note naming payload tree differs')
   } finally {
     run.cleanup()
   }

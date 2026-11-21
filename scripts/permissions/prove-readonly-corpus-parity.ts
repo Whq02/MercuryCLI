@@ -31,9 +31,10 @@ const SAME = -1
 const OWN_TEXT = '"\u0001"'
 
 let failures = 0
+const corpusHint = 'a moved reading means checkReadOnlyConstraints or describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts changed; fix it, or if the change is intended re-record scripts/permissions/fixtures/readonly-corpus.json with --record <corpus.json> (a missing corpus is recorded the same way)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${corpusHint}` : ''}`)
 }
 
 function stable(value: unknown): string {

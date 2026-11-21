@@ -32,9 +32,10 @@ type Drive = { texts: Record<string, string>; findings: Finding[]; scanned: numb
 
 let passed = 0
 let failed = 0
+const HIDDEN_CHARACTER_HINT = 'What to change: where instruction files are scanned and recorded with recordHiddenCharacters in src/services/instructions/discovery.ts, or how they are reported in src/utils/text/hiddenCharacterFindings.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${HIDDEN_CHARACTER_HINT}`}`)
 }
 
 const ZERO_WIDTH = String.fromCodePoint(0x200b)

@@ -55,9 +55,10 @@ const FIXTURE_ORIGIN = `http://127.0.0.1:${server.port}`
 process.env.MERCURY_LOCAL_PROBE_TARGETS = `ollama=${FIXTURE_ORIGIN}`
 
 let failures = 0
+const CTX_FRAMES_HINT = 'What to change: the window decision (decideLocalWindow), the rail tag (localWindowReasonTag) and the deck rule (localWindowRuleWords) in src/services/providers/local/localWindow.ts, the rail row in src/services/cockpit/helmVitalsModel.ts, the deck row in src/components/DeckPane.tsx; for the fixture record check, src/services/providers/local/localCatalogue.ts'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ` — ${CTX_FRAMES_HINT}`}`)
 }
 async function stub(relative: string, overrides: Record<string, unknown>): Promise<void> {
   const target = join(ROOT, relative)

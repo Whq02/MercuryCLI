@@ -21,11 +21,11 @@ function section(t: string): void {
 
 section("§1 the owner's shape and width")
 {
-  check('the chip is the glyph, one space, the name', branchChip('main') === `${GLYPH.branch} main`, JSON.stringify(branchChip('main')))
-  check('the chip of an empty name is the glyph and its space (a painter that colours the name apart)', branchChip('') === `${GLYPH.branch} `, JSON.stringify(branchChip('')))
+  check('the chip is the glyph, one space, the name', branchChip('main') === `${GLYPH.branch} main`, JSON.stringify(branchChip('main')) + ' — change branchChip in src/utils/glyphs.ts to return GLYPH.branch, one space, then the name')
+  check('the chip of an empty name is the glyph and its space (a painter that colours the name apart)', branchChip('') === `${GLYPH.branch} `, JSON.stringify(branchChip('')) + ' — change branchChip in src/utils/glyphs.ts so an empty name still returns GLYPH.branch and its space')
   const long = 'lane/a-very-long-branch-name-with-many-segments'
-  check('the width is the oracle\'s reading of the chip — never the name\'s length plus a guess', branchChipWidth(long) === stringWidth(branchChip(long)) && branchChipWidth(long) === stringWidth(GLYPH.branch) + 1 + stringWidth(long), `${branchChipWidth(long)}`)
-  check('the glyph itself is one cell by the oracle (the chip never spends a hidden cell)', stringWidth(GLYPH.branch) === 1, `${stringWidth(GLYPH.branch)}`)
+  check('the width is the oracle\'s reading of the chip — never the name\'s length plus a guess', branchChipWidth(long) === stringWidth(branchChip(long)) && branchChipWidth(long) === stringWidth(GLYPH.branch) + 1 + stringWidth(long), `${branchChipWidth(long)} — change branchChipWidth in src/utils/glyphs.ts to return stringWidth(branchChip(name))`)
+  check('the glyph itself is one cell by the oracle (the chip never spends a hidden cell)', stringWidth(GLYPH.branch) === 1, `${stringWidth(GLYPH.branch)} — change GLYPH.branch in src/utils/glyphs.ts to a glyph that stringWidth reads as one cell`)
 }
 
 console.log(`\n ${checks} checks, ${failures} failures`)

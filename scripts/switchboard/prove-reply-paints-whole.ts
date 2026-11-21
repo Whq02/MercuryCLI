@@ -57,10 +57,10 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 
@@ -209,24 +209,24 @@ function paintedRecordIds(): Set<string> {
 }
 function judgeReply(label: string, frame: string[] | undefined, text: string, store: StoreRow[]): void {
   const recorded = replies(store).find(r => r.text === collapse(text))
-  check(`${label}: the store holds the reply whole`, recorded !== undefined, replies(store).map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}…(${r.text.length})`).join(' | '))
+  check(`${label}: the store holds the reply whole`, recorded !== undefined, replies(store).map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}…(${r.text.length})`).join(' | '), 'the transcript store did not record this reply whole: read the transcript under projects/ in the scratch config folder and the fixture turn that should have produced it')
   if (frame === undefined) {
-    check(`${label}: the frame after the reply landed was captured`, false, 'the capture never reached that mark')
+    check(`${label}: the frame after the reply landed was captured`, false, 'the capture never reached that mark', 'the journey stopped before this mark: read the vshot log and the frame files in the frames folder named in the header')
     return
   }
   const pane = paneText(frame)
   const whole = pane.includes(collapse(text))
   const painted = paintedPrefix(pane, text)
-  check(`${label}: the screen paints the reply whole (${collapse(text).length} chars)`, whole, `painted ${painted} of ${collapse(text).length} chars: ${JSON.stringify(collapse(text).slice(0, Math.min(painted, 60)))}${painted < collapse(text).length ? '…' : ''}`)
+  check(`${label}: the screen paints the reply whole (${collapse(text).length} chars)`, whole, `painted ${painted} of ${collapse(text).length} chars: ${JSON.stringify(collapse(text).slice(0, Math.min(painted, 60)))}${painted < collapse(text).length ? '…' : ''}`, 'the screen shows only a prefix of the stored reply: compare the frame file for this mark in the frames folder named in the header with the transcript row')
   if (recorded !== undefined) {
     const ids = paintedRecordIds()
-    check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}, not a streaming echo left standing`, ids.has(recorded.recordId.slice(0, 8)), `the screen's painted list named ${ids.size} rows and never this record`)
+    check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}, not a streaming echo left standing`, ids.has(recorded.recordId.slice(0, 8)), `the screen's painted list named ${ids.size} rows and never this record`, 'the connector trace (connector-trace.jsonl in the scratch folder) shows which records the list rendered; the reply must paint from its stored record, not a streaming echo')
   }
 }
 function judgeUserRow(label: string, frame: string[] | undefined, text: string, store: StoreRow[]): void {
   const recorded = store.find(r => r.kind === 'input' && r.text === collapse(text))
   check(`${label}: the store holds the operator's row`, recorded !== undefined, store.filter(r => r.kind === 'input').map(r => `${r.recordId.slice(0, 8)}:${r.text.slice(0, 40)}`).join(' | '))
-  check(`${label}: the screen paints the operator's row`, frame !== undefined && paneText(frame).includes(collapse(text)), frame === undefined ? 'no frame' : paneText(frame).slice(-300))
+  check(`${label}: the screen paints the operator's row`, frame !== undefined && paneText(frame).includes(collapse(text)), frame === undefined ? 'no frame' : paneText(frame).slice(-300), 'the store holds this row but the screen does not paint it: read the frame file for this mark in the frames folder named in the header')
   if (recorded !== undefined) check(`${label}: the painted row is the store's record ${recorded.recordId.slice(0, 8)}`, paintedRecordIds().has(recorded.recordId.slice(0, 8)), 'the screen\'s painted list never named this record')
 }
 function judgeChain(label: string, transcript: string | null): void {
@@ -234,7 +234,7 @@ function judgeChain(label: string, transcript: string | null): void {
   const rows = readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '').map(l => JSON.parse(l) as { recordId: string; parentId?: string; payload?: { kind?: string } })
   const chained = rows.filter(r => ['input', 'output', 'attachment', 'notice'].includes(r.payload?.kind ?? ''))
   const roots = chained.filter(r => r.parentId === undefined)
-  check(`${label}: the transcript has one root — every row written after the resume chains onto the conversation`, roots.length === 1, `${roots.length} roots: ${roots.map(r => `${r.recordId.slice(0, 8)}:${r.payload?.kind}`).join(', ')}`)
+  check(`${label}: the transcript has one root — every row written after the resume chains onto the conversation`, roots.length === 1, `${roots.length} roots: ${roots.map(r => `${r.recordId.slice(0, 8)}:${r.payload?.kind}`).join(', ')}`, 'rows written after a resume must carry a parentId chaining onto the conversation; the listed rows are the roots')
 }
 
 const FACE = { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 }
@@ -297,7 +297,7 @@ async function resumedJourney(tag: string, dist: string, keptTail: string, post:
   ], short.end, 420)
   log(`the lane's post: ${await posting}`)
   log(`the line sent through the daemon: ${await dispatching}`)
-  check(`${tag}: the resumed session ran its journey to the end`, run.endReason === 'stable' || run.endReason === 'ready', `endReason ${run.endReason} · ${run.receipts} sends fired · vshot exit ${run.status}`)
+  check(`${tag}: the resumed session ran its journey to the end`, run.endReason === 'stable' || run.endReason === 'ready', `endReason ${run.endReason} · ${run.receipts} sends fired · vshot exit ${run.status}`, 'the resumed screen journey did not reach its last awaited text: read the vshot log in the scratch folder and the frames folder named in the header')
   const store = transcript === null ? [] : storeRows(transcript)
   const boot = run.frames.get('boot')
   check(`${tag}: the resumed screen holds the newest reply the store held before the resume`, boot !== undefined && paneText(boot).includes(collapse(keptTail)), boot === undefined ? 'no boot frame' : paneText(boot).slice(-300))
@@ -348,21 +348,21 @@ try {
     const a2 = assistant('a2', 'the reply after the fold', u2.uuid)
     write([u1, a1, B, S, u2, a2])
     let chain = await reader.readTranscriptChainSince(path, null)
-    check('the fold paints with the turn after it', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2']), JSON.stringify(named(chain.rows)))
+    check('the fold paints with the turn after it', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must return the boundary, its summary and the turn after the fold, in that order')
     const n1 = user('n1', '<crew-board>{"name":"lane","kind":"message","text":"@main a post the resumed runner painted first"}</crew-board>', null)
     const u3 = user('u3', 'the words after the resume', n1.uuid)
     const a3 = assistant('a3', 'the reply after the resume', u3.uuid)
     write([n1, u3, a3])
     chain = await reader.readTranscriptChainSince(path, chain.cursor)
-    check('a row written after the resume with no parent, and the turn chained onto it, paint after the kept rows in file order', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3']), JSON.stringify(named(chain.rows)))
+    check('a row written after the resume with no parent, and the turn chained onto it, paint after the kept rows in file order', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must keep rows written after the resume with no parent, in file order after the kept rows')
     const u4 = user('u4', 'a later line through the daemon', a3.uuid)
     const a4 = assistant('a4', 'its reply', u4.uuid)
     write([u4, a4])
     chain = await reader.readTranscriptChainSince(path, chain.cursor)
-    check('every later turn on that stretch follows', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3', 'u4', 'a4']), JSON.stringify(named(chain.rows)))
+    check('every later turn on that stretch follows', JSON.stringify(named(chain.rows)) === JSON.stringify(['B', 'S', 'u2', 'a2', 'n1', 'u3', 'a3', 'u4', 'a4']), JSON.stringify(named(chain.rows)), 'readTranscriptChainSince in src/utils/sessionStorage/transcriptReader.ts must append every later turn when called again with the returned cursor')
     reader._resetTranscriptReaderForTesting()
     const cold = await reader.readTranscriptChainSince(path, null)
-    check('a cold read (a reattach) paints the same rows', JSON.stringify(named(cold.rows)) === JSON.stringify(named(chain.rows)), JSON.stringify(named(cold.rows)))
+    check('a cold read (a reattach) paints the same rows', JSON.stringify(named(cold.rows)) === JSON.stringify(named(chain.rows)), JSON.stringify(named(cold.rows)), 'a read from a null cursor in src/utils/sessionStorage/transcriptReader.ts must return the same rows as the cursor reads')
   }
 
   section('§1 a fresh session: a tool turn, a long streamed reply, the swarm switch, a compaction, a short reply')
@@ -380,9 +380,9 @@ try {
     ...prompt('paint-short-1', 'say the short one', BACK),
     { data: '', atTick: 999, awaitText: 'THE-SHORT-END', requireAwait: true, minTick: 2, awaitSettleTicks: 10, mark: 'short' },
   ], 'THE-SHORT-END', 480)
-  check('the fresh session ran its journey to the end', fresh.endReason === 'stable' || fresh.endReason === 'ready', `endReason ${fresh.endReason} · ${fresh.receipts} sends fired · vshot exit ${fresh.status}`)
+  check('the fresh session ran its journey to the end', fresh.endReason === 'stable' || fresh.endReason === 'ready', `endReason ${fresh.endReason} · ${fresh.receipts} sends fired · vshot exit ${fresh.status}`, 'the fresh screen journey did not reach THE-SHORT-END: read the vshot log in the scratch folder and the frames folder named in the header')
   transcript = newestTranscript()
-  check('the session has a transcript', transcript !== null)
+  check('the session has a transcript', transcript !== null, '', 'no session transcript was written under projects/ in the scratch config folder: the fresh journey never sent its first prompt')
   const freshStore = transcript === null ? [] : storeRows(transcript)
   const streaming = fresh.frames.get('long-streaming')
   check('the long reply streams onto the screen while it is being written', streaming !== undefined && paneText(streaming).includes('LONG-S1'), streaming === undefined ? 'no streaming frame' : paneText(streaming).slice(-200))

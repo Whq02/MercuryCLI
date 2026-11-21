@@ -15,7 +15,8 @@ delete process.env.CI
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix: censusGapLines and CENSUS_NO_REASON in src/services/capability/census.ts build each reason line; declare a missing gate or condition in the tool capability contract (declaredCapability in src/utils/capability/contract.ts)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

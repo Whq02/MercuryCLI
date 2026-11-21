@@ -9,6 +9,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: the appearance, roster-normalization and crew-launch rows in src/services/health/sections/profile.ts (registered as PROFILE in src/services/health/sections.ts); a boot-preference or crews-folder failure means the health run wrote state it must only read')
 }
 
 console.log('============================================================')

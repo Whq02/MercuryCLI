@@ -611,11 +611,11 @@ async function drive(): Promise<void> {
   const sessionFiles = (): string[] => walk(path.join(RUN_HOME, 'projects')).filter(f => f.endsWith('.jsonl'))
 
   const driveReport = (leg: Leg, sends: Send[]): void => {
-    check(`${leg.name}: vshot exited 0 with a grid`, leg.status === 0 && leg.payload !== null, `status=${leg.status} stderr=${leg.stderr.slice(-400)}`)
+    check(`${leg.name}: vshot exited 0 with a grid`, leg.status === 0 && leg.payload !== null, `status=${leg.status} stderr=${leg.stderr.slice(-400)}; the PTY drive did not finish, so read the forensics lines at the end of this run and rebuild dist/mercury.mjs with bun run build.ts if it is stale`)
     console.log(`  ${leg.name}: sends fired at ticks ${leg.fired.join(', ')} (deadlines ${leg.deadlines.join(', ')}); ended: ${leg.payload?.endReason ?? '?'} after ${leg.seconds}s`)
     for (let i = 1; i < sends.length; i++) {
       const send = sends[i]!
-      check(`${leg.name}: send ${i} delivered`, leg.fired[i]! > 0, `fired at ${leg.fired[i]}`)
+      check(`${leg.name}: send ${i} delivered`, leg.fired[i]! > 0, `fired at ${leg.fired[i]}; the send was never delivered, so the screen it waited for never painted: read the final screen in the forensics lines at the end of this run`)
       if (send.awaitText === undefined) continue
       const onAwait = leg.fired[i]! > 0 && leg.fired[i]! < leg.deadlines[i]!
       console.log(`    ${leg.name}: send ${i} (${send.awaitText}) fired at ${leg.fired[i]} ${onAwait ? 'on its await' : `on its DEADLINE ${leg.deadlines[i]} (the await never painted — a slow boot or a stall)`}`)
@@ -651,7 +651,7 @@ async function drive(): Promise<void> {
   section('1D — leg 1 (the operator\'s actions): the drive completed')
   const leg1 = await runLeg('actions', 'apollo', sends1, 1440, 'TURN-5-DONE')
   driveReport(leg1, sends1)
-  check('leg 1: the fifth reply painted on the final screen (TURN-5-DONE)', leg1.finalGrid.includes('TURN-5-DONE'), leg1.finalGrid.split('\n').slice(-16).join('\n'))
+  check('leg 1: the fifth reply painted on the final screen (TURN-5-DONE)', leg1.finalGrid.includes('TURN-5-DONE'), leg1.finalGrid.split('\n').slice(-16).join('\n') + '\n; the fifth reply never painted, so find the turn that stalled in the debug log named by the replay line at the end of this run')
   check('leg 1: the fold painted its boundary row', leg1.finalGrid.includes('Compacted') || leg1.markGrid('compact').includes('Compacted'))
 
   section('1W — leg 1: every consecutive pair of the conversation, the first byte that moved')
@@ -662,7 +662,7 @@ async function drive(): Promise<void> {
   const admissions1 = stream1.filter(r => JSON.stringify((r.body as WireBody).messages ?? []).includes('"tool_reference"'))
   console.log(`  lookups answered: ${lookups1.map(r => r.response?.text).join(' · ') || 'none'}; requests carrying an admission record: ${admissions1.length}`)
   check('leg 1: at least nine conversation requests (five turns, three tool rounds, the summariser)', stream1.length >= 9, String(stream1.length))
-  check('leg 1: two lookups, both admitting a tool (a tool_reference record rides the later requests)', lookups1.length === 2 && admissions1.length >= 1, `lookups=${lookups1.length} admissions=${admissions1.length}`)
+  check('leg 1: two lookups, both admitting a tool (a tool_reference record rides the later requests)', lookups1.length === 2 && admissions1.length >= 1, `lookups=${lookups1.length} admissions=${admissions1.length}; each ToolSearch lookup must come back as a tool_reference record on a later request, so replay the capture named at the end of this run`)
   check('leg 1: the shell command ran (a Bash tool_result rides a later request)', stream1.some(r => JSON.stringify((r.body as WireBody).messages ?? []).includes('wire-prefix-echo')))
 
   section('1P — leg 1: the product\'s own word beside the wire')
@@ -721,20 +721,20 @@ async function drive(): Promise<void> {
     for (const [leg, stream] of [[1, stream1], [2, stream2]] as const) {
       check(`leg ${leg}: no captured request carries a retired tool head`, stream.length > 0 && stream.every(row => FORBIDDEN_HEAD_WORDS.every(word => !JSON.stringify(row.body).includes(word))))
     }
-    check('leg 1: every pair outside the compaction holds (no rewrite of sent history)', t1.unlawful.length === 0, t1.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | '))
-    check('leg 1: the compaction head is the only prefix move (the summariser\'s own request holds like any other)', t1.lawful.length === 1 && t1.lawful[0]!.lawful === 'compaction', t1.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | '))
+    check('leg 1: every pair outside the compaction holds (no rewrite of sent history)', t1.unlawful.length === 0, t1.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | ') + '; a request rewrote history sent earlier at the path shown, so stop whatever changed that part of the prompt between turns (replay the capture named at the end of this run to see the first byte that moved)')
+    check('leg 1: the compaction head is the only prefix move (the summariser\'s own request holds like any other)', t1.lawful.length === 1 && t1.lawful[0]!.lawful === 'compaction', t1.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | ') + '; exactly one pair, the compaction, may move the prefix: replay the capture named at the end of this run')
     const unlawfulDrops1 = stream1.filter(r => (r.response?.input_transformations?.length ?? 0) > 0 && !pairs1.some(p => p.curSeq === r.seq && p.lawful !== null))
-    check('leg 1: the API dropped no thinking outside the compaction', unlawfulDrops1.length === 0, unlawfulDrops1.map(r => `#${r.seq} ${r.response?.input_transformations?.[0]?.path}`).join(' | '))
+    check('leg 1: the API dropped no thinking outside the compaction', unlawfulDrops1.length === 0, unlawfulDrops1.map(r => `#${r.seq} ${r.response?.input_transformations?.[0]?.path}`).join(' | ') + '; the fixture API dropped a thinking block it should have kept, so a thinking block was changed or moved on a held request: replay the capture named at the end of this run')
     check('leg 1: the operator never read the "Mercury defect" arm', !word1.notices.some(n => n.includes('Mercury defect')) && !(word1.ledger ?? '').includes('recurrent'), word1.notices.join(' | ').slice(0, 300))
     const cacheZero1 = pairs1.filter(p => p.lawful === null && p.cacheRead === 0)
-    check('leg 1: the prompt cache read the prefix on every held pair (cache_read > 0 outside the compaction)', cacheZero1.length === 0, cacheZero1.map(p => `#${p.prevSeq}→#${p.curSeq}`).join(' | '))
+    check('leg 1: the prompt cache read the prefix on every held pair (cache_read > 0 outside the compaction)', cacheZero1.length === 0, cacheZero1.map(p => `#${p.prevSeq}→#${p.curSeq}`).join(' | ') + '; the pairs listed held their prefix but read nothing from the cache, so check the cache_control placement on those requests in the capture named at the end of this run')
 
-    check('leg 2: every pair outside the two model switches holds', t2.unlawful.length === 0, t2.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | '))
+    check('leg 2: every pair outside the two model switches holds', t2.unlawful.length === 0, t2.unlawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.verdict.diff?.path}`).join(' | ') + '; a request outside the two model switches rewrote history sent earlier at the path shown (replay the capture named at the end of this run)')
     check('leg 2: the model switches are the only prefix moves', t2.lawful.every(p => p.lawful === 'model-switch') && t2.lawful.length <= 2, t2.lawful.map(p => `#${p.prevSeq}→#${p.curSeq} ${p.lawful}`).join(' | '))
-    check('leg 2: the fixture refused nothing (the client never sent an illegal shape)', refused2.length === 0, refused2.map(r => `#${r.seq} ${r.response?.error}`).join(' | '))
+    check('leg 2: the fixture refused nothing (the client never sent an illegal shape)', refused2.length === 0, refused2.map(r => `#${r.seq} ${r.response?.error}`).join(' | ') + '; the request shape named in each error is one the real API refuses, so change the client request builder to stop sending it')
     const drops2 = stream2.filter(r => (r.response?.input_transformations?.length ?? 0) > 0)
     check('leg 2: the API dropped no thinking (the other model\'s blocks stay out, the first model\'s prefixes hold)', drops2.length === 0, drops2.map(r => `#${r.seq} ${r.response?.input_transformations?.[0]?.path}`).join(' | '))
-    check('leg 2: the Opus turn answered before the mode switch (no stall on a compliant wire)', opusAnswered, stallLines.join(' | '))
+    check('leg 2: the Opus turn answered before the mode switch (no stall on a compliant wire)', opusAnswered, stallLines.join(' | ') + '; the turn on the other model had not answered when the mode switch fired, so read the final screen in the forensics lines at the end of this run')
     check('leg 2: the operator never read the "Mercury defect" arm', !word2.notices.some(n => n.includes('Mercury defect')), word2.notices.join(' | ').slice(0, 300))
   }
 

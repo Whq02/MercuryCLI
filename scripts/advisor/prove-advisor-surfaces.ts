@@ -34,10 +34,11 @@ const frameDir = ((): string | null => {
 })()
 let failures = 0
 let checks = 0
+const surfacesFailureHint = 'section 1 reads the spend owner (src/services/providers/providerUsage/spend.ts: providerSessionSpend, advisorSessionSpend, advisorUsageLine); section 2 the /usage popup (src/components/Settings/Usage.tsx); section 3 the /submodels picker (src/components/SubModelPicker.tsx, src/services/model/subModelSlots.ts, src/commands/submodels/index.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${surfacesFailureHint}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)

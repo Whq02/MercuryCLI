@@ -114,12 +114,12 @@ const settledPoints = new Map<string, number>()
 for (const name of names) {
   const [first, second] = runs.filter(run => run.name === name)
   const ran = first!.rc === 0 && second!.rc === 0 && existsSync(first!.file) && existsSync(second!.file)
-  check(`${name}: the scenario ran to its end in both processes`, ran, ran ? '' : `rc ${first!.rc} and ${second!.rc}\n${(first!.rc !== 0 ? first!.log : second!.log).split('\n').slice(-40).join('\n')}`)
+  check(`${name}: the scenario ran to its end in both processes`, ran, ran ? '' : `rc ${first!.rc} and ${second!.rc}\n${(first!.rc !== 0 ? first!.log : second!.log).split('\n').slice(-40).join('\n')}\nrun it alone with --scenario ${name} --out <file> on ${SELF}; the scenario is recorded by recordScenario in scripts/ui/chatScenarios.ts`)
   if (!ran) continue
   const one = readFileSync(first!.file, 'utf8')
   const two = readFileSync(second!.file, 'utf8')
   settledPoints.set(name, (one.match(/^=== /gm) ?? []).length)
-  check(`${name}: the two recordings are the same at every settled point (${settledPoints.get(name)})`, one === two, one === two ? '' : `a recording that differs from itself is not a recording yet: ${firstDifference(one, two)}`)
+  check(`${name}: the two recordings are the same at every settled point (${settledPoints.get(name)})`, one === two, one === two ? '' : `a recording that differs from itself is not a recording yet: ${firstDifference(one, two)} — the step named above draws something that changes between processes; fix that step in scripts/ui/chatScenarios.ts or the part that draws it under src/screens/chat/`)
   if (writeTo !== undefined && one === two) {
     mkdirSync(writeTo, { recursive: true })
     writeFileSync(join(writeTo, `${name}.txt`), one)
@@ -142,7 +142,7 @@ check('a part mounted and closed in a process of its own wrote 0 bytes to that p
 const covered = new Map<string, string[]>()
 for (const scenario of SCENARIOS) for (const part of scenario.covers) covered.set(part, [...(covered.get(part) ?? []), scenario.name])
 const PARTS = ['submit', 'search', 'selector', 'boot', 'asks', 'dialogs', 'title', 'keys', 'scroll', 'draft', 'status', 'session']
-check(`every part of the screen is reached by a scenario (${PARTS.length} parts)`, PARTS.every(part => (covered.get(part) ?? []).length > 0), PARTS.filter(part => (covered.get(part) ?? []).length === 0).join(', '))
+check(`every part of the screen is reached by a scenario (${PARTS.length} parts)`, PARTS.every(part => (covered.get(part) ?? []).length > 0), `${PARTS.filter(part => (covered.get(part) ?? []).length === 0).join(', ')} — add the part to the covers list of a scenario in SCENARIOS, scripts/ui/chatScenarios.ts`)
 console.log(`\n  settled points: ${[...settledPoints].map(([name, count]) => `${name} ${count}`).join(' · ')}`)
 console.log(`  parts: ${PARTS.map(part => `${part} ${(covered.get(part) ?? []).length}`).join(' · ')}`)
 if (writeTo !== undefined) console.log(`  recordings written to ${writeTo}`)

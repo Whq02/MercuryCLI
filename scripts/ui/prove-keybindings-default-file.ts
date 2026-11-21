@@ -33,15 +33,15 @@ try {
   {
     const template = JSON.parse(generateKeybindingsTemplate()) as { bindings: Array<{ context: string; bindings: Record<string, string | null> }> }
     const warnings = validateBindings(template.bindings, parseBindings(template.bindings))
-    check('the shipped template carries the Global command bindings the product ships (workbench, sessions)', template.bindings.some(block => block.context === 'Global' && Object.values(block.bindings).includes('command:workbench')), j(template.bindings.map(b => b.context)))
-    check('the checker raises no warning on the untouched default file', warnings.length === 0, j(warnings.map(w => w.message)))
+    check('the shipped template carries the Global command bindings the product ships (workbench, sessions)', template.bindings.some(block => block.context === 'Global' && Object.values(block.bindings).includes('command:workbench')), `generateKeybindingsTemplate in src/keybindings/template.ts must ship a Global block with a command:workbench binding; contexts: ${j(template.bindings.map(b => b.context))}`)
+    check('the checker raises no warning on the untouched default file', warnings.length === 0, `fix the template in src/keybindings/template.ts or the rule in src/keybindings/validate.ts: ${j(warnings.map(w => w.message))}`)
     const path = getKeybindingsPath()
     writeFileSync(path, generateKeybindingsTemplate())
     invalidateKeybindingsCache()
     const loaded = loadKeybindingsSyncWithWarnings()
-    check('the loader (what health and the footer count) reads the default file with no warnings', loaded.warnings.length === 0, j(loaded.warnings.map(w => w.message)))
+    check('the loader (what health and the footer count) reads the default file with no warnings', loaded.warnings.length === 0, `loadKeybindingsSyncWithWarnings in src/keybindings/loadUserBindings.ts warns on the default file; fix the template or the checker: ${j(loaded.warnings.map(w => w.message))}`)
     const elsewhere = validateBindings([{ context: 'Settings', bindings: { 'ctrl+x w': 'command:workbench' } }], parseBindings([{ context: 'Settings', bindings: { 'ctrl+x w': 'command:workbench' } }]))
-    check('a command binding in a context that never runs commands is still flagged, naming Chat or Global as its home', elsewhere.length === 1 && elsewhere[0]!.message.includes('Settings') && elsewhere[0]!.suggestion === 'Move it into a "Chat" or "Global" block', j(elsewhere))
+    check('a command binding in a context that never runs commands is still flagged, naming Chat or Global as its home', elsewhere.length === 1 && elsewhere[0]!.message.includes('Settings') && elsewhere[0]!.suggestion === 'Move it into a "Chat" or "Global" block', `validateBindings in src/keybindings/validate.ts must flag a command binding outside Chat and Global with that suggestion: ${j(elsewhere)}`)
     rmSync(path, { force: true })
   }
 
@@ -51,35 +51,35 @@ try {
     const shown = toTildePath(path)
     rmSync(path, { force: true })
     const none = await command.openKeybindings?.({ editor: () => ({ ok: false, reason: 'none' }) })
-    check('with no editor configured the command creates the file and names the by-hand road', none !== undefined && none.value === `EDITOR is unset — edit ${shown} by hand` && existsSync(path), j(none))
+    check('with no editor configured the command creates the file and names the by-hand road', none !== undefined && none.value === `EDITOR is unset — edit ${shown} by hand` && existsSync(path), `openKeybindings in src/commands/keybindings/keybindings.ts must create the file and say the by-hand line: ${j(none)}`)
     let spawned = 0
     const spy = async (p: string): Promise<{ content: string | null; error?: string }> => { spawned++; return { content: readFileSync(p, 'utf8') } }
     const noOp = await command.openKeybindings?.({ editor: () => resolveExternalEditor('true', 'VISUAL'), edit: spy })
-    check('VISUAL=true (the shell no-op Mercury\'s own tool shell hands to its children) is refused in words before any editor call', noOp !== undefined && noOp.value === 'VISUAL=true is not an editor — set VISUAL to an editor' && spawned === 0, j({ noOp, spawned }))
+    check('VISUAL=true (the shell no-op Mercury\'s own tool shell hands to its children) is refused in words before any editor call', noOp !== undefined && noOp.value === 'VISUAL=true is not an editor — set VISUAL to an editor' && spawned === 0, `a no-op VISUAL must be refused before any editor call; see openKeybindings in src/commands/keybindings/keybindings.ts and the refusal words in src/utils/editor.ts: ${j({ noOp, spawned })}`)
     const missing = await command.openKeybindings?.({ editor: () => resolveExternalEditor('nosuch-editor-9000', 'EDITOR'), edit: spy })
-    check('an executable that is nowhere on PATH is refused in words before any editor call, the value cut to fit the line', missing !== undefined && missing.value === 'EDITOR=nosuch-edito… is not on PATH — set EDITOR to an editor' && spawned === 0, j({ missing, spawned }))
+    check('an executable that is nowhere on PATH is refused in words before any editor call, the value cut to fit the line', missing !== undefined && missing.value === 'EDITOR=nosuch-edito… is not on PATH — set EDITOR to an editor' && spawned === 0, `a missing editor must be refused before any editor call, the value cut to fit; see the refusal words in src/utils/editor.ts: ${j({ missing, spawned })}`)
     const win32 = resolveExternalEditor('true', 'VISUAL', { platform: 'win32', path: 'C:\\Windows\\System32' })
-    check('under the win32 spelling of the walk `true` is refused by name, before the shell that answers "not recognized" is ever asked', !win32.ok && win32.reason === 'no-op', j(win32))
+    check('under the win32 spelling of the walk `true` is refused by name, before the shell that answers "not recognized" is ever asked', !win32.ok && win32.reason === 'no-op', `resolveExternalEditor in src/utils/editor.ts must refuse true by name on the win32 walk: ${j(win32)}`)
     const binDir = join(home, 'bin')
     mkdirSync(binDir, { recursive: true })
     writeFileSync(join(binDir, 'true.exe'), '')
     writeFileSync(join(binDir, 'notepad.exe'), '')
     const presentNoOp = resolveExternalEditor('true', 'EDITOR', { platform: 'win32', path: binDir })
     const notepad = resolveExternalEditor('notepad', 'default', { platform: 'win32', path: binDir })
-    check('a true.exe that exists is still no editor (the name law outranks presence); notepad.exe on the win32 walk resolves', !presentNoOp.ok && presentNoOp.reason === 'no-op' && notepad.ok && notepad.executable === 'notepad', j({ presentNoOp, notepad }))
+    check('a true.exe that exists is still no editor (the name law outranks presence); notepad.exe on the win32 walk resolves', !presentNoOp.ok && presentNoOp.reason === 'no-op' && notepad.ok && notepad.executable === 'notepad', `resolveExternalEditor in src/utils/editor.ts must keep refusing true.exe by name and resolve notepad on the win32 walk: ${j({ presentNoOp, notepad })}`)
     for (const line of [noOp?.value ?? '', missing?.value ?? '', 'EDITOR=quick.sh returned at once; set an editor that waits']) {
-      check(`the footer line stands whole at 80 columns (${line.length} ≤ 61): ${line}`, line.length <= 61 && !line.includes('\n'), String(line.length))
+      check(`the footer line stands whole at 80 columns (${line.length} ≤ 61): ${line}`, line.length <= 61 && !line.includes('\n'), `${line.length} characters; shorten this footer line in src/commands/keybindings/keybindings.ts or the refusal words in src/utils/editor.ts`)
     }
     const quick = { ok: true as const, editor: 'quick.sh', variable: 'EDITOR' as const, executable: 'quick.sh', args: [] }
     const atOnce = await command.openKeybindings?.({ editor: () => quick, edit: async p => ({ content: readFileSync(p, 'utf8') }) })
-    check('an editor that returns at once without a change is named by its variable, not reported as opened', atOnce !== undefined && atOnce.value === 'EDITOR=quick.sh returned at once; set an editor that waits', j(atOnce))
+    check('an editor that returns at once without a change is named by its variable, not reported as opened', atOnce !== undefined && atOnce.value === 'EDITOR=quick.sh returned at once; set an editor that waits', `openKeybindings in src/commands/keybindings/keybindings.ts must name the variable for an editor that returns at once: ${j(atOnce)}`)
     const vim = { ok: true as const, editor: 'vim', variable: 'EDITOR' as const, executable: 'vim', args: [] }
     const failed = await command.openKeybindings?.({ editor: () => vim, edit: async () => ({ content: null, error: 'EDITOR=vim exited with code 1' }) })
-    check('an editor that fails is reported with its words', failed !== undefined && failed.value === 'EDITOR=vim exited with code 1', j(failed))
+    check('an editor that fails is reported with its words', failed !== undefined && failed.value === 'EDITOR=vim exited with code 1', `openKeybindings in src/commands/keybindings/keybindings.ts must report the editor's own error words: ${j(failed)}`)
     const edited = await command.openKeybindings?.({ editor: () => vim, edit: async p => { const next = readFileSync(p, 'utf8').replace('"$docs"', '"$edited"'); writeFileSync(p, next); await new Promise(r => setTimeout(r, 10)); return { content: next } } })
-    check('a real edit is reported as saved and read', edited !== undefined && edited.value === `Saved ${shown} — the change is read now`, j(edited))
+    check('a real edit is reported as saved and read', edited !== undefined && edited.value === `Saved ${shown} — the change is read now`, `openKeybindings in src/commands/keybindings/keybindings.ts must report Saved when the file changed: ${j(edited)}`)
     const opened = await command.openKeybindings?.({ editor: () => vim, edit: async p => { await new Promise(r => setTimeout(r, 600)); return { content: readFileSync(p, 'utf8') } } })
-    check('an editor that waited and changed nothing is reported as opened, with the /keys pointer', opened !== undefined && opened.value === `Opened ${shown} — /keys shows the map`, j(opened))
+    check('an editor that waited and changed nothing is reported as opened, with the /keys pointer', opened !== undefined && opened.value === `Opened ${shown} — /keys shows the map`, `openKeybindings in src/commands/keybindings/keybindings.ts must report Opened when the editor waited and changed nothing: ${j(opened)}`)
   }
 } finally {
   rmSync(home, { recursive: true, force: true })

@@ -7,9 +7,10 @@ process.chdir(REPO)
 const HOME = pinScratchHome('mercury-config-session-mode-row')
 
 let failures = 0
+const SESSION_MODE_ROW_HINT = 'What to change: the defaultPermissionMode row (value, warning, sessionModeDiffers) in src/components/Settings/config/configRowsEngine.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${SESSION_MODE_ROW_HINT}`}`)
 }
 
 const React = await import('react')

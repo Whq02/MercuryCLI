@@ -28,16 +28,17 @@ const editResult = (await import('../../src/tools/FileEditTool/editResult.ts').c
 
 let failures = 0
 let checks = 0
+const editResultHint = 'change the edit result text in buildEditedLines (src/tools/FileEditTool/editResult.ts) or in FileEditTool.mapToolResultToToolResultBlockParam (src/tools/FileEditTool/FileEditTool.ts) so it matches this check'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 900 ? `${detail.slice(0, 900)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${editResultHint}${detail ? ` | ${detail.length > 900 ? `${detail.slice(0, 900)}…` : detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the result-shows-change proof exceeded 120s')
+  console.log('\nTIMEOUT — the result-shows-change proof exceeded 120s; a FileEditTool or FileReadTool call in src/tools hung, run the file alone and read where its output stops')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

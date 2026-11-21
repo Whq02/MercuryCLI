@@ -15,6 +15,13 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const HINT_GATE = 'the verdict comes from gateToolCall in src/services/providers/toolCallGate.ts, and the lane adapter under src/services/providers/ must mint one tool_use per verdict'
+const HINT_EMPTY = 'dropEmptyOptionalArgs in src/services/providers/toolCallGate.ts decides which empty fields are dropped; a tool keeps a meaningful empty through keepEmptyInputs'
+const HINT_QUOTE = 'straightenQuoteArgs in src/services/providers/toolCallGate.ts straightens the fields a tool lists in straightQuoteInputs, on the gpt lane only; every other lane must pass the bytes as typed'
+const HINT_REPLAY = 'replayableItems in src/services/providers/openai/openaiCallModel.ts builds the Responses replay record; a refused call that gets an error result must stay in it'
+const HINT_PURE = 'gateToolCall and its helpers live in src/services/providers/toolCallGate.ts; fix the function this check names'
+const HINT_DECLARED = 'set straightQuoteInputs on the tool object named in the label, in its file under src/tools/'
+
 delete process.env.NODE_ENV
 for (const ambient of ['ANTHROPIC_API_KEY', 'MERCURY_MODEL', 'MERCURY_OAUTH_TOKEN', 'MERCURY_SCRIPTED_STREAM', 'MERCURY_BARE']) delete process.env[ambient]
 process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'tool-call-gate-'))
@@ -546,17 +553,17 @@ for (const { lane, model, dialect } of LANES) {
       o.stopReason === expectedStop &&
       mintedInputsValid(o.toolUses) &&
       (reasonIncludes === undefined || o.refusals.some(r => r.reason.includes(reasonIncludes)))
-    check(`${c.label}${native ? ` — on the native wire: ${native.note}` : ''}`, ok, detail + (reasonIncludes && !ok ? ` reasons=${JSON.stringify(o.refusals.map(r => r.reason))}` : ''))
+    check(`${c.label}${native ? ` — on the native wire: ${native.note}` : ''}`, ok, detail + (reasonIncludes && !ok ? ` reasons=${JSON.stringify(o.refusals.map(r => r.reason))}` : '') + ' — ' + HINT_GATE)
     mintedAcrossEverything += o.toolUses.length
   }
 }
 
 section('cross-lane facts')
-check('every lane minted the control case — the fixture reached all nine runtimes', mintedAcrossEverything >= LANES.length * 5)
+check('every lane minted the control case — the fixture reached all nine runtimes', mintedAcrossEverything >= LANES.length * 5, `minted ${mintedAcrossEverything}, wanted at least ${LANES.length * 5}; the per-lane sections above show which lane minted nothing, so read that lane adapter under src/services/providers/`)
 check(
   'no request ever left the loopback (every hit is a fixture path)',
   hits.every(h => h.startsWith('GET ') || h.startsWith('POST ')),
-  hits.slice(0, 10).join(' | '),
+  hits.slice(0, 10).join(' | ') + ' — a request that is neither GET nor POST reached the fixture server; find the adapter that sent it under src/services/providers/',
 )
 
 section('the null-optional law stripped the nulls (accepted input carries no null keys)')
@@ -570,7 +577,7 @@ section('the null-optional law stripped the nulls (accepted input carries no nul
       input.timeout === undefined &&
       input.description === undefined &&
       input.command === 'echo ok',
-    JSON.stringify(input),
+    JSON.stringify(input) + ' — the null-optional law is applied by gateToolCall in src/services/providers/toolCallGate.ts: top-level nulls on optional fields must be stripped before the call is minted',
   )
 }
 
@@ -584,13 +591,13 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
   check(
     `${model}: Bash carries only the command — timeout, description and the flags sent empty are gone, as the Anthropic wire would carry them`,
     bash.toolUses.length === 1 && JSON.stringify(defined(bash.toolUses[0]!.input)) === JSON.stringify({ command: 'echo ok' }),
-    JSON.stringify(bash.toolUses[0]?.input),
+    JSON.stringify(bash.toolUses[0]?.input) + ' — ' + HINT_EMPTY,
   )
   const grep = await drive(model, CASES.find(c => c.label.startsWith('empty placeholders on every optional field'))!.script)
   check(
     `${model}: Grep carries only the pattern`,
     grep.toolUses.length === 1 && JSON.stringify(defined(grep.toolUses[0]!.input)) === JSON.stringify({ pattern: 'needle' }),
-    JSON.stringify(grep.toolUses[0]?.input),
+    JSON.stringify(grep.toolUses[0]?.input) + ' — ' + HINT_EMPTY,
   )
   const deletion = await drive(model, {
     calls: [{ id: 'call_edit_delete', name: EDIT, args: '{"file_path":"/tmp/fixture.txt","old_string":"gone","new_string":"","expected_anchor":"","append":"","section":"","hunks":[]}' }],
@@ -599,7 +606,7 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
     `${model}: an Edit that deletes keeps its empty new_string; the empty anchor, append, section and hunks read as omitted`,
     deletion.toolUses.length === 1 &&
       JSON.stringify(defined(deletion.toolUses[0]!.input)) === JSON.stringify({ file_path: '/tmp/fixture.txt', old_string: 'gone', new_string: '' }),
-    JSON.stringify(deletion.toolUses[0]?.input),
+    JSON.stringify(deletion.toolUses[0]?.input) + ' — ' + HINT_EMPTY + '; the Edit tool is under src/tools/FileEditTool/',
   )
   const creation = await drive(model, {
     calls: [{ id: 'call_edit_create', name: EDIT, args: '{"file_path":"/tmp/fixture-new.txt","old_string":"","new_string":"first line"}' }],
@@ -608,7 +615,7 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
     `${model}: an Edit that creates a file keeps its empty old_string`,
     creation.toolUses.length === 1 &&
       JSON.stringify(defined(creation.toolUses[0]!.input)) === JSON.stringify({ file_path: '/tmp/fixture-new.txt', old_string: '', new_string: 'first line' }),
-    JSON.stringify(creation.toolUses[0]?.input),
+    JSON.stringify(creation.toolUses[0]?.input) + ' — ' + HINT_EMPTY + '; the Edit tool is under src/tools/FileEditTool/',
   )
   const required = await drive(model, {
     calls: [{ id: 'call_required_ok', name: REQUIRED, args: '{"kind":"a","code":"x","note":"","tags":[]}' }],
@@ -616,14 +623,14 @@ for (const model of ['gpt-5.6-sol', 'deepseek-v4-pro']) {
   check(
     `${model}: the required fields ride and the empty optionals are gone`,
     required.toolUses.length === 1 && JSON.stringify(defined(required.toolUses[0]!.input)) === JSON.stringify({ kind: 'a', code: 'x' }),
-    JSON.stringify(required.toolUses[0]?.input),
+    JSON.stringify(required.toolUses[0]?.input) + ' — ' + HINT_EMPTY,
   )
   const refusedRequired = await drive(model, CASES.find(c => c.label.startsWith('an empty value on a REQUIRED'))!.script)
   const reason = refusedRequired.refusals[0]?.reason ?? ''
   check(
     `${model}: the refusal for required fields sent empty names both of them`,
     refusedRequired.refusals.length === 1 && reason.includes('`kind` must be one of') && reason.includes('`code` must have a minimum of 1 character'),
-    reason,
+    reason + ' — the refusal for a required field sent empty must name every failing field; the schema reasons are built in src/services/providers/toolCallGate.ts',
   )
 }
 
@@ -660,37 +667,37 @@ section('the straight-quote law: the gpt lane straightens a command, a pattern a
     check(
       `${model} (${wire}): the Bash command ${word}; the description arrives as typed`,
       bash.input.command === (straight ? `echo 'hi' "there"` : `echo ${LS}hi${RS} ${LD}there${RD}`) && bash.input.description === `say ${LS}hi${RS} ${LD}there${RD}`,
-      bash.detail,
+      bash.detail + ' — ' + HINT_QUOTE,
     )
     const grep = await minted(model, curled.grep!)
     check(
       `${model}: the Grep pattern, path and glob ${straight ? 'arrive straight' : 'arrive as typed'}`,
       grep.input.pattern === (straight ? "don't" : `don${RS}t`) && grep.input.path === (straight ? "/tmp/'x'" : `/tmp/${LS}x${RS}`) && grep.input.glob === (straight ? '"*.md"' : `${LD}*.md${RD}`),
-      grep.detail,
+      grep.detail + ' — ' + HINT_QUOTE,
     )
     const glob = await minted(model, curled.glob!)
-    check(`${model}: the Glob pattern ${word}`, glob.input.pattern === (straight ? "**/'x'*.md" : `**/${LS}x${RS}*.md`), glob.detail)
+    check(`${model}: the Glob pattern ${word}`, glob.input.pattern === (straight ? "**/'x'*.md" : `**/${LS}x${RS}*.md`), glob.detail + ' — ' + HINT_QUOTE)
     const write = await minted(model, curled.write!)
     check(
       `${model}: the Write file path ${word}; the content arrives as typed`,
       write.input.file_path === (straight ? "/tmp/'f'.md" : `/tmp/${LS}f${RS}.md`) && write.input.content === `it${RS}s ${LD}fine${RD}`,
-      write.detail,
+      write.detail + ' — ' + HINT_QUOTE,
     )
     const edit = await minted(model, curled.edit!)
     check(
       `${model}: the Edit file path ${word}; old_string and new_string arrive as typed`,
       edit.input.file_path === (straight ? "/tmp/'f'.md" : `/tmp/${LS}f${RS}.md`) && edit.input.old_string === `it${RS}s` && edit.input.new_string === `it${RS}s ${LD}fine${RD}`,
-      edit.detail,
+      edit.detail + ' — ' + HINT_QUOTE,
     )
   }
-  check('the Anthropic drive rode the messages wire of the fixture', hits.some(h => h === 'POST /v1/messages'), hits.filter(h => h.includes('messages')).join(' | '))
+  check('the Anthropic drive rode the messages wire of the fixture', hits.some(h => h === 'POST /v1/messages'), hits.filter(h => h.includes('messages')).join(' | ') + ' — the claude-opus-4-8 drive must POST /v1/messages on the fixture; check the Anthropic lane under src/services/providers/ and ANTHROPIC_BASE_URL')
 }
 
 section('the permissive-tool extra field rides the minted input verbatim (validated, never rewritten)')
 {
   const o = await drive('kimi-k3', CASES.find(c => c.label.startsWith('unknown field on a permissive'))!.script)
   const input = (o.toolUses[0]?.input ?? {}) as Record<string, unknown>
-  check('the raw object the model sent is what the harness holds', input.bogus === 1 && input.text === 'hi', JSON.stringify(input))
+  check('the raw object the model sent is what the harness holds', input.bogus === 1 && input.text === 'hi', JSON.stringify(input) + ' — gateToolCall in src/services/providers/toolCallGate.ts must pass the raw object of a permissive-schema tool through unchanged')
 }
 
 section('Responses lane — the stateless-replay record keeps a refused call its error result will answer, and drops one nothing can answer')
@@ -700,18 +707,18 @@ section('Responses lane — the stateless-replay record keeps a refused call its
     calls: [{ id: 'call_replay_bad', name: BASH, args: '{}' }],
   })
   const record = o.assistants.at(-1)?.apexProviderTurn
-  check('the schema-refused call mints its block carrying the refusal', o.refusals.length === 1 && o.toolUses.length === 1 && o.toolUses[0]!.refused && o.stopReason === 'tool_use', JSON.stringify(o.refusals))
+  check('the schema-refused call mints its block carrying the refusal', o.refusals.length === 1 && o.toolUses.length === 1 && o.toolUses[0]!.refused && o.stopReason === 'tool_use', JSON.stringify(o.refusals) + ' — ' + HINT_REPLAY + '; the refused block is minted by the Responses adapter under src/services/providers/openai/')
   const items0 = (record?.items ?? []) as Array<Record<string, unknown>>
   check(
     'the replay record keeps the reasoning item and the call, so the error output pairs on the next request',
     items0.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_bad',
-    JSON.stringify(record)?.slice(0, 200),
+    JSON.stringify(record)?.slice(0, 200) + ' — ' + HINT_REPLAY,
   )
   const nameless = await drive('gpt-5.6-sol', {
     reasoningFirst: true,
     calls: [{ id: 'call_replay_nameless', args: '{"command":"ls"}' }],
   })
-  check('a call with no tool name cannot pair: a note, no block, no replay record', nameless.refusals.length === 1 && nameless.toolUses.length === 0 && nameless.notes.length === 1 && nameless.assistants.at(-1)?.apexProviderTurn === undefined, JSON.stringify(nameless.assistants.at(-1)?.apexProviderTurn)?.slice(0, 200))
+  check('a call with no tool name cannot pair: a note, no block, no replay record', nameless.refusals.length === 1 && nameless.toolUses.length === 0 && nameless.notes.length === 1 && nameless.assistants.at(-1)?.apexProviderTurn === undefined, JSON.stringify(nameless.assistants.at(-1)?.apexProviderTurn)?.slice(0, 200) + ' — a call with no tool name cannot pair with an output, so the Responses adapter under src/services/providers/openai/ must leave it a note and no replay record')
   const mixed = await drive('gpt-5.6-sol', {
     reasoningFirst: true,
     calls: [
@@ -723,7 +730,7 @@ section('Responses lane — the stateless-replay record keeps a refused call its
   check(
     'mixed turn: the record keeps reasoning, the accepted call and the refused call (both get an output)',
     items.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') === 'reasoning:,function_call:call_replay_ok,function_call:call_replay_bad2',
-    items.map(i => `${i.type}:${i.call_id ?? ''}`).join(','),
+    items.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') + ' — ' + HINT_REPLAY,
   )
   const pure = replayableItems(
     [
@@ -739,7 +746,7 @@ section('Responses lane — the stateless-replay record keeps a refused call its
     'replayableItems: drops the refused call, its stranded reasoning, and a trailing reasoning item',
     pure.map(i => (i.type === 'function_call' ? `call:${i.call_id}` : i.type === 'reasoning' ? `reasoning:${i.id}` : i.type)).join(',') ===
       'reasoning:r1,call:a',
-    JSON.stringify(pure),
+    JSON.stringify(pure) + ' — ' + HINT_REPLAY,
   )
 }
 
@@ -747,21 +754,21 @@ section('the gate as a pure function (the exact contract the adapters call)')
 {
   const g = (name: string, args: string, malformed = false, id = 'call_x') =>
     gateToolCall(CATALOG, { id, name, argumentsRaw: args, malformed })
-  check('valid → ok with the raw object', (() => { const v = g(BASH, '{"command":"ls"}'); return v.ok && (v.input as { command: string }).command === 'ls' })())
+  check('valid → ok with the raw object', (() => { const v = g(BASH, '{"command":"ls"}'); return v.ok && (v.input as { command: string }).command === 'ls' })(), HINT_PURE)
   check('a schema throw is a refusal, never an escape', (() => {
     const throwing = [{ name: 'Boom', inputSchema: { safeParse: () => { throw new Error('schema exploded') } }, prompt: async () => '' }] as never
     const v = gateToolCall(throwing, { id: 'c', name: 'Boom', argumentsRaw: '{}', malformed: false })
     return !v.ok && v.refusal.code === 'schema' && v.refusal.reason.includes('schema exploded')
-  })())
+  })(), HINT_PURE)
   check("alias names resolve through the catalog's own matcher", (() => {
     const aliased = [{ name: 'Real', aliases: ['Old'], inputSchema: BashTool.inputSchema, prompt: async () => '' }] as never
     const v = gateToolCall(aliased, { id: 'c', name: 'Old', argumentsRaw: '{"command":"ls"}', malformed: false })
     return v.ok
-  })())
+  })(), HINT_PURE)
   check('the refusal record preserves the raw bytes verbatim', (() => {
     const v = g(BASH, '{"command": "ls"')
     return !v.ok && v.refusal.argumentsRaw === '{"command": "ls"' && v.refusal.id === 'call_x'
-  })())
+  })(), HINT_PURE)
   const { gateToolCalls, toolCallRefusalNote, toolCallRefusalCorrection } = await import('../../src/services/providers/toolCallGate.ts')
   check('a turn judged together: a second call under an id already used is refused duplicate-id, the first runs', (() => {
     const verdicts = gateToolCalls(CATALOG, [
@@ -770,35 +777,35 @@ section('the gate as a pure function (the exact contract the adapters call)')
       { id: 'call_other', name: BASH, argumentsRaw: '{"command":"id"}', malformed: false },
     ])
     return verdicts.length === 3 && verdicts[0]!.ok && !verdicts[1]!.ok && verdicts[1]!.refusal.code === 'duplicate-id' && verdicts[2]!.ok
-  })())
+  })(), 'gateToolCalls in src/services/providers/toolCallGate.ts must refuse the second use of an id with code duplicate-id and judge the others on their own')
   check('a refused first call does not reserve its id (the gate refuses on its own merits first)', (() => {
     const verdicts = gateToolCalls(CATALOG, [
       { id: 'call_re', name: BASH, argumentsRaw: '{}', malformed: false },
       { id: 'call_re', name: BASH, argumentsRaw: '{"command":"ls"}', malformed: false },
     ])
     return !verdicts[0]!.ok && verdicts[0]!.refusal.code === 'schema' && verdicts[1]!.ok
-  })())
+  })(), 'gateToolCalls in src/services/providers/toolCallGate.ts must reserve an id only for a call it accepts')
   check('the duplicate-id note and correction name the reused id', (() => {
     const refusal = { id: 'call_same', name: BASH, argumentsRaw: '{"command":"pwd"}', code: 'duplicate-id' as const, reason: 'the provider reused call id call_same for a second call in the same turn; only the first call carrying that id ran' }
     return toolCallRefusalNote('fixture', refusal).includes('call_same') && toolCallRefusalCorrection([refusal]).includes('duplicate call id for Bash')
-  })())
+  })(), 'toolCallRefusalNote and toolCallRefusalCorrection in src/services/providers/toolCallGate.ts must name the reused id and the tool')
   const { dropEmptyOptionalArgs } = await import('../../src/services/providers/toolCallGate.ts')
   check('dropEmptyOptionalArgs: a union schema keeps an empty field one option requires', (() => {
     const union = { inputSchema: z.union([z.strictObject({ k: z.literal('x'), t: z.string().optional() }), z.strictObject({ k: z.literal('y'), t: z.string() })]) }
     return JSON.stringify(dropEmptyOptionalArgs({ k: 'x', t: '' }, union)) === JSON.stringify({ k: 'x', t: '' })
-  })())
+  })(), HINT_EMPTY)
   check('dropEmptyOptionalArgs: a union schema drops an empty field every option marks optional', (() => {
     const union = { inputSchema: z.union([z.strictObject({ k: z.literal('x'), t: z.string().optional() }), z.strictObject({ k: z.literal('y'), t: z.string().optional() })]) }
     return JSON.stringify(dropEmptyOptionalArgs({ k: 'y', t: '', u: [] }, union)) === JSON.stringify({ k: 'y', u: [] })
-  })())
+  })(), HINT_EMPTY)
   check('dropEmptyOptionalArgs: a schema with no declared fields (the MCP shape) is left exactly as sent', (() => {
     const loose = { inputSchema: z.looseObject({}) }
     return JSON.stringify(dropEmptyOptionalArgs({ a: '', b: [] }, loose)) === JSON.stringify({ a: '', b: [] })
-  })())
+  })(), HINT_EMPTY)
   check('dropEmptyOptionalArgs: keepEmptyInputs holds a field the tool reads as meaningful when empty', (() => {
     const keeper = { inputSchema: z.strictObject({ a: z.string().optional(), b: z.string().optional() }), keepEmptyInputs: ['a'] as const }
     return JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, keeper)) === JSON.stringify({ a: '' })
-  })())
+  })(), HINT_EMPTY)
   check('dropEmptyOptionalArgs: a preprocess-wrapped and a lazy object schema are read through to their fields', (() => {
     const inner = z.strictObject({ a: z.string().optional(), b: z.string() })
     const wrapped = { inputSchema: z.preprocess(value => value, inner) }
@@ -807,20 +814,20 @@ section('the gate as a pure function (the exact contract the adapters call)')
       JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, wrapped)) === JSON.stringify({ b: '' }) &&
       JSON.stringify(dropEmptyOptionalArgs({ a: '', b: '' }, lazy)) === JSON.stringify({ b: '' })
     )
-  })())
+  })(), HINT_EMPTY)
   check('dropEmptyOptionalArgs: nested empties are payload and stay', (() => {
     const tool = { inputSchema: z.strictObject({ a: z.object({ x: z.string().optional() }).optional(), b: z.array(z.string()).optional() }) }
     return JSON.stringify(dropEmptyOptionalArgs({ a: { x: '' }, b: [''] }, tool)) === JSON.stringify({ a: { x: '' }, b: [''] })
-  })())
+  })(), HINT_EMPTY)
   check('the real Edit declares old_string and new_string as meaningful when empty; the real Grep keeps its required pattern', (() => {
     const edit = dropEmptyOptionalArgs({ file_path: '/tmp/x', old_string: '', new_string: '', expected_anchor: '', hunks: [] }, FileEditTool as never)
     const grep = dropEmptyOptionalArgs({ pattern: '', glob: '' }, GrepTool as never)
     return JSON.stringify(edit) === JSON.stringify({ file_path: '/tmp/x', old_string: '', new_string: '' }) && JSON.stringify(grep) === JSON.stringify({ pattern: '' })
-  })())
+  })(), HINT_EMPTY + '; the real tools are under src/tools/FileEditTool/ and src/tools/GrepTool/')
   const gateModule = (await import('../../src/services/providers/toolCallGate.ts')) as unknown as {
     straightenQuoteArgs?: (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }) => Record<string, unknown>
   }
-  check('straightenQuoteArgs is exported by the gate', typeof gateModule.straightenQuoteArgs === 'function')
+  check('straightenQuoteArgs is exported by the gate', typeof gateModule.straightenQuoteArgs === 'function', 'export straightenQuoteArgs from src/services/providers/toolCallGate.ts')
   const straighten = (input: Record<string, unknown>, tool: { straightQuoteInputs?: readonly string[] }): Record<string, unknown> =>
     typeof gateModule.straightenQuoteArgs === 'function' ? gateModule.straightenQuoteArgs(input, tool) : input
   const LS = '‘'
@@ -831,26 +838,26 @@ section('the gate as a pure function (the exact contract the adapters call)')
   check('straightenQuoteArgs: a declared string field is straightened; an undeclared one stays as typed', (() => {
     const out = straighten({ command: `echo ${LS}a${RS} ${LD}b${RD}`, description: `say ${LS}a${RS}` }, listed)
     return out.command === `echo 'a' "b"` && out.description === `say ${LS}a${RS}`
-  })())
+  })(), HINT_QUOTE)
   check('straightenQuoteArgs: a declared array field is straightened element by element; a non-string element rides', (() => {
     const out = straighten({ paths: [`/tmp/${LS}x${RS}`, 3, `${LD}y${RD}`] }, listed)
     return JSON.stringify(out.paths) === JSON.stringify(["/tmp/'x'", 3, '"y"'])
-  })())
+  })(), HINT_QUOTE)
   check('straightenQuoteArgs: a nested value is never touched, even under a declared field', (() => {
     const shape = { text: `${LS}nested${RS}` }
     const out = straighten({ shape }, listed)
     return out.shape === shape && (out.shape as { text: string }).text === `${LS}nested${RS}`
-  })())
+  })(), HINT_QUOTE)
   check('straightenQuoteArgs: a call with nothing to straighten keeps the very object the model sent', (() => {
     const input = { command: "echo 'plain'", paths: ['/tmp/x'] }
     return straighten(input, listed) === input && straighten(input, {}) === input
-  })())
+  })(), HINT_QUOTE)
   check('gateToolCall: the straightening hint straightens the real Bash command; without the hint the same bytes ride as typed (every lane but gpt)', (() => {
     const raw = JSON.stringify({ command: `echo ${LS}hi${RS}` })
     const hinted = gateToolCall(CATALOG, { id: 'c1', name: BASH, argumentsRaw: raw, malformed: false }, { straightenQuotes: true } as never)
     const plain = gateToolCall(CATALOG, { id: 'c2', name: BASH, argumentsRaw: raw, malformed: false })
     return hinted.ok && hinted.input.command === "echo 'hi'" && plain.ok && plain.input.command === `echo ${LS}hi${RS}`
-  })())
+  })(), HINT_QUOTE + '; the straightenQuotes option of gateToolCall turns it on')
   const declared = (tool: unknown): string => JSON.stringify((tool as { straightQuoteInputs?: readonly string[] }).straightQuoteInputs ?? null)
   check('the shell, search and file tools declare their straightened fields: Bash command · Grep pattern, path, glob · Glob pattern, path · Read, Write and Edit file_path', (() => {
     return (
@@ -861,7 +868,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
       declared(FileWriteTool) === JSON.stringify(['file_path']) &&
       declared(FileEditTool) === JSON.stringify(['file_path'])
     )
-  })(), [BashTool, GrepTool, GlobTool, FileReadTool, FileWriteTool, FileEditTool].map(declared).join(' '))
+  })(), [BashTool, GrepTool, GlobTool, FileReadTool, FileWriteTool, FileEditTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
   {
     const { LSP_TOOLS } = await import('../../src/tools/LSPTool/LSPTool.ts')
     const { DebugTool } = await import('../../src/tools/DebugTool/DebugTool.ts')
@@ -878,16 +885,16 @@ section('the gate as a pure function (the exact contract the adapters call)')
     const { AsepriteTool } = await import('../../src/tools/AsepriteTool/AsepriteTool.ts')
     const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
     const lspQuotes = [['filePath', 'query', 'paths'], ['filePath', 'newName'], ['filePath', 'targetPath'], ['filePath', 'newPath'], ['filePath'], ['filePath'], ['filePath']]
-    check('each language-service tool straightens exactly its own symbol and path fields', LSP_TOOLS.every((tool, i) => declared(tool) === JSON.stringify(lspQuotes[i])), LSP_TOOLS.map(declared).join(' '))
-    check('the debugger straightens its paths, expressions and symbols: program, file, expression, name, value, text, functions', declared(DebugTool) === JSON.stringify(['program', 'file', 'expression', 'name', 'value', 'text', 'functions']), declared(DebugTool))
-    check('the notebook editor straightens notebook_path and keeps new_source as typed', declared(NotebookEditTool) === JSON.stringify(['notebook_path']), declared(NotebookEditTool))
-    check('the structural search and rewrite tools straighten pattern, path and glob; the rewrite text stays as typed', declared(AstSearchTool) === JSON.stringify(['pattern', 'path', 'glob']) && declared(AstEditTool) === JSON.stringify(['pattern', 'path', 'glob']), `${declared(AstSearchTool)} ${declared(AstEditTool)}`)
-    check('the Structure tool straightens its select filters, globs and replacement names: name, callee, module, within, files, to, newModule', declared(StructureTool) === JSON.stringify(['name', 'callee', 'module', 'within', 'files', 'to', 'newModule']), declared(StructureTool))
-    check('the PowerShell tool straightens its command', declared(PowerShellTool) === JSON.stringify(['command']), declared(PowerShellTool))
-    check('the git tool straightens its path fields: paths, files, path, file, cwd', declared(GitTool) === JSON.stringify(['paths', 'files', 'path', 'file', 'cwd']), declared(GitTool))
-    check('the test, launch, service and monitor tools straighten their paths and commands', declared(TestTool) === JSON.stringify(['path', 'file']) && declared(LaunchTool) === JSON.stringify(['file']) && declared(ServiceTool) === JSON.stringify(['command', 'cwd']) && declared(MonitorTool) === JSON.stringify(['command']), [TestTool, LaunchTool, ServiceTool, MonitorTool].map(declared).join(' '))
-    check('the Aseprite tool straightens its sprite, output and data-output paths; the Lua source stays as typed', declared(AsepriteTool) === JSON.stringify(['file', 'output', 'dataOutput']), declared(AsepriteTool))
-    check('the Eval tool declares nothing: a cell is content and arrives as typed', declared(EvalTool) === 'null', declared(EvalTool))
+    check('each language-service tool straightens exactly its own symbol and path fields', LSP_TOOLS.every((tool, i) => declared(tool) === JSON.stringify(lspQuotes[i])), LSP_TOOLS.map(declared).join(' ') + ' — ' + HINT_DECLARED + ' (the LSP tools are in src/tools/LSPTool/LSPTool.ts)')
+    check('the debugger straightens its paths, expressions and symbols: program, file, expression, name, value, text, functions', declared(DebugTool) === JSON.stringify(['program', 'file', 'expression', 'name', 'value', 'text', 'functions']), declared(DebugTool) + ' — ' + HINT_DECLARED)
+    check('the notebook editor straightens notebook_path and keeps new_source as typed', declared(NotebookEditTool) === JSON.stringify(['notebook_path']), declared(NotebookEditTool) + ' — ' + HINT_DECLARED)
+    check('the structural search and rewrite tools straighten pattern, path and glob; the rewrite text stays as typed', declared(AstSearchTool) === JSON.stringify(['pattern', 'path', 'glob']) && declared(AstEditTool) === JSON.stringify(['pattern', 'path', 'glob']), `${declared(AstSearchTool)} ${declared(AstEditTool)} — ${HINT_DECLARED}`)
+    check('the Structure tool straightens its select filters, globs and replacement names: name, callee, module, within, files, to, newModule', declared(StructureTool) === JSON.stringify(['name', 'callee', 'module', 'within', 'files', 'to', 'newModule']), declared(StructureTool) + ' — ' + HINT_DECLARED)
+    check('the PowerShell tool straightens its command', declared(PowerShellTool) === JSON.stringify(['command']), declared(PowerShellTool) + ' — ' + HINT_DECLARED)
+    check('the git tool straightens its path fields: paths, files, path, file, cwd', declared(GitTool) === JSON.stringify(['paths', 'files', 'path', 'file', 'cwd']), declared(GitTool) + ' — ' + HINT_DECLARED)
+    check('the test, launch, service and monitor tools straighten their paths and commands', declared(TestTool) === JSON.stringify(['path', 'file']) && declared(LaunchTool) === JSON.stringify(['file']) && declared(ServiceTool) === JSON.stringify(['command', 'cwd']) && declared(MonitorTool) === JSON.stringify(['command']), [TestTool, LaunchTool, ServiceTool, MonitorTool].map(declared).join(' ') + ' — ' + HINT_DECLARED)
+    check('the Aseprite tool straightens its sprite, output and data-output paths; the Lua source stays as typed', declared(AsepriteTool) === JSON.stringify(['file', 'output', 'dataOutput']), declared(AsepriteTool) + ' — ' + HINT_DECLARED)
+    check('the Eval tool declares nothing: a cell is content and arrives as typed', declared(EvalTool) === 'null', declared(EvalTool) + ' — the Eval tool must not declare straightQuoteInputs, since a cell arrives as typed (src/tools/EvalTool/)')
   }
   check('replayableItems keeps the first function_call of a duplicated id and drops the rest', (() => {
     const pure = replayableItems(
@@ -899,7 +906,7 @@ section('the gate as a pure function (the exact contract the adapters call)')
       [{ id: 'a', code: 'duplicate-id' }],
     )
     return pure.map(i => (i.type === 'function_call' ? `${i.call_id}:${i.arguments}` : i.type)).join(',') === 'a:{},b:{}'
-  })())
+  })(), HINT_REPLAY)
 }
 
 server.close()

@@ -11,11 +11,13 @@ import { seedFirstRun } from '../lib/firstRunSeed.ts'
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+const FIX_OTHER_USER_WARD = 'the rule no-other-user-delete in REFUSAL_WARDS (src/utils/wards/wards.ts) decides these rows, and src/guards/wardsGuard.ts runs it before the permission check; fix the rule or the guard, not this proof'
+function check(label: string, cond: boolean, detail = '', fix = FIX_OTHER_USER_WARD): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
+const FIX_HEADLESS_RUN = 'run bun run build.ts so dist/mercury.mjs carries the current guard, then read the tool_result row above: the ward in src/utils/wards/wards.ts must refuse the call before any permission ask in src/guards/wardsGuard.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -289,13 +291,13 @@ for (const posture of ['default', 'allowed', 'sovereign'] as const) {
     const outcome = rows.find(row => row.type === 'outcome') as (Record<string, unknown> & { status?: string }) | undefined
     const refusedByWard = (row: typeof deleteResult): boolean => row?.status === 'error' && String(row.output).includes(`Ward '${RULE}' blocked this Bash call`) && !String(row.output).includes('needs permission') && !String(row.output).includes('auto-denied')
     console.log(`\n  · ${posture}: exit ${code}, mode ${String(session?.mode)}`)
-    check(`${posture}: the session row carries the posture`, session?.mode === (posture === 'sovereign' ? 'sovereign' : 'default'), String(session?.mode))
-    check(`${posture}: the delete is refused by the ward naming its rule, never by a permission ask`, refusedByWard(deleteResult), String(deleteResult?.output ?? '(no result row)').slice(0, 300))
-    check(`${posture}: the delete inside sh -c "…" is refused by the same ward (the inline shell is a command, not data)`, refusedByWard(shellResult), String(shellResult?.output ?? '(no result row)').slice(0, 300))
-    check(`${posture}: the delete split over a backslash continuation is refused by the same ward (F37W-5B-13's shape)`, refusedByWard(splitResult), String(splitResult?.output ?? '(no result row)').slice(0, 300))
-    check(`${posture}: none of the refused commands ran (no escape mark)`, !existsSync(escaped) && !existsSync(escapedShell) && !existsSync(escapedSplit), [escaped, escapedShell, escapedSplit].filter(existsSync).join(', '))
-    if (withMark) check(`${posture}: the next Bash call ran (the ward refused one call, not the session)`, markResult?.status === 'ok' && existsSync(ran), String(markResult?.output ?? '(no result row)').slice(0, 200))
-    check(`${posture}: the run ends completed with exit 0 — a ward refusal is not an unanswered ask`, code === 0 && outcome?.status === 'completed', `${code} ${outcome?.status} ${stderr.slice(-300)}`)
+    check(`${posture}: the session row carries the posture`, session?.mode === (posture === 'sovereign' ? 'sovereign' : 'default'), String(session?.mode), 'the run command must report its mode in the session row: check the flags this proof passes against node dist/mercury.mjs run --help')
+    check(`${posture}: the delete is refused by the ward naming its rule, never by a permission ask`, refusedByWard(deleteResult), String(deleteResult?.output ?? '(no result row)').slice(0, 300), FIX_HEADLESS_RUN)
+    check(`${posture}: the delete inside sh -c "…" is refused by the same ward (the inline shell is a command, not data)`, refusedByWard(shellResult), String(shellResult?.output ?? '(no result row)').slice(0, 300), FIX_HEADLESS_RUN)
+    check(`${posture}: the delete split over a backslash continuation is refused by the same ward (F37W-5B-13's shape)`, refusedByWard(splitResult), String(splitResult?.output ?? '(no result row)').slice(0, 300), FIX_HEADLESS_RUN)
+    check(`${posture}: none of the refused commands ran (no escape mark)`, !existsSync(escaped) && !existsSync(escapedShell) && !existsSync(escapedSplit), [escaped, escapedShell, escapedSplit].filter(existsSync).join(', '), FIX_HEADLESS_RUN)
+    if (withMark) check(`${posture}: the next Bash call ran (the ward refused one call, not the session)`, markResult?.status === 'ok' && existsSync(ran), String(markResult?.output ?? '(no result row)').slice(0, 200), 'a ward refusal must end only that call: check how src/guards/wardsGuard.ts returns the refusal, and run bun run build.ts first')
+    check(`${posture}: the run ends completed with exit 0 — a ward refusal is not an unanswered ask`, code === 0 && outcome?.status === 'completed', `${code} ${outcome?.status} ${stderr.slice(-300)}`, 'the stderr tail above names why the run failed; a ward refusal in src/guards/wardsGuard.ts must not end the run, and run bun run build.ts first')
   } finally {
     await api.close()
     rmSync(home, { recursive: true, force: true })

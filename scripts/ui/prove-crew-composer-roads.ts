@@ -57,10 +57,11 @@ const SIZES: Array<[number, number]> = sizeArg === undefined ? [[269, 70], [178,
 
 let failures = 0
 let checks = 0
+const composerRoadHint = 'fix the surface this check names: the footer and receipt words are built in src/utils/cockpit/crewmateWords.ts, the composer target in composerTargetTaskId (src/state/selectors.ts), the queued echo rows in crewmateQueuedRows (src/components/tasks/crewmateQueue.ts); rerun with --size COLSxROWS to see one size'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} · ` : ''}${composerRoadHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

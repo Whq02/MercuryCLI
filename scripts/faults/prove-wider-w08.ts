@@ -10,9 +10,24 @@ import stripAnsi from 'strip-ansi'
 process.env.NODE_ENV = 'test'
 
 let failures = 0
+const W08_WHERE: Record<string, string> = {
+  'w08-1': 'applySedSubstitution in src/tools/BashTool/sedEditParser.ts and src/components/permissions/SedEditPermissionRequest/SedEditPermissionRequest.tsx',
+  'w08-2': 'src/services/projectServices/serviceManager.ts, src/tools/ServiceTool/ServiceTool.ts and src/services/resources/adapters/service.ts',
+  'w08-3': 'discoverRunnerProfiles in src/services/ide/projectRunners.ts, src/tools/TestTool/TestTool.ts and src/services/health/sections/coding-loop-fast.ts',
+  'w08-4': 'src/services/health/sections/runtime/lsp.ts, src/tools/LSPTool/LSPTool.ts and src/services/lsp/manager.ts',
+  'w08-5': 'workspaceSymbolRequest in src/services/lsp/tsSidecar/sidecar/requests/navigation.ts and src/tools/LSPTool/LSPTool.ts',
+  'w08-6': 'cancelRunWatch in src/services/repoHost/runWatch.ts, src/utils/primitives/executionPlane.ts and src/tools/GitTool/GitTool.ts',
+  'w08-7': 'resolveAstScope in src/services/structure/astPatterns/scope.ts and renderSearchTrailer in src/services/structure/astPatterns/render.ts',
+  'w08-8': 'analyzeContextUsage in src/services/context/analyzeContext.ts and src/components/ContextVisualization.tsx',
+  'w08-9': 'trackGitOperations in src/tools/shared/gitOperationTracking.ts and src/tools/BashTool/BashTool.tsx',
+  'w08-10': 'src/utils/browser.ts, openMemoryFolder in src/components/memory/MemoryFileSelector.tsx and src/components/mcp/ElicitationDialog.tsx',
+  'w08-11': 'videoToolEnabled in src/services/video/registry.ts and src/services/tools/withheldTools.ts',
+  'w08-12': 'resolveAdapter in src/services/dap/client/adapters.ts, src/tools/DebugTool/DebugTool.ts and src/services/tools/withheldTools.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = W08_WHERE[label.split(':')[0] ?? '']
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && where ? ` — to fix, change the code this check exercises: ${where}` : ''}`)
 }
 const HERE = import.meta.dir
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')

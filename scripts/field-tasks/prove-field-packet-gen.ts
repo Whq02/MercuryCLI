@@ -6,8 +6,22 @@ import { join, resolve } from 'node:path'
 
 const repoRoot = resolve(import.meta.dirname, '../..')
 let failures = 0
+const GEN_FILE = 'scripts/field-tasks/gen-field-packet.ts'
+const KIT_DIR = 'scripts/field-tasks/field-kit'
+const FIELD_FIX: Record<string, string> = {
+  'generator exits 0': 'run node ' + GEN_FILE + ' --out <dir> --allow-unbuilt and read its stderr',
+  'manifest identity': 'the manifest is written by ' + GEN_FILE + ' (kind, taskId and artifactDigest fields)',
+  'kit is complete': 'add the missing files under ' + KIT_DIR + ' (the generator copies that folder into the kit)',
+  'every sha256 recomputes': GEN_FILE + ' must record the sha256 of each file as written to the kit',
+  'practice task FAIL-STARTS as shipped': 'the practice task in ' + KIT_DIR + '/task must have a failing node --test as shipped',
+  'the seeded defect is the refund sign': 'restore the seeded refund line in ' + KIT_DIR + '/task/src/ledger.mjs, or update this proof if the seeded defect moved',
+  'the reference fix turns it green': 'the tests in ' + KIT_DIR + '/task/test must pass once the refund sign is fixed in ' + KIT_DIR + '/task/src/ledger.mjs',
+  'collector gathers kit-owned material only': 'edit ' + KIT_DIR + '/Collect-Report.ps1',
+  'collector previews before writing and supports -All without dropping the preview': 'edit ' + KIT_DIR + '/Collect-Report.ps1',
+  'collector writes the human-readable REPORT.md beside manifest.json': 'edit ' + KIT_DIR + '/Collect-Report.ps1',
+}
 const ok = (name: string, pass: boolean, detail = ''): void => {
-  console.log((pass ? '  ok  ' : '  FAIL ') + name + (detail && !pass ? ' — ' + detail : ''))
+  console.log((pass ? '  ok  ' : '  FAIL ') + name + (detail && !pass ? ' — ' + detail : '') + (FIELD_FIX[name] && !pass ? ' — to fix: ' + FIELD_FIX[name] : ''))
   if (!pass) failures = 1
 }
 

@@ -18,7 +18,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — to fix: this drives the built dist/mercury.mjs through scripts/ui/vshot.py against scripts/streaming/turn-end-fixture-server.ts, so rebuild with bun run build.ts first; a streaming tail must give way to its timestamped settled row within one frame, and words typed during a reply must paint queued, then drain as the second turn; the kept world path printed as forensics below holds wire.jsonl and grid.json for the failing scene' : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -36,7 +36,7 @@ const failures: string[] = []
 let checks = 0
 function check(label: string, run: () => void): void {
   checks++
-  try { run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)}`) }
+  try { run(); console.log(`PASS ${label}`) } catch (e) { failures.push(label); console.error(`FAIL ${label}: ${String(e)} | fix: the rows and their longContext tier (threshold, cacheWritePerMtok) are in src/utils/model/pins/zenPins.ts; the tier choice is in resolveModelPricing in src/services/usage/modelCost.ts; prices are those of ${page}`) }
 }
 function rates(id: string, promptTokens: number): [number, number, number, number] {
   const costs = resolveModelPricing(`zen/${id}`, { promptTokens }).costs

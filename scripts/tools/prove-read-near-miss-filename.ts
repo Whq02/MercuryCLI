@@ -19,6 +19,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    where to look: src/tools/FileReadTool/read/target.ts, resolveCanonicalNearMissPath (which sibling name a request resolves to, and the refusal when two match) and the not-found message with Did you mean; the card text for 1d and 2d comes from summarizeToolResult in src/tools/toolResultSummary.ts')
 }
 
 function makeContext() {

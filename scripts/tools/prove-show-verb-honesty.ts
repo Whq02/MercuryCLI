@@ -6,15 +6,15 @@ import { join } from 'node:path'
 import { deflateSync } from 'node:zlib'
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs exists (build first — this prover drives the artifact)', false)
+  check('dist/mercury.mjs exists (build first — this prover drives the artifact)', false, '', 'run bun run build.ts at the repo root, then rerun this prover')
 } else {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'show-verb-')))
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'show-fixtures-')))
@@ -53,13 +53,14 @@ if (!existsSync(DIST)) {
   writeFileSync(join(dir, 'tiny.png'), png)
 
   const missing = run([join(dir, 'absent.png')])
-  check('a missing path refuses rc 1 naming the read failure', missing.status === 1 && /Cannot read|Failed to display/.test(missing.err), `rc=${missing.status} ${missing.err.slice(0, 80)}`)
+  check('a missing path refuses rc 1 naming the read failure', missing.status === 1 && /Cannot read|Failed to display/.test(missing.err), `rc=${missing.status} ${missing.err.slice(0, 80)}`, 'in the image verb action in src/main/verbActions.ts, an unreadable path must write Cannot read <path> and exit 1')
 
   const notImage = run([join(dir, 'not-an-image.txt')])
   check(
     'a NON-IMAGE file refuses rc 1 naming the signature test (never a 0-exit link line)',
     notImage.status === 1 && notImage.err.includes('not an image file'),
     `rc=${notImage.status} ${notImage.err.slice(0, 80)}`,
+    'in the image verb action in src/main/verbActions.ts, the signature test must write is not an image file and exit 1 before rendering',
   )
 
   const real = run([join(dir, 'tiny.png')])
@@ -67,10 +68,11 @@ if (!existsSync(DIST)) {
     'a real PNG exits 0 with the protocol tag (the link tier is an honest protocol degrade)',
     real.status === 0 && /^\[[a-z]+\] /.test(real.err),
     `rc=${real.status} ${real.err.slice(0, 60)}`,
+    'in the image verb action in src/main/verbActions.ts, a valid image must exit 0 and write [protocol] path to stderr',
   )
 
   const bare = run([])
-  check('the bare verb refuses rc 2 (a usage error)', bare.status === 2 && bare.err.includes('missing required argument'), `rc=${bare.status}`)
+  check('the bare verb refuses rc 2 (a usage error)', bare.status === 2 && bare.err.includes('missing required argument'), `rc=${bare.status}`, 'the image command is declared as image <image> in src/main/subcommands.ts; its required argument must make a bare call exit 2 with missing required argument')
 
   rmSync(home, { recursive: true, force: true })
   rmSync(dir, { recursive: true, force: true })

@@ -8,7 +8,12 @@ let failures = 0
 function check(label: string, pass: boolean, actual: string): void {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}: ${actual}`)
+  const hint = label.includes('gauge') ? ' (fix contextWindowLabel in src/services/context/contextFill.ts)'
+    : label.includes('picker') ? ' (fix fmtCtx in src/components/modelPicker/choice.ts)'
+    : label.includes('notice') ? ' (fix localWindowWords in src/services/providers/local/localCatalogue.ts)'
+    : label.includes('unloaded') ? ' (fix localUnloadedWindowWords in src/services/providers/local/localCatalogue.ts)'
+    : ' (fix contextWindowLabel in src/services/context/contextFill.ts)'
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}: ${actual}${pass ? '' : hint}`)
 }
 const label = contextWindowLabel as (n: number, source: 'live-current' | 'fallback', pinned: boolean, local: boolean) => string
 const picker = fmtCtx as (n: number, local: boolean) => string

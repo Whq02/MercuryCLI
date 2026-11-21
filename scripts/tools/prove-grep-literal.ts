@@ -13,7 +13,10 @@ delete process.env.MERCURY_HOME
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    where to look: src/tools/GrepTool/GrepTool.ts (the literal input field, buildArgs adding -F, and the quoteTolerantPattern line that literal skips); the description text is in src/tools/GrepTool/prompt.ts getDescription and the -F stand-in is parameterStandIn in src/utils/toolErrors.ts')
+  }
 }
 
 const { GrepTool } = await import('../../src/tools/GrepTool/GrepTool.ts')

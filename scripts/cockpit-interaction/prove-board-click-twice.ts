@@ -28,7 +28,8 @@ const MULTI_CLICK_WINDOW_MS = 500
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix: rebuild with bun run build.ts if dist is stale; read daemon.log in the world named on the [forensics] line; the board rows are drawn in src/components/concourse/layout/listPane.tsx and the daemon ops (ping, concourseDispatch) are served through src/daemon/controlSocket.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

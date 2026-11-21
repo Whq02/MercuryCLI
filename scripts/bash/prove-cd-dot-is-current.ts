@@ -40,19 +40,20 @@ const decide = async (command: string, mode: string): Promise<Decision> => {
   return (await decideToolPermissionWithModes(bash, { command }, context, { message: { id: 'cd-dot' } } as never, 'cd-dot')).decision as Decision
 }
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`
+const cdDotWhere = ' | fix CURRENT_FOLDER_RELATIVE and isCurrentFolderSpelling, and the cd handling that uses isCurrentDirectoryCommand, in src/tools/BashTool/bashPermissions.ts'
 
 console.log('prove-cd-dot-is-current — cd . names the folder the command already runs in, so it changes nothing')
 
 section('§1 the spelling check: dots and separators alone name the current folder')
-for (const spelled of ['.', './', './.', '././', '.\\']) check(`${JSON.stringify(spelled)} is the current folder`, isCurrentFolderSpelling(spelled, root))
-for (const spelled of ['..', './..', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root))
-check('the absolute spelling of the folder still counts', isCurrentFolderSpelling(root, root))
+for (const spelled of ['.', './', './.', '././', '.\\']) check(`${JSON.stringify(spelled)} is the current folder`, isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned false for a spelling of the current folder' + cdDotWhere)
+for (const spelled of ['..', './..', './sub', 'sub', '.hidden', '', '.;', '$PWD']) check(`${JSON.stringify(spelled)} is not`, !isCurrentFolderSpelling(spelled, root), 'isCurrentFolderSpelling returned true for a spelling that names another folder' + cdDotWhere)
+check('the absolute spelling of the folder still counts', isCurrentFolderSpelling(root, root), 'isCurrentFolderSpelling no longer matches the absolute path of the folder (shellFolderComparisonKey comparison)' + cdDotWhere)
 
 section('§2 default and implement: a read after cd . is allowed as the read alone would be')
 for (const command of ['cd . && git status', 'cd ./ && git status', 'cd . && ls', 'cd .; git log --oneline -1', 'cd ././ && cat README']) {
   for (const mode of ['default', 'implement']) {
     const verdict = await decide(command, mode)
-    check(`${mode}: ${command} → allow`, verdict.behavior === 'allow', shown(verdict))
+    check(`${mode}: ${command} → allow`, verdict.behavior === 'allow', shown(verdict) + cdDotWhere)
   }
 }
 
@@ -60,23 +61,23 @@ section('§3 a real change of folder keeps asking in the asking modes')
 for (const command of ['cd .. && git status', 'cd ./sub && git status', 'cd -P . && git status', 'cd . && cd sub && git status']) {
   for (const mode of ['default', 'implement']) {
     const verdict = await decide(command, mode)
-    check(`${mode}: ${command} → ask`, verdict.behavior === 'ask', shown(verdict))
+    check(`${mode}: ${command} → ask`, verdict.behavior === 'ask', shown(verdict) + cdDotWhere)
   }
 }
 
 section('§4 a write after cd . is judged as the write alone: default asks, implement allows inside the folder')
 {
   const plain = await decide('cd . && echo hi > out.txt', 'default')
-  check('default: cd . && echo hi > out.txt → ask', plain.behavior === 'ask', shown(plain))
+  check('default: cd . && echo hi > out.txt → ask', plain.behavior === 'ask', shown(plain) + cdDotWhere)
   const writing = await decide('cd . && echo hi > out.txt', 'implement')
   const alone = await decide('echo hi > out.txt', 'implement')
-  check('implement: cd . && echo hi > out.txt answers as echo hi > out.txt does', writing.behavior === alone.behavior && alone.behavior === 'allow', `${writing.behavior} vs ${alone.behavior}`)
+  check('implement: cd . && echo hi > out.txt answers as echo hi > out.txt does', writing.behavior === alone.behavior && alone.behavior === 'allow', `${writing.behavior} vs ${alone.behavior}` + cdDotWhere)
 }
 
 section('§5 sovereign asks nothing: every command above is allowed')
 for (const command of ['cd . && git status', 'cd .. && git status', 'cd ./sub && git status', 'cd -P . && git status', 'cd . && echo hi > out.txt']) {
   const verdict = await decide(command, 'sovereign')
-  check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict))
+  check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow every command: see decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts')
 }
 
 process.chdir(previousCwd)

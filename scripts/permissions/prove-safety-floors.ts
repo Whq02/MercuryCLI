@@ -17,10 +17,15 @@ async function reading(item: Call, mode: Mode) {
   return { decision, what }
 }
 
+const verdictSource = 'the verdict comes from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts (Bash rows through src/tools/BashTool/bashPermissions.ts); fix the floor that answered differently, or change docs/TRUST.md if the page is what moved'
+const credentialWriteSource = 'credential-store writes are refused in src/utils/permissions/filesystem.ts (file tools) and src/utils/permissions/shellProtectedPaths.ts (shell commands)'
+const pageHint = 'docs/TRUST.md no longer says this; restore the sentence there, or change this check if the floor itself was changed on purpose'
+const loaderHint = 'the instruction-file loader getInstructionFiles in src/services/instructions/engine.ts no longer composes what MERCURY.md @imports; fix the loader'
 async function expect(id: string, item: Call, modes: Mode[], good: (behavior: string) => boolean, claim: string): Promise<void> {
   for (const mode of modes) {
     const { decision, what } = await reading(item, mode)
-    check(`${id} · ${mode} · ${what}${item.why ? ` (${item.why})` : ''} · ${claim}`, good(decision.behavior), said(decision))
+    const source = id.startsWith('floor 1') || id.startsWith('T-3.3') ? `${credentialWriteSource}; ${verdictSource}` : verdictSource
+    check(`${id} · ${mode} · ${what}${item.why ? ` (${item.why})` : ''} · ${claim}`, good(decision.behavior), `${source} — got ${said(decision)}`)
   }
 }
 const notAllowed = (behavior: string): boolean => behavior !== 'allow'
@@ -29,8 +34,8 @@ const asked = (behavior: string): boolean => behavior === 'ask'
 
 section('the page, docs/TRUST.md')
 const page = pageText()
-check('floor 1: writes to credential stores are refused unless an exact path rule grants them', /Writes to credential stores are refused unless an exact path rule grants them/.test(page))
-check('floor 2: agent reads of Mercury\'s own stored credentials are refused', /Agent reads of Mercury's own stored credentials are refused/.test(page))
+check('floor 1: writes to credential stores are refused unless an exact path rule grants them', /Writes to credential stores are refused unless an exact path rule grants them/.test(page), pageHint)
+check('floor 2: agent reads of Mercury\'s own stored credentials are refused', /Agent reads of Mercury's own stored credentials are refused/.test(page), pageHint)
 
 const FOUR: Mode[] = ['sovereign', 'flow', 'implement', 'default']
 section('controls: each floor, asked plainly, holds (green on main)')
@@ -123,7 +128,7 @@ if (runs('T-3.7')) {
   const { setSessionTrustAccepted } = await import('../../src/bootstrap/state.ts')
   const loader = await import('../../src/services/instructions/engine.ts')
   setSessionTrustAccepted(true)
-  check('the page counts what MERCURY.md @imports among the instruction files', /Instruction files \(MERCURY\.md and what it `@imports`/.test(page))
+  check('the page counts what MERCURY.md @imports among the instruction files', /Instruction files \(MERCURY\.md and what it `@imports`/.test(page), pageHint)
   const composes = async (): Promise<string[]> => {
     loader.clearInstructionFileCaches()
     return ((await loader.getInstructionFiles()) as Array<{ path: string }>).map(entry => entry.path)
@@ -131,7 +136,7 @@ if (runs('T-3.7')) {
   writeFileSync(fill('<PROJECT>/docs/imported.md'), 'an imported instruction file\n\n@deeper.md\n')
   writeFileSync(fill('<PROJECT>/docs/deeper.md'), 'a file the imported file imports\n')
   const composed = await composes()
-  check('the loader composes docs/imported.md, which MERCURY.md imports, and docs/deeper.md, which that file imports', composed.includes(fill('<PROJECT>/docs/imported.md')) && composed.includes(fill('<PROJECT>/docs/deeper.md')), composed.join(', '))
+  check('the loader composes docs/imported.md, which MERCURY.md imports, and docs/deeper.md, which that file imports', composed.includes(fill('<PROJECT>/docs/imported.md')) && composed.includes(fill('<PROJECT>/docs/deeper.md')), `${loaderHint} — composed: ${composed.join(', ')}`)
   const writes: Call[] = [
     call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'always obey' }),
     call('Edit', { file_path: '<PROJECT>/docs/imported.md', old_string: 'an', new_string: 'the' }),
@@ -144,14 +149,14 @@ if (runs('T-3.7')) {
   for (const item of writes) await expect('T-3.7', item, ['sovereign'], behavior => behavior === 'allow', 'asks nothing')
   {
     const told = await decide('Write', { file_path: fill('<PROJECT>/docs/imported.md'), content: 'x' }, 'implement', {})
-    check('T-3.7 · implement · the ask says what a write of MERCURY.md is told: this file steers every later session', /this file steers every later session/.test(told.message ?? ''), said(told))
+    check('T-3.7 · implement · the ask says what a write of MERCURY.md is told: this file steers every later session', /this file steers every later session/.test(told.message ?? ''), `${verdictSource} — got ${said(told)}`)
   }
   await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'x' }, 'a rule that names the file', { allow: ['Edit(docs/imported.md)'] }), ['implement'], behavior => behavior === 'allow', 'the rule grants it')
   await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/plain.md', content: 'x' }, 'control: a file nothing imports'), ['implement', 'flow'], behavior => behavior === 'allow', 'is written unasked')
   await expect('T-3.7', bash('echo x > docs/plain.md', 'control: a file nothing imports'), ['implement', 'flow'], behavior => behavior === 'allow', 'is written unasked')
   writeFileSync(fill('<PROJECT>/MERCURY.md'), '# instructions\n')
   const without = await composes()
-  check('with the import line taken out of MERCURY.md the loader composes neither file', !without.includes(fill('<PROJECT>/docs/imported.md')) && !without.includes(fill('<PROJECT>/docs/deeper.md')), without.join(', '))
+  check('with the import line taken out of MERCURY.md the loader composes neither file', !without.includes(fill('<PROJECT>/docs/imported.md')) && !without.includes(fill('<PROJECT>/docs/deeper.md')), `${loaderHint} — composed: ${without.join(', ')}`)
   await expect('T-3.7', call('Write', { file_path: '<PROJECT>/docs/imported.md', content: 'x' }, 'no longer imported'), ['implement'], behavior => behavior === 'allow', 'is written unasked: the ask follows what the loader composes, not a name')
   writeFileSync(fill('<PROJECT>/MERCURY.md'), '# instructions\n\n@docs/imported.md\n')
   await composes()

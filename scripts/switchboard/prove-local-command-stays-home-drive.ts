@@ -39,10 +39,10 @@ mkdirSync(OUT_DIR, { recursive: true })
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -147,21 +147,21 @@ try {
   const sup = await import('../../src/daemon/concourseWorkers.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   const dispatch = await import('../../src/daemon/concourseDispatch.ts')
-  check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the scratch daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon spawned from dist/mercury.mjs never answered ping within 60s: read daemon.log in the scratch folder, and rebuild with bun run build.ts if the bundle is stale')
   const admit = async (title: string, cmid: string, prompt: string, workspaceDir: string): Promise<string> => {
     const d = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: cmid, prompt, workspaceDir, title, model: DEFAULT_OPUS, effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-    check(`${title} admitted`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d))
+    check(`${title} admitted`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d) + ' | the concourseDispatch request was refused: see src/daemon/concourseDispatch.ts for why a dispatch is not admitted')
     return d.sessionId ?? ''
   }
   const sidB = await admit('beta probe', 'stays-home-beta', 'say beta is ready', ground)
   const sidA = await admit('alpha probe', 'stays-home-alpha', 'say alpha is ready', sandbox)
   const liveIds = (): string[] => Object.values(sup.readSessionWorkers(daemonDir)).filter(r => r.endedAt === undefined).map(r => r.sessionId)
-  check('both sessions live on the one daemon, in two folders', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(','))
+  check('both sessions live on the one daemon, in two folders', await untilAsync(() => liveIds().includes(sidA) && liveIds().includes(sidB), 30_000), liveIds().join(',') + ' | both dispatched sessions should have a live worker in the daemon session-workers record: see daemon.log in the scratch folder')
   await untilAsync(() => api.requests.length >= 2, 40_000)
   const tA = join(paths.getProjectDir(sandbox), `${sidA}.jsonl`)
   const tB = join(paths.getProjectDir(ground), `${sidB}.jsonl`)
-  check('both probes answered on their own transcripts', await untilAsync(() => readFileSync(tA, 'utf8').includes('alpha is ready.') && readFileSync(tB, 'utf8').includes('beta is ready.'), 40_000))
-  check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground))
+  check('both probes answered on their own transcripts', await untilAsync(() => readFileSync(tA, 'utf8').includes('alpha is ready.') && readFileSync(tB, 'utf8').includes('beta is ready.'), 40_000), '', 'a probe session never wrote its fixture reply to its own transcript within 40s: read daemon.log in the scratch folder')
+  check('both transcripts stand, each in its own project folder', existsSync(tA) && existsSync(tB) && paths.getProjectDir(sandbox) !== paths.getProjectDir(ground), '', 'each session must write its transcript under getProjectDir of its own folder (src/utils/sessionStorage/paths.ts)')
 
   const LIST_FOCUSED = 'new session · n'
   const ARMED = 'armed — ↵ again enters'
@@ -186,7 +186,7 @@ try {
     { awaitText: 'Error during compaction', requireAwait: true, minTick: 160, data: '', mark: 'end' },
   ], 320, 'Error during compaction')
   const [s1, s2] = await Promise.all([screen1.done, screen2.done])
-  check('both screens ran their journeys to the end', s1 === 0 && s2 === 0, `${s1}/${s2}`)
+  check('both screens ran their journeys to the end', s1 === 0 && s2 === 0, `${s1}/${s2} | a screen journey stopped before its last awaited text: read the captures kept under CONCFLOW_CAPTURE_DIR or the scratch captures folder`)
   readMarks('beta-screen', screen1.out)
   readMarks('alpha-screen', screen2.out)
 
@@ -194,28 +194,28 @@ try {
   const a = records(tA)
   const b = records(tB)
   const aCompactAt = a.findIndex(r => r.kind === 'input' && r.text.includes(COMPACT_ECHO))
-  check("alpha's transcript carries the caveat, the /compact echo and its stderr, in that order", aCompactAt > 0 && a[aCompactAt - 1]!.text.startsWith(CAVEAT) && a.slice(aCompactAt + 1).some(r => r.text.includes(FOLD_REFUSAL)), JSON.stringify(a.map(r => `${r.kind}:${r.text.slice(0, 40)}`)))
-  check("alpha's screen painted the command and its error under the operator's own chat", frame('alpha-screen:end').includes('/compact') && frame('alpha-screen:end').includes('Error during compaction'))
+  check("alpha's transcript carries the caveat, the /compact echo and its stderr, in that order", aCompactAt > 0 && a[aCompactAt - 1]!.text.startsWith(CAVEAT) && a.slice(aCompactAt + 1).some(r => r.text.includes(FOLD_REFUSAL)), JSON.stringify(a.map(r => `${r.kind}:${r.text.slice(0, 40)}`)) + ' | a local slash command run in a session must record the caveat, the command echo and its error in that same session transcript, in that order')
+  check("alpha's screen painted the command and its error under the operator's own chat", frame('alpha-screen:end').includes('/compact') && frame('alpha-screen:end').includes('Error during compaction'), '', 'the alpha screen must paint the typed /compact and its error (thrown in src/commands/compact/compact.ts) in its own chat; read alpha-screen-final.txt in the captures folder')
 
   section("L2 the other session never received a byte of it — not the caveat, not the echo, not the error, not a bare help sentence")
   const leaked = b.filter(r => r.text.includes(CAVEAT) || r.text.includes(COMPACT_ECHO) || r.text.includes(FOLD_REFUSAL) || r.text.includes(HELP_SENTENCE) || r.text.includes('Error during compaction'))
-  check("beta's transcript carries none of alpha's rows", leaked.length === 0, JSON.stringify(leaked.map(r => r.text.slice(0, 80))))
+  check("beta's transcript carries none of alpha's rows", leaked.length === 0, JSON.stringify(leaked.map(r => r.text.slice(0, 80))) + ' | a local command typed in one session must not be delivered to another session; the listed rows leaked into beta')
   const helloAt = b.findIndex(r => r.kind === 'input' && r.text.includes(HELLO))
-  check("beta's own line landed and was answered", helloAt >= 0 && b.slice(helloAt + 1).some(r => r.kind === 'output'), JSON.stringify(b.map(r => `${r.kind}:${r.text.slice(0, 40)}`)))
+  check("beta's own line landed and was answered", helloAt >= 0 && b.slice(helloAt + 1).some(r => r.kind === 'output'), JSON.stringify(b.map(r => `${r.kind}:${r.text.slice(0, 40)}`)) + ' | the line typed on the beta screen must reach beta and get its fixture reply; read beta-screen-final.txt in the captures folder')
   const betaWire = api.requests.filter(r => r.raw.includes(HELLO))
-  check("beta's next request on the wire carries its own words and none of alpha's rows", betaWire.length >= 1 && betaWire.every(r => !r.raw.includes(COMPACT_ECHO) && !r.raw.includes(FOLD_REFUSAL) && !r.raw.includes(CAVEAT)), `${betaWire.length} request(s)`)
+  check("beta's next request on the wire carries its own words and none of alpha's rows", betaWire.length >= 1 && betaWire.every(r => !r.raw.includes(COMPACT_ECHO) && !r.raw.includes(FOLD_REFUSAL) && !r.raw.includes(CAVEAT)), `${betaWire.length} request(s) | beta must send its own words on the wire (at least one request) and none of the rows of the other session local command`)
   const betaFrame = frame('beta-screen:end')
-  check("beta's screen paints its own chat only — no /compact row, no foreign error, nothing painted as the operator's that the operator did not type", betaFrame.includes(HELLO) && !betaFrame.includes('/compact') && !betaFrame.includes('Error during compaction') && !betaFrame.includes(HELP_SENTENCE), betaFrame.split('\n').slice(-16).join('\n'))
+  check("beta's screen paints its own chat only — no /compact row, no foreign error, nothing painted as the operator's that the operator did not type", betaFrame.includes(HELLO) && !betaFrame.includes('/compact') && !betaFrame.includes('Error during compaction') && !betaFrame.includes(HELP_SENTENCE), betaFrame.split('\n').slice(-16).join('\n') + '\n | the beta screen must show only its own typed line and reply: no /compact row, no compaction error, no help sentence')
 
   section('L3 the dispatch ledger keys every line by the session it was typed for')
   const ledger = Object.values(dispatch.readConcourseDispatches(daemonDir))
   const compactDigest = createHash('sha256').update('/compact', 'utf8').digest('hex')
   const compactRows = ledger.filter(r => r.promptDigest === compactDigest)
-  check('the /compact dispatch rode to alpha alone', compactRows.length === 1 && compactRows[0]!.sessionId === sidA, JSON.stringify(compactRows.map(r => [r.sessionId, r.state])))
+  check('the /compact dispatch rode to alpha alone', compactRows.length === 1 && compactRows[0]!.sessionId === sidA, JSON.stringify(compactRows.map(r => [r.sessionId, r.state])) + ' | the dispatch ledger (readConcourseDispatches in src/daemon/concourseDispatch.ts) must hold exactly one /compact row, keyed by the alpha session id')
   const helloDigest = createHash('sha256').update(HELLO, 'utf8').digest('hex')
-  check("beta's line rode to beta alone", ledger.filter(r => r.promptDigest === helloDigest).every(r => r.sessionId === sidB) && ledger.some(r => r.promptDigest === helloDigest))
+  check("beta's line rode to beta alone", ledger.filter(r => r.promptDigest === helloDigest).every(r => r.sessionId === sidB) && ledger.some(r => r.promptDigest === helloDigest), '', 'the dispatch ledger (readConcourseDispatches in src/daemon/concourseDispatch.ts) must hold the beta line, keyed by the beta session id alone')
   const bareDigest = createHash('sha256').update('/', 'utf8').digest('hex')
-  check('no bare slash was ever dispatched to either session', !ledger.some(r => r.promptDigest === bareDigest))
+  check('no bare slash was ever dispatched to either session', !ledger.some(r => r.promptDigest === bareDigest), '', 'a lone slash was dispatched as a prompt: the dispatch ledger (src/daemon/concourseDispatch.ts) holds a row for it')
 } finally {
   clientBeat.stop()
   try {

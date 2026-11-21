@@ -10,6 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: the shell row in runtimeChecks of src/services/health/sections/runtime.ts so its evidence and fix match the record from shellRecord in src/utils/shell/shellRecord.ts and the tool:shell row from collectReadiness in src/services/health/readiness.ts; the bundle checks run dist/mercury.mjs, so rebuild with `bun run build.ts` first')
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const flagAt = (flag: string): string | null => (process.argv.includes(flag) ? (process.argv[process.argv.indexOf(flag) + 1] ?? null) : null)

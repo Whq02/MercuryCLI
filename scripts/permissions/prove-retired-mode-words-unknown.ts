@@ -23,8 +23,9 @@ const WORDS = ['acceptEdits', 'bypassPermissions', 'plan', 'auto'] as const
 const CONTROL = 'frobnicate'
 
 let failures = 0
+const retiredWordsHint = 'a retired mode word must read exactly as an unknown word, with no alias; remove its spelling from PERMISSION_MODES in src/types/permissions.ts, permissionModeFromString and permissionModeSchema in src/utils/permissions/PermissionMode.ts, getHeadlessPermissionMode in src/daemon/headlessRun.ts, decodeAgentDocument in src/services/agents/codec.ts, or the saved-mode handling in src/services/resume/conversationRecovery.ts; for the built-product rows rebuild with bun run build.ts'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}${retiredWordsHint}` : ''}`)
   if (!ok) failures = 1
 }
 const swap = (text: string, word: string): string => text.split(word).join(CONTROL)

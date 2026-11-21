@@ -19,9 +19,9 @@ if (!existsSync(DIST)) {
 }
 const driver = posixPtyDriverOrSkip('contract-offer-drive')
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', fix = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
 const API_KEY = 'fixture-key-000'
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
@@ -115,7 +115,7 @@ type Rec = { sent?: number; ts?: number }
 const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : []
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
-check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
+check('the drive ladder fired whole', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`, 'the pty drive did not send every key; read its output above, and rebuild dist/mercury.mjs with bun run build.ts if the app never reached the boot face')
 if (sendRecs.length === sends.length) {
   const at = (i: number): number => Math.round(sendRecs[i]!.sent! - firstOut)
   const res = spawnSync(
@@ -141,24 +141,24 @@ if (sendRecs.length === sends.length) {
   }
   const [firstChat, cardFrame, afterEsc, fieldFrame, typedFrame, afterBirth, fin] = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens.map(s => s.rows.join('\n'))
   if (process.env.CONTRACT_OFFER_DUMP === '1') for (const [label, frame] of Object.entries({ afterEsc, fieldFrame, typedFrame, afterBirth, fin })) console.log(`\n═══ ${label}\n${frame}`)
-  check('§0 the transcript needle paints in the first chat (the sibling-transcript poison is never vacuous)', TRANSCRIPT_TAIL.test(firstChat!), firstChat!.split('\n').find(r => /answered/.test(r))?.trim().slice(0, 110) ?? '')
-  check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!))
-  check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterEsc!) && /Type a prompt/.test(afterEsc!) && /ready · [^\n]*← back/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
-  check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!))
-  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '))
-  check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!))
-  check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!))
-  check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!))
-  check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!))
-  check('§5 ↵ births under the words — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterBirth!) && /Type a prompt/.test(afterBirth!) && /ready · [^\n]*← back/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '')
-  check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!))
-  check('§2b/§5c the rows join the board (the final frame after returning to it: three rows under one heading, three seats taken)', /SESSIONS/.test(fin!) && /READY TO REVIEW · 3/.test(fin!) && /3\/5 seats/.test(fin!), fin!.split('\n').filter(r => /READY TO REVIEW|seats/.test(r)).map(r => r.trim().slice(-48)).join(' | '))
+  check('§0 the transcript needle paints in the first chat (the sibling-transcript poison is never vacuous)', TRANSCRIPT_TAIL.test(firstChat!), firstChat!.split('\n').find(r => /answered/.test(r))?.trim().slice(0, 110) ?? '', 'the first session never answered on screen; check the fixture API wiring in this file and that the chat paints its transcript')
+  check('§1 the n tab raises the offer card in the live-view pane', /Start with a contract\?/.test(cardFrame!) && /No, start it plain \(esc\)/.test(cardFrame!), '', 'the offer card text is in src/components/concourse/ContractOfferCard.tsx; check it opens on the n tab with both lines')
+  check('§2 esc answers No THROUGH THE CARD — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterEsc!) && /Type a prompt/.test(afterEsc!) && /ready · [^\n]*← back/.test(afterEsc!), (afterEsc ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '', 'esc on the offer card must answer No and focus the new blank chat; the card is src/components/concourse/ContractOfferCard.tsx')
+  check("§2c POISON: it is never the OLD chat (the pre-fix esc landed the first session's transcript)", !/first words here/.test(afterEsc!), '', 'esc on the offer card focused the old chat instead of the new blank one; fix where the card answer routes the focus')
+  check('§4 ↵ on Yes opens "What is the contract?" INSIDE the standing card', /What is the contract\?/.test(fieldFrame!) && /Start with a contract\?/.test(fieldFrame!), fieldFrame!.split('\n').filter(r => /contract|❯|Start with|What is/i.test(r)).map(r => r.trim().slice(0, 100)).join(' | '), 'enter on Yes must open the contract field inside the standing card; see src/components/concourse/ContractOfferCard.tsx')
+  check("§4b POISON: no sibling transcript paints behind the card (the first session's answer tail is absent)", !TRANSCRIPT_TAIL.test(fieldFrame!) && !TRANSCRIPT_TAIL.test(typedFrame!), '', 'a sibling session transcript painted behind the offer card; the card must stand alone')
+  check('§4c POISON: the retired live-composer context line never paints', !/write the contract here/.test(fieldFrame!) && !/write the contract here/.test(typedFrame!), '', 'remove the retired write the contract here line from the contract field render')
+  check('§4d the words type INTO the card (the frame carries them with the question still standing)', /Ship the widget/.test(typedFrame!) && /What is the contract\?/.test(typedFrame!), '', 'typed words must appear in the card field in src/components/concourse/ContractOfferCard.tsx')
+  check('§4e the field advertises its keys truthfully (↵ starts · esc plain)', /↵ starts the session under it/.test(typedFrame!) && /esc starts it plain/.test(typedFrame!), '', 'the field key hints live in src/components/concourse/ContractOfferCard.tsx')
+  check('§5 ↵ births under the words — the NEW blank chat is focused (the status row ready, the empty composer, no title row)', !/✶ VIEW/.test(afterBirth!) && /Type a prompt/.test(afterBirth!) && /ready · [^\n]*← back/.test(afterBirth!), (afterBirth ?? '').split('\n').find(r => /← back|new session/.test(r))?.trim().slice(0, 110) ?? '', 'enter on the contract field must birth the session under the words and focus the new blank chat')
+  check('§5b POISON: the birth never lands the OLD chat', !/first words here/.test(afterBirth!) && !TRANSCRIPT_TAIL.test(afterBirth!), '', 'the birth landed the old chat; fix where the card birth routes the focus')
+  check('§2b/§5c the rows join the board (the final frame after returning to it: three rows under one heading, three seats taken)', /SESSIONS/.test(fin!) && /READY TO REVIEW · 3/.test(fin!) && /3\/5 seats/.test(fin!), fin!.split('\n').filter(r => /READY TO REVIEW|seats/.test(r)).map(r => r.trim().slice(-48)).join(' | '), 'the board after return must list three rows under READY TO REVIEW and 3/5 seats; see src/services/concourse/concourseSnapshot.ts')
   const workers = existsSync(join(daemonDir, 'concourse-workers.json')) ? (JSON.parse(readFileSync(join(daemonDir, 'concourse-workers.json'), 'utf8')) as { workers?: Record<string, { sessionId?: string; endedAt?: number; contract?: { text?: string; status?: string } }> }) : { workers: {} }
   const all = Object.values(workers.workers ?? {})
   const born = new Set(all.map(w => w.sessionId))
-  check('§3 the records agree: THREE sessions were born (two plain births, one under its contract; the screen’s exit parks the chats and releases the blank newborns)', born.size === 3, `${born.size} session(s) across ${all.length} record(s)`)
+  check('§3 the records agree: THREE sessions were born (two plain births, one under its contract; the screen’s exit parks the chats and releases the blank newborns)', born.size === 3, `${born.size} session(s) across ${all.length} record(s)`, 'two plain births and one contract birth must each write a record in concourse-workers.json (src/daemon/concourseWorkers/store.ts); exiting the screen must release only the blank newborns')
   const contracted = all.filter(w => w.contract !== undefined)
-  check("§5d exactly ONE record carries the contract — the card's words verbatim, drafted for the agent's ack", contracted.length === 1 && contracted[0]?.contract?.text === CONTRACT_WORDS && contracted[0]?.contract?.status === 'draft', JSON.stringify(contracted.map(w => w.contract)))
+  check("§5d exactly ONE record carries the contract — the card's words verbatim, drafted for the agent's ack", contracted.length === 1 && contracted[0]?.contract?.text === CONTRACT_WORDS && contracted[0]?.contract?.status === 'draft', JSON.stringify(contracted.map(w => w.contract)), 'exactly one worker record must carry the typed contract words as a draft; see the contract offer birth path in src/components/concourse/ContractOfferCard.tsx and src/daemon/concourseWorkers/store.ts')
 }
 if (process.env.CONTRACT_OFFER_KEEP === '1') console.log(`[kept] home=${home} cwd=${cwd}`)
 else {

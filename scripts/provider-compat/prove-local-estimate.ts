@@ -15,12 +15,22 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 let checks = 0
+const SECTION_HINTS: Record<string, string> = {
+  '§0': 'the fixture world did not load as described: check the fixture Ollama in this file and discovery in src/services/providers/local/localDiscovery.ts',
+  '§1': 'change localToolWireOf or localPreComposeEstimate in src/services/providers/local/localCallModel.ts so the estimate weighs the tools the request sends',
+  '§2': 'change localLaneProfileFor (requestFitRefusal), localGuardWindow or LOCAL_FIT_TOLERANCE in src/services/providers/local/localCallModel.ts, or the window setting in src/services/providers/local/localWindow.ts',
+  '§3': 'change chooseLocalWindow or doubledRequestWindow in src/services/providers/local/localWindow.ts so an unread machine gets the automatic ceiling or the stated window',
+  '§4': 'change composeLocalWarm in src/services/providers/local/localWarm.ts or localToolWireGuess in src/services/providers/local/localCallModel.ts so the warm follows the turn',
+}
+let sectionHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = !ok && sectionHint ? `${detail ? `${detail} · ` : ''}${sectionHint}` : detail
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
+  sectionHint = SECTION_HINTS[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {

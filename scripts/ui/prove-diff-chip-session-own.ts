@@ -72,12 +72,12 @@ const diffOf = (frame: string): string => /(?:diff\s+)?\+(\d+)\s*\/\s*-(\d+)/.ex
 
 section('§1 the ground: the cockpit process edited nothing; the focused session\'s runner reports +42/-7')
 focusOnRunner()
-check('the cockpit\'s own ledger is empty (nothing was edited in this process)', tracker.getTotalLinesAdded() === 0 && tracker.getTotalLinesRemoved() === 0)
+check('the cockpit\'s own ledger is empty (nothing was edited in this process)', tracker.getTotalLinesAdded() === 0 && tracker.getTotalLinesRemoved() === 0, `the process ledger reads +${tracker.getTotalLinesAdded()}/-${tracker.getTotalLinesRemoved()}; the proof setup must not edit lines in this process (src/cost-tracker.ts counts them)`)
 
 section('§2 the deck pane paints the session\'s own diff and spend')
 {
   const frame = await paint(h(DeckPane as never, {}), 140, 40)
-  check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)))
+  check('RED ON THE BASE: the deck pane\'s diff chip reads the runner\'s +42/-7, never the cockpit process\'s +0/-0', diffOf(frame) === '42/7', diffOf(frame) + ' · ' + (frame.split('\n').find(l => /\+\d+\/-\d+/.test(l))?.trim() ?? frame.slice(0, 200)) + ' · the chip must read getFocusedSessionConnector().usage() totalLinesAdded and totalLinesRemoved in src/components/DeckPane.tsx, not the cost-tracker line counts of this process')
 }
 
 

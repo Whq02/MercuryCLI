@@ -34,12 +34,26 @@ const frameDir = ((): string | null => {
 })()
 let failures = 0
 let checks = 0
+let sectionHead = ''
+const sectionFix = (): string => {
+  if (sectionHead.startsWith('§0')) return 'WORKLOAD_CRON in src/utils/workloadContext.ts and canBatchWith (exported by src/cli/headless/turnDriver.ts)'
+  if (sectionHead.startsWith('§1b')) return 'requeueUndeliveredLines in src/cli/headless/restartCarry.ts'
+  if (sectionHead.startsWith('§1')) return 'saturnQueueStamp in src/utils/messages/noticeRows.ts'
+  if (sectionHead.startsWith('§2')) return 'getWorkloadUsage and getWorkloadUnpricedTurns in src/bootstrap/state.ts, and runWithWorkload in src/utils/workloadContext.ts'
+  if (sectionHead.startsWith('§3b')) return 'the Usage component in src/components/Settings/Usage.tsx'
+  if (sectionHead.startsWith('§3')) return 'scheduledSessionSpend, scheduledUsageLine and providerSessionSpend in src/services/providers/providerUsage/spend.ts, and modelUsageRows in src/rows/project.ts'
+  if (sectionHead.startsWith('§4')) return 'restoreCostStateForSession in src/cost-tracker.ts and the transcript writer in src/utils/sessionStorage/writer.ts'
+  return 'the code this section names'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` (fix ${sectionFix()})`}`)
 }
-const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
+const section = (t: string): void => {
+  sectionHead = t
+  console.log(`\n${'─'.repeat(76)}\n${t}`)
+}
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
 const settle = (ms = 100): Promise<void> => new Promise(r => setTimeout(r, ms))

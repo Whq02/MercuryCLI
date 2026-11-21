@@ -17,8 +17,10 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
+const FAIL_HINT = 'change the update verb in src/cli/update.ts or the channel roads in src/services/privateChannel/channelTransport.ts (checkChannelAccess, listChannelReleases, downloadChannelAssets, describeChannelRoad) so the output named by this check holds'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const shown = cond ? '' : detail ? `${detail} | hint: ${FAIL_HINT}` : FAIL_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 

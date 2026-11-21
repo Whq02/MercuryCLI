@@ -8,7 +8,10 @@ import { join, relative } from 'node:path'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log(`    where to look: src/tools/GrepTool/GrepTool.ts, relativizeContentLines and respellRoot for how each content line is spelled, capContentMatches and paginate for the per-file cap and the page window; compare the printed answer with the expected lines above`)
+  }
 }
 const j = (v: unknown): string => JSON.stringify(v)
 

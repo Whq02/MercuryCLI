@@ -12,6 +12,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: the warning text of detectManagedSettingsWarnings in src/utils/healthDiagnostic.ts and the exclusive preprocess of ExtensionsSettingsSchema in src/utils/settings/types.ts must say what the reader does (full lock for an invalid value, ignored for an unrecognised surface name)')
 }
 
 const fsOps = await import('../../src/utils/fsOperations.ts')

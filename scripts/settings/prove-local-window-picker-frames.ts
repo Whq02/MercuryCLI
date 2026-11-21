@@ -88,9 +88,10 @@ __pinLocalServerTruthForTest({ loaded: [], listed: [], runners: [], launchForm: 
 const REFUSED_MAX = '[max — 14.1 GiB does not fit 12.0 GiB usable · 128k fits]'
 
 let failures = 0
+const PICKER_FRAMES_HINT = 'What to change: the window line (localWindowChoiceLine), the ladder (nextLocalWindowSetting) and the refusal (decideLocalWindow, localWindowRefusalSpan) in src/services/providers/local/localWindow.ts, or the ctrl+w handling and painting in src/components/MercuryModelPicker.tsx'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}${pass ? '' : ` — ${PICKER_FRAMES_HINT}`}`)
 }
 const settle = async () => {
   for (let index = 0; index < 6; index++) {

@@ -59,41 +59,41 @@ try {
   child.stdout.on('data', data => { output += data })
   child.stderr.on('data', data => { output += data })
   const code = await new Promise<number | null>((resolve, reject) => { child.on('error', reject); child.on('exit', resolve) })
-  assert.equal(code, 0, output)
-  assert.equal(readFileSync(join(work, 'notes.txt'), 'utf8'), 'alpha\nbeta\ngamma\n')
+  assert.equal(code, 0, `mercury run exited ${code}, not 0; read its output below, and rebuild dist/mercury.mjs (bun run build.ts) if it is stale\n${output}`)
+  assert.equal(readFileSync(join(work, 'notes.txt'), 'utf8'), 'alpha\nbeta\ngamma\n', 'the scripted Edit did not land in notes.txt: the Read, Edit or Bash tool turn failed in the run, see the run output')
   const requests = captured.filter(request => request.url.startsWith('/v1/messages') && !request.url.includes('count_tokens') && !isHandoffRequest(request))
-  assert.equal(requests.length, 4, output)
+  assert.equal(requests.length, 4, `expected 4 model requests (read, edit, check, final text) and saw ${requests.length}; an extra or missing request means the turn loop sent or skipped a call\n${output}`)
   const first = requests[0]!.body
   let previous: any = null
   let initialUserBytes = 0
   const metrics = requests.map((request, index) => {
     const body = request.body
-    assert.equal(body.model, model)
-    assert.equal(body.thinking?.type, 'adaptive')
-    assert.equal(body.output_config?.effort, 'max')
-    assert.deepEqual(body.tools, first.tools)
-    assert.deepEqual(body.system, first.system)
-    assert.equal(body.max_tokens, first.max_tokens)
-    assert.deepEqual(bindingDropsFor(body), [])
-    if (previous) assert.deepEqual(clean(body.messages.slice(0, previous.messages.length)), clean(previous.messages), 'every earlier message stays byte-identical')
+    assert.equal(body.model, model, `request ${index + 1} changed the model mid-task; the model must stay the one selected`)
+    assert.equal(body.thinking?.type, 'adaptive', `request ${index + 1} dropped adaptive thinking; thinking must stay adaptive on every request`)
+    assert.equal(body.output_config?.effort, 'max', `request ${index + 1} changed the effort from max; effort must stay as selected on every request`)
+    assert.deepEqual(body.tools, first.tools, `request ${index + 1} sent a different tools array than request 1; the tool list must stay identical across the task so the cached prefix holds`)
+    assert.deepEqual(body.system, first.system, `request ${index + 1} sent a different system prompt than request 1; the system prompt must stay identical across the task so the cached prefix holds`)
+    assert.equal(body.max_tokens, first.max_tokens, `request ${index + 1} changed max_tokens from request 1; it must stay constant across the task`)
+    assert.deepEqual(bindingDropsFor(body), [], `request ${index + 1} dropped a thinking block the model had bound; thinking blocks must be replayed, not dropped`)
+    if (previous) assert.deepEqual(clean(body.messages.slice(0, previous.messages.length)), clean(previous.messages), `every earlier message stays byte-identical; request ${index + 1} rewrote a message already sent, so the history must be append-only`)
     previous = body
     const text = body.messages.filter((message: any) => message.role === 'user').flatMap((message: any) => typeof message.content === 'string' ? [message.content] : message.content.filter((block: any) => block.type === 'text').map((block: any) => block.text))
     const userBytes = text.reduce((n: number, item: string) => n + Buffer.byteLength(item), 0)
     if (index === 0) initialUserBytes = userBytes
-    else assert.equal(userBytes, initialUserBytes, 'no repeated user-context injection')
-    assert.equal(text.filter((item: string) => item.includes('# environment')).length, 1)
-    assert.equal(text.filter((item: string) => item.includes('The skills this session offers')).length, 1)
-    assert.ok(text.every((item: string) => !item.includes('# Tool manual:')), 'unused tools carry no full manuals')
+    else assert.equal(userBytes, initialUserBytes, `no repeated user-context injection; request ${index + 1} carries ${userBytes} user text bytes against ${initialUserBytes} in request 1, so something re-injected context (see src/utils/attachments/userContext.ts getUserContextAttachment)`)
+    assert.equal(text.filter((item: string) => item.includes('# environment')).length, 1, `request ${index + 1} carries the environment block a number of times other than one; it must appear exactly once`)
+    assert.equal(text.filter((item: string) => item.includes('The skills this session offers')).length, 1, `request ${index + 1} carries the skills listing a number of times other than one; it must appear exactly once`)
+    assert.ok(text.every((item: string) => !item.includes('# Tool manual:')), `unused tools carry no full manuals; request ${index + 1} sent a full tool manual for a tool not yet used, see src/services/attachments/toolManuals.ts`)
     for (const name of ['Debug', 'Browser', 'Crewmate']) {
       const tool = body.tools.find((tool: any) => tool.name === name)
-      assert.ok(tool, name)
-      assert.ok(Buffer.byteLength(tool.description) <= 4096, `${name} exceeds the short-description ceiling`)
+      assert.ok(tool, `request ${index + 1} has no ${name} tool in its tools array`)
+      assert.ok(Buffer.byteLength(tool.description) <= 4096, `${name} exceeds the short-description ceiling of 4096 bytes; shorten that tool's description in its tool definition under src/tools`)
     }
     const allText = JSON.stringify(body.messages)
-    if (index > 0) assert.equal(allText.split('Assess harm in context').length - 1, 1)
+    if (index > 0) assert.equal(allText.split('Assess harm in context').length - 1, 1, `request ${index + 1} repeats the harm-assessment reminder; it must appear exactly once in the history`)
     return { request: index + 1, bytes: request.totalBytes, toolsBytes: Buffer.byteLength(JSON.stringify(body.tools)), userBlockBytes: userBytes, newUserBlockBytes: index === 0 ? userBytes : 0, prefixHash: hash({ system: body.system, tools: body.tools, messages: body.messages.slice(0, first.messages.length) }), thinkingDrops: 0, toolCount: body.tools.length }
   })
-  assert.equal(new Set(metrics.map(row => row.prefixHash)).size, 1)
+  assert.equal(new Set(metrics.map(row => row.prefixHash)).size, 1, `the cached prefix (system, tools, first messages) differs between requests; compare the prefixHash values below and find which request first changed\n${JSON.stringify(metrics.map(row => [row.request, row.prefixHash]))}`)
   console.log(JSON.stringify({ road: 'Anthropic Messages', account: 'fixture API key', selectedModel: model, servedModel: model, metrics }, null, 2))
   console.log('PASS read, edit and check preserve all tools, effort, thinking and the append-only cached prefix')
 } finally {

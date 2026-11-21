@@ -51,14 +51,14 @@ try {
     const before = f.captures.length
     const result = await compactConversation(messages, context, cache as never, true)
     const summary = JSON.stringify(result.summaryMessages)
-    check(`${mode}: every summary text block survives instead of only the last assistant block`, summary.includes(first) && (mode !== 'split-text' || summary.includes(last)), summary.slice(0, 300))
-    check(`${mode}: the complete summary needs one request, not a no-text retry`, f.captures.length === before + 1, f.captures.length - before)
-    check(`${mode}: reasoning never appears as summary prose`, !summary.includes(thought))
-    check(`${mode}: the summariser keeps max effort`, f.captures.slice(before).every(row => row.body.reasoning_effort === 'max'))
+    check(`${mode}: every summary text block survives instead of only the last assistant block`, summary.includes(first) && (mode !== 'split-text' || summary.includes(last)), `compactConversation in src/services/compact/compact.ts must keep every text block of the summary reply · ${summary.slice(0, 300)}`)
+    check(`${mode}: the complete summary needs one request, not a no-text retry`, f.captures.length === before + 1, `compactConversation in src/services/compact/compact.ts sent ${f.captures.length - before} requests, expected 1: it must not retry for text when the summary already has text`)
+    check(`${mode}: reasoning never appears as summary prose`, !summary.includes(thought), 'compactConversation in src/services/compact/compact.ts must leave reasoning content out of the summary messages')
+    check(`${mode}: the summariser keeps max effort`, f.captures.slice(before).every(row => row.body.reasoning_effort === 'max'), 'the summary request built by compactConversation in src/services/compact/compact.ts must carry the session effort (max) as reasoning_effort')
   }
   plan = 'cut'
   const cut = await compactConversation(messages, context, cache as never, true).then(value => ({ result: value }), error => ({ error: String(error) }))
-  check('a fault after partial text still refuses the fold instead of accepting that text', 'error' in cut && !('result' in cut), cut)
+  check('a fault after partial text still refuses the fold instead of accepting that text', 'error' in cut && !('result' in cut), { hint: 'compactConversation in src/services/compact/compact.ts must throw when the summary stream is cut after partial text, not accept the partial text', cut })
 } finally {
   globalThis.fetch = originalFetch
   process.chdir(previousCwd)

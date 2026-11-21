@@ -44,9 +44,9 @@ const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import
 const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -117,7 +117,7 @@ try {
   await api.close()
 } catch {
 }
-check('the capture ran to its budget', status === 0, `vshot status ${status}\n${tail.slice(-600)}`)
+check('the capture ran to its budget', status === 0, `vshot status ${status}\n${tail.slice(-600)}`, 'the capture did not finish; read the vshot output above and check the capture driver and dist/mercury.mjs')
 let payload: { marks?: Array<{ label: string; atMs?: number }> } = {}
 try {
   payload = JSON.parse(readFileSync(outPath, 'utf8'))
@@ -125,7 +125,7 @@ try {
 }
 const marks = payload.marks ?? []
 const chatReady = marks.find(m => m.label === 'chat-ready')
-check('the chat was on screen (the composer placeholder painted)', chatReady !== undefined, JSON.stringify(marks.map(m => m.label)))
+check('the chat was on screen (the composer placeholder painted)', chatReady !== undefined, JSON.stringify(marks.map(m => m.label)), 'the chat never reached the composer, so no idle window exists; check the boot face and first-run seed in the capture')
 
 type Window = { t: number; pid: number; fs: Record<string, number>; top: Array<[string, number]>; spawns: Array<{ kind: string; cmd: string }> }
 const procs = new Map<number, string>()
@@ -174,24 +174,24 @@ for (const [k, v] of shown) console.log(`    ${String(perMin(v)).padStart(5)}/mi
 
 for (const role of ['tui', 'daemon', 'runner']) {
   const n = perMin(perProc.get(role) ?? 0)
-  check(`§1 ${role}: ≤ ${BUDGET_PER_MIN[role]} file operations a minute at idle against the config home and the project`, n <= (BUDGET_PER_MIN[role] ?? 300), `${n}/min`)
+  check(`§1 ${role}: ≤ ${BUDGET_PER_MIN[role]} file operations a minute at idle against the config home and the project`, n <= (BUDGET_PER_MIN[role] ?? 300), `${n}/min`, `the ${role} process polls files too often at idle; find the hot paths in the top list printed above and stop or slow that poll`)
 }
 const tuiDurable = [...durable].filter(([k]) => k.startsWith('tui '))
-check('§2 the TUI writes nothing durable under the config home at idle', tuiDurable.length === 0, JSON.stringify(tuiDurable))
+check('§2 the TUI writes nothing durable under the config home at idle', tuiDurable.length === 0, JSON.stringify(tuiDurable), 'the TUI wrote under the config home at idle; find the writer of the files in the top list above and make it write only on change')
 const connectorStats = [...top]
   .filter(([k]) => k.startsWith('tui: statSync') && (k.includes('/daemon/session-') || (k.includes('/projects/') && k.endsWith('.jsonl'))))
   .reduce((n, [, v]) => n + v, 0)
 const attached = new Set([...top].filter(([k]) => k.startsWith('tui: statSync') && k.includes('/projects/') && k.endsWith('.jsonl')).map(([k]) => k)).size || 1
-check(`§3 the connector stats ≤ ${CONNECTOR_STATS_PER_MIN} a minute per attached connector at idle`, perMin(connectorStats) <= CONNECTOR_STATS_PER_MIN * 2 * attached, `${perMin(connectorStats)}/min over ${attached} transcript(s)`)
+check(`§3 the connector stats ≤ ${CONNECTOR_STATS_PER_MIN} a minute per attached connector at idle`, perMin(connectorStats) <= CONNECTOR_STATS_PER_MIN * 2 * attached, `${perMin(connectorStats)}/min over ${attached} transcript(s)`, 'the connector stats its session or transcript files too often at idle; slow that poll')
 const storeReads = [...top].filter(([k]) => /tui: readFile\((p|cb)\) .*(coordinator-receipt-journal|obligations-)/.test(k)).reduce((n, [, v]) => n + v, 0)
-check('§4 the receipt journal and the crew obligations are never read by the floor at rest (stats only)', perMin(storeReads) <= 6, `${perMin(storeReads)}/min`)
+check('§4 the receipt journal and the crew obligations are never read by the floor at rest (stats only)', perMin(storeReads) <= 6, `${perMin(storeReads)}/min`, 'the TUI reads the receipt journal or the crew obligations at rest; it may only stat them')
 const homeSweep = [...top].filter(([k]) => k.startsWith('tui: lstat') && k.includes(CFG)).reduce((n, [, v]) => n + v, 0)
-check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`)
+check('§5 no lstat sweep of the config home in the TUI at idle beyond a root-level write (the settings watcher ignores by path)', perMin(homeSweep) <= 60, `${perMin(homeSweep)}/min`, 'something lstat-sweeps the config home in the TUI at idle; look for lstat paths in the top list above')
 const presenceRenames = [...top].filter(([k]) => k.startsWith('tui: renameSync') && k.includes('/presence/')).reduce((n, [, v]) => n + v, 0)
-check('§6 the retired presence estate writes nothing (no rename under a presence/ dir)', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`)
+check('§6 the retired presence estate writes nothing (no rename under a presence/ dir)', perMin(presenceRenames) === 0, `${perMin(presenceRenames)}/min`, 'a rename under a presence/ directory means the retired presence estate is written again; find that writer and remove it')
 const OTHER_TOOL_DIR = ['.cla', 'ude'].join('')
 const otherToolProbes = [...top].filter(([k]) => k.includes(`${FOLDER}/${OTHER_TOOL_DIR}`)).reduce((n, [, v]) => n + v, 0)
-check('§7 no file operation at idle names another tool\'s folder under the project (every probe is of Mercury\'s own home)', otherToolProbes === 0, `${otherToolProbes} over the idle window`)
+check('§7 no file operation at idle names another tool\'s folder under the project (every probe is of Mercury\'s own home)', otherToolProbes === 0, `${otherToolProbes} over the idle window`, 'an idle file operation probes another tools folder under the project; find it in the top list above and remove the probe')
 
 console.log(`\n${failures === 0 ? '✅ STORE POLL BUDGET: green' : `❌ ${failures} FAILURE(S)`}`)
 process.exit(failures === 0 ? 0 : 1)

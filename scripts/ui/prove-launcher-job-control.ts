@@ -81,14 +81,14 @@ try {
     const gridAt = (label: string): string => mark(report, label)?.grid ?? ''
     const afterStop = gridAt('after-stop')
     const suspendedSpoken = [...afterStop.split('\n'), ...report.shellLines].some(l => /suspended|Stopped/i.test(l))
-    check('the shell reports the suspended job (job control reached it)', suspendedSpoken, `shellLines=${JSON.stringify(report.shellLines)} tail=${journeyTail(run)}`)
-    check('the shell prompt returns after ctrl+z (the terminal is the shell\'s again)', afterStop.includes('host$'), JSON.stringify(afterStop.split('\n').filter(r => r.trim() !== '').slice(-3)))
+    check('the shell reports the suspended job (job control reached it)', suspendedSpoken, `shellLines=${JSON.stringify(report.shellLines)} tail=${journeyTail(run)} \u00b7 ctrl+z did not stop the launched runtime: the launcher must exec the runtime in the shell's own process (see posixLauncher in scripts/release/launcherTemplates.mjs)`)
+    check('the shell prompt returns after ctrl+z (the terminal is the shell\'s again)', afterStop.includes('host$'), `${JSON.stringify(afterStop.split('\n').filter(r => r.trim() !== '').slice(-3))} \u00b7 the shell never got its prompt back after ctrl+z: look at posixLauncher in scripts/release/launcherTemplates.mjs`)
     const stoppedSample = report.samples.filter(s => s.label === 'stopped').at(-1)
-    check('the runtime is stopped (T state), not running on behind the shell', stoppedSample !== undefined && stoppedSample.stat !== null && stoppedSample.stat.startsWith('T'), JSON.stringify(stoppedSample))
+    check('the runtime is stopped (T state), not running on behind the shell', stoppedSample !== undefined && stoppedSample.stat !== null && stoppedSample.stat.startsWith('T'), `${JSON.stringify(stoppedSample)} \u00b7 the runtime must stop on ctrl+z and not run on behind the shell: look at posixLauncher in scripts/release/launcherTemplates.mjs`)
     const resumedSample = report.samples.filter(s => s.label === 'resumed').at(-1)
-    check('fg brings the cockpit back to the foreground', resumedSample !== undefined && resumedSample.foreground === true, JSON.stringify(resumedSample))
-    check('the resumed cockpit is alive (not stopped)', resumedSample !== undefined && resumedSample.stat !== null && !resumedSample.stat.startsWith('T'), JSON.stringify(resumedSample))
-    check('the journey ends back at the shell prompt (a clean exit)', report.endReason === 'done' || (report.finalGrid ?? '').includes('host$'), journeyTail(run))
+    check('fg brings the cockpit back to the foreground', resumedSample !== undefined && resumedSample.foreground === true, `${JSON.stringify(resumedSample)} \u00b7 fg must return the runtime to the foreground process group: look at posixLauncher in scripts/release/launcherTemplates.mjs`)
+    check('the resumed cockpit is alive (not stopped)', resumedSample !== undefined && resumedSample.stat !== null && !resumedSample.stat.startsWith('T'), `${JSON.stringify(resumedSample)} \u00b7 the runtime stayed stopped after fg: look at posixLauncher in scripts/release/launcherTemplates.mjs`)
+    check('the journey ends back at the shell prompt (a clean exit)', report.endReason === 'done' || (report.finalGrid ?? '').includes('host$'), `${journeyTail(run)} \u00b7 two ctrl+c presses must quit the runtime and return to the shell prompt: look at posixLauncher in scripts/release/launcherTemplates.mjs`)
   }
 } finally {
   rmSync(work, { recursive: true, force: true })

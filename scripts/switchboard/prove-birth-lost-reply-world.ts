@@ -9,6 +9,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(`         fix: in ${DRIVE} import tmpdir from node:os, write const WORLD_ROOT = tmpdir(), build the world as realpathSync(mkdtempSync(join(WORLD_ROOT, ...))) and spell no /tmp, /private/tmp, /var/folders or home path; a failure under section 0 is in the matcher helpers of this file instead`)
 }
 
 const SPELLED_ROOT = /(?:^|[^A-Za-z0-9_])\/(?:private\/tmp|tmp|var\/folders|Users|home)\b/

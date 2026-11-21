@@ -20,7 +20,7 @@ process.env.NODE_ENV = 'test'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — fix the folder line of the Bash card in src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx (it reads useFocusedWorkspaceCwd in src/hooks/useFocusedWorkspaceCwd.ts and a per-call cwd input) — ${detail.slice(0, 300)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

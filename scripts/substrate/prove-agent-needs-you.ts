@@ -8,7 +8,7 @@ import {
 let failures = 0
 function check(label: string, cond: boolean): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — to fix: the gate and the wording rules are agentNeedsYouEnabled, classifyAgentStateHeuristic and tempoForState in src/services/agentStateHeuristic.ts; the verdict store is recordAgentStateVerdict, getAgentStateVerdict and clearAgentStateVerdict in src/services/agentNeedsYou.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

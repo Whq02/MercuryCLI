@@ -21,7 +21,8 @@ let checks = 0
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
+  const where = ' (fix how processUserInput in src/services/processUserInput/processUserInput.ts treats a bare slash or an unknown command name; parseSlashCommand is in src/utils/slashCommandParsing.ts)'
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}${condition ? '' : where}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -10,9 +10,10 @@ const PYTHON = '/usr/bin/python3'
 const { FIXTURE_API_KEY } = await import('../lib/firstRunSeed.ts')
 
 let failures = 0
+const CENSUS_FIX_HINT = 'change scripts/gate/skip-census.py for the shard and aggregate checks of sections 1 to 3, scripts/gate/ci-shard.sh for section 4, and the results uploads and census step in .github/workflows/gate.yml and drives.yml for section 5'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${CENSUS_FIX_HINT}`}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}`)

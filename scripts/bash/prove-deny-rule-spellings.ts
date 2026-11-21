@@ -45,6 +45,7 @@ const decide = async (command: string, mode: string, deny: string[] = RULES): Pr
 const shown = (decision: Decision): string => `${decision.behavior}: ${decision.message ?? ''}`
 const deniedBy = (decision: Decision, rule: string): boolean => decision.behavior === 'deny' && String(decision.message).includes(`denied by the rule ${rule}`)
 const ASKING_MODES = ['default', 'implement', 'flow']
+const denyWhere = ' | the Bash deny-rule match in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts, with src/utils/bash/ast.ts for how the command is read) must read this spelling as the same command'
 
 const variants: Array<[string, string, string]> = [
   ['rm x', 'Bash(rm *)', 'the plain spelling'],
@@ -81,7 +82,7 @@ section('§1 in every asking mode each spelling is refused by the rule, not mere
 for (const [command, rule, label] of variants) {
   for (const mode of ASKING_MODES) {
     const verdict = await decide(command, mode)
-    check(`${mode}: ${JSON.stringify(command)} — ${label} → deny by ${rule}`, deniedBy(verdict, rule), shown(verdict))
+    check(`${mode}: ${JSON.stringify(command)} — ${label} → deny by ${rule}`, deniedBy(verdict, rule), shown(verdict) + denyWhere)
   }
 }
 
@@ -97,23 +98,23 @@ for (const [command, label] of [
 ] as Array<[string, string]>) {
   for (const mode of ASKING_MODES) {
     const verdict = await decide(command, mode)
-    check(`${mode}: ${command} — ${label} → not denied`, verdict.behavior !== 'deny', shown(verdict))
+    check(`${mode}: ${command} — ${label} → not denied`, verdict.behavior !== 'deny', shown(verdict) + ' | the deny rule is matching further than its prefix; narrow the match in bashToolHasPermission (src/tools/BashTool/bashPermissions.ts)')
   }
 }
 for (const command of ['echo rm x', 'git status', 'ls']) {
   const verdict = await decide(command, 'default')
-  check(`default: ${command} stays allowed`, verdict.behavior === 'allow', shown(verdict))
+  check(`default: ${command} stays allowed`, verdict.behavior === 'allow', shown(verdict) + ' | a read-only command was denied or asked; see bashToolHasPermission in src/tools/BashTool/bashPermissions.ts')
 }
 
 section('§3 sovereign asks nothing: the same spellings refuse there by the rule, the rest run, and nothing is asked')
 {
   for (const [command, rule] of variants) {
     const verdict = await decide(command, 'sovereign')
-    check(`sovereign: ${JSON.stringify(command)} → deny by ${rule} (not ask)`, deniedBy(verdict, rule), shown(verdict))
+    check(`sovereign: ${JSON.stringify(command)} → deny by ${rule} (not ask)`, deniedBy(verdict, rule), shown(verdict) + denyWhere)
   }
   for (const command of ['echo rm x', 'rmdir x', 'git status', 'sudo ls', 'ls', 'find . -delete']) {
     const verdict = await decide(command, 'sovereign')
-    check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict))
+    check(`sovereign: ${command} → allow (not ask)`, verdict.behavior === 'allow', shown(verdict) + ' | sovereign mode must allow what no deny rule names; see decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts')
   }
 }
 

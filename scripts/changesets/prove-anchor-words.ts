@@ -21,7 +21,8 @@ const { matchExactEdit } = await import(join(ROOT, 'src/tools/FileEditTool/FileE
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix: the refusal wording is built by checkAnchor and formatAnchorFailure in src/services/changeTransaction/snapshotAnchor.ts; the ChangeSet preflight is planChangeSet in src/services/changeTransaction/changeSetPlan.ts and the apply path is src/tools/ChangeSetTool/ChangeSetTool.ts; the Read anchor print is src/tools/FileReadTool/FileReadTool.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${fixHint}` : ''}`)
 }
 
 const content = 'line 1\nline 2\n'
