@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
+import { flagRegistryFiles } from '../lib/flagRegistrySource.ts'
 import ts from 'typescript'
 import { fileURLToPath } from 'node:url'
 import { ModuleCache, calleeName, declarationOf, importOf, lineOf, returnedExpressions, slash, unwrap, visit } from './sourceCensus.ts'
@@ -164,8 +165,9 @@ function checkSites(): void {
     const text = readFileSync(path, 'utf8')
     const pre = ts.preProcessFile(text, true, true)
     if (file === DOOR) {
-      const imports = pre.importedFiles.map(i => i.fileName)
-      if (!imports.includes('./flagRegistry.js') || imports.some(i => !i.startsWith('node:') && i !== './flagRegistry.js')) throw Error(`${DOOR}: the trace door may import only the flag door and Node builtins`)
+      const imports = pre.importedFiles.map(i => i.fileName).filter(spec => !spec.startsWith('node:'))
+      const registry = flagRegistryFiles(ROOT).find(p => dirname(p) === dirname(DOOR))
+      if (imports.length !== 1 || !registry || slash(relative(ROOT, moduleSource(syntax(file), imports[0]!).fileName)) !== registry) throw Error(`${DOOR}: the trace door may import only the flag door and Node builtins`)
     }
     if (file !== DOOR && !pre.importedFiles.some(i => i.fileName.includes('featureReached'))) continue
     const sf = syntax(file)
