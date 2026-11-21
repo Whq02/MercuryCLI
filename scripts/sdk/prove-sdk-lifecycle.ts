@@ -89,7 +89,7 @@ try {
     const session = fixtureSessionRow({ session_id: 'interrupt-session' })
     const [turn] = fixtureTurn({ session_id: 'interrupt-session', turn: 2, turn_id: 'turn-two' })
     const step = { type: 'step', seq: 3, timestamp: '2000-01-01T00:00:00.000Z', session_id: 'interrupt-session', message_id: 'm1', model: 'fixture-model', usage: { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4 } }
-    assert(sdk.rowOf(step).ok && sdk.rowOf(turn).ok)
+    assert(sdk.rowOf(step).ok && sdk.rowOf(turn).ok, 'fixture step or turn row failed sdk.rowOf validation in sdk/src/parse.ts')
     const idle = (rows: unknown[], onSigint = '') => fake(`${rows.map(row => `console.log(${JSON.stringify(JSON.stringify(row))})`).join(';')};${onSigint};setInterval(()=>{},1000)`)
     const first = run({ mercury: idle([session]), prompt: 'x' })
     await first.session; assert.equal(first.interrupt(), true)
@@ -106,7 +106,7 @@ try {
     const synthesized = await folded.outcome; await iteration
     assert.equal(synthesized.turn, 2); assert.equal(synthesized.turn_id, 'turn-two'); assert.equal(synthesized.steps, 1); assert.equal(synthesized.seq, 4)
     assert.deepEqual(synthesized.usage, { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4 }); assert.deepEqual(synthesized.models, { 'fixture-model': { input_tokens: 25, cached_input_tokens: 2, cache_write_input_tokens: 1, output_tokens: 4, web_searches: 0 } })
-    assert(synthesized.wall_ms >= 0); assert.deepEqual(seen, ['interrupted']); assert.deepEqual(iterated, ['session', 'turn', 'step', 'outcome'])
+    assert(synthesized.wall_ms >= 0, `synthesized interrupted outcome wall_ms was negative (${synthesized.wall_ms}) in sdk/src/client.ts`); assert.deepEqual(seen, ['interrupted']); assert.deepEqual(iterated, ['session', 'turn', 'step', 'outcome'])
     assert(sdk.rowOf(synthesized).ok, 'the synthesized row is a valid outcome row')
     const exiting = run({ mercury: idle([session], "process.on('SIGINT',()=>process.exit(130))"), prompt: 'x' })
     await exiting.session; exiting.interrupt()
@@ -251,8 +251,8 @@ console.log(JSON.stringify({ errors, exit, rejections }))
     const pkg = JSON.parse(await Bun.file(join(root, 'sdk/package.json')).text())
     assert.equal(sdk.VERSION, pkg.version)
     const pyproject = await Bun.file(join(root, 'sdk-py/pyproject.toml')).text()
-    assert(pyproject.includes(`version = "${sdk.VERSION}"`))
-    assert((await Bun.file(join(root, 'sdk-py/src/mercury_cli_sdk/version.py')).text()).includes(`'${sdk.VERSION}'`))
+    assert(pyproject.includes(`version = "${sdk.VERSION}"`), `sdk-py/pyproject.toml version does not match sdk.VERSION (${sdk.VERSION})`)
+    assert((await Bun.file(join(root, 'sdk-py/src/mercury_cli_sdk/version.py')).text()).includes(`'${sdk.VERSION}'`), `sdk-py/src/mercury_cli_sdk/version.py does not match sdk.VERSION (${sdk.VERSION})`)
   })
   const python = spawnSync(PYTHON, [resolve(import.meta.dir, 'python-lifecycle.py')], { env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: resolve(root, 'sdk-py/src') }, encoding: 'utf8', timeout: 60000 })
   console.log(python.stdout.trim()); if (python.status !== 0) { failures.push('Python lifecycle'); console.error(python.stderr) }

@@ -63,15 +63,15 @@ try {
     const result = await s.prompt('hello')
     assert.equal(result.status, 'completed')
     assert.equal(askSeen, true)
-    assert(s.rows.some(r => r.type === 'unknown_row'))
+    assert(s.rows.some(r => r.type === 'unknown_row'), 'session.rows dropped future unknown_row notification in sdk/src/runner.ts')
     for (const [name, spec] of Object.entries(sdk.METHODS)) {
       if (spec.from !== 'host' || spec.kind !== 'request' || ['initialize', 'queue/add'].includes(name)) continue
       assert.deepEqual(await s.request(name as sdk.HostRequestName, example(spec.params)), example(spec.result), name)
     }
     for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') s.notify(name as sdk.HostNotificationName, example(spec.params))
-    assert(notifications.every(([name]) => notices.includes(name)))
+    assert(notifications.every(([name]) => notices.includes(name)), `session missed runner notification(s) in sdk/src/runner.ts: got ${notices.join(',')}`)
     for (let i = 0; i < reverse.length; i++) assert(rpc.received.some(r => r.id === 1000 + i && 'result' in r), reverse[i]![0])
-    assert(rpc.received.some(r => r.id === 901 && (r.result as any)?.outcome === 'deny'))
+    assert(rpc.received.some(r => r.id === 901 && (r.result as any)?.outcome === 'deny'), 'permission/request id=901 deny response missing in sdk/src/runner.ts')
   } finally { await s.close() }
   for (const [name, spec] of Object.entries(sdk.METHODS)) if (spec.from !== 'runner' && spec.kind === 'notification') assert(rpc.received.some(r => r.method === name), name)
 } finally { await rpc.close() }
@@ -91,7 +91,7 @@ try {
     assert.deepEqual(await s.sendNow(), convenienceMethods['session/send_now']![0]!.result)
     s.notifyCredentialsChanged()
   } finally { await s.close() }
-  assert(convenienceRpc.received.some(r => r.method === 'credentials/changed'))
+  assert(convenienceRpc.received.some(r => r.method === 'credentials/changed'), 'notifyCredentialsChanged sent no credentials/changed notification in sdk/src/runner.ts')
 } finally { await convenienceRpc.close() }
 
 assert.deepEqual(sdk.allowPermission({ input: { a: 1 } }), { outcome: 'allow', input: { a: 1 } })

@@ -17,7 +17,7 @@ try {
     assert.equal(result.status, 'completed'); assert.equal((await task.exit).code, 0)
     assert.equal((await task.session).model, model === 'compat' ? c.model : model)
     assert.equal(result.answer, model === anthropicModel ? 'ANTHROPIC-ANSWER' : 'LLMHOST-READY')
-    if (model !== anthropicModel) assert(Object.keys(result.models).includes(c.model))
+    if (model !== anthropicModel) assert(Object.keys(result.models).includes(c.model), `run(${model}) outcome.models omitted ${c.model} in sdk/src/: ${Object.keys(result.models).join(',')}`)
   })
   await check('compat-only credentials need no Anthropic sign-in', async () => {
     const env = { ...c.env }
@@ -79,7 +79,7 @@ try {
     }
   })
   await check('Python model admission parity', () => pythonProof('python-compat-models.py', c))
-  assert(c.requests.length > 0 && c.requests.every(request => request.fault === undefined && request.auth === `Bearer ${c.key}`))
+  assert(c.requests.length > 0 && c.requests.every(request => request.fault === undefined && request.auth === `Bearer ${c.key}`), `compat fixture received ${c.requests.length} requests with faults or bad auth in src/services/providers/openaicompat/`)
 } finally { await c.close(); clearTimeout(guard) }
 assert.deepEqual(failures, [])
 console.log('PASS compat and Anthropic model admission through both real SDKs')

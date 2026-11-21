@@ -10,9 +10,9 @@ const init = { protocol: 1, runner: { version: 'fixture', pid: 1 }, session_id: 
 const outcome = { type: 'outcome', seq: 1, timestamp: 't', session_id: 's', turn: 1, schema: 1, turn_id: 't', status: 'completed', steps: 1, wall_ms: 1, usage: { input_tokens: 0, cached_input_tokens: 0, cache_write_input_tokens: 0, output_tokens: 0 }, models: {}, denials: [] }
 const future = { type: 'future', seq: 7, timestamp: 't', parent_call_id: 'agent', session_id: 's', turn: 2 }
 const parsed = rowOf(future)
-assert(parsed.ok && parsed.row.type === 'unknown_row')
-assert.equal(parsed.row.original_type, 'future'); assert.equal(parsed.row.seq, 7); assert.equal(parsed.row.session_id, 's'); assert(!isMainThread(parsed.row))
-for (const row of [{ type: 'prompt', content: '' }, { type: 'prompt', content: [] }, { type: 'shell', command: ' \r\n ' }, { type: 'note', to: '', content: 'x' }, { type: 'note', to: 'a', content: '' }]) assert(!inputRowOf(row).ok)
+assert(parsed.ok && parsed.row.type === 'unknown_row', `rowOf(future) did not classify unknown row type in sdk/src/parse.ts: ${JSON.stringify(parsed)}`)
+assert.equal(parsed.row.original_type, 'future'); assert.equal(parsed.row.seq, 7); assert.equal(parsed.row.session_id, 's'); assert(!isMainThread(parsed.row), 'isMainThread returned true for row carrying parent_call_id in sdk/src/parse.ts')
+for (const row of [{ type: 'prompt', content: '' }, { type: 'prompt', content: [] }, { type: 'shell', command: ' \r\n ' }, { type: 'note', to: '', content: 'x' }, { type: 'note', to: 'a', content: '' }]) assert(!inputRowOf(row).ok, `inputRowOf accepted empty input row in sdk/src/parse.ts: ${JSON.stringify(row)}`)
 for (const door of ['run', 'runner']) {
   const mercury = fake("process.stdin.resume();process.stdout.write('x'.repeat(33*1024*1024)+'\\n');setInterval(()=>{},1000)")
   if (door === 'run') { const task = run({ mercury, prompt: 'x' }); await assert.rejects(task.outcome, e => e instanceof MercuryWireError && e.issues[0]?.message.includes('33554432')); await task.exit }
