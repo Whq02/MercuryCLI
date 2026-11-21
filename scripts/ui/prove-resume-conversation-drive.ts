@@ -179,7 +179,6 @@ async function capture(name: string, cfg: Record<string, unknown>, env: NodeJS.P
 }
 
 const gated = (data: string, awaitText: string, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, atTick: 999, awaitText, requireAwait: true, minTick: 1, awaitSettleTicks: 3, ...extra })
-const after = (data: string, ticks: number, extra: Record<string, unknown> = {}): Record<string, unknown> => ({ data, afterPrevTicks: ticks, ...extra })
 const dueDetail = (cap: Capture): string => `${cap.receipts}/${cap.sends} · status ${cap.status} · end ${cap.endReason} · ${cap.stderr.slice(-300)}`
 
 async function pickSecondLeg(): Promise<void> {
@@ -194,11 +193,12 @@ async function pickSecondLeg(): Promise<void> {
       argv: [NODE, DIST, '--resume'],
       sends: [
         gated('', 'third session gamma prompt', { minTick: 2, awaitSettleTicks: 4, awaitStableTicks: 3, mark: 'picker' }),
-        after(DOWN, 2),
-        after('', 4, { mark: 'after-down' }),
-        after('\r', 2),
+        gated(DOWN, 'third session gamma prompt', { awaitSettleTicks: 2 }),
+        gated('', 'second session beta prompt', { awaitPattern: '❯[^\\n]*second session beta prompt', awaitSettleTicks: 4, mark: 'after-down' }),
+        gated('\r', 'second session beta prompt', { awaitPattern: '❯[^\\n]*second session beta prompt', awaitSettleTicks: 2 }),
         gated('', 'beta saved reply marker', { minTick: 2, awaitSettleTicks: 6, awaitStableTicks: 3, mark: 'resumed' }),
       ],
+      readyText: 'beta saved reply marker',
       stableTicks: 4,
     }, env)
     const m = cap.marks
@@ -233,14 +233,13 @@ async function searchAndCancelLeg(): Promise<void> {
       argv: [NODE, DIST, '--resume'],
       sends: [
         gated('', 'third session gamma prompt', { minTick: 2, awaitSettleTicks: 4, awaitStableTicks: 3 }),
-        after('/', 2),
-        after('alpha', 2),
+        gated('/', 'third session gamma prompt', { awaitSettleTicks: 2 }),
+        gated('alpha', 'third session gamma prompt', { awaitSettleTicks: 2 }),
         gated('', 'first session alpha prompt', { awaitPattern: '\\A(?![\\s\\S]*third session gamma prompt)', awaitSettleTicks: 3, awaitStableTicks: 2, mark: 'filtered' }),
-        after(ESC, 2),
-        after(ESC, 2),
-        after(ESC, 2),
+        gated(ESC, 'first session alpha prompt', { awaitSettleTicks: 2 }),
+        gated(ESC, 'third session gamma prompt', { awaitSettleTicks: 2 }),
+        gated(ESC, 'esc close', { awaitSettleTicks: 2 }),
       ],
-      stableTicks: 4,
     }, env)
     const m = cap.marks
     tally.section('search-cancel 120x36 · /alpha filters the picker to the first session and esc exits without opening chat')
