@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -36,7 +37,7 @@ const REPORT_PLACES = ['the rail', 'the view', 'the composer', 'the crew box', '
 const REPORT_CLAIMS = ['keeps every row', 'holds its keys', 'stands where it stood', 'paints the same cells']
 const LEAD_REPORT = [LEAD_DONE, ...Array.from({ length: 48 }, (_, i) => `${i + 1}. ${REPORT_PLACES[i % REPORT_PLACES.length]} ${REPORT_CLAIMS[Math.floor(i / REPORT_PLACES.length) % REPORT_CLAIMS.length]}`)].join('\n')
 const NOTICE_PATTERN = '\\[Crewmate\\] fjord · completed'
-const FACE_PATTERN = '\\d+ agents\\b[\\s\\S]*\\d+ of \\d+ signed in'
+const FACE_PATTERN = `${BOOT_FACE_READY}[\\s\\S]*Model [\\s\\S]*Dir: fixture-cwd`
 const FOCUSED_WIDE_PATTERN = '\\n ready · [^\\n]*← back'
 const FOCUSED_NARROW_PATTERN = '● ready · [\\s\\S]*\\d+ sessions? on · '
 const LOADING_WORDS = 'opening the conversation|no chat is focused|has not reported its work|counts unavailable|Initializing crewmate'
@@ -284,12 +285,12 @@ function sceneSends(cols: number): Send[] {
   const narrow = cols < 100
   const focused = narrow ? FOCUSED_NARROW_PATTERN : FOCUSED_WIDE_PATTERN
   return [
-    { data: '', atTick: 3000, awaitText: '↑↓ choose', requireAwait: true, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 6, awaitPattern: settledPattern(FACE_PATTERN), mark: 'face~first' },
-    still('↑↓ choose', 'face', FACE_PATTERN),
-    when('↑↓ choose', 'm', 2, FACE_PATTERN),
+    { data: '', atTick: 3000, awaitText: 'Boot Menu', requireAwait: true, minTick: 3, awaitSettleTicks: 4, awaitStableTicks: 6, awaitPattern: settledPattern(FACE_PATTERN), mark: 'face~first' },
+    still('Boot Menu', 'face', FACE_PATTERN),
+    when('Boot Menu', 'm', 2, FACE_PATTERN),
     ...stillPair(MODEL_TITLE, 'model-picker', 4),
     when(MODEL_TITLE, ESC, 2),
-    when('↑↓ choose', '\r', 3, FACE_PATTERN),
+    when('Boot Menu', '\r', 3, FACE_PATTERN),
     when('ype a prompt', '/crewmates', 4, focused),
     when('/crewmates', '\r', 3),
     ...stillPair(CREW_EMPTY_NEEDLE, 'crew-empty', 5, focused),

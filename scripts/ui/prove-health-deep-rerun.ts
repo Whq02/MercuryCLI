@@ -34,12 +34,17 @@ const run = runJobControlHost({
   steps: [
     { wait: 'host$', timeout: 15 },
     { launch: true },
-    { wait: 'Health Check', timeout: 45 },
+    { wait: 'New Session', timeout: 45 },
     { sleep: 1.5 },
     { observe: 'face' },
-    { face_row: 'Health Check' },
+    { send: '\r' },
+    { wait: 'ype a prompt', timeout: 45 },
+    { sleep: 0.5 },
+    { send: '/health' },
+    { sleep: 0.5 },
+    { send: '\r' },
     { wait: 'd deep', timeout: 30 },
-    { wait: 'issued', timeout: 60 },
+    { wait: ' checks', timeout: 60 },
     { sleep: 0.5 },
     { observe: 'fast-settled' },
     { mark: 'fast' },
@@ -47,21 +52,20 @@ const run = runJobControlHost({
     { sleep: 0.7 },
     { send: 'r' },
     { mark: 'after-r' },
-    { poll: true, seconds: 130, interval: 0.2, label: 'deep-1', until: 'issued' },
+    { poll: true, seconds: 130, interval: 0.2, label: 'deep-1', until: ' checks' },
     { sleep: 0.5 },
     { observe: 'deep-settled' },
     { mark: 'deep-settled' },
     { send: 'r' },
     { sleep: 0.5 },
-    { poll: true, seconds: 130, interval: 0.2, label: 'deep-2', until: 'issued' },
+    { poll: true, seconds: 130, interval: 0.2, label: 'deep-2', until: ' checks' },
     { sleep: 0.5 },
     { observe: 'deep-settled-2' },
     { mark: 'deep-settled-2' },
     { send: '\x1b' },
-    { wait: 'New Session', timeout: 15 },
-    { sleep: 0.5 },
-    { observe: 'back-on-face' },
-    { mark: 'back-on-face' },
+    { sleep: 1.5 },
+    { observe: 'back-on-chat' },
+    { mark: 'back-on-chat' },
     { signal: 'SIGTERM' },
     { sleep: 2.0 },
     { typeline: 'echo done-$((40+2))' },
@@ -80,12 +84,12 @@ if (run.report && run.report.endReason === 'steps-done') {
   const afterR = mark(r, 'after-r')!
   const deep1 = mark(r, 'deep-settled')!
   const deep2 = mark(r, 'deep-settled-2')!
-  const back = mark(r, 'back-on-face')!
+  const back = mark(r, 'back-on-chat')!
   const afterExit = mark(r, 'after-exit')!
 
   const live = samplesBetween(r, 0, back.ms + 1).filter(s => s.stat !== null)
   const sampledPhases = new Set(live.map(s => s.label))
-  check(`the process was sampled before, during both deep runs and after (${live.length} samples)`, ['fast-settled', 'poll:deep-1', 'poll:deep-2', 'back-on-face'].every(label => sampledPhases.has(label)), [...sampledPhases].join(', '))
+  check(`the process was sampled before, during both deep runs and after (${live.length} samples)`, ['fast-settled', 'poll:deep-1', 'poll:deep-2', 'back-on-chat'].every(label => sampledPhases.has(label)), [...sampledPhases].join(', '))
   check('the process NEVER entered T (no stop, at any sample)', live.every(s => !s.stat!.startsWith('T')), live.filter(s => s.stat!.startsWith('T')).map(s => `${s.label}@${s.ms}`).slice(0, 5).join(','))
   check('Mercury’s process group stayed the terminal’s foreground group at EVERY sample', live.every(s => s.foreground === true), live.filter(s => s.foreground !== true).map(s => `${s.label}@${s.ms}: pgid=${s.pgid} tpgid=${s.tpgid}`).slice(0, 5).join(' ; '))
   const grabbers = live.flatMap(s => s.tree.filter(p => p.pid !== r.bundlePid && p.pgid === p.tpgid && p.pgid !== s.pgid))
@@ -98,12 +102,12 @@ if (run.report && run.report.endReason === 'steps-done') {
   check('no mouse disarm mid-journey (the tracking stayed armed from the fast certificate to the face)', MOUSE_FAMILIES.every(f => !mid.some(e => e.mode === `${f}:off`)), mid.filter(e => e.mode.endsWith(':off')).map(e => e.mode).join(','))
   check('the alternate screen was never left mid-journey', !mid.some(e => e.mode === 'alt-screen:off'))
 
-  check('after r the certificate was CLEARED (a run in progress, not the stale fast one)', !afterR.grid.includes('issued') || afterR.grid.includes('examining'), afterR.grid.split('\n').filter(l => l.includes('issued') || l.includes('examining')).join(' | '))
-  check("the deep certificate re-painted its 'issued … ago' line", /issued \d+s ago/.test(deep1.grid), deep1.grid.split('\n').filter(l => l.includes('issued')).join(' | '))
-  check('…and the deep depth is what ran (deep rows on the certificate)', /\(deep\)|deep/.test(deep1.grid))
-  check("the second re-run settled and re-painted 'issued' again", /issued \d+s ago/.test(deep2.grid))
-  check('esc after the runs took the key (the process read its terminal and lived)', back.grid.includes('New Session'))
-
+  const checksCount = (grid: string): number => Number(/(\d+) checks/.exec(grid)?.[1] ?? 0)
+  check('after r the certificate was CLEARED (a run in progress, not the stale fast one)', !afterR.grid.includes(' checks') || afterR.grid.includes('Checking'), afterR.grid.split('\n').filter(l => l.includes(' checks') || l.includes('Checking')).join(' | '))
+  check("the deep certificate re-painted its 'N checks' summary", /\d+ checks/.test(deep1.grid), deep1.grid.split('\n').filter(l => l.includes('checks')).join(' | '))
+  check('…and the deep depth is what ran (more checks than the fast certificate)', checksCount(deep1.grid) > checksCount(fast.grid), `fast=${checksCount(fast.grid)} deep=${checksCount(deep1.grid)}`)
+  check("the second re-run settled and re-painted 'N checks' again", /\d+ checks/.test(deep2.grid) && checksCount(deep2.grid) === checksCount(deep1.grid), `deep1=${checksCount(deep1.grid)} deep2=${checksCount(deep2.grid)}`)
+  check('esc after the runs took the key (the process read its terminal and lived)', !back.grid.includes('Mercury · health') && back.grid.includes('ype a prompt'))
   const tail = modeEventsBetween(r, back.teeOffset, null)
   check('the exit ended with the disarm set (mouse off · alt off · cursor shown)', MOUSE_FAMILIES.every(f => lastStateOf(tail, f) === 'off') && lastStateOf(tail, 'alt-screen') === 'off' && lastStateOf(tail, 'cursor') === 'on')
   const gone = samplesBetween(r, afterExit.ms - 1, null)

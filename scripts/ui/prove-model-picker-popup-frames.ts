@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import stripAnsi from 'strip-ansi'
+import { paintsBootFaceReady } from '../lib/bootFace.ts'
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const HOME = mkdtempSync(join(tmpdir(), 'picker-popup-frames-'))
@@ -162,7 +163,7 @@ async function mount(tree: React.ReactNode, ready: () => boolean): Promise<Scene
 
 async function bootScene(): Promise<{ scene: Scene; frame: string[] }> {
   const scene = await mount(h(KeybindingSetup, null, h(BootSplashScreen)), () => true)
-  const face = await until(() => scene.lines().join('\n').includes('↑↓ choose'))
+  const face = await until(() => paintsBootFaceReady(scene.lines().join('\n')))
   check('the Boot face painted its hint row', face, scene.lines().slice(0, 6).join(' | '))
   await sleep(200)
   scene.push('m')
