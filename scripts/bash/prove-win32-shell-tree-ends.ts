@@ -26,8 +26,9 @@ process.on('exit', () => {
 })
 
 let failures = 0
+const treeEndsFixHint = 'change src/utils/processGroup.ts (parseMsysProcessTable, msysTreeRows, msysTableReaderOf, runsInAnMsysRuntime, win32TaskkillCommand, win32TaskkillSweepCommand, endProcessTree), src/utils/shell/parentGuard.ts (statusAnMsysShellLeaves), or for the live legs the tree kill in src/utils/ShellCommand.ts (wrapSpawn) and src/tasks/LocalShellTask/killShellTasks.ts (killTask)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + treeEndsFixHint : ''}`)
   if (!cond) failures++
 }
 const note = (text: string): void => console.log(`        note: ${text}`)
@@ -256,7 +257,7 @@ if (process.platform !== 'win32') {
     }
   }
   const watchdog = setTimeout(() => {
-    console.log('  [FAIL] the proof ran past its own budget')
+    console.log('  [FAIL] the proof ran past its own budget (420s); the last section printed above is the one that hung, look at the tree kill in src/utils/processGroup.ts (endProcessTree) and src/utils/ShellCommand.ts (wrapSpawn)')
     reapAll(everySeen)
     process.exit(1)
   }, 420_000)

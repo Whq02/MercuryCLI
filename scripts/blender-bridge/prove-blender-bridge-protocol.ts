@@ -9,9 +9,10 @@ import { BLENDER_BRIDGE_PYTHON_SOURCE_CAP_BYTES } from '../../src/utils/blender/
 import { startFakeBlenderBridge } from './fake-bridge.js'
 
 let failures = 0
+const blenderBridgeFixHint = 'change BlenderBridgeClient (request, status, nextDelayMs, drainEvents) in src/services/blender/bridgeClient.ts or the protocol constants in src/utils/blender/bridgeProtocol.ts; if the label is about what the server sent, the stand-in server is scripts/blender-bridge/fake-bridge.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' | ' : ' — '}${blenderBridgeFixHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -11,7 +11,8 @@ let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const where = 'change the byte count and drain mark a frame records in writeDiffToTerminal/lastFrameDelivery (src/ink/session/delivery.ts), or how the frame row reads them in recordFrameTrace/readFrameWire (src/ink/root/frame-trace.ts)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? ' — ' : ' — '}${where}`}`)
   if (!cond) failures++
 }
 const frameOf = (durationMs = 1) => ({ durationMs, flickers: [] as Array<{ reason: string }> })

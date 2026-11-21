@@ -23,7 +23,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
-    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} — fix the briefs.exclude handling in matchesInstructionExcludes (src/services/instructions/discovery.ts), isExcluded of mercuryNativeConvention (src/services/instructions/nativeSource.ts) or the briefs.exclude key in src/utils/settings/types.ts`)
   }
 }
 const linked = (made: boolean, cond: boolean, msg: string): void => {

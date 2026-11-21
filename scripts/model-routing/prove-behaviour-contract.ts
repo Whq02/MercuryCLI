@@ -3,9 +3,15 @@
 process.env.NODE_ENV = 'test'
 
 let failures = 0
+const failureHint = (label: string): string => {
+  if (/^parity:/.test(label)) return 'composeSystemPrompt in src/prompt/composer.ts must keep returning the legacy section order (static, boundary, dynamic, wrapper, mode, anti-syc, nulls filtered)'
+  if (/mixed session|all-Anthropic/.test(label)) return 'change stripUnsignedThinkingBlocks in src/services/messages/pairing.ts (or the request build in normalizeMessagesForAPI, src/services/messages/apiView.ts, and assistantMessageToMessageParam, src/services/providers/anthropic/messageParams.ts)'
+  if (/unsigned|thinking|phase|placeholder|zero-copy|projection/.test(label)) return 'change stripUnsignedThinkingBlocks in src/services/messages/pairing.ts'
+  return 'change src/prompt/behaviourContract.ts (buildBehaviourContract, the render functions, resolveBehaviourContract) so the contract keeps this property'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${failureHint(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

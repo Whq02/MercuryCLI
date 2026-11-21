@@ -16,7 +16,8 @@ let passes = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const planSigninHint = 'fix the Google sign-in code the check label names, in src/services/providers/gemini/ (geminiAccounts.ts for the sign-in and stored grant, geminiPlanAccess.ts, geminiLogin.ts for the receipt, geminiCatalogue.ts for the roster, geminiCallModel.ts for the chat road), or the fixture servers at the top of this file'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${planSigninHint}`}`)
 }
 const within = <T,>(promise: Promise<T>, ms = 4000): Promise<T | 'timed-out'> =>
   Promise.race([promise, new Promise<'timed-out'>(resolve => setTimeout(() => resolve('timed-out'), ms))])

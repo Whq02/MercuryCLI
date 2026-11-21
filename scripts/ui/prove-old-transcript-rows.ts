@@ -19,7 +19,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail: string): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label} — ${detail}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label} — ${detail}${ok ? '' : ' | to fix: the rendered frame of the old-format transcript does not match this check, so change the code that loads or paints that kind of row so it renders as the check describes; rerun this script with --frames <dir> to read the captured frame for each size'}`)
 }
 type Capture = { grid: { c: string }[][]; marks?: Array<{ label: string; grid: { c: string }[][] }> }
 const rowsOf = (grid: { c: string }[][]): string[] => grid.map(row => row.map(cell => cell.c || ' ').join('').trimEnd())

@@ -39,19 +39,19 @@ const stagedDist = join(stage, 'mercury.mjs')
   })
   const submitTs = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString() === '\r')?.sent ?? 0
   const ackWrite = run.teeLines.find(t => t.ts > submitTs)
-  check('A1 immediate start ack (paint ≤500ms after submit)', ackWrite !== undefined && ackWrite.ts - submitTs <= 500, `${ackWrite ? ackWrite.ts - submitTs : '-'}ms`)
+  check('A1 immediate start ack (paint ≤500ms after submit)', ackWrite !== undefined && ackWrite.ts - submitTs <= 500, `${ackWrite ? ackWrite.ts - submitTs : '-'}ms; the built app must paint something within 500 ms of the submit key, so find what delays the first paint after submit in the staged dist and read the drive capture at ${run.paths.drive}`)
 
   const firstEmit = run.fixture.pacedEmits[0]
   const vis = run.teeLines.map(t => ({ ts: t.ts, v: (t.content ?? '').replace(/\x1b\[[0-9;?<=>]*[A-Za-z@`~]/g, '') }))
   const firstHit = firstEmit ? vis.find(t => t.ts >= firstEmit.at && t.v.includes('w0')) : undefined
-  check('A2 first-output flush (≤400ms after provider emit)', firstEmit !== undefined && firstHit !== undefined && firstHit.ts - firstEmit.at <= 400, `${firstHit && firstEmit ? firstHit.ts - firstEmit.at : '-'}ms`)
+  check('A2 first-output flush (≤400ms after provider emit)', firstEmit !== undefined && firstHit !== undefined && firstHit.ts - firstEmit.at <= 400, `${firstHit && firstEmit ? firstHit.ts - firstEmit.at : '-'}ms; the first streamed delta (w0) must reach the screen within 400 ms of the provider emit, so look for added buffering between the stream and the paint`)
 
   const glyphSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString() === 'Ξ')
   const echoHit = glyphSend ? vis.find(t => t.ts >= glyphSend.sent && t.v.includes('Ξ')) : undefined
   const emission = observedEmissionWindow(run.fixture.pacedEmits)
-  check('A4 fixture: the paced emission was OBSERVED as an interval (first and last delta wall times)', emission !== null && emission.end - emission.start >= 2000, emission ? `${emission.end - emission.start}ms across ${run.fixture.pacedEmits.length} deltas` : 'no emits')
+  check('A4 fixture: the paced emission was OBSERVED as an interval (first and last delta wall times)', emission !== null && emission.end - emission.start >= 2000, (emission ? `${emission.end - emission.start}ms across ${run.fixture.pacedEmits.length} deltas` : 'no emits') + '; the fixture provider in this arena must emit its 100 paced deltas over at least 2 s, so the fixture or its turn setup in this file is at fault, not the app')
   check('A4 the glyph was sent INSIDE the observed emission interval (not merely at its planned tick)', glyphSend !== undefined && emission !== null && glyphSend.sent >= emission.start && glyphSend.sent <= emission.end, glyphSend && emission ? `sent ${glyphSend.sent - emission.start}ms after the first delta, ${emission.end - glyphSend.sent}ms before the last` : '-')
-  check('A4 live composer during stream (echo ≤150ms)', glyphSend !== undefined && echoHit !== undefined && echoHit.ts - glyphSend.sent <= 150, `${echoHit && glyphSend ? echoHit.ts - glyphSend.sent : '-'}ms`)
+  check('A4 live composer during stream (echo ≤150ms)', glyphSend !== undefined && echoHit !== undefined && echoHit.ts - glyphSend.sent <= 150, `${echoHit && glyphSend ? echoHit.ts - glyphSend.sent : '-'}ms; a typed key must show in the composer within 150 ms while a reply streams, so find what blocks input echo during streaming`)
   check('A4 …and the echo itself landed while deltas were still being emitted', echoHit !== undefined && emission !== null && echoHit.ts <= emission.end, echoHit && emission ? `echo ${emission.end - echoHit.ts}ms before the last delta` : '-')
   const ptyEcho = glyphSend ? firstPtyVisibility(run.ptyReads, 'Ξ', glyphSend.sent) : undefined
   check('A4 the driver READ the echo from the pty (physical visibility, not the enqueue-side tee)', ptyEcho !== undefined && ptyEcho.ts - (glyphSend?.sent ?? 0) <= 400, ptyEcho && glyphSend ? `${ptyEcho.ts - glyphSend.sent}ms` : 'never read back')
@@ -63,7 +63,7 @@ const stagedDist = join(stage, 'mercury.mjs')
   const res = spawnSync('/usr/bin/python3', [join(HERE, 'screengrab.py'), run.paths.drive, '120', '44', '-1'], { encoding: 'utf8', timeout: 60_000 })
   const flat = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens[0]!.rows.join('\n')
   const idxs = SENTS.map(w => flat.indexOf(w))
-  check('A3 ordered coalesced text at settle (5 sentinels, in order)', idxs.every(i => i >= 0) && idxs.every((v, i) => i === 0 || v > idxs[i - 1]!), `idx=[${idxs}]`)
+  check('A3 ordered coalesced text at settle (5 sentinels, in order)', idxs.every(i => i >= 0) && idxs.every((v, i) => i === 0 || v > idxs[i - 1]!), `idx=[${idxs}]; the five sentinel words must all appear on the settled screen in order, so streamed text was dropped or reordered`)
   run.cleanup()
 }
 
@@ -77,8 +77,8 @@ const stagedDist = join(stage, 'mercury.mjs')
   })
   const res = spawnSync('/usr/bin/python3', [join(HERE, 'screengrab.py'), run.paths.drive, '120', '40', '-1'], { encoding: 'utf8', timeout: 60_000 })
   const flat = (JSON.parse(res.stdout) as { screens: { rows: string[] }[] }).screens[0]!.rows.join('\n')
-  check('B1 cancel ack + honest settle', /[Ii]nterrupted/.test(flat) && flat.includes('partial thought'))
-  check('B2 usable composer after cancel', /type a prompt|↵ sends|\? for shortcuts/.test(flat))
+  check('B1 cancel ack + honest settle', /[Ii]nterrupted/.test(flat) && flat.includes('partial thought'), 'after Esc the settled screen must show an interrupted marker and keep the partial text already streamed; read the drive capture at ' + run.paths.drive)
+  check('B2 usable composer after cancel', /type a prompt|↵ sends|\? for shortcuts/.test(flat), 'the composer hint line must be back on the settled screen after the cancel; read the drive capture at ' + run.paths.drive)
   const escSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString() === '\x1b')
   const postSend = run.sendLog.find(s => Buffer.from(s.b64, 'base64').toString() === 'Ω')
   const postVis = run.teeLines.map(t => ({ ts: t.ts, v: (t.content ?? '').replace(/\x1b\[[0-9;?<=>]*[A-Za-z@`~]/g, '') }))
@@ -87,7 +87,7 @@ const stagedDist = join(stage, 'mercury.mjs')
   check('B2 a distinct glyph typed AFTER the cancel was sent after the Esc, once the interrupt marker had painted', escSend !== undefined && postSend !== undefined && postSend.sent > escSend.sent, escSend && postSend ? `${postSend.sent - escSend.sent}ms after Esc` : '-')
   check('B2 …and it ECHOED (the composer accepts input, not merely shows help text)', postEcho !== undefined && postSend !== undefined && postEcho.ts - postSend.sent <= 400, postEcho && postSend ? `${postEcho.ts - postSend.sent}ms` : 'never echoed')
   check('B2 …read back from the pty by the driver', postPty !== undefined, postPty ? `${postPty.ts - (postSend?.sent ?? 0)}ms` : 'never read back')
-  check('B2 …and the settled screen carries the typed glyph in the composer', flat.includes('Ω'))
+  check('B2 …and the settled screen carries the typed glyph in the composer', flat.includes('Ω'), 'the glyph typed after the cancel is missing from the settled screen; the composer lost its input')
   run.cleanup()
 }
 

@@ -21,6 +21,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('      hint: row stamps and the delivery clock are set by createAttachmentMessage in src/services/attachments/orchestrator.ts; delivery rows, ordering and the landing test are createNoticeRow, deliveredNoticeRow, placeDeliveredNotices and noticeRowLanded in src/services/engine-connector/queuedNotices.ts; the painted clocks and suffixes come from src/components/messages/AttachmentMessage.tsx')
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 

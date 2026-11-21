@@ -5,9 +5,10 @@ const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 const { parseFrontmatterPaths, parseInstructionFileContent } = await import(join(SRC, 'services/instructions/sourceText.ts'))
 
 let failures = 0
+const INSTRUCTION_PARSE_FIX_HINT = 'fix frontmatter paths and globs in parseFrontmatterPaths, and the html comment stripping, include and bare mention collection and file extension rules in parseInstructionFileContent, both in src/services/instructions/sourceText.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${INSTRUCTION_PARSE_FIX_HINT}` : ''}`)
 }
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
 const guide = '/proof/project/MERCURY.md'

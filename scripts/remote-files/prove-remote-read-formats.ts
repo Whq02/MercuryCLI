@@ -36,16 +36,17 @@ setCwdState(project)
 const PORT = 27064
 const FIXTURES = join(import.meta.dir, '..', 'tools', 'fixtures', 'read-formats')
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at the remote read path in src/tools/FileReadTool/FileReadTool.ts and src/services/remoteFiles/')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const REMOTE_READ_FIX = 'a read of ssh://box/... must answer what the same local read answers: fix the remote branch of FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts or the remote file layer in src/services/remoteFiles/'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — ${REMOTE_READ_FIX}`}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

@@ -17,7 +17,7 @@ const KEEP = process.env.SESSIONLESS_KEEP === '1'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — change: the sessionless-exit rule is decideSessionlessExit in src/daemon/sessionlessExit.ts (grace and beat constants there) and its beat in src/daemon/run/owner.ts; the daemon log tail named above shows what the daemon decided' : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -32,7 +32,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-sessionless-daemon-exits exceeded 200s')
+  console.log('\n❌ TIMEOUT — prove-sessionless-daemon-exits exceeded 200s; read the daemon.log in the kept scratch folder and check the daemon start, the session turn and the exit beat in src/daemon/run/owner.ts')
   process.exit(1)
 }, 200_000)
 guard.unref?.()

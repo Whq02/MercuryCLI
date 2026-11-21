@@ -128,6 +128,7 @@ for (const scene of SCENES) {
   check(
     `determinism: ${scene.name}`,
     JSON.stringify(a) === JSON.stringify(b),
+    'two composes of the same scene differ; the render pipeline in src/ink/renderer.ts (createRenderer) must not depend on state left from an earlier frame',
   )
   results[scene.name] = a
 }
@@ -137,12 +138,13 @@ if (record) {
   writeFileSync(GOLDEN, JSON.stringify(results, null, 1) + '\n')
   console.log(`  recorded → ${GOLDEN}`)
 } else {
-  check('golden exists (run --record once)', existsSync(GOLDEN))
+  check('golden exists (run --record once)', existsSync(GOLDEN), 'scripts/ink-runtime/goldens/frame-golden.json is missing; record it with bun scripts/ink-runtime/prove-frame-golden.ts --record')
   if (existsSync(GOLDEN)) {
     const golden: Golden = JSON.parse(readFileSync(GOLDEN, 'utf8'))
     check(
       'scene inventory matches',
       JSON.stringify(Object.keys(golden).sort()) === JSON.stringify(Object.keys(results).sort()),
+      'the scene names in SCENES here and in scripts/ink-runtime/goldens/frame-golden.json differ; after adding or renaming a scene re-record with bun scripts/ink-runtime/prove-frame-golden.ts --record',
     )
     let mismatches = 0
     for (const name of Object.keys(golden)) {
@@ -154,7 +156,7 @@ if (record) {
         console.log(`    live:\n${results[name]!.lines.map(l => '      |' + l).join('\n')}`)
       }
     }
-    check('all composed grids match the golden', mismatches === 0, `${mismatches} scenes diverged`)
+    check('all composed grids match the golden', mismatches === 0, `${mismatches} scenes diverged; if the new grid is the intended output, re-record with bun scripts/ink-runtime/prove-frame-golden.ts --record, otherwise fix the composition in src/ink/renderer.ts (createRenderer)`)
   }
 }
 

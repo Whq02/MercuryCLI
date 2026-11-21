@@ -28,7 +28,7 @@ axios.get = ((url: string, options: { headers?: object }) => {
   return get(`http://127.0.0.1:${server.port}/`, { ...options, proxy: false, headers: { ...options.headers, 'x-fixture-url': url } })
 }) as typeof axios.get
 let failures = 0
-const check = (name: string, ok: boolean, text = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${text}`}`) }
+const check = (name: string, ok: boolean, text = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${text}${text ? '; ' : ''}the fetch path is WebFetchTool.call in src/tools/WebFetchTool/WebFetchTool.ts (cross-host redirect, robots), with robots rules in robots.ts, paywall text in pageAccess.ts and the 402/403/429 refusals in fetchTransport.ts, all in src/tools/WebFetchTool/`}`) }
 const call = async (path: string, host = 'fixture.example') => {
   try {
     const result = await WebFetchTool.call({ url: `https://${host}${path}` }, { abortController: new AbortController(), options: { isNonInteractiveSession: true } } as never)

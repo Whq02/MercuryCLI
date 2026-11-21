@@ -14,7 +14,8 @@ delete process.env.NODE_ENV
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'change plainRowText (strips control bytes, folds line breaks and tabs) or sourceWhereWords (builds the source row words from the error) in src/components/extensions/rowWords.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 
 const CONTROL = /[\u0000-\u0008\u000B-\u001F\u007F\u0080-\u009F]/

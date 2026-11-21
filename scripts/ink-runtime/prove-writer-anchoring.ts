@@ -10,7 +10,10 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    fix: the column moves (cursorTo patches) are placed where FrameWriter.render in src/ink/frame-writer.ts emits them (see the cursorTo pushes near lines 80 to 200); optimizePatches in src/ink/patch-stream.ts merges them and writeDiffToTerminal in src/ink/session/delivery.ts serializes them')
+  }
 }
 
 const COLS = 40

@@ -66,7 +66,7 @@ async function orphanLeg(spawnParent: () => ChildProcess, report: Report): Promi
   const gotPid = await until(() => /FIXPID (\d+)/.test(out), 5_000)
   const parsed = /FIXPID (\d+)/.exec(out)?.[1]
   const fixturePid: number | null = gotPid && parsed !== undefined && ownedPid(Number(parsed)) ? Number(parsed) : null
-  report('§1 the parent shell backgrounded the fixture and named its pid', fixturePid !== null, out.slice(0, 200) || '(the shell printed nothing)')
+  report('§1 the parent shell backgrounded the fixture and named its pid', fixturePid !== null, `${out.slice(0, 200) || '(the shell printed nothing)'}; the parent shell must print FIXPID with the pid of the backgrounded scripts/streaming/turn-end-fixture-server.ts, so check that the fixture command line in this prover still starts and BUN points at a working bun`)
   if (fixturePid === null) {
     parent.kill('SIGKILL')
     await parentExit
@@ -74,12 +74,12 @@ async function orphanLeg(spawnParent: () => ChildProcess, report: Report): Promi
     return { fixturePid: null, contained: true }
   }
   const wasAlive = await until(() => alive(fixturePid), 3_000)
-  report('§1 the fixture was alive under its living parent', wasAlive)
+  report('§1 the fixture was alive under its living parent', wasAlive, `pid ${fixturePid} was not alive within 3 s; run scripts/streaming/turn-end-fixture-server.ts by hand to see why it exits at start`)
   const listening = await until(() => /PORT \d+/.test(out), 10_000)
-  report('§1 the fixture reached its port under the living parent', listening, out.slice(0, 200))
+  report('§1 the fixture reached its port under the living parent', listening, `${out.slice(0, 200)}; the fixture must print PORT <n> from scripts/streaming/turn-end-fixture-server.ts within 10 s of starting`)
   await parentExit
   const died = await until(() => !alive(fixturePid), 6_000)
-  report("§1 the parent gone, the fixture exited on its own within a few seconds — nobody reaped it (the orphan class closed)", died, `pid ${fixturePid} still alive after 6 s`)
+  report("§1 the parent gone, the fixture exited on its own within a few seconds — nobody reaped it (the orphan class closed)", died, `pid ${fixturePid} still alive after 6 s; the parent watch at the end of scripts/streaming/turn-end-fixture-server.ts (parentPid, parentGone) must call shutdown when the parent is gone`)
   if (!died) endOwned(fixturePid, 'SIGKILL')
   return { fixturePid, contained: false }
 }
@@ -90,18 +90,18 @@ async function orphanLeg(spawnParent: () => ChildProcess, report: Report): Promi
   sendSignal = (pid, sig) => {
     recorded.push([pid, sig])
   }
-  check('§0 pid 0 is unowned: no probe signal is sent', probe(0) === 'unowned' && recorded.length === 0)
-  check('§0 a negative pid is unowned', probe(-1) === 'unowned' && recorded.length === 0)
-  check('§0 NaN / undefined / a float are unowned', probe(NaN) === 'unowned' && probe(undefined) === 'unowned' && probe(12.5) === 'unowned' && recorded.length === 0)
-  check('§0 pid 1 and the prover’s own pid are never owned', probe(1) === 'unowned' && probe(process.pid) === 'unowned' && recorded.length === 0)
-  check('§0 a SIGKILL aimed at pid 0 / −1 / NaN is REFUSED before any signal', endOwned(0, 'SIGKILL') === 'refused' && endOwned(-1, 'SIGKILL') === 'refused' && endOwned(NaN, 'SIGKILL') === 'refused' && recorded.length === 0)
+  check('§0 pid 0 is unowned: no probe signal is sent', probe(0) === 'unowned' && recorded.length === 0, `probe must return unowned for pid 0 and send no signal; fix ownedPid in this file; recorded ${JSON.stringify(recorded)}`)
+  check('§0 a negative pid is unowned', probe(-1) === 'unowned' && recorded.length === 0, `probe must return unowned for a negative pid and send no signal; fix ownedPid in this file; recorded ${JSON.stringify(recorded)}`)
+  check('§0 NaN / undefined / a float are unowned', probe(NaN) === 'unowned' && probe(undefined) === 'unowned' && probe(12.5) === 'unowned' && recorded.length === 0, `probe must return unowned for NaN, undefined and a float and send no signal; fix ownedPid in this file; recorded ${JSON.stringify(recorded)}`)
+  check('§0 pid 1 and the prover’s own pid are never owned', probe(1) === 'unowned' && probe(process.pid) === 'unowned' && recorded.length === 0, `ownedPid must reject pid 1 and process.pid (pid > 1 and pid !== process.pid); recorded ${JSON.stringify(recorded)}`)
+  check('§0 a SIGKILL aimed at pid 0 / −1 / NaN is REFUSED before any signal', endOwned(0, 'SIGKILL') === 'refused' && endOwned(-1, 'SIGKILL') === 'refused' && endOwned(NaN, 'SIGKILL') === 'refused' && recorded.length === 0, `endOwned must return refused for pid 0, -1 and NaN before any signal is sent; fix endOwned and ownedPid in this file; recorded ${JSON.stringify(recorded)}`)
   const mine = process.pid + 100_000
-  check('§0 a validated pid does reach the signaller with the exact signal', (probe(mine), endOwned(mine, 'SIGTERM'), recorded.length === 2 && recorded[0]![0] === mine && recorded[0]![1] === 0 && recorded[1]![0] === mine && recorded[1]![1] === 'SIGTERM'), JSON.stringify(recorded))
+  check('§0 a validated pid does reach the signaller with the exact signal', (probe(mine), endOwned(mine, 'SIGTERM'), recorded.length === 2 && recorded[0]![0] === mine && recorded[0]![1] === 0 && recorded[1]![0] === mine && recorded[1]![1] === 'SIGTERM'), `${JSON.stringify(recorded)}; probe must send signal 0 and endOwned the given signal, each once, through sendSignal in this file`)
   recorded.length = 0
   const rows: Array<[string, boolean]> = []
   const silent = await orphanLeg(() => spawn('/bin/sh', ['-c', 'exit 3'], { stdio: ['ignore', 'pipe', 'pipe'] }), (label, ok) => rows.push([label, ok]))
-  check('§0 a parent shell that never names a fixture pid is a CONTAINED failure of its own leg', silent.fixturePid === null && silent.contained && rows.some(([l, ok]) => l.startsWith('§1 the parent shell') && !ok))
-  check('§0 …and that leg sent NO signal at all (no zero, negative or group target)', recorded.length === 0, JSON.stringify(recorded))
+  check('§0 a parent shell that never names a fixture pid is a CONTAINED failure of its own leg', silent.fixturePid === null && silent.contained && rows.some(([l, ok]) => l.startsWith('§1 the parent shell') && !ok), `a shell that exits without FIXPID must make orphanLeg in this file report fixturePid null, contained true and a failed first row; got fixturePid ${silent.fixturePid} contained ${silent.contained} rows ${JSON.stringify(rows)}`)
+  check('§0 …and that leg sent NO signal at all (no zero, negative or group target)', recorded.length === 0, `${JSON.stringify(recorded)}; orphanLeg in this file must not call sendSignal or endOwned when no owned fixture pid was named`)
   sendSignal = real
 }
 
@@ -117,13 +117,13 @@ await orphanLeg(
     out += c.toString('utf8')
   })
   const listening = await until(() => /PORT \d+/.test(out), 10_000)
-  check('§2 the fixture under a living parent reached its port', listening, out.slice(0, 200))
+  check('§2 the fixture under a living parent reached its port', listening, `${out.slice(0, 200)}; scripts/streaming/turn-end-fixture-server.ts must print PORT <n> within 10 s when started with bun run`)
   await sleep(3_000)
-  check('§2 the spawned fixture has an owned pid', ownedPid(fixture.pid), String(fixture.pid))
-  check('§2 …and is still up three seconds later (the watch never fires on a living parent)', fixture.exitCode === null && alive(fixture.pid))
+  check('§2 the spawned fixture has an owned pid', ownedPid(fixture.pid), `${String(fixture.pid)}; the bun spawn failed, so check BUN (env BUN or ~/.bun/bin/bun) in this file`)
+  check('§2 …and is still up three seconds later (the watch never fires on a living parent)', fixture.exitCode === null && alive(fixture.pid), `exit code ${fixture.exitCode}; the parent watch in scripts/streaming/turn-end-fixture-server.ts (parentGone) must not shut down while the parent lives`)
   fixture.kill('SIGTERM')
   const reaped = await until(() => fixture.exitCode !== null || !alive(fixture.pid), 5_000)
-  check('§2 …and the reaper still ends it', reaped)
+  check('§2 …and the reaper still ends it', reaped, 'the fixture did not exit within 5 s of SIGTERM; check the shutdown and signal handling in scripts/streaming/turn-end-fixture-server.ts')
 }
 
 rmSync(scratch, { recursive: true, force: true })

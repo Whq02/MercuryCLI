@@ -11,7 +11,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${ok ? '' : ' — Hint: the recorded result comes from decisionOfAnswer in src/cli/headless/runnerAsks.ts with the texts in src/utils/messages/rejectionText.ts; the row the operator reads comes from src/components/messages/UserToolResultMessage/UserToolErrorMessage.tsx.'}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

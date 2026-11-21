@@ -17,9 +17,10 @@ const HOLD_MS = 3_000
 const BOUND_MS = 500
 
 let failures = 0
+const NO_HOL_FAIL_HINT = 'to fix, make the wire peer dispatch (dispatch in src/runner/wire/peer.ts) run turn/interrupt without waiting behind the held session/facts answer (answerSessionFacts in src/cli/headless/sessionFactsArm.ts); this proof runs the built bundle, so rebuild it with bun run build.ts after the change'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${NO_HOL_FAIL_HINT}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 
@@ -34,7 +35,7 @@ if (node === null) {
 }
 console.log(`no head-of-line blocking — ${DIST} through the runner door; the first facts answer is held ${HOLD_MS} ms (MERCURY_SESSION_FACTS_HOLD_MS)`)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the proof exceeded 180s')
+  console.log('\n❌ TIMEOUT — the proof exceeded 180s; the runner never streamed, answered the interrupt or reported its outcome, look at src/runner/wire/peer.ts (dispatch) and src/cli/headless/sessionFactsArm.ts (answerSessionFacts)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

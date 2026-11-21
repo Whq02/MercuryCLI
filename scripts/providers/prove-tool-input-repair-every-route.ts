@@ -7,10 +7,11 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 let checks = 0
+const REPAIR_FAIL_HINT = 'to fix, change the typing walker repairArgumentsBySchema in src/services/providers/local/schemaTyping.ts, the gate (gateToolCall, repairToolInput) in src/services/providers/toolCallGate.ts, or the executor road (runToolUse) in src/services/tools/toolExecution.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 500)}; ` : ''}${REPAIR_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -181,7 +181,7 @@ function readBox(grid: Grid, label: string): void {
   const x0 = top < 0 ? -1 : rows[top]!.indexOf('┌')
   const x1 = top < 0 ? -1 : rows[top]!.indexOf('┐', x0 + 1)
   const bottom = top < 0 ? -1 : rows.findIndex((row, index) => index > top && row[x0] === '└')
-  check(`${label}: the diff box under the Write row is on screen with its top and bottom edges`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom}`)
+  check(`${label}: the diff box under the Write row is on screen with its top and bottom edges`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom} · the box titled diff · name is drawn in src/components/FileEditToolUpdatedMessage.tsx: it must appear under the Write row with both edges; read the printed final frame above`)
   if (top < 0 || x1 <= x0 || bottom <= top) return
   const edges: string[] = []
   const bleeds: string[] = []
@@ -220,21 +220,21 @@ function readBox(grid: Grid, label: string): void {
     bandMap.push(Array.from({ length: Math.min(row.length, spareEnd + 1) }, (_, x) => (x === x0 || x === x1 ? '│' : painted(x) ? '#' : row[x] === ' ' ? '.' : row[x]!)).join(''))
     inner.push(gutter ? innerText.slice(gutter[0].length) : innerText)
   }
-  check(`${label}: every row inside the box keeps both border glyphs`, edges.length === 0, edges.slice(0, 3).join(' · '))
-  check(`${label}: nothing is painted right of the border`, bleeds.length === 0, bleeds.slice(0, 3).join(' · '))
-  check(`${label}: every red or green band ends exactly at the border`, bands.length === 0, bands.slice(0, 3).join(' · '))
-  check(`${label}: the removed and added rows carry an unbroken band`, bandedRows >= 4 && gaps.length === 0, gaps.length ? gaps.slice(0, 3).join(' · ') : `${bandedRows} banded rows`)
+  check(`${label}: every row inside the box keeps both border glyphs`, edges.length === 0, `${edges.slice(0, 3).join(' · ')} · a diff row lost a border glyph: keep the row inside the box width in src/components/FileEditToolUpdatedMessage.tsx`)
+  check(`${label}: nothing is painted right of the border`, bleeds.length === 0, `${bleeds.slice(0, 3).join(' · ')} · diff text overflowed the box: wrap it to the box width in src/components/FileEditToolUpdatedMessage.tsx`)
+  check(`${label}: every red or green band ends exactly at the border`, bands.length === 0, `${bands.slice(0, 3).join(' · ')} · the red or green background must end at the border: fix the band width of the diff rows drawn inside src/components/FileEditToolUpdatedMessage.tsx`)
+  check(`${label}: the removed and added rows carry an unbroken band`, bandedRows >= 4 && gaps.length === 0, gaps.length ? gaps.slice(0, 3).join(' · ') : `${bandedRows} banded rows, at least 4 expected: the removed and added rows must each carry a band; the box is drawn in src/components/FileEditToolUpdatedMessage.tsx`)
   const innerJoined = squash(inner.join(''))
   for (const [name, text] of [['the over-long removed line', removedLong], ['the over-long added line', addedLong], ['the long context line', contextLong], ['the short removed line', removedShort], ['the short added line', addedShort]] as const) {
     const expanded = expandTabs(text)
-    check(`${label}: ${name} wraps inside the box with every character kept`, innerJoined.includes(squash(expanded)), `${expanded.slice(0, 40)}…`)
+    check(`${label}: ${name} wraps inside the box with every character kept`, innerJoined.includes(squash(expanded)), `${expanded.slice(0, 40)}… · characters of this line are missing from the box: wrapping must keep every character, look at how the diff rows wrap in the box drawn by src/components/FileEditToolUpdatedMessage.tsx`)
   }
   const headerRow = rows[top + 1]!
   const headerCells = grid[top + 1]!
   const headerGround = headerCells[x1]?.bg ?? 'default'
   const headerGutter = GUTTER.exec(headerRow.slice(x0 + 1, x1))
-  check(`${label}: the header line above the removed block paints neutral with no marker`, headerRow.includes('name') && headerCells.slice(x0 + 1, x1).every(cell => cell.bg === headerGround) && headerGutter?.[2] === ' ', headerRow.slice(x0, x0 + 20))
-  check(`${label}: the header columns sit at the line's own tab stops`, headerGutter !== null && headerRow.slice(x0 + 1 + headerGutter[0].length, x1).startsWith(expandTabs(header)), JSON.stringify(headerRow.slice(x0 + 1, x0 + 48)))
+  check(`${label}: the header line above the removed block paints neutral with no marker`, headerRow.includes('name') && headerCells.slice(x0 + 1, x1).every(cell => cell.bg === headerGround) && headerGutter?.[2] === ' ', `${headerRow.slice(x0, x0 + 20)} · the unchanged first line must paint with the box ground and a blank marker, no band`)
+  check(`${label}: the header columns sit at the line's own tab stops`, headerGutter !== null && headerRow.slice(x0 + 1 + headerGutter[0].length, x1).startsWith(expandTabs(header)), `${JSON.stringify(headerRow.slice(x0 + 1, x0 + 48))} · tabs must expand to 8-column stops as expandTabs in src/ink/tabstops.ts does`)
   if (FRAMES) writeFileSync(join(FRAMES, `${COLS}x${ROWS}-${label}-band.txt`), bandMap.join('\n') + '\n')
 }
 
@@ -247,10 +247,10 @@ if (FRAMES) {
   writeFileSync(join(FRAMES, `${COLS}x${ROWS}.txt`), finalRows.map(row => row.replace(/\s+$/, '')).join('\n') + '\n')
   if (done) writeFileSync(join(FRAMES, `${COLS}x${ROWS}-done.txt`), rowsOf(done.grid).map(row => row.replace(/\s+$/, '')).join('\n') + '\n')
 }
-check('the capture ran to its settled end (every send delivered)', run.status === 0 && run.grid.length === ROWS, `vshot exit ${run.status} · ${run.endReason} · ${run.tail.slice(-400)}`)
-check('the Write landed on disk', existsSync(tablePath) && readFileSync(tablePath, 'utf8') === AFTER)
-check('the turn settled (the closing text is on screen)', finalRows.some(row => row.includes(CLOSING)))
-check('no consent card stood in the way (the bypass posture)', !finalRows.some(row => row.includes('Do you want to')))
+check('the capture ran to its settled end (every send delivered)', run.status === 0 && run.grid.length === ROWS, `vshot exit ${run.status} · ${run.endReason} · ${run.tail.slice(-400)} · read the vshot tail above and rebuild dist/mercury.mjs with bun run build.ts if the product did not reach the closing text`)
+check('the Write landed on disk', existsSync(tablePath) && readFileSync(tablePath, 'utf8') === AFTER, `the Write tool did not leave ${TABLE} equal to the new table: read the final frame above for a consent card or an error in the Write row`)
+check('the turn settled (the closing text is on screen)', finalRows.some(row => row.includes(CLOSING)), `the closing text ${CLOSING} never reached the screen: read the final frame above and the vshot end reason ${run.endReason}`)
+check('no consent card stood in the way (the bypass posture)', !finalRows.some(row => row.includes('Do you want to')), 'a permission card is on screen: the run must start with MERCURY_SKIP_PERMISSIONS=1 in the env passed to vshot.py in capture()')
 if (run.grid.length === ROWS) readBox(run.grid, 'final')
 if (done && done.grid.length === ROWS) readBox(done.grid, 'done')
 

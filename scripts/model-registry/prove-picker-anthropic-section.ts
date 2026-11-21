@@ -90,9 +90,17 @@ const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLife
 const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
 
 let failures = 0
+const failureHint = (label: string): string => {
+  if (/staged credential/.test(label)) return 'the staged Max credential must read as a Max subscription: see isMaxSubscriber in src/utils/auth.ts and the MAX_CREDENTIAL fixture in this file'
+  if (/still resolves to/.test(label)) return 'change parseUserSpecifiedModel in src/services/model/model.ts so the saved nickname resolves to the full id'
+  if (/agent and boot agent rows/.test(label)) return 'change getAgentModelPickerRows or agentModelPickOutcome in src/services/model/agentModelPicker.ts so the row value and saved model are the full id'
+  if (/config's saved/.test(label)) return 'change modelChoiceRow in src/commands/model/picker/rows.ts so a saved nickname maps to the full-id row'
+  if (/paints the full fable id|selecting the saved nickname|marks the .* row current|80-column|frame fits|Anthropic section is on screen|heading reads|painted|paints inside|current mark|row paints its full id|Home moves|walk stopped|End on the last|first frame has rows|bottom border|box spans|marker paints|walk started|footer keeps|current row is on screen|queued switch reads/.test(label)) return 'the picker painting is in src/components/MercuryModelPicker.tsx (the /model call is in src/commands/model/mercuryModel.tsx); compare the frame the test captured, rerun with --frames <dir> to write it'
+  return 'the Anthropic row order is built in getModelOptions in src/services/model/modelOptions.ts (live rows merge in mergeAnthropicLiveRows) from FAMILY_GENERATIONS in src/utils/model/configs.ts'
+}
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${failureHint(label)}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

@@ -14,7 +14,7 @@ let checks = 0, failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   checks++
   if (!condition) failures++
-  console.log(`${condition ? 'PASS' : 'FAIL'} ${label}${!condition && detail !== undefined ? `: ${JSON.stringify(detail)}` : ''}`)
+  console.log(`${condition ? 'PASS' : 'FAIL'} ${label}${!condition && detail !== undefined ? `: ${JSON.stringify(detail)}` : ''}${condition ? '' : ' | fix the cool-down and queueing in src/services/search/searchPacing.ts (withSearchTurn, coolDownRemainingMs, noteRateLimited) and their use in src/services/search/duckduckgo.ts (keylessSearch), brave.ts (braveSearch) or searchDoor.ts (performWebSearch)'}`)
 }
 const page = '<div id="links"><div class="result results_links"><a class="result__a" href="https://example.invalid/result">Fixture result</a><div class="result__snippet">Fixture excerpt</div></div></div>'
 const message = (answer: SearchOutcome): string => answer.ok ? '' : answer.message

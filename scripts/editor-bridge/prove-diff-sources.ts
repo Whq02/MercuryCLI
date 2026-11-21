@@ -7,11 +7,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const diffSourceHints: Record<string, string> = {
+  '(1)': 'fix fetchGitDiffFor and fetchGitDiffHunksFor in src/utils/gitDiff.ts, or sourceGitSpec in src/components/diff/diffSources.ts',
+  '(2)': 'fix artifactDiffData in src/components/diff/diffSources.ts, or createReviewArtifact and reviseReviewArtifact in src/services/artifacts/reviewStore.ts',
+  '(3)': 'fix the review glue in src/components/diff/reviewLayer.ts (buildAnchorForHunk, ensureDiffArtifact, annotateHunk, reviewMarksForFile, buildReviewTurnMessage)',
+  '(4)': 'fix the diff actions in src/keybindings/schema.ts and the DiffDialog bindings in src/keybindings/defaultBindings.ts',
+}
+let diffSourceSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${diffSourceHints[diffSourceSection] ?? ''}${detail ? `. ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
+  diffSourceSection = t.slice(0, 3)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

@@ -28,10 +28,11 @@ const ABANDON_MS = 10_000
 
 let checks = 0
 let failures = 0
+const SCALE_HINT = 'keep takeProjectLeases, describeProjectLeases and releaseProjectLeases in src/services/vulcan/engine/leases.ts within the step bound and the result shape this check names (the lease_list tool is in src/services/mcp/mercuryServer.ts)'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${SCALE_HINT}; ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}` : ''}`)
 }
 type Timed<T> = { ms: number; value: T | undefined; abandoned: boolean }
 async function timed<T>(work: () => Promise<T>): Promise<Timed<T>> {

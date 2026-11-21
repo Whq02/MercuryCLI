@@ -10,10 +10,13 @@ import { hostRunner } from '../lib/runnerHost.ts'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
+const HEADLESS_LAWS_FAIL_HINT =
+  'change joinPromptValues in src/cli/headless/turnDriver.ts and canBatchWith in src/cli/headless/turnDriver/queue.ts for the section 1 checks; for the protocol checks (initialize, session/set_mode, turn/interrupt) change the runner wire verbs in src/runner/wire/sessionVerbs.ts and the headless turn driver under src/cli/headless/; run bun run build.ts first if dist/mercury.mjs is stale'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${HEADLESS_LAWS_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

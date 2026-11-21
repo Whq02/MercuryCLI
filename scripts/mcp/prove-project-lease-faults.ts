@@ -22,10 +22,11 @@ const { createLinkedTransportPair } = await import('../../src/services/mcp/InPro
 
 let checks = 0
 let failures = 0
+const FAULT_HINT = 'change the project lease store handling in src/services/vulcan/engine/leases.ts (takeProjectLeases, describeProjectLeases, releaseProjectLeases) and the lease tools in src/services/mcp/mercuryServer.ts so a store fault is refused by name and the service resumes after it'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${FAULT_HINT}; ${typeof detail === 'string' ? detail : JSON.stringify(detail)?.slice(0, 600)}` : ''}`)
 }
 const escaped: string[] = []
 process.on('uncaughtException', error => { escaped.push(`uncaught: ${String(error)}`) })

@@ -117,7 +117,7 @@ for (const scene of scenes) {
     check(`${scene.name}: probe dump present`, false, 'no probe tee')
     continue
   }
-  check(`${scene.name}: usable window`, winSec > 1, `${winSec.toFixed(1)}s`)
+  check(`${scene.name}: usable window`, winSec > 1, `${winSec.toFixed(1)}s; the scene produced too short a measuring window, so the sends or the paced stream in this file did not land when planned`)
   const counts = Object.fromEntries(REGIONS.map(r => [r, inWindow(scene.run, r, scene.win)]))
   console.log(
     '    ' + REGIONS.map(r => `${r.slice(7)}=${counts[r]}`).join(' · '),
@@ -129,20 +129,20 @@ for (const scene of scenes) {
     check(
       `${scene.name}: ${r.slice(7)} holds idle rhythm (≤${allowance})`,
       counts[r]! <= allowance,
-      `${counts[r]} in-window renders`,
+      `${counts[r]} in-window renders; this region must not re-render in the ${scene.name} scene faster than its idle rate, so find what invalidates ${r} there`,
     )
   }
 }
 
 if (!report) {
-  check('typing: composer actually moved', inWindow(typing, 'render:composer', typingWin) >= GLYPHS.length - 1)
-  check('stream: tail actually streamed', tailMarks.length >= 10, `${tailMarks.length} tail publishes`)
+  check('typing: composer actually moved', inWindow(typing, 'render:composer', typingWin) >= GLYPHS.length - 1, `${inWindow(typing, 'render:composer', typingWin)} composer renders for ${GLYPHS.length} typed glyphs; the glyphs did not reach the composer, so the owner check above proves nothing`)
+  check('stream: tail actually streamed', tailMarks.length >= 10, `${tailMarks.length} tail publishes; the paced turn must produce at least 10 tail:publish marks, so check that the fixture served the stream and the prompt was submitted`)
   check('stream: the tail leaf painted the flow', inWindow(stream, 'render:tail', streamWin) >= 10, `${inWindow(stream, 'render:tail', streamWin)} tail renders in the flow`)
-  check('stream: fixture served the paced turn', stream.fixture.pacedEmits.length === 100, `${stream.fixture.pacedEmits.length}`)
+  check('stream: fixture served the paced turn', stream.fixture.pacedEmits.length === 100, `${stream.fixture.pacedEmits.length} of 100 paced deltas emitted; the fixture served the turn only partly, so check the stream scene timing in this file`)
   const spinnerMainRequests = spinner.fixture
     .messageRequests()
     .filter(r => String((r.body as { model?: string }).model ?? '').includes('opus'))
-  check('spinner: fixture held the hang turn', spinnerMainRequests.length === 1, `${spinnerMainRequests.length} main-model request(s)`)
+  check('spinner: fixture held the hang turn', spinnerMainRequests.length === 1, `${spinnerMainRequests.length} main-model request(s); the hang turn needs exactly one opus request, so the prompt was not submitted or was sent twice`)
 }
 
 console.log(failures === 0 ? '✅ FLUX region-matrix GREEN' : `❌ FLUX region-matrix RED (${failures})`)

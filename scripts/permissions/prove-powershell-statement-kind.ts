@@ -18,10 +18,10 @@ const statement: ParsedPowerShellCommand['statements'][number] = {
     name: 'Test-Fixture', text: 'Test-Fixture b', nameType: 'cmdlet', args: ['b'], elementType: 'CommandAst',
   }], nestedCommands: [], redirections: [],
 }
-equal(isProvablySafeStatement(statement), true, 'the statement gate accepts the parser’s PipelineAst label')
-equal(isProvablySafeStatement({ ...statement, statementType: 'IfStatementAst' }), false)
-equal(isProvablySafeStatement({ ...statement, commands: [] }), false)
-equal(isProvablySafeStatement({ ...statement, nestedCommands: statement.commands }), false)
+equal(isProvablySafeStatement(statement), true, 'the statement gate accepts the parser’s PipelineAst label: fix isProvablySafeStatement in src/tools/PowerShellTool/readOnlyValidation.ts')
+equal(isProvablySafeStatement({ ...statement, statementType: 'IfStatementAst' }), false, 'a control-flow statement (IfStatementAst) must be refused: fix isProvablySafeStatement in src/tools/PowerShellTool/readOnlyValidation.ts')
+equal(isProvablySafeStatement({ ...statement, commands: [] }), false, 'a statement with no commands must be refused: fix isProvablySafeStatement in src/tools/PowerShellTool/readOnlyValidation.ts')
+equal(isProvablySafeStatement({ ...statement, nestedCommands: statement.commands }), false, 'a statement with nested commands must be refused: fix isProvablySafeStatement in src/tools/PowerShellTool/readOnlyValidation.ts')
 console.log('[PASS] the statement gate uses the parser label and keeps its empty/nested/control-flow refusals')
 
 if (Bun.which('pwsh') === null) {
@@ -35,7 +35,7 @@ if (Bun.which('pwsh') === null) {
   for (const allow of [false, true]) {
     const rules = { ...getEmptyToolPermissionContext(), alwaysAllowRules: { session: allow ? ['PowerShell(Test-Fixture *)'] : [] } }
     const result = await powershellToolHasPermission({ command }, { getAppState: () => ({ toolPermissionContext: rules }), abortController: new AbortController() } as never)
-    equal(result.behavior, allow ? 'allow' : 'passthrough', JSON.stringify(result))
+    equal(result.behavior, allow ? 'allow' : 'passthrough', `${JSON.stringify(result)} · fix powershellToolHasPermission in src/tools/PowerShellTool/powershellPermissions.ts: a pipeline is allowed only when its non-allowlisted stage has an allow rule`)
   }
   console.log('[PASS] the pipeline is allowed only when its non-allowlisted stage has an allow rule')
 }

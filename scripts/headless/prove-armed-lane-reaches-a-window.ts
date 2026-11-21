@@ -26,12 +26,14 @@ const menu = await import('../../src/substrate/startupMenu.ts')
 const API_KEY = 'fixture-key-000'
 const MODEL = 'claude-opus-4-8'
 
+const ARMED_LANE_FAIL_HINT = 'change getHarnessMapSection and getHarnessMapDelta in src/services/cockpit/harnessMap.ts (what the map holds and when an update is due) or the harness_map_delta text in src/services/messages/attachmentText.ts'
+
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail.slice(0, 900) : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? (detail ? ' — ' + detail.slice(0, 900) : '') + ' | ' + ARMED_LANE_FAIL_HINT : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v) ?? ''

@@ -30,7 +30,8 @@ const { Usage } = await import('../../src/components/Settings/Usage.tsx')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert.ok(ok, label); checks++; console.log(`[PASS] ${label}`) }
+const XAI_POPUP_FAIL_HINT = ' — the xAI section painted by the Usage board in src/components/Settings/Usage.tsx does not show what this label names; fix what it reads from refreshProviderUsage in src/services/providers/providerUsage.ts, or rerun with --frames <dir> to write the painted frames and read them'
+const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}${XAI_POPUP_FAIL_HINT}`); checks++; console.log(`[PASS] ${label}`) }
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)
   try {

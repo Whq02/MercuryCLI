@@ -15,15 +15,18 @@ const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const quoteHelperHint = 'fix preserveQuoteStyle or normalizeQuotes in src/utils/fileEditUtils.ts'
+const quoteToolHint = 'fix the quote handling of FileEditTool in src/tools/FileEditTool/FileEditTool.ts (validateInput and call), which uses preserveQuoteStyle from src/utils/fileEditUtils.ts, and for S6 fileLanguageKind in src/native-ts/color-diff/index.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = /^Q/.test(label) ? quoteHelperHint : quoteToolHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${failHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — edit quote-style proof exceeded 60s')
+  console.log('\nTIMEOUT — edit quote-style proof exceeded 60s; a FileEditTool validateInput or call in src/tools/FileEditTool/FileEditTool.ts did not return')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

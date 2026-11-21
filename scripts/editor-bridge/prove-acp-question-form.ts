@@ -32,9 +32,10 @@ const input = {
   answers: {},
 }
 let failures = 0
+const questionFormHint = 'the editor form for an AskUserQuestion call is built in src/services/acp/questionForm.ts (title, schema, identities); change it or the ACP session code beside it in src/services/acp until this label holds. Detail: '
 const check = (label: string, yes: boolean, detail: unknown = '') => {
   if (!yes) failures++
-  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${yes ? 'PASS' : 'FAIL'}] ${label}${yes ? '' : ` — ${questionFormHint}${JSON.stringify(detail)}`}`)
 }
 const bounded = async <T,>(promise: Promise<T>, label: string): Promise<T> => {
   let timer: ReturnType<typeof setTimeout>

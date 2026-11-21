@@ -16,9 +16,22 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 const ID = 'claude-haiku-5-5'
 const OLD = 'claude-haiku-4-5-20251001'
 let failures = 0
+const failureHint = (label: string): string => {
+  if (/prices|pricing|price display|longer-prompt tier|100K threshold|one-hour writes/.test(label)) return 'change the Haiku 5.5 and 4.5 price rows or the tier logic in src/services/usage/modelCost.ts (resolveModelPricing, calculateUSDCost, getModelPricingString)'
+  if (/picker offers|follows the new family head|duplicate picker row/.test(label)) return 'change the Anthropic rows of getModelOptions in src/services/model/modelOptions.ts'
+  if (/rendered current row/.test(label)) return 'change the row painting in src/components/MercuryModelPicker.tsx'
+  if (/house router/.test(label)) return 'change classOfModel in src/services/providers/modelRegistry.ts'
+  if (/id-space/.test(label)) return 'change recognizeModelId in src/services/providers/idSpaces.ts'
+  if (/side queries/.test(label)) return 'change sideQueryThinkingParam in src/services/api/sideQuery.ts'
+  if (/forced tool choice is not rewritten/.test(label)) return 'change foldToolChoiceForModel in src/utils/model/capabilities.ts'
+  if (/effort ladder|unpinned default/.test(label)) return 'change the effort ladder in src/utils/effort.ts (selectableEffortLevelsForLadder, resolveEffortTruth) or routeEffortsFor in src/services/providers/anthropic/anthropicAdapter.ts'
+  if (/family default, the haiku alias/.test(label)) return 'change the family order in FAMILY_GENERATIONS (src/utils/model/configs.ts), parseUserSpecifiedModel (src/services/model/model.ts) or getAgentModel (src/services/model/agent.ts)'
+  if (/canonical|display|chip|alias|family order|saved full|spoken|annotation/.test(label)) return 'change the Haiku 5.5 row in src/utils/model/configs.ts (FAMILY_GENERATIONS, familyHeadOf) or the name and alias readers in src/services/model/model.ts'
+  return 'change the Haiku 5.5 capability facts in src/utils/model/capabilities.ts (context window, output ceiling, thinking, betas, cutoff, resolveModelCapabilities)'
+}
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${!condition ? ` — ${detail !== undefined ? `${JSON.stringify(detail)} · ` : ''}${failureHint(label)}` : ''}`)
 }
 const close = (actual: number, expected: number): boolean => Math.abs(actual - expected) < 1e-10
 

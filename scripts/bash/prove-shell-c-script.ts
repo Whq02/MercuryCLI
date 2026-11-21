@@ -28,7 +28,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail?: unknown): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
+  const failureHint = 'to fix, change how a shell -c wrapper is unwrapped and judged: bashToolHasPermission in src/tools/BashTool/bashPermissions.ts (allow, ask and deny), checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts (read-only reading), prepareShellCScripts and SHELL_C_MAX_DEPTH in src/utils/permissions/decision/commandAnalysis.ts (inner scripts and depth)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}; ${failureHint}` : ''}`)
 }
 const permission = (allow: string[] = [], deny: string[] = [], ask: string[] = []) => ({
   ...getEmptyToolPermissionContext(), alwaysAllowRules: { session: allow }, alwaysDenyRules: { session: deny }, alwaysAskRules: { session: ask },

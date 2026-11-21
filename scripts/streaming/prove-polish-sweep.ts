@@ -46,12 +46,12 @@ const screens = (JSON.parse(res.stdout) as { screens: Screen[] }).screens
 const fin = screens.find(s => s.atMs === -1)!
 const flat = fin.rows.join('\n')
 
-check('P3a settled prose painted', flat.includes('settled prose after the tool.'))
-check('P3b the resolved Read row leads with its ▤ mark', fin.rows.some(r => /▤ Read\b/.test(r) && !r.includes('◌')))
-check('P3c composer usable', /type a prompt|↵ sends|\? for shortcuts/.test(flat) || flat.includes('ΛΘ'))
+check('P3a settled prose painted', flat.includes('settled prose after the tool.'), `the final screen must show the text turn after the Read tool; the last rows were ${JSON.stringify(fin.rows.slice(-12))}; the arena run may have ended early, so read the drive capture at ${run.paths.drive}`)
+check('P3b the resolved Read row leads with its ▤ mark', fin.rows.some(r => /▤ Read\b/.test(r) && !r.includes('◌')), `the resolved Read row must start with the read glyph from src/components/mercury-ui/toolGlyphs.ts and no pending mark; rows with Read: ${JSON.stringify(fin.rows.filter(r => r.includes('Read')))}`)
+check('P3c composer usable', /type a prompt|↵ sends|\? for shortcuts/.test(flat) || flat.includes('ΛΘ'), 'the composer must show its placeholder or the typed glyphs on the final screen; the typed text may not have reached the composer')
 
 const sweepRows = fin.rows.filter(r => !r.includes('← back') && !r.includes('esc interrupts'))
-check('P1 no ◐◓◑◒ running family after settle (outside the status row\'s resting glyph)', !/[◐◓◑◒]/.test(sweepRows.join('\n')))
+check('P1 no ◐◓◑◒ running family after settle (outside the status row\'s resting glyph)', !/[◐◓◑◒]/.test(sweepRows.join('\n')), `a running spinner glyph stays on screen after the turn settled; rows: ${JSON.stringify(sweepRows.filter(r => /[◐◓◑◒]/.test(r)))}`)
 
 const caretOn = (s: Screen): boolean =>
   (s.cursor !== undefined && !s.cursor.hidden) ||
@@ -64,7 +64,7 @@ check(
   `cursor=${JSON.stringify(fin.cursor)} · caret on ${caretFrames} of ${blinkFrames.length} frames over the last ${BLINK_PERIOD_MS} ms · phases=${blinkFrames.map(s => (caretOn(s) ? '1' : '0')).join('')}`,
 )
 const composerRowIdx = fin.rows.findIndex(r => r.includes('ΛΘ'))
-check('P2b post-settle glyphs echoed', composerRowIdx >= 0)
+check('P2b post-settle glyphs echoed', composerRowIdx >= 0, 'the typed glyphs (the two Greek letters sent at 10500 and 11000 ms) are not on any row of the final screen; the composer did not echo input after the turn settled')
 check(
   'P2c cursor sits on the composer row',
   fin.cursor !== undefined && composerRowIdx >= 0 && Math.abs(fin.cursor.y - composerRowIdx) <= 1,

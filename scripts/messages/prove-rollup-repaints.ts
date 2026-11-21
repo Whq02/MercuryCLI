@@ -61,19 +61,19 @@ const messages: Rec[] = [
 
 section('§1 the spine counts: a failed edit changes no file; the breakdown names the kinds')
 const spine = rollup.rollupSpineOf?.(messages) ?? null
-check('the tip exports the spine derivation (absent on the base)', spine !== null)
-check('one file changed (the errored edit of b.ts changed nothing)', spine !== null && spine.fileCount === 1, JSON.stringify(spine))
-check('four tools, three kinds', spine !== null && spine.toolCount === 4 && spine.typeBreakdown === '1 read · 2 edit · 1 run', JSON.stringify(spine))
+check('the tip exports the spine derivation (absent on the base)', spine !== null, 'export rollupSpineOf from src/components/MercuryTurnRollup.tsx')
+check('one file changed (the errored edit of b.ts changed nothing)', spine !== null && spine.fileCount === 1, JSON.stringify(spine) + ' - fix fileCount in rollupSpineOf (src/components/MercuryTurnRollup.tsx) so an is_error edit result counts no file')
+check('four tools, three kinds', spine !== null && spine.toolCount === 4 && spine.typeBreakdown === '1 read · 2 edit · 1 run', JSON.stringify(spine) + ' - fix toolCount and typeBreakdown in rollupSpineOf (src/components/MercuryTurnRollup.tsx)')
 
 section('§2 the spine repaints only when the messages array moves')
 const resting: Rec = { messages, tools: [], model: 'fixture-model', isLoading: false, streamingThinking: null, isThinking: false }
 const frame = (await renderToString(React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() }, React.createElement(rollup.MercuryTurnRollup, resting)))).replace(/\s+/g, ' ')
-check('the spine painted its session line', frame.includes('session') && frame.includes('1 file changed') && frame.includes('4 tools (1 read · 2 edit · 1 run)'), frame.slice(0, 200))
+check('the spine painted its session line', frame.includes('session') && frame.includes('1 file changed') && frame.includes('4 tools (1 read · 2 edit · 1 run)'), frame.slice(0, 200) + ' - check the session line rendered by MercuryTurnRollupInner (src/components/MercuryTurnRollup.tsx)')
 const memo = rollup.MercuryTurnRollup as unknown as { compare?: ((prev: Rec, next: Rec) => boolean) | null }
 const bails = (prev: Rec, next: Rec): boolean => (typeof memo.compare === 'function' ? memo.compare(prev, next) : Object.keys({ ...prev, ...next }).every(key => prev[key] === next[key]))
-check('RED ON THE BASE: a loading flip and a thinking tick leave the spine as painted (the memo bails)', bails(resting, { ...resting, isLoading: true, isThinking: true }))
-check('a model or tool-list change leaves it as painted too (the spine reads neither)', bails(resting, { ...resting, model: 'other-model', tools: [{}] }))
-check('a new messages array repaints it', !bails(resting, { ...resting, messages: [...messages] }))
+check('RED ON THE BASE: a loading flip and a thinking tick leave the spine as painted (the memo bails)', bails(resting, { ...resting, isLoading: true, isThinking: true }), 'the React.memo comparator on MercuryTurnRollup (src/components/MercuryTurnRollup.tsx) must compare only prev.messages === next.messages')
+check('a model or tool-list change leaves it as painted too (the spine reads neither)', bails(resting, { ...resting, model: 'other-model', tools: [{}] }), 'the React.memo comparator on MercuryTurnRollup (src/components/MercuryTurnRollup.tsx) must ignore model and tools')
+check('a new messages array repaints it', !bails(resting, { ...resting, messages: [...messages] }), 'the React.memo comparator on MercuryTurnRollup (src/components/MercuryTurnRollup.tsx) must return false when prev.messages !== next.messages')
 
 console.log(`\n${'─'.repeat(76)}`)
 console.log(failures === 0 ? '  ALL PASS' : `  ${failures} FAILURE(S)`)

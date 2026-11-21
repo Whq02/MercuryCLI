@@ -14,10 +14,11 @@ const { connectToServer, fetchResourcesForClient, fetchCommandsForClient, clearS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change fetchResourcesForClient and fetchCommandsForClient in src/services/mcp/client.ts so a failed list is dropped from their cache and asked again, and a good answer is kept${detail ? `; ${detail}` : ''}` : ''}`)
 }
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — list-failure prover exceeded 60s')
+  console.log('a resources/list or prompts/list call never returned; look at fetchResourcesForClient and fetchCommandsForClient in src/services/mcp/client.ts')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

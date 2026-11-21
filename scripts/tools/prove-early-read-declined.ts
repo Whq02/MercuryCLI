@@ -29,9 +29,10 @@ const { INTERRUPT_MESSAGE, INTERRUPT_MESSAGE_FOR_TOOL_USE, isInterruptedResultTe
 
 let failures = 0
 let checks = 0
+const EARLY_READ_WHERE = 'change the EarlyStarts class in src/services/tools/earlyStarts.ts (a read started while the reply arrives, and how its declined or stopped answer ends the turn), the tool round in src/services/tools/toolOrchestration.ts, or decisionOfAnswer in src/cli/headless/runnerAsks.ts (an answer that carries the stop)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${EARLY_READ_WHERE}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
   if (!cond) failures++
 }
 function section(title: string): void {

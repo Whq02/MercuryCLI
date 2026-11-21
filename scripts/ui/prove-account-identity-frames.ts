@@ -85,6 +85,7 @@ let failures = 0
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  if (!pass) console.log('  hint: the view.accountIdentity setting is read by accountIdentityShown in src/services/wallet/identityWords.ts; a surface that shows or hides the signed-in address or username wrongly must gate on it (callers include src/commands/model/picker/headings.ts, src/services/providers/providerIdentityLine.ts and src/components/BootSaturnScreen.tsx)')
 }
 function setLeg(leg: Leg): void {
   json('settings.json', { engine: { model: MODEL }, ...(setting[leg] === undefined ? {} : { view: { accountIdentity: setting[leg] } }) })

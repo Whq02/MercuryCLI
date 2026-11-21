@@ -39,7 +39,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — call-reference prover exceeded 120s')
+  console.log('\nTIMEOUT — call-reference prover exceeded 120s; the runEventCore loop in src/run-core/turn-machine.ts did not finish the scripted two-turn run')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -49,21 +49,21 @@ section('§A builder laws — deterministic, order-sensitive, frozen')
   const tools = [{ name: 'Alpha' }, { name: 'Beta' }]
   const a = buildModelCallReference({ model: MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools })
   const b = buildModelCallReference({ model: MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools })
-  check('identical inputs → identical digests', a.digest === b.digest && a.toolPlanDigest === b.toolPlanDigest)
-  check('digest form: sha256 hex ×2', /^[0-9a-f]{64}$/.test(a.digest) && /^[0-9a-f]{64}$/.test(a.toolPlanDigest))
+  check('identical inputs → identical digests', a.digest === b.digest && a.toolPlanDigest === b.toolPlanDigest, 'buildModelCallReference in src/run-core/call-reference.ts must hash only its inputs')
+  check('digest form: sha256 hex ×2', /^[0-9a-f]{64}$/.test(a.digest) && /^[0-9a-f]{64}$/.test(a.toolPlanDigest), 'sha256Hex in src/run-core/call-reference.ts must return 64 lowercase hex characters')
   const reversed = buildModelCallReference({ model: MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools: [...tools].reverse() })
-  check('tool ORDER is identity (wire order = cache identity)', reversed.toolPlanDigest !== a.toolPlanDigest && reversed.digest !== a.digest)
+  check('tool ORDER is identity (wire order = cache identity)', reversed.toolPlanDigest !== a.toolPlanDigest && reversed.digest !== a.digest, 'buildModelCallReference in src/run-core/call-reference.ts must hash the tool names in the order given')
   const dropped = buildModelCallReference({ model: MODEL, effort: 'high', maxOutputTokensOverride: undefined, tools: tools.slice(0, 1) })
-  check('tool MEMBERSHIP is identity', dropped.toolPlanDigest !== a.toolPlanDigest)
+  check('tool MEMBERSHIP is identity', dropped.toolPlanDigest !== a.toolPlanDigest, 'buildModelCallReference in src/run-core/call-reference.ts must hash every tool name into toolPlanDigest')
   const otherModel = buildModelCallReference({ model: 'gpt-5.2', effort: 'high', maxOutputTokensOverride: undefined, tools })
-  check('model changes digest, not toolPlanDigest', otherModel.digest !== a.digest && otherModel.toolPlanDigest === a.toolPlanDigest)
+  check('model changes digest, not toolPlanDigest', otherModel.digest !== a.digest && otherModel.toolPlanDigest === a.toolPlanDigest, 'in src/run-core/call-reference.ts the model belongs in digest and not in toolPlanDigest')
   const otherEffort = buildModelCallReference({ model: MODEL, effort: 'max', maxOutputTokensOverride: undefined, tools })
   const numericEffort = buildModelCallReference({ model: MODEL, effort: 3, maxOutputTokensOverride: undefined, tools })
-  check('effort (string or numeric intent) changes digest', otherEffort.digest !== a.digest && numericEffort.digest !== a.digest)
+  check('effort (string or numeric intent) changes digest', otherEffort.digest !== a.digest && numericEffort.digest !== a.digest, 'buildModelCallReference in src/run-core/call-reference.ts must put the effort (String of a number too) into digest')
   const withOverride = buildModelCallReference({ model: MODEL, effort: 'high', maxOutputTokensOverride: 9000, tools })
-  check('output-token override changes digest', withOverride.digest !== a.digest)
-  check('reference deep-frozen (object + toolNames)', Object.isFrozen(a) && Object.isFrozen(a.toolNames))
-  check('toolCount/toolNames coherent', a.toolCount === 2 && a.toolNames.join(',') === 'Alpha,Beta')
+  check('output-token override changes digest', withOverride.digest !== a.digest, 'buildModelCallReference in src/run-core/call-reference.ts must put maxOutputTokensOverride into digest')
+  check('reference deep-frozen (object + toolNames)', Object.isFrozen(a) && Object.isFrozen(a.toolNames), 'buildModelCallReference in src/run-core/call-reference.ts must return a frozen object with frozen toolNames')
+  check('toolCount/toolNames coherent', a.toolCount === 2 && a.toolNames.join(',') === 'Alpha,Beta', 'buildModelCallReference in src/run-core/call-reference.ts must set toolCount and toolNames from the tools given')
 }
 
 
@@ -205,7 +205,7 @@ section('§B the real machine — frozen per attempt, refresh lands at the bound
     r = await gen.next()
   }
 
-  check('two turns → two model_call_started events', started.length === 2, String(started.length))
+  check('two turns → two model_call_started events', started.length === 2, `${started.length} model_call_started events; each model call in src/run-core/turn/streamModel.ts must emit one`)
   const [c1, c2] = started as Array<{
     model: string
     effort: unknown
@@ -221,36 +221,37 @@ section('§B the real machine — frozen per attempt, refresh lands at the bound
       digest: string
     }
   }>
-  check('every attempt carries a reference', Boolean(c1?.reference) && Boolean(c2?.reference))
+  check('every attempt carries a reference', Boolean(c1?.reference) && Boolean(c2?.reference), 'the model_call_started event in src/run-core/turn/streamModel.ts must carry the reference from buildModelCallReference')
   if (c1?.reference && c2?.reference) {
     check(
       'references are frozen objects',
       Object.isFrozen(c1.reference) && Object.isFrozen(c1.reference.toolNames) && Object.isFrozen(c2.reference),
+      'the reference the model_call_started event carries (src/run-core/turn/streamModel.ts) must be the frozen object from buildModelCallReference',
     )
     check(
       'call 1 reference names EXACTLY the tools the model received',
       c1.reference.toolNames.join(',') === calls[0]!.toolNames.join(','),
-      `ref=[${c1.reference.toolNames.join(',')}] call=[${calls[0]!.toolNames.join(',')}]`,
+      `ref=[${c1.reference.toolNames.join(',')}] call=[${calls[0]!.toolNames.join(',')}]; build the reference in src/run-core/turn/streamModel.ts from the same tools it sends to the model`,
     )
     check(
       'call 2 reference names EXACTLY the tools the model received',
       c2.reference.toolNames.join(',') === calls[1]!.toolNames.join(','),
-      `ref=[${c2.reference.toolNames.join(',')}] call=[${calls[1]!.toolNames.join(',')}]`,
+      `ref=[${c2.reference.toolNames.join(',')}] call=[${calls[1]!.toolNames.join(',')}]; build the reference in src/run-core/turn/streamModel.ts from the same tools it sends to the model`,
     )
     check(
       'the boundary refresh reaches the NEXT call only',
       c1.reference.toolNames.join(',') === 'EchoTool,DeltaTool' &&
         c2.reference.toolNames.join(',') === 'EchoTool,DeltaTool,GammaTool',
-      `c1=[${c1.reference.toolNames.join(',')}] c2=[${c2.reference.toolNames.join(',')}]`,
+      `c1=[${c1.reference.toolNames.join(',')}] c2=[${c2.reference.toolNames.join(',')}]; the refreshTools result must apply at the turn boundary (src/run-core/turn/afterTools.ts) and not earlier`,
     )
-    check('plans differ → digests differ', c1.reference.toolPlanDigest !== c2.reference.toolPlanDigest)
+    check('plans differ → digests differ', c1.reference.toolPlanDigest !== c2.reference.toolPlanDigest, 'toolPlanDigest in src/run-core/call-reference.ts must follow the tool list each call sends')
     check(
       'reference agrees with the event envelope (model · effort intent)',
       c1.reference.model === c1.model &&
         (c1.effort === undefined
           ? c1.reference.effortRequested === undefined
           : c1.reference.effortRequested === String(c1.effort)),
-    )
+      'the model_call_started event in src/run-core/turn/streamModel.ts must build its reference from the same model and effort it reports')
     const replay1 = buildModelCallReference({
       model: c1.model,
       effort: c1.effort as never,
@@ -260,7 +261,7 @@ section('§B the real machine — frozen per attempt, refresh lands at the bound
     check(
       'the digest reproduces from the recorded inputs (replay-stable)',
       replay1.digest === c1.reference.digest && replay1.toolPlanDigest === c1.reference.toolPlanDigest,
-      `replay=${replay1.digest.slice(0, 12)} live=${c1.reference.digest.slice(0, 12)}`,
+      `replay=${replay1.digest.slice(0, 12)} live=${c1.reference.digest.slice(0, 12)}; src/run-core/turn/streamModel.ts must pass buildModelCallReference only the model, effort, output override and tools the event records`,
     )
   }
 }

@@ -13,10 +13,11 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+const cardLayoutFixHint = 'fix how the overlay (the permission card) is placed under the conversation in src/components/FullscreenLayout.tsx, so the conversation last row stays on screen and the card rule stands one row below it'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `\n${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `\n${detail}` : ''}${!ok ? `\n      ${cardLayoutFixHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

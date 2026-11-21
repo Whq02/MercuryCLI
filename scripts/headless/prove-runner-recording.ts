@@ -27,9 +27,10 @@ const argOf = (flag: string): string | undefined => {
 }
 
 let failures = 0
+const RECORDING_FAIL_HINT = 'to fix, change the arm named in the detail (the arms are bound in bindRunnerMethods in src/cli/headless/runnerMethods.ts, project/query is served by src/cli/headless/projectQuery.ts) so its answer class matches the want; if the new answer is intended, regenerate the stored recording with --out and rebuild the bundle with bun run build.ts first, since this proof runs the built bundle'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${RECORDING_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 

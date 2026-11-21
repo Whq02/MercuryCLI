@@ -19,7 +19,7 @@ for (const key of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL
 for (const key of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(key)) delete process.env[key]
 let failures = 0
 let checks = 0
-function check(name: string, pass: unknown): void { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`) }
+function check(name: string, pass: unknown, hint = ''): void { checks++; if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && hint ? ` — ${hint}` : ''}`) }
 const captures: Array<{ path: string; body: any; auth: string | null; header: string | null; affinity: string | null }> = []
 let mode = 'text'
 let listMode = 'good'
@@ -89,7 +89,7 @@ try {
   const legacyConfig = accounts.resolveCompatSlotConfig()
   const control = await run('compat/Fixture')
   const controlBody = captures.at(-1)?.body
-  check('the single block keeps its config shape, id, key and request bytes', JSON.stringify(legacyConfig) === JSON.stringify({ baseUrl: `${baseUrl}/default/v1`, label: 'Fixture default', models: ['Fixture'] }) && succeeded(control) && captures.at(-1)?.auth === 'Bearer proof-key-default-fixture-not-a-real-key' && controlBody?.model === 'Fixture' && controlBody.max_tokens === 256 && controlBody.stream_options.include_usage)
+  check('the single block keeps its config shape, id, key and request bytes', JSON.stringify(legacyConfig) === JSON.stringify({ baseUrl: `${baseUrl}/default/v1`, label: 'Fixture default', models: ['Fixture'] }) && succeeded(control) && captures.at(-1)?.auth === 'Bearer proof-key-default-fixture-not-a-real-key' && controlBody?.model === 'Fixture' && controlBody.max_tokens === 256 && controlBody.stream_options.include_usage, 'the single compatProvider slot must keep its shape, stored key and request body: see resolveCompatSlotConfig in src/services/providers/openaicompat/compatAccounts.ts and routedCallModel in src/services/providers/callModelRouter.ts')
   const map = { east: { baseUrl: `${baseUrl}/east/v1`, models: ['Fixture'], headers: { 'x-fixture': 'east' }, sessionAffinityHeader: 'x-session' }, west: { baseUrl: `${baseUrl}/west/v1`, models: ['Fixture'] }, live: { baseUrl: `${baseUrl}/live/v1` }, responses: { baseUrl: `${baseUrl}/responses/v1`, models: ['Fixture'], dialect: 'responses' } }
   setConfig(map)
   secrets.writeStoredCompatApiKey('proof-key-east-fixture-not-a-real-key', 'east')
@@ -98,82 +98,82 @@ try {
   check('east serves its named model', succeeded(await run('compat/east/Fixture')))
   check('west serves its named model', succeeded(await run('compat/west/Fixture')))
   const east = captures[start], west = captures[start + 1]
-  check('two endpoints on one host keep separate stored keys, URLs and headers', east?.path === '/east/v1/chat/completions' && west?.path === '/west/v1/chat/completions' && east?.auth === 'Bearer proof-key-east-fixture-not-a-real-key' && west?.auth === 'Bearer proof-key-west-fixture-not-a-real-key' && east.header === 'east' && west.header === null && Boolean(east.affinity))
-  check('a named chat endpoint has byte-identical request JSON to the single slot', JSON.stringify(east?.body) === JSON.stringify(controlBody))
+  check('two endpoints on one host keep separate stored keys, URLs and headers', east?.path === '/east/v1/chat/completions' && west?.path === '/west/v1/chat/completions' && east?.auth === 'Bearer proof-key-east-fixture-not-a-real-key' && west?.auth === 'Bearer proof-key-west-fixture-not-a-real-key' && east.header === 'east' && west.header === null && Boolean(east.affinity), 'each named endpoint must use its own URL, stored key and headers: see src/services/providers/openaicompat/compatAccounts.ts and writeStoredCompatApiKey in src/utils/accounts/providerSecrets.ts')
+  check('a named chat endpoint has byte-identical request JSON to the single slot', JSON.stringify(east?.body) === JSON.stringify(controlBody), 'the request JSON of a named chat endpoint must match the single slot; compare the two paths in src/services/providers/openaicompat/compatAccounts.ts')
   process.env.MERCURY_COMPAT_WEST_API_KEY = 'proof-key-west-env-fixture-not-a-real-key'
   await run('compat/west/Fixture')
-  check('the endpoint environment key wins only for its name', captures.at(-1)?.auth === 'Bearer proof-key-west-env-fixture-not-a-real-key' && accounts.resolveCompatApiKey(process.env, 'east')?.key === 'proof-key-east-fixture-not-a-real-key')
-  check('dynamic credential environment names are excluded by the secrets owner', secrets.credentialEnvNames().includes('MERCURY_COMPAT_WEST_API_KEY'))
-  check('the secrets file stays owner-only', process.platform === 'win32' || (statSync(secrets.providerSecretsPathForDisplay()).mode & 0o777) === 0o600)
-  check('picker groups each endpoint under its own name', ['east', 'west'].every(name => getModelOptions().some((row: any) => row.value === `compat/${name}/Fixture` && row.group.includes(name))))
-  check('logins has one addressable key row per named endpoint', Object.keys(map).every(name => loginFamilyRows({ engineLegs: true }).some((row: any) => row.value === `compat/${name}`)))
-  check('the models page lists endpoints separately', (await liveModelsReference({})).providers.some((row: any) => row.provider === 'openai-compat/east' && row.models.some((model: any) => model.id === 'compat/east/Fixture')))
+  check('the endpoint environment key wins only for its name', captures.at(-1)?.auth === 'Bearer proof-key-west-env-fixture-not-a-real-key' && accounts.resolveCompatApiKey(process.env, 'east')?.key === 'proof-key-east-fixture-not-a-real-key', 'resolveCompatApiKey in src/services/providers/openaicompat/compatAccounts.ts must read MERCURY_COMPAT_<NAME>_API_KEY only for its own endpoint name')
+  check('dynamic credential environment names are excluded by the secrets owner', secrets.credentialEnvNames().includes('MERCURY_COMPAT_WEST_API_KEY'), 'credentialEnvNames in src/utils/accounts/providerSecrets.ts must include the per-endpoint MERCURY_COMPAT_<NAME>_API_KEY names')
+  check('the secrets file stays owner-only', process.platform === 'win32' || (statSync(secrets.providerSecretsPathForDisplay()).mode & 0o777) === 0o600, 'the file written by providerSecrets.ts in src/utils/accounts must be mode 0600')
+  check('picker groups each endpoint under its own name', ['east', 'west'].every(name => getModelOptions().some((row: any) => row.value === `compat/${name}/Fixture` && row.group.includes(name))), 'getModelOptions in src/services/model/modelOptions.ts must list compat/<name>/<model> under a group naming the endpoint')
+  check('logins has one addressable key row per named endpoint', Object.keys(map).every(name => loginFamilyRows({ engineLegs: true }).some((row: any) => row.value === `compat/${name}`)), 'loginFamilyRows in src/components/loginFamilyRows.ts must give each named endpoint a compat/<name> row')
+  check('the models page lists endpoints separately', (await liveModelsReference({})).providers.some((row: any) => row.provider === 'openai-compat/east' && row.models.some((model: any) => model.id === 'compat/east/Fixture')), 'liveModelsReference in src/services/resources/adapters/models.ts must list each endpoint as openai-compat/<name>')
   const noList = listReads
   await catalogue?.refreshCompatCatalogues()
-  check('catalogue traffic off sends no discovery request', listReads === noList)
+  check('catalogue traffic off sends no discovery request', listReads === noList, 'refreshCompatCatalogues in src/services/providers/openaicompat/compatCatalogue.ts must send nothing while MERCURY_DISABLE_NONESSENTIAL_TRAFFIC is set')
   delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
   await catalogue?.refreshCompatCatalogues({ force: true })
-  check('discovery lists the endpoint vendor id without changing case or segments', accounts.compatSlotModelIds().includes('compat/live/Vendor/Fixture'))
+  check('discovery lists the endpoint vendor id without changing case or segments', accounts.compatSlotModelIds().includes('compat/live/Vendor/Fixture'), 'refreshCompatCatalogues in src/services/providers/openaicompat/compatCatalogue.ts and compatSlotModelIds in compatAccounts.ts must keep the vendor id as listed')
   const replies = await run('compat/responses/Fixture')
-  check('the Responses dialect reaches /responses and settles measured usage', succeeded(replies) && captures.at(-1)?.path === '/responses/v1/responses' && replies.at(-1)?.message.usage.input_tokens === 7)
+  check('the Responses dialect reaches /responses and settles measured usage', succeeded(replies) && captures.at(-1)?.path === '/responses/v1/responses' && replies.at(-1)?.message.usage.input_tokens === 7, 'the dialect: responses endpoint must call /responses and settle usage (10 input minus 3 cached); trace routedCallModel in src/services/providers/callModelRouter.ts')
   await run('compat/responses/Fixture', [...replies, createUserMessage({ content: 'continue fixture' })])
-  check('Responses reasoning replays on the same endpoint', captures.at(-1)?.body.input?.some((item: any) => item.type === 'reasoning' && item.encrypted_content === 'fixture-encrypted-reasoning-not-a-secret'))
+  check('Responses reasoning replays on the same endpoint', captures.at(-1)?.body.input?.some((item: any) => item.type === 'reasoning' && item.encrypted_content === 'fixture-encrypted-reasoning-not-a-secret'), 'the Responses road must replay encrypted reasoning back to the same endpoint; trace routedCallModel in src/services/providers/callModelRouter.ts')
   setConfig({ ...map, second: { baseUrl: `${baseUrl}/second/v1`, models: ['Fixture'], dialect: 'responses' } })
   await run('compat/second/Fixture', [...replies, createUserMessage({ content: 'continue fixture' })])
-  check('encrypted reasoning never crosses endpoint identity', !captures.at(-1)?.body.input?.some((item: any) => item.type === 'reasoning'))
+  check('encrypted reasoning never crosses endpoint identity', !captures.at(-1)?.body.input?.some((item: any) => item.type === 'reasoning'), 'reasoning items must be dropped when the history came from a different endpoint; trace routedCallModel in src/services/providers/callModelRouter.ts')
   mode = 'tools'
   const calls = await run('compat/east/Fixture')
-  check('named endpoints settle validated tool calls', calls.some(row => row.message.content.some((block: any) => block.type === 'tool_use' && block.id === 'fixture-call')))
+  check('named endpoints settle validated tool calls', calls.some(row => row.message.content.some((block: any) => block.type === 'tool_use' && block.id === 'fixture-call')), 'a named endpoint must settle the streamed tool call as a tool_use block; trace routedCallModel in src/services/providers/callModelRouter.ts')
   mode = 'text'
   await run('compat/east/Fixture', [...calls, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'fixture-call', content: 'hello' }] })])
-  check('tool results replay with the original call identity', captures.at(-1)?.body.messages.some((message: any) => message.role === 'tool' && message.tool_call_id === 'fixture-call'))
+  check('tool results replay with the original call identity', captures.at(-1)?.body.messages.some((message: any) => message.role === 'tool' && message.tool_call_id === 'fixture-call'), 'a tool result must replay as a tool message carrying the original tool_call_id; trace routedCallModel in src/services/providers/callModelRouter.ts')
 
   console.log('refusals')
   for (const name of ['', '../escape', '/absolute', 'C:\\escape', 'with space', 'upperCase', 'semi;colon', 'quote"name', 'x'.repeat(33)]) {
     const result = SettingsSchema().safeParse({ compatProvider: { [name]: { baseUrl: `${baseUrl}/v1` } } })
-    check(`endpoint name refused: ${JSON.stringify(name)}`, !result.success)
+    check(`endpoint name refused: ${JSON.stringify(name)}`, !result.success, 'SettingsSchema in src/utils/settings/types.ts must reject this compatProvider endpoint name')
   }
-  for (const url of ['file:///fixture', 'ftp://fixture.invalid', 'not-a-url', 'https://user:pass@fixture.invalid', 'https://fixture.invalid/?secret=fixture']) check(`base URL refused: ${url}`, !SettingsSchema().safeParse({ compatProvider: { east: { baseUrl: url } } }).success)
-  for (const value of [null, [], 'fixture', { east: {} }, { east: { baseUrl, headers: { authorization: 'fixture' } } }, { east: { baseUrl, sessionAffinityHeader: 'host' } }, { east: { baseUrl, headers: { 'x-fixture': 'bad\r\nline' } } }]) check(`malformed endpoint map refused: ${JSON.stringify(value)}`, !SettingsSchema().safeParse({ compatProvider: value }).success)
+  for (const url of ['file:///fixture', 'ftp://fixture.invalid', 'not-a-url', 'https://user:pass@fixture.invalid', 'https://fixture.invalid/?secret=fixture']) check(`base URL refused: ${url}`, !SettingsSchema().safeParse({ compatProvider: { east: { baseUrl: url } } }).success, 'SettingsSchema in src/utils/settings/types.ts must reject this compatProvider baseUrl')
+  for (const value of [null, [], 'fixture', { east: {} }, { east: { baseUrl, headers: { authorization: 'fixture' } } }, { east: { baseUrl, sessionAffinityHeader: 'host' } }, { east: { baseUrl, headers: { 'x-fixture': 'bad\r\nline' } } }]) check(`malformed endpoint map refused: ${JSON.stringify(value)}`, !SettingsSchema().safeParse({ compatProvider: value }).success, 'SettingsSchema in src/utils/settings/types.ts must reject this compatProvider map')
   writeFileSync(join(home, 'settings.json'), `{"compatProvider":{"east":{"baseUrl":"${baseUrl}/one"},"east":{"baseUrl":"${baseUrl}/two"}},"engine":{"effort":"max"}}`)
   resetSettingsCache()
   const duplicate = parseSettingsFile(join(home, 'settings.json'))
-  check('a duplicate endpoint is refused with its key named, unrelated settings survive', duplicate.errors.some((error: any) => error.path === 'compatProvider.east' && error.message.includes('duplicate')) && duplicate.settings.engine.effort === 'max' && duplicate.settings.compatProvider === undefined)
+  check('a duplicate endpoint is refused with its key named, unrelated settings survive', duplicate.errors.some((error: any) => error.path === 'compatProvider.east' && error.message.includes('duplicate')) && duplicate.settings.engine.effort === 'max' && duplicate.settings.compatProvider === undefined, 'parseSettingsFile in src/utils/settings/settings.ts must report a duplicate endpoint key at compatProvider.east and keep other settings')
   setConfig(map)
   const prior = readFileSync(secrets.providerSecretsPathForDisplay(), 'utf8')
   let refusal = ''
   try { secrets.writeStoredCompatApiKey('proof-key-unknown-fixture-not-a-real-key', 'unknown') } catch (error) { refusal = (error as Error).message }
-  check('a key for an unknown endpoint is refused before any write', refusal.includes('compatProvider.unknown') && readFileSync(secrets.providerSecretsPathForDisplay(), 'utf8') === prior)
+  check('a key for an unknown endpoint is refused before any write', refusal.includes('compatProvider.unknown') && readFileSync(secrets.providerSecretsPathForDisplay(), 'utf8') === prior, 'writeStoredCompatApiKey in src/utils/accounts/providerSecrets.ts must refuse an unconfigured endpoint name, naming compatProvider.<name>, before writing')
   console.log(`unknown key answer: ${refusal || '(not refused)'}`)
   const beforeUnknown = captures.length
   await run('compat/unknown/Fixture')
-  check('an unknown endpoint refuses before inference and never uses default credentials', captures.length === beforeUnknown && canonicalWireModelId('compat/unknown/Fixture').ok === false)
+  check('an unknown endpoint refuses before inference and never uses default credentials', captures.length === beforeUnknown && canonicalWireModelId('compat/unknown/Fixture').ok === false, 'an unconfigured compat endpoint must be refused before any request: see canonicalWireModelId in src/services/providers/routeLaw.ts')
   mode = 'auth'
   const beforeAuth = captures.length
   const auth = await run('compat/east/Fixture')
-  check('a named endpoint 401 is one refusal, never another endpoint', captures.length === beforeAuth + 1 && auth.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'))
-  check('a stored named key refusal is recorded only for that endpoint', readSignInRefusal('compat-east')?.status === 401 && readSignInRefusal('compat-west') === undefined)
-  check('the named key refusal names its own sign-in row and environment key', JSON.stringify(auth).includes('/logins compat/east') && JSON.stringify(auth).includes('MERCURY_COMPAT_EAST_API_KEY'))
+  check('a named endpoint 401 is one refusal, never another endpoint', captures.length === beforeAuth + 1 && auth.some(row => row.isApiErrorMessage && row.error === 'authentication_failed'), 'a 401 from a named endpoint must give one authentication_failed refusal and no retry on another endpoint; trace routedCallModel in src/services/providers/callModelRouter.ts')
+  check('a stored named key refusal is recorded only for that endpoint', readSignInRefusal('compat-east')?.status === 401 && readSignInRefusal('compat-west') === undefined, 'the refusal must be recorded under compat-<name> only: see readSignInRefusal in src/services/providers/signInRefusal.ts')
+  check('the named key refusal names its own sign-in row and environment key', JSON.stringify(auth).includes('/logins compat/east') && JSON.stringify(auth).includes('MERCURY_COMPAT_EAST_API_KEY'), 'the refusal text must name /logins compat/<name> and MERCURY_COMPAT_<NAME>_API_KEY; trace routedCallModel in src/services/providers/callModelRouter.ts')
   const modelRefusal = await resolveEngineDispatch('compat/east/Absent').then(() => '', (error: Error) => error.message)
-  check('a named endpoint model refusal names the available-models page', modelRefusal.includes('mercury://models'))
+  check('a named endpoint model refusal names the available-models page', modelRefusal.includes('mercury://models'), 'resolveEngineDispatch in src/services/crew/engineDispatch.ts must name mercury://models when a named endpoint lacks the model')
   mode = 'malformed'
   check('malformed tool arguments keep their call identity and receive an error result without execution', await assertRefusedCallResult(await run('compat/east/Fixture'), { id: 'fixture-call', name: 'FixtureEcho', raw: '{broken' }))
   mode = 'truncated'
-  check('a cut stream keeps its partial answer and its failure', (await run('compat/east/Fixture')).some(row => row.isApiErrorMessage))
+  check('a cut stream keeps its partial answer and its failure', (await run('compat/east/Fixture')).some(row => row.isApiErrorMessage), 'a stream cut before its finish must end with an error message; trace routedCallModel in src/services/providers/callModelRouter.ts')
   mode = 'retry'
   const beforeRetry = captures.length
-  check('a retry stays on the named endpoint and then serves', succeeded(await run('compat/east/Fixture')) && captures.length === beforeRetry + 2 && captures.slice(beforeRetry).every(row => row.path === '/east/v1/chat/completions'))
-  check('a served request clears the named endpoint refusal', readSignInRefusal('compat-east') === undefined)
+  check('a retry stays on the named endpoint and then serves', succeeded(await run('compat/east/Fixture')) && captures.length === beforeRetry + 2 && captures.slice(beforeRetry).every(row => row.path === '/east/v1/chat/completions'), 'a retried request must stay on the same named endpoint; trace routedCallModel in src/services/providers/callModelRouter.ts')
+  check('a served request clears the named endpoint refusal', readSignInRefusal('compat-east') === undefined, 'a served request must clear the stored refusal: see src/services/providers/signInRefusal.ts')
   const controller = new AbortController(); controller.abort()
   const beforeAbort = captures.length
   await run('compat/east/Fixture', prompt, controller.signal)
-  check('cancellation sends no request', captures.length === beforeAbort)
+  check('cancellation sends no request', captures.length === beforeAbort, 'an already aborted signal must stop routedCallModel in src/services/providers/callModelRouter.ts before any fetch')
   for (const bad of ['malformed', 'oversize', 'stream-oversize', 'redirect']) {
     listMode = bad
     await catalogue?.refreshCompatCatalogues({ force: true, ...(bad === 'oversize' ? { fetchImpl: async () => new Response('x', { headers: { 'content-length': '4194305' } }) } : {}) })
     const endpoint = accounts.configuredCompatEndpoints?.().find((row: any) => row.name === 'live')
     const reading = endpoint && catalogue?.cachedCompatCatalogue(endpoint)
-    check(`discovery refusal names ${bad} instead of a confident empty list`, bad.includes('oversize') ? reading?.error === 'models response exceeds 4194304 bytes' : Boolean(reading?.error))
+    check(`discovery refusal names ${bad} instead of a confident empty list`, bad.includes('oversize') ? reading?.error === 'models response exceeds 4194304 bytes' : Boolean(reading?.error), 'cachedCompatCatalogue in src/services/providers/openaicompat/compatCatalogue.ts must hold an error for this bad /models answer, not an empty list')
     console.log(`${bad} answer: ${reading?.error ?? '(not refused)'}`)
   }
   console.log(`${failures ? 'NAMED ENDPOINTS RED' : 'NAMED ENDPOINTS GREEN'} (${checks} checks, ${failures} failures; loopback only)`)

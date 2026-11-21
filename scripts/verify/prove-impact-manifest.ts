@@ -12,7 +12,8 @@ import { flagRegistryFiles, isFlagRegistryFile } from '../lib/flagRegistrySource
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const impactHint = 'fix selectImpact or loadImpactManifest in scripts/verify/impactManifest.ts, computedWatch in scripts/verify/watchGraph.ts, a gate-watch header line in the named suite run-all.sh, or a row in scripts/gate/impact-doors.txt'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${impactHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

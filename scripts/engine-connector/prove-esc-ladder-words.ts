@@ -6,7 +6,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = 'change the rung words in escRungOf/escRungHint (src/input-core/interruptArity.ts), the latch release in interruptLatchRelease (src/services/engine-connector/interruptLatch.ts), the row words in statusLine/escBackHint (src/components/SwitchboardTagBar.tsx), or the no-seat interrupt in noSessionConnector (src/services/engine-connector/noSessionConnector.ts)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

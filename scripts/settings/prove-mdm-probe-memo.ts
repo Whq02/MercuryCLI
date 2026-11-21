@@ -10,9 +10,10 @@ delete process.env.NODE_ENV
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const MDM_MEMO_FIX_HINT = 'fix mdmBootAwaitsRawRead, readMdmProbeMemo, writeMdmProbeMemo and recordMdmProbeOutcome in src/utils/settings/mdm/probeMemo.ts, or the boot barrier ensureMdmSettingsLoaded in src/utils/settings/mdm/settings.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${MDM_MEMO_FIX_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

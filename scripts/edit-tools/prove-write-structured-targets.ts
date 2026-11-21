@@ -32,10 +32,11 @@ const structured = (await import(`${SRC}/tools/FileWriteTool/structuredTargets.t
 
 let failures = 0
 let checks = 0
+const structuredTargetHint = 'a zip entry or SQLite row target (path:entry or path:table/row) no longer behaves as the label says; compare it with parseStructuredWriteTarget in src/tools/FileWriteTool/structuredTargets.ts and with the Write, Edit and Read tools in src/tools/FileWriteTool, src/tools/FileEditTool and src/tools/FileReadTool. '
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${structuredTargetHint}${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

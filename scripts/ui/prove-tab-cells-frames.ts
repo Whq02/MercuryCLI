@@ -41,6 +41,9 @@ const arg = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 const squash = (text: string): string => text.replace(/\s+/g, '')
+const boxHint = 'the label names the surface that paints the box: fix src/components/StructuredDiff/colorDiff.ts for the file road, src/components/HighlightedCode.tsx for the text view, src/components/permissions/ConsentFileEditDiff.tsx for the consent card'
+const tabHint = 'wrapping or tab expansion lost characters: check expandTabs in src/ink/tabstops.ts and the surface the label names (src/components/StructuredDiff/colorDiff.ts for the file road, src/components/HighlightedCode.tsx for the text view)'
+const cardHint = 'change ConsentFileEditDiff in src/components/permissions/ConsentFileEditDiff.tsx, or consentBodyBudget and diffPaintWidth in src/components/permissions/consentBodyBudget.ts'
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 const file = (name: string, plain: string[], raw?: string[]): void => {
@@ -110,7 +113,7 @@ function boxEdges(plain: string[], corner: string, from = 0): Edges {
 
 function boxLaws(label: string, plain: string[], edges: Edges, columns: number, outerRight = columns): string[] {
   const { top, bottom, x0, x1 } = edges
-  check(`${label}: the box paints with a top and a bottom edge`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom}`)
+  check(`${label}: the box paints with a top and a bottom edge`, top >= 0 && x1 > x0 && bottom > top, `top=${top} x0=${x0} x1=${x1} bottom=${bottom}. ${boxHint}`)
   if (top < 0 || x1 <= x0 || bottom <= top) return []
   const edgeFaults: string[] = []
   const bleeds: string[] = []
@@ -122,9 +125,9 @@ function boxLaws(label: string, plain: string[], edges: Edges, columns: number, 
     if (after.trim() !== '') bleeds.push(`row ${y}: ${JSON.stringify(after.trim().slice(0, 24))} painted right of the border at ${x1 + 1}`)
     inner.push(line.slice(x0 + 1, x1))
   }
-  check(`${label}: every row inside the box keeps both border glyphs`, edgeFaults.length === 0, edgeFaults.slice(0, 3).join(' · '))
-  check(`${label}: nothing is painted right of the box`, bleeds.length === 0, bleeds.slice(0, 3).join(' · '))
-  check(`${label}: no row is wider than the screen`, plain.every(line => stringWidth(line) <= columns), String(Math.max(...plain.map(line => stringWidth(line)))))
+  check(`${label}: every row inside the box keeps both border glyphs`, edgeFaults.length === 0, edgeFaults.slice(0, 3).join(' · ') + '. ' + boxHint)
+  check(`${label}: nothing is painted right of the box`, bleeds.length === 0, bleeds.slice(0, 3).join(' · ') + '. ' + boxHint)
+  check(`${label}: no row is wider than the screen`, plain.every(line => stringWidth(line) <= columns), String(Math.max(...plain.map(line => stringWidth(line)))) + '. ' + boxHint)
   return inner
 }
 
@@ -147,9 +150,9 @@ for (const [columns, rows] of [[178, 51], [220, 51]] as const) {
     const inner = boxLaws(label, plain, edges, columns)
     if (inner.length > 0) {
       const innerText = squash(inner.join(''))
-      check(`${label}: the over-long line wraps inside the box with every character kept`, innerText.includes(squash(expandTabs(longLine))), `${expandTabs(longLine).slice(0, 48)}…`)
-      check(`${label}: the header columns sit at the line's own tab stops`, afterGutter(inner[0]!).startsWith(expandTabs(header)), JSON.stringify(afterGutter(inner[0]!).slice(0, 40)))
-      check(`${label}: every line spends exactly the rows its expanded cells need`, inner.length === expectedRows, `${inner.length} rows painted, ${expectedRows} expected`)
+      check(`${label}: the over-long line wraps inside the box with every character kept`, innerText.includes(squash(expandTabs(longLine))), `${expandTabs(longLine).slice(0, 48)}…. ${tabHint}`)
+      check(`${label}: the header columns sit at the line's own tab stops`, afterGutter(inner[0]!).startsWith(expandTabs(header)), JSON.stringify(afterGutter(inner[0]!).slice(0, 40)) + '. ' + tabHint)
+      check(`${label}: every line spends exactly the rows its expanded cells need`, inner.length === expectedRows, `${inner.length} rows painted, ${expectedRows} expected. ${tabHint}`)
     }
   }
 
@@ -164,8 +167,8 @@ for (const [columns, rows] of [[178, 51], [220, 51]] as const) {
     const inner = boxLaws(label, plain, edges, columns)
     if (inner.length > 0) {
       const innerText = squash(inner.join(''))
-      check(`${label}: the over-long line wraps inside the box with every character kept`, innerText.includes(squash(expandTabs(longLine))), `${expandTabs(longLine).slice(0, 48)}…`)
-      check(`${label}: the header columns sit at the line's own tab stops`, afterGutter(inner[0]!).startsWith(expandTabs(header)), JSON.stringify(afterGutter(inner[0]!).slice(0, 40)))
+      check(`${label}: the over-long line wraps inside the box with every character kept`, innerText.includes(squash(expandTabs(longLine))), `${expandTabs(longLine).slice(0, 48)}…. ${tabHint}`)
+      check(`${label}: the header columns sit at the line's own tab stops`, afterGutter(inner[0]!).startsWith(expandTabs(header)), JSON.stringify(afterGutter(inner[0]!).slice(0, 40)) + '. ' + tabHint)
     }
   }
 
@@ -178,7 +181,7 @@ for (const [columns, rows] of [[178, 51], [220, 51]] as const) {
     const budget = consentBodyBudget(rows)
     const paintWidth = diffPaintWidth(consentContentWidth(columns) - 4, [{ oldStart: 1, oldLines: names.length + 1, newStart: 1, newLines: names.length + 1, lines: [] }])
     const straddling = [...held, ...folded].filter(line => stringWidth(line) <= paintWidth && stringWidth(expandTabs(line)) > paintWidth).length
-    check(`${label}: the fixture straddles the wrap at the card's paint width (${paintWidth}): changed rows measured within it raw and beyond it expanded`, straddling >= 12, `${straddling} straddling rows`)
+    check(`${label}: the fixture straddles the wrap at the card's paint width (${paintWidth}): changed rows measured within it raw and beyond it expanded`, straddling >= 12, `${straddling} straddling rows. change the fixture rows in this file, or diffPaintWidth in src/components/permissions/consentBodyBudget.ts if its width moved`)
     let plain: string[] = []
     let raw: string[] = []
     try {
@@ -212,20 +215,20 @@ for (const [columns, rows] of [[178, 51], [220, 51]] as const) {
     const card = boxEdges(plain, '╭')
     const frame = boxEdges(plain, '╭', card.top + 1)
     const nameRow = frame.top + 1
-    check(`${label}: the diff frame paints inside the card with the file's name on its first row`, card.top >= 0 && frame.top > card.top && frame.bottom > nameRow && /\bjobs\.tsv\b/.test(plain[nameRow] ?? ''), `card top ${card.top}, frame top ${frame.top}, bottom ${frame.bottom}, row ${nameRow}: ${JSON.stringify((plain[nameRow] ?? '').trim().slice(0, 30))}`)
+    check(`${label}: the diff frame paints inside the card with the file's name on its first row`, card.top >= 0 && frame.top > card.top && frame.bottom > nameRow && /\bjobs\.tsv\b/.test(plain[nameRow] ?? ''), `card top ${card.top}, frame top ${frame.top}, bottom ${frame.bottom}, row ${nameRow}: ${JSON.stringify((plain[nameRow] ?? '').trim().slice(0, 30))}. ${cardHint}`)
     const optionsRow = plain.findIndex(line => line.includes('❯ 1.'))
-    check(`${label}: the options paint`, optionsRow > 0, 'no "❯ 1." row')
+    check(`${label}: the options paint`, optionsRow > 0, 'no "❯ 1." row. ' + cardHint)
     if (frame.top > card.top && frame.bottom > nameRow) {
       const between = plain.slice(nameRow + 1, frame.bottom)
       const tailRows = between.filter(line => /more lines? · ctrl\+f expands|ctrl\+f collapses/.test(line)).length
       const bodyRows = between.length - tailRows
-      check(`${label}: the body paints no more rows than the budget`, bodyRows <= budget, `the body paints ${bodyRows} rows against a ${budget}-row budget`)
+      check(`${label}: the body paints no more rows than the budget`, bodyRows <= budget, `the body paints ${bodyRows} rows against a ${budget}-row budget. ${cardHint}`)
       boxLaws(`${label}: diff frame`, plain, frame, columns, card.x1)
       const hidden = between.find(line => /\+\d+ more line/.test(line))
       const kept = between.filter(line => /│\s+\d+\s+[-+]/.test(line)).length
-      check(`${label}: when rows are cut the tail names the hidden lines`, kept < 2 * names.length ? hidden !== undefined : true, `${kept} marked lines painted, no "+N more lines" tail`)
+      check(`${label}: when rows are cut the tail names the hidden lines`, kept < 2 * names.length ? hidden !== undefined : true, `${kept} marked lines painted, no "+N more lines" tail. ${cardHint}`)
     }
-    check(`${label}: the whole card stands on the pane (the options row included)`, plain.length <= paneRows && optionsRow >= 0 && optionsRow < paneRows, `the card is ${plain.length} rows; the pane affords ${paneRows}; the options row lands at row ${optionsRow}`)
+    check(`${label}: the whole card stands on the pane (the options row included)`, plain.length <= paneRows && optionsRow >= 0 && optionsRow < paneRows, `the card is ${plain.length} rows; the pane affords ${paneRows}; the options row lands at row ${optionsRow}. ${cardHint}`)
   }
 }
 

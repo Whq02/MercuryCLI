@@ -23,7 +23,9 @@ const { _resetDeclaredGatesForTesting } = await import('../../src/utils/verifica
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const gatesHint = 'fix classifyVerifySegment, classifyVerificationCommand, workspaceVerifiable, recordShellCommandOutcome or verificationSummary in src/utils/verification/verificationState.ts (declared gates load from src/utils/verification/projectGates.ts)'
+  const shown = cond ? detail : detail ? `${detail} — ${gatesHint}` : gatesHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function gitInit(dir: string): void {
   execSync('git init -q && git add -A && git -c user.email=t@t -c user.name=t commit -qm init --allow-empty', { cwd: dir, stdio: 'pipe' })

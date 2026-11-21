@@ -23,11 +23,12 @@ globalThis.fetch = (async (input: RequestInfo | URL) => {
   throw new Error('this fixture has no network')
 }) as typeof fetch
 
+const FOLLOWS_FAIL_HINT = ' — the popup header line comes from usagePopupLine in src/components/Settings/usageLine.ts and the block from src/components/Settings/usage/anthropicSection.tsx; make both read the same figures from the store that foldUtilizationFromEndpoint fills in src/services/anthropicLimits.ts'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   const shown = detail.replace(/\s+/g, ' ').trim()
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown.length > 320 ? `${shown.slice(0, 320)}…` : shown}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown.length > 320 ? `${shown.slice(0, 320)}…` : shown}` : ''}${ok ? '' : FOLLOWS_FAIL_HINT}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

@@ -5,6 +5,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const HOME_TRUST_FIX_HINT = 'fix setPathTrusted and checkHasTrustDialogAccepted in src/utils/config/trust.ts (a grant on the home root raises the session latch and writes no hasTrustDialogAccepted record; a folder under home still persists)'
+const CHILD_ANSWER_FIX_HINT = 'fix childAnswer in this script so a failed, killed or unspawned child is never read as its answer'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
@@ -55,9 +57,9 @@ console.log('L1 · a home-root grant never lands on disk; the session latch rise
       sessionLatch: state.getSessionTrustAccepted(),
     }))
   `)
-  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, JSON.stringify(out))
-  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), JSON.stringify(out))
-  check('the session latch carries the grant instead', out.sessionLatch === true, JSON.stringify(out))
+  check('the child succeeded (no spawn error, signal or non-zero exit hides behind its output)', out.childFailed === undefined, `${JSON.stringify(out)} · the child run failed, read its stderr here and the body it ran against src/utils/config/trust.ts`)
+  check('no hasTrustDialogAccepted record keyed on the home root', out.childFailed === undefined && (out.homeRecord === null || out.homeRecord === undefined), `${JSON.stringify(out)} · ${HOME_TRUST_FIX_HINT}`)
+  check('the session latch carries the grant instead', out.sessionLatch === true, `${JSON.stringify(out)} · ${HOME_TRUST_FIX_HINT}`)
 }
 
 console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
@@ -71,8 +73,8 @@ console.log('L2 · a folder UNDER home still persists (descendants unchanged)')
     const key = pathmod.normalizePathForConfigKey(sub)
     console.log(JSON.stringify({ subRecord: cfg.projects?.[key]?.hasTrustDialogAccepted ?? null }))
   `)
-  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out))
-  check('the descendant grant is durable', out.subRecord === true, JSON.stringify(out))
+  check('the child succeeded', out.childFailed === undefined, `${JSON.stringify(out)} · the child run failed, read its stderr here and the body it ran against src/utils/config/trust.ts`)
+  check('the descendant grant is durable', out.subRecord === true, `${JSON.stringify(out)} · ${HOME_TRUST_FIX_HINT}`)
 }
 
 console.log('L3 · the boot flow reads the latch (the promise: session only, re-asks next boot)')
@@ -82,22 +84,22 @@ console.log('L3 · the boot flow reads the latch (the promise: session only, re-
     trust.setPathTrusted(os.homedir())
     console.log(JSON.stringify({ accepted: trust.checkHasTrustDialogAccepted() }))
   `)
-  check('the child succeeded', out.childFailed === undefined, JSON.stringify(out))
-  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, JSON.stringify(out))
+  check('the child succeeded', out.childFailed === undefined, `${JSON.stringify(out)} · the child run failed, read its stderr here and the body it ran against src/utils/config/trust.ts`)
+  check('checkHasTrustDialogAccepted is satisfied in-process by the latch', out.accepted === true, `${JSON.stringify(out)} · ${HOME_TRUST_FIX_HINT}`)
 }
 
 console.log('L0 · a child that prints the expected object and then FAILS is refused')
 {
   const lying = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ homeRecord: null, sessionLatch: true, accepted: true })); process.exit(1)'], { encoding: 'utf8', timeout: 60_000 })
   const out = childAnswer(lying)
-  check('a valid-looking answer followed by exit 1 is reported as a child failure, never as the answer', out.childFailed === 'exit 1' && out.sessionLatch === undefined, JSON.stringify(out))
+  check('a valid-looking answer followed by exit 1 is reported as a child failure, never as the answer', out.childFailed === 'exit 1' && out.sessionLatch === undefined, `${JSON.stringify(out)} · ${CHILD_ANSWER_FIX_HINT}`)
   const killed = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ accepted: true })); process.kill(process.pid, "SIGTERM"); await new Promise(r => setTimeout(r, 5000))'], { encoding: 'utf8', timeout: 60_000 })
   const outKilled = childAnswer(killed)
-  check('an answer followed by a signal death is refused too', /^killed by SIG/.test(String(outKilled.childFailed)) && outKilled.accepted === undefined, JSON.stringify(outKilled))
+  check('an answer followed by a signal death is refused too', /^killed by SIG/.test(String(outKilled.childFailed)) && outKilled.accepted === undefined, `${JSON.stringify(outKilled)} · ${CHILD_ANSWER_FIX_HINT}`)
   const missing = spawnSync(join(tmpdir(), 'no-such-runtime-' + process.pid), ['-e', '1'], { encoding: 'utf8' })
-  check('a spawn error is refused by name', /^spawn error/.test(String(childAnswer(missing).childFailed)), JSON.stringify(childAnswer(missing)))
+  check('a spawn error is refused by name', /^spawn error/.test(String(childAnswer(missing).childFailed)), `${JSON.stringify(childAnswer(missing))} · ${CHILD_ANSWER_FIX_HINT}`)
   const honest = spawnSync(BUN, ['-e', 'console.log(JSON.stringify({ accepted: true }))'], { encoding: 'utf8', timeout: 60_000 })
-  check('a successful child still answers its object', childAnswer(honest).accepted === true)
+  check('a successful child still answers its object', childAnswer(honest).accepted === true, CHILD_ANSWER_FIX_HINT)
 }
 
 process.exit(failures === 0 ? 0 : 1)

@@ -58,11 +58,21 @@ import {
 
 let failures = 0
 let checks = 0
+const geometryWhere: Array<[RegExp, string]> = [
+  [/^(dispatch|hit|hover):/, 'fix dispatchClick, dispatchHover or hitTest in src/ink/geometry/hit.ts'],
+  [/^(word|line|extend):/, 'fix selectWordAt, selectLineAt or extendSelection in src/ink/geometry/word-line.ts'],
+  [/^url:/, 'fix findPlainTextUrlAt in src/ink/geometry/url.ts'],
+  [/^overlay:/, 'fix applySelectionOverlay in src/ink/geometry/overlay.ts'],
+  [/^(capture|shift guards|follow clear|f4-4|J\d|ledger)/, 'fix captureScrolledRows, shiftSelection, shiftAnchor or shiftSelectionForFollow in src/ink/geometry/shift.ts'],
+  [/^copy/, 'fix getSelectedText in src/ink/geometry/extract.ts'],
+  [/^(lifecycle|clip band|moveFocus):/, 'fix the selection state functions that src/ink/geometry/selection.ts re-exports'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const where = geometryWhere.find(([re]) => re.test(label))?.[1] ?? 'fix the selection or hit-test code under src/ink/geometry/'
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — ${where}`)
   }
 }
 

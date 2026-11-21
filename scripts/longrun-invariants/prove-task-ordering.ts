@@ -43,19 +43,19 @@ section('§A the guarded reset: a task created in the await window survives')
   await createTask(LIST, baseTask('done-one', 'completed') as never)
   await createTask(LIST, baseTask('done-two', 'completed') as never)
   const wiped = await resetTaskList(LIST, { onlyIfAllCompleted: true })
-  check('all-completed list: the guarded reset proceeds', wiped === true)
-  check('…and the list is empty', (await listTasks(LIST)).length === 0)
+  check('all-completed list: the guarded reset proceeds', wiped === true, 'resetTaskList with onlyIfAllCompleted in src/utils/tasks.ts must return true when every task is completed')
+  check('…and the list is empty', (await listTasks(LIST)).length === 0, 'resetTaskList in src/utils/tasks.ts must delete every task body when the guard passes')
 
   await createTask(LIST, baseTask('done-three', 'completed') as never)
   const freshId = await createTask(LIST, baseTask('fresh-window-task', 'pending') as never)
   const wiped2 = await resetTaskList(LIST, { onlyIfAllCompleted: true })
-  check('a live task ABORTS the guarded wipe', wiped2 === false)
+  check('a live task ABORTS the guarded wipe', wiped2 === false, 'resetTaskList in src/utils/tasks.ts must return false under onlyIfAllCompleted when any task is not completed')
   const fresh = await getTask(LIST, freshId)
-  check('the window task SURVIVES', fresh?.subject === 'fresh-window-task', JSON.stringify(fresh))
-  check('nothing else was dropped either', (await listTasks(LIST)).length === 2)
+  check('the window task SURVIVES', fresh?.subject === 'fresh-window-task', JSON.stringify(fresh) + ' — an aborted guarded reset in resetTaskList (src/utils/tasks.ts) must leave the task files untouched')
+  check('nothing else was dropped either', (await listTasks(LIST)).length === 2, 'an aborted guarded reset in resetTaskList (src/utils/tasks.ts) must not delete any task')
 
   const wiped3 = await resetTaskList(LIST)
-  check('the unconditional reset (crew ops contract) still wipes', wiped3 === true && (await listTasks(LIST)).length === 0)
+  check('the unconditional reset (crew ops contract) still wipes', wiped3 === true && (await listTasks(LIST)).length === 0, 'resetTaskList without options in src/utils/tasks.ts must return true and delete every task')
 }
 
 section('§B TaskUpdate reports what actually landed')
@@ -71,21 +71,21 @@ section('§B TaskUpdate reports what actually landed')
     res.data.success === false && /missing task/i.test(res.data.error ?? ''),
     JSON.stringify(res.data),
   )
-  check('…while naming the fields that did land', /subject/.test(res.data.error ?? ''))
+  check('…while naming the fields that did land', /subject/.test(res.data.error ?? ''), 'the failed-edge error in src/tools/TaskUpdateTool/TaskUpdateTool.ts must name the fields that were applied; got: ' + JSON.stringify(res.data.error))
   const after = await getTask(LIST, id)
-  check('the landed field is really on disk', after?.subject === 'renamed')
+  check('the landed field is really on disk', after?.subject === 'renamed', 'TaskUpdateTool.call in src/tools/TaskUpdateTool/TaskUpdateTool.ts must still save the subject when a dependency edge fails; got: ' + JSON.stringify(after))
 
   const ok = (await TaskUpdateTool.call(
     { taskId: id, status: 'in_progress' } as never,
     ctx,
   )) as { data: { success: boolean } }
-  check('a clean update still succeeds', ok.data.success === true)
+  check('a clean update still succeeds', ok.data.success === true, 'TaskUpdateTool.call in src/tools/TaskUpdateTool/TaskUpdateTool.ts must report success for a valid status change; got: ' + JSON.stringify(ok.data))
 
   const gone = (await TaskUpdateTool.call(
     { taskId: '424242', status: 'completed' } as never,
     ctx,
   )) as { data: { success: boolean; error?: string } }
-  check("a missing task reports 'Task not found'", gone.data.success === false && /not found/i.test(gone.data.error ?? ''))
+  check("a missing task reports 'Task not found'", gone.data.success === false && /not found/i.test(gone.data.error ?? ''), 'TaskUpdateTool.call in src/tools/TaskUpdateTool/TaskUpdateTool.ts must return success false with a Task not found error; got: ' + JSON.stringify(gone.data))
 }
 
 section('§C batch mutations are ordered (concurrency declarations)')
@@ -94,10 +94,12 @@ section('§C batch mutations are ordered (concurrency declarations)')
   check(
     'TaskCreate declares NOT concurrency-safe (shared-store read-modify-write)',
     (TaskCreateTool as unknown as ToolLike).isConcurrencySafe({}) === false,
+    'src/tools/TaskCreateTool/TaskCreateTool.ts must not set isConcurrencySafe to true (the default in src/Tool.ts is false)',
   )
   check(
     'TaskUpdate declares NOT concurrency-safe',
     (TaskUpdateTool as unknown as ToolLike).isConcurrencySafe({}) === false,
+    'src/tools/TaskUpdateTool/TaskUpdateTool.ts must keep isConcurrencySafe returning false',
   )
 }
 

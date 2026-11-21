@@ -76,26 +76,26 @@ for (const [columns, terminalRows] of [[178, 51], [80, 21]] as const) {
   console.log(`\n${label}:`)
   for (const line of lines) console.log(line)
   console.log('')
-  check(`${label}: the frame paints without a render error`, !lines.some(line => line.includes('RENDER ERROR')))
-  check(`${label}: no row is wider than the screen`, lines.every(line => stringWidth(line) <= columns), String(Math.max(...lines.map(line => stringWidth(line)))))
-  check(`${label}: no wrapper tag leaks into the painted row`, !lines.some(line => /<\/?bash-|bash-exit-code|bash-duration-ms/.test(line)), lines.find(line => /bash-/.test(line)) ?? '')
+  check(`${label}: the frame paints without a render error`, !lines.some(line => line.includes('RENDER ERROR')), 'a row threw while painting; read the RENDER ERROR line in the frame printed above and fix UserBashInputMessage or UserBashOutputMessage in src/components/messages')
+  check(`${label}: no row is wider than the screen`, lines.every(line => stringWidth(line) <= columns), 'widest row is ' + String(Math.max(...lines.map(line => stringWidth(line)))) + ' columns; shorten or wrap the row in UserBashInputMessage or UserBashOutputMessage in src/components/messages')
+  check(`${label}: no wrapper tag leaks into the painted row`, !lines.some(line => /<\/?bash-|bash-exit-code|bash-duration-ms/.test(line)), (lines.find(line => /bash-/.test(line)) ?? '') + ' (the wrapper tags must be parsed out before painting; see UserBashOutputMessage in src/components/messages)')
   const at = (needle: string, from: number): number => lines.findIndex((line, index) => index >= from && line.includes(needle))
   let cursor = 0
   for (const row of rows) {
     const head = at(`! ${row.input}`, cursor)
-    check(`${label}: the echoed row for \`${row.input}\` paints`, head >= 0, `not found after line ${cursor}`)
+    check(`${label}: the echoed row for \`${row.input}\` paints`, head >= 0, `not found after line ${cursor}; the echo row comes from UserBashInputMessage in src/components/messages and must paint as ! followed by the command`)
     if (head < 0) continue
     const body = row.output.map(text => at(text, head + 1)).reduce((a, b) => Math.max(a, b), -1)
-    check(`${label}: the output of \`${row.input}\` paints under its echo`, body > head, JSON.stringify(row.output))
+    check(`${label}: the output of \`${row.input}\` paints under its echo`, body > head, JSON.stringify(row.output) + ' (not found under the echo; the output rows come from UserBashOutputMessage in src/components/messages)')
     const next = rows.indexOf(row) + 1 < rows.length ? at(`! ${rows[rows.indexOf(row) + 1]!.input}`, head + 1) : lines.length
     const stop = next < 0 ? lines.length : next
     const wordLines = lines.slice(head + 1, stop).filter(line => /\bexit \d+/.test(line))
     if (row.words === null) {
-      check(`${label}: a row without the exit pair (an older transcript, a backgrounded shell) paints no exit words`, wordLines.length === 0, JSON.stringify(wordLines))
+      check(`${label}: a row without the exit pair (an older transcript, a backgrounded shell) paints no exit words`, wordLines.length === 0, JSON.stringify(wordLines) + ' (exit words print only when the exit pair is present; see bashExitWords in src/components/messages/UserBashOutputMessage.tsx)')
     } else {
       const found = wordLines.findIndex(line => line.trimEnd().endsWith(row.words!))
-      check(`${label}: the row of \`${row.input}\` says "${row.words}" once, after its output`, wordLines.length === 1 && found === 0 && lines.indexOf(wordLines[0]!, body) > body, JSON.stringify(wordLines))
-      check(`${label}: the words sit in the response gutter like the output lines`, wordLines[0]?.trimStart().startsWith('└') === true, JSON.stringify(wordLines[0] ?? ''))
+      check(`${label}: the row of \`${row.input}\` says "${row.words}" once, after its output`, wordLines.length === 1 && found === 0 && lines.indexOf(wordLines[0]!, body) > body, JSON.stringify(wordLines) + ' (the words come from bashExitWords in src/components/messages/UserBashOutputMessage.tsx; they must print once, last, after the output)')
+      check(`${label}: the words sit in the response gutter like the output lines`, wordLines[0]?.trimStart().startsWith('└') === true, JSON.stringify(wordLines[0] ?? '') + ' (the exit words row must start with the response gutter, as the output lines do in UserBashOutputMessage in src/components/messages)')
     }
     cursor = stop
   }

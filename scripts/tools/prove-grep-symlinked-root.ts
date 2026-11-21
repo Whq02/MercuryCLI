@@ -7,7 +7,7 @@ import { join } from 'node:path'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: realSearchRoot and the search call in src/tools/GrepTool/GrepTool.ts must hand ripgrep the real path of the root and spell the answer under the root as it was given.'}`)
   if (!cond) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)

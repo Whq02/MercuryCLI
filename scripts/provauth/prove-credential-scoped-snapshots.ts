@@ -11,7 +11,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const scopedSnapshotHint = 'make the cache of the provider module this section imports (src/services/providers/<provider>/ catalogue or usage state) key its snapshot on credentialFingerprint from src/utils/accounts/credentialIdentity.ts and refetch when the key changes'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${scopedSnapshotHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

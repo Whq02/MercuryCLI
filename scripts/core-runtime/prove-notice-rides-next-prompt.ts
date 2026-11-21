@@ -6,8 +6,9 @@ const { createTurnDriver } = await import('../../src/cli/headless/turnDriver.ts'
 type TurnDriverPorts = Parameters<typeof createTurnDriver>[0]
 
 let failures = 0
+const noticeFix = 'fix createTurnDriver in src/cli/headless/turnDriver.ts: the notices taken into initialNotices (ridesNextWords, outside-report origin) and the agent-wait sleep on AGENT_WAIT_TICK_MS decide what rides a prompt'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail.slice(0, 500) : '') + ' — ' + noticeFix : ''}`)
   if (!cond) failures++
 }
 const tick = (): Promise<void> => new Promise(resolve => setImmediate(resolve))

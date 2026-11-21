@@ -12,7 +12,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: the rail hover must fill only the row under the pointer, never mid-drag, in the ASH_RAISED colour of src/components/mercuryPalette.ts; the header hover recolours only the label; the rail columns come from railPlanAt in src/utils/helmGeometry.ts'}`)
 }
 
 type Cell = { c: string; bg?: string }

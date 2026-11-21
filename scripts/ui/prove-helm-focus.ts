@@ -19,7 +19,7 @@ import {
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = '') => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — to fix: the helm pane focus, cursor, row-action, command-dispatch and entry-buffer functions named in this check are in src/utils/cockpit/helmFocus.ts'}`)
   if (!ok) fail = 1
 }
 

@@ -16,11 +16,14 @@ import {
 import { zodToJsonSchema } from '../../src/utils/zodToJsonSchema.js'
 
 let failures = 0
+let sectionWhereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, sectionWhereToLook].filter(Boolean).join(' | where to look: ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, whereToLook = ''): void {
+  sectionWhereToLook = whereToLook
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -65,7 +68,7 @@ console.log('============================================================')
 console.log(' S4 — Z.AI native streaming proof (fixture-driven)')
 console.log('============================================================')
 
-section('1 · SSE decoder — framing laws')
+section('1 · SSE decoder — framing laws', 'SseDecoder in src/services/providers/sseDecoder.ts')
 {
   const dec = new SseDecoder()
   const wire = ': comment\r\ndata: {"a":1}\r\n\r\nevent: ping\ndata: line1\ndata: line2\n\n'
@@ -98,7 +101,7 @@ section('1 · SSE decoder — framing laws')
   )
 }
 
-section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly')
+section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly', 'streamZaiChat in src/services/providers/zai/zaiClient.ts and assembleZaiTurn in src/services/providers/zai/zaiCodec.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -123,7 +126,7 @@ section('2 · happy turn — deltas, final-chunk usage, [DONE], assembly')
   check('no tool calls', turn.toolUses.length === 0 && turn.malformedToolCalls.length === 0)
 }
 
-section('3 · identical assembly under pathological chunking')
+section('3 · identical assembly under pathological chunking', 'streamZaiChat in src/services/providers/zai/zaiClient.ts and SseDecoder in src/services/providers/sseDecoder.ts')
 {
   const wire = HAPPY_WIRE.join('')
   const ragged: string[] = []
@@ -151,7 +154,7 @@ section('3 · identical assembly under pathological chunking')
   )
 }
 
-section('4 · parallel incremental tool calls — exactly once, schema-validated')
+section('4 · parallel incremental tool calls — exactly once, schema-validated', 'tool-call assembly in streamZaiChat (src/services/providers/zai/zaiClient.ts), assembleZaiTurn and mapToolsToZai (src/services/providers/zai/zaiCodec.ts), zodToJsonSchema (src/utils/zodToJsonSchema.ts)')
 {
   const searchSchema = z.object({ query: z.string(), limit: z.number().int().min(1) })
   const readSchema = z.object({ path: z.string() })
@@ -246,7 +249,7 @@ section('4 · parallel incremental tool calls — exactly once, schema-validated
   )
 }
 
-section('5 · malformed tool call — surfaced, never silent')
+section('5 · malformed tool call — surfaced, never silent', 'assembleZaiTurn in src/services/providers/zai/zaiCodec.ts and streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   const wire = [
     sseChunk({
@@ -278,7 +281,7 @@ section('5 · malformed tool call — surfaced, never silent')
   )
 }
 
-section('6 · the finish_reason failure channel (documented SSE rule)')
+section('6 · the finish_reason failure channel (documented SSE rule)', 'the finish_reason handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   for (const [reason, retryable] of [
     ['network_error', true],
@@ -308,7 +311,7 @@ section('6 · the finish_reason failure channel (documented SSE rule)')
   }
 }
 
-section('7 · HTTP + api error mapping (documented code table)')
+section('7 · HTTP + api error mapping (documented code table)', 'mapZaiHttpFailure and streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   const auth = mapZaiHttpFailure(401, { error: { code: 1000, message: 'Authentication Failed' } })
   check('1000/401 → zai-1000, not retryable', auth.code === 'zai-1000' && !auth.retryable)
@@ -345,7 +348,7 @@ section('7 · HTTP + api error mapping (documented code table)')
   )
 }
 
-section('8 · idle timeout — a silent stream faults, bounded')
+section('8 · idle timeout — a silent stream faults, bounded', 'the idleTimeoutMs handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -367,7 +370,7 @@ section('8 · idle timeout — a silent stream faults, bounded')
   check('the pre-silence delta still arrived', events.some(e => e.type === 'text-delta'))
 }
 
-section('9 · cancellation — abort mid-stream is a typed cancel')
+section('9 · cancellation — abort mid-stream is a typed cancel', 'the abort signal handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   const controller = new AbortController()
   const events: ZaiStreamEvent[] = []
@@ -392,7 +395,7 @@ section('9 · cancellation — abort mid-stream is a typed cancel')
   )
 }
 
-section('10 · truncated stream — EOF without finish/[DONE] is a typed fault')
+section('10 · truncated stream — EOF without finish/[DONE] is a typed fault', 'the end-of-stream handling in streamZaiChat in src/services/providers/zai/zaiClient.ts')
 {
   const events = await collect(
     streamZaiChat({
@@ -408,7 +411,7 @@ section('10 · truncated stream — EOF without finish/[DONE] is a typed fault')
   )
 }
 
-section('11 · request mapping — native shapes, one schema truth, no key leak')
+section('11 · request mapping — native shapes, one schema truth, no key leak', 'buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts')
 {
   const request = buildZaiChatRequest({
     model: 'glm-5.2',

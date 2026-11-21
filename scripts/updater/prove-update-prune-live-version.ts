@@ -27,7 +27,9 @@ let failed = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (ok) passed++
   else failed++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail === '' ? '' : ` — ${detail}`}`)
+  const pruneHint = 'fix pruneSupersededVersions in src/services/privateChannel/installLayout.ts, or the live versions livePayloadDirs returns in src/services/privateChannel/updateService.ts'
+  const shown = ok ? detail : detail === '' ? pruneHint : `${detail} — ${pruneHint}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shown === '' ? '' : ` — ${shown}`}`)
 }
 const describe = (value: unknown): string => (value instanceof Error ? value.message.slice(0, 160) : String(JSON.stringify(value)).slice(0, 240))
 

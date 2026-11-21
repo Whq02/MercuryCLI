@@ -50,6 +50,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? `: ${detail}` : ''}`)
+  if (!ok) console.log(`  hint: the row split and grouping of an assistant turn is composeTranscript in src/components/messagesList/transcript.ts (tool folding in src/components/messages/collapseReadSearch.ts); a read-back failure points at deserializeLiveMessages in src/services/resume/conversationRecovery.ts and the chain builder in src/utils/sessionStorage/chain.ts`)
 }
 const textOf = (row: RenderableMessage): string | null => {
   if (row.type !== 'assistant') return null

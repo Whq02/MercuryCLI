@@ -21,7 +21,7 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 const check = (label: string, cond: boolean, detail: unknown = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — change: the unreadable-file refusal and the keep-aside of a file that cannot be used live in updateConcourseWorkers in src/daemon/concourseWorkers/store.ts; the checks on a dispatched turn, an admission, a revive and the boot reconcile are answered by makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts, makeConcourseAdmitHandler and reviveConcourseWorker in src/daemon/concourseWorkers.ts, and armReconcile in src/daemon/run/sweep.ts; compare the wording with refusal, spoken and keptLine at the top of this file` : ''}`)
 }
 const skip = (label: string, why: string): void => console.log(`  [SKIP] ${label} — ${why}`)
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)

@@ -28,9 +28,10 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL
 
 let failures = 0
+const OLLAMA_PORT_FAIL_HINT = 'to fix, change how an engine found by the ollama probe is recorded in src/services/providers/local/localDiscovery.ts (the /api/tags probe and the /health read), how a turn is sent in src/services/providers/local/localCallModel.ts, or the usage reading in src/services/providers/local/tensorfoldUsage.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${OLLAMA_PORT_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

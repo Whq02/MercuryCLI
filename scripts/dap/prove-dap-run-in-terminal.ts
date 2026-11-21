@@ -22,7 +22,8 @@ const { getEmptyToolPermissionContext } = await import(join(SRC, 'Tool.ts'))
 const { engageToolGuard, clearGuards } = await import(join(SRC, 'guards/guards.ts'))
 const owner = processMainOwner()
 let failures = 0
-const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + detail : ''}`) }
+const terminalFailHint = 'change the runInTerminal handling in src/services/dap/dapTerminal.ts (permission, guard, spawn and cleanup of the debuggee process) or its wiring in src/services/dap/dapClient.ts'
+const check = (label: string, ok: boolean, detail = '') => { if (!ok) failures++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' ' + detail + ' | ' + terminalFailHint : ''}`) }
 const alive = (pid: number) => { try { process.kill(pid, 0); return true } catch { return false } }
 const until = async (test: () => boolean) => { const end = Date.now() + 5000; while (!test() && Date.now() < end) await Bun.sleep(10); return test() }
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} } }

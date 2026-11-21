@@ -8,8 +8,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(path.join(tmpdir(), 'dap-lane-hones
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 const ROOT = path.join(import.meta.dir, '..', '..')
@@ -27,6 +27,7 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
       'the REAL vendored bundle boots and listens (ok)',
       vendored.status === 'ok' && vendored.evidence.includes('listened on 127.0.0.1:'),
       `${vendored.status}: ${vendored.evidence.slice(0, 120)}`,
+      'fix probeJsDebugBoot in src/services/health/healthDeepProbes.ts, or rebuild dist/vendor/js-debug (src/dapDebugServer.js) so it boots and listens on 127.0.0.1',
     )
     const scratch = mkdtempSync(path.join(tmpdir(), 'dap-lane-deadpin-'))
     const dead = path.join(scratch, 'dapDebugServer.js')
@@ -37,6 +38,7 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
       "an exits-at-load server FAILS with the exit named (the card's certified-ready bundle)",
       broken.status === 'fail' && broken.evidence.includes('exited') && broken.evidence.includes('before listening'),
       `${broken.status}: ${broken.evidence.slice(0, 140)}`,
+      'probeJsDebugBoot in src/services/health/healthDeepProbes.ts must return fail naming the exit before listening when the server script exits at load',
     )
     delete process.env.MERCURY_JS_DEBUG_DAP
   }
@@ -46,7 +48,7 @@ console.log('§1 FC-105 — the deep probe BOOTS the resolved server')
   const jsSays = await jsRow?.run()
   const jsDirect = await deepProbes.probeJsDebugBoot()
   const portless = (text: string): string => text.replace(/127\.0\.0\.1:\d+/, '127.0.0.1')
-  check('the deep row is registered (js-debugger)', jsRow?.depth === 'deep' && jsRow.probe === 'functional' && jsSays?.status === jsDirect.status && portless(jsSays.evidence) === portless(jsDirect.evidence), `${jsSays?.status}: ${jsSays?.evidence.slice(0, 140)}`)
+  check('the deep row is registered (js-debugger)', jsRow?.depth === 'deep' && jsRow.probe === 'functional' && jsSays?.status === jsDirect.status && portless(jsSays.evidence) === portless(jsDirect.evidence), `${jsSays?.status}: ${jsSays?.evidence.slice(0, 140)}`, 'the js-debugger row in src/services/health/sections/ide-loop.ts must be deep, functional and run probeJsDebugBoot from healthDeepProbes.ts')
 }
 
 console.log('§2 FC-106 — the debugpy remedy names the actual fault')
@@ -60,6 +62,7 @@ console.log('§2 FC-106 — the debugpy remedy names the actual fault')
       String(pinned.remedy).includes('MERCURY_DEBUGPY_VENDOR_DIR points at /no/such/debugpy-vendor-dir') &&
       !String(pinned.remedy).includes('rebuild the artifact'),
     String(pinned.remedy).slice(0, 160),
+    'resolvePythonDebugAdapter in src/services/dap/debugpyResolver.ts must name MERCURY_DEBUGPY_VENDOR_DIR and the pinned path as the remedy when the pin holds no adapter',
   )
   {
     const diag = (resolver as { debugpyVendorDiagnosis: () => { bundledPresent: boolean } }).debugpyVendorDiagnosis()
@@ -67,6 +70,7 @@ console.log('§2 FC-106 — the debugpy remedy names the actual fault')
       "… and the present-bundle sentence tracks the diagnosis (source-mode has no bundle-sibling tree; the wiring is what's pinned)",
       String(pinned.remedy).includes('vendored debugpy IS present') === diag.bundledPresent,
       `bundledPresent=${diag.bundledPresent}`,
+      'the pin remedy in resolvePythonDebugAdapter (src/services/dap/debugpyResolver.ts) must say vendored debugpy IS present exactly when debugpyVendorDiagnosis().bundledPresent is true',
     )
   }
   delete process.env.MERCURY_DEBUGPY_VENDOR_DIR
@@ -75,6 +79,7 @@ console.log('§2 FC-106 — the debugpy remedy names the actual fault')
     'without a pin the standing remedy is untouched (control)',
     unpinned.state === 'unavailable' && String(unpinned.remedy).includes('rebuild the artifact'),
     String(unpinned.remedy).slice(0, 120),
+    'with no MERCURY_DEBUGPY_VENDOR_DIR pin, resolvePythonDebugAdapter in src/services/dap/debugpyResolver.ts must keep the rebuild-the-artifact remedy',
   )
 }
 

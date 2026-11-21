@@ -72,13 +72,13 @@ const fixtures: [string, StructuredPatchHunk, number[]][] = [
 const numbers = (lines: string[]): number[] => lines.map(line => Number(/^\s*(\d+)/.exec(line)?.[1]))
 for (const [name, patch, expected] of fixtures) {
   const native = new ColorDiff(patch, undefined, 'x.txt').render('dark', 60, false)!.map(stripAnsi)
-  check(`${name}: native numbers match coordinates`, JSON.stringify(numbers(native)) === JSON.stringify(expected))
+  check(`${name}: native numbers match coordinates`, JSON.stringify(numbers(native)) === JSON.stringify(expected), `native rows gave ${JSON.stringify(numbers(native))}, expected ${JSON.stringify(expected)} · fix the line numbering from oldStart and newStart in ColorDiff.render in src/native-ts/color-diff/index.ts`)
   for (const plain of [false, true]) {
     const frame = await paint(patch, plain)
-    check(`${name}: ${plain ? 'fallback' : 'highlighted'} painted numbers match native`, JSON.stringify(numbers(frame.lines)) === JSON.stringify(expected), JSON.stringify(frame.lines))
+    check(`${name}: ${plain ? 'fallback' : 'highlighted'} painted numbers match native`, JSON.stringify(numbers(frame.lines)) === JSON.stringify(expected), `${JSON.stringify(frame.lines)} · the painted numbers must equal the native ones, ${JSON.stringify(expected)}: fix the number gutter in src/components/StructuredDiff.tsx and src/components/StructuredDiff/`)
     if (!plain) {
       const gutter = native[0]!.indexOf(patch.lines[0]!.slice(1))
-      check(`${name}: selection gutter stops before the first content cell`, frame.gutter === gutter, `${frame.gutter} vs ${gutter}`)
+      check(`${name}: selection gutter stops before the first content cell`, frame.gutter === gutter, `${frame.gutter} vs ${gutter} · the no-select gutter must end where the first content cell starts: fix the gutter width marked noSelect in src/components/StructuredDiff.tsx`)
     }
   }
 }
@@ -99,11 +99,11 @@ try {
     const fromGit = (await fetchGitDiffHunksFor({ args: ['--unified=0'], cwd: repo })).get('x.txt')![0]!
     const patch = structuredPatch('x.txt', 'x.txt', before!, after!, undefined, undefined, { context: 0 })
     const expectedHeader = formatPatch(patch).split('\n').find(line => line.startsWith('@@'))
-    check(`${name}: git and jsdiff use the same structured coordinates`, JSON.stringify(fromGit) === JSON.stringify(patch.hunks[0]), JSON.stringify({ fromGit, jsdiff: patch.hunks[0] }))
+    check(`${name}: git and jsdiff use the same structured coordinates`, JSON.stringify(fromGit) === JSON.stringify(patch.hunks[0]), `${JSON.stringify({ fromGit, jsdiff: patch.hunks[0] })} · make the hunk that fetchGitDiffHunksFor returns in src/utils/gitDiff.ts carry the same oldStart, oldLines, newStart and newLines as jsdiff`)
     for (const [source, hunk] of [['git', fromGit], ['jsdiff', patch.hunks[0]!]] as const) {
       const copied = hunkPatchText('x.txt', hunk)
-      check(`${name}: ${source} copied header follows unified syntax`, copied.split('\n')[2] === expectedHeader, copied.split('\n')[2])
-      check(`${name}: ${source} copied hunk applies to its original`, applyPatch(before!, copied) === after)
+      check(`${name}: ${source} copied header follows unified syntax`, copied.split('\n')[2] === expectedHeader, `${String(copied.split('\n')[2])} · expected ${String(expectedHeader)}: fix the @@ header that hunkPatchText writes in src/components/diff/DiffDialog.tsx`)
+      check(`${name}: ${source} copied hunk applies to its original`, applyPatch(before!, copied) === after, `the copied patch did not apply to the original text: fix hunkPatchText in src/components/diff/DiffDialog.tsx (header, line prefixes, trailing newline)`)
     }
   }
 } finally {

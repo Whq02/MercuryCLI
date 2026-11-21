@@ -11,10 +11,12 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
+const toolSearchFixHint = 'change src/tools/ToolSearchTool/ToolSearchTool.ts (runSearch, selectMissText, noMatchText, searchToolsWithKeywords, mapToolResultToToolResultBlockParam) until the result matches this label'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail} | ${toolSearchFixHint}` : toolSearchFixHint
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

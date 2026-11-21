@@ -4,7 +4,7 @@ import { renderModelChip } from '../../src/services/model/model.js'
 
 let fail = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | to fix: the chip text is made by renderModelChip in src/services/model/model.ts; change its name mapping or suffix handling so the id renders as the wanted chip'}`)
   if (!cond) fail++
 }
 

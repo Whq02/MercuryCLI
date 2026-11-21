@@ -33,7 +33,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || detail === '' ? '' : ` — ${detail}`}${ok ? '' : ' | to fix: the row click and its blank-cell test (cellIsBlank, onItemClick, isItemClickable) are in src/components/VirtualMessageList.tsx; change that handler so a click on a blank cell between words still reaches the row and a click on the indentation or past the end does not'}`)
   if (!ok) failures++
 }
 

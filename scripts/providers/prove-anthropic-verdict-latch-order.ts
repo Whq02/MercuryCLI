@@ -18,10 +18,11 @@ delete process.env.MERCURY_DISABLE_NONESSENTIAL_TRAFFIC
 
 let failures = 0
 let checks = 0
+const LATCH_ORDER_FAIL_HINT = 'to fix, change the verdict latch in src/services/anthropicLimits.ts (extractQuotaStatusFromHeaders, extractQuotaStatusFromError, adoptAnthropicWindowFact: a reply or relayed fact older than the standing verdict must not replace it) or the meters read in src/services/cockpit/quota.ts (quotaWindows)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${LATCH_ORDER_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

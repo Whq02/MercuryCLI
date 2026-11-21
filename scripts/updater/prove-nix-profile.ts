@@ -50,7 +50,8 @@ let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const nixHint = 'fix classifyInstallProvenance in src/services/privateChannel/installProvenance.ts, ownCommandWord in src/services/privateChannel/installPath.ts, invokedScriptPath in src/daemon/daemonBuild.ts, or decideHandshake in src/daemon/handshake.ts'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${nixHint}` : ''}`)
 }
 function makeOutput(name: string, tree: string): string {
   const output = join(scratch, 'store', name)

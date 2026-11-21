@@ -20,14 +20,14 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the fold under test is compactConversation in src/services/compact/compact.ts (the threshold is getAutoCompactThreshold in src/services/compact/autoCompact.ts, the conversation comes from scripts/compact/thresholdFixture.ts)` : ''}`)
 }
 const record = (line: string): void => console.log(`  [record] ${line}`)
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the fold-at-threshold prover exceeded 300s')
+  console.log('\nTIMEOUT — the fold-at-threshold prover exceeded 300s; a fold or summariser request never returned, so look at compactConversation in src/services/compact/compact.ts and the fixture server in scripts/compact/overflowFixture.ts')
   process.exit(1)
 }, 300_000)
 watchdog.unref?.()

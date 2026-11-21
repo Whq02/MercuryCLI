@@ -26,7 +26,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} | what to change: a section 1 failure is in judgeAndRecordPrefix of src/services/providers/anthropic/prefixLedger.ts; a section 2 or 3 failure means the built bundle (rebuild dist/mercury.mjs first) sent a changed prefix or dropped thinking differently, so read the printed request rows and the debug log named above` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

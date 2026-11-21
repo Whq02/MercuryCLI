@@ -12,7 +12,8 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const refreshLegHint = 'fix the refresh leg of the section: currentSubscriptionTokens in src/services/providers/openai/openaiAccounts.ts, currentGeminiTokens in src/services/providers/gemini/geminiAccounts.ts, refreshMoonshotTokens in src/services/providers/moonshot/moonshotAccounts.ts, refreshOAuthToken in src/services/oauth/client.ts; its token POST must go to the pinned base and send a mercury/<version> User-Agent'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${refreshLegHint}`}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -6,7 +6,7 @@ pinSourceRef()
 const home = pinScratchHome('memory-toggle-receipt')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: the Memory: on/off row, its focus and its updateSettingsForSource write are in src/components/memory/MemoryFileSelector.tsx; flip the shown switch only after the write returns no error'}`)
   if (!ok) failures++
 }
 await import('../../src/tools/AgentTool/AgentTool.js')

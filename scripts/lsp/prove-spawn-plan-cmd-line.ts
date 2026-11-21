@@ -8,8 +8,9 @@ import { spawnSync } from 'node:child_process'
 const ROOT = resolve(import.meta.dir, '..', '..')
 
 let failures = 0
+const FAIL_HINT = 'change spawnPlanOf in src/utils/spawnPlan.ts (or windowsBatchTail in src/utils/shell/windowsBatchLine.ts) so this word is quoted, refused or passed as the check expects'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${FAIL_HINT}${detail ? `; ${detail.slice(0, 400)}` : ''}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

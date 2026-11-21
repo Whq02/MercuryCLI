@@ -12,9 +12,10 @@ const { parseAnchorPatch, ANCHOR_PATCH_BOUNDS } = await import(
 )
 
 let failures = 0
+const parseFailHint = 'fix parseAnchorPatch (grammar, typed rejection codes and repair warnings) in src/services/changeTransaction/anchorPatch.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${parseFailHint}` : ''}`)
 }
 
 const A = 'fa:0123456789ab'

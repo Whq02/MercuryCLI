@@ -7,7 +7,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — to fix: loadFromFileList and search in src/native-ts/file-index/index.ts must treat / and \\ as one separator and return the path in its stored spelling`)
   }
 }
 

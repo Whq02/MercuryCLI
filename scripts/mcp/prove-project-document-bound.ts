@@ -19,9 +19,15 @@ delete process.env.MERCURY_HOME
 delete process.env.MERCURY_MCP_CONNECTION_BATCH
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
+const documentBoundHint = (label: string): string => {
+  if (label.startsWith('mcp list')) return 'change mcpListHandler in src/cli/handlers/mcp.tsx (after rebuilding dist with bun run build.ts) so the list shows the bounded servers and the document line'
+  if (label.startsWith('the scripted') || label.startsWith('the existing')) return 'change getMcpToolsCommandsAndResources in src/services/mcp/client.ts so local servers connect with at most three overlapping'
+  if (label.startsWith('the built CLI')) return 'run bun run build.ts to write dist/mercury.mjs'
+  return 'change parseMcpConfig in src/services/mcp/config.ts so a project document keeps its first 64 entries in file order and carries one document line'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${documentBoundHint(label)}${detail ? `; ${detail}` : ''}` : ''}`)
 }
 const entries = (count: number, command = '/usr/bin/true', args = ['x'.repeat(200)], env?: Record<string, string>): Record<string, { command: string; args: string[]; env?: Record<string, string> }> => Object.fromEntries(Array.from({ length: count }, (_, index) => [`server-${String(index).padStart(4, '0')}`, { command, args, ...(env === undefined ? {} : { env }) }]))
 const projectFile = join(cwd, '.mercury', 'mcp.json')

@@ -6,10 +6,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const gitNamesFixHint = 'change gitStatus or gitDiff in src/services/gitGraph/observe.ts (the path spelling they read from git) or preparePlan or applyPlan in src/services/gitGraph/plan.ts (the file names they match), so a non-ASCII or spaced name stays as git holds it, not octal-escaped or quoted'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${gitNamesFixHint}` : ''}`)
 }
 
 const { gitStatus, gitDiff } = await import('../../src/services/gitGraph/observe.ts')

@@ -52,7 +52,8 @@ const pidOf = (result: Result): number => Number(/pid=(\d+)/.exec(result.stdout)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failureHint = 'to fix, change runEngineCommand, endEngineSession, endEngineSessionFor or resolveEngineSessionCeiling in src/utils/shell/engineSession.ts (the section heading above names the behaviour)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -6,7 +6,7 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: watchDirectory in src/utils/watchRoot.ts, which must pass changes to onChange, call onGone once when the watched root is deleted on Windows (never on POSIX), and leave the error event to the caller on POSIX'}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 

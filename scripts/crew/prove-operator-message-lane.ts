@@ -48,39 +48,39 @@ section('§1 the operator lane is its own queue: the tool-boundary drain never t
   const drained = drainPendingMessages('a1', store.get, store.set)
   check('the tool-boundary drain takes the lead\'s lane only', JSON.stringify(drained) === JSON.stringify(['the lead steers']), JSON.stringify(drained))
   check('the operator lane survives the tool-boundary drain', JSON.stringify(lanes(store, 'a1')) === JSON.stringify({ pending: [], operator: ['the operator asks'] }), JSON.stringify(lanes(store, 'a1')))
-  check('peekOperatorMessages reads without taking', JSON.stringify(peekOperatorMessages(store.state.tasks.a1)) === JSON.stringify(['the operator asks']) && lanes(store, 'a1').operator.length === 1)
+  check('peekOperatorMessages reads without taking', JSON.stringify(peekOperatorMessages(store.state.tasks.a1)) === JSON.stringify(['the operator asks']) && lanes(store, 'a1').operator.length === 1, 'peekOperatorMessages in src/tasks/LocalAgentTask/LocalAgentTask.ts must return the operatorMessages lane without removing it')
   const taken = takeOperatorMessages('a1', store.get, store.set)
   check('takeOperatorMessages hands the lines over and empties the lane', JSON.stringify(taken) === JSON.stringify(['the operator asks']) && lanes(store, 'a1').operator.length === 0, JSON.stringify(taken))
-  check('takeOperatorMessages on an empty lane is a no-op', takeOperatorMessages('a1', store.get, store.set).length === 0)
-  check('peekOperatorMessages on a non-agent is empty', peekOperatorMessages(undefined).length === 0 && peekOperatorMessages({ type: 'local_bash' }).length === 0)
+  check('takeOperatorMessages on an empty lane is a no-op', takeOperatorMessages('a1', store.get, store.set).length === 0, 'takeOperatorMessages in src/tasks/LocalAgentTask/LocalAgentTask.ts must return an empty list when operatorMessages is empty')
+  check('peekOperatorMessages on a non-agent is empty', peekOperatorMessages(undefined).length === 0 && peekOperatorMessages({ type: 'local_bash' }).length === 0, 'peekOperatorMessages in src/tasks/LocalAgentTask/LocalAgentTask.ts must return an empty list for a task that is not a local agent')
 }
 
 
 section('§3 the composer\'s target: the pin outlives the view, esc leaves it alone')
 {
   const store = makeStore({ a1: agent('a1'), a2: agent('a2') })
-  check('nothing viewed, nothing pinned → the lead', composerTargetTaskId(store.state as never) === undefined && !composerTargetPinned(store.state as never))
+  check('nothing viewed, nothing pinned → the lead', composerTargetTaskId(store.state as never) === undefined && !composerTargetPinned(store.state as never), 'composerTargetTaskId and composerTargetPinned in src/state/selectors.ts must report the lead and unpinned when no crewmate is viewed or pinned')
   enterCrewmateView('a1', store.set)
-  check('viewing addresses the composer to the viewed crewmate', composerTargetTaskId(store.state as never) === 'a1' && !composerTargetPinned(store.state as never))
+  check('viewing addresses the composer to the viewed crewmate', composerTargetTaskId(store.state as never) === 'a1' && !composerTargetPinned(store.state as never), 'composerTargetTaskId in src/state/selectors.ts must follow viewingAgentTaskId set by enterCrewmateView in src/state/crewmateViewHelpers.ts')
   exitCrewmateView(store.set)
   check('esc (exit) returns the composer to the lead', composerTargetTaskId(store.state as never) === undefined)
   setMainChat('a2', store.set)
   enterCrewmateView('a2', store.set)
-  check('m pins the crewmate: target a2, pinned', composerTargetTaskId(store.state as never) === 'a2' && composerTargetPinned(store.state as never))
+  check('m pins the crewmate: target a2, pinned', composerTargetTaskId(store.state as never) === 'a2' && composerTargetPinned(store.state as never), 'setMainChat in src/state/crewmateViewHelpers.ts must set mainChatTaskId and the selectors in src/state/selectors.ts must report it as the pinned target')
   enterCrewmateView('a1', store.set)
-  check('viewing another crewmate does not move a pinned composer', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === 'a1')
+  check('viewing another crewmate does not move a pinned composer', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === 'a1', 'composerTargetTaskId in src/state/selectors.ts must prefer mainChatTaskId over viewingAgentTaskId')
   exitCrewmateView(store.set)
-  check('leaving the view keeps the pin', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === undefined)
+  check('leaving the view keeps the pin', composerTargetTaskId(store.state as never) === 'a2' && store.state.viewingAgentTaskId === undefined, 'exitCrewmateView in src/state/crewmateViewHelpers.ts must clear viewingAgentTaskId and leave mainChatTaskId alone')
   clearMainChat(store.set)
-  check('m on Mercury Lead hands the main chat back', composerTargetTaskId(store.state as never) === undefined && store.state.mainChatTaskId === undefined)
+  check('m on Mercury Lead hands the main chat back', composerTargetTaskId(store.state as never) === undefined && store.state.mainChatTaskId === undefined, 'clearMainChat in src/state/crewmateViewHelpers.ts must clear mainChatTaskId')
   setMainChat('a1', store.set)
   const before = store.state
   setMainChat('a1', store.set)
-  check('pinning the pinned crewmate again is the identity update', store.state === before)
+  check('pinning the pinned crewmate again is the identity update', store.state === before, 'setMainChat in src/state/crewmateViewHelpers.ts must return the previous state object when the task is already pinned')
   const taskA1 = store.state.tasks.a1 as { status: string; evictAfter?: number }
   store.state = { ...store.state, tasks: { ...store.state.tasks, a1: { ...taskA1, status: 'completed' } } }
   stopOrDismissAgent('a1', store.set)
-  check('dismissing the pinned crewmate releases the pin', store.state.mainChatTaskId === undefined)
+  check('dismissing the pinned crewmate releases the pin', store.state.mainChatTaskId === undefined, 'stopOrDismissAgent in src/state/crewmateViewHelpers.ts must clear mainChatTaskId when it dismisses the pinned crewmate')
 }
 
 section('§4 the operator\'s interrupt: one crewmate, a typed kind the lead can tell apart')
@@ -89,8 +89,8 @@ section('§4 the operator\'s interrupt: one crewmate, a typed kind the lead can 
   const { turnCutLine, turnCutOf } = await import('../../src/utils/messages/turnCut.js')
   const { interruptCrewmate } = await import('../../src/components/tasks/crewmateInterrupt.js')
   const { dequeueAll, resetCommandQueue } = await import('../../src/input-core/command-queue.js')
-  check('the operator\'s interrupt is a typed cut of the operator\'s own kind — the crewmate\'s transcript row is the lead\'s own interrupt row', turnCutOf(AGENT_INTERRUPT_BY_OPERATOR).kind === 'operator' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), false) === '[Request interrupted by user]' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), true) === '[Request interrupted by user for tool use]')
-  check('the stop words and the status word name the operator, distinct from the crew view\'s stop', agentStopReasonOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_WORDS && agentStopStatusWordOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_STATUS_WORD && agentStopReasonOf(AGENT_STOP_BY_OPERATOR) === 'stopped from the crew view' && agentStopStatusWordOf(AGENT_STOP_BY_OPERATOR) === undefined && agentStopStatusWordOf('stalled') === undefined)
+  check('the operator\'s interrupt is a typed cut of the operator\'s own kind — the crewmate\'s transcript row is the lead\'s own interrupt row', turnCutOf(AGENT_INTERRUPT_BY_OPERATOR).kind === 'operator' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), false) === '[Request interrupted by user]' && turnCutLine(turnCutOf(AGENT_INTERRUPT_BY_OPERATOR), true) === '[Request interrupted by user for tool use]', 'turnCutOf and turnCutLine in src/utils/messages/turnCut.ts must treat AGENT_INTERRUPT_BY_OPERATOR as the operator kind and print the two interrupt rows')
+  check('the stop words and the status word name the operator, distinct from the crew view\'s stop', agentStopReasonOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_WORDS && agentStopStatusWordOf(AGENT_INTERRUPT_BY_OPERATOR) === AGENT_INTERRUPTED_STATUS_WORD && agentStopReasonOf(AGENT_STOP_BY_OPERATOR) === 'stopped from the crew view' && agentStopStatusWordOf(AGENT_STOP_BY_OPERATOR) === undefined && agentStopStatusWordOf('stalled') === undefined, 'agentStopReasonOf and agentStopStatusWordOf in src/tasks/LocalAgentTask/LocalAgentTask.ts must map the operator interrupt to the interrupted words and status word, and the crew view stop to its own words with no status word')
   const notices = (reason: string): string => {
     resetCommandQueue()
     const store = makeStore({ n1: agent('n1', 'killed') })
@@ -109,21 +109,21 @@ section('§4 the operator\'s interrupt: one crewmate, a typed kind the lead can 
   const store = makeStore({ a1: { ...agent('a1'), abortController: a }, a2: { ...agent('a2'), abortController: b } })
   const stops: Array<{ id: string; note?: string }> = []
   const road = interruptCrewmate('a1', store.state as never, store.set, async (id, note) => { stops.push({ id, note }) })
-  check('a local crewmate\'s interrupt aborts ITS controller with the typed reason and leaves the other crewmate running', road === 'local' && a.signal.aborted && a.signal.reason === AGENT_INTERRUPT_BY_OPERATOR && !b.signal.aborted && stops.length === 0)
+  check('a local crewmate\'s interrupt aborts ITS controller with the typed reason and leaves the other crewmate running', road === 'local' && a.signal.aborted && a.signal.reason === AGENT_INTERRUPT_BY_OPERATOR && !b.signal.aborted && stops.length === 0, `interruptCrewmate in src/components/tasks/crewmateInterrupt.ts must abort only the named local crewmate with AGENT_INTERRUPT_BY_OPERATOR; road was ${road}`)
   const hosted = interruptCrewmate('h9', store.state as never, store.set, async (id, note) => { stops.push({ id, note }) })
-  check('a hosted crewmate\'s interrupt takes the connector\'s stop door with the typed note, once, for that id alone', hosted === 'hosted' && JSON.stringify(stops) === JSON.stringify([{ id: 'h9', note: AGENT_INTERRUPT_BY_OPERATOR }]))
+  check('a hosted crewmate\'s interrupt takes the connector\'s stop door with the typed note, once, for that id alone', hosted === 'hosted' && JSON.stringify(stops) === JSON.stringify([{ id: 'h9', note: AGENT_INTERRUPT_BY_OPERATOR }]), `interruptCrewmate in src/components/tasks/crewmateInterrupt.ts must call the stop door once with the typed note for an id with no local task; got ${hosted} and ${JSON.stringify(stops)}`)
   const idle = interruptCrewmate('a2', { tasks: { a2: agent('a2', 'completed') } } as never, store.set, async () => {})
-  check('a crewmate between turns has nothing to interrupt', idle === 'idle')
+  check('a crewmate between turns has nothing to interrupt', idle === 'idle', `interruptCrewmate in src/components/tasks/crewmateInterrupt.ts must return idle for a task that is not running; got ${idle}`)
 }
 
 section('§5 the words of the two states (one owner)')
 {
   const viewing = { name: 'Lane atlas', pinned: false }
   const pinned = { name: 'Lane fjord', pinned: true }
-  check('the header tail: viewing / main chat', crewmateHeaderTail(viewing) === '· Lane atlas · viewing' && crewmateHeaderTail(pinned) === '· Lane fjord · main chat')
-  check('the status words: the viewed crewmate, the composer\'s target, and the pin viewed from another screen', crewmateStatusWords(viewing, viewing, 15) === 'viewing Lane atlas · composer → Lane atlas · commands → Lane atlas · 15 crewmates running' && crewmateStatusWords(pinned, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(null, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(viewing, pinned, 2) === 'viewing Lane atlas · commands → Lane atlas · composer → Lane fjord (the main chat) · 2 crewmates running')
-  check('the composer hint: ↵ names the target, esc names the VIEWED crewmate (none on the lead\'s screen); the way back is the rail', crewmateComposerHint(viewing, viewing) === `↵ sends to Lane atlas · esc interrupts Lane atlas · ${BACK_HINT}` && crewmateComposerHint(pinned, pinned) === `↵ sends to Lane fjord · esc interrupts Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, viewing) === `↵ sends to Lane fjord · esc interrupts Lane atlas · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, null) === `↵ sends to Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat`)
-  check('the placeholder and the card keys', crewmatePlaceholder('Lane fjord') === 'message Lane fjord' && crewmateCardKeys(false) === `esc interrupts · in /crewmates: m main chat · x x stop · p pause · ${BACK_HINT}` && crewmateCardKeys(true).startsWith(`esc interrupts · m on ${LEAD_ROW_NAME} hands the main chat back`))
+  check('the header tail: viewing / main chat', crewmateHeaderTail(viewing) === '· Lane atlas · viewing' && crewmateHeaderTail(pinned) === '· Lane fjord · main chat', 'crewmateHeaderTail in src/utils/cockpit/crewmateWords.ts must end with viewing for a viewed crewmate and main chat for a pinned one')
+  check('the status words: the viewed crewmate, the composer\'s target, and the pin viewed from another screen', crewmateStatusWords(viewing, viewing, 15) === 'viewing Lane atlas · composer → Lane atlas · commands → Lane atlas · 15 crewmates running' && crewmateStatusWords(pinned, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(null, pinned, 1) === `main chat: Lane fjord · commands → Lane fjord · ${LEAD_ROW_NAME} waits in the rail · 1 crewmate running` && crewmateStatusWords(viewing, pinned, 2) === 'viewing Lane atlas · commands → Lane atlas · composer → Lane fjord (the main chat) · 2 crewmates running', 'crewmateStatusWords in src/utils/cockpit/crewmateWords.ts must produce the viewed, pinned and mixed status lines these checks expect')
+  check('the composer hint: ↵ names the target, esc names the VIEWED crewmate (none on the lead\'s screen); the way back is the rail', crewmateComposerHint(viewing, viewing) === `↵ sends to Lane atlas · esc interrupts Lane atlas · ${BACK_HINT}` && crewmateComposerHint(pinned, pinned) === `↵ sends to Lane fjord · esc interrupts Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, viewing) === `↵ sends to Lane fjord · esc interrupts Lane atlas · m on ${LEAD_ROW_NAME} returns the main chat` && crewmateComposerHint(pinned, null) === `↵ sends to Lane fjord · m on ${LEAD_ROW_NAME} returns the main chat`, 'crewmateComposerHint in src/utils/cockpit/crewmateWords.ts must name the send target, the esc target and the way back for each viewed and pinned pairing')
+  check('the placeholder and the card keys', crewmatePlaceholder('Lane fjord') === 'message Lane fjord' && crewmateCardKeys(false) === `esc interrupts · in /crewmates: m main chat · x x stop · p pause · ${BACK_HINT}` && crewmateCardKeys(true).startsWith(`esc interrupts · m on ${LEAD_ROW_NAME} hands the main chat back`), 'crewmatePlaceholder and crewmateCardKeys in src/utils/cockpit/crewmateWords.ts must produce the placeholder and card key lines these checks expect')
 }
 
 rmSync(process.env.MERCURY_CONFIG_DIR!, { recursive: true, force: true })

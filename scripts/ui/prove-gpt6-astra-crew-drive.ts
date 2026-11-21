@@ -21,7 +21,7 @@ if (!existsSync(DIST)) {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: for a first-byte or idle-budget check read firstByteBudgetMs in src/services/providers/streamIdleBudget.ts; for a Crew view row compare the captured frames dumped below; the kept world holds the transcripts'}`)
 }
 
 const ID = 'gpt-6-astra'

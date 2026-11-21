@@ -37,13 +37,13 @@ try {
   const frame = m.screen()
   const match = /↵ switch/.test(frame) && !/↵ fold/.test(frame)
   console.log(`${match ? 'PASS' : 'FAIL'} the asynchronously loaded filter lands on its first model, not the provider heading`)
-  if (!match) { failed = true; console.log(frame) }
+  if (!match) { failed = true; console.log(frame); console.log('hint: when the model list arrives while a filter is set, the cursor must move to the first model row; check the lineSnapshot re-landing block (filtering, firstRowIndex) in MercuryModelPicker in src/components/MercuryModelPicker.tsx') }
   const frames = process.argv.indexOf('--frames')
   if (frames >= 0) { const dir = process.argv[frames + 1]!; mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, 'filtered-first-match.txt'), frame) }
   m.push(KEY.enter)
   await waitFor(() => picked !== '', 3000)
   console.log(`${picked === 'gpt-6-luna' ? 'PASS' : 'FAIL'} Enter selects the matching model: ${picked || 'no selection'}`)
-  if (picked !== 'gpt-6-luna') failed = true
+  if (picked !== 'gpt-6-luna') { failed = true; console.log('hint: Enter on the landed row must call onSelect with that model id; check the cursor landing and the Enter handler in MercuryModelPicker in src/components/MercuryModelPicker.tsx') }
 } finally { m.unmount(); resetOverlayStackForTests(); await releaseScratchHome(home) }
 if (failed) process.exit(1)
 console.log('prove-filtered-picker-first-match: GREEN')

@@ -3,13 +3,15 @@ import { check, decide, fillBash, finish, note, said, section, shown, type Rules
 
 const MODES = ['default', 'implement', 'apollo', 'dontAsk', 'flow', 'sovereign'] as const
 type Mode = (typeof MODES)[number]
+const monitorFixHint = 'fix MonitorTool checkPermissions in src/tools/MonitorTool/MonitorTool.ts, which must give a Monitor call the verdict shellCommandHasPermission in src/tools/BashTool/bashPermissions.ts gives the same command'
+const wholeToolFixHint = 'fix decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts, which must honour a rule written for the Monitor tool'
 const monitor = (command: string, mode: Mode, rules: Rules = {}) => decide('Monitor', { command: fillBash(command), description: 'watch' }, mode, rules)
 const bash = (command: string, mode: Mode, rules: Rules = {}) => decide('Bash', { command: fillBash(command) }, mode, rules)
 
 async function pair(label: string, command: string, mode: Mode, rules: Rules = {}): Promise<void> {
   const viaBash = await bash(command, mode, rules)
   const viaMonitor = await monitor(command, mode, rules)
-  check(`${mode} · ${label} · ${shown(fillBash(command))} · Bash: ${viaBash.behavior} · through Monitor it is not approved outright`, viaMonitor.behavior !== 'allow', `Monitor: ${said(viaMonitor)} — Bash: ${said(viaBash)}`)
+  check(`${mode} · ${label} · ${shown(fillBash(command))} · Bash: ${viaBash.behavior} · through Monitor it is not approved outright`, viaMonitor.behavior !== 'allow', `Monitor: ${said(viaMonitor)} — Bash: ${said(viaBash)} · ${monitorFixHint}`)
 }
 
 
@@ -44,7 +46,7 @@ for (const mode of ['default', 'implement', 'apollo'] as const) await pair('floo
 section('§5 controls: what does stop a Monitor call')
 for (const mode of MODES) {
   const denied = await monitor('rm -rf build', mode, { deny: ['Monitor'] })
-  check(`${mode} · a deny rule on the whole tool (Monitor) refuses the call`, denied.behavior === 'deny', said(denied))
+  check(`${mode} · a deny rule on the whole tool (Monitor) refuses the call`, denied.behavior === 'deny', `${said(denied)} · ${wholeToolFixHint}`)
 }
 
 section('§6 the same decision as Bash: a watch that only reads runs where Bash runs it, and nothing else differs')
@@ -56,24 +58,24 @@ for (const mode of MODES) {
     const viaMonitor = await monitor(command, mode, { deny: ['Read(secrets/**)'] })
     if (viaBash.behavior !== viaMonitor.behavior || (viaBash.behavior === 'deny' && viaBash.message !== viaMonitor.message?.replace('Permission to use Monitor', 'Permission to use Bash'))) differing.push(`${shown(fillBash(command))}: Bash ${said(viaBash)} · Monitor ${said(viaMonitor)}`)
   }
-  check(`${mode} · ${PARITY.length} commands get through Monitor the answer Bash gives them`, differing.length === 0, differing.join(' ‖ '))
+  check(`${mode} · ${PARITY.length} commands get through Monitor the answer Bash gives them`, differing.length === 0, `${monitorFixHint} · ${differing.join(' ‖ ')}`)
 }
 for (const command of ['git status', 'cat notes.txt', 'tail -n 5 notes.txt']) {
   const viaMonitor = await monitor(command, 'default')
-  check(`default · a watch that only reads runs without a card · ${shown(command)}`, viaMonitor.behavior === 'allow', said(viaMonitor))
+  check(`default · a watch that only reads runs without a card · ${shown(command)}`, viaMonitor.behavior === 'allow', `${said(viaMonitor)} · ${monitorFixHint}`)
 }
 {
   const allowed = await monitor('npm test', 'default', { allow: ['Bash(npm test *)'] })
-  check('default · an allow rule written for Bash allows the same command through Monitor', allowed.behavior === 'allow', said(allowed))
-  check('the allowed call keeps the watch as it was asked for', allowed.updatedInput?.command === 'npm test' && allowed.updatedInput?.description === 'watch', JSON.stringify(allowed.updatedInput))
+  check('default · an allow rule written for Bash allows the same command through Monitor', allowed.behavior === 'allow', `${said(allowed)} · ${monitorFixHint}`)
+  check('the allowed call keeps the watch as it was asked for', allowed.updatedInput?.command === 'npm test' && allowed.updatedInput?.description === 'watch', `${JSON.stringify(allowed.updatedInput)} · fix the updatedInput that MonitorTool checkPermissions in src/tools/MonitorTool/MonitorTool.ts returns on an allow`)
   const asked = await monitor('npm test', 'default', { ask: ['Bash(npm test *)'] })
-  check('default · an ask rule written for Bash asks through Monitor and names the rule', asked.behavior === 'ask' && String(asked.message).includes('Bash(npm test *)'), said(asked))
+  check('default · an ask rule written for Bash asks through Monitor and names the rule', asked.behavior === 'ask' && String(asked.message).includes('Bash(npm test *)'), `${said(asked)} · ${monitorFixHint}`)
   const wholeDeny = await monitor('git status', 'default', { deny: ['Bash'] })
-  check('default · a deny rule on the whole of Bash refuses a Monitor call', wholeDeny.behavior === 'deny' && String(wholeDeny.message).includes('the rule Bash '), said(wholeDeny))
+  check('default · a deny rule on the whole of Bash refuses a Monitor call', wholeDeny.behavior === 'deny' && String(wholeDeny.message).includes('the rule Bash '), `${said(wholeDeny)} · ${monitorFixHint}`)
   const wholeAllow = await monitor('npm test', 'default', { allow: ['Bash'] })
-  check('default · an allow rule on the whole of Bash allows a Monitor call', wholeAllow.behavior === 'allow', said(wholeAllow))
+  check('default · an allow rule on the whole of Bash allows a Monitor call', wholeAllow.behavior === 'allow', `${said(wholeAllow)} · ${monitorFixHint}`)
   const wholeAllowFloor = await monitor('cat <CONFIG>/.credentials.json', 'default', { allow: ['Bash'] })
-  check('default · that allow rule does not open the floor', wholeAllowFloor.behavior === 'deny', said(wholeAllowFloor))
+  check('default · that allow rule does not open the floor', wholeAllowFloor.behavior === 'deny', `${said(wholeAllowFloor)} · ${monitorFixHint}`)
 }
 
 section('§6b the rule a Monitor ask offers to remember is the command\'s own, never the whole tool')
@@ -81,29 +83,29 @@ for (const [command, content] of [['npm install left-pad', 'npm install *'], ['n
   const asked = await monitor(command, 'default')
   const rules = (asked.suggestions ?? []).flatMap(suggestion => suggestion.rules ?? [])
   const offered = rules.map(rule => `${rule.toolName}(${rule.ruleContent ?? ''})`).join(', ')
-  check(`default · Monitor ${shown(command)} asks and hands the card ${content === undefined ? 'no rule it could not name exactly' : `the rule Bash(${content})`}`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.every(rule => rule.ruleContent !== undefined && rule.ruleContent !== '') && (content === undefined || rules.some(rule => rule.toolName === 'Bash' && rule.ruleContent === content)), `${said(asked)} · offered: ${offered || '(none)'}`)
+  check(`default · Monitor ${shown(command)} asks and hands the card ${content === undefined ? 'no rule it could not name exactly' : `the rule Bash(${content})`}`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.every(rule => rule.ruleContent !== undefined && rule.ruleContent !== '') && (content === undefined || rules.some(rule => rule.toolName === 'Bash' && rule.ruleContent === content)), `${said(asked)} · offered: ${offered || '(none)'} · ${monitorFixHint}`)
 }
 
 for (const command of ['$CMD', 'eval "$CMD"', 'rm -rf "$TARGET"', 'cat `ls`']) {
   const asked = await monitor(command, 'default')
   const rules = (asked.suggestions ?? []).flatMap(suggestion => suggestion.rules ?? [])
-  check(`default · Monitor ${shown(command)} asks and offers no rule to remember: a rule spelled with a value only known at run time stops no later ask`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.length === 0, `${said(asked)} · offered: ${rules.map(rule => `${rule.toolName}(${rule.ruleContent ?? ''})`).join(', ') || '(none)'}`)
+  check(`default · Monitor ${shown(command)} asks and offers no rule to remember: a rule spelled with a value only known at run time stops no later ask`, asked.behavior === 'ask' && asked.suggestions !== undefined && rules.length === 0, `${said(asked)} · offered: ${rules.map(rule => `${rule.toolName}(${rule.ruleContent ?? ''})`).join(', ') || '(none)'} · ${monitorFixHint}`)
 }
 
 section('§7 a rule written for Monitor is honoured as a rule written for Bash is')
 {
   const denied = await monitor('rm -rf build', 'default', { deny: ['Monitor(rm *)'] })
-  check('deny Monitor(rm *) refuses the watch and names the rule as it was written', denied.behavior === 'deny' && String(denied.message).includes('the rule Monitor(rm *)') && denied.decisionReason?.rule?.ruleValue?.toolName === 'Monitor', said(denied))
+  check('deny Monitor(rm *) refuses the watch and names the rule as it was written', denied.behavior === 'deny' && String(denied.message).includes('the rule Monitor(rm *)') && denied.decisionReason?.rule?.ruleValue?.toolName === 'Monitor', `${said(denied)} · ${wholeToolFixHint}`)
   const sovereign = await monitor('rm -rf build', 'sovereign', { deny: ['Monitor(rm *)'] })
-  check('deny Monitor(rm *) refuses under Sovereign mode', sovereign.behavior === 'deny', said(sovereign))
+  check('deny Monitor(rm *) refuses under Sovereign mode', sovereign.behavior === 'deny', `${said(sovereign)} · ${wholeToolFixHint}`)
   const bashUntouched = await bash('rm -rf build', 'default', { deny: ['Monitor(rm *)'] })
-  check('a Monitor rule does not reach a Bash call', bashUntouched.behavior === 'ask', said(bashUntouched))
+  check('a Monitor rule does not reach a Bash call', bashUntouched.behavior === 'ask', `${said(bashUntouched)} · ${wholeToolFixHint}`)
   const allowed = await monitor('npm test', 'default', { allow: ['Monitor(npm test *)'] })
-  check('allow Monitor(npm test *) allows the watch', allowed.behavior === 'allow', said(allowed))
+  check('allow Monitor(npm test *) allows the watch', allowed.behavior === 'allow', `${said(allowed)} · ${wholeToolFixHint}`)
   const asked = await monitor('git status', 'default', { ask: ['Monitor(git status *)'] })
-  check('ask Monitor(git status *) asks first and names the rule as it was written', asked.behavior === 'ask' && String(asked.message).includes('Monitor(git status *)'), said(asked))
+  check('ask Monitor(git status *) asks first and names the rule as it was written', asked.behavior === 'ask' && String(asked.message).includes('Monitor(git status *)'), `${said(asked)} · ${wholeToolFixHint}`)
   const both = await monitor('rm -rf build', 'default', { deny: ['Monitor(rm *)', 'Bash(rm *)'] })
-  check('with both rules written the Bash rule is the one named', both.behavior === 'deny' && String(both.message).includes('the rule Bash(rm *)'), said(both))
+  check('with both rules written the Bash rule is the one named', both.behavior === 'deny' && String(both.message).includes('the rule Bash(rm *)'), `${said(both)} · ${monitorFixHint}`)
 }
 note('nothing in this proof is executed: each line is one command string handed to the decision function with the real MonitorTool; the daemon is a stand-in process of this proof, the credential files and the runtime are dummies under the run scratch')
 finish('prove-monitor-command-decision')

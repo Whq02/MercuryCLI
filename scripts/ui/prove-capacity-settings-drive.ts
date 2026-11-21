@@ -76,17 +76,17 @@ try {
         const deadline = setTimeout(() => child.kill('SIGKILL'), vshotBudgetMs(150000))
         child.on('close', code => { clearTimeout(deadline); resolveRun({ code, text }) })
       })
-      check(`${cols}: the complete settings journey ran`, result.code === 0, result.text.trim().slice(-700))
-      check(`${cols}: capture artifacts exist`, existsSync(output))
+      check(`${cols}: the complete settings journey ran`, result.code === 0, 'the capture engine scripts/ui/vshot.py exited non-zero or hit its wall; an awaited text in the sends list of this drive never painted, so compare the last awaited text with the output tail. ' + result.text.trim().slice(-700))
+      check(`${cols}: capture artifacts exist`, existsSync(output), 'the capture engine wrote no output file; read the output of the journey check above')
       if (!existsSync(output)) continue
       const capture = JSON.parse(readFileSync(output, 'utf8'))
       const marks = new Map<string, any>((capture.marks ?? []).map((mark: any) => [mark.label, mark]))
-      check(`${cols}: every input reached its observed state`, capture.sendReceipts?.length === sends.length)
+      check(`${cols}: every input reached its observed state`, capture.sendReceipts?.length === sends.length, 'only ' + String(capture.sendReceipts?.length) + ' of ' + String(sends.length) + ' sends were delivered; the first send whose awaited text never painted names the screen that stopped')
       const before = Number(/(\d+) · this machine's reading/.exec(textOf(marks.get('menu-reading')))?.[1])
       const raised = Number(/(\d+) · set by you/.exec(textOf(marks.get('menu-raised')))?.[1])
-      check(`${cols}: the menu shows a measured reading and increments it`, Number.isFinite(before) && raised === before + 1)
-      check(`${cols}: the populated settings view preserves and updates the ceiling`, textOf(marks.get('config-reading')).includes('9 · set by you') && textOf(marks.get('config-raised')).includes('10 · set by you'))
-      check(`${cols}: the value is durable and the command agrees`, JSON.parse(readFileSync(globalFile, 'utf8')).switchboardCapacity?.operatorSeats === 10 && textOf(marks.get('confirmed')).includes('Seats: 10'))
+      check(`${cols}: the menu shows a measured reading and increments it`, Number.isFinite(before) && raised === before + 1, 'reading ' + String(before) + ', after the right arrow ' + String(raised) + '; the boot settings seats row commits through commitSeats in src/components/bootSettings/commits.ts')
+      check(`${cols}: the populated settings view preserves and updates the ceiling`, textOf(marks.get('config-reading')).includes('9 · set by you') && textOf(marks.get('config-raised')).includes('10 · set by you'), 'the Seats row of the /config view must show the ceiling with set by you after each commit; the change is committed by applySeats in src/commands/seats/applySeats.ts')
+      check(`${cols}: the value is durable and the command agrees`, JSON.parse(readFileSync(globalFile, 'utf8')).switchboardCapacity?.operatorSeats === 10 && textOf(marks.get('confirmed')).includes('Seats: 10'), 'switchboardCapacity.operatorSeats in the global config must be 10 and /seats must print Seats: 10; see applySeats and seatsStatus in src/commands/seats/applySeats.ts')
       for (const label of ['menu-reading', 'config-raised']) {
         if (!marks.has(label)) continue
         const grid = join(home, `${label}.json`)
@@ -99,7 +99,7 @@ try {
       spawnSync(node, [dist, 'daemon', 'stop'], { env, timeout: 10000, stdio: 'pipe' })
     }
   }
-  check('settings made no model call', fixture.messageRequests().length === 0)
+  check('settings made no model call', fixture.messageRequests().length === 0, 'a settings change reached the model API; the journey must stay on settings screens and slash commands')
 } finally {
   await fixture.close()
 }

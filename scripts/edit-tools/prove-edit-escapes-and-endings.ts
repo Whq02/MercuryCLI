@@ -21,9 +21,12 @@ const { preserveUntouchedLineEndings } = await import('../../src/utils/file.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const endingsFailHint = 'check preserveUntouchedLineEndings in src/utils/file.ts and the line-ending handling of FileEditTool in src/tools/FileEditTool/FileEditTool.ts'
+const escapesFailHint = 'check locateActualString in src/utils/fileEditUtils.ts and validateInput and call of FileEditTool in src/tools/FileEditTool/FileEditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}`)
+  const failHint = /^[CD]/.test(label) ? endingsFailHint : escapesFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 500 ? `${detail.slice(0, 500)}…` : detail}` : ''}${!cond ? ` — ${failHint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

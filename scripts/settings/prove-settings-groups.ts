@@ -95,9 +95,10 @@ function declared(path: string): boolean {
   return true
 }
 let failures = 0
-function check(label: string, ok: boolean): void {
+const GROUPS_FAIL_HINT = 'change the setting named in the label: its schema in SettingsSchema (src/utils/settings/types.ts), its merge, read or write in src/utils/settings/settings.ts (getInitialSettings, getSettingsForSource, updateSettingsForSource, settingsMergeCustomizer), or add the row to the rows table above'
+function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(ok ? `PASS ${label}` : `FAIL ${label}${detail ? ` — ${detail}` : ''} — ${GROUPS_FAIL_HINT}`)
 }
 function fixture(values: object[]): void {
   files.forEach((file, index) => writeFileSync(file, JSON.stringify(values[index] ?? {})))

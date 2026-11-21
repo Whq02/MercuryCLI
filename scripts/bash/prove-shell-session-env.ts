@@ -22,8 +22,9 @@ delete process.env.MERCURY_SHELL_ENGINE
 if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) process.env.SHELL = '/bin/bash'
 
 let failures = 0
+const sessionEnvFixHint = 'change src/substrate/envStamps.ts (sessionEnvStamps, scrubSessionEnvStamps, stampSpawnReceipt, spawnSelfStamped), the exec scrub in src/utils/Shell.ts, or src/tools/shared/sessionEnvNotice.ts (sessionEnvNoticeForResult), whichever the failed label names'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + sessionEnvFixHint : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

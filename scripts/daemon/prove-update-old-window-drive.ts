@@ -20,7 +20,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 1200)}` : ''}${!ok ? ' — change: the handover the checks exercise is moveDaemonToDeployedBuild in src/daemon/handshake.ts (receipt line and restart refusal wording), with the daemon start in src/daemon/ownedDaemon.ts and src/services/switchboard/ensureDaemon.ts; read the daemon log tail printed below the section' : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const note = (t: string): void => console.log(`  [NOTE] ${t}`)

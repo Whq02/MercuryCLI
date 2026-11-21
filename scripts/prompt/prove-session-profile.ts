@@ -6,7 +6,8 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const profileHint = 'fix composeSystemPrompt in src/prompt/composer.ts for a section 5 check, or resolveMercuryAppearance and colorModeFromLevel in src/components/mercury-ui/appearanceSnapshot.ts for a section 6 check'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${profileHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

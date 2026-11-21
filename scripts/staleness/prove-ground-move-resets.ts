@@ -10,9 +10,23 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 let failures = 0
+const groundMoveHints: Record<string, string> = {
+  S1: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must set originalCwd, projectRoot and the cwd state to the target, and a null clear must return to the first-seen boot ground (trueBootGround)',
+  S2: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts to clear getProjectPathForConfig.cache, so the project config key follows the new ground (src/utils/config/projectConfig.ts)',
+  S3: 'fix projectConfigKeyForWorkspace in src/utils/config/projectConfig.ts so a repo and its worktrees share one key, and applyHarnessGround in src/services/switchboard/harnessGround.ts so a same-repo move keeps it',
+  S4: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must call resetSettingsCache (src/utils/settings/settingsCache.ts) after the move so project settings are re-read from the new ground',
+  S5: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must call clearInstructionFileCaches (src/services/instructions/engine.ts) after the move',
+  S6: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must clear getIsGit.cache (src/utils/git.ts) after the move',
+  S7: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must clear getExampleCommandFromCache.cache (src/utils/exampleCommands.ts) after the move',
+  S8: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: it must call setExtensionsPending(true) (src/extensions/boot.ts) after the move',
+  S9: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts to call settingsChangeDetector.reground, and reground in src/utils/settings/changeDetector.ts to re-arm the watch targets on the new ground',
+  S10: 'fix applyHarnessGround in src/services/switchboard/harnessGround.ts: process.chdir(target) must run as part of the move',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : groundMoveHints[label.split(' ')[0]] ?? ''
+  const shown = hint ? (detail ? `${detail} · ${hint}` : hint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 function git(cwd: string, ...args: string[]): void {

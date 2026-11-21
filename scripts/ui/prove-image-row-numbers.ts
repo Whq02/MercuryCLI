@@ -19,7 +19,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — ' + detail}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ' — ' + detail}${cond ? '' : ' | to fix: the number on each [Image #N] row is chosen where Message in src/components/Message.tsx passes imageId (imagePasteIds first, then the [Image #N] references in the text, else the ordinal) to UserImageMessage in src/components/messages/UserImageMessage.tsx'}`)
   if (!cond) failures++
 }
 const section = (t: string): void => {

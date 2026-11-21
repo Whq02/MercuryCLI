@@ -15,6 +15,9 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  if (!cond) {
+    console.log('    fix: the §1 checks exercise Cursor.render and getLineEndOffset in src/utils/Cursor.ts; the pty checks drive the built dist/mercury.mjs (rebuild with bun run build.ts if the source changed) and the composer mouse road in src/components/PromptInput/useComposerSelection.ts (useComposerSelectionRoad) and src/hooks/useTextInput.ts; a failed capture means the pty driver run itself failed, read the stderr tail printed above')
+  }
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

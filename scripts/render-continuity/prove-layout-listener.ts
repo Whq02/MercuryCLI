@@ -15,8 +15,9 @@ const TALL = ['row line 1', 'row line 2', 'row line 3', 'row line 4', 'row line 
 const SHUT = 'row shut'
 
 let failures = 0
+const LAYOUT_FIX = 'fix subscribeLayout and layoutAfterCommit in src/ink/ink/layout.ts (the Ink.subscribeLayout door is in src/ink/ink.tsx): listeners must run after the commit, inside the same painted frame, and a thrown or unsubscribed listener must not disturb the rest'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${LAYOUT_FIX}`}`)
   if (!ok) failures = 1
 }
 

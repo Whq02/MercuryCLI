@@ -17,9 +17,9 @@ const RELEASE_HOST = ['api', 'github', 'com'].join('.')
 const IDLE_TICKS = 300
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 600) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 600) : ''}${!cond && hint ? ' — ' + hint : ''}`)
 }
 
 const driver = resolveCaptureDriver()
@@ -281,13 +281,13 @@ console.log('[0] poison control — the tripwire trips on a non-loopback fetch, 
   } catch {
     tripped = true
   }
-  check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '))
+  check('control: a poison-host fetch trips and logs', tripped && netlines(netlog).some(l => l.startsWith('fetch ')), netlines(netlog).join(' · '), 'the control fetch must be refused by tripwire.cjs, which this file writes and preloads through NODE_OPTIONS in childEnv; check that preload first')
   try {
     await fetch(`${FIXTURE_BASE}/control`)
   } catch {
   }
   await new Promise<void>(r => setTimeout(r, 100))
-  check('control: a loopback request reaches the fixture and lands in its ledger', served.some(s => s.path === '/control'), JSON.stringify(served))
+  check('control: a loopback request reaches the fixture and lands in its ledger', served.some(s => s.path === '/control'), JSON.stringify(served), 'the local fixture server in this file must record every loopback request in served')
   served.length = 0
   rmSync(shimLog, { force: true })
 }
@@ -312,14 +312,14 @@ console.log('[A] idle — boot, first paint, sixty seconds, /help, quit: the wir
     ],
     IDLE_TICKS + 140,
   )
-  check('the drive delivered every send (a real boot)', res.status === 0 && res.receipts === 8, `vshot ${res.status} · receipts ${res.receipts} · ${res.endReason} · ${res.stderr.slice(-300)}`)
+  check('the drive delivered every send (a real boot)', res.status === 0 && res.receipts === 8, `vshot ${res.status} · receipts ${res.receipts} · ${res.endReason} · ${res.stderr.slice(-300)}`, 'the boot of dist/mercury.mjs --chat did not take all eight sends; run bun run build.ts, then read the stderr tail and the grid kept under the scratch folder')
   check('the chat painted its composer', (res.marks.painted ?? '').includes('ype a prompt'), rows(res.marks.painted ?? '', '❯'))
   check('/help answered on the screen', (res.marks.help ?? '') !== '' && (res.marks.help ?? '') !== (res.marks.idle ?? ''), 'the screen did not change after /help')
   const lines = netlines(netlog)
   const stray = uniq(strayLines(lines))
   const ledger = served.map(s => `${s.method} ${s.path} @${Math.round(s.atMs / 1000)}s`)
-  check('the model wire served NOTHING before a turn (the fixture ledger is empty)', served.length === 0, ledger.join(' · '))
-  check('no non-loopback connect left the child (the release listing read excepted)', stray.length === 0, stray.join(' · '))
+  check('the model wire served NOTHING before a turn (the fixture ledger is empty)', served.length === 0, ledger.join(' · '), 'something in the idle boot of dist/mercury.mjs made a model-wire request before the first turn; the ledger above names the path and time, so find what starts it and defer it to the first turn')
+  check('no non-loopback connect left the child (the release listing read excepted)', stray.length === 0, stray.join(' · '), 'the boot opened a connection to a non-loopback host before the first turn; the host is named above, so find what starts it and defer it')
   const listing = uniq(lines.filter(isReleaseListing))
   if (listing.length > 0) console.log(`  – the release listing read was attempted (allowed, our own repository): ${listing.join(' · ')}`)
   const netVerbs = shimLines().filter(l => NETWORK_VERBS.test(l))

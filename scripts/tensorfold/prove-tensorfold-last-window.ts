@@ -29,9 +29,10 @@ const starting = await import('../../src/services/tensorfold/starting.ts')
 const models = await import('../../src/services/tensorfold/adapter/models.ts')
 
 let failures = 0
+const LAST_WINDOW_WHERE = 'change the remembered-window rule: rowOfCheckpoint in src/services/tensorfold/inventory.ts (which window a row stands at), startTensorFold in src/services/tensorfold/serve.ts (what a start remembers), rememberTensorFoldWindow and rememberedTensorFoldWindow in src/services/providers/local/tensorfoldHosts.ts (the stored window)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${LAST_WINDOW_WHERE}${detail ? ` | ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 async function sealed(p: PanelCard): Promise<void> {
   check('before any key: the card offers no install and no download (the stand-in engine counts as installed, its model as on disk; a proof fetches nothing)', p.offer === undefined, p.offer ?? '')

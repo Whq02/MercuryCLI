@@ -25,11 +25,22 @@ type BuiltRegistry = {
 }
 
 let failures = 0
+const bundledSkillsHints: Record<string, string> = {
+  '§1': 'the registered set comes from initBundledSkills in src/skills/bundled/index.ts and the skill folders under mercury-skills/; regenerate the wrappers with bun scripts/skills/gen-bundled.ts',
+  '§2': 'two skills register one name: look at the register calls in src/skills/bundled/index.ts and registerBundledSkill in src/skills/bundledSkills.ts',
+  '§3': 'the extract root comes from getBundledSkillsRoot in src/utils/permissions/filesystem.ts and getBundledSkillExtractDir in src/skills/bundledSkills.ts; it must be a temp dir, never the config home',
+  '§4': 'the generated wrappers under src/skills/bundled/ differ from mercury-skills/<name>/SKILL.md; run bun scripts/skills/gen-bundled.ts, and look at registration in src/skills/bundledSkills.ts',
+  '§5': 'the generator contract is in scripts/skills/gen-bundled.ts (renderSkill, checkSkill, pruneSkill, retiredSkills, runCli) and extraction in src/skills/bundledSkills.ts',
+  '§6': 'the generated modules under src/skills/bundled/ are stale or a SKILL.md is out of budget: run bun scripts/skills/gen-bundled.ts, then rebuild so dist/mercury.mjs inlines mercury-skills/<name>/SKILL.md',
+}
+let bundledSkillsHint = ''
 function check(ok: boolean, label: string, detail = ''): void {
-  console.log(`${ok ? '✓' : '✗'} ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok || bundledSkillsHint === '' ? detail : detail ? `${detail} · ${bundledSkillsHint}` : bundledSkillsHint
+  console.log(`${ok ? '✓' : '✗'} ${label}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures++
 }
 function section(t: string): void {
+  bundledSkillsHint = bundledSkillsHints[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const same = (a: readonly string[], b: readonly string[]): boolean => [...a].sort().join('\n') === [...b].sort().join('\n')

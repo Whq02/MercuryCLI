@@ -16,7 +16,8 @@ const store = await import('../../src/utils/savedPrompts/savedPromptsStore.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const savedStoreHint = 'change the store function this check names (savedPromptsPath, addSavedPrompt, editSavedPrompt, moveSavedPrompt, deleteSavedPrompt, clearSavedPrompts, listSavedPrompts, subscribeSavedPrompts) in src/utils/savedPrompts/savedPromptsStore.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${savedStoreHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

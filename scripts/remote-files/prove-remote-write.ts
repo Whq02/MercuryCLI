@@ -37,16 +37,17 @@ setCwdState(project)
 
 const PORT = 27065
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds; look at the last check printed above, then at src/tools/FileWriteTool/FileWriteTool.ts and src/services/remoteFiles/')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const REMOTE_WRITE_FIX = 'a write to ssh://box/... must behave as the same local write: fix the remote branch of FileWriteTool (call, validateInput, checkPermissions) in src/tools/FileWriteTool/FileWriteTool.ts or the remote file layer in src/services/remoteFiles/'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ` — ${REMOTE_WRITE_FIX}`}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

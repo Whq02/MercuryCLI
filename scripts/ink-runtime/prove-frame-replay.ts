@@ -179,10 +179,10 @@ for (const pair of PAIRS) {
   try {
     emu.feed(bytes)
   } catch (e) {
-    check(`replay parses: ${pair.name}`, false, String(e))
+    check(`replay parses: ${pair.name}`, false, `${String(e)} — the bytes from FrameWriter.render (src/ink/frame-writer.ts) through optimizePatches and writeDiffToTerminal contain a sequence the AnsiEmulator cannot parse; fix the emitting patch there, or teach scripts/ink-runtime/ansiEmulator.ts the sequence if it is valid`)
     continue
   }
-  check(`replay equality: ${pair.name}`, compareGrids(emu, frameB) === '', compareGrids(emu, frameB))
+  check(`replay equality: ${pair.name}`, compareGrids(emu, frameB) === '', `${compareGrids(emu, frameB)} — replaying the diff on the old frame must give the new frame; fix FrameWriter.render in src/ink/frame-writer.ts (or optimizePatches in src/ink/patch-stream.ts) so it emits the patches for that cell`)
 }
 
 for (const pair of PAIRS.slice(0, 3)) {
@@ -195,7 +195,7 @@ for (const pair of PAIRS.slice(0, 3)) {
   check(
     `zero-dirty ⇒ zero write: ${pair.name}`,
     bytes === '' && patchCount === 0,
-    `${patchCount} patches, ${bytes.length} bytes`,
+    `${patchCount} patches, ${bytes.length} bytes — two identical frames must emit nothing; fix FrameWriter.render in src/ink/frame-writer.ts so an unchanged cell produces no patch`,
   )
 }
 
@@ -220,13 +220,13 @@ for (const pair of PAIRS.slice(0, 3)) {
   const frameB: Frame = { ...frameBRaw, scrollHint: { top: 0, bottom: 7, delta: 2 } }
   const emu = seedEmulator(frameA)
   const { bytes } = emitAltScreen(log, frameA, frameB)
-  check('scroll: DECSTBM ops emitted', /\x1b\[\d+;\d+r/.test(bytes) && /\x1b\[\d+S/.test(bytes), JSON.stringify(bytes.slice(0, 80)))
+  check('scroll: DECSTBM ops emitted', /\x1b\[\d+;\d+r/.test(bytes) && /\x1b\[\d+S/.test(bytes), `${JSON.stringify(bytes.slice(0, 80))} — a frame with scrollHint must emit a DECSTBM region plus a scroll-up (CSI r and CSI S); look at how FrameWriter.render in src/ink/frame-writer.ts uses scrollHint`)
   try {
     emu.feed(bytes)
-    check('scroll: replay equality through DECSTBM', compareGrids(emu, frameB) === '', compareGrids(emu, frameB))
-    check('scroll: region reset after use', emu.region === null)
+    check('scroll: replay equality through DECSTBM', compareGrids(emu, frameB) === '', `${compareGrids(emu, frameB)} — the scrolled replay differs from the new frame; fix the scrollHint path in FrameWriter.render (src/ink/frame-writer.ts)`)
+    check('scroll: region reset after use', emu.region === null, 'the scroll region (DECSTBM) was left set after the diff; the writer must reset it with CSI r in src/ink/frame-writer.ts')
   } catch (e) {
-    check('scroll: replay parses', false, String(e))
+    check('scroll: replay parses', false, `${String(e)} — the scroll diff contains a sequence the AnsiEmulator cannot parse; check FrameWriter.render in src/ink/frame-writer.ts`)
   }
 }
 

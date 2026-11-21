@@ -5,9 +5,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const failureHint = (label: string): string => {
+  if (/inside the budget/.test(label)) return 'the child scripts/model-registry/pickerComposeChild.ts did not answer in time or exited non-zero (see stderr above); look for getModelOptions in src/services/model/modelOptions.ts waiting on a network or picker read'
+  if (/parses to itself|alias fable51|session default/.test(label)) return 'change parseUserSpecifiedModel or getEngineModel in src/services/model/model.ts, or resolveCatalogueSpelling in src/services/model/modelSpellingFold.ts'
+  if (/not folded/.test(label)) return 'change resolvesToExistingOption in src/services/model/modelOptions.ts'
+  return 'change the row composition in getModelOptions in src/services/model/modelOptions.ts'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 500)} · ` : ''}${failureHint(label)}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

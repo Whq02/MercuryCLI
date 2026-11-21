@@ -40,28 +40,29 @@ const defaultParts = (await getSystemPrompt([], MODEL)).filter(p => p !== '')
 const expectedDefault = defaultParts.map(displayName)
 const floorName = displayName(MERCURY_CONSTITUTION)
 const startsWith = (rows: string[], head: string[]): boolean => head.length <= rows.length && head.every((n, i) => rows[i] === n)
+const rowFix = 'fix countSystemPrompt in src/services/context/analyzeContext.ts so the rows match what getSystemPrompt and buildEffectiveSystemPrompt (src/utils/systemPrompt.ts) compose from customSystemPrompt and appendSystemPrompt'
 
 console.log('/context counts the prompt the request path composes')
 
 section('§1 the default session: the row lists every default part, not the floor alone')
 {
-  check('the default prompt is many parts (the fixture is meaningful)', expectedDefault.length > 1, String(expectedDefault.length))
+  check('the default prompt is many parts (the fixture is meaningful)', expectedDefault.length > 1, `${expectedDefault.length}; getSystemPrompt in src/constants/prompts.ts returned a single part, so the fixture cannot show the row listing every default part`)
   const rows = await rowsFor({})
-  check('THE ROW LISTS THE WHOLE DEFAULT PROMPT (the base listed the identity floor alone)', startsWith(rows, expectedDefault), `${rows.length} row(s): ${rows.slice(0, 3).join(' · ')}`)
-  check('…and not the floor-only composition', !(rows.length <= 2 && rows[0] === floorName), rows.join(' · '))
+  check('THE ROW LISTS THE WHOLE DEFAULT PROMPT (the base listed the identity floor alone)', startsWith(rows, expectedDefault), `${rows.length} row(s): ${rows.slice(0, 3).join(' · ')}; ${rowFix}`)
+  check('…and not the floor-only composition', !(rows.length <= 2 && rows[0] === floorName), `${rows.join(' · ')}; ${rowFix}`)
   const rowsNoContext = await rowsFor({ customSystemPrompt: undefined, appendSystemPrompt: undefined })
-  check('explicitly-undefined options compose the same default', startsWith(rowsNoContext, expectedDefault))
+  check('explicitly-undefined options compose the same default', startsWith(rowsNoContext, expectedDefault), `${rowsNoContext.slice(0, 3).join(' · ')}; an explicitly undefined customSystemPrompt or appendSystemPrompt must compose the default prompt, see ${rowFix}`)
 }
 
 section('§2 the replacing paths still replace, and the append rides last')
 {
   const custom = await rowsFor({ customSystemPrompt: 'CUSTOM PROMPT FOR THE PIN' })
-  check('a custom prompt composes floor + custom (the SDK replacement contract stands)', custom[0] === floorName && custom[1] === 'CUSTOM PROMPT FOR THE PIN', custom.slice(0, 3).join(' · '))
-  check('…and never the default parts', !startsWith(custom, expectedDefault))
+  check('a custom prompt composes floor + custom (the SDK replacement contract stands)', custom[0] === floorName && custom[1] === 'CUSTOM PROMPT FOR THE PIN', `${custom.slice(0, 3).join(' · ')}; ${rowFix}`)
+  check('…and never the default parts', !startsWith(custom, expectedDefault), `${custom.slice(0, 3).join(' · ')}; a custom prompt replaces the default parts, ${rowFix}`)
   const appended = await rowsFor({ appendSystemPrompt: 'APPENDED FOR THE PIN' })
-  check('an append rides after the whole default', startsWith(appended, expectedDefault) && appended[expectedDefault.length] === 'APPENDED FOR THE PIN', appended.slice(expectedDefault.length - 1, expectedDefault.length + 2).join(' · '))
+  check('an append rides after the whole default', startsWith(appended, expectedDefault) && appended[expectedDefault.length] === 'APPENDED FOR THE PIN', `${appended.slice(expectedDefault.length - 1, expectedDefault.length + 2).join(' · ')}; ${rowFix}`)
   const emptyCustom = await rowsFor({ customSystemPrompt: '' })
-  check('an explicit empty custom prompt mirrors the request path (floor alone) — the diagnostic re-interprets nothing', emptyCustom[0] === floorName && !startsWith(emptyCustom, expectedDefault), emptyCustom.slice(0, 2).join(' · '))
+  check('an explicit empty custom prompt mirrors the request path (floor alone) — the diagnostic re-interprets nothing', emptyCustom[0] === floorName && !startsWith(emptyCustom, expectedDefault), `${emptyCustom.slice(0, 2).join(' · ')}; ${rowFix}`)
 }
 
 

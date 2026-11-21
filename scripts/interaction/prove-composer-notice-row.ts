@@ -21,9 +21,10 @@ const framesDir = arg('--frames')
 if (framesDir !== undefined) mkdirSync(framesDir, { recursive: true })
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  const shown = !cond && hint ? `${hint}${detail ? ` · ${detail}` : ''}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown.slice(0, 300)}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -36,46 +37,52 @@ section('§2 pure — the notice in its row form')
   const { Box, Text } = await import('../../src/ink.ts')
   const { footerNoticeLine, noticeBlockRows, noticeRowBlock, noticeRowDetail, noticeRowText } = await import('../../src/components/PromptInput/Notifications.tsx')
   const plain = noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' })
-  check('a plain text notice is its one line', plain === 'Copied to clipboard', JSON.stringify(plain))
+  check('a plain text notice is its one line', plain === 'Copied to clipboard', JSON.stringify(plain), 'change noticeRowText in src/components/PromptInput/Notifications.tsx so a plain text notice returns its text unchanged')
   const folded = noticeRowText({ key: 'k', priority: 'low', text: 'hook said\nline two\nline three' })
   check(
     'a multi-line text folds to the one row through footerNoticeLine',
     folded === 'hook said · line two · line three' && folded === footerNoticeLine('hook said\nline two\nline three'),
     JSON.stringify(folded),
-  )
+    'change footerNoticeLine and noticeRowText in src/components/PromptInput/Notifications.tsx so a multi-line text folds to one row joined with a dot')
   const red = noticeRowText({ key: 'k', priority: 'high', text: 'failed', color: 'error' })
   check(
     'a coloured notice keeps its colour on the row',
     React.isValidElement(red) && red.type === Text && (red.props as { color?: string }).color === 'error',
+    '',
+    'change noticeRowText in src/components/PromptInput/Notifications.tsx so a coloured text notice returns a Text element carrying that colour',
   )
   const textJsx = React.createElement(Text, { dimColor: true }, 'ctrl+r searches history')
   check(
     'a Text-shaped notice rides inline and is never a block',
     noticeRowText({ key: 'k', priority: 'immediate', jsx: textJsx }) === textJsx &&
       noticeRowBlock({ key: 'k', priority: 'immediate', jsx: textJsx }) === null,
+    '',
+    'change noticeRowText and noticeRowBlock in src/components/PromptInput/Notifications.tsx so a Text-shaped jsx notice is returned inline by noticeRowText and gives null from noticeRowBlock',
   )
   const boxJsx = React.createElement(Box, { flexDirection: 'column' }, React.createElement(Text, null, 'row'))
   check(
     'a Box-shaped notice is a block and never rides inline',
     noticeRowText({ key: 'k', priority: 'high', jsx: boxJsx }) === null &&
       noticeRowBlock({ key: 'k', priority: 'high', jsx: boxJsx }) === boxJsx,
+    '',
+    'change noticeRowText and noticeRowBlock in src/components/PromptInput/Notifications.tsx so a Box-shaped jsx notice gives null from noticeRowText and is returned by noticeRowBlock',
   )
-  check('no notice, nothing on the row', noticeRowText(null) === null && noticeRowBlock(null) === null)
+  check('no notice, nothing on the row', noticeRowText(null) === null && noticeRowBlock(null) === null, '', 'noticeRowText and noticeRowBlock in src/components/PromptInput/Notifications.tsx must return null for a null notice')
   const hasDetail = typeof noticeRowDetail === 'function'
-  check('the notice row reads a detail beside the words (noticeRowDetail)', hasDetail)
+  check('the notice row reads a detail beside the words (noticeRowDetail)', hasDetail, '', 'export noticeRowDetail as a function from src/components/PromptInput/Notifications.tsx')
   if (hasDetail) {
     const detailed = noticeRowDetail({ key: 'k', priority: 'immediate', text: 'Copied to clipboard via terminal escape', detail: 'check the terminal' })
-    check("a text notice's detail is its own row part, the words untouched", detailed === 'check the terminal' && noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard via terminal escape', detail: 'check the terminal' }) === 'Copied to clipboard via terminal escape', JSON.stringify(detailed))
+    check("a text notice's detail is its own row part, the words untouched", detailed === 'check the terminal' && noticeRowText({ key: 'k', priority: 'immediate', text: 'Copied to clipboard via terminal escape', detail: 'check the terminal' }) === 'Copied to clipboard via terminal escape', JSON.stringify(detailed), 'change noticeRowDetail in src/components/PromptInput/Notifications.tsx to return the notice detail string while noticeRowText keeps returning only the words')
     const colouredDetail = noticeRowDetail({ key: 'k', priority: 'high', text: 'failed', detail: 'why', color: 'error' })
-    check("a coloured notice's detail wears the same colour", React.isValidElement(colouredDetail) && colouredDetail.type === Text && (colouredDetail.props as { color?: string }).color === 'error')
-    check('a notice without a detail, a jsx notice and no notice carry none', noticeRowDetail({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' }) === null && noticeRowDetail({ key: 'k', priority: 'immediate', jsx: textJsx }) === null && noticeRowDetail(null) === null)
+    check("a coloured notice's detail wears the same colour", React.isValidElement(colouredDetail) && colouredDetail.type === Text && (colouredDetail.props as { color?: string }).color === 'error', '', 'change noticeRowDetail in src/components/PromptInput/Notifications.tsx so a coloured notice detail is a Text element with the same colour')
+    check('a notice without a detail, a jsx notice and no notice carry none', noticeRowDetail({ key: 'k', priority: 'immediate', text: 'Copied to clipboard' }) === null && noticeRowDetail({ key: 'k', priority: 'immediate', jsx: textJsx }) === null && noticeRowDetail(null) === null, '', 'noticeRowDetail in src/components/PromptInput/Notifications.tsx must return null when the notice has no detail, is a jsx notice, or is null')
   }
   const threeRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three'].map(row => React.createElement(Text, { key: row }, row)))
-  check('a block notice asks the footer for as many rows as it stacks; a text or Text-shaped notice asks for none', noticeBlockRows({ key: 'k', priority: 'high', jsx: threeRows }) === 3 && noticeBlockRows({ key: 'k', priority: 'high', jsx: boxJsx }) === 1 && noticeBlockRows({ key: 'k', priority: 'immediate', jsx: textJsx }) === 0 && noticeBlockRows({ key: 'k', priority: 'low', text: 'a\nb\nc' }) === 0 && noticeBlockRows(null) === 0)
+  check('a block notice asks the footer for as many rows as it stacks; a text or Text-shaped notice asks for none', noticeBlockRows({ key: 'k', priority: 'high', jsx: threeRows }) === 3 && noticeBlockRows({ key: 'k', priority: 'high', jsx: boxJsx }) === 1 && noticeBlockRows({ key: 'k', priority: 'immediate', jsx: textJsx }) === 0 && noticeBlockRows({ key: 'k', priority: 'low', text: 'a\nb\nc' }) === 0 && noticeBlockRows(null) === 0, '', 'change noticeBlockRows in src/components/PromptInput/Notifications.tsx so a block notice reports its stacked rows (at least one) and text or Text-shaped notices report zero')
   const fiveRows = React.createElement(Box, { flexDirection: 'column' }, ['one', 'two', 'three', 'four', 'five'].map(row => React.createElement(Text, { key: row }, row)))
   const capped = noticeRowBlock({ key: 'k', priority: 'high', jsx: fiveRows })
   const cappedRows = React.isValidElement(capped) ? React.Children.toArray((capped.props as { children?: React.ReactNode }).children) : []
-  check('a block taller than three rows keeps its first two rows and its last, the action row last', noticeBlockRows({ key: 'k', priority: 'high', jsx: fiveRows }) === 3 && cappedRows.length === 3 && cappedRows.every((row, i) => React.isValidElement(row) && (row.props as { children?: unknown }).children === ['one', 'two', 'five'][i]))
+  check('a block taller than three rows keeps its first two rows and its last, the action row last', noticeBlockRows({ key: 'k', priority: 'high', jsx: fiveRows }) === 3 && cappedRows.length === 3 && cappedRows.every((row, i) => React.isValidElement(row) && (row.props as { children?: unknown }).children === ['one', 'two', 'five'][i]), '', 'change noticeRowBlock and noticeBlockRows in src/components/PromptInput/Notifications.tsx so a block over three rows keeps its first two rows and its last, and asks for three rows')
 }
 
 section('§3 the copy receipt per road — a whole sentence beside the way back at 80 columns on both platforms, the detail only where the row holds it')
@@ -108,12 +115,12 @@ const noticeRowHolds = (line: string, notice: string, platform: Platform = HOST,
 const wideNoticeRow = (notice: string, detail?: string): string => (detail === undefined ? notice : `${notice} · ${detail}`)
 const receiptOf = (road: Road): { text: string; detail?: string } => (typeof copyReceipt === 'function' ? copyReceipt(road) : { text: RECEIPT })
 const hasRoads = typeof copyReceipt === 'function'
-check('the clipboard service owns the receipt words per road (copyReceipt)', hasRoads)
+check('the clipboard service owns the receipt words per road (copyReceipt)', hasRoads, '', 'export copyReceipt as a function from src/ink/termio/osc.ts')
 {
   const native = receiptOf('native')
-  check('the native road (macOS, pbcopy) keeps its short receipt, no detail', native.text === RECEIPT && native.detail === undefined, JSON.stringify(native))
+  check('the native road (macOS, pbcopy) keeps its short receipt, no detail', native.text === RECEIPT && native.detail === undefined, JSON.stringify(native), 'change the native case of copyReceipt in src/ink/termio/osc.ts to return the short receipt with no detail')
   for (const road of ['native', 'tmux-buffer', 'osc52'] as const) {
-    check(`the ${road} road's receipt is the ONE receipt, qualified by its road`, receiptOf(road).text.startsWith(RECEIPT), JSON.stringify(receiptOf(road).text))
+    check(`the ${road} road's receipt is the ONE receipt, qualified by its road`, receiptOf(road).text.startsWith(RECEIPT), JSON.stringify(receiptOf(road).text), 'change copyReceipt in src/ink/termio/osc.ts so this road text starts with the one receipt sentence')
   }
   for (const road of ['native', 'tmux-buffer', 'osc52', 'unsettled'] as const) {
     const words = receiptOf(road)
@@ -123,6 +130,7 @@ check('the clipboard service owns the receipt words per road (copyReceipt)', has
         `${road} · ${platform}: the receipt's sentence fits whole in the ${budget} columns before the way back at 80 columns`,
         stringWidth(words.text) <= budget,
         `${stringWidth(words.text)} columns: ${JSON.stringify(words.text)}`,
+        'shorten this road text in copyReceipt in src/ink/termio/osc.ts, or move the rest into its detail',
       )
     }
   }
@@ -130,6 +138,7 @@ check('the clipboard service owns the receipt words per road (copyReceipt)', has
     'the idle 82-column count row keeps its whole count line beside the way back on both platforms (nothing of it changes while no notice stands)',
     compactSummary(82, 'macos') === '1 session on · 0 monitors here · 0 crewmates here' && compactSummary(82, 'linux') === '1 session on · 0 monitors here · 0 crewmates here',
     `macOS ${JSON.stringify(compactSummary(82, 'macos'))} · Linux ${JSON.stringify(compactSummary(82, 'linux'))}`,
+    'change compactWorkSummaryText in src/components/tasks/useFocusedWork.ts so the idle count line stays whole at this width',
   )
   for (const cols of [80, 82]) {
     for (const road of ['native', 'tmux-buffer', 'osc52', 'unsettled'] as const) {
@@ -145,6 +154,7 @@ check('the clipboard service owns the receipt words per road (copyReceipt)', has
           return row.startsWith(body) && !row.includes('…') && row.slice(stringWidth(body)).startsWith('  ') && row.endsWith(hint) && stringWidth(row) === cols && !row.startsWith(' · ') && (detailFits || !row.includes(' · '))
         }),
         rows.map(({ platform, row }) => `${platform} ${JSON.stringify(row)}`).join(' · '),
+        'shorten this road text or detail in copyReceipt in src/ink/termio/osc.ts so the whole sentence fits before the way back',
       )
     }
   }
@@ -154,10 +164,13 @@ check('the clipboard service owns the receipt words per road (copyReceipt)', has
     "the hosted red — the escape transfer's old sentence cut mid-word before the way back at 82 columns — is the row the old law modelled, and no longer satisfies the row on either platform",
     oldRow('linux') === HOSTED_RED_ROW && !noticeRowHolds(oldRow('linux'), escape.text, 'linux', escape.detail) && !noticeRowHolds(oldRow('macos'), escape.text, 'macos', escape.detail),
     `Linux ${JSON.stringify(oldRow('linux'))} · macOS ${JSON.stringify(oldRow('macos'))}`,
+    'the osc52 receipt from copyReceipt in src/ink/termio/osc.ts must differ from the old escape sentence this check models, or the row model in this file is out of date',
   )
   check(
     'the shipped shape — the notice alone across the row, cut at the width, the way back gone — no longer satisfies the row',
     !noticeRowHolds(RECEIPT.padEnd(82), RECEIPT, 'macos') && !noticeRowHolds(`${wideNoticeRow(escape.text, escape.detail).slice(0, 81)}…`, escape.text, 'linux', escape.detail),
+    '',
+    'the row model compactNoticeRow in this file must reject a notice cut at the width with the way back gone, and the osc52 receipt from copyReceipt in src/ink/termio/osc.ts must not fit the bare receipt',
   )
 }
 
@@ -322,7 +335,7 @@ globalThis.fetch = (input, init) => {
       timeout: vshotBudgetMs(150_000),
     })
     if (res.status !== 0 || !existsSync(gridPath)) {
-      check(`${tag}: the capture ran`, false, (res.stderr ?? '').slice(-400))
+      check(`${tag}: the capture ran`, false, (res.stderr ?? '').slice(-400), 'the pty capture exited nonzero or wrote no grid; rerun with a fresh dist/mercury.mjs build and read the driver stderr shown here')
       return null
     }
     const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { marks?: Mark[] }
@@ -370,28 +383,31 @@ globalThis.fetch = (input, init) => {
     const before = got.marks.get(marks.before)
     const showing = got.marks.get(marks.showing)
     const after = got.marks.get(marks.after)
-    check(`${at} ${tag}: the three marks landed`, before !== undefined && showing !== undefined && after !== undefined)
+    check(`${at} ${tag}: the three marks landed`, before !== undefined && showing !== undefined && after !== undefined, '', 'a mark was never reached in the capture; the awaited text did not appear, so rerun with --frames <dir> and read the written frame files')
     if (!before || !showing || !after) return
     const row = rowOf(showing.grid, notice.needle)
     const line = row === -1 ? '' : rowText(showing.grid, row)
-    check(`${at} ${tag}: the notice is on screen at its moment, its sentence whole`, textOf(showing.grid).includes(notice.text), JSON.stringify(line.trimEnd()))
+    check(`${at} ${tag}: the notice is on screen at its moment, its sentence whole`, textOf(showing.grid).includes(notice.text), JSON.stringify(line.trimEnd()), 'the notice sentence from copyReceipt in src/ink/termio/osc.ts (or the escape hint) was not whole on screen; rerun with --frames <dir> and read the receipt frame')
     if (anchor instanceof RegExp) {
       check(
         `${at} ${tag}: the notice takes the hint row whole — its sentence leads the row, its detail rides after the seam where the row holds both, and the standing hints are gone while it stands`,
         row !== -1 && line.trimEnd() === wideNoticeRow(notice.text, notice.detail) && line.search(anchor) === -1 && !line.includes('for shortcuts'),
         JSON.stringify(line.trimEnd()),
+        'the notice must take the whole hint row with its sentence first, then the detail after a dot where it fits, and the standing hints hidden; rerun with --frames <dir> to read the row',
       )
     } else {
       check(
         `${at} ${tag}: the notice leads the count row as a whole sentence, the detail only where the columns before the hint hold both, the counts step aside and the way back keeps the row's right end`,
         row !== -1 && noticeRowHolds(line, notice.text, HOST, notice.detail),
         JSON.stringify(line.trimEnd()),
+        'the compact count row must lead with the whole notice sentence, add the detail only where both fit, and keep the way back at the right end; rerun with --frames <dir> to read the row',
       )
     }
     check(
       `${at} ${tag}: the composer's frame does not move while the notice shows`,
       sameFrame(before, showing),
       `${frameWords(before)} → ${frameWords(showing)}`,
+      'the notice must not change the composer height; rerun with --frames <dir> and compare the typed and receipt frames',
     )
     const underComposer = (m: Mark): string => rowText(m.grid, frameOf(m.grid).bottom + 1)
     check(
@@ -400,9 +416,10 @@ globalThis.fetch = (input, init) => {
         ? anchor.test(underComposer(before)) && anchor.test(underComposer(after)) && underComposer(showing).startsWith(notice.text)
         : /^\d+ sessions? on · /.test(underComposer(before)) && underComposer(before).trimEnd().endsWith(COMPACT_HINT) && underComposer(after).startsWith(anchor.idle) && underComposer(after).trimEnd().endsWith(COMPACT_HINT) && noticeRowHolds(underComposer(showing), notice.text, HOST, notice.detail),
       [before, showing, after].map(m => JSON.stringify(underComposer(m).trimEnd())).join(' → '),
+      'the row under the composer must show the hints before and after the notice and the notice in the counts place while it stands; rerun with --frames <dir> to read the frames',
     )
-    check(`${at} ${tag}: the notice leaves after its moment`, !textOf(after.grid).includes(notice.needle))
-    check(`${at} ${tag}: …and the frame is where it was`, sameFrame(before, after), `${frameWords(before)} → ${frameWords(after)}`)
+    check(`${at} ${tag}: the notice leaves after its moment`, !textOf(after.grid).includes(notice.needle), '', 'the notice stayed on screen past its moment; rerun with --frames <dir> and read the later frame')
+    check(`${at} ${tag}: …and the frame is where it was`, sameFrame(before, after), `${frameWords(before)} → ${frameWords(after)}`, 'the composer did not return to its rows once the notice left; rerun with --frames <dir> and compare the typed and later frames')
   }
 
   const sizes = [

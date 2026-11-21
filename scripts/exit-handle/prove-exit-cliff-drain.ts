@@ -12,7 +12,8 @@ delete process.env.MERCURY_EXIT_CLIFF_DRAIN
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = 'change drainNamedSeams, drainExitCliffSeams, registerExitCliffSeam or EXIT_CLIFF_DRAIN_MS in src/utils/exitCliffDrain.ts (the transcript-writer seam registers in src/utils/sessionStorage/writer.ts)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${where}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -30,7 +31,7 @@ const never = (): Promise<never> => new Promise(() => {})
 const TIMER_LEAD_MS = 2
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — exit-cliff drain proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — exit-cliff drain proof exceeded 120s; a seam settle in drainNamedSeams or drainExitCliffSeams (src/utils/exitCliffDrain.ts) never returned, or the writer flush seam in src/utils/sessionStorage/writer.ts is wedged')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

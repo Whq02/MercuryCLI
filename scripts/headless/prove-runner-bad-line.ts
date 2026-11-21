@@ -16,9 +16,10 @@ const argAfter = (flag: string): string | undefined => {
 const DIST = argAfter('--dist') !== undefined ? resolve(argAfter('--dist')!) : join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const BAD_LINE_FAIL_HINT = 'to fix, change onLineOf and badLine (the -32700 and -32600 answers, the bad-line counter) in src/runner/wire/peer.ts, or onDesync (the stderr line and exit 1) in src/cli/headless/boot/openWireDoor.ts; this proof runs the built bundle, so rebuild it with bun run build.ts after the change'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${BAD_LINE_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -36,7 +37,7 @@ if (node === null) {
 }
 console.log(`a bad line on stdin — ${DIST} through the runner door`)
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the proof exceeded 240s')
+  console.log('\n❌ TIMEOUT — the proof exceeded 240s; the runner child never answered or exited, look at the last section header printed and at src/runner/wire/peer.ts (badLine) and src/cli/headless/boot/openWireDoor.ts (onDesync)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

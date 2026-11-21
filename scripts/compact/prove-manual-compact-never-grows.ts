@@ -20,11 +20,12 @@ process.env.MERCURY_COMPACT_KEEP_TAIL = '1'
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — change: ${hint}` : ''}`)
 }
+const hintManualRefusal = 'the /compact command in src/commands/compact/compact.ts must refuse before any summariser request when projectManualFold (src/services/compact/compact/projection.ts) says the fold would not land smaller, with the line from nothingToCompactLine in src/services/compact/compact/limits.ts'
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -115,9 +116,9 @@ const first = (await call('', makeCommandContext(long) as never)) as CompactCall
 const post = buildPostCompactMessages(first.compactionResult) as AnyMsg[]
 {
   const requests = summaryRequests()
-  check('the fold landed with a receipt that shrinks', first.type === 'compact' && /context 22\.1k → \d+(\.\d+)?k tokens/.test(plainOf(first)), plainOf(first))
-  check('ONE summariser request went out', requests === 1, String(requests))
-  check('the folded context is smaller by the same estimator', estimateContextTokens(post as never) < estimateContextTokens(long as never), `${estimateContextTokens(post as never)} vs ${estimateContextTokens(long as never)}`)
+  check('the fold landed with a receipt that shrinks', first.type === 'compact' && /context 22\.1k → \d+(\.\d+)?k tokens/.test(plainOf(first)), plainOf(first), 'the first /compact must fold and print a receipt of the form context Nk → Mk tokens; see call in src/commands/compact/compact.ts')
+  check('ONE summariser request went out', requests === 1, String(requests), 'a first fold of a long history asks the summariser exactly once; see call in src/commands/compact/compact.ts')
+  check('the folded context is smaller by the same estimator', estimateContextTokens(post as never) < estimateContextTokens(long as never), `${estimateContextTokens(post as never)} vs ${estimateContextTokens(long as never)}`, 'the fold must leave a smaller context; see buildPostCompactMessages in src/services/compact/compact.ts')
 }
 
 section('B /compact straight after that fold: one line, no summariser request, the context unchanged (red on the base: a second fold ran and the receipt read a larger context)')
@@ -132,12 +133,12 @@ section('B /compact straight after that fold: one line, no summariser request, t
   } catch (error) {
     threw = error instanceof Error ? error.message : String(error)
   }
-  check('the command refused with the one line, as pinned', result === undefined && /^Nothing to compact: the last fold already holds this conversation \(\d+(\.\d+)?k? tokens\)$/.test(threw ?? ''), `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`)
-  check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`)
-  check('the context is unchanged', JSON.stringify(post) === snapshot && (context.messages as AnyMsg[]) === post)
+  check('the command refused with the one line, as pinned', result === undefined && /^Nothing to compact: the last fold already holds this conversation \(\d+(\.\d+)?k? tokens\)$/.test(threw ?? ''), `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
+  check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`, hintManualRefusal)
+  check('the context is unchanged', JSON.stringify(post) === snapshot && (context.messages as AnyMsg[]) === post, '', hintManualRefusal)
   const projection = typeof projectManualFold === 'function' ? await projectManualFold(post as never, context as never, { systemPrompt: [], userContext: {}, systemContext: {}, toolUseContext: context, forkContextMessages: post } as never, undefined) : null
-  check('the line carries the context size the gauge shows', projection !== null && threw === nothingToCompactLine(projection.context), `threw=${threw ?? 'no'} projection=${JSON.stringify(projection)}`)
-  check('the projection says why: by one estimate the fold would not land smaller than what stands', projection !== null && manualFoldHasNothingToFold(projection) && projection.after >= projection.before, JSON.stringify(projection))
+  check('the line carries the context size the gauge shows', projection !== null && threw === nothingToCompactLine(projection.context), `threw=${threw ?? 'no'} projection=${JSON.stringify(projection)}`, 'the refusal line must use projection.context from projectManualFold (src/services/compact/compact/projection.ts) through nothingToCompactLine (src/services/compact/compact/limits.ts)')
+  check('the projection says why: by one estimate the fold would not land smaller than what stands', projection !== null && manualFoldHasNothingToFold(projection) && projection.after >= projection.before, JSON.stringify(projection), 'manualFoldHasNothingToFold and projectManualFold in src/services/compact/compact/projection.ts must report an after estimate not smaller than before')
 }
 
 section('C a first fold that would grow the conversation refuses before the summariser')
@@ -161,18 +162,18 @@ section('C a first fold that would grow the conversation refuses before the summ
   const inputTokens = estimateContextTokens(short as never)
   const outputTokens = result === undefined ? inputTokens : estimateContextTokens(buildPostCompactMessages(result.compactionResult))
   console.log(`  first-fold estimate: ${inputTokens} → ${outputTokens}; ${result ? plainOf(result) : threw}`)
-  check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens))
-  check('a first fold refuses with existing compact words, without claiming a previous fold', result === undefined && threw === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`)
-  check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`)
-  check('the context is unchanged', JSON.stringify(short) === snapshot)
-  check('the conversation did not grow', outputTokens === inputTokens, `${inputTokens} → ${outputTokens}`)
+  check('the audit fixture contains 220 estimated tokens (the content-aware estimator of fold 46ao; 307 under the byte count before it)', inputTokens === 220, String(inputTokens), 'the estimate comes from estimateContextTokens in src/services/compact/microCompact.ts; update the expected 220 only if that estimator changed on purpose')
+  check('a first fold refuses with existing compact words, without claiming a previous fold', result === undefined && threw === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', `threw=${threw ?? 'no'} result=${result ? plainOf(result) : 'none'}`, hintManualRefusal)
+  check('no summariser request went out', summaryRequests() === before, `${summaryRequests()} vs ${before}`, hintManualRefusal)
+  check('the context is unchanged', JSON.stringify(short) === snapshot, '', hintManualRefusal)
+  check('the conversation did not grow', outputTokens === inputTokens, `${inputTokens} → ${outputTokens}`, hintManualRefusal)
 }
 
 section('D the line\'s shape: the key the command recognises, and the one sentence')
 {
-  check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ')
-  check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900))
-  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', nothingToCompactLine(960, false))
+  check('the key', NOTHING_TO_COMPACT_KEY === 'Nothing to compact: ', NOTHING_TO_COMPACT_KEY, 'NOTHING_TO_COMPACT_KEY lives in src/services/compact/compact/limits.ts')
+  check('after a fold', nothingToCompactLine(169_900) === 'Nothing to compact: the last fold already holds this conversation (169.9k tokens)', nothingToCompactLine(169_900), 'nothingToCompactLine in src/services/compact/compact/limits.ts')
+  check('before a fold', nothingToCompactLine(960, false) === 'Nothing to compact: 960 tokens (Not enough messages to compact.)', nothingToCompactLine(960, false), 'nothingToCompactLine in src/services/compact/compact/limits.ts')
 }
 
 section('E the projection does not perform reads, authorize unseen content, or populate the user-context memo')
@@ -200,14 +201,14 @@ section('E the projection does not perform reads, authorize unseen content, or p
   getUserContext.cache.clear?.()
   const projection = await projectManualFold(short as never, context as never, { systemPrompt: [], userContext: { currentDate: 'fixture date' }, systemContext: {}, toolUseContext: context, forkContextMessages: short } as never, undefined)
   unsubscribe()
-  check('the projection still estimates a refused first fold', projection !== null && projection.after >= projection.before, JSON.stringify(projection))
-  check('the read-file state is byte-identical', JSON.stringify([...reads.entries()]) === snapshot, JSON.stringify([...reads.entries()]))
-  check('no read event was emitted', notifications === 0, String(notifications))
+  check('the projection still estimates a refused first fold', projection !== null && projection.after >= projection.before, JSON.stringify(projection), 'projectManualFold in src/services/compact/compact/projection.ts must still return an estimate for a first fold')
+  check('the read-file state is byte-identical', JSON.stringify([...reads.entries()]) === snapshot, JSON.stringify([...reads.entries()]), 'projectManualFold in src/services/compact/compact/projection.ts must not touch readFileState')
+  check('no read event was emitted', notifications === 0, String(notifications), 'projectManualFold in src/services/compact/compact/projection.ts must not perform file reads')
   check('unseen file lines have not been recorded as displayed', JSON.stringify(seenLinesOf(owner, filename, generation)) === seenBefore)
   check('no unseen anchor snapshot was retained', recallAnchoredSnapshot(owner, anchor) === undefined)
   check('the projection used its input context, not the live memo', !getUserContext.cache.has(undefined))
   const repeated = await projectManualFold(short as never, context as never, { systemPrompt: [], userContext: { currentDate: 'fixture date' }, systemContext: {}, toolUseContext: context, forkContextMessages: short } as never, undefined)
-  check('repeating the projection produces the same estimates', repeated?.before === projection?.before && repeated?.after === projection?.after, JSON.stringify({ projection, repeated }))
+  check('repeating the projection produces the same estimates', repeated?.before === projection?.before && repeated?.after === projection?.after, JSON.stringify({ projection, repeated }), 'projectManualFold in src/services/compact/compact/projection.ts must be deterministic and free of side effects')
 }
 
 await fixture.close()

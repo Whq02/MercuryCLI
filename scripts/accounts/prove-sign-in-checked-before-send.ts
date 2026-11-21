@@ -46,11 +46,14 @@ const server = Bun.serve({
 process.env.MERCURY_ANTHROPIC_OAUTH_BASE = `http://127.0.0.1:${server.port}`
 
 let failures = 0
+let sectionWhereToLook = ''
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, sectionWhereToLook].filter(Boolean).join(' | where to look: ')
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && shown ? ` — ${shown}` : ''}`)
 }
-function section(title: string): void {
+function section(title: string, whereToLook = ''): void {
+  sectionWhereToLook = whereToLook
   console.log(`\n── ${title}`)
 }
 
@@ -83,7 +86,7 @@ const reread = (): void => {
   auth.invalidateOnDiskChange()
 }
 
-section('§1 a valid sign-in: nothing new, no network')
+section('§1 a valid sign-in: nothing new, no network', 'checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts, loginsGlance in src/components/BootLoginsScreen.tsx, credentialWallLineForModel in src/services/providers/credentialWall.ts')
 writeCredentials(oauth({}))
 reread()
 {
@@ -94,7 +97,7 @@ reread()
   check('no wall stands for an Anthropic model', credentialWallLineForModel('claude-sonnet-4-5') === undefined)
 }
 
-section('§2 a lapsed token with a dead refresh grant (the field case): the open-time check finds it before any prompt')
+section('§2 a lapsed token with a dead refresh grant (the field case): the open-time check finds it before any prompt', 'checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts (refresh, blanking the dead grant, ledger epoch), isAnthropicOAuthSignInExpired in src/utils/auth.ts, signInLedgerEpoch in src/utils/accounts/signInLedger.ts, loginsGlance in src/components/BootLoginsScreen.tsx, credentialWallLineForModel in src/services/providers/credentialWall.ts')
 writeCredentials(oauth({ expiresAt: NOW - HOUR }))
 reread()
 auth.__resetKnownDeadRefreshTokensForTest()
@@ -113,7 +116,7 @@ auth.__resetKnownDeadRefreshTokensForTest()
   check('a second check is local: expired without another network call', again.state === 'expired' && again.probed === false && tokenCalls.length === 1, JSON.stringify(again))
 }
 
-section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a lapsed-but-live one')
+section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a lapsed-but-live one', 'the auth-anthropic row of authChecks in src/services/health/sections/auth.ts, run through runHealthReport in src/services/health/healthReport.ts, and checkAnthropicSignInFresh in src/services/accounts/signInFreshness.ts')
 {
   const report = await runHealthReport({ depth: 'fast' })
   const row = report.sections.flatMap(s => s.checks).find(c => c.id === 'auth-anthropic')
@@ -131,7 +134,7 @@ section('§3 /health names the expired sign-in (PROPOSED ROW WORDS) and renews a
   grantVerdict = 'invalid_grant'
 }
 
-section('§4 the prompt behind a sign-in wall is held, and sent again once /logins lands a credential')
+section('§4 the prompt behind a sign-in wall is held, and sent again once /logins lands a credential', 'promptBehindAuthWall in src/utils/messages/authWallHold.ts and decideResend in src/hooks/useAuthWallHold.ts')
 const WALL_LINE = 'API Error: Anthropic sign-in expired — switch providers (--model) or reconnect (/logins anthropic, in an interactive session)'
 const user = (uuid: string, text: string, extra: Record<string, unknown> = {}) => ({ type: 'user', uuid, timestamp: new Date().toISOString(), message: { role: 'user', content: [{ type: 'text', text }] }, ...extra })
 const wall = (uuid: string) => ({ type: 'assistant', uuid, timestamp: new Date().toISOString(), isApiErrorMessage: true, error: 'authentication_failed', message: { id: 'err', role: 'assistant', type: 'message', content: [{ type: 'text', text: WALL_LINE }], usage: {}, model: 'fixture', stop_reason: null, stop_sequence: null } })
@@ -161,7 +164,7 @@ const BRIEF = 'اقرأ سندات الأرض في المجلد وابدأ با�
   check('nothing held, nothing sent', decideResend(null, { door: 'logins', epoch: 8, model: hold.model, walled: false, composerText: BRIEF }) === 'none')
 }
 
-section('§5 the wiring: the chat restores the held words to an empty composer and rides the /logins and /model doors; the boot runs the check once')
+section('§5 the wiring: the chat restores the held words to an empty composer and rides the /logins and /model doors; the boot runs the check once', 'the hold wiring in src/hooks/useAuthWallHold.ts and its chat mount, the scenario in scripts/ui/chatScenarios.ts, and the auth-openai row of authChecks in src/services/health/sections/auth.ts')
 {
   const { openDraftPart } = await import('../ui/chatScenarios.ts')
   const composer = await openDraftPart('sign-in-wall-hold', { keepHome: true })

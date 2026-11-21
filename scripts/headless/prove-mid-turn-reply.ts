@@ -12,12 +12,15 @@ const DIST = distArg >= 0 && process.argv[distArg + 1] !== undefined ? process.a
 const FIXTURE = join(import.meta.dir, 'mid-turn-reply-fixture-server.ts')
 const BUN = process.env.BUN ?? join(process.env.HOME ?? '', '.bun/bin/bun')
 
+const MID_TURN_FAIL_HINT =
+  'change replyMarkOf, isReplyText and stampReply in src/run-core/attachment-drain.ts (which drained row earns a reply mark and which envelope carries it); for the drive checks run bun run build.ts first, the transcript reader text is in src/services/resources/adapters/transcript.ts and src/utils/messages/replyAddress.ts'
+
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${MID_TURN_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

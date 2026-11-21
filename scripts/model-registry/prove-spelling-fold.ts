@@ -12,9 +12,16 @@ delete process.env.MERCURY_DEFAULT_SONNET_MODEL
 delete process.env.MERCURY_DEFAULT_OPUS_MODEL
 
 let failures = 0
+let hintArea = 'fold'
+const hintByArea: Record<string, string> = {
+  fold: 'change foldModelSpelling, resolveCatalogueSpelling or catalogueSpellingExamples in src/services/model/modelSpellingFold.ts',
+  parser: 'change parseUserSpecifiedModel in src/services/model/model.ts (it calls resolveCatalogueSpelling from src/services/model/modelSpellingFold.ts)',
+  door: 'change canonicalWorkerModelId or validateWorkerModelChoice in src/services/concourse/workerModels.ts, or declaredRouteOf in src/services/providers/routeLaw.ts',
+  run: 'the run road must resolve a spoken model name through the same fold as parseUserSpecifiedModel (src/services/model/model.ts); for the dist leg, build first with bun run build.ts',
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${hintByArea[hintArea]}` : ''}`)
 }
 
 const { foldModelSpelling, resolveCatalogueSpelling, catalogueSpellingExamples } = await import(
@@ -57,6 +64,7 @@ const examples = catalogueSpellingExamples(3, cat)
 check('examples derive from the catalogue in its own order, distinct by target', examples.length === 3 && examples[0] === 'Sonnet 5' && examples[1] === 'Opus 4.6' && examples[2] === 'GPT-5', examples.join(' · '))
 
 console.log('\n§2 the normalizer (live catalogue)')
+hintArea = 'parser'
 const spoken = parseUserSpecifiedModel('sonnet 5')
 check("'sonnet 5' resolves at parseUserSpecifiedModel (never a pass-through)", spoken === parseUserSpecifiedModel('sonnet5') && spoken !== 'sonnet 5', spoken)
 check("'Sonnet-5' resolves identically", parseUserSpecifiedModel('Sonnet-5') === spoken)
@@ -70,6 +78,7 @@ check("the alias switch is untouched ('sonnet5' → its row)", parseUserSpecifie
 
 
 console.log('\n§3 the launch door')
+hintArea = 'door'
 const { canonicalWorkerModelId, validateWorkerModelChoice } = await import(
   '../../src/services/concourse/workerModels.ts'
 )
@@ -92,6 +101,7 @@ check(
 
 {
   console.log('\n§4 the run road takes the fold too (FC-073)')
+  hintArea = 'run'
   const { FIXTURE_MODEL, liveFactsOf, withFixtureRunner } = await import('../lib/builtProduct.ts')
   const SPOKEN = 'Sonnet 5'
   const folded = parseUserSpecifiedModel(SPOKEN)

@@ -12,7 +12,8 @@ const fixture = JSON.parse(readFileSync(join(import.meta.dir, 'parser-corpus-par
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  const failureHint = 'to fix, change parseForSecurity or checkSemantics in src/utils/bash/ast.ts (parse checks), parseCommandRaw in src/utils/bash/parser.ts or ParsedCommand in src/utils/bash/ParsedCommand.ts (tree and span checks), or the ask and deny order in bashToolHasPermission in src/tools/BashTool/bashPermissions.ts (decision checks)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}${failureHint}`}`)
 }
 let trees = 0
 const absent: string[] = []

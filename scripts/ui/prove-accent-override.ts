@@ -5,6 +5,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('      hint: the session accent override (setSessionAccentOverride, getSessionAccent, getSessionAccentOverride, getSessionAccentSnapshotKey, deepOf) lives in src/components/mercury-ui/sessionAccent.ts; fix the function the failed check names there')
 }
 
 console.log('============================================================')

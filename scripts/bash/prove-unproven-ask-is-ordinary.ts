@@ -28,7 +28,7 @@ for (const command of unproven) {
   const result = await bashToolHasPermission({ command }, context)
   const reason = result.decisionReason
   const ordinary = result.behavior === 'ask' && reason?.type === 'safetyCheck' && reason.operatorOnly === false && !('floor' in reason)
-  check(`an unprovable command asks as an ORDINARY ask a mode or a rule can answer: ${JSON.stringify(command.slice(0, 48))}`, ordinary, JSON.stringify({ behavior: result.behavior, reason }))
+  check(`an unprovable command asks as an ORDINARY ask a mode or a rule can answer: ${JSON.stringify(command.slice(0, 48))}`, ordinary, JSON.stringify({ behavior: result.behavior, reason }) + ' | an unprovable command must come back from unprovenAsk in src/tools/BashTool/bashPermissions.ts as behavior ask with a safetyCheck reason whose operatorOnly is false and that carries no floor; find the path that returned something else and route it through unprovenAsk')
 }
 console.log(failures === 0 ? 'unproven-ask-is-ordinary: all green' : `unproven-ask-is-ordinary: ${failures} FAILURE(S)`)
 process.exit(failures === 0 ? 0 : 1)

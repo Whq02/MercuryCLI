@@ -138,4 +138,5 @@ console.log(`[${success ? 'PASS' : 'FAIL'}] the real chat keeps every tool resul
 for (const [name, ok] of checks) if (!ok) console.log(`  [FAIL] ${name}`)
 console.log(JSON.stringify({ exit, requests: fixture.captured.map(request => ({ dialect: request.dialect, path: request.path, input: inputItems(request).length, outputs: outputsOf(request).length })), home, output, marks: captured.marks?.map(mark => mark.label), stderr }))
 if (!success) console.log(`  [frame] ${text.slice(0, 600)}`)
+if (!success) console.log(`  [hint] a failed check here means the turn pruned or cleared tool results before any summary or painted a context-size prune line: look at the pressure prune and microcompact paths in src/services/run/requestContextPlan.ts and src/services/compact/microCompact.ts; if the capture itself failed (exit not 0), read stderr and capture.stderr.txt in ${output}`)
 process.exit(success ? 0 : 1)

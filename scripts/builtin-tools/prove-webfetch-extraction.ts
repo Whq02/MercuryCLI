@@ -25,7 +25,7 @@ axios.get = ((url: string, options: object) => {
 let failures = 0
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail}${detail ? '; ' : ''}the page-to-markdown path is getURLMarkdownContent in src/tools/WebFetchTool/utils.ts, the size budget and continuation are pageSlice in src/tools/WebFetchTool/pageBudget.ts, the tool is src/tools/WebFetchTool/WebFetchTool.ts, and the stored expectations are in scripts/builtin-tools/fixtures/webfetch/`}`)
 }
 try {
   clearWebFetchCache()

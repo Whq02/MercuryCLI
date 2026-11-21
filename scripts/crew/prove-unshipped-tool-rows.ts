@@ -18,21 +18,21 @@ const UNSHIPPED = 'FrobnicateTool'
 
 tally.section('§1 a tool no build ships: the renderer, the tool list and the render shim')
 const { toolFamilyFor } = await import('../../src/components/mercury-ui/toolGlyphs.ts')
-tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'))
+tally.check('the transcript renderer paints a recorded row of a tool no build ships as it paints any unknown tool', toolFamilyFor(UNSHIPPED) === toolFamilyFor('AnotherUnknownTool'), `toolFamilyFor in src/components/mercury-ui/toolGlyphs.ts must give every name it does not know the same family; got ${toolFamilyFor(UNSHIPPED)} and ${toolFamilyFor('AnotherUnknownTool')}`)
 const { getAllBaseTools } = await import('../../src/tools.ts')
 const listed = getAllBaseTools().map(tool => tool.name)
-tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), listed.join(', '))
+tally.check('the tool list of a booted session names the crew tools (SendMessage · Agent) and no unshipped name', listed.includes('SendMessage') && listed.includes('Crewmate') && !listed.includes(UNSHIPPED), `${listed.join(', ')} (getAllBaseTools in src/tools.ts must list SendMessage and Crewmate and no tool named ${UNSHIPPED})`)
 const { findToolForRender } = await import('../../src/tools/MCPTool/absentToolShim.ts')
 const tools = getAllBaseTools()
 const shim = findToolForRender(tools, UNSHIPPED)
-tally.check('a recorded row of an unshipped tool resolves a render shim under its recorded name (it paints; it never runs)', shim.name === UNSHIPPED && shim.userFacingName({} as never) === UNSHIPPED && typeof shim.renderToolUseMessage === 'function')
+tally.check('a recorded row of an unshipped tool resolves a render shim under its recorded name (it paints; it never runs)', shim.name === UNSHIPPED && shim.userFacingName({} as never) === UNSHIPPED && typeof shim.renderToolUseMessage === 'function', `findToolForRender in src/tools/MCPTool/absentToolShim.ts must return a render shim carrying the recorded name ${UNSHIPPED}; got ${shim.name}`)
 let shimCall = ''
 try {
   await shim.call({} as never, {} as never, undefined as never, undefined as never)
 } catch (error) {
   shimCall = error instanceof Error ? error.message : String(error)
 }
-tally.check('the shim refuses to run the unshipped tool', shimCall.includes('no longer available'), shimCall)
+tally.check('the shim refuses to run the unshipped tool', shimCall.includes('no longer available'), `${shimCall} (the shim call in src/tools/MCPTool/absentToolShim.ts must throw an error saying the tool is no longer available${shimCall === '' ? '; the call threw nothing' : ''})`)
 
 tally.section('§2 the drive: a fresh session offers the crew tools; a transcript with an unshipped tool row resumes whole')
 const lead = (turn: Record<string, unknown>, when: string): ScriptedTurn => ({ ...turn, model: LEAD_MODEL, whenModel: LEAD_GATE, whenBody: when }) as ScriptedTurn
@@ -46,7 +46,7 @@ try {
   await fresh.waitFor('the fresh session never answered', () => fresh.stdout().includes('FRESH-DONE'), TURN_MS)
   const first = toolNamesOf(requests()[0])
   record('fresh-first-request-tools.txt', first.join('\n') + '\n')
-  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Crewmate'), `(${first.length} tools)`)
+  tally.check('the first request names SendMessage and Agent', first.includes('SendMessage') && first.includes('Crewmate'), `(${first.length} tools; the request tools list built from getAllBaseTools in src/tools.ts must name SendMessage and Crewmate; see fresh-first-request-tools.txt in the recordings)`)
 } catch (error) {
   tally.check('the fresh session ran', false, error instanceof Error ? error.message : String(error))
 } finally {
@@ -106,9 +106,9 @@ try {
   const request = requests()[before]
   const history = JSON.stringify(request?.body.messages ?? [])
   record('old-resumed-request-messages.json', JSON.stringify(request?.body.messages ?? [], null, 2))
-  tally.check('the resumed session sends the old transcript whole: the unshipped tool use and its result ride the first request', history.includes(`"name":"${UNSHIPPED}"`) && history.includes(`"tool_use_id":"${CALL_ID}"`) && history.includes('OLD-WIDGET-FROBNICATED'), history.slice(0, 400))
-  tally.check('the resumed session still answers on the tip', old.stdout().includes('OLD-RESUMED'))
-  tally.check('the request that follows lists no unshipped tool for the model to call again', !toolNamesOf(request).includes(UNSHIPPED), toolNamesOf(request).join(', '))
+  tally.check('the resumed session sends the old transcript whole: the unshipped tool use and its result ride the first request', history.includes(`"name":"${UNSHIPPED}"`) && history.includes(`"tool_use_id":"${CALL_ID}"`) && history.includes('OLD-WIDGET-FROBNICATED'), `${history.slice(0, 400)} (the resume path must send the recorded transcript unchanged, including a tool use whose tool is not shipped; see old-resumed-request-messages.json in the recordings)`)
+  tally.check('the resumed session still answers on the tip', old.stdout().includes('OLD-RESUMED'), 'the resumed session must reach its model turn; see old-resumed-stderr.txt in the recordings')
+  tally.check('the request that follows lists no unshipped tool for the model to call again', !toolNamesOf(request).includes(UNSHIPPED), `${toolNamesOf(request).join(', ')} (the request tools must come from the tip tool list, never from tool names found in the resumed transcript)`)
   record('old-resumed-stderr.txt', old.stderr())
 } catch (error) {
   tally.check('the old session resumed', false, error instanceof Error ? error.message : String(error))
@@ -128,7 +128,7 @@ try {
   const node = React.createElement(AppStateProvider as never, { initialState: getDefaultAppState() } as never, React.createElement(AssistantToolUseMessage as never, { param: { type: 'tool_use', id: CALL_ID, name: UNSHIPPED, input: { widget: 'old-widget', description: 'the old widget' } }, tools, inProgressToolUseIDs: new Set<string>(), lookups, addMargin: false } as never) as never)
   const painted = (await renderToString(node, 100)).trim()
   record('old-row-render.txt', painted + '\n')
-  tally.check('the unshipped tool row paints under its recorded name instead of vanishing', painted.includes(UNSHIPPED), JSON.stringify(painted))
+  tally.check('the unshipped tool row paints under its recorded name instead of vanishing', painted.includes(UNSHIPPED), `${JSON.stringify(painted)} (AssistantToolUseMessage in src/components/messages/AssistantToolUseMessage.tsx must paint the recorded name for a tool absent from the tool list, using findToolForRender in src/tools/MCPTool/absentToolShim.ts)`)
 } catch (error) {
   tally.check('the old row rendered', false, error instanceof Error ? error.message : String(error))
 }

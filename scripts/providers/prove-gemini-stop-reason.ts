@@ -28,10 +28,11 @@ import type { CompatCallModelParams } from '../../src/services/providers/openaic
 
 let passes = 0
 let failures = 0
+const STOP_REASON_FAIL_HINT = 'to fix, change how a Gemini reply is minted in src/services/providers/gemini/geminiCallModel.ts (block order, stop_reason), the finish reason mapping geminiFinishReason in src/services/providers/gemini/geminiClient.ts, or the crewmate report (finalizeAgentTool, finalResponseOf, stoppedPartWay) in src/tools/AgentTool/agentToolUtils.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${STOP_REASON_FAIL_HINT}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 const model = 'gemini-4-argon'

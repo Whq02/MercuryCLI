@@ -20,7 +20,7 @@ enableConfigs()
 let failures = 0
 function check(label: string, ok: boolean): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ' | to fix: display order of a local command echo and its answer is placed by placeLocalCommandRows in src/services/engine-connector/localCommandRows.ts (called from paint in src/services/engine-connector/daemon/transcript.ts); the echo keeping its uuid and timestamp comes from processSlashCommand in src/services/processUserInput/processSlashCommand.ts'}`)
 }
 
 type Guts = { rawRecords: MessageRow[]; paint(): void }

@@ -21,17 +21,17 @@ for (const definition of [
   const prefix = (tools: typeof front) => buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n\n')
   const initial = prefix(front)
   const resumed = prefix(back)
-  check(`${definition.agentType}: memory verbs survive background resume`, memoryNames.every(name => back.some(tool => tool.name === name)), back.map(tool => tool.name).join(', '))
-  check(`${definition.agentType}: foreground and background prefixes are byte-identical`, initial === resumed, `foreground writer=${initial.includes(MEMORY_WRITE_VERBS_SENTENCE)}; background writer=${resumed.includes(MEMORY_WRITE_VERBS_SENTENCE)}`)
+  check(`${definition.agentType}: memory verbs survive background resume`, memoryNames.every(name => back.some(tool => tool.name === name)), `${back.map(tool => tool.name).join(', ')}; hint: resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must keep Retain, Recall, Reflect and Correct for this agent when it resumes`)
+  check(`${definition.agentType}: foreground and background prefixes are byte-identical`, initial === resumed, `foreground writer=${initial.includes(MEMORY_WRITE_VERBS_SENTENCE)}; background writer=${resumed.includes(MEMORY_WRITE_VERBS_SENTENCE)}; hint: buildSubagentMercurySections in src/constants/subagentDoctrine.ts must give the same text for the same tool pool, whichever run builds it`)
   const writerWords = (page: string): boolean => page.includes(MEMORY_WRITE_VERBS_SENTENCE) || /Memory is written only when the user asks for something to be remembered/.test(page)
-  check(`${definition.agentType}: the shared memory writer supplies the wording (the verbs sentence, or the empty page's writer words)`, writerWords(initial) && writerWords(resumed))
+  check(`${definition.agentType}: the shared memory writer supplies the wording (the verbs sentence, or the empty page's writer words)`, writerWords(initial) && writerWords(resumed), 'hint: buildSubagentMercurySections in src/constants/subagentDoctrine.ts must include MEMORY_WRITE_VERBS_SENTENCE from src/mneme/mnemeFrontPage.ts for an agent that holds the memory tools')
 }
 for (const async of [false, true]) {
   const definition = { agentType: 'reader', source: 'projectSettings', tools: ['*'], disallowedTools: ['Retain', 'Correct'] }
   const tools = resolveAgentTools(definition as never, pool).resolvedTools
   const prefix = buildSubagentMercurySections({ agentDefinition: definition, toolNames: new Set(tools.map(t => t.name)) }).join('\n')
-  check(`explicit memory denials still narrow the ${async ? 'background' : 'foreground'} pool`, !tools.some(t => t.name === 'Retain' || t.name === 'Correct'))
-  check('a reader is never told to use unavailable memory writers', !prefix.includes(MEMORY_WRITE_VERBS_SENTENCE))
+  check(`explicit memory denials still narrow the ${async ? 'background' : 'foreground'} pool`, !tools.some(t => t.name === 'Retain' || t.name === 'Correct'), `pool kept ${tools.map(t => t.name).join(', ')}; hint: resolveAgentTools in src/tools/AgentTool/agentToolUtils.ts must drop the tools named in disallowedTools`)
+  check('a reader is never told to use unavailable memory writers', !prefix.includes(MEMORY_WRITE_VERBS_SENTENCE), 'hint: buildSubagentMercurySections in src/constants/subagentDoctrine.ts must leave out MEMORY_WRITE_VERBS_SENTENCE when Retain and Correct are not in the tool pool')
 }
 console.log(`resumed-memory-prefix: ${failures} failures`)
 process.exit(failures ? 1 : 0)

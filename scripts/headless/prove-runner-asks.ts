@@ -22,9 +22,10 @@ const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
 
 let failures = 0
+const ASKS_FAIL_HINT = 'to fix, change createRunnerAsks (createCanUseTool, denyPendingPermissionRequests, recheckPendingPermissionRequests, handleElicitation) or unansweredAskCause in src/cli/headless/runnerAsks.ts; the denial text is built by UNANSWERED_ASK_REJECT_MESSAGE in src/utils/messages/rejectionText.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${ASKS_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -33,7 +34,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 const settle = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — runner asks exceeded 120s')
+  console.log('\n❌ TIMEOUT — runner asks exceeded 120s; an ask in a section above never settled, look at the last section header printed and at createRunnerAsks in src/cli/headless/runnerAsks.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

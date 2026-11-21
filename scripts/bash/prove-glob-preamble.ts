@@ -8,7 +8,8 @@ import { systemShellAt } from '../../src/utils/shell/shellRecord.js'
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const failureHint = 'to fix, change getGlobPreambleCommand in src/utils/shell/globPreamble.ts (the preamble text per shell origin) or buildExecCommand in src/utils/shell/bashProvider.ts (where the preamble is placed); the check that no bash stands needs the bundled bash pack from resolveBashPackDir in src/utils/shell/bashPack.ts or /bin/bash on this host'
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? (detail ? ` — ${detail}` : '') : ` — ${detail ? `${detail}; ` : ''}${failureHint}`}`)
   if (!ok) failures = 1
 }
 

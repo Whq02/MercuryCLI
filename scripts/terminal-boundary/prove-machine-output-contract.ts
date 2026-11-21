@@ -21,9 +21,10 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const MACHINE_OUTPUT_WHERE = 'change what the run command writes to stdout, stderr and its exit code so it matches this leg (run bun run build.ts first if src changed; row types are declared in src/rows/vocabulary.ts, an unknown method answers from src/runner/wire/errors.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${MACHINE_OUTPUT_WHERE}${detail ? ` | ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

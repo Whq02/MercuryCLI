@@ -26,7 +26,7 @@ const args = ['-e', 'process.exit(0)', 'ARG_FIXTURE=visible-arg']
 let failures = 0
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
-  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`${good ? 'PASS' : 'FAIL'} ${label}${!good ? ` — change what the mcp add, get, list and import commands print in src/cli/handlers/mcp.tsx, or describeUrlRedacted and describeEnvRedacted in src/utils/redactHeaders.ts, to match this check${detail ? `; ${detail}` : ''}` : ''}`)
 }
 function unwrapped(frame: string): string {
   return frame.split('\n').map(line => line.replace(/^\s*│ ?| ?│\s*$/g, '').trim()).join('')
@@ -45,7 +45,7 @@ function cli(...argv: string[]): string {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   const output = result.stdout + result.stderr
-  if (result.status !== 0) throw new Error(`mcp ${argv[0]} exited ${result.status}: ${result.error ?? output}`)
+  if (result.status !== 0) throw new Error(`mcp ${argv[0]} exited ${result.status}: ${result.error ?? output} (the built dist/mercury.mjs ran the mcp command; rebuild with bun run build.ts if it is stale, else look at src/cli/handlers/mcp.tsx)`)
   return output
 }
 

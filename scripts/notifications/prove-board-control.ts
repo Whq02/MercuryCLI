@@ -12,7 +12,7 @@ function check(label: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ✅ ${label}`)
   else {
     failures += 1
-    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  ❌ ${label}${detail ? ` — ${detail}` : ''} — change executeBoardControl (the receipts and the daemon requests) or noteBoardControl (the activity rows) in src/services/concourse/boardControl.ts; the activity lines come from activityLineOf in src/services/crew/activity.ts`)
   }
 }
 
@@ -29,7 +29,7 @@ mock.module(join(ROOT, 'src/daemon/controlSocket.ts'), () => ({
   daemonControlRpc: async (req: Rpc, opts: unknown) => {
     sent.push({ req, opts })
     const next = script.shift()
-    if (next === undefined) throw new Error('the proof scripted no reply')
+    if (next === undefined) throw new Error('the proof scripted no reply; executeBoardControl in src/services/concourse/boardControl.ts sent more daemon requests than the play call scripted')
     if (next instanceof Error) throw next
     return next
   },

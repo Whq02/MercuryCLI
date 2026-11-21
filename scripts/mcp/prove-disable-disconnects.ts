@@ -12,8 +12,16 @@ delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const disableHintFor = (name: string): string => {
+  if (name.startsWith('§1b ')) return 'a derived managed path must descend from getManagedFilePath in src/utils/settings/managedPath.ts; fix the function named in this label'
+  if (name.startsWith('§1c ')) return 'fix detectManagedSettingsWarnings in src/utils/healthDiagnostic.ts so it reads the policy file and reports what this check names'
+  if (name.startsWith('§1 ')) return 'fix managedRootCandidates in src/utils/settings/managedPath.ts so each platform has one Mercury-named root'
+  if (name.startsWith('§2c ')) return 'fix probeServer in src/cli/handlers/mcp.tsx (a disabled server must not be spawned, an enabled one must connect)'
+  if (name.startsWith('§2 ')) return 'fix connectToServer and clearServerCache in src/services/mcp/client.ts so disabling ends the server and its helper and drops the cache row'
+  return 'look at the function this check names'
+}
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${disableHintFor(name)}${detail ? `; ${detail}` : ''}` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
@@ -28,6 +36,7 @@ const alive = (pid: number): boolean => {
 }
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — disable-disconnects prover exceeded 90s')
+  console.log('a connect, a clearServerCache or a probeServer call never returned; look at src/services/mcp/client.ts and src/cli/handlers/mcp.tsx')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()

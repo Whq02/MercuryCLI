@@ -7,7 +7,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''} — to fix: subprocessEnv and languageServerEnv in src/utils/subprocessEnv.ts must match scrubbed variable names without regard to case on Windows only, match a name exactly otherwise, and keep PATH and longer names that only contain a scrubbed name`)
   }
 }
 

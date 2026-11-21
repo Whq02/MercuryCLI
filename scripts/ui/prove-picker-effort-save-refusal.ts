@@ -82,16 +82,16 @@ if (process.argv.includes('--child')) {
       const text = rows.join('\n')
       console.log(text)
       if (frames) writeFileSync(join(frames, `effort-save-${mode}.txt`), text.replaceAll(scratch, '<scratch>') + '\n')
-      check(`${mode}: the in-process picker took ctrl+e and the live effort moved to xhigh`, capture.status === 0 && text.includes('active effort: xhigh'), `status ${capture.status}`)
+      check(`${mode}: the in-process picker took ctrl+e and the live effort moved to xhigh`, capture.status === 0 && text.includes('active effort: xhigh'), `status ${capture.status}; the child at the top of this file renders the picker from call in src/commands/model/mercuryModel.tsx, so read the stderr tail printed below and check that ctrl+e reaches the effort save there`)
       const said = rows.filter(row => row.includes(LINES[mode]))
-      check(`${mode}: the picker's footer says it once and whole: "${LINES[mode]}"`, said.length === 1, rows.filter(row => row.includes('Effort set to')).join(' | '))
+      check(`${mode}: the picker's footer says it once and whole: "${LINES[mode]}"`, said.length === 1, `footer rows: ${rows.filter(row => row.includes('Effort set to')).join(' | ')}; the sentence comes from persistEffortChoice and refusedSentence in src/commands/model/persistModelChoice.ts, shown by the picker in src/commands/model/mercuryModel.tsx`)
       if (mode === 'refused') {
-        check('the refused line never reads as a save', !text.includes('· saved as your default'))
-        check('the line carries neither the writer\'s prefix nor the OS path tail', !text.includes('Failed to update settings file') && !text.includes("open '"))
-        check('the read-only settings bytes stay unchanged', readFileSync(settings, 'utf8') === before)
+        check('the refused line never reads as a save', !text.includes('· saved as your default'), 'persistEffortChoice in src/commands/model/persistModelChoice.ts must return outcome refused with the not-saved sentence when updateSettingsForSource returns an error')
+        check('the line carries neither the writer\'s prefix nor the OS path tail', !text.includes('Failed to update settings file') && !text.includes("open '"), 'refusedSentence in src/commands/model/persistModelChoice.ts must strip the Failed to update settings file prefix and the OS path tail from the reason')
+        check('the read-only settings bytes stay unchanged', readFileSync(settings, 'utf8') === before, 'the refused write must leave settings.json untouched; check updateSettingsForSource in src/utils/settings/settings.ts')
       } else {
-        check('no refusal is said on a saved write', !text.includes('not saved'))
-        check('the saved default follows the live choice', JSON.parse(readFileSync(settings, 'utf8')).engine.effort === 'xhigh')
+        check('no refusal is said on a saved write', !text.includes('not saved'), 'persistEffortChoice in src/commands/model/persistModelChoice.ts must return the saved sentence when the settings write succeeds')
+        check('the saved default follows the live choice', JSON.parse(readFileSync(settings, 'utf8')).engine.effort === 'xhigh', 'persistEffortChoice in src/commands/model/persistModelChoice.ts must write engine.effort through updateSettingsForSource')
       }
       if (capture.status !== 0) console.log(capture.stderr.slice(-1500))
       chmodSync(home, 0o755)

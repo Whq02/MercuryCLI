@@ -11,10 +11,14 @@ const BUN = process.execPath
 const SCRATCH = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'keel-ledger-')))
 const OUTBOX = realpathSync(mkdtempSync(join(realpathSync(tmpdir()), 'keel-ledger-out-')))
 
+const LEDGER_FAIL_HINT =
+  'change scripts/gate/ledger.ts (the record and check commands, findVerdict, rowFromVerdict, computeCodeTree and the exclusion lists); for the release bind change readLedgerRows in scripts/release/verifyReceiptBind.mjs'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, LEDGER_FAIL_HINT].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

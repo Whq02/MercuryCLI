@@ -27,7 +27,8 @@ const printedHome = process.platform === 'win32' ? windowsPathToPosixPath(native
 let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failureHint = 'to fix, change the env and printenv entries in src/utils/shell/readOnlyCommandValidation.ts (what is allowed without a card), getFirstWordPrefix in src/tools/BashTool/bashPermissions.ts (the prefix a card offers), or src/tools/BashTool/denyRuleReach.ts (explicit deny rules)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 let appState = { ...getDefaultAppState(), toolPermissionContext: { ...getEmptyToolPermissionContext(), mode: 'default' as const, shouldAvoidPermissionPrompts: true } }
 const context = {

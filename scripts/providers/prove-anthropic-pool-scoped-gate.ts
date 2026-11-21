@@ -11,10 +11,11 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
+const POOL_GATE_FAIL_HINT = 'to fix, change which pool a window claim binds in src/services/anthropicLimits.ts (windowClaimBindsModel, anthropicLimitVerdict) or how the dispatch gate reads it in src/services/providers/providerUsability.ts (resolveProviderUsability, delegationDispatchBlocker)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${POOL_GATE_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -29,15 +29,15 @@ section('§1 the first-request prover reports its sizes and never fails on one')
 const source = readFileSync(CEILING_PROVER, 'utf8')
 const lines = source.split('\n')
 const boundedChecks = lines.filter(line => /\bcheck\(/.test(line) && /(<=|>=|<|>)\s*\(?\s*\d/.test(line))
-check('no check compares a size or a count against a number', boundedChecks.length === 0, boundedChecks.map(line => line.trim().slice(0, 80)).join(' | '))
+check('no check compares a size or a count against a number', boundedChecks.length === 0, boundedChecks.map(line => line.trim().slice(0, 80)).join(' | ') + ' — in scripts/prompt/prove-first-call-ceiling.ts turn each of these checks into a console.log of the size; sizes are reported, never bounded')
 for (const literal of ['27500', '46000', '6800', '240000', '81000']) {
-  check(`the figure ${literal} is gone from the prover`, !source.includes(literal))
+  check(`the figure ${literal} is gone from the prover`, !source.includes(literal), `remove ${literal} from scripts/prompt/prove-first-call-ceiling.ts; sizes are reported there, never bounded by a figure`)
 }
-check('no check bounds how many tools load initially', !/eager\.length\s*<=/.test(source))
+check('no check bounds how many tools load initially', !/eager\.length\s*<=/.test(source), 'remove the eager.length <= bound from scripts/prompt/prove-first-call-ceiling.ts and report the count instead')
 const reportLine = lines.find(line => line.includes('console.log') && line.includes('initial definitions') && line.includes('request'))
-check('one report line names the initial definitions and the whole request with their bytes', reportLine !== undefined && /bytes/.test(reportLine ?? ''))
-check('the report line carries a token estimate and names its divisor', /tokens at 4 bytes\/token/.test(source))
-check('the daily-tools law and the fixture-turn law stay', source.includes('daily file and execution tools remain loaded') && source.includes('completes its fixture turn'))
+check('one report line names the initial definitions and the whole request with their bytes', reportLine !== undefined && /bytes/.test(reportLine ?? ''), 'scripts/prompt/prove-first-call-ceiling.ts needs one console.log line holding the words initial definitions and request, with their sizes in bytes')
+check('the report line carries a token estimate and names its divisor', /tokens at 4 bytes\/token/.test(source), 'the tokens helper in scripts/prompt/prove-first-call-ceiling.ts must print the text tokens at 4 bytes/token')
+check('the daily-tools law and the fixture-turn law stay', source.includes('daily file and execution tools remain loaded') && source.includes('completes its fixture turn'), 'scripts/prompt/prove-first-call-ceiling.ts must keep the check labels daily file and execution tools remain loaded and completes its fixture turn')
 
 section('§2 the roster builder carries everything asked for in full, whatever the size')
 const { planToolPayload, clearToolRosterLatches } = await import('../../src/services/providers/toolEconomy.ts')
@@ -82,7 +82,7 @@ const ROUTES: Array<[string, string]> = [
 ]
 const giantBytes = GIANTS.reduce((total, tool) => total + Buffer.byteLength(LONG_TEXT(tool.name), 'utf8'), 0)
 console.log(`  the catalogue: ${GIANTS.length} tools asked for in full, ${giantBytes.toLocaleString('en-US')} bytes of description, ${WIDE_PARAMS.length} fields each`)
-check('the catalogue is far above every figure the prover once bounded', giantBytes > 10 * 240000)
+check('the catalogue is far above every figure the prover once bounded', giantBytes > 10 * 240000, `giantBytes is ${giantBytes}; raise the repeat count in LONG_TEXT or the tool count in GIANTS in this file`)
 process.env.MERCURY_LOCAL_PROMPT_PROFILE = '0'
 for (const [label, model] of ROUTES) {
   clearToolRosterLatches()
@@ -91,8 +91,8 @@ for (const [label, model] of ROUTES) {
   const missing = GIANTS.filter(tool => !rosterNames.has(tool.name)).map(tool => tool.name)
   const deferred = GIANTS.filter(tool => plan.deferredNames.has(tool.name)).map(tool => tool.name)
   const unadmitted = GIANTS.filter(tool => plan.isDeferredUnadmitted(tool.name)).map(tool => tool.name)
-  check(`${label} (${model}): every tool asked for in full is in the roster`, missing.length === 0, `${missing.length} missing: ${missing.slice(0, 3).join(', ')}`)
-  check(`${label}: none of them is deferred or held for admission`, deferred.length === 0 && unadmitted.length === 0, `deferred ${deferred.length} · unadmitted ${unadmitted.length}`)
+  check(`${label} (${model}): every tool asked for in full is in the roster`, missing.length === 0, `${missing.length} missing: ${missing.slice(0, 3).join(', ')} — planToolPayload in src/services/providers/toolEconomy.ts must keep every tool asked for in full in plan.roster whatever its size`)
+  check(`${label}: none of them is deferred or held for admission`, deferred.length === 0 && unadmitted.length === 0, `deferred ${deferred.length} · unadmitted ${unadmitted.length} — planToolPayload in src/services/providers/toolEconomy.ts must not add these tools to deferredNames or hold them unadmitted`)
   const first = plan.roster.find(tool => tool.name === GIANTS[0]!.name)
   const last = plan.roster.find(tool => tool.name === GIANTS[GIANTS.length - 1]!.name)
   let intact = first !== undefined && last !== undefined
@@ -102,14 +102,14 @@ for (const [label, model] of ROUTES) {
     if (schema.description !== LONG_TEXT(tool.name)) intact = false
     if (Object.keys(schema.input_schema?.properties ?? {}).length !== WIDE_PARAMS.length) intact = false
   }
-  check(`${label}: the first and the last definition ride byte-for-byte, every field intact`, intact)
+  check(`${label}: the first and the last definition ride byte-for-byte, every field intact`, intact, 'a giant tool is missing from the roster or toolToAPISchema in src/services/messages/api.ts changed its description or its input_schema properties')
 }
 delete process.env.MERCURY_LOCAL_PROMPT_PROFILE
 clearToolRosterLatches()
 {
   const plan = await planToolPayload({ model: 'local/qwen3-32b', tools: POOL, messages, getToolPermissionContext: async () => permissionContext, agents: [], source: 'sizes' })
   const rosterNames = plan.roster.map(tool => tool.name)
-  check('local text form under the local prompt profile: none of the 200 outside the core rides in full and none is dropped — each waits by name behind ToolSearch', GIANTS.every(tool => plan.deferredNames.has(tool.name) && !rosterNames.includes(tool.name)) && rosterNames.join(',') === 'ToolSearch', rosterNames.join(','))
+  check('local text form under the local prompt profile: none of the 200 outside the core rides in full and none is dropped — each waits by name behind ToolSearch', GIANTS.every(tool => plan.deferredNames.has(tool.name) && !rosterNames.includes(tool.name)) && rosterNames.join(',') === 'ToolSearch', rosterNames.join(',') + ' — under the local prompt profile planToolPayload in src/services/providers/toolEconomy.ts must defer every giant by name and leave only ToolSearch in plan.roster')
 }
 clearToolRosterLatches()
 

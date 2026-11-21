@@ -10,8 +10,9 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.NODE_ENV = 'test'
 
 let failures = 0
+const cardRowsFixHint = 'fix powershellToolUseOptions in src/components/permissions/PowerShellPermissionRequest/powershellToolUseOptions.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${!ok ? ' — ' + cardRowsFixHint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

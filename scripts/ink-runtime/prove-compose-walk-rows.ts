@@ -26,6 +26,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) {
+    console.log('    fix: the scroll drain (pendingScrollDelta), overlay restore (absoluteRectsCur) and culled-subtree cache checks all exercise the row walk in src/ink/compose-walk.ts, with the per-node rect cache in src/ink/node-cache.ts; compare the step sizes and rects printed above with that code')
+  }
 }
 
 class Session {

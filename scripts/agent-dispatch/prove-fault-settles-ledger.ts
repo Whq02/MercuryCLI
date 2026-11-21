@@ -18,15 +18,18 @@ process.env.MERCURY_RECONNECT_BUDGET_MINUTES = '0.02'
 process.env.MERCURY_RECONNECT_SCALE = '0.01'
 
 let failures = 0
+let sectionWhereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, sectionWhereToLook].filter(Boolean).join(' | where to look: ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, whereToLook = ''): void {
+  sectionWhereToLook = whereToLook
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the fault-settles-ledger prover exceeded 120s')
+  console.log('\nTIMEOUT — the fault-settles-ledger prover exceeded 120s; where to look: the stream runtime that routedCallModel in src/services/providers/callModelRouter.ts hands the model to, which never settled after the dropped socket')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -183,7 +186,7 @@ const LANES: Array<{ title: string; model: string; ledgerKey?: string }> = [
   { title: '§3 OpenAI (the Responses runtime)', model: 'gpt-5.6-sol' },
 ]
 for (const lane of LANES) {
-  section(`${lane.title}: the socket drops after a content chunk — the request still joins the ledger`)
+  section(`${lane.title}: the socket drops after a content chunk — the request still joins the ledger`, 'routedCallModel in src/services/providers/callModelRouter.ts and its provider runtime must settle a dropped stream and record usage, cost and API duration in src/cost-tracker.ts')
   mode = 'drop-after-content'
   hits.length = 0
   timeline.length = 0
@@ -208,7 +211,7 @@ for (const lane of LANES) {
   check("the API-duration ledger holds the turn's provider time (FN-018 rank 11: these lanes never wrote it)", d.apiMs > 0, String(d.apiMs))
 }
 
-section('§4 control: a completed stream records the wire\'s own usage, never an estimate on top')
+section('§4 control: a completed stream records the wire\'s own usage, never an estimate on top', 'routedCallModel in src/services/providers/callModelRouter.ts and its provider runtime must record the usage the wire reports in src/cost-tracker.ts')
 {
   mode = 'complete'
   timeline.length = 0

@@ -13,10 +13,11 @@ delete process.env.ANTHROPIC_BASE_URL
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
+const REMOVAL_HOLD_WHERE = 'change getDeferredToolsDelta in src/services/messages/toolSearch.ts (it holds the removal of a connector tool while hasPendingMcpServers is true and writes it once servers settle) and getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts (the attachment road)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${REMOVAL_HOLD_WHERE}${detail ? ` | ${detail}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

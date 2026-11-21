@@ -28,6 +28,7 @@ if (chosen.length === 0) throw new Error(`unknown case ${only}`)
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('     hint: a burst of Backspace or Delete bytes in one write must delete the whole draft and leave the composer taking later keys, with no React update-depth error in the errors log; change the composer key handling so a repeated delete does not loop, then rerun this file with --case <name> --evidence <dir> to keep the frame and the errors')
   if (!ok) failures++
 }
 function errorReports(dir: string): string[] {

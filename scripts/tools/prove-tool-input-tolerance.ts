@@ -14,7 +14,9 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 
 let failures = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  const fix = 'hint: make the hook named in the label accept a placeholder input without throwing, in that tool under src/tools; the seam is safeSearchOrReadClassification in src/Tool.ts, the collapse walk is collapseReadSearchGroups in src/components/messages/collapseReadSearch.ts, the row boundary is RowErrorBoundary in src/components'
+  const shown = ok ? detail : detail ? `${detail} | ${fix}` : fix
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${shown ? ` — ${shown}` : ''}`)
   if (!ok) failures = 1
 }
 const THREW = Symbol('threw')

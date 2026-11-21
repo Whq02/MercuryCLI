@@ -16,7 +16,8 @@ process.env.FAKE_ENGINE_LOG = LOG
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failureHint = 'to fix, change the stop, abort and parse-wait paths of runEngineCommand in src/utils/shell/engineSession.ts (the check on the stand-in binary fails before any engine code runs, so read its bun build output instead)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const logged = (): string => (existsSync(LOG) ? readFileSync(LOG, 'utf8') : '')

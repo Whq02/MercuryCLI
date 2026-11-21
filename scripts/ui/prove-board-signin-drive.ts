@@ -171,26 +171,26 @@ try {
         if (captured) writeFileSync(join(FRAMES, `${id}.json`), JSON.stringify(captured))
         for (const [mark, text] of marks) writeFileSync(join(FRAMES, `${id}-${mark}.txt`), text + '\n')
       }
-      check(`${id}: every send delivered`, result.status === 0, result.stderr.slice(-600))
+      check(`${id}: every send delivered`, result.status === 0, 'the capture engine scripts/ui/vshot.py exited non-zero or hit its wall; a gate text it awaited never painted, so read the stderr tail and the awaited text in the sends list of this drive. ' + result.stderr.slice(-600))
       if (kind === 'roster') {
         const hits = fixture.hits.slice(hitsBefore)
-        check(`${id}: the face's own Logins row opened the sign-in layer`, (marks.get('face') ?? '').includes('⚿ Logins') && landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed))
-        check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
-        check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
-        check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
+        check(`${id}: the face's own Logins row opened the sign-in layer`, (marks.get('face') ?? '').includes('⚿ Logins') && landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed) + '\nthe Logins face must open from the Logins row; look in src/components/bootLogins')
+        check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), (hits.join(' | ') || excerpt(receipt)) + '\nthe Gemini key must be proved with GET /v1beta/models carrying the key; see src/services/providers/gemini/geminiLogin.ts')
+        check(`${id}: the receipt pane's way out reads the roster when no picker opened the door`, receipt.includes('↵ done — the roster refreshes') && !receipt.includes('back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n') + '\nthe way out line comes from signedInWayOut, fed backToPicker by receiptPaneLines, in src/components/bootLogins/anthropicLines.ts')
+        check(`${id}: the status bar says the roster when no picker opened the door`, receipt.includes('connected — ↵ returns to the roster') && !receipt.includes('returns to the picker'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n') + '\nthe status words come from signedInStatusWayOut in src/components/bootLogins/anthropicLines.ts, called in src/components/bootLogins/flowLines.ts')
         const families = /Families\s+(\d+)/.exec(returned)?.[1]
         check(`${id}: the completed sign-in stays on the roster, the family signed in (2 of the roster's own family count)`, returned.includes('LOGINS') && families !== undefined && returned.includes(`Signed in  2 of ${families}`) && !returned.includes('Mercury · model'), excerpt(returned))
         keepFrames()
         continue
       }
       check(`${id}: connect row selected in the model picker`, (marks.get('selected') ?? '').includes(row) && (marks.get('picker') ?? '').includes('Mercury · model'))
-      check(`${id}: the sign-in layer is open`, landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed))
+      check(`${id}: the sign-in layer is open`, landed.includes('LOGINS') && landed.includes('Families'), excerpt(landed) + '\nthe sign-in layer must open from the model picker connect row; look in src/components/bootLogins')
       check(`${id}: the sign-in layer opened on the chosen row's family`, landed.includes(family), landed.split('\n').filter(l => l.includes('❯')).join('\n'))
       if (kind === 'signin') {
         const hits = fixture.hits.slice(hitsBefore)
-        check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), hits.join(' | ') || excerpt(receipt))
-        check(`${id}: the receipt pane's way out names the picker that opened the door`, receipt.includes('↵ done — back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n'))
-        check(`${id}: the status bar says the picker that opened the door`, receipt.includes('connected — ↵ returns to the picker') && !receipt.includes('returns to the roster'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n'))
+        check(`${id}: the pasted key was proved on the live catalogue with the key itself`, hits.some(h => h.startsWith('GET /v1beta/models') && h.includes(`key=${FIXTURE_KEY}`)) && receipt.includes('Gemini API key stored'), (hits.join(' | ') || excerpt(receipt)) + '\nthe Gemini key must be proved with GET /v1beta/models carrying the key; see src/services/providers/gemini/geminiLogin.ts')
+        check(`${id}: the receipt pane's way out names the picker that opened the door`, receipt.includes('↵ done — back to the picker'), receipt.split('\n').filter(l => l.includes('↵ done')).join('\n') + '\nthe way out line comes from signedInWayOut, fed backToPicker by receiptPaneLines, in src/components/bootLogins/anthropicLines.ts')
+        check(`${id}: the status bar says the picker that opened the door`, receipt.includes('connected — ↵ returns to the picker') && !receipt.includes('returns to the roster'), receipt.split('\n').filter(l => l.includes('returns to')).join('\n') + '\nthe status words come from signedInStatusWayOut in src/components/bootLogins/anthropicLines.ts, called in src/components/bootLogins/flowLines.ts')
         check(`${id}: the completed sign-in returned to the picker that opened it, on the board (its legend's esc key beneath the picker)`, returned.includes('Mercury · model') && (returned.includes('esc focused chat') || returned.includes('esc boot face')), excerpt(returned))
         check(`${id}: the returned picker lists the new family's live rows`, returned.includes(FIXTURE_MODEL), returned.split('\n').filter(l => l.includes('GEMINI') || l.includes('Gemini')).join('\n'))
       } else {

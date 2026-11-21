@@ -13,8 +13,9 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 
 let failures = 0
+const heldHint = 'what to change: the folders and files a Read deny rule names must stay links to the checkout and the rest be cloned or copied, in heldBackUnder, cloneCheckoutDirectories, linkCheckoutDirectories and prepareWorktreeFiles of src/services/worktree.ts (set-aside delete in src/utils/worktreeClone.ts); the rule match is checkReadPermissionForTool in src/utils/permissions/filesystem.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? (detail ? ' — ' + detail : '') + ' | ' + heldHint : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

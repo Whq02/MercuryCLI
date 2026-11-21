@@ -5,10 +5,11 @@ import { gitClient, gitFixture } from './gitFixture.ts'
 
 let checks = 0
 let failures = 0
+const resolveDenyFixHint = 'the Git conflicts and resolve ops must judge every conflicted path with the Edit deny rules (by where a link leads, in a linked worktree too) and the Read deny rules before writing or listing, refusing the whole call in the sentence of the rule itself; change the resolve path of the Git tool so it does, and check the Edit and Read deny rules in the settings.json this test writes'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? detail + ' | ' : ''}${resolveDenyFixHint}` : ''}`)
 }
 const world = gitFixture('git-resolve-edit-deny-')
 const names = ['open.txt', 'control.txt', 'free.txt', 'alias.txt', 'locked/region.txt', 'locked/whole.txt', 'locked/side.txt', 'locked/target.txt', 'secret/read.txt']

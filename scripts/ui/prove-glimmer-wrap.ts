@@ -13,7 +13,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — to fix: GlimmerMessage in src/components/Spinner/GlimmerMessage.tsx must paint the same letters and wrap at every glimmer position'}`)
   if (!cond) failures++
 }
 

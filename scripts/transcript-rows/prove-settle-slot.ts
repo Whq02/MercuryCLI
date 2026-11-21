@@ -11,6 +11,7 @@ import { vshotBudgetScale } from '../lib/captureDriver.ts'
 let failures = 0
 function check(name: string, ok: boolean, detail = ''): void {
   console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  if (!ok) console.log('      hint: a streamed assistant row must keep its rows and its nameplate column when the turn settles, with only the blank clock slot before the nameplate filling with HH:MM:SS; change the row painter that draws the nameplate and clock so the slot is reserved while streaming (the run is kept, see keep: true in runArtifactArena)')
   if (!ok) failures++
 }
 

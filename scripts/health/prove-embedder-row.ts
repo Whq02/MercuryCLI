@@ -13,8 +13,9 @@ process.env.NODE_ENV = 'test'
 const ROOT = join(import.meta.dir, '..', '..')
 
 let failures = 0
+const EMBEDDER_ROW_FAIL_HINT = 'to fix, change the memory-embedder row (its section, label, status, evidence text and /memory link) in src/services/health/sections/memory.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 400) + ' | ' : ''}${EMBEDDER_ROW_FAIL_HINT}` : ''}`)
   if (!cond) failures++
 }
 

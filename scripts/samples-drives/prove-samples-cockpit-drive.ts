@@ -33,6 +33,7 @@ const LINE_TODAY = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 crewma
 const LINE_WITH_SAMPLE = new RegExp(`^\\d+ sessions? on · 0 monitors here · 0 crewmates here · 1 sample\\s+${BOOT_FACE_HINT}$`)
 const LIST_ROW = /❯ ⧉ pricing table          v1 · changes needed · \d+[smh] ago/
 const ESC = String.fromCharCode(27)
+const SAMPLES_FIX = 'the samples status-row text is drawn by the samples code in src/services/samples/ and src/components/samples/ (samplesListText.ts for the /samples list), the marks message is built in src/services/samples/marks.ts'
 
 const shim = join(scratch, 'browser-shim.sh')
 writeFileSync(shim, ['#!/bin/sh', 'printf "%s\\n" "$@" >> "$PROOF_BROWSER_LOG"', 'exit 0', ''].join('\n'))
@@ -133,7 +134,7 @@ async function drive(cols: number, rows: number): Promise<void> {
     const payload = JSON.parse(readFileSync(out, 'utf8')) as { marks?: Mark[] }
     for (const mark of payload.marks ?? []) marks.set(mark.label, mark)
   }
-  check(`${tag}: the journey ran as written (engine exit 0)`, status === 0 && marks.has('back'), `exit=${status}; ${output.slice(-600)}`)
+  check(`${tag}: the journey ran as written (engine exit 0)`, status === 0 && marks.has('back'), `exit=${status}; ${output.slice(-600)}; the drive did not reach its last mark, so read the engine log named in the artifacts line above and the last frame printed; ${SAMPLES_FIX}`)
   const at = (label: string): string[] | null => {
     const mark = marks.get(label)
     return mark === undefined ? null : textRows(mark.grid)
@@ -151,22 +152,22 @@ async function drive(cols: number, rows: number): Promise<void> {
   const last = (text: string[]): string => text[text.length - 1] ?? ''
   if (full) {
     check(`${tag}: no sessions bar paints under the view at any mark`, design.length > 0 && ![design, idle, sample].some(text => text.some(row => row.includes('⊞ SESSIONS'))), JSON.stringify([design, idle, sample].flat().find(row => row.includes('SESSIONS')) ?? ''))
-    check(`${tag}: with no sample the status row is the row of today: ready · the model · the effort`, idle.some(row => ROW_TODAY.test(row) && !row.includes('sample')), JSON.stringify(idle.find(row => row.startsWith(' ready')) ?? ''))
-    check(`${tag}: the sample rides the status row: · 1 sample after the model and effort`, sample.some(row => ROW_WITH_SAMPLE.test(row)), JSON.stringify(sample.find(row => row.startsWith(' ready')) ?? ''))
+    check(`${tag}: with no sample the status row is the row of today: ready · the model · the effort`, idle.some(row => ROW_TODAY.test(row) && !row.includes('sample')), `${JSON.stringify(idle.find(row => row.startsWith(' ready')) ?? '')}; ${SAMPLES_FIX}`)
+    check(`${tag}: the sample rides the status row: · 1 sample after the model and effort`, sample.some(row => ROW_WITH_SAMPLE.test(row)), `${JSON.stringify(sample.find(row => row.startsWith(' ready')) ?? '')}; ${SAMPLES_FIX}`)
     check(`${tag}: the row keeps one line and the screen its height`, idle.length === sample.length && sample.filter(row => row.includes('1 sample')).length === 1, `${idle.length} vs ${sample.length} rows, ${sample.filter(row => row.includes('1 sample')).length} sample rows`)
   } else {
     check(`${tag}: with no sample the count line is the line of today`, LINE_TODAY.test(last(idle)), JSON.stringify(last(idle)))
-    check(`${tag}: the count line gains · 1 sample`, LINE_WITH_SAMPLE.test(last(sample)), JSON.stringify(last(sample)))
+    check(`${tag}: the count line gains · 1 sample`, LINE_WITH_SAMPLE.test(last(sample)), `${JSON.stringify(last(sample))}; ${SAMPLES_FIX}`)
     check(`${tag}: the count line stays the last row at the full width`, last(sample).length === cols, String(last(sample).length))
   }
-  check(`${tag}: the marks were posted to the address the runner relayed with its facts`, posted.address !== null && posted.status === 200, JSON.stringify(posted))
+  check(`${tag}: the marks were posted to the address the runner relayed with its facts`, posted.address !== null && posted.status === 200, `${JSON.stringify(posted)}; a null address means the kept sample never reached a daemon file with its address (src/services/samples/), a null status means the marks POST was not accepted (src/services/samples/marks.ts)`)
   const marksJoined = joined(marksText)
-  check(`${tag}: the marks arrive as one message from the operator, in the approved words`, marksJoined.includes('Marks on pricing table v1: 1 pin · 1 note · changes needed') && marksJoined.includes('- at h1 "pricing table": make it bigger') && marksJoined.includes('keep it to three plans'), marksJoined.slice(0, 400))
+  check(`${tag}: the marks arrive as one message from the operator, in the approved words`, marksJoined.includes('Marks on pricing table v1: 1 pin · 1 note · changes needed') && marksJoined.includes('- at h1 "pricing table": make it bigger') && marksJoined.includes('keep it to three plans'), `${marksJoined.slice(0, 400)}; ${SAMPLES_FIX}`)
   check(`${tag}: the model answered the marks in the normal turn`, joined(list.concat(marksText)).includes('the heading grows'))
-  check(`${tag}: /samples lists the session's samples: name, version, state, age`, list.some(row => row.includes('SAMPLES · this session · 1')) && list.some(row => LIST_ROW.test(row)), JSON.stringify(list.filter(row => row.includes('pricing table'))))
+  check(`${tag}: /samples lists the session's samples: name, version, state, age`, list.some(row => row.includes('SAMPLES · this session · 1')) && list.some(row => LIST_ROW.test(row)), `${JSON.stringify(list.filter(row => row.includes('pricing table')))}; ${SAMPLES_FIX}`)
   check(`${tag}: the list's header carries the keys`, list.some(row => row.includes('SAMPLES · this session · 1') && row.includes('↵ open · esc back')), JSON.stringify(list.find(row => row.includes('SAMPLES')) ?? ''))
   const opened = existsSync(browserLog) ? readFileSync(browserLog, 'utf8').split('\n').filter(line => line.trim() !== '') : []
-  check(`${tag}: ↵ on the sample opened its address in the operator's browser, once`, opened.length === 1 && opened[0] === posted.address, JSON.stringify({ opened, address: posted.address }))
+  check(`${tag}: ↵ on the sample opened its address in the operator's browser, once`, opened.length === 1 && opened[0] === posted.address, `${JSON.stringify({ opened, address: posted.address })}; the open key of the /samples list must hand the sample address to the browser once (src/components/samples/ and src/services/samples/)`)
   check(`${tag}: esc returns to the chat`, joined(back).includes(ADMITTED) && !joined(back).includes('SAMPLES · this session'))
   check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0, nonLoopback(netlines(leg.netlog)).slice(0, 3).join(' | '))
   console.log(`\n${tag}: the poison — the comparators bite on the frame without a sample`)

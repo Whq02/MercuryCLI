@@ -41,7 +41,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the picker frame, keys and rows are in src/components/MercuryModelPicker.tsx; the grouping, fold bound, order, heading words, column widths and hint text are in src/utils/model/modelPickerGroups.ts; change the one this check names'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

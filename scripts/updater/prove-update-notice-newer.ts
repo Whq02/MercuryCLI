@@ -25,7 +25,8 @@ const {
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const noticeHint = 'fix decideQuietCheck, decideFaceNotice, runQuietUpdateCheck, quietUpdateCheckArmed or scheduleQuietUpdateNotice in src/services/privateChannel/quietUpdateNotice.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${noticeHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

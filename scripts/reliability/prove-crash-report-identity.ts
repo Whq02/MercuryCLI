@@ -10,7 +10,7 @@ mkdirSync(process.env.MERCURY_CONFIG_DIR, { recursive: true })
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix the crash report writer or readers in src/utils/crashReport.ts (persistCrashReport, failingComponentOf, listCrashReports, unnoticedCrashReports, markCrashReportsNoticed); for the health row or resume offer checks, fix the crash-reports row of the health runtime section or the crash-resume dialog it feeds' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

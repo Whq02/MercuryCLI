@@ -18,9 +18,10 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const HELPER_MODEL_FAIL_HINT = 'fix the helper model setting, choices and serving in src/services/providers/local/tensorfoldHelper.ts and tensorfoldHosts.ts (helperModelChoices, readHelperModelSetting, helperModelState), the routing in src/services/model/utilityModel.ts (utilityCallFor), the fold choice in src/services/compact/autoCompact.ts (foldModelFor), or the /config rows in src/components/Settings/Config.tsx'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${HELPER_MODEL_FAIL_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

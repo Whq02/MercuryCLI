@@ -43,7 +43,7 @@ for (const task of HELIX_TASKS) {
   const seeded = byId.get(task.repo)
   if (!seeded) {
     failures += 1
-    console.log('FAIL ' + task.id + ' — repo not seeded: ' + task.repo)
+    console.log('FAIL ' + task.id + ' — repo not seeded: ' + task.repo + ' (add that repo to seedAll in scripts/mission-runner/corpus/seed.ts or fix the repo field of the task in scripts/mission-runner/corpus/tasks.ts)')
     continue
   }
   const problems: string[] = []
@@ -51,7 +51,7 @@ for (const task of HELIX_TASKS) {
   {
     const { dir, baseSha } = materialize(seeded, task, 'before')
     const verdict = gradeTask(task, dir, '', Date.now, { baseSha })
-    if (verdict.accepted) problems.push('BEFORE state was accepted (task cannot fail-before-repair)')
+    if (verdict.accepted) problems.push('BEFORE state was accepted (task cannot fail-before-repair) - tighten the grader of this task in scripts/mission-runner/corpus/tasks.ts or gradeTask in scripts/mission-runner/corpus/grade.ts so the unrepaired repo is rejected')
     rmSync(dir, { recursive: true, force: true })
   }
 
@@ -64,7 +64,7 @@ for (const task of HELIX_TASKS) {
         .filter(c => !c.pass)
         .map(c => c.name + ': ' + c.detail)
         .join(' | ')
-      problems.push('REFERENCE rejected — ' + detail)
+      problems.push('REFERENCE rejected — ' + detail + ' - fix the reference solution of this task in scripts/mission-runner/corpus/tasks.ts or the grader check named above')
     }
     rmSync(dir, { recursive: true, force: true })
   }
@@ -80,7 +80,7 @@ for (const task of HELIX_TASKS) {
       dir,
     )
     const verdict = gradeTask(task, dir, answer, Date.now, { baseSha })
-    if (!verdict.accepted) problems.push('COMMITTED reference rejected (the T10/T20 grader class)')
+    if (!verdict.accepted) problems.push('COMMITTED reference rejected (the T10/T20 grader class) - gradeTask (scripts/mission-runner/corpus/grade.ts) must accept the reference fix when it is already committed on top of baseSha')
     rmSync(dir, { recursive: true, force: true })
   }
 
@@ -88,7 +88,7 @@ for (const task of HELIX_TASKS) {
     const { dir, baseSha } = materialize(seeded, task, 'falsify-' + variant.name)
     const answer = applyVariant(dir, variant)
     const verdict = gradeTask(task, dir, answer, Date.now, { baseSha })
-    if (verdict.accepted) problems.push('FALSIFY ' + variant.name + ' was ACCEPTED')
+    if (verdict.accepted) problems.push('FALSIFY ' + variant.name + ' was ACCEPTED - tighten the grader of this task in scripts/mission-runner/corpus/tasks.ts so this wrong answer fails, or fix the falsify variant')
     rmSync(dir, { recursive: true, force: true })
   }
 

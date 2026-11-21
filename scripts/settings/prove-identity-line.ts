@@ -148,6 +148,9 @@ process.on('unhandledRejection', reason => {
 })
 
 let failures = 0
+const USAGE_POPUP_FIX_HINT = 'fix the identity line and the layout of the /usage popup body in src/components/Settings/Usage.tsx (usageBodyRows, usageColumns), opened by src/commands/usage/usage.tsx'
+const USAGE_RAIL_FIX_HINT = 'fix the identity line and the block labels of the USAGE card in src/components/HelmVitalsRail.tsx'
+const FIXTURE_REACH_HINT = 'a fixture request was missed or a fetch escaped: the usage and account readers a family calls must reach only the loopback fixture origin; find the reader by the missing request path'
 function check(label: string, pass: boolean, detail = ''): void {
   if (!pass) failures++
   console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${!pass && detail ? ` — ${detail}` : ''}`)
@@ -422,16 +425,16 @@ for (const leg of LEGS) {
   for (const size of SIZES) {
     const stamp = `${size.columns}x${size.rows}`
     const { frames, colW, capacity } = await paintPopup(size, leg)
-    check(`${stamp} ${leg} popup: every frame stays inside the terminal`, frames.every(frame => inBounds(frame, size.columns, size.rows)))
+    check(`${stamp} ${leg} popup: every frame stays inside the terminal`, frames.every(frame => inBounds(frame, size.columns, size.rows)), `a frame is taller or wider than ${stamp} · ${USAGE_POPUP_FIX_HINT}`)
     for (const family of FAMILIES) {
       const block = popupBlock(frames, family.popupTitle, colW, capacity)
       const want = popupLine(family, leg)
       if (block === undefined) {
-        check(`${stamp} ${leg} popup ${family.id}: the block's title scrolled into view`, false, `${family.popupTitle} never painted in ${frames.length} frame(s)`)
+        check(`${stamp} ${leg} popup ${family.id}: the block's title scrolled into view`, false, `${family.popupTitle} never painted in ${frames.length} frame(s) · ${USAGE_POPUP_FIX_HINT}`)
         continue
       }
       const shown = stringWidth(want) > colW ? block.under.endsWith('…') && want.startsWith(block.under.slice(0, -1)) : block.under === want
-      check(`${stamp} ${leg} popup ${family.id}: the row under "${block.title}" is ${JSON.stringify(want)}`, shown, `row under the title: ${JSON.stringify(block.under)}`)
+      check(`${stamp} ${leg} popup ${family.id}: the row under "${block.title}" is ${JSON.stringify(want)}`, shown, `row under the title: ${JSON.stringify(block.under)} · ${USAGE_POPUP_FIX_HINT}`)
     }
   }
   section(`${leg}: the rail's USAGE card prints an identity line under every family's block label`)
@@ -441,11 +444,11 @@ for (const leg of LEGS) {
     railFrames.set(family.id, frame)
     const block = railBlock(frame, family.railTitle[leg], true)
     const want = family.line[leg]
-    check(`178x51 ${leg} rail ${family.id}: the focused block is labelled "${family.railTitle[leg]}"`, block?.title === family.railTitle[leg], JSON.stringify(block?.title))
+    check(`178x51 ${leg} rail ${family.id}: the focused block is labelled "${family.railTitle[leg]}"`, block?.title === family.railTitle[leg], `${JSON.stringify(block?.title)} · ${USAGE_RAIL_FIX_HINT}`)
     const fits = stringWidth(want) <= railBudget
     const shown = block !== undefined && (fits ? block.under === want : block.under.endsWith('…') && want.startsWith(block.under.slice(0, -1)) && stringWidth(block.under) <= railBudget)
-    check(`178x51 ${leg} rail ${family.id}: the row under "${family.railTitle[leg]}" is ${JSON.stringify(want)}${fits ? '' : ' clipped with …'}`, shown, `row under the label: ${JSON.stringify(block?.under ?? '')}`)
-    check(`178x51 ${leg} rail ${family.id}: the frame stays inside the terminal`, inBounds(frame, 178, 51))
+    check(`178x51 ${leg} rail ${family.id}: the row under "${family.railTitle[leg]}" is ${JSON.stringify(want)}${fits ? '' : ' clipped with …'}`, shown, `row under the label: ${JSON.stringify(block?.under ?? '')} · ${USAGE_RAIL_FIX_HINT}`)
+    check(`178x51 ${leg} rail ${family.id}: the frame stays inside the terminal`, inBounds(frame, 178, 51), `the rail frame is taller or wider than 178x51 · ${USAGE_RAIL_FIX_HINT}`)
   }
   if (leg === 'accounts') {
     const frame = railFrames.get('openai')!
@@ -454,7 +457,7 @@ for (const leg of LEGS) {
       const block = railBlock(frame, family.railTitle.accounts, false)
       const want = family.line.accounts
       const fits = stringWidth(want) <= railBudget
-      check(`178x51 accounts rail: the ${other} block beside the focused OpenAI block carries its line`, block !== undefined && (fits ? block.under === want : block.under.endsWith('…') && want.startsWith(block.under.slice(0, -1))), `block: ${JSON.stringify(block)}`)
+      check(`178x51 accounts rail: the ${other} block beside the focused OpenAI block carries its line`, block !== undefined && (fits ? block.under === want : block.under.endsWith('…') && want.startsWith(block.under.slice(0, -1))), `block: ${JSON.stringify(block)} · ${USAGE_RAIL_FIX_HINT}`)
     }
   }
   save(`rail-${leg}-80x21`, `no sidebar usage card at 80x21: the cockpit's vitals rail needs both rails engaged (railPlanAt vitals=${railPlanAt(80, true).vitals})`)
@@ -462,14 +465,14 @@ for (const leg of LEGS) {
 
 section('the fixture never left the loopback box')
 {
-  check('the Anthropic usage endpoint was read with the fixture bearer', requests.includes('GET /api/oauth/usage'), JSON.stringify(requests.slice(0, 12)))
-  check('the Kimi usages endpoint was read with the fixture bearer', requests.includes('GET /usages'), JSON.stringify(requests.slice(0, 12)))
-  check('the local server was discovered on the fixture', requests.includes('GET /api/tags'), JSON.stringify(requests.slice(0, 12)))
-  check('no request reached an OAuth profile endpoint while painting', !requests.some(path => path.includes('/api/oauth/profile')), JSON.stringify(requests))
-  check('the ChatGPT usage endpoint was read with the fixture bearer', requests.includes('GET /wham/usage'), JSON.stringify(requests))
-  check('the Hugging Face account facts came from the fixture Hub', requests.includes('GET /api/whoami-v2'), JSON.stringify(requests))
-  check('every loopback request has a fixture response', unserved.length === 0, JSON.stringify(unserved))
-  check('no fetch escaped the loopback box', escaped.length === 0, JSON.stringify(escaped))
+  check('the Anthropic usage endpoint was read with the fixture bearer', requests.includes('GET /api/oauth/usage'), `${JSON.stringify(requests.slice(0, 12))} · ${FIXTURE_REACH_HINT}`)
+  check('the Kimi usages endpoint was read with the fixture bearer', requests.includes('GET /usages'), `${JSON.stringify(requests.slice(0, 12))} · ${FIXTURE_REACH_HINT}`)
+  check('the local server was discovered on the fixture', requests.includes('GET /api/tags'), `${JSON.stringify(requests.slice(0, 12))} · ${FIXTURE_REACH_HINT}`)
+  check('no request reached an OAuth profile endpoint while painting', !requests.some(path => path.includes('/api/oauth/profile')), `${JSON.stringify(requests)} · painting must not call the OAuth profile endpoint; the identity line has to read the stored profile`)
+  check('the ChatGPT usage endpoint was read with the fixture bearer', requests.includes('GET /wham/usage'), `${JSON.stringify(requests)} · ${FIXTURE_REACH_HINT}`)
+  check('the Hugging Face account facts came from the fixture Hub', requests.includes('GET /api/whoami-v2'), `${JSON.stringify(requests)} · ${FIXTURE_REACH_HINT}`)
+  check('every loopback request has a fixture response', unserved.length === 0, `${JSON.stringify(unserved)} · a request the fixture server does not serve: add its route to the fixture server in this script, or stop the reader that sent it`)
+  check('no fetch escaped the loopback box', escaped.length === 0, `${JSON.stringify(escaped)} · a reader fetched a non-loopback URL: point its base URL at the fixture through the MERCURY_*_API_BASE variables in FIXTURE_BASES`)
   if (rejections.length > 0) console.log(`[note] unhandled rejections while painting: ${JSON.stringify(rejections.slice(0, 4))}`)
 }
 

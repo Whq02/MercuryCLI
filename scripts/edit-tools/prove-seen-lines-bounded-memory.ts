@@ -52,10 +52,11 @@ const SPARSE_REAL_BYTES_MOST = 64 * MIB
 
 let failures = 0
 let count = 0
+const seenLinesFailHint = 'fix fileGeneration (streamed digest) or rebuildSeenLinesFromTranscript (credited lines and column cuts) in src/services/changeTransaction/seenLines.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ` — ${seenLinesFailHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

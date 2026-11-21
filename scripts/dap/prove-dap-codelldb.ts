@@ -16,7 +16,7 @@ const savedPath = process.env.PATH
 const savedFetch = globalThis.fetch
 let failures = 0
 function check(label: string, passed: boolean): void {
-  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(`${passed ? 'PASS' : 'FAIL'} ${label}${passed ? '' : ' — change: adapter lookup and the install hint are resolveAdapter and dormantBuiltinAdapterHints in src/services/dap/dapClient.ts; the pinned download plan and install are optionalAdapterPlan and installOptionalAdapter in src/services/dap/optionalAdapters.ts; the consent step is provisionDebugAdapter in src/services/dap/adapterInstallConsent.ts; the adapter named for a Cargo binary comes from DebugTool.checkPermissions in src/tools/DebugTool/DebugTool.ts'}`)
   if (!passed) failures++
 }
 try {
@@ -68,7 +68,7 @@ try {
   context.options.isNonInteractiveSession = false
   await provisionDebugAdapter('codelldb', DebugTool, { op: 'launch', adapter: 'codelldb', program }, context, deny, {} as AssistantMessage)
   check('refused consent never fetches', asks === 1 && fetches === 0 && !existsSync(plan.destination))
-  await assert.rejects(() => installOptionalAdapter(plan, { authorize: async () => true }), /Size or SHA-256 mismatch/)
+  await assert.rejects(() => installOptionalAdapter(plan, { authorize: async () => true }), /Size or SHA-256 mismatch/, 'installOptionalAdapter in src/services/dap/optionalAdapters.ts must reject a download whose size or SHA-256 does not match the plan with a Size or SHA-256 mismatch error')
   check('corrupt download never publishes a directory', !existsSync(plan.destination) && installedOptionalAdapter('codelldb') === null)
 } finally {
   process.env.PATH = savedPath

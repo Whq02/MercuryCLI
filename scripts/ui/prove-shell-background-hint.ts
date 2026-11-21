@@ -102,10 +102,11 @@ saveGlobalConfig(config => ({ ...config, prStatusFooterEnabled: false }))
 const h = React.createElement
 let failures = 0
 let checks = 0
-function check(label: string, good: boolean, detail = ''): void {
+const DEFAULT_FIX = 'the hint under a running Bash row (words, 100 s threshold, view.backgroundKey, chord binding, focused seat) is drawn in src/components/messages/AssistantToolUseMessage.tsx and decided in src/services/engine-connector/shellRunning.ts; the chord handler and its notice are in src/hooks/useCancelRequest.ts; read the frame excerpt above to see which row or line differs'
+function check(label: string, good: boolean, detail = '', fix = DEFAULT_FIX): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!good && fix ? ` — fix: ${fix}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
@@ -406,12 +407,12 @@ section('§0 the settings snapshot — a change reaches every reader whatever th
   const before = settingsRevision()
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({ view: { backgroundKey: false } }))
   settingsChangeDetector.notifyChange('userSettings')
-  check('a listener that reloads the pipeline ahead of the snapshot readers does not hide the change from them', settingsRevision() === before + 1 && getSettingsSnapshot().settings.view?.backgroundKey === false, `revision ${before} → ${settingsRevision()}, backgroundKey ${String(getSettingsSnapshot().settings.view?.backgroundKey)}`)
+  check('a listener that reloads the pipeline ahead of the snapshot readers does not hide the change from them', settingsRevision() === before + 1 && getSettingsSnapshot().settings.view?.backgroundKey === false, `revision ${before} → ${settingsRevision()}, backgroundKey ${String(getSettingsSnapshot().settings.view?.backgroundKey)}`, 'a settings change must bump settingsRevision and refresh the snapshot even when another listener reloads first; see src/utils/settings/snapshot.ts and src/utils/settings/changeDetector.ts')
   writeFileSync(join(HOME, 'settings.json'), JSON.stringify({}))
   settingsChangeDetector.notifyChange('userSettings')
-  check('…and the change back reaches them too', settingsRevision() === before + 2 && getSettingsSnapshot().settings.view?.backgroundKey === undefined, `revision ${settingsRevision()}`)
+  check('…and the change back reaches them too', settingsRevision() === before + 2 && getSettingsSnapshot().settings.view?.backgroundKey === undefined, `revision ${settingsRevision()}`, 'the change back must also bump settingsRevision and refresh the snapshot; see src/utils/settings/snapshot.ts and src/utils/settings/changeDetector.ts')
   const same = settingsRevision()
-  check('a reload with unchanged content keeps the revision (the same snapshot object)', getSettingsSnapshot() === getSettingsSnapshot() && settingsRevision() === same)
+  check('a reload with unchanged content keeps the revision (the same snapshot object)', getSettingsSnapshot() === getSettingsSnapshot() && settingsRevision() === same, '', 'a reload with identical content must keep the revision and return the same snapshot object; see src/utils/settings/snapshot.ts')
   early()
 }
 
@@ -419,8 +420,8 @@ section('§1 the seam — one owner for the words and the threshold, two rendere
 {
   const pick = (signal as { firstRunningShellId?: (entries: Array<{ id: string; name: string }>, inProgress: Set<string>) => string | null }).firstRunningShellId
   const moved = (signal as { movedToBackgroundByOperator?: (result: unknown) => boolean }).movedToBackgroundByOperator
-  check('the member picker names the first running Bash member and no other tool', typeof pick === 'function' && pick([{ id: 'r1', name: 'Read' }, { id: 'b1', name: 'Bash' }, { id: 'b2', name: 'Bash' }], new Set(['r1', 'b1', 'b2'])) === 'b1' && pick([{ id: 'r1', name: 'Read' }], new Set(['r1'])) === null && pick([{ id: 'b1', name: 'Bash' }], new Set()) === null)
-  check("the receipt reader keys on the operator's own move, never the model's launch", typeof moved === 'function' && moved({ backgroundTaskId: 'x', backgroundedByUser: true }) && !moved({ backgroundTaskId: 'x' }) && !moved(undefined) && !moved('text'))
+  check('the member picker names the first running Bash member and no other tool', typeof pick === 'function' && pick([{ id: 'r1', name: 'Read' }, { id: 'b1', name: 'Bash' }, { id: 'b2', name: 'Bash' }], new Set(['r1', 'b1', 'b2'])) === 'b1' && pick([{ id: 'r1', name: 'Read' }], new Set(['r1'])) === null && pick([{ id: 'b1', name: 'Bash' }], new Set()) === null, '', 'change firstRunningShellId in src/services/engine-connector/shellRunning.ts (first running Bash member only)')
+  check("the receipt reader keys on the operator's own move, never the model's launch", typeof moved === 'function' && moved({ backgroundTaskId: 'x', backgroundedByUser: true }) && !moved({ backgroundTaskId: 'x' }) && !moved(undefined) && !moved('text'), '', 'change movedToBackgroundByOperator in src/services/engine-connector/shellRunning.ts (backgroundTaskId with backgroundedByUser only)')
 }
 
 section('§2 the standalone tool row (the plain chrome) — the hint under a running Bash row past the threshold, and nowhere else')

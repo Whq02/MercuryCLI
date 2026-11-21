@@ -7,7 +7,8 @@ import { join, resolve } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const baselineHint = 'fix the green-baseline choice and the base line that scripts/verify/fast.ts prints under --plan'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${baselineHint}` : ''}`)
 }
 
 const ROOT = resolve(import.meta.dir, '..', '..')

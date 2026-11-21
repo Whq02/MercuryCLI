@@ -14,6 +14,7 @@ const check = (name: string, ok: boolean, detail?: string): void => {
   } else {
     failures++
     console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error('      hint: the folding of background shell notices is collapseBackgroundBashNotifications (and shellNoticeOf, shellNoticesOf) in src/utils/collapseBackgroundBashNotifications.ts, called from composeTranscript in src/components/messagesList/transcript.ts; for the bundle checks rebuild dist/mercury.mjs first')
   }
 }
 

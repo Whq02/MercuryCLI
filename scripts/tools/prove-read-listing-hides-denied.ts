@@ -48,7 +48,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: a folder listing (renderDirectoryTarget in src/tools/FileReadTool/readTarget.ts) must name an entry exactly when its direct Read is not denied (checkReadPermissionForTool in src/utils/permissions/filesystem.ts), and count only what it names.'}`)
   if (!cond) failures++
 }
 

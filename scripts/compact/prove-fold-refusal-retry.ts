@@ -26,10 +26,10 @@ const { DIALECT_CONVERSATION, TWO_MODEL_COMPACTION } = await import('../messages
 const state = { toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, agentNameRegistry: new Map(), mcp: { clients: [], tools: [], commands: [], resources: {} }, effortValue: 'max' }
 let failures = 0
 let checks = 0
-function check(label: string, ok: boolean, detail: unknown = ''): void {
+function check(label: string, ok: boolean, detail: unknown = '', hint = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}${hint ? ` — change: ${hint}` : ''}`}`)
 }
 const summary = '<summary>The two-model conversation produced the word-count tool. Continue with UTF-8 handling and the focused tests.</summary>'
 const context = (events: Array<{ type: string }>) => ({ abortController: new AbortController(), getAppState: () => state, setAppState: () => {}, messages: [], readFileState: new Map(), onCompactProgress: (event: { type: string }) => events.push(event), options: { tools: [], commands: [], mcpClients: [], engineModel: 'claude-sonnet-5-5', maxThinkingTokens: 0, thinkingConfig: { type: 'adaptive' as const }, isNonInteractiveSession: true, agentDefinitions: { activeAgents: [] } } })
@@ -47,31 +47,31 @@ try {
     let error: string | undefined
     let result: Awaited<ReturnType<typeof fold>> | undefined
     try { result = await fold() } catch (caught) { error = caught instanceof Error ? caught.message : String(caught) }
-    check(`${direction}: the first refusal ends the fold after one request`, fixture.captured.length - before === 1 && result === undefined, { requests: fixture.captured.length - before, result: result?.notes })
-    check(`${direction}: the refusal keeps the provider's words in one line`, error?.includes('The model ended the response early (stop_reason: refusal)') === true && !error.includes('\n'), error)
-    check(`${direction}: no retry event or installed summary`, !events.some(event => event.type === 'retry') && result === undefined, events)
+    check(`${direction}: the first refusal ends the fold after one request`, fixture.captured.length - before === 1 && result === undefined, { requests: fixture.captured.length - before, result: result?.notes }, 'a refusal stop must end the fold with no retry; read the refusal branch in src/services/compact/compact/summaryCheck.ts and the loop in src/services/compact/compact/summarise.ts')
+    check(`${direction}: the refusal keeps the provider's words in one line`, error?.includes('The model ended the response early (stop_reason: refusal)') === true && !error.includes('\n'), error, 'the fold error must be the provider refusal sentence on one line; see the refusal text in src/services/api/errors.ts and how src/services/compact/compact/summaryCheck.ts passes it on')
+    check(`${direction}: no retry event or installed summary`, !events.some(event => event.type === 'retry') && result === undefined, events, 'a refusal must not emit a retry progress event or install a summary; check the retry decision in src/services/compact/compact/summarise.ts')
     const sent = fixture.captured[before]?.body.messages as Array<{ role?: string; content?: unknown }> | undefined
-    check(`${direction}: the request still carries assistant history`, sent?.some(row => row.role === 'assistant') === true, sent)
+    check(`${direction}: the request still carries assistant history`, sent?.some(row => row.role === 'assistant') === true, sent, 'the fold request must keep the assistant rows of the history; check how compactConversation in src/services/compact/compact.ts (or partialCompactConversation in src/services/compact/compact/partial.ts) builds the request messages')
     if (direction === 'full') {
       const blocks = sent?.flatMap(row => Array.isArray(row.content) ? row.content : []) ?? []
-      check('the refused full fold preserves both parallel tool calls and their results', ['toolu_A', 'toolu_B'].every(id => blocks.some(block => block.type === 'tool_use' && block.id === id) && blocks.some(block => block.type === 'tool_result' && block.tool_use_id === id)))
-      check('the mixed-model words still ride the refused request', ['Count the words in my notes file.', 'Reading and counting now.', 'The file holds nine words.', 'Summarise what you found'].every(words => JSON.stringify(sent).includes(words)))
+      check('the refused full fold preserves both parallel tool calls and their results', ['toolu_A', 'toolu_B'].every(id => blocks.some(block => block.type === 'tool_use' && block.id === id) && blocks.some(block => block.type === 'tool_result' && block.tool_use_id === id)), '', 'the full fold request must keep each tool_use with its tool_result; check how compactConversation in src/services/compact/compact.ts builds the request messages')
+      check('the mixed-model words still ride the refused request', ['Count the words in my notes file.', 'Reading and counting now.', 'The file holds nine words.', 'Summarise what you found'].every(words => JSON.stringify(sent).includes(words)), '', 'the full fold request must carry every message of the two-model conversation; check how compactConversation in src/services/compact/compact.ts builds the request messages')
     }
     fixture.script([{ text: summary }])
     const freshBefore = fixture.captured.length
     const accepted = await fold()
-    check(`${direction}: a fresh fold succeeds in one request without an outcome note`, fixture.captured.length - freshBefore === 1 && accepted.notes === undefined && accepted.summaryMessages.length === 1)
+    check(`${direction}: a fresh fold succeeds in one request without an outcome note`, fixture.captured.length - freshBefore === 1 && accepted.notes === undefined && accepted.summaryMessages.length === 1, { requests: fixture.captured.length - freshBefore, notes: accepted.notes, summaries: accepted.summaryMessages.length }, 'a fold after a refused one must succeed in one request with no note; look for state kept across folds in src/services/compact/compact.ts and src/services/compact/compact/summarise.ts')
   }
   const now = Date.now()
   const started = foldStatus.foldStatusOnEvent(foldStatus.beginFoldStatus({ trigger: 'manual', startedAtMs: now, sessionMemory: false, microcompaction: false }), { type: 'compact_start' })
   const narrowing = foldStatus.foldStatusOnEvent(started, { type: 'retry', attempt: 2 })
-  check('size recovery retains its attempt and stage words', narrowing.attempt === 2 && foldStatus.foldRowWords(narrowing, now).stage === 'summarising · retry 2')
-  check('a retry adds no auxiliary status field', JSON.stringify(Object.keys(narrowing).sort()) === JSON.stringify(Object.keys(started).sort()))
+  check('size recovery retains its attempt and stage words', narrowing.attempt === 2 && foldStatus.foldRowWords(narrowing, now).stage === 'summarising · retry 2', { attempt: narrowing.attempt, stage: foldStatus.foldRowWords(narrowing, now).stage }, 'foldStatusOnEvent must keep the retry attempt and foldRowWords must print the stage as summarising · retry N; both are in src/services/compact/foldStatus.ts')
+  check('a retry adds no auxiliary status field', JSON.stringify(Object.keys(narrowing).sort()) === JSON.stringify(Object.keys(started).sort()), Object.keys(narrowing).sort(), 'foldStatusOnEvent in src/services/compact/foldStatus.ts must not add a field on a retry event')
   const onWire = foldStatus.foldStatusToWire(narrowing)
-  check('wire status consists only of the current fold fields', JSON.stringify(Object.keys(onWire).sort()) === JSON.stringify(['schema', 'trigger', 'started_at_ms', 'stages', 'stage', 'fill', 'summary_tokens', 'summary_cap_tokens', 'attempt'].sort()), onWire)
+  check('wire status consists only of the current fold fields', JSON.stringify(Object.keys(onWire).sort()) === JSON.stringify(['schema', 'trigger', 'started_at_ms', 'stages', 'stage', 'fill', 'summary_tokens', 'summary_cap_tokens', 'attempt'].sort()), onWire, 'foldStatusToWire in src/services/compact/foldStatus.ts must emit exactly these fields')
   const row = { ...compactionRow({ session_id: 'fixture' } as never, narrowing), seq: 1, timestamp: new Date().toISOString() }
-  check('the machine row retains narrowing progress', row.state === 'progress' && row.attempt === 2 && CompactionRowSchema().safeParse(row).success, row)
-  check('the fold record round-trips its current fields', JSON.stringify(foldStatus.decodeFoldStatus(narrowing)) === JSON.stringify(narrowing))
+  check('the machine row retains narrowing progress', row.state === 'progress' && row.attempt === 2 && CompactionRowSchema().safeParse(row).success, row, 'compactionRow in src/rows/project.ts must carry state progress and the attempt, and must satisfy CompactionRowSchema in src/rows/vocabulary.ts')
+  check('the fold record round-trips its current fields', JSON.stringify(foldStatus.decodeFoldStatus(narrowing)) === JSON.stringify(narrowing), foldStatus.decodeFoldStatus(narrowing), 'decodeFoldStatus in src/services/compact/foldStatus.ts must return every field the fold status carries')
 } finally {
   await fixture.close()
   rmSync(home, { recursive: true, force: true })

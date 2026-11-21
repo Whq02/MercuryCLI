@@ -8,13 +8,13 @@ import { join } from 'node:path'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}the overflow recovery and its warning are in src/services/compact/overflowRecovery.ts, the fold-in-parts ladder in src/services/compact/compact/ladder.ts and the part capsule marker in src/services/compact/compact/limits.ts` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — fold-in-parts prover exceeded 240s')
+  console.log('\nTIMEOUT — fold-in-parts prover exceeded 240s; a drive of query() never settled, so look at the fold ladder in src/services/compact/compact/ladder.ts and the retry in src/services/compact/overflowRecovery.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

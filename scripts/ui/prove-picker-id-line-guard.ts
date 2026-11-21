@@ -3,8 +3,8 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && hint ? ' — ' + hint : ''}`)
   if (!cond) failures++
 }
 
@@ -27,16 +27,16 @@ console.log('§1 the predicate covers every sentinel spelling')
     keyConnectValue('zai'),
     keyConnectValue('compat'),
   ]) {
-    check(`${sentinel} is an action row`, isProviderActionRow(sentinel))
+    check(`${sentinel} is an action row`, isProviderActionRow(sentinel), '', 'isProviderActionRow in src/services/model/modelOptions.ts must return true for this sentinel spelling; add its prefix or pattern there')
   }
   for (const real of ['claude-opus-5', 'gpt-5.1', 'claude-fable-5']) {
-    check(`${real} is not`, !isProviderActionRow(real))
+    check(`${real} is not`, !isProviderActionRow(real), '', 'isProviderActionRow in src/services/model/modelOptions.ts must return false for a real model id; narrow the pattern there')
   }
 }
 
 const { isModelRow } = await import('../../src/utils/model/modelPickerGroups.ts')
 for (const id of ['host-run:Fixture Model', 'host-retry:fixture', 'host-remove:fixture']) {
-  check(id + ' is an action, never a model id', !isModelRow({ id, name: 'Fixture action', group: 'Run a model', tag: '', action: true, searchableAction: true }))
+  check(id + ' is an action, never a model id', !isModelRow({ id, name: 'Fixture action', group: 'Run a model', tag: '', action: true, searchableAction: true }), '', 'isModelRow in src/utils/model/modelPickerGroups.ts must return false for a row flagged action, so the picker never treats it as a model id')
 }
 
 console.log(failures === 0 ? '\nprove-picker-id-line-guard: all green' : `\nprove-picker-id-line-guard: ${failures} FAILURE(S)`)

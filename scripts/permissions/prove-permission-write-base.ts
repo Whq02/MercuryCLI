@@ -5,10 +5,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
+const persistFixHint = 'fix persistPermissionUpdate in src/utils/permissions/PermissionUpdate.ts, which must merge into the rules already in the settings file on disk (writePartial calls updateSettingsForSource in src/utils/settings/settings.ts)'
+const writerFixHint = 'fix updateSettingsForSource in src/utils/settings/settings.ts, which persistPermissionUpdate uses to write the settings file, so that concurrent writers each keep their rule'
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')
 const SRC = process.env.PROVE_SRC ?? join(HERE, '../../src')
@@ -60,9 +62,9 @@ console.log('L1 the stale-cache race — the peer grant survives')
     out.allow = readAllow()
   `)
   const allow = r.allow as string[]
-  check("the peer session's rule survives", Array.isArray(allow) && allow.includes('WebFetch(domain:example.com)'), JSON.stringify(allow))
-  check('the new grant landed beside it', Array.isArray(allow) && allow.includes('Bash(git status *)'), JSON.stringify(allow))
-  check('the original rule is still there', Array.isArray(allow) && allow.includes('Read(//tmp/**)'))
+  check("the peer session's rule survives", Array.isArray(allow) && allow.includes('WebFetch(domain:example.com)'), JSON.stringify(allow), persistFixHint)
+  check('the new grant landed beside it', Array.isArray(allow) && allow.includes('Bash(git status *)'), JSON.stringify(allow), persistFixHint)
+  check('the original rule is still there', Array.isArray(allow) && allow.includes('Read(//tmp/**)'), '', persistFixHint)
 }
 
 console.log('L2 a loader-filtered invalid rule survives an unrelated grant')
@@ -78,8 +80,8 @@ console.log('L2 a loader-filtered invalid rule survives an unrelated grant')
   `)
   check('premise: the loader filters the invalid rule from the cached view', r.premiseFiltered === true, 'the fixture rule was not filtered — pick a worse one')
   const allow = r.allow as string[]
-  check('the invalid rule SURVIVES in the file (its only evidence)', Array.isArray(allow) && allow.includes('Bash(unclosed'), JSON.stringify(allow))
-  check('the unrelated grant landed', Array.isArray(allow) && allow.includes('Glob'))
+  check('the invalid rule SURVIVES in the file (its only evidence)', Array.isArray(allow) && allow.includes('Bash(unclosed'), JSON.stringify(allow), persistFixHint)
+  check('the unrelated grant landed', Array.isArray(allow) && allow.includes('Glob'), '', persistFixHint)
 }
 
 console.log('L3 dedup and removal honesty')
@@ -94,8 +96,8 @@ console.log('L3 dedup and removal honesty')
   `)
   const afterReAdd = r.afterReAdd as string[]
   const afterRemove = r.afterRemove as string[]
-  check('re-adding an existing raw rule does not duplicate it', afterReAdd.filter(x => x === 'Bash(git status *)').length === 1, JSON.stringify(afterReAdd))
-  check('removeRules removes exactly its target and keeps the unparseable raw entry', !afterRemove.includes('Bash(git status *)') && afterRemove.includes('Bash(unclosed'), JSON.stringify(afterRemove))
+  check('re-adding an existing raw rule does not duplicate it', afterReAdd.filter(x => x === 'Bash(git status *)').length === 1, JSON.stringify(afterReAdd), persistFixHint)
+  check('removeRules removes exactly its target and keeps the unparseable raw entry', !afterRemove.includes('Bash(git status *)') && afterRemove.includes('Bash(unclosed'), JSON.stringify(afterRemove), persistFixHint)
 }
 
 console.log('L4 the writer serializes')
@@ -123,8 +125,8 @@ console.log('L4 the writer serializes')
         return null
       }
     })()
-    check('all six racing writers exited clean', codes.every(code => code === 0), JSON.stringify(codes))
-    check('every racing writer landed its rule (none clobbered)', Array.isArray(allow) && [0, 1, 2, 3, 4, 5].every(n => allow.includes(`Tool${n}`)), JSON.stringify(allow))
+    check('all six racing writers exited clean', codes.every(code => code === 0), JSON.stringify(codes), writerFixHint)
+    check('every racing writer landed its rule (none clobbered)', Array.isArray(allow) && [0, 1, 2, 3, 4, 5].every(n => allow.includes(`Tool${n}`)), JSON.stringify(allow), writerFixHint)
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`)

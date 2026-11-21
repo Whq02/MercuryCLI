@@ -46,9 +46,18 @@ process.env.OPENROUTER_API_KEY = 'sk-or-v1-EFFORTDIALPROOF00000000'
 process.env.GEMINI_API_KEY = 'AIza-EFFORT-DIAL-PROOF-00000'
 
 let failures = 0
+let hintArea = 'rig'
+const hintByArea: Record<string, string> = {
+  rig: 'a fixture catalogue did not load: see the refresh function of that catalogue (src/services/providers/openai/openaiCatalogue.ts, openrouter/openrouterCatalogue.ts, gemini/geminiCatalogue.ts, local/localDiscovery.ts) and the fixture payload in this file',
+  store: 'change setSubModelEffort, resolveSubModelEffort, setSubModel or resolveSubModel in src/services/model/subModelSlots.ts',
+  strip: 'change subModelEffortStrip or subModelEffortContext in src/services/model/subModelSlots.ts, or the levels owner resolveEffortTruth in src/utils/effort.ts',
+  dispatch: 'change subModelDispatchEffort in src/services/model/subModelSlots.ts, or the family wire builder the check names (configureEffortParams in src/services/providers/anthropic/requestParams.ts, buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts, buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts, buildMoonshotExtras and buildDeepseekExtras in src/services/providers/openaicompat/compatWire.ts)',
+  copy: 'change subModelEffortClause, setSubModelEffort or setSubModel in src/services/model/subModelSlots.ts (the receipt and clause wording)',
+  panel: 'change the effort strip of the Advisor panel in src/components/SubModelPicker.tsx, or the registry in composeSubModelRegistry in src/services/model/subModelSlots.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} · ` : ''}${hintByArea[hintArea]}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -168,6 +177,7 @@ check('rig: the Gemini fixture catalogue landed', gemini.getCachedGeminiCatalogu
 check('rig: the Ollama fixture was discovered', localCatalogue.localRecordFor('local/qwen3:8b')?.server === 'ollama' && localCatalogue.localRecordFor('local/llama3.2:latest') !== undefined)
 
 section('§1 the persistence owner: normalize · refuse typed · per container · validated at read · no residue')
+hintArea = 'store'
 {
   check('nothing saved ⇒ no effort for the container', slots.resolveSubModelEffort('advisor') === undefined)
   const junk = slots.setSubModelEffort('advisor', 'ludicrous speed')
@@ -195,6 +205,7 @@ section('§1 the persistence owner: normalize · refuse typed · per container �
 }
 
 section("§2 cross-family accuracy: the strip lists exactly the owner's levels under the container's call context")
+hintArea = 'strip'
 {
   const roster = [
     'claude-opus-5', 'claude-sonnet-5', 'claude-fable-5-1', 'claude-opus-4-8', 'claude-opus-4-6', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001',
@@ -239,6 +250,7 @@ section("§2 cross-family accuracy: the strip lists exactly the owner's levels u
 }
 
 section("§3 the dispatch: the chosen level rides each family's wire field; a model that lacks it runs the model default, never a foreign level")
+hintArea = 'dispatch'
 {
   const anthropicWire = (model: string, value: Level | undefined): string | undefined => {
     const outputConfig: Record<string, unknown> = {}
@@ -319,6 +331,7 @@ section("§3 the dispatch: the chosen level rides each family's wire field; a mo
 }
 
 section('§4 the copy: one clause for what the model runs; the model-pick receipt names the effort')
+hintArea = 'copy'
 {
   const clause = (container: Container, model: string): string => slots.subModelEffortClause(container, model)
   slots.setSubModelEffort('advisor', null)
@@ -346,6 +359,7 @@ section('§4 the copy: one clause for what the model runs; the model-pick receip
 }
 
 section('§5 the panel, driven: e opens the strip, → moves, ↵ persists and the row says (chosen), esc keeps; a no-control row answers the receipt')
+hintArea = 'panel'
 {
   const React = (await import('react')).default
   const { render } = await import('../../src/ink.js')

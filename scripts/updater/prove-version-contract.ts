@@ -15,7 +15,8 @@ import { parseEnginesNode } from '../release/launcherTemplates.mjs'
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  const versionHint = 'package.json version must agree with the channel grammar and asset names in src/services/privateChannel/channelCore.ts and src/services/privateChannel/releaseTarget.ts, with scripts/release/compat-floor.json, THIRD_PARTY_NOTICES.md and .github/workflows/private-release.yml, and engines.node must parse in scripts/release/launcherTemplates.mjs; fix the one this check names'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail} — ` : ''}${versionHint}`}`)
   if (!cond) failures++
 }
 

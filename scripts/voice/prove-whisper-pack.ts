@@ -52,26 +52,26 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
 {
   const lockRaw = JSON.parse(readFileSync(join(ROOT, models.WHISPER_MODELS_LOCK_PATH), 'utf8')) as unknown
   const catalogue = models.decodeWhisperModelsLock(lockRaw)
-  check('the lock is well-formed: a licence, a source, a default that names a row, every row whole', catalogue.models.length >= 4 && catalogue.defaultName === 'base.en-q5_1' && catalogue.license === 'MIT' && catalogue.models.every(r => r.url.startsWith('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/') && r.url.endsWith(r.file) && /^[0-9a-f]{64}$/.test(r.sha256) && r.bytes > 1_000_000), catalogue.models.map(r => r.name).join(','))
-  check('the compiled catalogue is the lock', models.WHISPER_DEFAULT_MODEL === catalogue.defaultName && models.WHISPER_MODELS.length === catalogue.models.length && models.WHISPER_MODELS.every((r, i) => r.sha256 === catalogue.models[i]?.sha256))
-  check('the default is English-only and about 60 MB; a multilingual row exists for other speech', models.whisperDefaultModel().language === 'en' && models.mbWords(models.whisperDefaultModel().bytes) === '60 MB' && models.WHISPER_MODELS.some(r => r.language === 'multilingual'))
+  check('the lock is well-formed: a licence, a source, a default that names a row, every row whole', catalogue.models.length >= 4 && catalogue.defaultName === 'base.en-q5_1' && catalogue.license === 'MIT' && catalogue.models.every(r => r.url.startsWith('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/') && r.url.endsWith(r.file) && /^[0-9a-f]{64}$/.test(r.sha256) && r.bytes > 1_000_000), 'fix the rows or the default in the models lock file (models.WHISPER_MODELS_LOCK_PATH) read by decodeWhisperModelsLock in src/services/voice/whisperModels.ts; rows: ' + catalogue.models.map(r => r.name).join(','))
+  check('the compiled catalogue is the lock', models.WHISPER_DEFAULT_MODEL === catalogue.defaultName && models.WHISPER_MODELS.length === catalogue.models.length && models.WHISPER_MODELS.every((r, i) => r.sha256 === catalogue.models[i]?.sha256), 'WHISPER_MODELS and WHISPER_DEFAULT_MODEL in src/services/voice/whisperModels.ts must carry the same rows as the models lock file')
+  check('the default is English-only and about 60 MB; a multilingual row exists for other speech', models.whisperDefaultModel().language === 'en' && models.mbWords(models.whisperDefaultModel().bytes) === '60 MB' && models.WHISPER_MODELS.some(r => r.language === 'multilingual'), 'check the default row (language en, about 60 MB) and the multilingual row in the models lock file read by src/services/voice/whisperModels.ts')
   let bad = ''
   try {
     models.decodeWhisperModelsLock({ ...(lockRaw as object), models: [{ name: 'x', file: 'ggml-x.bin', url: 'https://example.invalid/x', bytes: 1, sha256: 'nope', language: 'en', words: 'x' }] })
   } catch (error) {
     bad = error instanceof Error ? error.message : String(error)
   }
-  check('a row with half a claim is refused, naming the row', bad.includes('not whole') && bad.includes('"x"'), bad)
+  check('a row with half a claim is refused, naming the row', bad.includes('not whole') && bad.includes('"x"'), 'decodeWhisperModelsLock in src/services/voice/whisperModels.ts must throw an error saying the row is not whole and quoting its name; got: ' + bad)
   const home = join(SCRATCH, 'model-home')
   mkdirSync(home, { recursive: true })
   const row = models.whisperDefaultModel()
   let state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice on fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), JSON.stringify(state))
+  check('absent ⇒ the note names the download door, the file and the size', state.state === 'absent' && state.note === `pack present, model missing — /voice on fetches ${row.file} (60 MB)` && state.path === join(home, 'models', 'whisper', row.file), 'checkWhisperModel in src/services/voice/whisperModels.ts must answer absent with the /voice on note, the file and the size; got: ' + JSON.stringify(state))
   const dir = models.whisperModelsDir(home)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, row.file), Buffer.alloc(1234))
   state = models.checkWhisperModel({ kind: 'catalogue', row, pinned: false }, { home })
-  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice on'), JSON.stringify(state))
+  check('a file of the wrong size ⇒ mismatch naming both byte counts and the door', state.state === 'mismatch' && state.note.includes('1234 bytes on disk') && state.note.includes(String(row.bytes)) && state.note.includes('/voice on'), 'checkWhisperModel in src/services/voice/whisperModels.ts must answer mismatch naming both byte counts and /voice on; got: ' + JSON.stringify(state))
   const cached = join(CACHE_DIR, row.file)
   const tiny = models.whisperModelByName('tiny.en-q5_1')
   const cachedTiny = tiny ? join(CACHE_DIR, tiny.file) : ''
@@ -106,7 +106,7 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   check('a path that is absent names itself', pin.kind === 'broken' && pin.note.includes('MERCURY_WHISPER_MODEL is set to') && pin.note.includes('which does not exist'))
   process.env.MERCURY_WHISPER_MODEL = 'bogus'
   pin = models.resolveWhisperModelPin()
-  check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), pin.kind === 'broken' ? pin.note : pin.kind)
+  check('a name outside the catalogue names itself and the catalogue', pin.kind === 'broken' && pin.note.startsWith('MERCURY_WHISPER_MODEL=bogus is not a catalogue name (base.en-q5_1'), 'resolveWhisperModelPin in src/services/voice/whisperModels.ts must answer broken naming the bad value and the catalogue; got: ' + (pin.kind === 'broken' ? pin.note : pin.kind))
   delete process.env.MERCURY_WHISPER_MODEL
   check('unset ⇒ the default, unpinned', models.resolveWhisperModelPin().kind === 'catalogue' && !(models.resolveWhisperModelPin() as { pinned: boolean }).pinned)
   const fake = (bytes: Buffer | null, status = 200): typeof fetch =>
@@ -121,33 +121,33 @@ console.log('\n[M] the model road — the lock, the three states, the pin, the d
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('a body that does not match the lock digest is refused, and nothing is left behind', refusal.includes('does not match the lock digest') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), `${refusal} · ${existsSync(target) ? readdirSync(target).join(',') : 'no dir'}`)
+  check('a body that does not match the lock digest is refused, and nothing is left behind', refusal.includes('does not match the lock digest') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/services/voice/whisperModels.ts must refuse a body that fails the lock digest and remove the .part file; got: ' + `${refusal} · ${existsSync(target) ? readdirSync(target).join(',') : 'no dir'}`)
   refusal = ''
   try {
     await models.downloadWhisperModel(small, target, { fetchImpl: fake(good.subarray(0, 100)) })
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('a short body is refused naming the counts, nothing left behind', refusal.includes('ended at 100 of 4096 bytes') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), refusal)
+  check('a short body is refused naming the counts, nothing left behind', refusal.includes('ended at 100 of 4096 bytes') && !existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)), 'downloadWhisperModel in src/services/voice/whisperModels.ts must refuse a short body naming the counts and leave no file; got: ' + refusal)
   refusal = ''
   try {
     await models.downloadWhisperModel(small, target, { fetchImpl: fake(null, 503) })
   } catch (error) {
     refusal = error instanceof Error ? error.message : String(error)
   }
-  check('an HTTP refusal is named', refusal.includes('HTTP 503'), refusal)
+  check('an HTTP refusal is named', refusal.includes('HTTP 503'), 'downloadWhisperModel in src/services/voice/whisperModels.ts must name the HTTP status of a refused request; got: ' + refusal)
   let calls = 0
   const counting: typeof fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     calls++
     return fake(good)(input, init)
   }) as typeof fetch
   const got = await models.downloadWhisperModel(small, target, { fetchImpl: counting })
-  check('the right bytes land under their name, verified, through a .part file that is gone after', got.bytes === 4096 && got.sha256 === small.sha256 && !got.reused && existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)) && calls === 1, JSON.stringify(got))
+  check('the right bytes land under their name, verified, through a .part file that is gone after', got.bytes === 4096 && got.sha256 === small.sha256 && !got.reused && existsSync(join(target, small.file)) && !existsSync(join(target, `${small.file}.part`)) && calls === 1, 'downloadWhisperModel in src/services/voice/whisperModels.ts must verify the bytes, rename the .part file into place and make one request; got: ' + JSON.stringify(got))
   const again = await models.downloadWhisperModel(small, target, { fetchImpl: counting })
   check('a whole file already there is reused without a request', again.reused && calls === 1)
   const offline = spawnSync(BUN, ['run', 'scripts/vendor/fetch-whisper-models.ts', '--check'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, https_proxy: 'http://127.0.0.1:9', HTTPS_PROXY: 'http://127.0.0.1:9' }, timeout: 120_000 })
   const offlineOut = `${offline.stdout ?? ''}${offline.stderr ?? ''}`
-  check('the vendor fetch --check is offline: no download line, exit 0 (cache valid) or 2 (absent, the remedy named)', !offlineOut.includes('downloading') && ((offline.status === 0 && offlineOut.includes('--check: OK')) || (offline.status === 2 && offlineOut.includes('remedy: bun run scripts/vendor/fetch-whisper-models.ts'))), `${String(offline.status)}: ${offlineOut.slice(0, 300)}`)
+  check('the vendor fetch --check is offline: no download line, exit 0 (cache valid) or 2 (absent, the remedy named)', !offlineOut.includes('downloading') && ((offline.status === 0 && offlineOut.includes('--check: OK')) || (offline.status === 2 && offlineOut.includes('remedy: bun run scripts/vendor/fetch-whisper-models.ts'))), 'scripts/vendor/fetch-whisper-models.ts --check must stay offline and exit 0 (OK) or 2 (naming its remedy); got: ' + `${String(offline.status)}: ${offlineOut.slice(0, 300)}`)
   if (offline.status === 2) warn('the provers\' model cache is absent on this host — the decode legs below are skipped')
   void cachedTiny
 }
@@ -170,6 +170,8 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
   const noFloor = join(fixtures, 'no-floor.js')
   writeFileSync(noFloor, 'module.exports = {}\n')
   const noRuntime = join(fixtures, 'no-such-runtime')
+  const floorProbeHint = 'probeCpuFloorByLoad in src/services/voice/whisperPack.ts runs the addon in a helper process and must answer met, unmet or unknown as the check says; got: '
+  const floorDecisionHint = 'probeCpuFloor in src/services/voice/whisperPack.ts must decide per platform and architecture as the check says; got: '
 
   const hosts: Array<[string, string | null]> = [
     ['this prover\'s runtime', BUN],
@@ -182,47 +184,47 @@ console.log('\n[F] the CPU floor — the helper-process probe, the decision per 
     }
     const helper = { exe }
     let p = pack.probeCpuFloorByLoad(meets, helper)
-    check(`${label}: an addon that answers met ⇒ met, read by the helper`, p.state === 'met' && p.via === 'helper', JSON.stringify(p))
+    check(`${label}: an addon that answers met ⇒ met, read by the helper`, p.state === 'met' && p.via === 'helper', floorProbeHint + JSON.stringify(p))
     p = pack.probeCpuFloorByLoad(answers, helper)
-    check(`${label}: an addon that answers unmet ⇒ unmet naming the missing sets, no fault`, p.state === 'unmet' && p.missing.join(',') === 'avx2,fma' && p.faulted === undefined, JSON.stringify(p))
+    check(`${label}: an addon that answers unmet ⇒ unmet naming the missing sets, no fault`, p.state === 'unmet' && p.missing.join(',') === 'avx2,fma' && p.faulted === undefined, floorProbeHint + JSON.stringify(p))
     const t0 = Date.now()
     p = pack.probeCpuFloorByLoad(faults, helper)
-    check(`${label}: an addon that faults at load ⇒ unmet, faulted — the fault stayed in the helper (this prover is still running)`, p.state === 'unmet' && p.faulted === true, JSON.stringify(p))
+    check(`${label}: an addon that faults at load ⇒ unmet, faulted — the fault stayed in the helper (this prover is still running)`, p.state === 'unmet' && p.faulted === true, floorProbeHint + JSON.stringify(p))
     console.log(`  · ${label}: the faulting helper answered in ${Date.now() - t0} ms`)
     p = pack.probeCpuFloorByLoad(throws, helper)
-    check(`${label}: an addon that throws at load ⇒ unknown, the load's own words named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('not an addon'), JSON.stringify(p))
+    check(`${label}: an addon that throws at load ⇒ unknown, the load's own words named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('not an addon'), floorProbeHint + JSON.stringify(p))
     p = pack.probeCpuFloorByLoad(absent, helper)
-    check(`${label}: an absent addon ⇒ unknown, the path named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('absent.js'), JSON.stringify(p))
+    check(`${label}: an absent addon ⇒ unknown, the path named`, p.state === 'unknown' && p.note.includes('could not load the addon') && p.note.includes('absent.js'), floorProbeHint + JSON.stringify(p))
     p = pack.probeCpuFloorByLoad(noFloor, helper)
-    check(`${label}: an addon without cpuFloor() ⇒ unknown, saying so`, p.state === 'unknown' && p.note.includes('exports no cpuFloor()'), JSON.stringify(p))
+    check(`${label}: an addon without cpuFloor() ⇒ unknown, saying so`, p.state === 'unknown' && p.note.includes('exports no cpuFloor()'), floorProbeHint + JSON.stringify(p))
     p = pack.probeCpuFloorByLoad(hangs, { exe, timeoutMs: 1_000 })
-    check(`${label}: a helper that never answers ⇒ unknown at the bound, naming it`, p.state === 'unknown' && p.note.includes('gave no answer within 1s'), JSON.stringify(p))
+    check(`${label}: a helper that never answers ⇒ unknown at the bound, naming it`, p.state === 'unknown' && p.note.includes('gave no answer within 1s'), floorProbeHint + JSON.stringify(p))
   }
   let p = pack.probeCpuFloorByLoad(meets, { exe: noRuntime })
-  check('a runtime that cannot start ⇒ unknown, named', p.state === 'unknown' && p.note.includes('could not start'), JSON.stringify(p))
-  check('the helper\'s bound is well under the 20 s the old probe could freeze the screen for', pack.CPU_FLOOR_HELPER_TIMEOUT_MS <= 10_000, String(pack.CPU_FLOOR_HELPER_TIMEOUT_MS))
+  check('a runtime that cannot start ⇒ unknown, named', p.state === 'unknown' && p.note.includes('could not start'), floorProbeHint + JSON.stringify(p))
+  check('the helper\'s bound is well under the 20 s the old probe could freeze the screen for', pack.CPU_FLOOR_HELPER_TIMEOUT_MS <= 10_000, 'lower CPU_FLOOR_HELPER_TIMEOUT_MS in src/services/voice/whisperPack.ts to 10000 or less; got ' + String(pack.CPU_FLOOR_HELPER_TIMEOUT_MS))
 
   const nowhere = { exe: noRuntime }
   let d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: answers })
-  check('Windows x64: the helper is the probe — an unmet answer holds the road back, naming the sets', d.state === 'unmet' && d.via === 'helper' && d.missing.join(',') === 'avx2,fma', JSON.stringify(d))
+  check('Windows x64: the helper is the probe — an unmet answer holds the road back, naming the sets', d.state === 'unmet' && d.via === 'helper' && d.missing.join(',') === 'avx2,fma', floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: meets })
-  check('Windows x64: a met answer opens the road', d.state === 'met' && d.via === 'helper', JSON.stringify(d))
+  check('Windows x64: a met answer opens the road', d.state === 'met' && d.via === 'helper', floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: faults })
-  check('Windows x64: a fault in the helper is unmet (faulted) — never a fault in Mercury', d.state === 'unmet' && d.faulted === true, JSON.stringify(d))
+  check('Windows x64: a fault in the helper is unmet (faulted) — never a fault in Mercury', d.state === 'unmet' && d.faulted === true, floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: hangs, helper: { timeoutMs: 1_000 } })
-  check('Windows x64: a helper that never answers leaves the floor unknown at the bound', d.state === 'unknown' && d.note.includes('gave no answer'), JSON.stringify(d))
+  check('Windows x64: a helper that never answers leaves the floor unknown at the bound', d.state === 'unknown' && d.note.includes('gave no answer'), floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: throws })
-  check('Windows x64: a helper that cannot answer leaves the floor unknown', d.state === 'unknown' && d.via === 'helper', JSON.stringify(d))
+  check('Windows x64: a helper that cannot answer leaves the floor unknown', d.state === 'unknown' && d.via === 'helper', floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'x64', addonPath: null })
-  check('Windows x64 with nothing to load: unknown, saying Windows keeps no list', d.state === 'unknown' && d.note.includes('Windows keeps no instruction-set list'), JSON.stringify(d))
+  check('Windows x64 with nothing to load: unknown, saying Windows keeps no list', d.state === 'unknown' && d.note.includes('Windows keeps no instruction-set list'), floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'linux', arch: 'x64', addonPath: answers })
-  check('Linux x64 with no flag list: the helper is the probe (a host with /proc/cpuinfo reads the flags instead)', (d.via === 'helper' && d.state === 'unmet') || (existsSync('/proc/cpuinfo') && d.via === 'flags'), JSON.stringify(d))
+  check('Linux x64 with no flag list: the helper is the probe (a host with /proc/cpuinfo reads the flags instead)', (d.via === 'helper' && d.state === 'unmet') || (existsSync('/proc/cpuinfo') && d.via === 'flags'), floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'win32', arch: 'arm64', addonPath: answers, helper: nowhere })
-  check('Windows arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+  check('Windows arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'darwin', arch: 'arm64', addonPath: answers, helper: nowhere })
-  check('darwin arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+  check('darwin arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', floorDecisionHint + JSON.stringify(d))
   d = pack.probeCpuFloor({ platform: 'linux', arch: 'arm64', addonPath: faults, helper: nowhere })
-  check('Linux arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', JSON.stringify(d))
+  check('Linux arm64: met by the architecture, no helper spawned', d.state === 'met' && d.via === 'architecture', floorDecisionHint + JSON.stringify(d))
 
   const unread = pack.cpuFloorRefusal({ state: 'unknown', via: 'helper', note: 'fixture: nothing reported' }, 'x64')
   check('the refusal for an unread floor names the floor, the reason and that it could not be read', unread.includes('x86-64 with AVX2, FMA and F16C') && unread.includes('fixture: nothing reported') && unread.includes('could not be read'), unread)

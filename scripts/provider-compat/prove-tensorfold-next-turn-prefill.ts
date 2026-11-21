@@ -30,9 +30,10 @@ delete process.env.MERCURY_LOCAL_NEXT_TURN_PREFILL
 delete process.env.MERCURY_AUTOCOMPACT_PCT_OVERRIDE
 
 let failures = 0
+const PREFILL_FAIL_HINT = 'to fix, change the read-ahead in src/services/providers/local/tensorfoldPrefill.ts (nextTurnPrefillApplies decides where it runs, nextTurnStages cuts the pieces, the cut and slow-cut guards cancel it); the engine stand-in is scripts/provider-compat/tensorfoldPromptFixture.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${PREFILL_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -360,10 +360,10 @@ section('(4) the record — which shell this is, asked in one place: places that
     ["one shell's own word", "const a = 'setopt NO_NOMATCH'"],
   ]
   const unread = SPELLINGS.filter(([, text]) => placesIn('spelling.ts', text).length !== 1).map(([name]) => name)
-  check(`a comparison of a shell's name is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, unread.length === 0, unread.map(name => `${name} is not read`))
+  check(`a comparison of a shell's name is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, unread.length === 0, unread.map(name => `${name} is not read: make placesIn in ${SELF} count that spelling as one place`))
   const NOT_A_NAME = ["if (shellType === 'bash') run()", "const TYPES = ['bash', 'powershell'] as const", "if (provider.type !== 'bash') run()", "const found = which('bash')"]
   const misread = NOT_A_NAME.filter(text => placesIn('spelling.ts', text).length !== 0)
-  check("the tool's own type word is not a shell's name: shellType and a provider's type against 'bash', the list of tool types, a search for a program", misread.length === 0, misread.map(text => `${text} is read as a comparison of a shell's name`))
+  check("the tool's own type word is not a shell's name: shellType and a provider's type against 'bash', the list of tool types, a search for a program", misread.length === 0, misread.map(text => `${text} is read as a comparison of a shell's name: narrow placesIn in ${SELF} so it leaves this spelling alone`))
 
   const found = scope.map(file => ({ file, lines: placesIn(file, readFileSync(join(ROOT, file), 'utf8')) })).filter(row => row.lines.length > 0)
   const outside = found.filter(row => row.file !== RECORD)
@@ -475,7 +475,7 @@ section("(5) the walker — files under src/ outside the walker folder and parse
   check(
     `grammar node kinds read from the walker folder and ${PARSER}: ${grammarKinds.size} kinds across ${kindSources.length} source file(s)`,
     grammarKinds.size > 0,
-    [`no grammar node kinds were found in ${WALKER_DIR} or ${PARSER}`],
+    [`no grammar node kinds were found in ${WALKER_DIR} or ${PARSER}: check WALKER_DIR and PARSER in ${SELF} name where the walker still lives, or fix typeHitsIn there`],
   )
 
   const matchHits = (hits: TypeHit[], touchesDoor: boolean): TypeHit[] =>
@@ -494,11 +494,11 @@ section("(5) the walker — files under src/ outside the walker folder and parse
     ['const array includes', "const KINDS = ['word', 'string']; if (KINDS.includes(child.type)) run()"],
   ]
   const missed = SPELLINGS.filter(([, text]) => matchHits(typeHitsIn('spelling.ts', text), true).length !== 1).map(([name]) => name)
-  check(`a grammar node kind test is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, missed.length === 0, missed.map(name => `${name} is not read`))
+  check(`a grammar node kind test is read however it is spelled: ${SPELLINGS.map(([name]) => name).join(', ')}`, missed.length === 0, missed.map(name => `${name} is not read: make typeHitsIn or matchHits in ${SELF} count that spelling as one place`))
 
   const NOT_A_KIND = ["if (type === 'command') run()", "if (context.type !== 'file') run()", "if (rule.type === 'exact') run()"]
   const misread = NOT_A_KIND.filter(text => matchHits(typeHitsIn('spelling.ts', text), true).length !== 0)
-  check("non-grammar type checks are not read as grammar kinds (including shellCompletion's type === 'command' and context.type !== 'file')", misread.length === 0, misread.map(text => `${text} is read as a grammar node kind test`))
+  check("non-grammar type checks are not read as grammar kinds (including shellCompletion's type === 'command' and context.type !== 'file')", misread.length === 0, misread.map(text => `${text} is read as a grammar node kind test: narrow typeHitsIn or matchHits in ${SELF} so it leaves this spelling alone`))
 
   const nodeImports = new Map<string, number>()
   const doorImporters = new Set<string>()

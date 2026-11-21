@@ -21,7 +21,8 @@ const ZSH = '/bin/zsh'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failureHint = 'to fix, change how the login files are read in createAndSaveSnapshot and loginExports in src/utils/bash/ShellSnapshot.ts, the not-carried note and health row in src/utils/shell/shellRecord.ts, or (editor rows) execViaIdeTerminal in src/services/acp/ideToolBridge.ts; this proof drives the built bundle, so rebuild with bun run build.ts first'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
 }
 
 const COMMAND = [

@@ -31,10 +31,11 @@ const PADDED_BOXES: Record<string, string[]> = { 'components/fullscreenLayout/fr
 
 let checks = 0
 let failures = 0
+let scrollFix = 'a painted frame differs from a fresh mount at the same position; change how a ScrollBox repaints after a scroll, resize or removal: src/ink/components/ScrollBox.tsx and the renderer in src/ink/ink.tsx (its pendingClears are in src/ink/node-cache.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && scrollFix ? ` — fix: ${scrollFix}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -354,6 +355,7 @@ for (const variant of [TRANSCRIPT, BARE]) {
 
 section('7. every scroll box under src and its vertical padding')
 {
+  scrollFix = 'a ScrollBox under src now has vertical padding (or a prop spread) that PADDED_BOXES in this script does not list; remove the padding from that ScrollBox, or prove its padding row paints right and list it in PADDED_BOXES here'
   const files: string[] = []
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir, { withFileTypes: true })) {

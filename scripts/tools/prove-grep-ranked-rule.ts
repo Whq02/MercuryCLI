@@ -17,7 +17,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${cond ? '' : ' — Hint: the rule lives in src/tools/GrepTool/rankedSearch.ts (rankedWords, holdsWord, rankedScope, rankedRefusal, countPassArgs, linePassArgs, rankedSearch, renderRanked); change the function this check names there, not the check.'}`)
   if (!cond) failures++
 }
 

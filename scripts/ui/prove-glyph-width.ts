@@ -6,7 +6,7 @@ import { stringWidth } from '../../src/ink/stringWidth.js'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — to fix: GLYPH, SPARK, charWidth, displayWidth and padTo are in src/utils/glyphs.ts (give a glyph a width-1 character there); the width model is stringWidth in src/ink/stringWidth.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

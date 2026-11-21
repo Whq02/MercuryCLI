@@ -56,7 +56,7 @@ let checks = 0
 function check(label: string, ok: boolean, detail?: unknown): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${JSON.stringify(detail)} — fix the per-call cwd in src/utils/Shell.ts (exec, resolveShellCwd) for spawn checks, in src/tools/BashTool/bashPermissions.ts or src/tools/PowerShellTool/powershellPermissions.ts for permission checks, in src/tools/BashTool/readOnlyValidation.ts for read-only checks` : ''}`)
 }
 const permission = (deny: string[] = [], allow: string[] = []) => ({
   ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: deny }, alwaysAllowRules: { session: allow },

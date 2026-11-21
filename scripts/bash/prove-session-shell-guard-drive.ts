@@ -28,7 +28,8 @@ if (process.platform === 'win32') {
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const failureHint = 'to fix, keep the launch consent stamp MERCURY_DAEMON_SELF_WARM_CONSENT (set in src/services/switchboard/ensureDaemon.ts, read in src/daemon/main.ts) out of the environment the session tool shell is given, so suite_env_guard in scripts/lib/suite-env.sh finds no foreign MERCURY_* variable; if no daemon log or no tool result appeared, read the pty run note and the kept world printed below'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${failureHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -19,15 +19,18 @@ const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const readTargetHint = 'fix classifyReadTarget, renderDirectoryTarget or renderUrlDelegation in src/tools/FileReadTool/readTarget.ts'
+const readToolHint = 'fix call, prompt or description of FileReadTool in src/tools/FileReadTool/FileReadTool.ts, and the MERCURY_READ_TARGETS switch it reads'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = /^[FM]/.test(label) ? readToolHint : readTargetHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${failHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — front-door proof exceeded 90s')
+  console.log('\nTIMEOUT — front-door proof exceeded 90s; a FileReadTool.call in src/tools/FileReadTool/FileReadTool.ts did not return')
   process.exit(1)
 }, 90_000)
 guard.unref?.()
