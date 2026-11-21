@@ -28,6 +28,7 @@ const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -43,7 +44,6 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOLDER])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const CHIP = 'mouse off — native copy sweeps rails'
 const WARM_TICKS = 25
@@ -154,7 +154,7 @@ async function capture(opts: { id: string; home: string; sends: Send[]; ready: s
 }
 
 const g = (needle: string, data: string, extra: Send = {}): Send => ({ atTick: 999, requireAwait: true, awaitText: needle, minTick: 5, awaitSettleTicks: 2, data, ...extra })
-const INTO_THE_CHAT: Send[] = [g(READY_LINE, ''), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { awaitSettleTicks: 4 })]
+const INTO_THE_CHAT: Send[] = [g('↑↓', '', { awaitPattern: BOOT_FACE_READY }), { afterPrevTicks: WARM_TICKS, data: '\r' }, g(COMPOSER, '', { awaitSettleTicks: 4 })]
 
 function printFrame(id: string, lines: string[]): void {
   console.log(`\n┌── ${id} ──`)

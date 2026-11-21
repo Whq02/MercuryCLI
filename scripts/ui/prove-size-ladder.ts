@@ -34,8 +34,8 @@ console.log('§1 the face: every ladder size + the shed to one honest line')
           { icon: '↻', label: 'Continue Last Session', ctx: '5m ago' },
         ],
         cardSel: 0,
-        hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' }],
-        tinyHint: '↵ start',
+        hintSegments: [{ key: '↵', label: '', tone: 'ivory' }],
+        tinyHint: '↵',
         stripLines: () => [],
       })
       .lines.map(strip)

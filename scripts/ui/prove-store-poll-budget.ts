@@ -41,6 +41,7 @@ delete process.env.MERCURY_CONCOURSE
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { resolveCaptureDriver, captureEngineEntry, vshotBudgetMs } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -56,11 +57,10 @@ if (driver.kind !== 'posix-pty') {
 seedFirstRun(CFG, [FOLDER])
 const api = await startFixtureApi(Array.from({ length: 8 }, () => ({ kind: 'text' as const, text: 'Spare.' })))
 
-const READY = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const sends = [
-  { awaitText: READY, atTick: 600, data: '', mark: 'face-ready' },
-  { awaitText: READY, awaitSettleTicks: 30, atTick: 650, data: '\r', mark: 'enter' },
+  { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, atTick: 600, data: '', mark: 'face-ready' },
+  { awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitSettleTicks: 30, atTick: 650, data: '\r', mark: 'enter' },
   { awaitText: COMPOSER, atTick: 750, data: '', mark: 'chat-ready' },
 ]
 const total = Math.round((45 + IDLE_S) / 0.2)
