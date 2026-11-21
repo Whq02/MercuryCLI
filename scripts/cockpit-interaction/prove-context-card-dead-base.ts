@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { FIXTURE_API_KEY, seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { CONTEXT_CARD_WORDS } from '../../src/commands/context/context.tsx'
 
 const arg = (name: string): string | undefined => {
@@ -72,7 +73,7 @@ console.log('/context on a chat whose provider base cannot answer: the card pain
 const cols = 120
 const rows = 40
 const sends = [
-  { requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { requireAwait: true, awaitText: 'Type a prompt', minTick: 5, awaitSettleTicks: 3, data: '/context' },
   { requireAwait: true, awaitText: '/context', awaitSettleTicks: 1, data: '\r' },
   { requireAwait: true, awaitText: 'counting the context window', awaitSettleTicks: 1, mark: 'card', data: '' },

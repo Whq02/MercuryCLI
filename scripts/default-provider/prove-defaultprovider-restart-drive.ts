@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFi
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
@@ -94,7 +95,7 @@ const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: R
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
-        { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 8, awaitSettleTicks: 3, mark: 'face1' },
+        { data: '', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 8, awaitSettleTicks: 3, mark: 'face1' },
         { data: '\r', afterPrevTicks: 2 },
         { data: '/defaultprovider deepseek\r', atTick: 999, awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: '', atTick: 999, awaitText: 'Default provider set to DeepSeek', requireAwait: true, minTick: 2, awaitSettleTicks: 2, mark: 'receipt' },
@@ -136,7 +137,7 @@ const switchBoot = (tag: string, cols: number): Promise<{ text: string; marks: R
       argv: ['node', DIST],
       cwd: workspace,
       sends: [
-        { data: '', atTick: 999, awaitText: '↑↓ choose', requireAwait: true, minTick: 8, awaitSettleTicks: 4, mark: 'face' },
+        { data: '', atTick: 999, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 8, awaitSettleTicks: 4, mark: 'face' },
       ],
       stableTicks: 4,
     },

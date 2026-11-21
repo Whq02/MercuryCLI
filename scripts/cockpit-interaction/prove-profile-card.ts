@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { vshotBudgetMs } from '../lib/captureDriver.ts'
 import { spawnCaptureSync } from '../lib/spawnCapture.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const REPO = join(import.meta.dir, '..', '..')
@@ -121,7 +122,7 @@ t.section('leg 2 — Exit leaves the guidance, not a cockpit')
 t.section('leg 3 — CONTROL: a capable TERM boots straight to the composer')
 {
   const r = capture('control', 'xterm-256color', {
-    sends: [{ atTick: 40, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' }],
+    sends: [{ atTick: 40, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' }],
     readyText: ['❯', '? for shortcuts'],
     readySettleTicks: 3,
   })

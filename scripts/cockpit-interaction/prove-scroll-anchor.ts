@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { checker } from '../engine-durability/harness.ts'
 import { startFixtureApi } from '../lib/fixtureApi.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const t = checker()
 const scratch = mkdtempSync(join(tmpdir(), 'hz-anchor-'))
@@ -41,7 +42,7 @@ if (!existsSync(BIN)) {
     out,
     cwd: process.cwd(),
     sends: [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 90, awaitText: '? for shortcuts', minTick: 5, awaitSettleTicks: 3, data: 'go\r' },
       { atTick: 999, awaitText: 'chunk-150 ', minTick: 2, awaitSettleTicks: 1, data: '\u001b[5~' },
       { requireAwait: true, awaitText: 'chunk-80 ', awaitStableTicks: 2, awaitStableRegion: [24, 5, 119, 32], data: '\u001b[5~' },
