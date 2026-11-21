@@ -20,6 +20,17 @@ function textOfUserRow(m: Message): string {
   return ''
 }
 
+function latestRecallableSend(sends: readonly SeatSend[]): RecallableSendV1 | null {
+  let latest: SeatSend | null = null
+  for (const s of sends) {
+    if (s.state === 'taken' || s.withdrawing === true || s.source === undefined) continue
+    if (!UUID_SHAPE.test(s.clientMessageId)) continue
+    if (s.source.text === '' && Object.keys(s.source.pastedContents).length === 0) continue
+    if (latest === null || s.sentAtMs >= latest.sentAtMs) latest = s
+  }
+  return latest === null || latest.source === undefined ? null : { clientMessageId: latest.clientMessageId, text: latest.source.text }
+}
+
 interface SendsNeeds {
   sessionId(): string
   rows(): readonly Message[]
@@ -269,14 +280,7 @@ export class SendsPart {
     return this.sends.find(s => s.clientMessageId === clientMessageId)
   }
   recallableSend(): RecallableSendV1 | null {
-    let latest: SeatSend | null = null
-    for (const s of this.sends) {
-      if (s.state === 'taken' || s.withdrawing === true || s.source === undefined) continue
-      if (!UUID_SHAPE.test(s.clientMessageId)) continue
-      if (s.source.text === '' && Object.keys(s.source.pastedContents).length === 0) continue
-      if (latest === null || s.sentAtMs >= latest.sentAtMs) latest = s
-    }
-    return latest === null || latest.source === undefined ? null : { clientMessageId: latest.clientMessageId, text: latest.source.text }
+    return latestRecallableSend(this.sends)
   }
   markWithdrawing(clientMessageId: string, on: boolean): void {
     this.sends = this.sends.map(s => {
