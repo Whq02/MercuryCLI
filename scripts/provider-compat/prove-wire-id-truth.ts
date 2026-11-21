@@ -128,7 +128,8 @@ type Options = import('../../src/services/providers/anthropic/streamCore.ts').Op
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const wireIdFixHint = ' (fix the wire-id rules in canonicalWireModelId in src/services/providers/routeLaw.ts, the catalogue rows in src/services/providers/openrouter/openrouterCatalogue.ts, or the 1M window in resolveContextWindow in src/utils/model/capabilities.ts, whichever this check names)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : wireIdFixHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

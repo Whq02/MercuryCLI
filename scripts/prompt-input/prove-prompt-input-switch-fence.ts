@@ -12,7 +12,7 @@ const { scenario, cleanupScenario, writeSyntheticSession, SID, SID_ERRORED } =
   await import('../ui/renderScenarios.ts')
 
 let failures = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
+const t = (name: string, ok: boolean, detail = 'change the in-app session switch so the last-chosen session owns the commit and text typed during the resume stage stays in the composer'): void => {
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
   if (!ok) failures = 1
 }

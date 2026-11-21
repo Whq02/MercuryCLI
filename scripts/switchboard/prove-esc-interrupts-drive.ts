@@ -18,9 +18,11 @@ if (!existsSync(DIST)) {
 }
 let failures = 0
 let firstBytePending: string | null = null
+let failHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, failHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
@@ -46,6 +48,7 @@ const hoppedLeg = async (
   rows: number,
   turnShape: Record<string, unknown>,
 ): Promise<void> => {
+  failHint = 'this leg drives the built bundle (dist/mercury.mjs, rebuild with bun run build.ts) against a fixture API: the daemon must serve, the worker must dispatch and settle, and esc must paint Interrupted and return the composer; read the screens grabbed by grabScreens (scripts/streaming/artifactArena.ts) and the daemon.log kept in the escpin scratch folder'
   const SCRATCH = mkdtempSync(join(tmpdir(), `escpin-${tag}-`))
   const daemonDir = join(SCRATCH, 'daemon')
   const work = join(SCRATCH, 'work')
@@ -122,6 +125,7 @@ await hoppedLeg('C-small', 100, 30, { kind: 'paced', deltas: Array.from({ length
 
 console.log('leg B — the born session, mid-thinking, 120x40')
 {
+  failHint = 'this leg drives the built bundle (dist/mercury.mjs, rebuild with bun run build.ts) in a born session against a fixture API: esc during the turn must paint Interrupted and return the composer; read the screens grabbed by grabScreens (scripts/streaming/artifactArena.ts)'
   const SCRATCH = mkdtempSync(join(tmpdir(), 'escpin-boot-'))
   const daemonDir = join(SCRATCH, 'daemon')
   mkdirSync(daemonDir, { recursive: true })
@@ -172,6 +176,7 @@ console.log('leg B — the born session, mid-thinking, 120x40')
 
 console.log('leg D — the seat clock ledger: a pause measured against an older turn start never hides the live counter')
 {
+  failHint = 'the ledger arithmetic is adoptSeatTurnStart, anchorSeatClock and anchoredElapsedMs in src/components/Spinner/seatClock.ts'
   const paused = adoptSeatTurnStart({ startMs: 1_000, pausedMs: 40_000, pauseStartMs: null }, 50_000, 60_000)
   check('D: a turn start that moved forward drops the pause measured before it', paused.startMs === 50_000 && paused.pausedMs === 0 && paused.pauseStartMs === null, JSON.stringify(paused))
   const open = adoptSeatTurnStart({ startMs: 1_000, pausedMs: 40_000, pauseStartMs: 45_000 }, 50_000, 60_000)
@@ -189,8 +194,9 @@ console.log('leg D — the seat clock ledger: a pause measured against an older 
 
 console.log('leg E — the capsule\'s live counter after a permission pause and a prompt sent mid-turn, 140x40')
 {
+  failHint = 'this leg runs the built bundle (dist/mercury.mjs, rebuild with bun run build.ts) in a pty against a fixture API: the capsule row clock must keep counting across the permission pause and the mid-turn re-stamp; the frames are kept under the escpin-counter scratch folder named in the forensics line'
   const driver = resolveCaptureDriver()
-  if (driver.kind !== 'posix-pty') throw new Error('leg E drives a POSIX pty')
+  if (driver.kind !== 'posix-pty') throw new Error('leg E drives a POSIX pty: run this drive on macOS or Linux where resolveCaptureDriver (scripts/lib/captureDriver.ts) returns posix-pty')
   const { recordPty } = await import('../lib/ptyRecorder.ts')
   const { nodeBinPath } = await import('../lib/nodeBin.ts')
   const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'escpin-counter-')))

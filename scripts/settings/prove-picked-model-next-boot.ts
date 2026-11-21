@@ -16,10 +16,10 @@ state.setAllowedSettingSources(['userSettings', 'projectSettings', 'localSetting
 const settings = await import(join(root, 'src/utils/settings/settings.ts'))
 const { persistModelChoice } = await import(join(root, 'src/commands/model/persistModelChoice.ts'))
 const picked = 'gpt-6.1-sol'
-assert.equal(settings.updateSettingsForSource('userSettings', { engine: { model: 'fixture-earlier-model' } }).error, null)
+assert.equal(settings.updateSettingsForSource('userSettings', { engine: { model: 'fixture-earlier-model' } }).error, null, 'updateSettingsForSource in src/utils/settings/settings.ts returned an error for the user layer fixture write')
 const receipt = persistModelChoice(picked)
-assert.equal(receipt.outcome, 'saved')
-assert.equal(JSON.parse(readFileSync(join(proofHome, 'settings.json'), 'utf8')).engine.model, picked)
+assert.equal(receipt.outcome, 'saved', 'persistModelChoice in src/commands/model/persistModelChoice.ts must return outcome saved for a picked model id')
+assert.equal(JSON.parse(readFileSync(join(proofHome, 'settings.json'), 'utf8')).engine.model, picked, 'persistModelChoice in src/commands/model/persistModelChoice.ts must write the pick to engine.model in the user settings.json')
 console.log('[PASS] the picker persistence door writes engine.model into the user layer and invalidates its cached read')
 
 function nextBoot(expected: string | null, extra: { env?: string; override?: string } = {}): void {
@@ -36,8 +36,8 @@ function nextBoot(expected: string | null, extra: { env?: string; override?: str
     env: { ...process.env, MERCURY_CONFIG_DIR: proofHome, MERCURY_MODEL: extra.env ?? '' },
     stdout: 'pipe', stderr: 'pipe',
   })
-  assert.equal(child.exitCode, 0, Buffer.from(child.stderr).toString())
-  assert.equal(JSON.parse(Buffer.from(child.stdout).toString().trim()), expected)
+  assert.equal(child.exitCode, 0, `${Buffer.from(child.stderr).toString()} (the fresh next-boot process failed before printing; check that getUserSpecifiedModelSetting in src/services/model/model.ts and src/bootstrap/state.ts still import and run)`)
+  assert.equal(JSON.parse(Buffer.from(child.stdout).toString().trim()), expected, `getUserSpecifiedModelSetting in src/services/model/model.ts returned another model on the next boot than the precedence expects (expected ${JSON.stringify(expected)} with env ${JSON.stringify(extra.env ?? null)} and override ${JSON.stringify(extra.override ?? null)}); change its order over the flag, MERCURY_MODEL and the settings layers`)
 }
 nextBoot(picked)
 console.log('[PASS] a fresh process on the next boot reads the saved pick rather than the earlier model')
@@ -52,7 +52,7 @@ writeFileSync(join(project, '.mercury/settings.json'), '{}')
 writeFileSync(join(project, '.mercury/settings.local.json'), '{}')
 settings.updateSettingsForSource('userSettings', { engine: { model: picked } })
 const cleared = persistModelChoice(null)
-assert.equal(cleared.outcome, 'cleared')
+assert.equal(cleared.outcome, 'cleared', 'persistModelChoice(null) in src/commands/model/persistModelChoice.ts must return outcome cleared and remove engine.model')
 nextBoot(null)
 console.log('[PASS] clearing the saved choice removes the same key the next boot reads')
 console.log('prove-picked-model-next-boot: all green')

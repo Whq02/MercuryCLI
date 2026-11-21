@@ -12,10 +12,12 @@ try {
     [String.raw`s = r'\*'; print(s.replace('\\*', '*'))`, '*'],
   ]) {
     const verdict = await evalCodePermission(code!, work)
-    check(`string replacement admitted: ${code}`, verdict === null, verdict?.message)
+    check(`string replacement admitted: ${code}`, verdict === null, verdict === null ? undefined : `${verdict.message} — a plain str.replace must not be denied; narrow the filesystem-replace detection in evalCodePermission (src/utils/permissions/shellProtectedPaths.ts)`)
     if (verdict !== null) continue
     const result = await evalKernelManager.runCell({ owner: 'replace-proof', cwd: work, input: { language: 'py', code: code! }, abortSignal: new AbortController().signal, serveBridge: refusingBridge() })
-    check('string replacement runs', result.status === 'ok' && result.stdout.text.trim() === expected, result.stdout.text || result.error?.value)
+    const replaceRan = result.status === 'ok' && result.stdout.text.trim() === expected
+    const replaceDetail = result.stdout.text || result.error?.value
+    check('string replacement runs', replaceRan, replaceRan ? replaceDetail : `${replaceDetail ?? ''} — expected stdout ${JSON.stringify(expected)}; look at evalKernelManager.runCell in src/services/eval/kernelManager.ts`)
   }
   const target = JSON.stringify(join(home, 'runtime', 'fixture.txt'))
   const source = JSON.stringify(join(work, 'source.txt'))
@@ -28,8 +30,10 @@ try {
     `from pathlib import Path\nPath(${target}).replace(${source})`,
   ]) {
     const verdict = await evalCodePermission(code, work)
-    check('filesystem replacement refused', verdict?.behavior === 'deny', verdict?.message)
-    check('refusal names triggering code span', /code at \d+:\d+:/.test(verdict?.message ?? '') && /replace|move_file/.test(verdict?.message ?? ''), verdict?.message)
+    const refused = verdict?.behavior === 'deny'
+    check('filesystem replacement refused', refused, refused ? verdict?.message : `${verdict?.message ?? 'no verdict (null)'} — os.replace and Path.replace onto a protected path must be denied; fix evalCodePermission in src/utils/permissions/shellProtectedPaths.ts`)
+    const spanNamed = /code at \d+:\d+:/.test(verdict?.message ?? '') && /replace|move_file/.test(verdict?.message ?? '')
+    check('refusal names triggering code span', spanNamed, spanNamed ? verdict?.message : `${verdict?.message ?? 'no verdict (null)'} — the denial message must contain "code at LINE:COL:" and the replace or move_file call; fix its wording in evalCodePermission (src/utils/permissions/shellProtectedPaths.ts)`)
   }
 } finally {
   await evalKernelManager.disposeAll()

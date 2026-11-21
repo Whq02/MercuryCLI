@@ -13,11 +13,28 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
+const windowFixHint = 'fix the window choice and setting in src/services/providers/local/localWindow.ts (chooseLocalWindow, doubledRequestWindow, parseLocalWindowSetting, decideLocalWindow)'
+const sectionFixHints: Record<string, string> = {
+  '1': windowFixHint,
+  '2': windowFixHint,
+  '3': `${windowFixHint}, or localGuardWindow in src/services/providers/local/localCallModel.ts`,
+  '4': 'fix ollamaChatBody or ollamaMessagesOf in src/services/providers/local/ollamaChatTransport.ts (the batch size is chooseLocalBatch in src/services/providers/local/localWindow.ts)',
+  '5': 'fix streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts',
+  '6': 'fix the Ollama profile in src/services/providers/local/localCallModel.ts (localLaneProfileFor) or src/services/providers/openaicompat/compatChatCallModel.ts',
+  '7': 'fix the error-row class in streamOllamaChat (src/services/providers/local/ollamaChatTransport.ts) or compatFaultToTypedError and the retry in src/services/providers/openaicompat/compatChatCallModel.ts',
+  '8': 'fix ensureServedWindow in src/services/providers/local/localDiscovery.ts',
+  '9': 'fix localModelWindowRow in src/components/Settings/Config.tsx',
+  '10': 'fix the room words in src/services/providers/local/localWindow.ts (localWindowRoomWords, localWindowChoiceLine, localWindowRefusalSpan) or localModelWindowRow in src/components/Settings/Config.tsx',
+  '11': `${windowFixHint}, or the num_ctx the request carries in src/services/providers/local/localCallModel.ts`,
+}
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionFixHint ? ` — ${sectionFixHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${hint}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''

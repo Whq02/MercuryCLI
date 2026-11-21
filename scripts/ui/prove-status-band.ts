@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 
 let failures = 0
-const t = (name: string, ok: boolean): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}`)
+const t = (name: string, ok: boolean, detail = ''): void => {
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? '' : ` — ${detail}`}`)
   if (!ok) failures = 1
 }
 
@@ -17,7 +17,7 @@ await status.plant({ textActive: true })
 const streaming = drawn()
 const mostSpinners = status.mostSpinners()
 await status.close()
-t('strip carries the spinner + the streaming hold + the rollup', resting === 'rollup' && working === 'spinner+rollup' && streaming === 'hold+rollup')
+t('strip carries the spinner + the streaming hold + the rollup', resting === 'rollup' && working === 'spinner+rollup' && streaming === 'hold+rollup', `rows drawn: resting "${resting}" (want rollup), working "${working}" (want spinner+rollup), streaming "${streaming}" (want hold+rollup); to fix: change workingStatusStrip in useChatStatusStrip, src/screens/chat/useChatStatus.tsx`)
 
 
 console.log(failures ? '\n❌ STATUS-BAND RED' : '\n✅ STATUS-BAND GREEN')

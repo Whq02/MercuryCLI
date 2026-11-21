@@ -17,7 +17,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the limit cut in searchPointers and limitCutLine in src/mneme/mnemePointers.ts, the cut counts in recallQuery in src/mneme/memoryVerbs.ts, or the header in RecallTool in src/tools/MemoryTools/MemoryTools.ts` : ''}`)
 }
 
 writeFileSync(join(HOME, '.mercury.json'), JSON.stringify({ hasCompletedOnboarding: true, numStartups: 3 }))

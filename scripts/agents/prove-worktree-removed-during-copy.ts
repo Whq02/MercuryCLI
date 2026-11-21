@@ -78,13 +78,13 @@ try {
     mkdirSync(place)
     const child = spawnSync(process.execPath, [import.meta.path, mode, action, place], { cwd: ROOT, env: process.env, encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' })
     const line = child.stdout.split('\n').find(row => row.startsWith('RESULT '))
-    check(`${mode}/${action}: the held copy finishes after the removal`, child.status === 0 && line !== undefined, child.stderr)
+    check(`${mode}/${action}: the held copy finishes after the removal`, child.status === 0 && line !== undefined, child.stderr + ' | the child process must exit 0 and print a RESULT line; read its stderr above, and look at the background copy that createAgentWorktree starts in src/services/worktree.ts')
     if (line === undefined) continue
     const result = JSON.parse(line.slice(7)) as { removed: boolean; rootKept: boolean; outsideKept: boolean; sourceKept: boolean; staged: string[]; failure: unknown }
-    check(`${mode}/${action}: the registered worktree was removed while the copy waited`, result.removed)
-    check(`${mode}/${action}: the removed or replaced root is left alone`, result.rootKept, line)
-    check(`${mode}/${action}: no clone or link is written through the replacement`, result.outsideKept, line)
-    check(`${mode}/${action}: the checkout stays whole and staging is discarded`, result.sourceKept && result.staged.length === 0 && result.failure === null, line)
+    check(`${mode}/${action}: the registered worktree was removed while the copy waited`, result.removed, 'the proof child could not remove the worktree with git worktree remove before the copy was released; read its RESULT line: ' + line)
+    check(`${mode}/${action}: the removed or replaced root is left alone`, result.rootKept, line + ' | the background copy of createAgentWorktree in src/services/worktree.ts must not recreate, fill or replace the worktree root after it was removed or replaced')
+    check(`${mode}/${action}: no clone or link is written through the replacement`, result.outsideKept, line + ' | the background copy in src/services/worktree.ts must check the worktree root is still the one it created before it writes a clone or link, and never write through a symlink or replacement directory')
+    check(`${mode}/${action}: the checkout stays whole and staging is discarded`, result.sourceKept && result.staged.length === 0 && result.failure === null, line + ' | when the root is gone or replaced, the copy in src/services/worktree.ts must leave the source node_modules intact, remove its .cloning-* staging folder, and report no prepareFailure')
   }
 } finally { process.chdir(ROOT); rmSync(scratch, { recursive: true, force: true }) }
 console.log(failures === 0 ? 'ALL PASS' : `${failures} FAILURE(S)`)

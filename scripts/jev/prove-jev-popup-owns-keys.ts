@@ -43,7 +43,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail.slice(0, 400)}; ` : ''}while a popup is open its keys must not reach the composer, the lanes rail or the interrupt ladder: see popupOwnsKeys in src/utils/cockpit/popupOwnsKeys.ts and the useInput handler of the popup body (src/components/Settings/Jev.tsx for /jev)` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

@@ -4,8 +4,9 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+const noticesFailHint = 'change THIRD_PARTY_NOTICES.md at the repository root through scripts/distribution/generate-third-party-notices.ts so it matches package.json, bun.lock and vendor/grammars.lock.json; the packager checks read scripts/release/package.mjs'
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  ${ok ? '✓' : '✗'} ${label}${ok ? '' : `${detail ? ` — ${detail}` : ''} — ${noticesFailHint}`}`)
   if (!ok) failures++
 }
 

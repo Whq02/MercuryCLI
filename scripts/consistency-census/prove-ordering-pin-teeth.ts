@@ -3,9 +3,9 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 const ROOT = join(import.meta.dir, '..', '..')
@@ -108,9 +108,9 @@ console.log('============================================================')
 console.log('§1 the scanner (unit-poisoned before the tree walk)')
 {
   const bare = "check('a before b', s.indexOf('a') < s.indexOf('b'))"
-  check('a bare `<` compare is flagged with its rot-able LEFT needle', bareOrderingCompares(bare).length === 1 && bareOrderingCompares(bare)[0]?.vulnerable === "s.indexOf('a')")
+  check('a bare `<` compare is flagged with its rot-able LEFT needle', bareOrderingCompares(bare).length === 1 && bareOrderingCompares(bare)[0]?.vulnerable === "s.indexOf('a')", '', 'fix bareOrderingCompares in this file: a bare < compare must report its left needle as vulnerable')
   const bareGt = "check('a after b', s.indexOf('a') > s.indexOf('b'))"
-  check('a bare `>` compare is flagged with its rot-able RIGHT needle', bareOrderingCompares(bareGt).length === 1 && bareOrderingCompares(bareGt)[0]?.vulnerable === "s.indexOf('b')")
+  check('a bare `>` compare is flagged with its rot-able RIGHT needle', bareOrderingCompares(bareGt).length === 1 && bareOrderingCompares(bareGt)[0]?.vulnerable === "s.indexOf('b')", '', 'fix bareOrderingCompares in this file: a bare > compare must report its right needle as vulnerable')
   check('the presence assert on the rot-able needle clears it', bareOrderingCompares("check('x', s.indexOf('a') !== -1 && s.indexOf('a') < s.indexOf('b'))").length === 0)
   check('a `> 0` / `>= 0` / `> -1` anchor clears it too', ['> 0', '>= 0', '> -1'].every(g => bareOrderingCompares(`check('x', s.indexOf('b') ${g} && s.indexOf('a') > s.indexOf('b'))`).length === 0))
   check('an `=== 0` position pin clears it (rot reads -1 there and fails the check itself)', bareOrderingCompares("check('x', s.indexOf('a') === 0 && s.indexOf('a') < s.indexOf('b'))").length === 0)
@@ -152,8 +152,8 @@ console.log('§2 the tree: every direct ordering compare under scripts/ is tooth
   console.log(`  census: ${compares} direct compares in ${filesWithCompares} files · ${judged.length} judged file(s)`)
   for (const j of judged) console.log(`  judged: ${j}`)
   for (const v of violations) console.log(`  BARE: ${v}`)
-  check('the census found the class (the shape is in use — the ratchet is not idle)', compares >= 60, `${compares}`)
-  check('ZERO bare ordering compares under scripts/ (a rotted needle can never read green)', violations.length === 0, `${violations.length} bare`)
+  check('the census found the class (the shape is in use — the ratchet is not idle)', compares >= 60, `${compares}`, 'the scan found fewer than 60 indexOf compares; fix COMPARE or walk in this file so the scripts/ tree is read')
+  check('ZERO bare ordering compares under scripts/ (a rotted needle can never read green)', violations.length === 0, `${violations.length} bare`, 'each BARE line above names a file:line; in that check add a presence assert on the rot-able needle (indexOf(x) !== -1) before the ordering compare')
 }
 
 console.log(failures === 0 ? '\nordering-pin teeth: ALL GREEN' : `\nordering-pin teeth: ${failures} FAILURE(S)`)

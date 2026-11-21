@@ -9,10 +9,13 @@ const HOME = join(SCRATCH, 'home')
 mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
+const HOME_HINT = 'change buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts so a session of the board folder (its .mercury spelling, alias and subfolders included) is a board row and never an elsewhere door; the grounding comes from applyHarnessGround in src/services/switchboard/harnessGround.ts and workerTranscriptPath in src/services/concourse/workerTranscript.ts'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + HOME_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')

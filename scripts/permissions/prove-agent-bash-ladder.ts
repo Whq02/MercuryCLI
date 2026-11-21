@@ -29,10 +29,16 @@ const { MERCURY_CREW_AGENT } = await import('../../src/tools/AgentTool/built-in/
 
 let failures = 0
 let checks = 0
+function ladderFixHint(label: string): string {
+  if (/ answers as /.test(label)) return 'fix: an agent must reach the same decision as its parent peer; compare the two cells and fix composeAgentAppState or resolveAgentPromptPosture in src/tools/AgentTool/agentPermissionPosture.ts, or the agent context built by contextFor in this file'
+  if (/ — (main|a prompt-less parent|a run|a daemon seat)$/.test(label)) return 'fix: the cell shows behavior, wrapper and engine; the decision comes from decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts and the Bash rules in src/tools/BashTool/bashPermissions.ts, so change the stage that answered differently, or the want in the ROWS entry in this file if the ladder was meant to change'
+  if (/keeps Bash|Crewmate tool|the one filter|read-only scout/.test(label)) return 'fix: the agent tool roster comes from resolveAgentTools and filterToolsForAgent in src/tools/AgentTool/agentToolUtils.ts and the definitions in src/tools/AgentTool/built-in/mercuryCrewAgent.ts and mercuryScoutAgent.ts'
+  return 'fix: the allow-rule merge and the prompt posture are withAllowedCommandRules, composeAgentAppState and resolveAgentPromptPosture in src/tools/AgentTool/agentPermissionPosture.ts; change the one this check names'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${ladderFixHint(label)}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -40,7 +46,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the ladder proof exceeded 120s (a row reached a live path?)')
+  console.log('\n❌ TIMEOUT — the ladder proof exceeded 120s (a row reached a live path?); find the row that never returned: decide() in this file awaits decideToolPermissionWithModes in src/utils/permissions/decision/wrapper.ts with defaultWrapperPorts, and only runHeadlessHooks is stubbed')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

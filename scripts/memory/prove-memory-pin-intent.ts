@@ -19,8 +19,8 @@ const { listTopicDocs } = await import('../../src/mneme/mnemeLibrary.ts')
 const { _resetMemoryVerbSessionStateForTesting, retainItems } = await import('../../src/mneme/memoryVerbs.ts')
 const dir = mnemeLibraryDir()
 let failures = 0
-function check(label: string, ok: boolean): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+function check(label: string, ok: boolean, detail = ''): void {
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `${detail ? ` ${detail}` : ''} (change the pin intent reading in src/mneme/memoryPinIntent.ts, latestPinIntent and pinIntentSpan, or the pin handling in RetainTool in src/tools/MemoryTools/MemoryTools.ts)`}`)
   if (!ok) failures++
 }
 async function pin(text: string | null, content: string, extra: Record<string, unknown> = {}) {

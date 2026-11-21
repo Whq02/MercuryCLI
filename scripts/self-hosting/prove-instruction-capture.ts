@@ -22,7 +22,7 @@ const check = (cond: boolean, msg: string, detail = ''): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
-    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  [FAIL] ${msg}${detail ? ` — ${detail}` : ''} | change captureProjectInstruction in src/services/instructions/projectInstructionWriter.ts (the RecordConvention tool in src/tools/RecordConventionTool/RecordConventionTool.ts calls it; the BOM checks read parseInstructionFileContent in src/services/instructions/sourceText.ts)`)
   }
 }
 

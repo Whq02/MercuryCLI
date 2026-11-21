@@ -14,11 +14,26 @@ delete process.env.MERCURY_LOCAL_BASE_URL
 delete process.env.MERCURY_LOCAL_API_KEY
 
 let failures = 0
+const sectionFixHints: Record<string, string> = {
+  '0': 'the four files under src/services/localServer/ must import cleanly',
+  '1': 'fix the reader readLocalServerTruth in src/services/localServer/localServerTruth.ts',
+  '2': 'fix the reader readLocalServerTruth in src/services/localServer/localServerTruth.ts',
+  '3': 'fix the parser named in the label in src/services/localServer/localServerTruth.ts',
+  '4': 'fix the arithmetic named in the label in src/services/localServer/localServerMemory.ts',
+  '5': 'fix src/services/localServer/localServerKnobs.ts (for the settings registry checks, the local.server setting in src/utils/settings/types.ts and scripts/settings/settings-schema.json)',
+  '6': 'fix planLocalServerApply or applyLocalServerPlan in src/services/localServer/localServerApply.ts',
+  '8': 'fix the app road in src/services/localServer/localServerApply.ts',
+  '9': 'fix the memory-fit refusal in planLocalServerApply (src/services/localServer/localServerApply.ts) or fitVerdict (src/services/localServer/localServerKnobs.ts)',
+  '10': 'fix the snapshot cache (refreshLocalServerTruth, cachedLocalServerTruth, subscribeLocalServerTruth) in src/services/localServer/localServerTruth.ts',
+}
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionFixHint ? ` — ${sectionFixHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${hint}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 function finish(): never {

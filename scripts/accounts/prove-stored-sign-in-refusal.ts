@@ -33,6 +33,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = '') {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('    fix: the refusal is recorded by refreshDeepseekCatalogue in src/services/providers/deepseek/deepseekCatalogue.ts and shown by composeSignInView and summarizeSignInView in src/daemon/signInView.ts, loginsRowStateOf in src/components/BootLoginsScreen.tsx, computedDefault in src/services/model/computedDefault.ts and authStatus in src/cli/handlers/auth.ts; the daemon and health checks need a fresh dist/mercury.mjs (bun run build.ts)')
 }
 const view = () => composeSignInView({ refresh: true })
 const chip = () => loginsRowStateOf(loginsCatalogue().find(row => row.familyId === 'deepseek')!, collectLoginsScreenFacts()).chip

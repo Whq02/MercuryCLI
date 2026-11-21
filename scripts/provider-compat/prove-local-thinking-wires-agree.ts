@@ -13,11 +13,24 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
+const thinkingWireFixHint = 'make /v1 and /api/chat agree: compare localThinkingOff and buildLocalExtras in src/services/providers/openaicompat/compatWire.ts with ollamaThinkingValue and localModelAcceptsEffort in src/services/providers/local/localCallModel.ts, and the stamp in src/services/providers/openaicompat/compatChatCallModel/attempt.ts and src/utils/effortStamp.ts'
+const sectionFixHints: Record<string, string> = {
+  '1': 'the record shape or road is wrong: check localModelAcceptsEffort in src/services/providers/local/localCallModel.ts and ollamaChatUrl in src/services/providers/local/ollamaChatTransport.ts',
+  '2': thinkingWireFixHint,
+  '3': thinkingWireFixHint,
+  '4': thinkingWireFixHint,
+  '5': thinkingWireFixHint,
+  '6': thinkingWireFixHint,
+  '7': 'a wire leaked the other spelling or a request bypassed /api/chat: check buildLocalExtras in src/services/providers/openaicompat/compatWire.ts and the Ollama dispatch in src/services/providers/openaicompat/compatChatCallModel',
+}
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionFixHint ? ` — ${sectionFixHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${hint}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 

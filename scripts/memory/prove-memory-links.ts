@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the lift, usage flow or ruling lookup in src/mneme/mnemeLinks.ts (liftLinked, recallUsage, currentRuling, rulingLinkedIds), or Recall in src/mneme/memoryVerbs.ts (recallQuery)` : ''}`)
   if (!cond) failures++
 }
 

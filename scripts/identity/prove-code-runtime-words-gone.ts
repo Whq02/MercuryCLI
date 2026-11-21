@@ -27,6 +27,6 @@ for (const rel of files) {
   const text = readFileSync(join(root, rel), 'utf8').toLowerCase()
   if (forbidden.some(word => text.includes(word) || rel.toLowerCase().includes(word))) hits.push(rel)
 }
-console.log(`  [${hits.length ? 'FAIL' : 'PASS'}] one code-runtime vocabulary${hits.length ? ` — ${hits.join(', ')}` : ''}`)
+console.log(`  [${hits.length ? 'FAIL' : 'PASS'}] one code-runtime vocabulary${hits.length ? ` — ${hits.join(', ')} · each listed file contains a spelling from CODE_TOOL_SPELLINGS in scripts/identity/forbidden-code-tool.ts; reword it there` : ''}`)
 console.log(hits.length ? 'code runtime identity: FAILED' : 'code runtime identity: ALL PASS')
 process.exit(hits.length ? 1 : 0)

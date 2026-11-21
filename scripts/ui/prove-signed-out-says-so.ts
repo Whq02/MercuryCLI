@@ -17,7 +17,8 @@ const SIGNED_OUT_ANSWER = 'choose a model · /model'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 700) : ''}`)
+  const failHint = cond ? '' : ' | to fix: the sign-in state words are in src/services/accounts/sessionSignIn.ts, and the screens that show them are the gate-watch files at the top of this proof (src/components/MercuryHome.tsx, SwitchboardTagBar.tsx, BootSplashScreen.tsx)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 700) : ''}${failHint}`)
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const arg = (key: string): string | undefined => (process.argv.includes(key) ? process.argv[process.argv.indexOf(key) + 1] : undefined)

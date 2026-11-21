@@ -18,7 +18,13 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${deadExportsFixHint(label)}`}`)
+}
+function deadExportsFixHint(label: string): string {
+  if (label.startsWith('zero unread declarations')) return 'fix: delete each listed unused import, local, function or type from its file under src/ (--report lists them all)'
+  if (label.startsWith('zero exports nothing imports')) return 'fix: delete each listed unimported export from its file, or import it where it is used (the census is runCensus in scripts/orphans/exportCensus.ts)'
+  if (label.startsWith('zero schema keys')) return 'fix: delete each listed key from src/utils/config/schema.ts, or read it by name somewhere under src/'
+  return 'fix: the checker under test is collectUnusedDeclarations, schemaKeys and unreadKeys in scripts/orphans/prove-dead-exports.ts; the allow list ALLOW in the same file takes an entry only with a reason of 40 or more characters and leaves when the name is read'
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

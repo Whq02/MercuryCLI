@@ -3,8 +3,10 @@ import { join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+let failHint = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, failHint].filter(Boolean).join('; ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
@@ -19,6 +21,7 @@ const { marked } = await import('marked')
 
 section('§1 the fence ledger over a discarded prefix')
 {
+  failHint = 'change openFenceOf in src/components/LiveStreamingTail.tsx so the fence still open at the end of the prefix is returned (opener without indent) and closed or absent fences return null'
   check('an unclosed backtick fence stands, info string kept', openFenceOf('prose\n```ts\nconst a = 1') === '```ts')
   check('a closed pair stands down', openFenceOf('```ts\ncode\n```\nprose') === null)
   check('an unclosed tilde fence stands', openFenceOf('~~~python\nx = 1') === '~~~python')
@@ -33,6 +36,7 @@ section('§1 the fence ledger over a discarded prefix')
 
 section('§2 the bound returns the standing opener beside the untouched slice')
 {
+  failHint = 'change boundTailForInline and openFenceBefore in src/components/LiveStreamingTail.tsx so a cut returns the raw suffix plus the fence open at the cut, and an uncut tail returns openFence null'
   const lines = ['intro prose', '```ts', ...Array.from({ length: 12 }, (_, i) => `const v${i} = ${i} // #${i}`), '- not a bullet', '# not a heading']
   const text = lines.join('\n')
   const out = boundTailForInline(text, 10, 84)
@@ -47,6 +51,7 @@ section('§2 the bound returns the standing opener beside the untouched slice')
 
 section('§3 the dress, through the renderer’s own lexer')
 {
+  failHint = 'change boundTailForInline in src/components/LiveStreamingTail.tsx so the openFence it returns, placed before the kept text, makes marked lex the slice as one code block'
   const lines = ['```ts', ...Array.from({ length: 12 }, (_, i) => `# line_${i}`)]
   const text = lines.join('\n')
   const out = boundTailForInline(text, 10, 84)
@@ -66,6 +71,7 @@ section('§3 the dress, through the renderer’s own lexer')
 
 section('§4 the parity control — the kept text is untouched by the carry')
 {
+  failHint = 'change boundTailForInline in src/components/LiveStreamingTail.tsx so the kept text stays a raw suffix of the input and the fence travels only in openFence'
   const rand = ((): (() => number) => {
     let s = 0x5eed2
     return () => {

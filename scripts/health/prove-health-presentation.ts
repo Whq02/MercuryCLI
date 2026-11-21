@@ -5,11 +5,22 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO ??= { VERSION: '1.0.0' }
 
 let failures = 0
+let presentationHint = ''
+const presentationHintOf = (title: string): string => {
+  if (title.startsWith('§1') || title.startsWith('§2') || title.startsWith('§3')) return 'change resolveHealthPresentation, renderPlainCertificate or writeOutAndExit in src/cli/healthPresentation.ts'
+  if (title.startsWith('§6')) return 'change settingsChecks in src/services/health/sections/settings.ts'
+  if (title.startsWith('§7')) return 'change the health rows in src/services/health/sections.ts and the sections it lists, or the health command help the built bundle prints'
+  return ''
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failureText = [detail, cond ? '' : presentationHint].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${failureText ? ' — ' + failureText : ''}`)
   if (!cond) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  presentationHint = presentationHintOf(t)
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 
 const { resolveHealthPresentation, renderPlainCertificate } = await import(
   '../../src/cli/healthPresentation.ts'

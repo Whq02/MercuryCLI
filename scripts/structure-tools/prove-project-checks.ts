@@ -14,15 +14,18 @@ const { parseRunnerCases, changedRunnerSelection, discoverRunnerProfiles, runRun
 )
 
 let failures = 0
+let failHint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, failHint].filter(Boolean).join('; ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
 }
 function section(name: string): void {
   console.log(`\n${name}`)
 }
 
 section('P. typed failure rows per runner')
+failHint = 'change parseRunnerCases (the parser for this runner) in src/services/ide/projectRunners.ts so it returns the failing test name, file, line and message'
 {
   const tap = [
     'TAP version 13',
@@ -115,6 +118,7 @@ section('P. typed failure rows per runner')
 }
 
 section('C. changed-file-focused selection')
+failHint = 'change changedRunnerSelection (the branch for this runner) in src/services/ide/projectRunners.ts to focus on the changed files or decline with the expected reason'
 function gitRepo(files: Record<string, string>): string {
   const dir = mkdtempSync(join(tmpdir(), 'lathe-f3-repo-'))
   for (const [rel, content] of Object.entries(files)) {
@@ -197,6 +201,7 @@ function gitRepo(files: Record<string, string>): string {
 }
 
 section('E. live node --test run (streamed progress + typed failure)')
+failHint = 'change runRunnerProfile in src/services/ide/projectRunners.ts so the run record carries streamed output, parsed counts, typed failing cases, the command and the artifact ref'
 {
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }),
@@ -239,6 +244,7 @@ section('E. live node --test run (streamed progress + typed failure)')
 }
 
 section('W. green-run honesty + vitest rerun-by-name')
+failHint = 'change runRunnerProfile (green run keeps no failures or cases) or rerunRunnerFailures (vitest uses -t with the case name) in src/services/ide/projectRunners.ts'
 {
   const dir = gitRepo({
     'package.json': JSON.stringify({ name: 'f', private: true, scripts: { test: 'node --test' } }),
@@ -287,6 +293,7 @@ section('W. green-run honesty + vitest rerun-by-name')
 }
 
 section('R. cargo failing → passing (real toolchain when present)')
+failHint = 'change runRunnerProfile or the cargo branch of parseRunnerCases in src/services/ide/projectRunners.ts so a failing cargo test is red with file:line and the fixed one green'
 {
   const hasCargo = (process.env.PATH ?? '').split(':').some(d => d.length > 0 && existsSync(join(d, 'cargo')))
   if (!hasCargo) {

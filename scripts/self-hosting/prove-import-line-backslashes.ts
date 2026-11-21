@@ -122,7 +122,7 @@ let passed = 0
 let failed = 0
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)} | change parseInstructionFileContent in src/services/instructions/sourceText.ts (how an @ path is read) or processInstructionFile in src/services/instructions/discovery.ts (an import held as external-import-blocked)` : ''}`)
 }
 
 type Seam = (typeof SEAMS)[number]

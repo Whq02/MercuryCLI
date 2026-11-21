@@ -9,10 +9,11 @@ import { seedScratchHome } from '../lib/scriptedTurn.ts'
 
 let failures = 0
 let checks = 0
+const budgetRuleHint = 'to fix, change the stop before a model call (inputFloorUsd in src/rows/turn/modelRows.ts) or its sentences (budgetCannotPaySentence and the budget_limit line in src/rows/vocabulary.ts), then rebuild dist'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${budgetRuleHint}${detail ? `: ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}\n${'─'.repeat(76)}`)

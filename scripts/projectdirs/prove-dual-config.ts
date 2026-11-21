@@ -12,11 +12,12 @@ import { getProjectDirsUpToHome } from '../../src/utils/markdownConfigLoader.js'
 import { loadProjectWards } from '../../src/guards/wardsGuard.js'
 
 let failures = 0
+const HOME_RESOLVER_FIX = 'change the resolver this check names so only the .mercury home is ever returned, read or listed: projectLocalPath in src/utils/projectLocal/paths.ts, resolveProjectConfigPath / projectConfigCandidates / projectConfigDirs in src/utils/projectConfig.ts, getProjectDirsUpToHome in src/utils/markdownConfigLoader.ts, loadProjectWards in src/guards/wardsGuard.ts'
 const check = (cond: boolean, msg: string): void => {
   if (cond) console.log(`  [PASS] ${msg}`)
   else {
     failures++
-    console.error(`  [FAIL] ${msg}`)
+    console.error(`  [FAIL] ${msg} — ${HOME_RESOLVER_FIX}`)
   }
 }
 

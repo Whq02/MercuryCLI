@@ -30,7 +30,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const repairHint = 'fix the painter: src/ink/ink.tsx (repaintAltScreen, armScreenWatchdog, onRender), src/ink/ink/alt-screen.ts, src/ink/ink/resize.ts (handleWinch, handleResize), and src/ink/frame-writer.ts for the clearTerminal reasons'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail ? `${detail} · ` : ''}${repairHint}`}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

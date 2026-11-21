@@ -53,10 +53,11 @@ const { vshotBudgetMs } = await import('../lib/captureDriver.ts')
 
 let failures = 0
 let checks = 0
+const QUEUED_PING_FIX = 'fix the turn-completion path this check exercises: DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts, the worker stamps read in src/daemon/concourseWorkers.ts, or the ping hook useTurnEndPing in src/hooks/useTurnEndPing.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${QUEUED_PING_FIX}` : ''}`)
 }
 
 async function wait(ms: number, stopWhen?: () => boolean): Promise<void> {

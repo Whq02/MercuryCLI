@@ -14,14 +14,19 @@ type Events = Array<Row & { kind: string }>
 
 let failures = 0
 let checks = 0
+let currentSectionTitle = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const where = ` | change the step this section names, in src/run-core/turn (section: ${currentSectionTitle})`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? where : ''}`)
 }
-const section = (title: string): void => console.log('\n' + '─'.repeat(76) + '\n' + title)
+const section = (title: string): void => {
+  currentSectionTitle = title
+  console.log('\n' + '─'.repeat(76) + '\n' + title)
+}
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the turn steps exceeded 180s')
+  console.log('\nTIMEOUT — the turn steps exceeded 180s; a planted step never decided, last section: ' + currentSectionTitle + ' (steps live in src/run-core/turn)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

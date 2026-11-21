@@ -18,7 +18,7 @@ delete process.env.CI
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — Change controlCharacterPathRefusal, hasControlCharacter or CONTROL_PATH_MESSAGE in src/utils/path.ts, or the named tool's validateInput (for Read, src/tools/FileReadTool/read/validate.ts) so it calls controlCharacterPathRefusal before any filesystem access${detail ? `. ${detail}` : ''}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 

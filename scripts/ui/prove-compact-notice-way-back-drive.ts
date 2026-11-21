@@ -64,7 +64,7 @@ for (const [cols, rows] of [[80, 21], [80, 24]] as const) {
   const off = await capture(`compact-notice-off-${tag}`, cols, rows, false)
   try {
     const landed = ['idle', 'notice', 'later'].every(label => on.marks.has(label) && off.marks.has(label))
-    check(`${tag}: both boots painted the chat, the notice and its clearing (engine exit 0)`, on.status === 0 && off.status === 0 && landed, `on exit=${on.status} off exit=${off.status}; ${on.log} ${off.log}`)
+    check(`${tag}: both boots painted the chat, the notice and its clearing (engine exit 0)`, on.status === 0 && off.status === 0 && landed, `a capture did not reach the idle, notice and later marks (rebuild dist with bun run build.ts, and read the engine logs named by the captured paths); on exit=${on.status} off exit=${off.status}; ${on.log} ${off.log}`)
     const onIdle = on.marks.get('idle')
     const onNotice = on.marks.get('notice')
     const onLater = on.marks.get('later')
@@ -78,21 +78,21 @@ for (const [cols, rows] of [[80, 21], [80, 24]] as const) {
     const onRow = onRows[last] ?? ''
     const offRow = offRows[last] ?? ''
     const keep = cols - 2 - stringWidth(WAY_BACK)
-    check(`${tag}: the notice leads the bottom row in both states`, onRow.startsWith(NOTICE_HEAD) && offRow.startsWith(NOTICE_HEAD), `${JSON.stringify(onRow)} / ${JSON.stringify(offRow)}`)
-    check(`${tag}: with the setting off the notice takes the whole row, cut at the width with an ellipsis and no way back`, offRow.length === cols && offRow.endsWith('…') && !offRow.includes(WAY_BACK), JSON.stringify(offRow))
+    check(`${tag}: the notice leads the bottom row in both states`, onRow.startsWith(NOTICE_HEAD) && offRow.startsWith(NOTICE_HEAD), `the bottom row of the compact chat must start with the Set model to notice in both states; rows on / off: ${JSON.stringify(onRow)} / ${JSON.stringify(offRow)}`)
+    check(`${tag}: with the setting off the notice takes the whole row, cut at the width with an ellipsis and no way back`, offRow.length === cols && offRow.endsWith('…') && !offRow.includes(WAY_BACK), 'with settings context.wayBack false the notice must fill the bottom row, cut with an ellipsis and no way back hint; row: ' + JSON.stringify(offRow))
     check(
       `${tag}: with the way back kept, the row is the notice cut to ${keep} columns with an ellipsis, two blank columns, then the way back at the row's right end`,
       onRow.length === cols && onRow.slice(0, keep - 1) === offRow.slice(0, keep - 1) && onRow[keep - 1] === '…' && onRow.slice(keep, keep + 2) === '  ' && onRow.slice(keep + 2) === WAY_BACK,
-      JSON.stringify(onRow),
+      'with the way back kept the bottom row must be the cut notice, two spaces, then the way back flush right; row: ' + JSON.stringify(onRow),
     )
     const hintAt = cols - stringWidth(WAY_BACK)
-    check(`${tag}: the way back wears the ink the idle row paints it in`, inkOf((onNotice.grid[last] ?? []).slice(hintAt)) === inkOf((onIdle.grid[last] ?? []).slice(hintAt)), inkOf((onNotice.grid[last] ?? []).slice(hintAt)))
-    check(`${tag}: the notice wears the ink the counts wear`, inkOf((onNotice.grid[last] ?? []).slice(0, 1)) === inkOf((onIdle.grid[last] ?? []).slice(0, 1)), inkOf((onNotice.grid[last] ?? []).slice(0, 1)))
+    check(`${tag}: the way back wears the ink the idle row paints it in`, inkOf((onNotice.grid[last] ?? []).slice(hintAt)) === inkOf((onIdle.grid[last] ?? []).slice(hintAt)), 'the way back hint must keep the colours it has on the idle row while a notice shows; notice ink: ' + inkOf((onNotice.grid[last] ?? []).slice(hintAt)))
+    check(`${tag}: the notice wears the ink the counts wear`, inkOf((onNotice.grid[last] ?? []).slice(0, 1)) === inkOf((onIdle.grid[last] ?? []).slice(0, 1)), 'the notice must keep the colours the counts have on the idle row; notice ink: ' + inkOf((onNotice.grid[last] ?? []).slice(0, 1)))
     const maskSwitchClock = (row: string): string => row.replace(/(Model now:[^\n]*· )\d{2}:\d{2}/, '$1HH:MM')
-    check(`${tag}: every row above the bottom row is the same in both states`, onRows.slice(0, last).map(maskSwitchClock).join('|') === offRows.slice(0, last).map(maskSwitchClock).join('|'), trimmed(onRows).filter((r, i) => maskSwitchClock(r) !== maskSwitchClock((offRows[i] ?? '').replace(/\s+$/, ''))).slice(0, 3).join(' | '))
+    check(`${tag}: every row above the bottom row is the same in both states`, onRows.slice(0, last).map(maskSwitchClock).join('|') === offRows.slice(0, last).map(maskSwitchClock).join('|'), trimmed(onRows).filter((r, i) => maskSwitchClock(r) !== maskSwitchClock((offRows[i] ?? '').replace(/\s+$/, ''))).slice(0, 3).join(' | ') ? 'only the bottom row may differ between context.wayBack on and off; differing rows (on state): ' + trimmed(onRows).filter((r, i) => maskSwitchClock(r) !== maskSwitchClock((offRows[i] ?? '').replace(/\s+$/, ''))).slice(0, 3).join(' | ') : '')
     const laterRow = textRows(onLater.grid)[last] ?? ''
-    check(`${tag}: the counts return beside the way back when the notice clears`, laterRow.startsWith(IDLE_COUNTS) && laterRow.trimEnd().endsWith(WAY_BACK) && !laterRow.includes(NOTICE_HEAD), JSON.stringify(laterRow.trimEnd()))
-    check(`${tag}: the drives stayed on loopback`, nonLoopback(netlines(on.leg.netlog)).length === 0 && nonLoopback(netlines(off.leg.netlog)).length === 0)
+    check(`${tag}: the counts return beside the way back when the notice clears`, laterRow.startsWith(IDLE_COUNTS) && laterRow.trimEnd().endsWith(WAY_BACK) && !laterRow.includes(NOTICE_HEAD), 'once the notice clears the bottom row must show the idle counts with the way back at the right; row: ' + JSON.stringify(laterRow.trimEnd()))
+    check(`${tag}: the drives stayed on loopback`, nonLoopback(netlines(on.leg.netlog)).length === 0 && nonLoopback(netlines(off.leg.netlog)).length === 0, 'a drive reached a non-loopback host; keep both sessions on the mock server of startLeg')
   } finally {
     await endLeg(on.leg)
     await endLeg(off.leg)

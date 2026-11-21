@@ -70,7 +70,7 @@ for (const name of THEMES) {
     if (theme.themeColorToAnsi(c) === bulletEsc(c)) agree++
   }
 }
-check(`FIXED chart series === legend bullet for ALL ${total} (theme × field) cells`, agree === total, `${agree}/${total}`)
+check(`FIXED chart series === legend bullet for ALL ${total} (theme × field) cells`, agree === total, `themeColorToAnsi in src/utils/theme.ts must give the same escape as applyColor in src/ink/colorize.ts; ${agree}/${total}`)
 
 const ansiCases = ['ansi:red', 'ansi:blueBright']
 let oldDesynced = 0
@@ -79,23 +79,23 @@ for (const c of ansiCases) {
   if (oldChartEsc(c) !== bulletEsc(c)) oldDesynced++
   if (theme.themeColorToAnsi(c) === bulletEsc(c)) newAgreed++
 }
-check('the OLD rgb/hex-only chart path DESYNCED on ansi: colors (magenta vs the real color)', oldDesynced === ansiCases.length)
-check('the NEW colorize path AGREES with the legend on those same ansi: colors', newAgreed === ansiCases.length)
-check('the OLD chart path actually returned the magenta fallback for an ansi: color', oldChartEsc('ansi:blueBright') === '\x1b[35m')
-check('the NEW chart path does NOT return magenta for that ansi: color', theme.themeColorToAnsi('ansi:blueBright') !== '\x1b[35m')
+check('the OLD rgb/hex-only chart path DESYNCED on ansi: colors (magenta vs the real color)', oldDesynced === ansiCases.length, 'the old-path stand-in oldChartEsc in this script no longer differs from applyColor in src/ink/colorize.ts for ansi: colors; check applyColor')
+check('the NEW colorize path AGREES with the legend on those same ansi: colors', newAgreed === ansiCases.length, 'themeColorToAnsi in src/utils/theme.ts must delegate to colorize in src/ink/colorize.ts so ansi: colors match the legend bullet')
+check('the OLD chart path actually returned the magenta fallback for an ansi: color', oldChartEsc('ansi:blueBright') === '\x1b[35m', 'oldChartEsc in this script must return the magenta fallback for an ansi: color; the stand-in was edited')
+check('the NEW chart path does NOT return magenta for that ansi: color', theme.themeColorToAnsi('ansi:blueBright') !== '\x1b[35m', 'themeColorToAnsi in src/utils/theme.ts must not fall back to magenta; it must delegate to colorize in src/ink/colorize.ts')
 
 for (const channel of ['foreground', 'background'] as const) {
   for (const name of ['not-a-color', ...Object.getOwnPropertyNames(Object.prototype)]) {
     const color = `ansi:${name}`
     try {
-      check(`${channel} ignores invalid ${color}`, colorizeMod.colorize('X', color, channel) === 'X')
+      check(`${channel} ignores invalid ${color}`, colorizeMod.colorize('X', color, channel) === 'X', 'colorize in src/ink/colorize.ts must return the text unchanged for an unknown ansi: name')
     } catch (error) {
-      check(`${channel} ignores invalid ${color}`, false, String(error))
+      check(`${channel} ignores invalid ${color}`, false, 'colorize in src/ink/colorize.ts must not throw for an unknown ansi: name; ' + String(error))
     }
   }
 }
-check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'foreground') === '\x1b[31mX\x1b[39m')
-check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m')
+check('named foreground keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'foreground') === '\x1b[31mX\x1b[39m', 'colorize in src/ink/colorize.ts must wrap ansi:red foreground in 31m and 39m')
+check('named background keeps its escape bytes', colorizeMod.colorize('X', 'ansi:red', 'background') === '\x1b[41mX\x1b[49m', 'colorize in src/ink/colorize.ts must wrap ansi:red background in 41m and 49m')
 
 section('behaviour: NO_COLOR (chalk level 0) — no magenta leak, chart === legend')
 const childScript =
@@ -125,9 +125,9 @@ for (const color of colorsL0) {
   if (!series.includes('\x1b[35m') && !series.includes('[35m')) noLeak++
   if (series === bullet) agreeL0++
 }
-check('at NO_COLOR, the chart series leaks NO magenta for any color', colorsL0.length > 0 && noLeak === colorsL0.length, `${noLeak}/${colorsL0.length}`)
-check('at NO_COLOR, the chart series === the legend bullet (both bare) for every color', colorsL0.length > 0 && agreeL0 === colorsL0.length, `${agreeL0}/${colorsL0.length}`)
-check('at NO_COLOR, a valid color yields an EMPTY escape (matches the old chalkForChart)', parsed['#DE4A35']?.series === '')
+check('at NO_COLOR, the chart series leaks NO magenta for any color', colorsL0.length > 0 && noLeak === colorsL0.length, `themeColorToAnsi in src/utils/theme.ts must give no escape at NO_COLOR; ${noLeak}/${colorsL0.length}`)
+check('at NO_COLOR, the chart series === the legend bullet (both bare) for every color', colorsL0.length > 0 && agreeL0 === colorsL0.length, `themeColorToAnsi in src/utils/theme.ts and applyColor in src/ink/colorize.ts must agree at NO_COLOR; ${agreeL0}/${colorsL0.length}`)
+check('at NO_COLOR, a valid color yields an EMPTY escape (matches the old chalkForChart)', parsed['#DE4A35']?.series === '', 'themeColorToAnsi in src/utils/theme.ts must return an empty string at NO_COLOR for a valid color')
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

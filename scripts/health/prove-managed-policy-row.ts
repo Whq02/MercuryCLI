@@ -10,8 +10,10 @@ delete process.env.MERCURY_HOME
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const POLICY_ROW_HINT = 'change managedPolicyCheck in src/services/health/sections/settings/sources.ts (the managed-policy row: its status, evidence and fix)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const failureText = [detail, POLICY_ROW_HINT].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ' — ' + failureText : ''}`)
   if (!cond) failures++
 }
 

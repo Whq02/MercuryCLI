@@ -22,10 +22,11 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
 let count = 0
+const restartLedgerHint = 'fix rebuildSeenLinesFromTranscript, wholeFileSeen or seenLinesOf in src/services/changeTransaction/seenLines.ts, or the unread refusal of validateInput in src/tools/FileEditTool/FileEditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${restartLedgerHint}${detail ? ` — ${detail.slice(0, 500)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -17,16 +17,30 @@ for (const key of ['MERCURY_HOME', 'MERCURY_BARE', 'TYPESAFE_API_KEY', 'https_pr
 let failures = 0
 let checks = 0
 const watchdog = setTimeout(() => {
-  console.log('FATAL: prover watchdog (120s) — treat as failure')
+  console.log('FATAL: prover watchdog (120s) — treat as failure; a stop, judge call or card write never settled: look in src/guards/mission.ts (judgeTurnEnd road) and src/services/mission/goalJudge.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()
+const goalSectionHints: Record<string, string> = {
+  '§1': 'to fix, change the mission command and its goal alias under src/commands/mission',
+  '§2': 'to fix, change compileGoal in src/services/mission/goal.ts or buildMissionDirective in src/guards/mission.ts',
+  '§3': 'to fix, change the stop judgement and the itemised-close rule in src/guards/mission.ts or the judge in src/services/mission/goalJudge.ts',
+  '§4': 'to fix, change the judge road in src/services/mission/goalJudge.ts or the stop judgement in src/guards/mission.ts',
+  '§5': 'to fix, change the pause and question handling in src/guards/mission.ts or the card in src/utils/mission/missionCard.ts',
+  '§6': 'to fix, change the /mission output in src/commands/mission/mission.ts or judgePrompt and toolTally in src/services/mission/goalJudge.ts',
+  '§7': 'to fix, change syncMissionFromCard in src/guards/mission.ts or the card write in src/utils/mission/missionCard.ts',
+  '§8': 'to fix, change lastLineOf in src/components/concourse/liveTiles.ts or tailActivity in src/services/concourse/concourseSnapshot.ts',
+  '§9': 'to fix, change readJudgeAnswer, verdictOfAnswer or judgeWithModel in src/services/mission/goalJudge.ts',
+}
+let goalSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const goalHint = goalSectionHints[goalSection]
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && (detail || goalHint) ? ` — ${[detail ? detail.slice(0, 600) : '', goalHint ?? ''].filter(Boolean).join(' — ')}` : ''}`)
 }
 function section(t: string): void {
+  goalSection = t.slice(0, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)

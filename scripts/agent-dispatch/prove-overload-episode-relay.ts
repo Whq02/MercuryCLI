@@ -13,6 +13,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    fix: the episode, probe cadence and wording are in src/tasks/LocalAgentTask/agentOverload.ts; the pause row is src/tasks/LocalAgentTask/agentPause.ts; overloadPauseOf and the pause and eviction of a lane are in src/tasks/LocalAgentTask/LocalAgentTask.tsx; armOverloadProbe and overloadBudgetCutOf are in src/tools/AgentTool/agentToolUtils.ts; sweep eviction is src/utils/task/framework.ts')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

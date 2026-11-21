@@ -39,7 +39,7 @@ else {
     threw = error
   }
   chmodSync(path, 0o600)
-  check('an unreadable collision file keeps its rows after a record call', readFileSync(path, 'utf8') === before, `${readFileSync(path, 'utf8').slice(0, 120)} ${threw}`)
+  check('an unreadable collision file keeps its rows after a record call', readFileSync(path, 'utf8') === before, `${readFileSync(path, 'utf8').slice(0, 120)} ${threw} — recordCollisionEvidence in src/daemon/concourseWorkers/collisions.ts must not rewrite a collisions file it could not read`)
 }
 
 console.log('git-init asks: an unreadable sidecar is not written over')
@@ -54,7 +54,7 @@ else {
   const minted = mintGitInitAsk(folder)
   chmodSync(sidecar, 0o600)
   if ('refused' in minted) skip('git-init sidecar kept', `the folder was refused: ${minted.refused.words}`)
-  else check('an unreadable git-init sidecar keeps its asks after a mint', readFileSync(sidecar, 'utf8') === before, readFileSync(sidecar, 'utf8').slice(0, 120))
+  else check('an unreadable git-init sidecar keeps its asks after a mint', readFileSync(sidecar, 'utf8') === before, `${readFileSync(sidecar, 'utf8').slice(0, 120)} — mintGitInitAsk in src/daemon/permissionAsks.ts must not write over a sidecar it could not read`)
 }
 
 console.log('control key: a key that cannot be read is not taken for absent')
@@ -63,7 +63,7 @@ else {
   const cs = await import('../../src/daemon/controlSocket.js')
   const keyPath = cs.controlKeyPath()
   writeFileSync(keyPath, 'live-key', { mode: 0o600 })
-  check('a readable key is read', (await cs.readLiveControlKey()) === 'live-key')
+  check('a readable key is read', (await cs.readLiveControlKey()) === 'live-key', 'readLiveControlKey in src/daemon/controlSocket.ts must return the key stored at controlKeyPath()')
   chmodSync(keyPath, 0o000)
   let threw: unknown
   let got: unknown = 'none'
@@ -73,11 +73,11 @@ else {
     threw = error
   }
   chmodSync(keyPath, 0o600)
-  check('an unreadable key is an error, not "no key"', (threw as NodeJS.ErrnoException | undefined)?.code === 'EACCES', `got ${String(got)}`)
-  check('the unreadable key file is left as it was', readFileSync(keyPath, 'utf8') === 'live-key')
+  check('an unreadable key is an error, not "no key"', (threw as NodeJS.ErrnoException | undefined)?.code === 'EACCES', `got ${String(got)} — readLiveControlKey in src/daemon/controlSocket.ts must rethrow EACCES, not return null`)
+  check('the unreadable key file is left as it was', readFileSync(keyPath, 'utf8') === 'live-key', 'readLiveControlKey in src/daemon/controlSocket.ts must not delete or rewrite a key file it could not read')
   const { unlinkSync } = await import('node:fs')
   unlinkSync(keyPath)
-  check('an absent key reads as null', (await cs.readLiveControlKey()) === null)
+  check('an absent key reads as null', (await cs.readLiveControlKey()) === null, 'readLiveControlKey in src/daemon/controlSocket.ts must return null when the key file does not exist')
 }
 
 console.log('fresh sign-in restart: a failed ask is asked again')
@@ -102,9 +102,9 @@ console.log('fresh sign-in restart: a failed ask is asked again')
   }
   const first = await ownedMod.restartOwnedDaemonForFreshSignin({ rpc: failing })
   const second = await ownedMod.restartOwnedDaemonForFreshSignin({ rpc: answering })
-  check('the ask that failed is made again on the next landing', asks === 2 && second === 'asked', `first ${first} second ${second} asks ${asks}`)
+  check('the ask that failed is made again on the next landing', asks === 2 && second === 'asked', `first ${first} second ${second} asks ${asks} — restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must not mark a failed ask as made`)
   const third = await ownedMod.restartOwnedDaemonForFreshSignin({ rpc: answering })
-  check('an ask that was answered is not made again', third === 'not-applicable' && asks === 2)
+  check('an ask that was answered is not made again', third === 'not-applicable' && asks === 2, `third ${third} asks ${asks} — restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must mark an answered ask as made`)
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ spawnLabel: null })
 }
 
@@ -113,13 +113,13 @@ if (!POSIX_MODES) skip('build hold unreadable', 'no file modes here')
 else {
   const { holdBuild } = await import('../../src/daemon/daemonBuild.js')
   const absentDir = mkdtempSync(join(tmpdir(), 'faults-fo01-build-'))
-  check('a build folder with no manifest answers no-manifest', holdBuild(absentDir) === 'no-manifest')
+  check('a build folder with no manifest answers no-manifest', holdBuild(absentDir) === 'no-manifest', 'holdBuild in src/daemon/daemonBuild.ts must answer no-manifest for a folder without manifest.json')
   const lockedDir = mkdtempSync(join(tmpdir(), 'faults-fo01-build-'))
   writeFileSync(join(lockedDir, 'manifest.json'), '{}')
   chmodSync(join(lockedDir, 'manifest.json'), 0o000)
   const answer = holdBuild(lockedDir)
   chmodSync(join(lockedDir, 'manifest.json'), 0o600)
-  check('a manifest that cannot be opened answers unheld with its code', typeof answer === 'object' && answer.unheld === 'EACCES', JSON.stringify(answer))
+  check('a manifest that cannot be opened answers unheld with its code', typeof answer === 'object' && answer.unheld === 'EACCES', `${JSON.stringify(answer)} — holdBuild in src/daemon/daemonBuild.ts must answer { unheld: code } for a manifest it cannot open, not no-manifest`)
 }
 
 console.log(failures === 0 ? '\nall rows green' : `\n${failures} row(s) red`)

@@ -11,10 +11,13 @@ mkdirSync(DAEMON, { recursive: true })
 process.env.MERCURY_CONFIG_DIR = HOME
 process.env.MERCURY_DAEMON_DIR = DAEMON
 
+const TITLE_HINT = 'change liveTitleDeriverFor in src/services/switchboard/hopIntoSession.ts or headBriefLabel in src/services/concourse/concourseSnapshot.ts so the live title follows the record, the first words, then the stage-1 title'
+
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + TITLE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const workers = await import('../../src/daemon/concourseWorkers.ts')

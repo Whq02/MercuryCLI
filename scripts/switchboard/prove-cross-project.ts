@@ -10,9 +10,11 @@ mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
 let failures = 0
+let failHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, failHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { keyHintLabel } = await import('../../src/components/mercury-ui/keyHintLabel.ts')
@@ -110,6 +112,7 @@ const S_B1 = sid('b1')
 
 console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of view; every record byte-identical across A→B→A')
 {
+  failHint = 'a switch must only move the view and the ground: look at writeConcourseSeedOverride, bootScopedSeedOverrides, readConcourseSeedOverrides, resolveHarnessGround and buildConcourseSnapshot in src/services/concourse/concourseSnapshot.ts, applyHarnessGround in src/services/switchboard/harnessGround.ts, and the lifecycle writers in src/daemon/concourseWorkers.ts (a lifecycle write must not happen on a switch)'
   seedChat(P_A, S_A1, 'alpha one', 10 * 60_000)
   seedChat(P_A, S_A2, 'alpha two', 12 * 60_000)
   seedChat(P_B, S_B1, 'beta one', 9 * 60_000)
@@ -166,6 +169,7 @@ console.log('§1 — SWITCHING NEVER TOUCHES A SESSION: a switch is a change of 
 
 console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by project, then always adds the one focused session, ★ from its own project')
 {
+  failHint = 'the board filter and the focused-session carry-over live in buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts); the focused slot is src/services/engine-connector/focusedConnector.ts and the strip stops are in src/context/surfaceRoute.ts'
   const { registerChatPresence, presentStripStops, stripKeyMapHintOf, _resetSurfaceRouteForTesting } = await import('../../src/context/surfaceRoute.ts')
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
@@ -207,6 +211,7 @@ console.log('§2 — THE FOCUSED SESSION CARRIES OVER: the board filters by proj
 
 console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of the current project releases the ★ row — no notice, no state change')
 {
+  failHint = 'the carry-over release is decided in buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts) from the focused slot (src/services/engine-connector/focusedConnector.ts); a focus change must not write records (src/daemon/concourseWorkers.ts) or obligations'
   const seat = await import('../../src/services/engine-connector/daemonConnector.ts')
   const paths = await import('../../src/utils/sessionStorage/paths.ts')
   seedWorkers([liveRecord('concourse-w1', S_A1, P_A), liveRecord('concourse-w2', S_A2, P_A), liveRecord('concourse-w3', S_B1, P_B)])
@@ -243,6 +248,7 @@ console.log('§3 — A NEW FOCUS HANDS IT BACK SILENTLY: focusing a session of t
 
 console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project with activity, its own group before PARKED, ↵ = the picker\'s own switch')
 {
+  failHint = 'the other-projects counts and lines come from projectActivity, elsewhereLine, ELSEWHERE_CAP, isRunningState and runningByProjectKey in src/services/concourse/projectActivity.ts, and the elsewhere group is built in buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts)'
   const { projectActivity, elsewhereLine, ELSEWHERE_CAP, isRunningState, runningByProjectKey } = await import('../../src/services/concourse/projectActivity.ts')
   const { upsertObligation, resolveObligation } = await import('../../src/services/crew/obligations.ts')
   const { getProjectDir } = await import('../../src/utils/sessionStorage/paths.ts')
@@ -327,6 +333,7 @@ console.log('§4 — THE RUNNING-COUNT LINE, A DOOR: one line per other project 
 
 console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on the rail as "switch to foo", the ⚑ counts it, ↵ = switch + open')
 {
+  failHint = 'a foreign ask rows in buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts) from the obligations store (src/services/crew/obligations.ts); the attention bucket is src/services/attention/contracts.ts with src/services/crew/obligationsBridge.ts, and the rail keys are railTailParts in src/components/concourse/NeedsYouRail.tsx'
   const { upsertObligation, openObligations, resolveObligation } = await import('../../src/services/crew/obligations.ts')
   const { obligationFacts } = await import('../../src/services/crew/obligationsBridge.ts')
   const { foldAttention, emptyAttentionState, bucketItems } = await import('../../src/services/attention/contracts.ts')
@@ -363,6 +370,7 @@ console.log('§5 — THE CROSS-PROJECT DOOR: an ask in another project rows on t
 
 console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the same running count from the same owner; a row without one composes its old bytes')
 {
+  failHint = 'the boot card and the Projects picker are composed in assets/splash/splash-core.mjs (assembleCardRows, composeProjects), and the merged screen row is resumeProjectEntryOf in src/components/BootResumeScreen.tsx'
   const core = await import('../../assets/splash/splash-core.mjs')
   const c = core.createSplashCore({ nocolor: false, truecolor: true })
   const ESC = String.fromCharCode(27)
@@ -389,6 +397,7 @@ console.log('§6 — THE INDICATOR ON THE BOOT FACE: the Projects rows read the 
 
 console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn through the card')
 {
+  failHint = 'the catalog rows are workedInProjects and catalogFirstChat in src/utils/bootCardFacts.ts, and the live-owner gate is sessionOwnedByLiveWorker (exported by src/daemon/concourseWorkers.ts)'
   const { workedInProjects, catalogFirstChat, _resetProjectCatalogForTesting } = await import('../../src/utils/bootCardFacts.ts')
   const P_G = join(SCRATCH, 'proj-golf')
   const S_G0 = sid('g0')
@@ -406,6 +415,7 @@ console.log('§7 — THE ANNEX: Projects-↵ hops into a wordless live newborn t
 
 console.log('§8 — SESSION-AWARE NAMING: three stages, one owner; the mint once at turn two; a typed name survives; never a worker id, in any world')
 {
+  failHint = 'titles are decided in sessionTitleOf, newSessionTitle, isWorkerIdTitle and shouldMintTitle (src/services/concourse/sessionNaming.ts), transcriptHeadFacts (src/services/concourse/sessionTitleMint.ts) and setConcourseSessionTitle (exported by src/daemon/concourseWorkers.ts); the board row title comes from buildConcourseSnapshot (src/services/concourse/concourseSnapshot.ts)'
   const { sessionTitleOf, newSessionTitle, isWorkerIdTitle, shouldMintTitle } = await import('../../src/services/concourse/sessionNaming.ts')
   const { transcriptHeadFacts } = await import('../../src/services/concourse/sessionTitleMint.ts')
   const manifest = await import('../../src/components/concourse/controlManifest.ts')

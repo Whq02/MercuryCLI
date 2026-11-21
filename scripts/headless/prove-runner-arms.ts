@@ -10,16 +10,32 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const at = (rel: string): string => join(ROOT, rel)
 
 let failures = 0
+let ownerHint = ''
+const ownerHintOf = (title: string): string => {
+  if (title.startsWith('§4b')) return 'change the project/query arm in src/cli/headless/runnerArms.ts or projectQuery in src/cli/headless/projectQuery.ts'
+  if (title.startsWith('§5')) return 'change the session/send_now arm in src/cli/headless/runnerArms.ts or sendQueuedWordsNow in src/cli/headless/sendNow.ts'
+  if (title.startsWith('§6')) return 'change setSessionKit in src/cli/headless/mcpArms.ts or the session/set_kit arm in src/cli/headless/runnerArms.ts'
+  if (title.startsWith('§8b')) return 'change runnerParkRefusal in src/cli/headless/parkRefusal.ts'
+  if (title.startsWith('§8c')) return 'change landSpawnSwitch in src/cli/headless/spawnSwitchLanding.ts'
+  if (title.startsWith('§8')) return 'change answerSessionFacts in src/cli/headless/sessionFactsArm.ts'
+  if (title.startsWith('§9')) return 'change claimSession in src/cli/headless/claimSession.ts'
+  return 'change the arm this section names in runnerArmsOf in src/cli/headless/runnerArms.ts, or the owner that arm calls'
+}
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failureText = [detail, ownerHint].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ` — ${failureText}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => {
+  ownerHint = ownerHintOf(t)
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
 const j = (value: unknown): string => JSON.stringify(value)
 const UNSETTLED = Symbol('unsettled')
 const within = <T,>(work: Promise<T> | T, ms = 3_000): Promise<T | typeof UNSETTLED> => Promise.race([Promise.resolve(work), new Promise<typeof UNSETTLED>(done => setTimeout(() => done(UNSETTLED), ms))])
 setTimeout(() => {
   console.log('  [FAIL] the proof ended within its two minutes')
+  console.log('  a step is still waiting: the last section header printed above names the arm; look there in src/cli/headless/runnerArms.ts for a request that never answers')
   process.exit(1)
 }, 120_000).unref()
 

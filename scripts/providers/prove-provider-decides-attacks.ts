@@ -3,8 +3,9 @@ import type { ProviderUsabilityReads } from '../../src/services/providers/provid
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 for (const key of ['OPENAI_API_KEY', 'OPENROUTER_API_KEY', 'HF_TOKEN', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'MERCURY_OAUTH_TOKEN', 'MERCURY_HOME', 'MERCURY_MODEL']) delete process.env[key]
 let failures = 0
+const providerDecidesFailureHint = 'change the 429 mapping in mapOpenaiHttpFailure (src/services/providers/openai/openaiWire.ts), mapCompatHttpFailure (src/services/providers/openaicompat/compatChatClient.ts), classifyAnthropicRefusal (src/services/providers/anthropicRefusal.ts), getAssistantMessageFromError (src/services/api/errors.ts) or retryAfterHeaderMs (src/services/api/retryAfter.ts); the dispatch door in src/services/providers/providerUsability.ts; the live facts in src/daemon/saturnAccount.ts; or the pause and automatic retry in src/tools/AgentTool/agentToolUtils.ts and src/tasks/LocalAgentTask/agentPause.ts, whichever this label names'
 function check(label: string, ok: boolean, detail: unknown = ''): void {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} — ${providerDecidesFailureHint}`}`)
   if (!ok) failures++
 }
 const { mapOpenaiHttpFailure } = await import('../../src/services/providers/openai/openaiWire.js')

@@ -19,15 +19,24 @@ const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const editModesFailHints: Record<string, string> = {
+  P: 'fix planAppend, findSection or planSectionEdit in src/tools/FileEditTool/sectionEdit.ts',
+  O: 'fix planHunks or formatHunkOutcomes in src/services/changeTransaction/hunks.ts',
+  L: 'fix the append, section or hunks mode of src/tools/FileEditTool/FileEditTool.ts (sectionEdit.ts beside it and src/services/changeTransaction/hunks.ts do the planning)',
+  K: 'fix the read-knowledge check of validateInput and call in src/tools/FileEditTool/FileEditTool.ts, or the ledger in src/services/changeTransaction/seenLines.ts and snapshotAnchor.ts',
+  N: 'fix normalizeToolInput in src/services/messages/api.ts',
+  R: 'fix how validateInput, inputsEquivalent and call in src/tools/FileEditTool/FileEditTool.ts treat empty optional fields',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const editModesHint = !cond ? editModesFailHints[label.charAt(0)] : undefined
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${editModesHint ? ` — ${editModesHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — edit modes proof exceeded 90s')
+  console.log('\nTIMEOUT — edit modes proof exceeded 90s; a FileEditTool call in src/tools/FileEditTool/FileEditTool.ts or a planner in src/services/changeTransaction/hunks.ts is hanging, so find the last section header printed above')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

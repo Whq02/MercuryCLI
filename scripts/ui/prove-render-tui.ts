@@ -7,7 +7,8 @@ import sharp from 'sharp'
 
 const REPO = join(import.meta.dir, '..', '..')
 let fail = 0
-const expect = (label: string, cond: boolean) => { if (!cond) fail++; console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}`) }
+const renderHint = ' — fix scripts/ui/render-tui.ts (run it by hand with --scenario resume-2turn --cols 100 and read its stderr), and build dist/mercury.mjs again with bun run build.ts if the bundle is stale'
+const expect = (label: string, cond: boolean) => { if (!cond) fail++; console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : renderHint}`) }
 
 if (!existsSync(join(REPO, 'dist', 'mercury.mjs'))) {
   console.log('  [SKIP] dist/mercury.mjs missing — run bun run build.ts'); process.exit(0)

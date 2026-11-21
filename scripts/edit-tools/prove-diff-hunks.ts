@@ -9,8 +9,9 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'diff-hunks-home-'))
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const diffHunksFailHint = 'fix the matching function in src/utils/diff.ts (getPatchFromContents, getPatchForDisplay, adjustHunkLineNumbers or countLinesChanged; the line totals live in src/bootstrap/state.ts)'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? (detail ? ' — ' + detail + ' — ' : ' — ') + diffHunksFailHint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -6,12 +6,13 @@ import { delimiter, join, resolve } from 'node:path'
 import { nodeBinPath } from '../lib/nodeBin.ts'
 
 let failures = 0
+const whichFixHint = 'change whichSync in src/utils/which.ts (what it searches: PATH entries only, never the launch folder on Windows, the current directory for an empty PATH entry on POSIX), or its imports if the build check failed'
 function check(label: string, cond: boolean, detail = ''): void {
   if (cond) {
     console.log(`  [PASS] ${label}`)
   } else {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}; ` : ' — '}${whichFixHint}`)
   }
 }
 

@@ -14,8 +14,20 @@ import { getAllBaseTools } from '../../src/tools.ts'
 import { entryToRecord } from '../../src/fabric/entryCodec.ts'
 
 let failures = 0
+const paintStageHints: Array<[string, string]> = [
+  ['§1', 'loadTranscriptFile in src/utils/sessionStorage/loading.ts'],
+  ['§2 chain', 'buildConversationChain in src/utils/sessionStorage/chain.ts'],
+  ['§2 deserialized', 'deserializeLiveMessages in src/services/resume/conversationRecovery.ts'],
+  ['§2 normalized', 'normalizeMessages in src/utils/messages/normalize.ts'],
+  ['§3 grouped', 'applyGrouping in src/utils/groupToolUses.ts'],
+  ['§3 receipts', 'injectTurnReceipts in src/utils/cockpit/turnReceipt.ts'],
+  ['§3 collapsed', 'collapseReadSearchGroups in src/components/messages/collapseReadSearch.ts'],
+  ['§4', 'normalizeMessages in src/utils/messages/normalize.ts'],
+]
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const paintStageHint = paintStageHints.find(([prefix]) => name.startsWith(prefix))?.[1]
+  const paintFixHint = paintStageHint ? `to fix, change ${paintStageHint} so the record is not repeated at this stage` : ''
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && (detail || paintFixHint) ? ` — ${[detail, paintFixHint].filter(Boolean).join(' — ')}` : ''}`)
   if (!ok) failures = 1
 }
 

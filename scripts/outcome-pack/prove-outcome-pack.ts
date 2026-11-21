@@ -25,10 +25,16 @@ const tasks = selected === undefined ? pack : pack.filter(task => task.id === se
 if (tasks.length === 0) throw new Error(`unknown task ${selected}`)
 let checks = 0
 let failures = 0
+const outcomeFixHint = (label: string): string => {
+  if (label.endsWith('control exists')) return 'fix: add the missing reference.patch, alternative.patch, wrong-1.patch or wrong-2.patch to scripts/outcome-pack/tasks/<id>/ (the paths come from pack.ts)'
+  if (label.endsWith('fixture completed')) return 'fix: the listed witnesses are fixture steps that did not run; read the task script in scripts/outcome-pack/tasks/<id>/script.ts and the cell-execution witness for the error, and check that --dist names a built dist/mercury.mjs'
+  if (label.endsWith(' accept') || label.endsWith(' refuse')) return 'fix: the listed witnesses are the evaluator rows that failed; either the control patch under scripts/outcome-pack/tasks/<id>/ no longer behaves as its name says or accept.ts in the same folder judges it wrongly'
+  return 'fix: acceptanceCurrent in scripts/outcome-pack/runtime.ts must accept only an unchanged tree digest, run id and evaluator version; the check names which half failed'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${checks}. ${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${checks}. ${ok ? 'PASS' : 'FAIL'} ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${outcomeFixHint(label)}`}`)
 }
 const scratch = mkdtempSync(join(tmpdir(), 'outcome-pack-'))
 const ledger = option('--ledger') ?? join(scratch, 'ledger.jsonl')

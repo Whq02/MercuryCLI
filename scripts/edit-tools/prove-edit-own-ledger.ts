@@ -26,16 +26,17 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
 let checks = 0
+const ownLedgerHint = 'fix the ledger keyed by fileGeneration, seenLinesOf and recordSeenLines in src/services/changeTransaction/seenLines.ts, or the validateInput and call edit path of src/tools/FileEditTool/FileEditTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${ownLedgerHint}` : ''}${!cond && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the own-edit ledger proof exceeded 120s')
+  console.log('\nTIMEOUT — the own-edit ledger proof exceeded 120s; a Write, Read or Edit call on a fixture file is hanging, so find the last section header printed above and look at that tool in src/tools/FileEditTool/FileEditTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

@@ -30,7 +30,7 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = 'a setup step (daemon start, dispatch or settle) did not finish, or the panel did not follow the focused chat; for the panel change src/components/prompts-panel/PromptsPanel.tsx, whose header names the session its connector reports'): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
 }

@@ -7,12 +7,23 @@ import { fileURLToPath } from 'node:url'
 
 let failures = 0
 let checks = 0
+const SECTION_HINTS: Record<string, string> = {
+  '1': 'change parseDuckDuckGoHtml or resolveDuckDuckGoHref in src/services/search/duckduckgo.ts, or decodeHtmlEntities in src/services/search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
+  '2': 'change parseDuckDuckGoLite in src/services/search/duckduckgo.ts, or decodeHtmlEntities in src/services/search/htmlText.ts; the page fixtures are in scripts/search/fixtures',
+  '3': 'change decodeBraveWebSearch in src/services/search/brave.ts; the fixture is scripts/search/fixtures/brave-web-search.json',
+  '4': 'change decodeTavilySearch in src/services/search/tavily.ts; the fixture is scripts/search/fixtures/tavily-search.json',
+  '5': 'change filterHitsByDomain or normaliseHits in src/services/search/searchContract.ts',
+  '6': 'change failureLine, viaLine, viaChip or KEYED_DOOR_REMEDY in src/services/search/searchContract.ts, the query builders (keylessQueryFor in duckduckgo.ts, braveQueryFor in brave.ts, tavilyRequestBodyFor in tavily.ts) or the entity helpers in src/services/search/htmlText.ts',
+}
+let sectionHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && sectionHint ? `${detail}${detail ? ' | ' : ''}${sectionHint}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionHint = SECTION_HINTS[t.match(/^§(\d)/)?.[1] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''

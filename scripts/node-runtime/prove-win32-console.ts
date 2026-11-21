@@ -15,8 +15,10 @@ import { flagEnabled } from '../../src/substrate/flagRegistry.js'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+const win32FailHint =
+  'fix: the seam is decideWin32ConsoleUtf8, parseChcpCodepage, chcpSpawnShape, ensureWin32ConsoleUtf8 and restoreWin32ConsoleNow in src/utils/runtime/win32Console.ts (the MERCURY_WIN32_UTF8 entry is in src/substrate/flags/screen.ts); change the function this check names, or rebuild dist with bun run build.ts for the bundle checks'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}${cond ? '' : ` — ${win32FailHint}`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

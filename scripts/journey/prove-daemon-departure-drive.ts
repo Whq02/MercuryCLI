@@ -29,7 +29,7 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}this drove the built dist/mercury.mjs against a SIGSTOPped then SIGTERMed daemon (rebuild with bun run build.ts if src changed): the cockpit must wait out the departing daemon, then spawn exactly one new one; read the daemon hello and state path in src/daemon/controlSocket.ts and the daemon.log under the world dir printed as world kept` : ''}`)
 }
 const record = (label: string, detail: string): void => {
   console.log(`  [record] ${label}: ${detail}`)

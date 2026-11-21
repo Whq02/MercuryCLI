@@ -11,9 +11,10 @@ delete process.env.MERCURY_HOME
 delete process.env.NODE_ENV
 
 let failures = 0
+const localPaceFailureHint = 'change the pace store, the size-class defaults, the promise or the probe doors in src/services/providers/localLiveness.ts, the wait words and wire form in src/services/providers/streamIdleBudget.ts, or statusLine in src/components/SwitchboardTagBar.tsx, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${localPaceFailureHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

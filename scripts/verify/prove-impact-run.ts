@@ -7,8 +7,9 @@ import { join, resolve } from 'node:path'
 const ROOT = resolve(import.meta.dir, '..', '..')
 const bun = process.execPath
 let failures = 0
+const impactFixHint = 'change scripts/verify/impact.ts (argument handling, listing, exit codes) or scripts/verify/impactManifest.ts (selectImpact, RATCHETS, the gate-watch headers read from scripts/<suite>/run-all.sh)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${impactFixHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -4,7 +4,10 @@ import { homedir } from 'node:os'
 let failures = 0
 const check = (ok: boolean, label: string): void => {
   console.log(`${ok ? '✓' : '✗'} ${label}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('  fix: the keychain service name comes from getMacOsKeychainStorageServiceName in src/utils/secureStorage/macOsKeychainHelpers.ts, which must append the 8-hex hash of the NFC-normalised config home from getAuthConfigHomeDir; the env-less case also depends on getMercuryHome in src/utils/envUtils.ts')
+  }
 }
 
 const prevEnv = process.env.MERCURY_CONFIG_DIR

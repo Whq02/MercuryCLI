@@ -51,11 +51,20 @@ const { declaredRouteOf } = await import('../../src/services/providers/routeLaw.
 const { getGlobalConfig, saveGlobalConfig } = await import('../../src/utils/config.ts')
 
 let failures = 0
+const familySectionHints: Record<string, string> = {
+  '§1': 'to fix, change familyHeadOf or familyDefaultsModel in src/utils/model/configs.ts',
+  '§2': 'to fix, make the reader named in the label resolve an undeclared id through familyDefaultsModel (src/utils/model/configs.ts) in src/utils/model/capabilities.ts, src/utils/effort.ts, src/services/usage/modelCost.ts or src/services/model/model.ts',
+  '§3': 'to fix, change the launch-effort flag lookup (isLaunchEffortPinned) in src/utils/effort.ts',
+  '§5': 'to fix, change the unknown-family road in src/utils/model/capabilities.ts, src/services/usage/modelCost.ts or src/services/model/model.ts',
+}
+let familySection = ''
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const familyHint = familySectionHints[familySection]
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}${familyHint ? ' — ' : ''}` : ''}${familyHint ?? ''}` : ''}`)
 }
 function section(title: string): void {
+  familySection = title.slice(0, 2)
   console.log(`\n${title}`)
 }
 const show = (v: unknown): string => JSON.stringify(v)

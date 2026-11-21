@@ -8,8 +8,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 let failures = 0
+const pcreFailureHint = 'Change the PCRE2 fallback in src/tools/GrepTool/GrepTool.ts (pcreOnlyConstruct and the retry) or ripGrepAnswer and isRipgrepUsageDiagnostic in src/utils/ripgrep.ts until this check holds'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + pcreFailureHint + (detail ? '. ' + detail : '') : ''}`)
   if (!cond) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)

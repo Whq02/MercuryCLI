@@ -64,13 +64,15 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(new Map()),
   )
   check('A1 read-first law: unread file refuses with errorCode 6',
-    unread.result === false && (unread as { errorCode?: number }).errorCode === 6)
+    unread.result === false && (unread as { errorCode?: number }).errorCode === 6,
+    `got ${JSON.stringify(unread).slice(0, 160)} · the read-first refusal (errorCode 6) lives in src/tools/FileEditTool/edit/validate.ts`)
   const carried = await FileEditTool.validateInput!(
     { file_path: filePath, old_string: 'const alpha = 1', new_string: 'const gamma = 1' } as never,
     makeContext(new Map()),
   )
   check('A1b a refusal carries no line and records nothing: the next edit of the unread file refuses the same way (errorCode 6)',
-    carried.result === false && (carried as { errorCode?: number }).errorCode === 6 && !/\n\d+\t/.test(String((carried as { message?: string }).message ?? '')))
+    carried.result === false && (carried as { errorCode?: number }).errorCode === 6 && !/\n\d+\t/.test(String((carried as { message?: string }).message ?? '')),
+    `got ${JSON.stringify(carried).slice(0, 160)} · the errorCode 6 refusal in src/tools/FileEditTool/edit/validate.ts must stay the same and carry no numbered file line`)
 
   const stalePath = join(fixtureDir, 'stale.ts')
   writeFileSync(stalePath, readFileSync(filePath, 'utf8'))
@@ -85,7 +87,8 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(staleMap),
   )
   check('A2 stale law: modified-since-read refuses with errorCode 7',
-    stale.result === false && (stale as { errorCode?: number }).errorCode === 7)
+    stale.result === false && (stale as { errorCode?: number }).errorCode === 7,
+    `got ${JSON.stringify(stale).slice(0, 160)} · the modified-since-read refusal (errorCode 7) lives in src/tools/FileEditTool/edit/validate.ts`)
 
   const currentContent = readFileSync(filePath, 'utf8')
   const flapMap = new Map<string, ReadStamp>([[filePath, {
@@ -99,7 +102,8 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(flapMap),
   )
   check('A3 content-fallback law: equal-content full read passes despite older stamp',
-    flap.result === true)
+    flap.result === true,
+    `got ${JSON.stringify(flap).slice(0, 160)} · the staleness check in src/tools/FileEditTool/edit/validate.ts must accept a read whose content equals the file despite an older stamp`)
 
   const window = readFileSync(filePath, 'utf8').split('\n').slice(1, 3).join('\n')
   const partialMap = new Map<string, ReadStamp>([[filePath, {
@@ -128,7 +132,8 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(partialDrift),
   )
   check('A3c SM-07a: drifted partial window still refuses (errorCode 7)',
-    partialStale.result === false && (partialStale as { errorCode?: number }).errorCode === 7)
+    partialStale.result === false && (partialStale as { errorCode?: number }).errorCode === 7,
+    `got ${JSON.stringify(partialStale).slice(0, 160)} · the staleness check in src/tools/FileEditTool/edit/validate.ts must compare a partial window with the file and refuse a drifted one with errorCode 7`)
 
   const lfContent = readFileSync(filePath, 'utf8')
   writeFileSync(filePath, lfContent.replace(/\n/g, '\r\n'))
@@ -143,7 +148,7 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(eolMap),
   )
   check('A3d SM-07b: EOL drift is ABSORBED (LF anchors validate against the CRLF file)',
-    eolDrift.result === true, JSON.stringify(eolDrift).slice(0, 120))
+    eolDrift.result === true, `${JSON.stringify(eolDrift).slice(0, 120)} · the staleness check in src/tools/FileEditTool/edit/validate.ts must compare content with line endings normalised`)
   writeFileSync(filePath, lfContent)
 
   const freshStamp = () => new Map<string, ReadStamp>([[filePath, {
@@ -157,14 +162,16 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     makeContext(freshStamp()),
   )
   check('A4 not-found law: absent old_string refuses with errorCode 8',
-    notFound.result === false && (notFound as { errorCode?: number }).errorCode === 8)
+    notFound.result === false && (notFound as { errorCode?: number }).errorCode === 8,
+    `got ${JSON.stringify(notFound).slice(0, 160)} · the not-found refusal (errorCode 8) lives in src/tools/FileEditTool/edit/validate.ts`)
 
   const multi = await FileEditTool.validateInput!(
     { file_path: filePath, old_string: '= 1', new_string: '= 9' } as never,
     makeContext(freshStamp()),
   )
   check('A5 multi-match law: ambiguous match refuses with errorCode 9',
-    multi.result === false && (multi as { errorCode?: number }).errorCode === 9)
+    multi.result === false && (multi as { errorCode?: number }).errorCode === 9,
+    `got ${JSON.stringify(multi).slice(0, 160)} · the ambiguous-match refusal (errorCode 9) lives in src/tools/FileEditTool/edit/exactMatch.ts`)
 
   const happyMap = freshStamp()
   const result = await (FileEditTool as { call: Function }).call(
@@ -174,17 +181,20 @@ section('A. FileEdit staleness + refusal laws (validateInput/call)')
     { uuid: '00000000-0000-0000-0000-000000000000' },
   )
   const onDisk = readFileSync(filePath, 'utf8')
-  check('A6a write law: the edit landed on disk', onDisk.includes('const beta = 42'))
+  check('A6a write law: the edit landed on disk', onDisk.includes('const beta = 42'), 'FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts did not write the new_string to the file')
   const stamp = happyMap.get(filePath)
   check('A6b readFileState refresh law: stamp content matches the new disk bytes',
-    stamp !== undefined && stamp.content === onDisk)
+    stamp !== undefined && stamp.content === onDisk,
+    'FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts must store the written bytes in readFileState after the write')
   check('A6c result carries structuredPatch',
-    Array.isArray(result?.data?.structuredPatch) && result.data.structuredPatch.length > 0)
+    Array.isArray(result?.data?.structuredPatch) && result.data.structuredPatch.length > 0,
+    'the data returned by FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts must carry a non-empty structuredPatch')
   check('A6d FileEdit result carries the typed file.edit effect (slice 1)',
     result?.effect?.outcome === 'succeeded' &&
     result.effect.operation === 'file.edit' &&
     result.effect.changedPaths.length === 1 &&
-    result.effect.changedPaths[0] === filePath)
+    result.effect.changedPaths[0] === filePath,
+    `effect=${JSON.stringify(result?.effect)?.slice(0, 200)} · FileEditTool.call in src/tools/FileEditTool/FileEditTool.ts must return a succeeded file.edit effect with the edited path`)
 }
 
 section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
@@ -202,22 +212,26 @@ section('B. Agent parent-boundary shape (mapToolResultToToolResultBlockParam)')
   }
   const block = map(base, 'toolu_fixture')
   const texts = (block.content as { type: string; text: string }[]).map(b => b.text)
-  check('B1 completed carries the prose content block', texts[0] === 'final report prose')
+  check('B1 completed carries the prose content block', texts[0] === 'final report prose',
+    `texts=${JSON.stringify(texts).slice(0, 200)} · the completed result block built in src/tools/AgentTool/agent/resultBlock.ts must put the prose first`)
   check('B2 trailer carries agentId + <usage> totals',
     texts[1] !== undefined &&
     texts[1].includes("agentId: agent-fixture-1") &&
     texts[1].includes('<usage>total_tokens: 1234') &&
     texts[1].includes('tool_uses: 5') &&
-    texts[1].includes('duration_ms: 6789</usage>'))
+    texts[1].includes('duration_ms: 6789</usage>'),
+    `trailer=${JSON.stringify(texts[1])?.slice(0, 200)} · the trailer built in src/tools/AgentTool/agent/resultBlock.ts must carry agentId and the usage totals`)
 
   const empty = map({ ...base, content: [] }, 'toolu_fixture')
   const emptyTexts = (empty.content as { text: string }[]).map(b => b.text)
   check('B3 empty completion carries the explicit no-output marker',
-    emptyTexts[0]?.includes('The crewmate finished without producing any output'))
+    emptyTexts[0]?.includes('The crewmate finished without producing any output'),
+    `got ${JSON.stringify(emptyTexts[0])?.slice(0, 160)} · the empty-content text in src/tools/AgentTool/agent/resultBlock.ts must name that the crewmate produced no output`)
 
   const oneShot = map({ ...base, agentType: 'mercury-scout' }, 'toolu_fixture')
   check('B4 one-shot builtin drops the agentId/usage trailer',
-    (oneShot.content as unknown[]).length === 1)
+    (oneShot.content as unknown[]).length === 1,
+    `blocks=${(oneShot.content as unknown[]).length} · src/tools/AgentTool/agent/resultBlock.ts must skip the trailer for a type in ONE_SHOT_BUILTIN_AGENT_TYPES (src/constants/tools/agent.ts)`)
 }
 
 section('C. effectObserver seam (the slice-1 attachment point)')
@@ -250,16 +264,18 @@ section('C. effectObserver seam (the slice-1 attachment point)')
   } catch {
     threw = true
   }
-  check('C1 hostile subscriber never breaks the writer', !threw)
+  check('C1 hostile subscriber never breaks the writer', !threw, 'observeToolTerminal in src/utils/run/effectObserver.ts must catch a throwing subscriber')
   check('C2 typed effect passes through verbatim',
-    seen.length === 1 && (seen[0]!.effect as { operation: string })?.operation === 'edit.write')
+    seen.length === 1 && (seen[0]!.effect as { operation: string })?.operation === 'edit.write',
+    `seen=${seen.length} · observeToolTerminal in src/utils/run/effectObserver.ts must pass the event, effect included, to every subscriber unchanged`)
   check('C3 event field names frozen (owner/toolName/toolUseId/input/ok/durationMs/effect/cwd)',
     ['owner', 'toolName', 'toolUseId', 'input', 'ok', 'durationMs', 'effect', 'cwd']
-      .every(k => k in seen[0]!))
+      .every(k => k in seen[0]!),
+    `keys=${Object.keys(seen[0] ?? {}).join(',')} · ToolTerminalEvent in src/utils/run/effectObserver.ts must keep these field names`)
   unsub1()
   unsub2()
   observeToolTerminal(event as never)
-  check('C4 unsubscribe detaches', seen.length === 1)
+  check('C4 unsubscribe detaches', seen.length === 1, `seen=${seen.length} · the function subscribeToolTerminal returns in src/utils/run/effectObserver.ts must remove the subscriber`)
 }
 
 section('D. Task substrate floors')
@@ -269,11 +285,13 @@ section('D. Task substrate floors')
     monitor_mcp: 'm',
   }
   check('D1 task id prefixes stable',
-    Object.entries(prefixes).every(([t, p]) => generateTaskId(t as never).startsWith(p)))
+    Object.entries(prefixes).every(([t, p]) => generateTaskId(t as never).startsWith(p)),
+    'generateTaskId in src/Task.ts returned an id with a prefix other than the one frozen here')
   check('D2 terminal-status truth table',
     isTerminalTaskStatus('completed') && isTerminalTaskStatus('failed') &&
     isTerminalTaskStatus('killed') && !isTerminalTaskStatus('running') &&
-    !isTerminalTaskStatus('pending'))
+    !isTerminalTaskStatus('pending'),
+    'isTerminalTaskStatus in src/Task.ts must be true for completed, failed and killed only')
 }
 
 console.log('\n' + '═'.repeat(76))

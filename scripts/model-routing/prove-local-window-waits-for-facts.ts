@@ -13,14 +13,22 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 process.env.ANTHROPIC_BASE_URL = 'http://127.0.0.1:1'
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
+const LOCAL_WINDOW_SECTION_HINTS: Record<string, string> = {
+  '§1': 'change refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and heldLocalWindow in src/services/providers/local/localWindow.ts so the hold is the Modelfile num_ctx',
+  '§2': 'change awaitContextWindowSource in src/services/context/contextWindowWarmup.ts so a record marked factsUnread is re-read through /api/show before any window is held',
+  '§3': 'change awaitContextWindowSource in src/services/context/contextWindowWarmup.ts and heldLocalWindow in src/services/providers/local/localWindow.ts so a hold made on unread facts is decided again once a discovery reads the Modelfile',
+  '§4': 'change heldLocalWindow in src/services/providers/local/localWindow.ts so a tag with no num_ctx keeps the same hold across discoveries',
+}
+let localWindowFailureHint = ''
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond && localWindowFailureHint ? ` — ${localWindowFailureHint}` : ''}`)
 }
 function section(title: string): void {
+  localWindowFailureHint = LOCAL_WINDOW_SECTION_HINTS[title.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 

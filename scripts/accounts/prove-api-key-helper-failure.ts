@@ -24,6 +24,7 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('    fix: helper run, cache and failure record live in getApiKeyFromApiKeyHelper, getApiKeyHelperFailure and apiKeyHelperFailedLast in src/utils/auth.ts; the 401 retry rule is isRetryableError in src/services/api/withRetry.ts; the painted message is built in src/services/api/errors.ts')
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

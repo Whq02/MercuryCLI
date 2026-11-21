@@ -184,7 +184,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: the prompt view holds the whole short session, its first row and its tail, with no jump pill (the thinking is folded away)`,
       mounted.includes('FIRST-ROW') && mounted.includes('TAIL-END') && !mounted.includes(PILL) && thoughtRows(mounted) === 0,
-      `first=${mounted.includes('FIRST-ROW')} tail=${mounted.includes('TAIL-END')} pill=${mounted.includes(PILL)} thought rows=${thoughtRows(mounted)}`,
+      `first=${mounted.includes('FIRST-ROW')} tail=${mounted.includes('TAIL-END')} pill=${mounted.includes(PILL)} thought rows=${thoughtRows(mounted)} · the short prompt view must show every row and no jump pill; check the jump pill in src/components/fullscreenLayout/panes.tsx and the Chat screen in src/screens/Chat.tsx`,
     )
 
     const errors: string[] = []
@@ -196,14 +196,14 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
 
     m.push(CTRL_O)
     const detail = await waitScreenSettled(`${tag} enter detail at the tail`, frame => frame.includes('detailed transcript') && frame.includes('TAIL-END'))
-    check(`${tag}: the detailed transcript is longer than its viewport: at its tail it shows the thinking but not its first line`, thoughtRows(detail) > 10 && !detail.includes('THOUGHT-00'), `thought rows=${thoughtRows(detail)} first line shown=${detail.includes('THOUGHT-00')}`)
+    check(`${tag}: the detailed transcript is longer than its viewport: at its tail it shows the thinking but not its first line`, thoughtRows(detail) > 10 && !detail.includes('THOUGHT-00'), `thought rows=${thoughtRows(detail)} first line shown=${detail.includes('THOUGHT-00')} · the detailed transcript (ctrl+o) must open pinned to its tail and longer than its viewport`)
     const tailTop = topThought(detail)
     for (let notch = 0; notch < NOTCHES; notch++) {
       m.push(WHEEL_UP)
       await settle(60)
     }
     const scrolled = await waitScreenSettled(`${tag} scrolled up in detail`, frame => frame.includes('detailed transcript') && frame.includes(PILL) && !frame.includes('TAIL-END'))
-    check(`${tag}: ${NOTCHES} wheel notches up in the detailed transcript leave its tail and show the jump pill`, scrolled.includes(PILL) && !scrolled.includes('TAIL-END') && topThought(scrolled) !== tailTop, `pill=${scrolled.includes(PILL)} top ${tailTop} -> ${topThought(scrolled)}`)
+    check(`${tag}: ${NOTCHES} wheel notches up in the detailed transcript leave its tail and show the jump pill`, scrolled.includes(PILL) && !scrolled.includes('TAIL-END') && topThought(scrolled) !== tailTop, `pill=${scrolled.includes(PILL)} top ${tailTop} -> ${topThought(scrolled)} · wheel-up in the detailed transcript must scroll off the tail and show the jump pill from src/components/fullscreenLayout/panes.tsx`)
 
     m.push(CTRL_O)
     let settleFault = ''
@@ -217,12 +217,12 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: leaving the scrolled detailed transcript paints the prompt view: no render error, nothing thrown`,
       errors.length === 0 && settleFault === '' && !renderError(back) && back.includes('Type a prompt'),
-      `thrown=${JSON.stringify(errors).slice(0, 300)} render error on the screen=${renderError(back)} prompt view=${back.includes('Type a prompt')} ${settleFault}`,
+      `thrown=${JSON.stringify(errors).slice(0, 300)} render error on the screen=${renderError(back)} prompt view=${back.includes('Type a prompt')} ${settleFault} · leaving the scrolled detailed transcript must return to the prompt view without throwing; look at the scroll state kept across the flip in src/components/fullscreenLayout/panes.tsx`,
     )
     check(
       `${tag}: the short prompt view is whole again and shows no jump pill (there is nothing below to go back to)`,
       back.includes('FIRST-ROW') && back.includes('TAIL-END') && !back.includes(PILL),
-      `first=${back.includes('FIRST-ROW')} tail=${back.includes('TAIL-END')} pill=${back.includes(PILL)}`,
+      `first=${back.includes('FIRST-ROW')} tail=${back.includes('TAIL-END')} pill=${back.includes(PILL)} · the jump pill in src/components/fullscreenLayout/panes.tsx must hide when the view fits and there is nothing below`,
     )
 
     appendRow(createAssistantMessage({ content: 'ARRIVED-FIRST a row that lands while the reader watches the tail' }))
@@ -235,7 +235,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: the first row that arrives afterwards is painted with no "new" divider above it (the reader is at the tail and has seen everything)`,
       one.includes('ARRIVED-FIRST') && !/\d+ new ─/.test(one) && !renderError(one),
-      `arrived=${one.includes('ARRIVED-FIRST')} divider=${/\d+ new ─/.exec(one)?.[0] ?? 'none'} render error=${renderError(one)}`,
+      `arrived=${one.includes('ARRIVED-FIRST')} divider=${/\d+ new ─/.exec(one)?.[0] ?? 'none'} render error=${renderError(one)} · a reader at the tail has seen everything, so no new-messages divider may be set after the flip`,
     )
 
     const arriving = rows + 6
@@ -250,7 +250,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: rows that arrive afterwards are followed to the newest one, with no jump pill (the view stayed pinned to its tail)`,
       followed.includes(last) && !followed.includes('TAIL-END') && !followed.includes(PILL) && !renderError(followed),
-      `newest=${followed.includes(last)} the old tail still shown=${followed.includes('TAIL-END')} pill=${followed.includes(PILL)} render error=${renderError(followed)}`,
+      `newest=${followed.includes(last)} the old tail still shown=${followed.includes('TAIL-END')} pill=${followed.includes(PILL)} render error=${renderError(followed)} · after the flip the prompt view must stay pinned to its tail as rows arrive`,
     )
     m.push(WHEEL_UP)
     let away = ''
@@ -262,7 +262,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
     check(
       `${tag}: a later scroll up shows the plain jump pill, not a count of rows the reader watched arrive`,
       away.includes(PILL) && !/\d+ new messages?/.test(away) && !renderError(away),
-      `pill=${/\[ [^\]]* alt\+↓ \]/.exec(away)?.[0] ?? 'none'} render error=${renderError(away)}`,
+      `pill=${/\[ [^\]]* alt\+↓ \]/.exec(away)?.[0] ?? 'none'} render error=${renderError(away)} · the label in src/components/fullscreenLayout/panes.tsx must read back to the bottom when the divider count is 0`,
     )
     process.off('uncaughtException', onError)
     process.off('unhandledRejection', onError)

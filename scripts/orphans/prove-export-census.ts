@@ -10,9 +10,13 @@ const OUT_DIR = join(GRAPH_ROOT, 'scripts', 'orphans', '.out')
 const OUT_JSON = join(OUT_DIR, 'EXPORT-CENSUS.json')
 
 let failures = 0
+function censusFixHint(label: string): string {
+  if (label.startsWith('zero candidates')) return 'fix: remove the export keyword of each listed export (bun scripts/orphans/rewrite-unread-exports.ts <top-level folder>), or import it where it is used'
+  return 'fix: the classifier under test is runCensus in scripts/orphans/exportCensus.ts; change the reader or class rule there so this synthetic export lands in the class the label names, or edit the SYNTHETIC estate in this file if the expectation moved'
+}
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${censusFixHint(label)}`}`)
 }
 function section(title: string): void {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

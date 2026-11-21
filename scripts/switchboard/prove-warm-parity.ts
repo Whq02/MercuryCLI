@@ -24,9 +24,10 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number): Promise<boolean> => {
   const t0 = Date.now()
@@ -110,10 +111,10 @@ function firstDiff(a: string, b: string): string {
 
 try {
   const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', 'the daemon did not answer ping in 60s; read daemon.log in the scratch folder (rerun with WARM_PARITY_KEEP=1 to keep it) for the boot error from src/daemon/main.ts')
 
   const warmed = (await daemonControlRpc({ op: 'concourseWarm', workspaceDir: wsClaimed } as never)) as { ok?: boolean; state?: string; detail?: string }
-  check('workspace A warms a runner', warmed.ok === true && (warmed.state === 'warmed' || warmed.state === 'kept'), JSON.stringify(warmed))
+  check('workspace A warms a runner', warmed.ok === true && (warmed.state === 'warmed' || warmed.state === 'kept'), JSON.stringify(warmed), 'the concourseWarm op must answer ok with state warmed or kept; see answerConcourseWarm in src/daemon/controlServer.ts')
   const daemonLog = (): string => {
     try {
       return readFileSync(join(SCRATCH, 'daemon.log'), 'utf8')
@@ -122,12 +123,12 @@ try {
     }
   }
   const warmLine = (): string | undefined => daemonLog().split('\n').find(l => l.includes('warm runner pre-spawned') && l.includes(wsClaimed))
-  check('the pre-spawn is named', await untilAsync(() => warmLine() !== undefined, 10_000))
+  check('the pre-spawn is named', await untilAsync(() => warmLine() !== undefined, 10_000), '', 'daemon.log has no warm runner pre-spawned line for workspace A; the daemon prints it from onWarmSpawned in src/daemon/main.ts, so check that concourseWarm spawned a runner')
   const warmShort = /pre-spawned: (concourse-w\d+)/.exec(warmLine() ?? '')?.[1] ?? ''
   check('the warm runner reaches ready before the claim', await untilAsync(async () => {
     const h = (await daemonControlRpc({ op: 'has', proto: 1, short: warmShort } as never)) as { ready?: boolean }
     return h.ready === true
-  }, 45_000))
+  }, 45_000), '', 'the pre-spawned runner never answered has with ready: true in 45s; check the runner boot in daemon.log')
 
   const dispatch = async (workspaceDir: string, id: string): Promise<{ sessionId: string; workerId: string }> => {
     const d = (await daemonControlRpc({
@@ -140,14 +141,14 @@ try {
       effort: 'high',
       title: 'Parity probe',
     } as never, { timeoutMs: 30_000 })) as { ok?: boolean; sessionId?: string; workerId?: string; error?: string }
-    check(`${id} dispatches`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d))
+    check(`${id} dispatches`, d.ok === true && typeof d.sessionId === 'string', JSON.stringify(d), 'the concourseDispatch op must answer ok with a sessionId; see answerSessionDispatch in src/daemon/controlServer.ts')
     return { sessionId: d.sessionId ?? '', workerId: d.workerId ?? '' }
   }
 
   const claimed = await dispatch(wsClaimed, 'parity-claimed')
-  check('the claimed session rode the warm runner (claim-over-spawn, live)', claimed.workerId === warmShort, `admitted ${claimed.workerId}, warm was ${warmShort}`)
+  check('the claimed session rode the warm runner (claim-over-spawn, live)', claimed.workerId === warmShort, `admitted ${claimed.workerId}, warm was ${warmShort}`, 'dispatch into the warmed workspace must claim the pre-spawned runner instead of spawning another; see the concourseDispatch and concourseWarm handlers in src/daemon/controlServer.ts')
   const cold = await dispatch(wsCold, 'parity-cold')
-  check('the cold session spawned its own runner', cold.workerId !== warmShort && cold.workerId !== '', cold.workerId)
+  check('the cold session spawned its own runner', cold.workerId !== warmShort && cold.workerId !== '', cold.workerId, 'dispatch into the other workspace must spawn its own runner, never take the warm one of workspace A')
 
   const projectsRoot = join(home, 'projects')
   const transcriptOf = (sid: string): string | null => {
@@ -162,8 +163,8 @@ try {
     const path = transcriptOf(sid)
     return path !== null && readFileSync(path, 'utf8').includes('The parity reply, identical for both sessions.')
   }
-  check('the claimed session settled its turn', await untilAsync(() => settled(claimed.sessionId), 60_000))
-  check('the cold session settled its turn', await untilAsync(() => settled(cold.sessionId), 60_000))
+  check('the claimed session settled its turn', await untilAsync(() => settled(claimed.sessionId), 60_000), '', 'no transcript under projects/ in the scratch home holds the fixture reply within 60s; read daemon.log for the runner error')
+  check('the cold session settled its turn', await untilAsync(() => settled(cold.sessionId), 60_000), '', 'no transcript under projects/ in the scratch home holds the fixture reply within 60s; read daemon.log for the runner error')
   const rows = (sid: string): number => {
     const path = transcriptOf(sid)
     return path === null ? -1 : readFileSync(path, 'utf8').split('\n').filter(Boolean).length
@@ -174,14 +175,14 @@ try {
     const stable = now[0] > 0 && now[0] === now[1] && now[0] === seen[0] && now[1] === seen[1]
     seen = now
     return stable
-  }, 20_000), `claimed ${seen[0]} rows, cold ${seen[1]} rows`)
+  }, 20_000), `claimed ${seen[0]} rows, cold ${seen[1]} rows`, 'the two transcripts must end with the same row count; the session that wrote fewer or more rows differs between a claimed and a cold runner')
 
   const tClaimed = normalize(readFileSync(transcriptOf(claimed.sessionId) ?? '/nonexistent', 'utf8'))
   const tCold = normalize(readFileSync(transcriptOf(cold.sessionId) ?? '/nonexistent', 'utf8'))
-  check('PARITY the transcripts are byte-identical modulo ids/clocks', tClaimed === tCold, tClaimed === tCold ? '' : firstDiff(tClaimed, tCold))
+  check('PARITY the transcripts are byte-identical modulo ids/clocks', tClaimed === tCold, tClaimed === tCold ? '' : firstDiff(tClaimed, tCold), 'a claimed warm runner must write the same transcript as a cold one; the line above is the first difference, so remove whatever the claim path adds or skips, or add the varying field to normalize in this file if it is only an id or a clock')
 
   const factsOf = (sid: string): string => join(daemonDir, 'session-facts', `${sid}.json`)
-  check('both facts projections published', await untilAsync(() => existsSync(factsOf(claimed.sessionId)) && existsSync(factsOf(cold.sessionId)), 20_000))
+  check('both facts projections published', await untilAsync(() => existsSync(factsOf(claimed.sessionId)) && existsSync(factsOf(cold.sessionId)), 20_000), '', 'a session-facts/<sessionId>.json file is missing in the scratch daemon folder after 20s; the daemon did not publish the facts projection for one of the two sessions')
   await untilAsync(() => {
     const a = JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
     const b = JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8')) as { busy?: boolean; totalInputTokens?: number }
@@ -189,12 +190,12 @@ try {
   }, 20_000)
   const fClaimed = normalize(canonical(JSON.parse(readFileSync(factsOf(claimed.sessionId), 'utf8'))))
   const fCold = normalize(canonical(JSON.parse(readFileSync(factsOf(cold.sessionId), 'utf8'))))
-  check('PARITY the facts projections are identical modulo ids/clocks', fClaimed === fCold, fClaimed === fCold ? '' : firstDiff(fClaimed, fCold))
+  check('PARITY the facts projections are identical modulo ids/clocks', fClaimed === fCold, fClaimed === fCold ? '' : firstDiff(fClaimed, fCold), 'the facts projection of a claimed session must equal a cold one; the line above is the first difference, so fix the claim path or add the varying field to normalize in this file if it is only an id or a clock')
 
   const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
   const records = readSessionWorkers(daemonDir)
   const rowOf = (workerId: string): string => normalize(canonical(records[workerId] ?? {}))
-  check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)))
+  check('PARITY the worker records are identical modulo ids/clocks', rowOf(claimed.workerId) === rowOf(cold.workerId), rowOf(claimed.workerId) === rowOf(cold.workerId) ? '' : firstDiff(rowOf(claimed.workerId), rowOf(cold.workerId)), 'the worker record of the claimed runner must equal the cold one as read by readSessionWorkers (src/daemon/concourseWorkers/store.ts); the line above is the first difference')
 } finally {
   try {
     await (await import('../../src/daemon/controlSocket.ts')).daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never)

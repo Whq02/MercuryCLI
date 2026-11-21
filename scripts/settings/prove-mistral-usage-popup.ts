@@ -31,7 +31,7 @@ const { Usage } = await import('../../src/components/Settings/Usage.tsx')
 const framesArg = process.argv.indexOf('--frames')
 const frames = framesArg >= 0 ? process.argv[framesArg + 1] : undefined
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert.ok(ok, label); checks++; console.log(`[PASS] ${label}`) }
+const check = (label: string, ok: unknown): void => { assert.ok(ok, `${label}. Change the Mistral figures built in src/services/providers/providerUsage/mistral.ts, the board title and notes in src/components/Settings/usage/plan.ts, or the Admin API key remedy in src/services/providers/mistral/mistralUsageState.ts (MISTRAL_ADMIN_KEY_HINT). Rerun with --frames <dir> to write the captured frames.`); checks++; console.log(`[PASS] ${label}`) }
 async function capture(name: string, width: number): Promise<string> {
   const board = await mountOffscreen(React.createElement(Usage, { width, rowBudget: 44 }), width, 48)
   try {

@@ -14,7 +14,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 400)}` : ''} — fix the recall-mode words and model readiness in src/mneme/embedModels.ts (memoryRecallModeWords, memoryRecallModeLine, servableEmbedModelNames, describeSemanticReadiness) or the derived index in src/mneme/mnemeIndex.ts (embedIndexEngineStatus, ensureEmbedIndex), or Recall in recallQuery in src/mneme/memoryVerbs.ts` : ''}`)
   if (!cond) failures++
 }
 const finish = (note: string): never => {

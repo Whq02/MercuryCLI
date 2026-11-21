@@ -57,9 +57,11 @@ if (scenario !== null) {
 }
 
 let failures = 0
+const skipKeyFailHint =
+  'fix: the sign-in station, its footer line (↑↓ move · ↵ choose · s skip · esc back), the s and esc key handling and the Guardrails step are in src/components/Onboarding.tsx; a detail starting with the exit status means the offscreen scenario crashed, so run bun scripts/onboarding/prove-provider-skip-key.tsx --scenario skip-then-esc to see the error'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${skipKeyFailHint}`}`)
 }
 const DEAD = 'http://127.0.0.1:9'
 const SCRATCH = mkdtempSync(join(tmpdir(), 'provider-skip-key-'))

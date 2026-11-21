@@ -35,18 +35,18 @@ const chalk = (await import('chalk')).default
 section('§1 the fingerprint decides: COLORTERM or a known truecolor terminal, never the name Apple_Terminal alone')
 {
   const fp = colorize.truecolorFingerprint
-  check('Apple Terminal 455 with no COLORTERM carries no fingerprint', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', TERM_PROGRAM_VERSION: '455' }) === null)
-  check('Apple Terminal 465 with no COLORTERM carries none either (the name decides nothing)', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', TERM_PROGRAM_VERSION: '465' }) === null)
-  check('COLORTERM=truecolor is the fingerprint', fp({ TERM_PROGRAM: 'Apple_Terminal', COLORTERM: 'truecolor' }) === 'COLORTERM=truecolor')
-  check('COLORTERM=24bit counts', fp({ TERM: 'xterm-256color', COLORTERM: '24bit' }) === 'COLORTERM=24bit')
-  check('a bare xterm-256color carries none', fp({ TERM: 'xterm-256color' }) === null)
-  check('tmux inside an unadvertised terminal carries none', fp({ TERM: 'screen-256color', TMUX: '/tmp/tmux-1/default,1,0' }) === null)
-  check('the VS Code terminal is named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode' }) === 'TERM_PROGRAM=vscode')
-  check('Windows Terminal is named', fp({ TERM: 'xterm-256color', WT_SESSION: 'a' }) !== null)
-  check('iTerm2 is named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'iTerm.app' }) === 'TERM_PROGRAM=iTerm.app')
-  check('WezTerm and Ghostty are named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'WezTerm' }) !== null && fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'ghostty' }) !== null)
-  check('Kitty is named by TERM or its window id', fp({ TERM: 'xterm-kitty' }) !== null && fp({ TERM: 'xterm-256color', KITTY_WINDOW_ID: '3' }) !== null)
-  check('the depth words are spoken', colorize.colorDepthWhy().length > 20, colorize.colorDepthWhy())
+  check('Apple Terminal 455 with no COLORTERM carries no fingerprint', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', TERM_PROGRAM_VERSION: '455' }) === null, 'truecolorFingerprint in src/ink/colorize.ts must return null for Apple Terminal without COLORTERM')
+  check('Apple Terminal 465 with no COLORTERM carries none either (the name decides nothing)', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', TERM_PROGRAM_VERSION: '465' }) === null, 'truecolorFingerprint in src/ink/colorize.ts must not decide on the Apple_Terminal name or its version')
+  check('COLORTERM=truecolor is the fingerprint', fp({ TERM_PROGRAM: 'Apple_Terminal', COLORTERM: 'truecolor' }) === 'COLORTERM=truecolor', 'truecolorFingerprint in src/ink/colorize.ts must return COLORTERM=truecolor when COLORTERM says truecolor')
+  check('COLORTERM=24bit counts', fp({ TERM: 'xterm-256color', COLORTERM: '24bit' }) === 'COLORTERM=24bit', 'truecolorFingerprint in src/ink/colorize.ts must accept COLORTERM=24bit')
+  check('a bare xterm-256color carries none', fp({ TERM: 'xterm-256color' }) === null, 'truecolorFingerprint in src/ink/colorize.ts must return null for a plain xterm-256color')
+  check('tmux inside an unadvertised terminal carries none', fp({ TERM: 'screen-256color', TMUX: '/tmp/tmux-1/default,1,0' }) === null, 'truecolorFingerprint in src/ink/colorize.ts must return null under tmux alone')
+  check('the VS Code terminal is named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'vscode' }) === 'TERM_PROGRAM=vscode', 'truecolorFingerprint in src/ink/colorize.ts must name TERM_PROGRAM=vscode')
+  check('Windows Terminal is named', fp({ TERM: 'xterm-256color', WT_SESSION: 'a' }) !== null, 'truecolorFingerprint in src/ink/colorize.ts must name WT_SESSION (Windows Terminal)')
+  check('iTerm2 is named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'iTerm.app' }) === 'TERM_PROGRAM=iTerm.app', 'truecolorFingerprint in src/ink/colorize.ts must name TERM_PROGRAM=iTerm.app')
+  check('WezTerm and Ghostty are named', fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'WezTerm' }) !== null && fp({ TERM: 'xterm-256color', TERM_PROGRAM: 'ghostty' }) !== null, 'truecolorFingerprint in src/ink/colorize.ts must name WezTerm and ghostty by TERM_PROGRAM')
+  check('Kitty is named by TERM or its window id', fp({ TERM: 'xterm-kitty' }) !== null && fp({ TERM: 'xterm-256color', KITTY_WINDOW_ID: '3' }) !== null, 'truecolorFingerprint in src/ink/colorize.ts must name kitty by TERM=xterm-kitty and by KITTY_WINDOW_ID')
+  check('the depth words are spoken', colorize.colorDepthWhy().length > 20, 'colorDepthWhy in src/ink/colorize.ts must return a sentence, got: ' + colorize.colorDepthWhy())
 }
 
 section('§2 the terminal profile row reads the same answer and names the terminals with the exact palette')
@@ -54,15 +54,15 @@ section('§2 the terminal profile row reads the same answer and names the termin
   const probe = { platform: 'darwin' as const, isTTY: true, syncOutput: true, extendedKeys: true, hyperlinks: true, progress: true }
   const apple = profile.resolveTerminalProfile({ env: { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal' }, ...probe })
   const row = apple.checks.find(c => c.id === 'truecolor')
-  check('Apple Terminal without COLORTERM: the row is not met and names the absence', row !== undefined && !row.ok && row.evidence.includes('no known truecolor terminal'), row?.evidence)
-  check('its remediation says Mercury paints in 256 colors there', (row?.remediation ?? '').includes('paints in 256 colors'), row?.remediation)
-  check('the remediation names iTerm2, Ghostty, WezTerm, Kitty and Windows Terminal', /iTerm2.*Ghostty.*WezTerm.*Kitty.*Windows Terminal/.test(row?.remediation ?? ''), row?.remediation)
-  check('the remediation names MERCURY_TRUECOLOR=1 as the forced depth', (row?.remediation ?? '').includes('MERCURY_TRUECOLOR=1'))
+  check('Apple Terminal without COLORTERM: the row is not met and names the absence', row !== undefined && !row.ok && row.evidence.includes('no known truecolor terminal'), 'the truecolor check in resolveTerminalProfile (src/ink/session/terminalProfile.ts) must be not ok and say no known truecolor terminal named; evidence: ' + row?.evidence)
+  check('its remediation says Mercury paints in 256 colors there', (row?.remediation ?? '').includes('paints in 256 colors'), 'the truecolor check remediation in src/ink/session/terminalProfile.ts must say Mercury paints in 256 colors; got: ' + row?.remediation)
+  check('the remediation names iTerm2, Ghostty, WezTerm, Kitty and Windows Terminal', /iTerm2.*Ghostty.*WezTerm.*Kitty.*Windows Terminal/.test(row?.remediation ?? ''), 'the truecolor check remediation in src/ink/session/terminalProfile.ts must name iTerm2, Ghostty, WezTerm, Kitty and Windows Terminal in that order; got: ' + row?.remediation)
+  check('the remediation names MERCURY_TRUECOLOR=1 as the forced depth', (row?.remediation ?? '').includes('MERCURY_TRUECOLOR=1'), 'the truecolor check remediation in src/ink/session/terminalProfile.ts must name MERCURY_TRUECOLOR=1')
   const modern = profile.resolveTerminalProfile({ env: { TERM: 'xterm-256color', TERM_PROGRAM: 'Apple_Terminal', COLORTERM: 'truecolor' }, ...probe })
   const modernRow = modern.checks.find(c => c.id === 'truecolor')
-  check('Apple Terminal advertising COLORTERM=truecolor meets the row with the fingerprint as evidence', modernRow !== undefined && modernRow.ok && modernRow.evidence === 'COLORTERM=truecolor', modernRow?.evidence)
+  check('Apple Terminal advertising COLORTERM=truecolor meets the row with the fingerprint as evidence', modernRow !== undefined && modernRow.ok && modernRow.evidence === 'COLORTERM=truecolor', 'the truecolor check in src/ink/session/terminalProfile.ts must be ok with truecolorFingerprint as evidence; evidence: ' + modernRow?.evidence)
   const wez = profile.resolveTerminalProfile({ env: { TERM: 'xterm-256color', TERM_PROGRAM: 'WezTerm' }, ...probe })
-  check('WezTerm with a plain TERM meets the row', wez.checks.find(c => c.id === 'truecolor')?.ok === true)
+  check('WezTerm with a plain TERM meets the row', wez.checks.find(c => c.id === 'truecolor')?.ok === true, 'the truecolor check in src/ink/session/terminalProfile.ts must be ok when truecolorFingerprint names WezTerm')
 }
 
 const driver = resolveCaptureDriver()
@@ -140,33 +140,33 @@ const clamped = await capture('truecolor-clamped', { COLORTERM: 'truecolor', MER
 
 section('§3 the journeys ran: the first-run theme screen, the boot face and a session on each arm')
 for (const arm of [apple, full, clamped]) {
-  check(`${arm.name}: the capture ended cleanly`, arm.status === 0, arm.log.slice(-600))
-  check(`${arm.name}: the three marks were taken`, ['theme', 'boot', 'session'].every(m => arm.marks.has(m)), [...arm.marks.keys()].join(','))
+  check(`${arm.name}: the capture ended cleanly`, arm.status === 0, 'the capture driver exited nonzero; build dist/mercury.mjs with bun run build.ts and read the log: ' + arm.log.slice(-300))
+  check(`${arm.name}: the three marks were taken`, ['theme', 'boot', 'session'].every(m => arm.marks.has(m)), 'a mark is missing, so the screen await text never appeared in the capture (read ' + arm.name + '.log under the kept scratch); marks taken: ' + [...arm.marks.keys()].join(','))
   const theme = arm.marks.get('theme')
   const text = theme ? textOf(theme) : ''
-  check(`${arm.name}: the theme screen shows the rows, the mascot and the code preview`, text.includes('Oasis dark') && text.includes('True Black') && text.includes('bootHelm') && theme !== undefined && mascotRows(theme).length >= 3, theme === undefined ? 'no theme mark' : `${mascotRows(theme).length} mascot rows · ${halfBlocks(theme)} half blocks · ${text.replace(/\s+/g, ' ').trim().slice(0, 160)}`)
+  check(`${arm.name}: the theme screen shows the rows, the mascot and the code preview`, text.includes('Oasis dark') && text.includes('True Black') && text.includes('bootHelm') && theme !== undefined && mascotRows(theme).length >= 3, theme === undefined ? 'no theme mark was taken, so the first-run theme screen never showed' : `theme screen lacks rows, mascot or preview; ${mascotRows(theme).length} mascot rows · ${halfBlocks(theme)} half blocks · ${text.replace(/\s+/g, ' ').trim().slice(0, 160)}`)
   const session = arm.marks.get('session')
-  check(`${arm.name}: the session header carries the mascot`, session !== undefined && mascotRows(session).length >= 5)
+  check(`${arm.name}: the session header carries the mascot`, session !== undefined && mascotRows(session).length >= 5, 'the session screen shows fewer than 5 mascot half-block rows; read the session mark in ' + arm.name + '.json under the kept scratch')
 }
 
 section('§4 with TERM_PROGRAM=Apple_Terminal and COLORTERM unset no 24-bit sequence leaves the process; the paint is 256-colour')
 {
   const seqs = colorSgrSequences(apple.bytes)
   const raw24 = seqs.filter(s => s.kind === '24-bit')
-  check('no 38;2 / 48;2 sequence from the first-run theme screen through the boot face to the session', raw24.length === 0, `${raw24.length} found, first ${JSON.stringify(raw24.slice(0, 3))}`)
-  check('256-colour sequences carry the paint', seqs.filter(s => s.kind === '256').length > 100, `${seqs.length} colour sequences`)
+  check('no 38;2 / 48;2 sequence from the first-run theme screen through the boot face to the session', raw24.length === 0, `the 256-colour clamp in src/ink/colorize.ts did not hold for Apple Terminal; ${raw24.length} found, first ${JSON.stringify(raw24.slice(0, 3))}`)
+  check('256-colour sequences carry the paint', seqs.filter(s => s.kind === '256').length > 100, `too few 256-colour sequences; check chalk.level in src/ink/colorize.ts for Apple Terminal; ${seqs.length} colour sequences`)
   const read = applyAppleTerminalReading(apple.bytes)
-  check('Apple Terminal reads every byte exactly as a 24-bit terminal would (the reading is a no-op)', Buffer.compare(Buffer.from(read), Buffer.from(apple.bytes)) === 0)
+  check('Apple Terminal reads every byte exactly as a 24-bit terminal would (the reading is a no-op)', Buffer.compare(Buffer.from(read), Buffer.from(apple.bytes)) === 0, 'the Apple arm stream changed under applyAppleTerminalReading (scripts/ui/appleTerminalReading.ts), so it still holds 24-bit sequences; see src/ink/colorize.ts')
   const enter24 = colorSgrSequences(apple.enterScreen).filter(s => s.kind === '24-bit').length
-  check('the enter screen before the first-run screen paints in 256 colours too (no 38;2 / 48;2 across the whole boot)', enter24 === 0, `${enter24} 24-bit sequences before the first-run screen`)
+  check('the enter screen before the first-run screen paints in 256 colours too (no 38;2 / 48;2 across the whole boot)', enter24 === 0, `the enter screen must paint 256 colours; see src/ink/colorize.ts; ${enter24} 24-bit sequences before the first-run screen`)
 }
 
 section('§5 with COLORTERM=truecolor the same screens paint at full depth')
 {
   const seqs = colorSgrSequences(full.bytes)
-  check('24-bit sequences are present', seqs.filter(s => s.kind === '24-bit').length > 100, `${seqs.length} colour sequences`)
+  check('24-bit sequences are present', seqs.filter(s => s.kind === '24-bit').length > 100, `COLORTERM=truecolor must give full depth; see truecolorFingerprint in src/ink/colorize.ts; ${seqs.length} colour sequences`)
   const read = applyAppleTerminalReading(full.bytes)
-  check('Apple Terminal 455 would read that stream differently (the misparse the fix removes)', Buffer.compare(Buffer.from(read), Buffer.from(full.bytes)) !== 0)
+  check('Apple Terminal 455 would read that stream differently (the misparse the fix removes)', Buffer.compare(Buffer.from(read), Buffer.from(full.bytes)) !== 0, 'the truecolor arm emitted no 24-bit sequences, so the Apple Terminal reading changed nothing; see src/ink/colorize.ts')
 }
 
 section('§6 the 256-colour cells are the nearest of the truecolour palette, cell for cell')
@@ -208,7 +208,7 @@ section('§6 the 256-colour cells are the nearest of the truecolour palette, cel
     const previewPairs = new Map<string, string>()
     const previewWrong: string[] = []
     let previewCells = 0
-    check(`${mark}: the rows compared are the same rows on both arms (${rows.length})`, rows.length > 0 && rows.join() === rowsToCompare(mark, a).join(), `${rows.join()} vs ${rowsToCompare(mark, a).join()}`)
+    check(`${mark}: the rows compared are the same rows on both arms (${rows.length})`, rows.length > 0 && rows.join() === rowsToCompare(mark, a).join(), `the two arms painted different screens; compare the ${mark} marks in the kept scratch captures; ${rows.join()} vs ${rowsToCompare(mark, a).join()}`)
     for (const y of rows) {
       for (let x = 0; x < (f[y]?.length ?? 0); x++) {
         const fc = f[y]![x]!
@@ -240,10 +240,10 @@ section('§6 the 256-colour cells are the nearest of the truecolour palette, cel
         }
       }
     }
-    check(`${mark}: the glyphs match cell for cell`, glyphMismatch === 0, `${glyphMismatch} cells differ`)
-    check(`${mark}: every coloured cell is the nearest 256 index of its truecolour value (${coloured} planes read, ${groundDropped} estate-ground cells on the terminal's own ground)`, coloured > 50 && wrong.length === 0, wrong.slice(0, 6).join(' · '))
+    check(`${mark}: the glyphs match cell for cell`, glyphMismatch === 0, `the colour depth must not change glyphs; compare the ${mark} marks of apple-256 and apple-truecolor in the kept scratch; ${glyphMismatch} cells differ`)
+    check(`${mark}: every coloured cell is the nearest 256 index of its truecolour value (${coloured} planes read, ${groundDropped} estate-ground cells on the terminal's own ground)`, coloured > 50 && wrong.length === 0, 'the 256-colour downgrade in src/ink/cell-grid.ts (rgbToXterm256) or src/ink/colorize.ts must give the nearest palette index: ' + wrong.slice(0, 6).join(' · '))
     if (mark === 'theme') {
-      check(`theme: the code preview (${previewCells} cells, the colour module's own 256 theme) paints palette entries only and keeps its colour structure`, previewCells > 100 && previewWrong.length === 0, previewWrong.slice(0, 6).join(' · '))
+      check(`theme: the code preview (${previewCells} cells, the colour module's own 256 theme) paints palette entries only and keeps its colour structure`, previewCells > 100 && previewWrong.length === 0, 'the theme code preview must paint only 256-palette entries; see src/native-ts/color-diff/index.ts (quantizeToAnsi256): ' + previewWrong.slice(0, 6).join(' · '))
     }
   }
 }
@@ -251,7 +251,7 @@ section('§6 the 256-colour cells are the nearest of the truecolour palette, cel
 section('§7 MERCURY_TRUECOLOR=0 on a truecolour terminal downgrades everywhere, to the same 256-colour frames')
 {
   const seqs = colorSgrSequences(clamped.bytes)
-  check('no 38;2 / 48;2 sequence with the clamp', seqs.filter(s => s.kind === '24-bit').length === 0)
+  check('no 38;2 / 48;2 sequence with the clamp', seqs.filter(s => s.kind === '24-bit').length === 0, 'MERCURY_TRUECOLOR=0 must clamp chalk.level to 2; see clampChalkLevelForMercury in src/ink/colorize.ts')
   for (const mark of ['theme', 'boot', 'session']) {
     const a = apple.marks.get(mark)
     const c = clamped.marks.get(mark)
@@ -264,7 +264,7 @@ section('§7 MERCURY_TRUECOLOR=0 on a truecolour terminal downgrades everywhere,
         if (!q || (p.c || ' ') !== (q.c || ' ') || p.fg !== q.fg || p.bg !== q.bg || p.bold !== q.bold || p.rev !== q.rev) differ++
       }
     }
-    check(`${mark}: the clamped frame equals the unadvertised terminal's frame`, differ === 0, `${differ} cells differ`)
+    check(`${mark}: the clamped frame equals the unadvertised terminal's frame`, differ === 0, `the clamp must paint the same frame as an unadvertised terminal; see clampChalkLevelForMercury in src/ink/colorize.ts; ${differ} cells differ`)
   }
 }
 

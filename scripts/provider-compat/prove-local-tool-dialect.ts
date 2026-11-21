@@ -13,11 +13,25 @@ delete process.env.MERCURY_LOCAL_API_KEY
 delete process.env.MERCURY_LOCAL_BASE_URL
 
 let failures = 0
+const dialectRenderFixHint = 'fix the rendering in src/services/providers/local/toolDialect.ts (toolDialectSystemText, renderToolDialectHistory, toolDialectCall, toolDialectResult, TOOL_DIALECT_WORDS)'
+const dialectRoadFixHint = 'fix where the dialect is applied to the request in src/services/providers/openaicompat/compatChatCallModel/prepare.ts, or the markup parsing and rendering in src/services/providers/local/toolDialect.ts'
+const sectionFixHints: Record<string, string> = {
+  '1': dialectRenderFixHint,
+  '2': dialectRenderFixHint,
+  '3': dialectRoadFixHint,
+  '4': dialectRoadFixHint,
+  '5': dialectRoadFixHint,
+  '6': dialectRoadFixHint,
+  refusals: dialectRoadFixHint,
+}
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionFixHint ? ` — ${sectionFixHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${hint}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (value: unknown): string => JSON.stringify(value)?.slice(0, 600) ?? ''

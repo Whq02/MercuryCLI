@@ -15,16 +15,17 @@ for (const k of ['NODE_ENV', 'MERCURY_BARE', 'MERCURY_MODEL', 'ANTHROPIC_API_KEY
 
 let failures = 0
 let checks = 0
+const socketRoadFailureHint = 'change the socket road (connection, chaining, fallback to HTTP, rotation) in src/services/providers/openai/openaiSocketTransport.ts, the request routing in src/services/providers/openai/openaiClient.ts or src/services/providers/openai/openaiCallModel.ts, or the routing.openai.transport setting in src/utils/settings/types.ts and scripts/settings/settings-schema.json, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${socketRoadFailureHint}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — openai socket road prover exceeded 180s')
+  console.log('\nTIMEOUT — openai socket road prover exceeded 180s; a request is stuck, so look at the socket road in src/services/providers/openai/openaiSocketTransport.ts (connect, fallback to HTTP, close handling)')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

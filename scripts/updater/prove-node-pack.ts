@@ -65,8 +65,9 @@ const sha256 = (b: Buffer | string): string => createHash('sha256').update(b).di
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
+const packFixHint = 'change the owner src/services/privateChannel/vendoredRuntime.ts for platform, record and runtime-line checks, src/services/privateChannel/installLayout.ts and artifactVerify.ts for the payload checks of sections 5 and 6, vendor/node.lock.json and scripts/vendor/fetch-node.ts for the lock checks, .github/workflows/private-release.yml for the workflow checks'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${packFixHint}`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

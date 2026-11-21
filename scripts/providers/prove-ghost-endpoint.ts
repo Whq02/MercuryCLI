@@ -25,7 +25,7 @@ const closed = Bun.serve({ hostname: '127.0.0.1', port: 0, fetch: () => new Resp
 const port = closed.port!
 closed.stop(true)
 let failures = 0
-const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name); if (!ok) failures++ }
+const check = (name: string, ok: unknown) => { console.log((ok ? 'PASS ' : 'FAIL ') + name + (ok ? '' : ' — change the row labels in namedCompatModelOptions (src/services/providers/openaicompat/compatCatalogue.ts), the picker in src/commands/model/mercuryModel.tsx, or for the Terminate checks the /llmhost popup in src/commands/llmhost/llmhost.tsx')); if (!ok) failures++ }
 const realFetch = globalThis.fetch
 let attempts = 0
 globalThis.fetch = (async (input: any, init?: RequestInit) => {

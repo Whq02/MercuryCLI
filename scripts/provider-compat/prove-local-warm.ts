@@ -22,11 +22,28 @@ delete process.env.MERCURY_MODEL
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+const warmModuleFixHint = 'fix src/services/providers/local/localWarm.ts (armLocalWarm, noteLocalTurn, keepAliveTouchDue, conversationServedBy)'
+const sectionFixHints: Record<string, string> = {
+  '0': 'the fixture world is wrong: check refreshLocalDiscovery in src/services/providers/local/localDiscovery.ts and the fixture in scripts/local-setup/fixtures/fake-ollama.ts',
+  '1': warmModuleFixHint,
+  '2': `${warmModuleFixHint}, or the request the turn builds in src/services/providers/local/localCallModel.ts`,
+  '3': `the warm body and the turn body must share their prefix: ${warmModuleFixHint}, or the request the turn builds in src/services/providers/local/localCallModel.ts`,
+  '4': `the keep-alive touch: ${warmModuleFixHint}`,
+  '5': `the keep-alive touch: ${warmModuleFixHint}`,
+  '6': `${warmModuleFixHint} (the clock must stop when the model leaves the local lane)`,
+  '7': `${warmModuleFixHint} (a later switch must cancel the in-flight warm)`,
+  '8': `${warmModuleFixHint} (whether a switch warms depends on the conversation rows and the served set)`,
+  '9': `${warmModuleFixHint} (a failed warm must stay quiet and stop the touches)`,
+  '10': 'the helper model must start only for a claimed runner: check the live gate in armLocalWarm in src/services/providers/local/localWarm.ts and src/services/providers/local/tensorfoldHelper.ts',
+}
+let sectionFixHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = !cond && sectionFixHint ? ` — ${sectionFixHint}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${hint}${!cond && detail ? ` — ${detail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

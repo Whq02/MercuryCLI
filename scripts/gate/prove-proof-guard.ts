@@ -7,9 +7,11 @@ const guard = join(root, 'scripts/lib/proofGuard.cjs')
 const subject = join(root, 'scripts/gate/proofGuardSubject.ts')
 const node = Bun.which('node') ?? 'node'
 let failures = 0
+const repairHint = 'to fix, change the refusal and install logic in scripts/lib/proofGuard.cjs (the guard this proof loads), or the calls it drives in scripts/gate/proofGuardSubject.ts'
 const check = (name: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? `: ${detail}` : ''}`)
+  const shown = ok ? detail : detail ? `${detail} (${repairHint})` : repairHint
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${shown ? `: ${shown}` : ''}`)
 }
 const section = (title: string) => console.log(`\n── ${title}`)
 

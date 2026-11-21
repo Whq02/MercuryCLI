@@ -303,33 +303,33 @@ try {
 }
 const { marks } = cap
 if (process.env.FIELD_KEEP === '1') for (const [label, frame] of Object.entries(marks)) dump(label, frame)
-check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
-check('the crew ran and landed on the wire (parent → two seats → the ack)', fixture.hits.filter(h => h === 'seat').length >= 2 && fixture.hits.includes('parent-ack'), fixture.hits.join(','))
+check('every send became due (the frames the sends waited on all painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} · a send was never due: the frame it waited on did not paint, so run with FIELD_KEEP=1 and read the dumped marks to see which screen stalled`)
+check('the crew ran and landed on the wire (parent → two seats → the ack)', fixture.hits.filter(h => h === 'seat').length >= 2 && fixture.hits.includes('parent-ack'), `${fixture.hits.join(',')} · the fixture saw no two seats plus the parent ack, so the Crewmate tool was not offered or the seats did not finish`)
 const landed = marks['landed'] ?? ''
-check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('crewmates finished') && attributesCrew(landed))
+check('the previous session\'s crew was on every surface: the card names both seats and the usage line attributes the crew', namesSeat(landed) && landed.includes('crewmates finished') && attributesCrew(landed), 'the card after the crew landed must name both seats and the usage line must read crewmates N tokens; see crewAgentsOf in src/services/engine-connector/crewFacts.ts')
 const crewLanded = marks['crew-landed'] ?? ''
-check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'))
+check('the previous session\'s Crew view listed both, landed', namesSeat(crewLanded) && crewLanded.includes('0 running') && crewLanded.includes('Crewmates (2)'), 'the Crew view of the crew session must list both seats as landed with 0 running; see crewAgentsOf and crewRunning in src/services/engine-connector/crewFacts.ts')
 const fresh = marks['fresh'] ?? ''
-check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('crewmates finished'))
+check('the born session is a fresh chat (its splash is up, no card)', fresh.includes(SPLASH_READY) && !fresh.includes('crewmates finished'), 'after /clear the new session must open on the splash with no crew card')
 check('the born session names no seat of the previous session (the CREW lane, the transcript)', !namesSeat(fresh), fresh.split('\n').filter(l => namesSeat(l)).join(' | '))
 check('the born session attributes no sub-agents in its usage line', !attributesCrew(fresh), flat(fresh).match(/sub-agents[^·]*/)?.[0] ?? '')
 const freshCrew = marks['fresh-crew'] ?? ''
 check(`the born session's Crew view reads the honest empty line ("${CREW_EMPTY_LINE}") and names no seat`, freshCrew.includes(CREW_EMPTY_LINE) && !namesSeat(freshCrew), freshCrew.split('\n').filter(l => /sub-agent|running/.test(l)).join(' | '))
 const freshAfter = marks['fresh-after'] ?? ''
-check('back on the fresh chat, still none of it', !namesSeat(freshAfter) && !attributesCrew(freshAfter))
-check('the leave gesture reached the concourse, then the face', (marks['board'] ?? '').includes(BOARD) && paintsBootFaceReady(marks['face'] ?? ''))
+check('back on the fresh chat, still none of it', !namesSeat(freshAfter) && !attributesCrew(freshAfter), 'the fresh chat after leaving the Crew view shows a seat or a crew usage line from the previous session; the crew rows must stay keyed to the session id they were launched in')
+check('the leave gesture reached the concourse, then the face', (marks['board'] ?? '').includes(BOARD) && paintsBootFaceReady(marks['face'] ?? ''), 'the double leave gesture (shift-left twice) must reach the SESSIONS board and then the boot face on enter; dump the marks with FIELD_KEEP=1')
 const freshB = marks['fresh-b'] ?? ''
 check('the session born from the face is a fresh chat naming no earlier seat and attributing no sub-agents', freshB.includes(SPLASH_READY) && !namesSeat(freshB) && !attributesCrew(freshB), freshB.split('\n').filter(l => namesSeat(l) || attributesCrew(l)).join(' | '))
 const freshCrewB = marks['fresh-crew-b'] ?? ''
 check(`its Crew view reads "${CREW_EMPTY_LINE}" and names no seat`, freshCrewB.includes(CREW_EMPTY_LINE) && !namesSeat(freshCrewB), freshCrewB.split('\n').filter(l => /sub-agent|running/.test(l)).join(' | '))
-check('back on that chat, still none of it', !namesSeat(marks['fresh-after-b'] ?? '') && !attributesCrew(marks['fresh-after-b'] ?? ''))
+check('back on that chat, still none of it', !namesSeat(marks['fresh-after-b'] ?? '') && !attributesCrew(marks['fresh-after-b'] ?? ''), 'the chat born from the boot face shows a seat or a crew usage line from the first session; the crew rows must stay keyed to the session id they were launched in')
 
 const daemonDir = join(home, 'daemon')
 const records = Object.values(readSessionWorkers(daemonDir)).sort((a, b) => a.spawnedAt - b.spawnedAt)
 const crewSession = records[0]
 const bornSessions = records.slice(1)
-check('three sessions exist on the daemon\'s board: the crew\'s, the one born in place, the one born from the face', records.length === 3, `${records.length} records`)
-check('every born session has its own id', crewSession !== undefined && bornSessions.every(r => r.sessionId !== crewSession.sessionId) && new Set(records.map(r => r.sessionId)).size === records.length)
+check('three sessions exist on the daemon\'s board: the crew\'s, the one born in place, the one born from the face', records.length === 3, `${records.length} records · readSessionWorkers in src/daemon/concourseWorkers.ts must list the crew session, the one born by /clear and the one born from the face`)
+check('every born session has its own id', crewSession !== undefined && bornSessions.every(r => r.sessionId !== crewSession.sessionId) && new Set(records.map(r => r.sessionId)).size === records.length, `${records.map(r => r.sessionId).join(',')} · a born session reused an earlier session id; readSessionWorkers in src/daemon/concourseWorkers.ts shows the records`)
 const files = existsSync(sessionFactsDir(daemonDir)) ? readdirSync(sessionFactsDir(daemonDir)) : []
 for (const born of bornSessions) {
   const facts = readSessionFacts(born.sessionId, daemonDir)

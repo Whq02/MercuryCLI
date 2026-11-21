@@ -36,7 +36,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const gemini4FixHint = ' (fix the request body in geminiCallModel in src/services/providers/gemini/geminiCallModel.ts, the roster and effort rows in src/services/providers/gemini/geminiCatalogue.ts, the window, ceiling and effort words in src/utils/model/capabilities.ts and src/utils/effort.ts, or the price rows in src/services/usage/modelCost.ts, whichever the label names)'
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : gemini4FixHint}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 

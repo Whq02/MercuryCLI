@@ -9,9 +9,11 @@ mkdirSync(HOME, { recursive: true })
 for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spelling] = HOME
 
 let failures = 0
+let failHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, failHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { applyConcourseContractOp, CONTRACT_TEXT_CAP } = await import('../../src/daemon/sessionContract.ts')
@@ -47,6 +49,7 @@ const contract = () => rec().contract
 
 console.log('A — the record lifecycle (drafted → acked → active → amended → re-acked → closed; never deleted)')
 {
+  failHint = 'the lifecycle is applyConcourseContractOp in src/daemon/sessionContract.ts, and the delivery promotion is markConcourseWorkerDelivery exported by src/daemon/concourseWorkers.ts'
   seedWorker()
   check('A0 a fresh record carries NO contract (additive — old records unaffected)', contract() === undefined)
   const set1 = applyConcourseContractOp(SID, { op: 'set', text: 'Build the widget; touch nothing else.' }, 'operator', DIR)
@@ -71,6 +74,7 @@ console.log('A — the record lifecycle (drafted → acked → active → amende
 
 console.log("B — the one verb's four ops (typed refusals; the wire's appended action)")
 {
+  failHint = 'the typed refusals and noops are decided by applyConcourseContractOp in src/daemon/sessionContract.ts'
   check('B1 unknown session refuses typed', applyConcourseContractOp('no-such', { op: 'set', text: 'x' }, 'operator', DIR).outcome === 'refused')
   seedWorker()
   check('B2 ack with no contract refuses', applyConcourseContractOp(SID, { op: 'ack' }, 'w', DIR).outcome === 'refused')
@@ -91,6 +95,7 @@ console.log("B — the one verb's four ops (typed refusals; the wire's appended 
 
 console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, a dispatch, or an admission)')
 {
+  failHint = 'markConcourseWorkerDelivery (exported by src/daemon/concourseWorkers.ts) must not read the contract state to refuse or delay a delivery; the contract ops are in src/daemon/sessionContract.ts'
   seedWorker()
   applyConcourseContractOp(SID, { op: 'set', text: 'un-acked draft' }, 'o', DIR)
   const before = rec().lastDeliveryAt
@@ -100,6 +105,7 @@ console.log('E — ADVISORY ALWAYS (the poison: contract state blocking a tool, 
 
 console.log('F — close-against writes the contract-close receipt through the landed seam')
 {
+  failHint = 'the receipt seam is appendSessionReceipt and readSessionReceipts in src/services/switchboard/sessionReceipts.ts'
   const home = join(SCRATCH, 'receipts-home')
   mkdirSync(home, { recursive: true })
   appendSessionReceipt(home, SID, {
@@ -116,6 +122,7 @@ console.log('F — close-against writes the contract-close receipt through the l
 console.log('G — warm re-surfacing (T3 mechanism 1: at birth, then on cadence, through the estate’s own plumbing)')
 {
   {
+    failHint = 'the contract_reminder attachment is rendered by normalizeAttachmentForAPI in src/services/messages/attachmentText.ts'
     const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')
     const rows = normalizeAttachmentForAPI({ type: 'contract_reminder', text: 'the work agreement', status: 'in force', amendments: 0, ackOwed: false } as never)
     const words = rows.map(row => (typeof row.message.content === 'string' ? row.message.content : row.message.content.map(block => (block.type === 'text' ? block.text : '')).join('\n'))).join('\n')

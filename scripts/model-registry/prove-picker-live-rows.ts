@@ -68,7 +68,8 @@ const { composeSubModelRegistry } = await import('../../src/services/model/subMo
 let failures = 0
 function check(label: string, cond: boolean, detail?: string): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = 'to fix, change mergeAnthropicLiveRows or getModelOptions in src/services/model/modelOptions.ts (the live-row merge) so the composed Anthropic rows match this check'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

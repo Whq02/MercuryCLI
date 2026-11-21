@@ -13,8 +13,9 @@ const ROOT = realpathSync(join(import.meta.dir, '..', '..'))
 process.chdir(ROOT)
 
 let failures = 0
+const cloneLinksHint = 'to fix, change how the cloned node_modules is built and its links rewritten: cloneIntoWorktree and linkTargetInCopy in src/utils/worktreeClone.ts, called by cloneCheckoutDirectories in src/services/worktree.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + cloneLinksHint : ''}`)
   if (!cond) failures++
 }
 const skip = (label: string): void => console.log(`  [SKIP] ${label}`)

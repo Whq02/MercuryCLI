@@ -37,12 +37,27 @@ process.env.GEMINI_API_KEY = 'AIza-EFFORT-WIRE-PROOF-00000'
 process.env.ANTHROPIC_API_KEY = 'prover-key'
 delete process.env.ANTHROPIC_BASE_URL
 
+const SECTION_FAILURE_HINTS: Record<string, string> = {
+  '§1': 'make configureEffortParams in src/services/providers/anthropic/requestParams.ts send the tier that resolveEffortTruth in src/utils/effort.ts returns as wire',
+  '§1b': 'check queryModelWithStreaming in src/services/providers/anthropic/streamCore.ts and configureEffortParams in src/services/providers/anthropic/requestParams.ts: effort belongs in output_config, never in the anthropic-beta header',
+  '§2': 'make resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts and buildOpenaiResponsesRequest in src/services/providers/openai/responsesBridge.ts agree with resolveEffortTruth in src/utils/effort.ts',
+  '§3': 'make glmEffortsFor in src/utils/model/pins/glmPins.ts and buildZaiChatRequest in src/services/providers/zai/zaiCodec.ts agree with resolveEffortTruth in src/utils/effort.ts',
+  '§4': 'make the builder named in the label, in src/services/providers/openaicompat/compatWire.ts, agree with resolveEffortTruth in src/utils/effort.ts',
+  '§5': 'check thinkingOffWireEffort and the build*Extras builders in src/services/providers/openaicompat/compatWire.ts against the thinking-off branch of resolveEffortTruth in src/utils/effort.ts',
+  '§6': 'check effortVocabularyFor in src/utils/model/capabilities.ts and resolveEffortTruth in src/utils/effort.ts: a model without an effort dial must resolve to the absence label',
+  '§7': 'check effortSentOf in src/services/engine-connector/seatProjections.ts: session/facts effortSent must come from resolveEffortTruth',
+  '§8': 'check parseCliEffort and describeEffortEnvOverride in src/utils/effort.ts, the two doors for the effort flag and MERCURY_EFFORT_LEVEL',
+  '§10': 'check effortVocabularyFor in src/utils/model/capabilities.ts: each model family must report its expected view kind and thinking gate',
+}
+let failureHint = 'the fixture catalogue did not land: check the refresh function of that provider catalogue under src/services/providers, and the fixture rows in this file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failureHint ? `change: ${failureHint}` : ''].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  failureHint = SECTION_FAILURE_HINTS[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

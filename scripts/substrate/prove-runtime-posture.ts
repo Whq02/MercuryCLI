@@ -23,9 +23,12 @@ const {
 } = await import('../../src/utils/cockpit/runtimePosture.js')
 const { buildSubagentMercurySections } = await import('../../src/constants/subagentDoctrine.js')
 
+const POSTURE_HINT = 'change getRuntimePostureSection or getRuntimePostureDoctrineLine in src/utils/cockpit/runtimePosture.ts (or buildSubagentMercurySections in src/constants/subagentDoctrine.ts for the subagent checks) so the posture text matches this label'
+
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + POSTURE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

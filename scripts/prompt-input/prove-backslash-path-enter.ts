@@ -2,7 +2,7 @@
 import { isBackslashContinuation } from '../../src/input-core/backslashContinuation.ts'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = 'change isBackslashContinuation in src/input-core/backslashContinuation.ts so a trailing backslash after prose continues and a drive, UNC or separator-bearing path word submits'): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
 }

@@ -10,10 +10,13 @@ import {
   isMcpInstructionsDeltaEnabled,
 } from '../../src/utils/mcpInstructionsDelta.ts'
 
+const DELTA_HINT = 'change getMcpInstructionsDelta or isMcpInstructionsDeltaEnabled in src/utils/mcpInstructionsDelta.ts (sections 1 and 2); for section 4 also getSystemPrompt in src/constants/prompts.ts (no MCP instructions in the system prompt) and normalizeAttachmentForAPI in src/services/messages/attachmentText.ts (the row text)'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + DELTA_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

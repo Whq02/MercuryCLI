@@ -17,10 +17,11 @@ const { getSessionId } = await import('../../src/bootstrap/state.ts')
 
 let failures = 0
 let checks = 0
+let missionOwnerWhere = 'fix getTaskListId, createTask or listSessionMission in src/utils/tasks.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${missionOwnerWhere}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -40,6 +41,7 @@ section("§1 the runner's ledger: the session's own list")
 section('§2 the signal: one row from the writer, read by the daemon, admitted by the schema')
 {
   const { missionUpdatedRow, createRowStamper } = await import('../../src/rows/project.ts')
+  missionOwnerWhere = 'fix missionUpdatedRow or createRowStamper in src/rows/project.ts, parseRow in src/rows/read.ts, or RowSchema in src/rows/vocabulary.ts'
   const { RowSchema } = await import('../../src/rows/vocabulary.ts')
   const { parseRow } = await import('../../src/rows/read.ts')
   const row = createRowStamper(() => '2026-10-02T00:00:00.000Z').stamp(missionUpdatedRow({ session_id: 'sess-1' }))

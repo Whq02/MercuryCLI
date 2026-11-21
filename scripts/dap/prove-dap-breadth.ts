@@ -11,12 +11,12 @@ const repo = path.resolve(import.meta.dir, '../..')
 const mock2 = path.join(repo, 'scripts/dap/mock-dap-adapter-2.mjs')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — change: ${fixHint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — breadth proof exceeded 120s')
+  console.log('\nTIMEOUT — breadth proof exceeded 120s; a DebugTool op in src/tools/DebugTool/DebugTool.ts or an adapter in scripts/dap/mock-dap-adapter-2.mjs never answered, so read the last printed section header to find which')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -79,12 +79,12 @@ async function runOp(input: Record<string, unknown>) {
 console.log('— A. the adapter config file —')
 {
   const row = resolveAdapter('mock2')
-  check('file row resolves', row !== null && row.command === process.execPath && row.attachShape === 'flat', JSON.stringify(row))
-  check('file rows list in knownAdapterKeys', knownAdapterKeys().includes('mock2') && knownAdapterKeys().includes('mock2tcp'))
+  check('file row resolves', row !== null && row.command === process.execPath && row.attachShape === 'flat', JSON.stringify(row), 'resolveAdapter in src/services/dap/client/adapters.ts must load rows from the MERCURY_DAP_ADAPTERS_FILE table')
+  check('file rows list in knownAdapterKeys', knownAdapterKeys().includes('mock2') && knownAdapterKeys().includes('mock2tcp'), '', 'knownAdapterKeys in src/services/dap/client/adapters.ts must list the file-table rows')
   check('extension auto-pick reads the file table', adapterKeyForExtension('.m2') === 'mock2' && adapterKeyForExtension('.m2t') === 'mock2tcp')
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ mock2: { command: '/env/wins', args: [] } })
   const overridden = resolveAdapter('mock2')
-  check('the env table outranks the file table', overridden?.command === '/env/wins', JSON.stringify(overridden))
+  check('the env table outranks the file table', overridden?.command === '/env/wins', JSON.stringify(overridden), 'resolveAdapter in src/services/dap/client/adapters.ts must let the MERCURY_DAP_ADAPTERS env table outrank the file table')
   delete process.env.MERCURY_DAP_ADAPTERS
   check('builtins still resolve beside the file', resolveAdapter('lldb') !== null)
 }
@@ -119,7 +119,7 @@ console.log('— A2. project adapters follow the project trust grant —')
     check('the user adapter remains available without project trust', resolveAdapter('shared')?.command === '/user/adapter')
     trust.setPathTrusted(project)
     check('the trusted project file is loaded and its extensions resolve', resolveAdapter('projectMock')?.command === process.execPath && knownAdapterKeys().includes('projectMock') && adapterKeyForExtension('.project-dap') === 'projectMock')
-    check('the project adapter overrides the user row', resolveAdapter('shared')?.command === '/project/adapter')
+    check('the project adapter overrides the user row', resolveAdapter('shared')?.command === '/project/adapter', '', 'resolveAdapter in src/services/dap/client/adapters.ts must let a trusted project row override the user row')
     const other = path.join(scratch, 'untrusted-other')
     mkdirSync(path.join(other, '.mercury'), { recursive: true })
     writeFileSync(path.join(other, '.mercury', 'dap-adapters.json'), JSON.stringify({ foreign: { command: '/foreign/adapter' } }))
@@ -137,7 +137,7 @@ console.log('— A2. project adapters follow the project trust grant —')
     const program = path.join(project, 'program.project-dap')
     writeFileSync(program, 'fixture\n')
     const launch = await runOp({ op: 'launch', adapter: 'projectMock', program, file: program, lines: [3], session: 'project' })
-    check('a trusted project adapter drives a real DAP stop', launch.data.debuggee === 'stopped', launch.data.result)
+    check('a trusted project adapter drives a real DAP stop', launch.data.debuggee === 'stopped', launch.data.result, 'the launch op in src/tools/DebugTool/DebugTool.ts must reach a first stop with an adapter from a trusted project file')
     await runOp({ op: 'disconnect', session: 'project' })
     writeFileSync(projectFile, '{broken')
     check('a malformed project file falls back without replacing user rows', resolveAdapter('shared')?.command === '/user/adapter' && resolveAdapter('projectMock') === null)
@@ -150,7 +150,7 @@ console.log('— A2. project adapters follow the project trust grant —')
 console.log('— P. attach by port/host —')
 {
   const r = await runOp({ op: 'attach', adapter: 'mock2', port: 45_678, host: '10.0.0.9', session: 'att' })
-  check('attach-by-port succeeded with a typed stop', /attached to 10\.0\.0\.9:45678/.test(r.data.result) && r.data.debuggee === 'stopped', r.data.result.slice(0, 200))
+  check('attach-by-port succeeded with a typed stop', /attached to 10\.0\.0\.9:45678/.test(r.data.result) && r.data.debuggee === 'stopped', r.data.result.slice(0, 200), 'the attach op in src/tools/DebugTool/DebugTool.ts must pass port and host to the adapter and report attached to host:port')
   const echo = await runOp({ op: 'customRequest', session: 'att', method: 'mock/lastAttach' })
   check('the FLAT attach body carried port + host + the file-row defaults', /"port": 45678/.test(echo.data.result) && /"host": "10\.0\.0\.9"/.test(echo.data.result) && /"flavor": "file-row"/.test(echo.data.result), echo.data.result.slice(0, 300))
   await runOp({ op: 'disconnect', session: 'att' })
@@ -180,7 +180,7 @@ console.log('— T. tcp connect with a substituted port —')
   const program = path.join(scratch, 'demo.m2t')
   writeFileSync(program, 'x\n')
   const r = await runOp({ op: 'launch', program, file: program, lines: [3], session: 'tcp' })
-  check('tcp launch reached the first stop over the socket', r.data.debuggee === 'stopped' && /via mock2tcp/.test(r.data.result), r.data.result.slice(0, 220))
+  check('tcp launch reached the first stop over the socket', r.data.debuggee === 'stopped' && /via mock2tcp/.test(r.data.result), r.data.result.slice(0, 220), 'the launch op for a tcp-connect adapter must substitute the port token and connect over the socket (src/services/dap/client/adapters.ts holds the adapter table)')
   const argv = await runOp({ op: 'customRequest', session: 'tcp', method: 'mock/argv' })
   const portMatch = argv.data.result.match(/"(\d{2,5})"/)
   check('the adapter received a REAL substituted port, not the token', portMatch !== null && Number(portMatch![1]) > 0 && !argv.data.result.includes('${port}'), argv.data.result.slice(0, 200))
@@ -208,7 +208,7 @@ console.log('— S. the still-running NORMAL result —')
   writeFileSync(program, 'x\n')
   await runOp({ op: 'launch', program, session: 'run' })
   const r = await runOp({ op: 'continue', session: 'run' })
-  check('a never-stopping continue returns still-running (succeeded, debuggee running)', r.data.outcome === 'succeeded' && r.data.debuggee === 'running' && /still running after 10s/.test(r.data.result), `${r.data.outcome}/${r.data.debuggee}: ${r.data.result.slice(0, 160)}`)
+  check('a never-stopping continue returns still-running (succeeded, debuggee running)', r.data.outcome === 'succeeded' && r.data.debuggee === 'running' && /still running after 10s/.test(r.data.result), `${r.data.outcome}/${r.data.debuggee}: ${r.data.result.slice(0, 160)}`, 'the continue op in src/tools/DebugTool/DebugTool.ts must return a succeeded still-running result when no stop arrives')
   await runOp({ op: 'disconnect', session: 'run' })
   delete process.env.MOCK2_NEVER_STOP
 }
@@ -225,7 +225,7 @@ console.log('— X. customRequest round-trips raw —')
   await runOp({ op: 'disconnect', session: 'x' })
 }
 
-check('no sessions leaked', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()))
+check('no sessions leaked', _dapSessionCountForTesting() === 0, String(_dapSessionCountForTesting()), 'a disconnect op did not reap its session, so see removeDapSession in src/services/dap/dapClient.ts')
 console.log('')
 if (failures > 0) {
   console.log(`RED: ${failures} failing check(s)`)

@@ -7,9 +7,10 @@ const seams = layout as unknown as {
   windowsScriptPolicyNotice?: (readings: Array<{ shell: string; effective: string; scopes: Array<{ scope: string; policy: string }> }>) => string[]
 }
 let failures = 0
+const policyFixHint = 'change windowsScriptPolicyNotice (the notice lines) or writeShimSet (when the notice is read and printed) in src/services/privateChannel/installLayout.ts'
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ` — ${JSON.stringify(detail)}; ${policyFixHint}`}`)
 }
 const reading = (effective: string, scope = 'LocalMachine', shell = 'Windows PowerShell') => ({ shell, effective, scopes: [{ scope, policy: effective }] })
 const notice = (readings: ReturnType<typeof reading>[]) => seams.windowsScriptPolicyNotice?.(readings) ?? []

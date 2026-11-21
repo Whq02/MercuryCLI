@@ -19,7 +19,7 @@ process.env.ANTHROPIC_API_KEY = 'proof-key-ci-gate-not-a-real-key'
 for (const key of ['MERCURY_BARE', 'MERCURY_SCRIPTED_STREAM', 'NODE_ENV']) delete process.env[key]
 globalThis.fetch = Object.assign(async () => { throw new Error('network is not part of this fixture') }, globalThis.fetch)
 
-const watchdog = setTimeout(() => { console.error('Fixture exceeded 90 seconds'); process.exit(1) }, 90_000)
+const watchdog = setTimeout(() => { console.error('Fixture exceeded 90 seconds; a scripted run never reached its end, look at closeRound in src/services/tools/loopGuard.ts and the turn loop in src/run-core/turn/afterTools.ts'); process.exit(1) }, 90_000)
 watchdog.unref?.()
 const queryModule = await import('../../src/query.ts')
 const realQuery = queryModule.query
@@ -64,10 +64,11 @@ let executions = 0
 let sequence = 0
 let failures = 0
 let checks = 0
-function check(name: string, ok: boolean, detail: unknown = ''): void {
+const LOOP_GUARD_WHERE = 'closeRound in src/services/tools/loopGuard.ts (the failed-call count, the reminder at two, the stop at three)'
+function check(name: string, ok: boolean, detail: unknown = '', hint = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ' — ' + JSON.stringify(detail) : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ' — ' + JSON.stringify(detail) + (hint ? ' | ' + hint : '') : ''}`)
 }
 function setSettings(hook = false, loopGuard?: boolean): void {
   const path = getSettingsFilePathForSource('userSettings')!
@@ -155,45 +156,45 @@ function stopped(result: Awaited<ReturnType<typeof run>>) {
   return result.yields.find(row => row.type === 'attachment' && row.attachment.type === 'loop_stopped') as { attachment: { message: string; cycle: string[] } } | undefined
 }
 const same = await run(repeats(9))
-check('foreground runs all nine failed calls and completes', same.calls.length === 10 && !stopped(same), same.terminal)
-check('first identical failure repeat is reminded before request three, not before request two', JSON.stringify(same.calls[2]).includes(AGAIN) && !JSON.stringify(same.calls[1]).includes(AGAIN))
-check('the reminder carries the complete tool error and the call shape, never the argument values', notices(same).some(row => 'content' in row && row.content.includes(ERROR) && row.content.includes('"command": <') && !row.content.includes(INPUT.command)), notices(same))
+check('foreground runs all nine failed calls and completes', same.calls.length === 10 && !stopped(same), same.terminal, 'an interactive foreground turn must only be reminded, never stopped; see stopFailedCalls in ' + LOOP_GUARD_WHERE)
+check('first identical failure repeat is reminded before request three, not before request two', JSON.stringify(same.calls[2]).includes(AGAIN) && !JSON.stringify(same.calls[1]).includes(AGAIN), '', 'the reminder is added when the failure run reaches two; see ' + LOOP_GUARD_WHERE)
+check('the reminder carries the complete tool error and the call shape, never the argument values', notices(same).some(row => 'content' in row && row.content.includes(ERROR) && row.content.includes('"command": <') && !row.content.includes(INPUT.command)), notices(same), 'the reminder text is built in ' + LOOP_GUARD_WHERE + ': it must carry the whole error and the call preview without argument values')
 const headless = await run(repeats(4), { headless: true })
-check('headless stops on the third failure without requesting a fourth', headless.calls.length === 3 && (headless.terminal as { reason?: string })?.reason === 'loop_stopped', headless.terminal)
+check('headless stops on the third failure without requesting a fourth', headless.calls.length === 3 && (headless.terminal as { reason?: string })?.reason === 'loop_stopped', headless.terminal, 'a non-interactive turn must stop on the third identical failure; see stopFailedCalls and FAILED_CALL_LIMIT in ' + LOOP_GUARD_WHERE)
 const cockpit = await run(repeats(9), { headless: true, oculus: true })
-check('the daemon-hosted runner behind a screen (non-interactive process, oculus session) runs all nine failed calls and is never stopped', cockpit.calls.length === 10 && !stopped(cockpit) && notices(cockpit).length > 0, { calls: cockpit.calls.length, stop: stopped(cockpit) })
+check('the daemon-hosted runner behind a screen (non-interactive process, oculus session) runs all nine failed calls and is never stopped', cockpit.calls.length === 10 && !stopped(cockpit) && notices(cockpit).length > 0, { calls: cockpit.calls.length, stop: stopped(cockpit) }, 'the main lane of an oculus session must not be stopped; see the sessionKind test in stopFailedCalls in ' + LOOP_GUARD_WHERE)
 const cockpitCrew = await run(repeats(4), { headless: true, oculus: true, agent: true })
-check('a crewmate of that same screen session still stops on three', cockpitCrew.calls.length === 3 && Boolean(stopped(cockpitCrew)), { calls: cockpitCrew.calls.length })
-check('the stopped sentence carries the tool, count, call shape and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes('"command": <') && !stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless))
+check('a crewmate of that same screen session still stops on three', cockpitCrew.calls.length === 3 && Boolean(stopped(cockpitCrew)), { calls: cockpitCrew.calls.length }, 'a crewmate lane (not the main lane) must stop even in an oculus session; see the lane test in stopFailedCalls in ' + LOOP_GUARD_WHERE)
+check('the stopped sentence carries the tool, count, call shape and complete error', Boolean(stopped(headless)?.attachment.message.includes(ERROR) && stopped(headless)?.attachment.message.includes('Bash') && stopped(headless)?.attachment.message.includes('3') && stopped(headless)?.attachment.message.includes('"command": <') && !stopped(headless)?.attachment.message.includes(INPUT.command)), stopped(headless), 'the stopped sentence is built in ' + LOOP_GUARD_WHERE + ' (the Stopped after message)')
 const crew = await run(repeats(4), { agent: true })
-check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) })
+check('runAgent stops the crewmate on three even in an interactive process', crew.calls.length === 3 && Boolean(stopped(crew)), { calls: crew.calls.length, stop: stopped(crew) }, 'a crewmate run through runAgent must stop on three; see the lane test in stopFailedCalls in ' + LOOP_GUARD_WHERE)
 const final = finalizeAgentTool(crew.yields, crew.agentId, { prompt: 'fixture', resolvedAgentModel: MODEL, isBuiltInAgent: true, startTime: Date.now(), agentType: 'mercury-crew', isAsync: true })
 const failure = final.outcome?.status === 'failed' ? final.outcome : undefined
-check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome)
+check('crewmate finalization preserves the loop-stopped cause', failure?.reason === 'loop-stopped' && failure.error === stopped(crew)?.attachment.message, final.outcome, 'finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts must report status failed with reason loop-stopped and the loop_stopped message as the error')
 const parent = AgentTool.mapToolResultToToolResultBlockParam({ ...final, status: 'failed', prompt: 'fixture', error: failure?.error } as never, 'parent-fixture')
-check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent)
+check('the parent tool result is an error with the repeated call shape and cause', parent.is_error === true && JSON.stringify(parent.content).includes('command') && JSON.stringify(parent.content).includes(ERROR.split('\n')[0]!), parent, 'AgentTool.mapToolResultToToolResultBlockParam in src/tools/AgentTool/AgentTool.tsx must return an error result that carries the error text of a failed run')
 
 for (const kind of ['permission', 'hook'] as const) {
   const result = await run(repeats(4), { agent: true, mode: kind })
   const expected = kind === 'hook' ? HOOK : DENIED
-  check(`${kind} refusals stop on three without executing the tool`, result.calls.length === 3 && result.executions === 0 && Boolean(stopped(result)), { calls: result.calls.length, executions: result.executions })
-  check(`${kind} refusal text reaches the second-call reminder and the stop`, notices(result).some(row => 'content' in row && row.content.includes(expected)) && Boolean(stopped(result)?.attachment.message.includes(expected)))
+  check(`${kind} refusals stop on three without executing the tool`, result.calls.length === 3 && result.executions === 0 && Boolean(stopped(result)), { calls: result.calls.length, executions: result.executions }, 'a refused call (permission or hook) must count as a failed call; see ' + LOOP_GUARD_WHERE)
+  check(`${kind} refusal text reaches the second-call reminder and the stop`, notices(result).some(row => 'content' in row && row.content.includes(expected)) && Boolean(stopped(result)?.attachment.message.includes(expected)), { reminders: notices(result).length, stopped: stopped(result)?.attachment.message }, 'the refusal text must be the errorText carried by the reminder and the stop; see ' + LOOP_GUARD_WHERE)
 }
 const changed = await run(repeats(4).map((step, i) => ({ ...step, input: { ...step.input, command: i < 2 ? INPUT.command : INPUT.command + ' ' } })), { agent: true })
-check('a one-byte argument difference resets the count', changed.calls.length === 5 && !stopped(changed))
+check('a one-byte argument difference resets the count', changed.calls.length === 5 && !stopped(changed), { calls: changed.calls.length, stop: stopped(changed) }, 'failures are keyed by tool name and exact arguments; see toolCallKey in src/services/tools/loopGuard.ts and the failureKey reset in closeRound')
 const success = await run(repeats(5), { agent: true, mode: 'success-between' })
-check('success between failures with byte-identical arguments resets the count', success.calls.length === 6 && !stopped(success))
+check('success between failures with byte-identical arguments resets the count', success.calls.length === 6 && !stopped(success), { calls: success.calls.length, stop: stopped(success) }, 'a successful call must set failureRun back to zero; see ' + LOOP_GUARD_WHERE)
 const changedError = await run(repeats(4), { agent: true, mode: 'changing' })
-check('changing error detail does not disguise the same failing call', changedError.calls.length === 3 && stopped(changedError)?.attachment.message.includes('Attempt 2') === true)
+check('changing error detail does not disguise the same failing call', changedError.calls.length === 3 && stopped(changedError)?.attachment.message.includes('Attempt 2') === true, { calls: changedError.calls.length, stop: stopped(changedError) }, 'the failure key must ignore the error text and the stop must quote the latest error; see ' + LOOP_GUARD_WHERE)
 const other = await run([...repeats(2), ...repeats(1, 'Other'), ...repeats(2)], { agent: true })
-check('a different tool resets consecutive failures', other.calls.length === 6 && !stopped(other))
+check('a different tool resets consecutive failures', other.calls.length === 6 && !stopped(other), { calls: other.calls.length, stop: stopped(other) }, 'a call to another tool must restart the failure run; see ' + LOOP_GUARD_WHERE)
 const successful = await run(repeats(9), { agent: true, mode: 'success', loopGuard: true })
-check('successful identical calls never trigger the failure stop, including with loopGuard enabled', successful.calls.length === 10 && !stopped(successful) && notices(successful).length === 0)
+check('successful identical calls never trigger the failure stop, including with loopGuard enabled', successful.calls.length === 10 && !stopped(successful) && notices(successful).length === 0, { calls: successful.calls.length, stop: stopped(successful), reminders: notices(successful).length }, 'only failed results may count toward the failure reminder and stop; see ' + LOOP_GUARD_WHERE)
 const foregroundKey = await run(repeats(9), { loopGuard: true })
-check('loopGuard enabled does not stop foreground identical failures', foregroundKey.calls.length === 10 && !stopped(foregroundKey))
+check('loopGuard enabled does not stop foreground identical failures', foregroundKey.calls.length === 10 && !stopped(foregroundKey), { calls: foregroundKey.calls.length, stop: stopped(foregroundKey) }, 'the turns.loopGuard setting (isLoopGuardStopEnabled in src/services/tools/loopGuard.ts) must not feed the failed-call stop in closeRound')
 for (const name of ['Sleep', 'UnavailableFixture']) {
   const result = await run(repeats(4, name), { agent: true })
-  check(`${name} failures are counted`, result.calls.length === 3 && stopped(result)?.attachment.cycle[0] === name)
+  check(`${name} failures are counted`, result.calls.length === 3 && stopped(result)?.attachment.cycle[0] === name, { calls: result.calls.length, stop: stopped(result) }, 'failures of every tool name, even an unavailable one, must be counted; see ' + LOOP_GUARD_WHERE)
 }
 
 setSettings()
@@ -201,7 +202,7 @@ queue.resetCommandQueue()
 let appState = { ...getDefaultAppState(), tasks: { [crew.agentId]: { id: crew.agentId, type: 'local_agent', status: 'failed', notified: false, endTime: Date.now() } } } as unknown as AppState
 enqueueAgentNotification({ taskId: crew.agentId, description: 'failure fixture', status: 'failed', error: failure?.error, setAppState: update => { appState = update(appState) } })
 const completion = String(queue.getCommandQueue()[0]?.value ?? '')
-check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion)
+check('the real completion notification carries the cause instead of silence', completion.includes('command') && completion.includes(ERROR), completion, 'enqueueAgentNotification in src/tasks/LocalAgentTask/LocalAgentTask.tsx must put the failed run error text in the queued notification')
 queue.resetCommandQueue()
 
 const frameArg = process.argv.indexOf('--frames')
@@ -226,7 +227,7 @@ if (frameArg >= 0) {
       const plain = frame.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '')
       writeFileSync(join(frames, `${name}-${columns}.ansi`), frame)
       writeFileSync(join(frames, `${name}-${columns}.txt`), plain)
-      check(`${name} paints the cause at ${columns} columns`, plain.includes(ERROR.split('\n')[0]!) && plain.includes(INPUT.command), plain)
+      check(`${name} paints the cause at ${columns} columns`, plain.includes(ERROR.split('\n')[0]!) && plain.includes(INPUT.command), plain, 'the painted row comes from SystemTextMessage or UserTextMessage in src/components/messages; the cause text must survive at this width')
     }
   }
 }

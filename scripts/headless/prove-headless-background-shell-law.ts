@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { bound, childEnv, DIST, MODEL, NODE, SCRATCH_ROOT } from '../daemon/dupline-world.ts'
 import { seedScratchHome, startScriptedFixture, type ScriptedRequest } from '../lib/scriptedTurn.ts'
 
+const shellLawHint = 'to fix, change the background start result in src/tools/BashTool/resultBlock.ts, the run_in_background text in src/tools/BashTool/prompt.ts, or the Service start in src/tools/ServiceTool/ServiceTool.ts, then rebuild dist'
 const tally = makeTally()
 if (!existsSync(DIST)) {
   console.log(`  [SKIP] ${DIST} absent — build first`)
@@ -28,7 +29,7 @@ function makeTally(): { check: (label: string, cond: boolean, detail?: string) =
     check(label, cond, detail = '') {
       checks++
       if (!cond) failures++
-      console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+      console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shellLawHint}${detail ? `: ${detail.slice(0, 500)}` : ''}` : ''}`)
     },
     section(t) {
       console.log(`\n${'─'.repeat(76)}\n${t}\n${'─'.repeat(76)}`)

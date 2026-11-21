@@ -18,10 +18,12 @@ if (!existsSync(BIN)) {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
+const ROW_HINT = 'to change: composeModelListsRow in src/services/providers/typedModelIds.ts builds this row, and modelListsCheck in src/services/health/sections/auth.ts registers it'
 
 const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'model-lists-health-')))
 const HOME = join(SCRATCH, 'home')
@@ -184,16 +186,16 @@ try {
   const j = await healthJson()
   const rows = rowsOf(j.text)
   const row = rows.find(r => r.id === 'model-lists')
-  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
-  check('the certificate carries the row "Model lists" in the AUTH section, after the usage rows', row !== undefined && row.label === 'Model lists' && rows.findIndex(r => r.id === 'model-lists') > rows.findIndex(r => r.id === 'usage-openai') && rows.findIndex(r => r.id === 'usage-openai') >= 0, rows.map(r => r.id).join(',').slice(0, 300))
-  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of ' + (row.detail ?? '').split(String.fromCharCode(10)).filter(Boolean).length, `${row?.status} · ${row?.evidence}`)
+  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`, 'node dist/mercury.mjs health --json must exit 0 or 3 and print JSON; run it by hand with the same env and read stderr')
+  check('the certificate carries the row "Model lists" in the AUTH section, after the usage rows', row !== undefined && row.label === 'Model lists' && rows.findIndex(r => r.id === 'model-lists') > rows.findIndex(r => r.id === 'usage-openai') && rows.findIndex(r => r.id === 'usage-openai') >= 0, rows.map(r => r.id).join(',').slice(0, 300), 'the model-lists check must be registered after the usage-openai row with the label Model lists; ' + ROW_HINT)
+  check('a fresh process has read no list: the row reads info (never a caution) with the approved evidence', row?.status === 'info' && row.evidence === 'no list read in this process — /model or a chat naming the family reads it; the release-day check reads every list · lists read 0 of ' + (row.detail ?? '').split(String.fromCharCode(10)).filter(Boolean).length, `${row?.status} · ${row?.evidence}`, 'a process that has read no list must give an info row with the approved evidence text; ' + ROW_HINT)
   const detail = row?.detail ?? ''
-  check('the OpenAI line names the signed-in source and the typed count', detail.includes(`OpenAI · ChatGPT pro subscription · no list read in this process — /model or a chat naming the family reads it · ${GPT_DISPLAY_PINS.length} typed ids not judged`), detail)
-  check('Z.AI without a credential reads not judged, like every keyed family (its list is read live on the key\'s plan base)', /Z\.AI · no credential · \d+ typed ids not judged/.test(detail), detail)
-  check('Anthropic with the fixture key reads no list read in this process, like every keyed family', /Anthropic · Anthropic API key · no list read in this process — \/model or a chat naming the family reads it · \d+ typed ids not judged/.test(detail), detail)
-  check('the families without a credential read not judged, Moonshot among them', /DeepSeek · no credential · \d+ typed ids not judged/.test(detail) && /Gemini · no credential · \d+ typed ids not judged/.test(detail) && /Hugging Face · no credential · \d+ typed ids not judged/.test(detail) && /Moonshot · no credential · \d+ typed ids not judged/.test(detail) && !/Moonshot · [^\n]*typed table dated/.test(detail), detail)
-  check('no fix rides an info row', row !== undefined && row.fix === undefined)
-  check('the headless health fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '))
+  check('the OpenAI line names the signed-in source and the typed count', detail.includes(`OpenAI · ChatGPT pro subscription · no list read in this process — /model or a chat naming the family reads it · ${GPT_DISPLAY_PINS.length} typed ids not judged`), detail, ROW_HINT)
+  check('Z.AI without a credential reads not judged, like every keyed family (its list is read live on the key\'s plan base)', /Z\.AI · no credential · \d+ typed ids not judged/.test(detail), detail, ROW_HINT)
+  check('Anthropic with the fixture key reads no list read in this process, like every keyed family', /Anthropic · Anthropic API key · no list read in this process — \/model or a chat naming the family reads it · \d+ typed ids not judged/.test(detail), detail, ROW_HINT)
+  check('the families without a credential read not judged, Moonshot among them', /DeepSeek · no credential · \d+ typed ids not judged/.test(detail) && /Gemini · no credential · \d+ typed ids not judged/.test(detail) && /Hugging Face · no credential · \d+ typed ids not judged/.test(detail) && /Moonshot · no credential · \d+ typed ids not judged/.test(detail) && !/Moonshot · [^\n]*typed table dated/.test(detail), detail, ROW_HINT)
+  check('no fix rides an info row', row !== undefined && row.fix === undefined, '', 'an info row must carry no fix; ' + ROW_HINT)
+  check('the headless health fetched no list', !hits.some(h => h.endsWith('/models')), hits.join(', '), 'headless health must not call a list endpoint; composeModelListsRow and readModelListFacts in src/services/providers/typedModelIds.ts must only read the in-process cache')
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'model-lists'))
 
   for (const [cols, termRows] of [[120, 40], [80, 21]] as const) {
@@ -223,17 +225,17 @@ try {
     ], 190 + rowIndex + readOn.length * 3, readOn.length > 0 ? `· ${rowIndex + 1}/` : 'OpenAI not served')
     const flat = (lines: string[]): string => lines.map(line => line.replace(/^[│\s]+|[│\s]+$/g, '')).join(' ').replace(/\s+/g, ' ')
     const opened = frames[0]?.lines ?? []
-    check(`${size}: the picker read the fixture's list once`, hits.filter(h => h.endsWith('/openai/chatgpt/models')).length >= 1, hits.join(', '))
-    check(`${size}: /health painted its certificate`, opened.some(l => l.includes('Mercury · health')))
+    check(`${size}: the picker read the fixture's list once`, hits.filter(h => h.endsWith('/openai/chatgpt/models')).length >= 1, hits.join(', '), 'opening /model in the cockpit must GET the OpenAI ChatGPT models list from MERCURY_OPENAI_CHATGPT_BASE; the model picker read is what failed to fire')
+    check(`${size}: /health painted its certificate`, opened.some(l => l.includes('Mercury · health')), '', 'the /health command did not paint its certificate in the captured frame; read the grid JSON kept with --keep')
     const rowLine = opened.find(l => l.includes('Model lists')) ?? ''
-    check(`${size}: the Model lists row is on screen and warns`, rowLine.includes('▲') && rowLine.includes('Model lists'), rowLine.trim().slice(0, 120))
-    check(`${size}: the evidence counts the served and not-served ids and names the family`, flat(opened).includes(`served ${OWNER_LIST.length} · not served ${RETIRED.length} (OpenAI)`), opened.filter(l => l.includes('served')).map(l => l.trim()).join(' | ').slice(0, 300))
+    check(`${size}: the Model lists row is on screen and warns`, rowLine.includes('▲') && rowLine.includes('Model lists'), rowLine.trim().slice(0, 120), 'after /model read a list the row must warn when typed ids are not served; ' + ROW_HINT)
+    check(`${size}: the evidence counts the served and not-served ids and names the family`, flat(opened).includes(`served ${OWNER_LIST.length} · not served ${RETIRED.length} (OpenAI)`), opened.filter(l => l.includes('served')).map(l => l.trim()).join(' | ').slice(0, 300), 'the evidence must read served N · not served M (OpenAI); ' + ROW_HINT)
     const onRow = new RegExp(`· ${rowIndex + 1}/\\d+\\s*│`)
     const stillOnRow = frames.filter(f => f.lines.some(l => onRow.test(l)))
     const naming = stillOnRow.filter(f => flat(f.lines).includes(`OpenAI not served: ${RETIRED.join(' · ')}`))
     const trail = frames.map(f => `${f.label}: ${f.lines.filter(l => l.includes('not served') || onRow.test(l)).map(l => l.trim().slice(0, 60)).join(' | ')}`).join(' ;; ')
-    if (readOn.length > 0) check(`${size}: ↓ reads on inside the open row — the position marker holds through ${readOn.length} presses`, stillOnRow.length === frames.length && frames.length === readOn.length + 1, trail.slice(0, 600))
-    check(`${size}: the retired ids are named beneath the OpenAI line`, naming.length > 0, trail.slice(0, 600))
+    if (readOn.length > 0) check(`${size}: ↓ reads on inside the open row — the position marker holds through ${readOn.length} presses`, stillOnRow.length === frames.length && frames.length === readOn.length + 1, trail.slice(0, 600), 'pressing down inside the open Model lists row must keep the row position marker; the /health unfold navigation lost the row')
+    check(`${size}: the retired ids are named beneath the OpenAI line`, naming.length > 0, trail.slice(0, 600), 'the open Model lists row must name the retired ids beneath the OpenAI line; ' + ROW_HINT)
   }
 } catch (error) {
   failures++

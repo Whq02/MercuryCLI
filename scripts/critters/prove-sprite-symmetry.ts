@@ -84,31 +84,31 @@ function gridLaw(name: string, art: string[] | null | undefined, kind: AxisKind)
   check(
     `${name}: §1 every row's OUTLINE mirrors (gesture rows exempt: ${exempt.size})`,
     outlineBad.length === 0,
-    outlineBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · '),
+    `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so filled and empty cells mirror about the axis · ${outlineBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
   )
   const anatomyBad = verdicts.map((v, i) => (!v.anatomy && !exempt.has(i) ? i : -1)).filter(i => i >= 0)
   check(
     `${name}: §2 every row's ANATOMY (C/D/eye placement) mirrors`,
     anatomyBad.length === 0,
-    anatomyBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · '),
+    `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so C, D and eye letters sit at mirrored columns · ${anatomyBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
   )
   if (FULL_MIRROR.has(name)) {
     const fullBad = verdicts.map((v, i) => (!v.full ? i : -1)).filter(i => i >= 0)
     check(
       `${name}: §3 every row mirrors LETTER FOR LETTER (shading included)`,
       fullBad.length === 0,
-      fullBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · '),
+      `redraw the listed rows of this grid in src/utils/cockpit/critterData.ts so every letter, shading included, equals its mirror letter · ${fullBad.map(i => `row ${i}: ${JSON.stringify(art[i])}`).join(' · ')}`,
     )
   }
   if (gesture) {
     const stale = gesture.rows.filter(i => verdicts[i]?.outline && verdicts[i]?.anatomy)
-    check(`${name}: no STALE gesture registration (a registered row is still asymmetric)`, stale.length === 0, `rows ${stale.join(',')} mirror now — prune them`)
+    check(`${name}: no STALE gesture registration (a registered row is still asymmetric)`, stale.length === 0, `rows ${stale.join(',')} mirror now — prune them from GESTURES in this file`)
   }
 }
 
 console.log('sprite symmetry — the mirror law over every rest pose, every form')
 
-check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.length}`)
+check('the pool holds the four critters', CRITTERS.length === 4, `${CRITTERS.length} critters; CRITTERS in src/utils/cockpit/critterData.ts must hold crab, octopus, jellyfish and clam`)
 for (const def of CRITTERS) {
   const name = def.name
   gridLaw(`${name} · mini awake`, miniArtFor(name), 'grid')
@@ -116,9 +116,9 @@ for (const def of CRITTERS) {
   const miniSleep = sleepPoseFor({ name }, 'mini')
   if (miniSleep) gridLaw(`${name} · mini sleep`, miniSleep.art, 'grid')
 }
-check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (mini awake|mini sleep|square dock)$/.test(k)), Object.keys(GESTURES).join(' · '))
-check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')))
-check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')))
+check('every registered gesture names a grid the law walked', Object.keys(GESTURES).every(k => /^(crab|octopus|jellyfish|clam) · (mini awake|mini sleep|square dock)$/.test(k)), `fix the GESTURES keys in this file to name a grid the law walks · ${Object.keys(GESTURES).join(' · ')}`)
+check('the clam registers NO gesture — every form mirrors whole', Object.keys(GESTURES).every(k => !k.startsWith('clam')), 'remove the clam entries from GESTURES in this file and redraw the clam grids in src/utils/cockpit/critterData.ts instead')
+check('the square tier registers NO gesture — the geometric variant mirrors whole (chat-feel item 5)', Object.keys(GESTURES).every(k => !k.includes('square')), 'remove the square dock entries from GESTURES in this file and redraw the square dock grids in src/utils/cockpit/critterData.ts instead')
 
 console.log('poison controls')
 {
@@ -155,7 +155,7 @@ console.log('poison controls')
   check('poison: the pre-compact clam hero mirrors in OUTLINE on every row (the old mask law would pass it)', v.every(x => x.outline))
   check('poison: the pre-compact clam hero mirrors in ANATOMY on every row (grooves, notches, ribs, eyes)', v.every(x => x.anatomy))
   const leaning = v.map((x, i) => (!x.full ? i : -1)).filter(i => i >= 0)
-  check('poison: §3 TRIPS on the pre-compact clam hero — its shading leans (the class the operator saw)', leaning.length >= 10, `leaning rows: ${leaning.join(',')}`)
+  check('poison: §3 TRIPS on the pre-compact clam hero — its shading leans (the class the operator saw)', leaning.length >= 10, `the full-mirror law in rowVerdict in this file must flag shading that leans; leaning rows: ${leaning.join(',')}`)
   const LOPSIDED = LEANING_CLAM_HERO.map((r, i) => (i === 3 ? '....LMMMMCMCCMCMMMmmM...' : r))
   const lv = LOPSIDED.map(r => rowVerdict(r, mirrorOf(LOPSIDED, 'content')))
   check('poison: §1 TRIPS on a lopsided outline row', lv.some(x => !x.outline))

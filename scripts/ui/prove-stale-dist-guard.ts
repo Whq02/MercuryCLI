@@ -14,7 +14,8 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const failHint = ok ? '' : ' | to fix: change staleDistVerdict in scripts/ui/renderScenarios.ts (the tree compare, the SAFE_DELTA pattern, the two override variables, the once-per-process verdict)'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}${failHint}`)
 }
 
 if (process.platform === 'win32') {

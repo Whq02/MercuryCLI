@@ -109,6 +109,7 @@ const baseOf = (name: string): string => `http://127.0.0.1:${server.port}/${name
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — prove-endpoint-gone-runner-stays exceeded 240s')
+  console.log(`  waited for the whole drive to finish; the last [PASS] line above is the step it stuck on, read ${join(SCRATCH, 'daemon.log')} for the daemon side`)
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -273,7 +274,7 @@ console.log('============================================================')
 
 try {
   bootDaemon()
-  check('the daemon boots and answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon boots and answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), `the daemon did not answer ping within 60s; read ${logPath} for its startup error and check that ${DIST} is a fresh build`)
 
   section(`§1 a chat on ${GONE_MODEL} against the configured endpoint answers from the fixture`)
   writeUserSettings({
@@ -284,15 +285,15 @@ try {
     engine: { model: GONE_MODEL },
   })
   const born = await admitSession(GONE_MODEL)
-  check('the session is admitted on the named compat model', born.ok === true && born.modelId === GONE_MODEL, born.ok ? JSON.stringify(born) : (born.error ?? ''))
+  check('the session is admitted on the named compat model', born.ok === true && born.modelId === GONE_MODEL, (born.ok ? JSON.stringify(born) : (born.error ?? '')) + ' — sessionAdmit must accept the compat model named in the written compatProvider settings and report it back as modelId; read ' + logPath)
   if (!born.ok) throw new Error(`admission refused: ${born.error ?? '?'}`)
   const sid = born.sessionId
   const short = born.runnerId
   const sent = await dispatchTurn(sid, 'Say hello from the fixture.')
   const answered = await untilAsync(() => turnSettled(sid) && transcriptText(sid).includes(FIXTURE_REPLY), 60_000)
-  check('the first turn is answered by the endpoint', sent.ok === true && answered && captures.some(c => c.path.startsWith(`/${GONE_ENDPOINT}/`) && c.model === GONE_WIRE), JSON.stringify({ sent, answered, captures }))
+  check('the first turn is answered by the endpoint', sent.ok === true && answered && captures.some(c => c.path.startsWith(`/${GONE_ENDPOINT}/`) && c.model === GONE_WIRE), JSON.stringify({ sent, answered, captures }) + ' — the turn must reach the fixture endpoint with the wire model name and settle; read ' + logPath)
   const firstPid = readWorkerRec(sid)?.pid
-  check('the runner stands behind the session', alivePid(firstPid), JSON.stringify(readWorkerRec(sid) ?? null))
+  check('the runner stands behind the session', alivePid(firstPid), JSON.stringify(readWorkerRec(sid) ?? null) + ' — the worker record in concourse-workers.json needs a live pid for the admitted session; read ' + logPath)
 
   section(`§2 the endpoint '${GONE_ENDPOINT}' is removed while the session stands; the daemon relaunches the runner on its model`)
   writeUserSettings({
@@ -300,7 +301,7 @@ try {
     engine: { model: GONE_MODEL },
   })
   const bounced = (await daemonControlRpc({ op: 'reconfigure', short, effort: 'high' } as never, { timeoutMs: 15_000 })) as { ok?: boolean; respawned?: boolean; pending?: boolean; error?: string }
-  check('the seat is bounced onto a fresh runner on the same model', bounced.ok === true && bounced.respawned === true, JSON.stringify(bounced))
+  check('the seat is bounced onto a fresh runner on the same model', bounced.ok === true && bounced.respawned === true, JSON.stringify(bounced) + ' — the reconfigure op must answer ok with respawned true; see case reconfigure in src/daemon/controlServer.ts')
   const settled = await untilAsync(async () => {
     const row = await rosterRow(short)
     if (row === undefined) return false
@@ -311,31 +312,31 @@ try {
   const rec = readWorkerRec(sid)
   console.log(`      roster: ${JSON.stringify(row ?? null)}`)
   console.log(`      record: pid ${String(rec?.pid)} crash ${JSON.stringify(rec?.crash ?? null)}`)
-  check('the relaunch settled one way or the other', settled, JSON.stringify(row ?? null))
-  check('the runner is alive and answered initialize (no exit over the model)', row?.ready === true && row.outcome === undefined && alivePid(rec?.pid), JSON.stringify({ row, pid: rec?.pid }))
-  check('zero restarts: the respawn count stayed at 0 and no crash was stamped', (row?.respawns ?? -1) === 0 && row?.crashedAt === undefined && rec?.crash === undefined, JSON.stringify({ respawns: row?.respawns, crashedAt: row?.crashedAt, crash: rec?.crash ?? null }))
-  check('the daemon log carries no crash line for the seat', crashLinesFor(short).length === 0, crashLinesFor(short).join(' | '))
+  check('the relaunch settled one way or the other', settled, JSON.stringify(row ?? null) + ' — the roster row never showed a ready new runner, a respawn or an outcome within 90s; read ' + logPath)
+  check('the runner is alive and answered initialize (no exit over the model)', row?.ready === true && row.outcome === undefined && alivePid(rec?.pid), JSON.stringify({ row, pid: rec?.pid }) + ' — a removed endpoint must leave the relaunched runner up and answering initialize; read ' + logPath)
+  check('zero restarts: the respawn count stayed at 0 and no crash was stamped', (row?.respawns ?? -1) === 0 && row?.crashedAt === undefined && rec?.crash === undefined, JSON.stringify({ respawns: row?.respawns, crashedAt: row?.crashedAt, crash: rec?.crash ?? null }) + ' — a removed endpoint must not crash or respawn the runner; read ' + logPath)
+  check('the daemon log carries no crash line for the seat', crashLinesFor(short).length === 0, crashLinesFor(short).join(' | ') + ' — the runner must not crash over a removed endpoint; read ' + logPath)
   const receipts = await (async (): Promise<string[]> => {
     await untilAsync(() => seatReceiptsOf(sid).some(words => words.includes(GONE_MODEL)), 15_000)
     return seatReceiptsOf(sid).filter(words => words.includes(GONE_MODEL))
   })()
-  check(`one refusal row names ${GONE_MODEL} and its gone endpoint`, receipts.length === 1 && /has no configured endpoint/.test(receipts[0]!), JSON.stringify(receipts))
-  check('the refusal points to /llmhost and /model', receipts.length === 1 && receipts[0]!.includes('/llmhost') && receipts[0]!.includes('/model'), JSON.stringify(receipts))
+  check(`one refusal row names ${GONE_MODEL} and its gone endpoint`, receipts.length === 1 && /has no configured endpoint/.test(receipts[0]!), JSON.stringify(receipts) + ' — exactly one seat_receipt row must carry the refusal text of compatModelRefusal in src/services/providers/openaicompat/compatAccounts.ts')
+  check('the refusal points to /llmhost and /model', receipts.length === 1 && receipts[0]!.includes('/llmhost') && receipts[0]!.includes('/model'), JSON.stringify(receipts) + ' — the refusal row must tell the reader to use /llmhost and /model')
   console.log(`      receipt: ${receipts[0] ?? '(none)'}`)
   const resumed = await loadConversationForResume(sid, transcriptPath(sid))
   const resumedText = JSON.stringify(resumed?.messages ?? [])
-  check('a resume of the transcript carries the first turn and the receipt together', resumed !== null && resumedText.includes(FIXTURE_REPLY) && resumedText.includes('seat_receipt'), `loaded ${resumed?.messages.length ?? 0} message(s): ${(resumed?.messages ?? []).map(m => m.type).join(',')}`)
-  check('the session keeps the model it was asked for (never another provider)', rec?.modelKey === GONE_MODEL && (await untilAsync(() => readFacts(sid)?.model?.effective === GONE_MODEL, 30_000)), JSON.stringify({ modelKey: rec?.modelKey, effective: readFacts(sid)?.model?.effective }))
+  check('a resume of the transcript carries the first turn and the receipt together', resumed !== null && resumedText.includes(FIXTURE_REPLY) && resumedText.includes('seat_receipt'), `loaded ${resumed?.messages.length ?? 0} message(s): ${(resumed?.messages ?? []).map(m => m.type).join(',')} — a resumed transcript must still load the first answer and the seat_receipt row`)
+  check('the session keeps the model it was asked for (never another provider)', rec?.modelKey === GONE_MODEL && (await untilAsync(() => readFacts(sid)?.model?.effective === GONE_MODEL, 30_000)), JSON.stringify({ modelKey: rec?.modelKey, effective: readFacts(sid)?.model?.effective }) + ' — the relaunched runner must keep the model the session was admitted with, not fall back to another provider')
 
   section(`§3 /model picks ${KEPT_MODEL} and the chat carries on`)
   const switched = (await daemonControlRpc({ op: 'sessionControl', action: 'set-model', sessionId: sid, by: 'operator', model: KEPT_MODEL } as never, { timeoutMs: 30_000 })) as { ok?: boolean; outcome?: string; detail?: string }
-  check('the live runner takes the switch', switched.ok === true && switched.outcome === 'applied', JSON.stringify(switched))
+  check('the live runner takes the switch', switched.ok === true && switched.outcome === 'applied', JSON.stringify(switched) + ' — the sessionControl set-model action must apply on the live runner; read ' + logPath)
   const before = captures.length
   const again = await dispatchTurn(sid, 'And now on the kept endpoint.')
   const carried = await untilAsync(() => turnSettled(sid) && captures.slice(before).some(c => c.path.startsWith(`/${KEPT_ENDPOINT}/`) && c.model === KEPT_WIRE), 60_000)
-  check('the next turn is answered by the kept endpoint on the same runner', again.ok === true && carried && alivePid(readWorkerRec(sid)?.pid), JSON.stringify({ again, carried, captures: captures.slice(before), rec: readWorkerRec(sid) }))
+  check('the next turn is answered by the kept endpoint on the same runner', again.ok === true && carried && alivePid(readWorkerRec(sid)?.pid), JSON.stringify({ again, carried, captures: captures.slice(before), rec: readWorkerRec(sid) }) + ' — after set-model the next turn must reach the kept endpoint on the same runner; read ' + logPath)
   const finalRow = await rosterRow(short)
-  check('still zero restarts after the switch and the turn', (finalRow?.respawns ?? -1) === 0 && finalRow?.outcome === undefined && crashLinesFor(short).length === 0, JSON.stringify(finalRow ?? null))
+  check('still zero restarts after the switch and the turn', (finalRow?.respawns ?? -1) === 0 && finalRow?.outcome === undefined && crashLinesFor(short).length === 0, JSON.stringify(finalRow ?? null) + ' — the switch and the turn must not respawn or crash the runner; read ' + logPath)
 } catch (error) {
   failures++
   console.log(`  [FAIL] the drive threw — ${error instanceof Error ? error.message : String(error)}`)

@@ -18,7 +18,7 @@ const first = await runTurn({ runHome, cwd, base: fixture.base, ask: 'empty bloc
 await fixture.close()
 const sid = String(first.result?.session_id ?? '')
 const path = findTranscripts(runHome)[0]
-tally.check('turn 1 settled and wrote a transcript', first.result?.status === 'completed' && path !== undefined)
+tally.check('turn 1 settled and wrote a transcript', first.result?.status === 'completed' && path !== undefined, 'turn 1 ran the built dist (rebuild with bun run build.ts if it is stale) and must finish with status completed and leave a session transcript under the scratch home; status was ' + String(first.result?.status) + ', transcript ' + String(path))
 
 tally.section('the transcript now holds an assistant turn with an empty text block beside its tool_use')
 const lines = readFileSync(path!, 'utf8').split('\n').filter(l => l.trim() !== '')
@@ -75,11 +75,11 @@ void runner.prompt('empty block probe second', randomUUID())
 const second = await runner.waitFor('outcome', isOutcome, bound(90_000))
 await runner.stop(bound(5_000))
 server.close()
-tally.check('turn 2 settled in the same session', second !== null && (second as Rec).session_id === sid, JSON.stringify(second).slice(0, 120))
+tally.check('turn 2 settled in the same session', second !== null && (second as Rec).session_id === sid, JSON.stringify(second).slice(0, 120) + ' | the runner resumed with --resume must settle the second turn in the same session id; the first request it sent may be refused or the resume may have started a new session')
 const items = (bodies[0]?.messages as Array<{ role: string; content: unknown }> | undefined) ?? []
 const offending = items.filter(
   m => m.role === 'assistant' && Array.isArray(m.content) && (m.content as Rec[]).some(b => b.type === 'text' && b.text === '') && (m.content as Rec[]).some(b => b.type === 'tool_use'),
 )
 console.log(`  requests captured: ${bodies.length} · assistant items: ${items.filter(m => m.role === 'assistant').length} · with an empty text block beside a tool_use: ${offending.length}`)
-tally.check('no assistant item on the wire carries an empty text block (the live API refuses "text content blocks must be non-empty")', bodies.length > 0 && offending.length === 0)
+tally.check('no assistant item on the wire carries an empty text block (the live API refuses "text content blocks must be non-empty")', bodies.length > 0 && offending.length === 0, `requests captured ${bodies.length}, assistant items with an empty text block beside a tool_use ${offending.length} | the request builder must drop empty text blocks from replayed assistant turns before sending, and the resumed turn must reach the fixture server at all`)
 tally.finish()

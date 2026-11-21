@@ -21,6 +21,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log('    fix: the advisor settings, clock, digest, memory, ask road and live call are in src/services/advisor/index.ts; the /submodels slot is src/services/model/subModelSlots.ts; the note framing is in src/utils/messages/text.ts; the /advise command is src/commands/advise/advise.ts')
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)

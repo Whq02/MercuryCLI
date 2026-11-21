@@ -7,11 +7,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const keyStoreWhere: Record<string, string> = {
+  '1': 'change readStoredZaiApiKey and writeStoredZaiApiKey in src/utils/accounts/providerSecrets.ts',
+  '2': 'change resolveZaiApiKey and zaiKeySource in src/services/providers/providerDiscovery.ts',
+  '3': 'change zaiProviderAdapter status and describe in src/services/providers/zai/zaiAdapter.ts',
+  '4': 'change the auth-scope path in src/utils/accounts/providerSecrets.ts and zaiProviderAdapter.status in src/services/providers/zai/zaiAdapter.ts',
+}
+let keyStoreHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' — ' : ''}${keyStoreHint}` : ''}`)
 }
 function section(t: string): void {
+  keyStoreHint = keyStoreWhere[t.split(' ')[0]!] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

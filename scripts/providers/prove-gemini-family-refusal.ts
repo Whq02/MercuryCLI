@@ -54,7 +54,8 @@ async function debugLines(): Promise<string[]> {
 let failures = 0
 function check(label: string, condition: boolean, value?: unknown): void {
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || value === undefined ? '' : ` — ${JSON.stringify(value)}`}`)
+  const familyFixHint = condition ? '' : ' (fix the family word verdict in validateWorkerModelChoice in src/services/concourse/workerModels.ts, the catalogue refusal reasons and debug line in src/services/providers/gemini/geminiCatalogue.ts, or the sign-in in src/services/providers/gemini/geminiAccounts.ts)'
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || value === undefined ? '' : ` — ${JSON.stringify(value)}`}${familyFixHint}`)
 }
 try {
   for (const arm of ['session', 'crew'] as const) {

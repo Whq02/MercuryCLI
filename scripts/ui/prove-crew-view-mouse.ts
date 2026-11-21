@@ -70,6 +70,12 @@ const wheel = (dir: 'up' | 'down', x: number, y: number): string => `\x1b[<${dir
 const seatName = (n: number): string => `seat${String(n).padStart(2, '0')}`
 const seatId = (n: number): string => `a-${seatName(n)}`
 const SIZES: Array<[number, number]> = [[178, 51], [100, 30]]
+const HINT_ROWS = 'what to change: the crew list rows and cursor, src/components/mercury-ui/screens/CrewView.tsx'
+const HINT_WHEEL = 'what to change: the mouse wheel over the crew list must move the cursor as the arrow keys do, src/components/mercury-ui/screens/CrewView.tsx'
+const HINT_YIELD = 'what to change: the transcript must not scroll while the crew list is open, wheelYieldsToTopOverlay in src/components/ScrollKeybindingHandler.tsx'
+const HINT_PAGE = 'what to change: pgup/pgdn must page the list and the window must follow, usePopupListPaging in src/components/CustomSelect/popup-list.tsx as called from src/components/mercury-ui/screens/CrewView.tsx'
+const HINT_CLICK = 'what to change: a click selects a row and a second click opens it, InteractiveRow onSelect and onActivate in src/components/mercury-ui/screens/CrewView.tsx'
+const HINT_KEYS = 'what to change: the key line text in src/components/mercury-ui/screens/CrewView.tsx, CREW_OPEN_IN_VIEW_KEY in src/utils/cockpit/crewmateWords.ts'
 
 const arg = (name: string): string | undefined => {
   const index = process.argv.indexOf(name)
@@ -211,7 +217,7 @@ async function openScene(cols: number, rows: number): Promise<Scene> {
   ink.render(h(App, { initialState: state, getFpsMetrics: () => undefined } as never, h(Harness)))
   const lines = (): string[] => stripAnsi(ink.lastFrameText()).replace(/\n$/, '').split('\n')
   const composed = await until(() => lines().join('\n').includes(COMPOSER))
-  check(`the chat painted its composer at ${cols}x${rows}`, composed, lines().slice(0, 6).join(' | '))
+  check(`the chat painted its composer at ${cols}x${rows}`, composed, `${lines().slice(0, 6).join(' | ')} · the chat did not paint its composer within the wait, read the frame text for the cause`)
   await sleep(400)
   stdin.push('\x1b[I')
   await sleep(200)
@@ -292,30 +298,30 @@ for (const [cols, rows] of SIZES) {
   const tag = `${cols}x${rows}`
   const scene = await openScene(cols, rows)
   section(`§1 ${tag}: the wheel over the list moves the selection the way the arrow keys do, and the transcript behind the popup stays where it was`)
-  check(`${tag}: /crewmates lists the ${SEATS} crewmates`, await openList(scene), scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ').slice(0, 300))
+  check(`${tag}: /crewmates lists the ${SEATS} crewmates`, await openList(scene), `${scene.lines().filter(l => l.trim() !== '').slice(0, 8).join(' | ').slice(0, 300)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
   save(`crew-mouse-${tag}-rest`, scene.lines())
   const transcriptTop = scene.scrollTop()
   check(`${tag}: the transcript behind the popup can scroll (the scroller has rows to take)`, scene.scrollMax() > 0, `max ${scene.scrollMax()} · top ${transcriptTop}`)
-  check(`${tag}: the cursor rests on the first row`, cursorName(scene.lines()) === seatName(1), describe(scene))
+  check(`${tag}: the cursor rests on the first row`, cursorName(scene.lines()) === seatName(1), `${describe(scene)} · ${HINT_ROWS}`)
   const first = cellAt(scene.lines(), seatName(1))!
   scene.push(wheel('down', first.x, first.y))
-  check(`${tag}: one wheel notch down moves the cursor to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), describe(scene))
-  check(`${tag}: the transcript did not scroll under the popup`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop}`)
+  check(`${tag}: one wheel notch down moves the cursor to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), `${describe(scene)} · ${HINT_WHEEL}`)
+  check(`${tag}: the transcript did not scroll under the popup`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop} · ${HINT_YIELD}`)
   scene.push(wheel('down', first.x, first.y))
-  check(`${tag}: a second notch moves it to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: a second notch moves it to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), `${describe(scene)} · ${HINT_WHEEL}`)
   scene.push(wheel('up', first.x, first.y))
-  check(`${tag}: a notch up moves it back to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), describe(scene))
+  check(`${tag}: a notch up moves it back to the second row`, await settle(scene, () => cursorName(scene.lines()) === seatName(2)), `${describe(scene)} · ${HINT_WHEEL}`)
   scene.push(DOWN)
-  check(`${tag}: ↓ still moves the cursor (the third row)`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: ↓ still moves the cursor (the third row)`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), `${describe(scene)} · ${HINT_ROWS}`)
   save(`crew-mouse-${tag}-wheel`, scene.lines())
 
   section(`§2 ${tag}: pgdn/pgup page the list, and the window follows the selection; the transcript stays`)
   const pageFrom = seatIndex(cursorName(scene.lines()))
   scene.push(PGDN)
-  check(`${tag}: pgdn moves the cursor a page down and the window scrolls to it`, await settle(scene, () => seatIndex(cursorName(scene.lines())) > pageFrom + 1 && earlierMarker(scene.lines())), describe(scene))
-  check(`${tag}: the transcript still did not scroll`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop}`)
+  check(`${tag}: pgdn moves the cursor a page down and the window scrolls to it`, await settle(scene, () => seatIndex(cursorName(scene.lines())) > pageFrom + 1 && earlierMarker(scene.lines())), `${describe(scene)} · ${HINT_PAGE}`)
+  check(`${tag}: the transcript still did not scroll`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop} · ${HINT_YIELD}`)
   scene.push(PGUP)
-  check(`${tag}: pgup brings the cursor back to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), describe(scene))
+  check(`${tag}: pgup brings the cursor back to the third row`, await settle(scene, () => cursorName(scene.lines()) === seatName(3)), `${describe(scene)} · ${HINT_PAGE}`)
   const firstShown = visibleSeats(scene.lines())[0]!
   let notches = 0
   while (notches < SEATS && !earlierMarker(scene.lines())) {
@@ -324,64 +330,64 @@ for (const [cols, rows] of SIZES) {
     notches++
     await sleep(60)
   }
-  check(`${tag}: wheeling on scrolls the window with the cursor, as ↓ does (${notches} notches; ${firstShown} left the window)`, await settle(scene, () => earlierMarker(scene.lines()) && cursorName(scene.lines()) !== '(none)' && !visibleSeats(scene.lines()).includes(firstShown)), describe(scene))
-  check(`${tag}: the transcript still did not scroll`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop}`)
+  check(`${tag}: wheeling on scrolls the window with the cursor, as ↓ does (${notches} notches; ${firstShown} left the window)`, await settle(scene, () => earlierMarker(scene.lines()) && cursorName(scene.lines()) !== '(none)' && !visibleSeats(scene.lines()).includes(firstShown)), `${describe(scene)} · ${HINT_WHEEL}`)
+  check(`${tag}: the transcript still did not scroll`, scene.scrollTop() === transcriptTop, `top ${scene.scrollTop()} was ${transcriptTop} · ${HINT_YIELD}`)
   save(`crew-mouse-${tag}-scrolled`, scene.lines())
 
   section(`§3 ${tag}: a click on a row selects it; a second click on the selected row opens it in the view, as ↵ does`)
   const shown = visibleSeats(scene.lines())
   const target = shown.find(name => seatIndex(name) >= 3 && name !== cursorName(scene.lines()))!
   click(scene, cellAt(scene.lines(), target)!)
-  check(`${tag}: the click puts the cursor on ${target}`, await settle(scene, () => cursorName(scene.lines()) === target), describe(scene))
-  check(`${tag}: a single click opens nothing — the list stays`, scene.viewing() === undefined && isCrewViewOpen(), describe(scene))
+  check(`${tag}: the click puts the cursor on ${target}`, await settle(scene, () => cursorName(scene.lines()) === target), `${describe(scene)} · ${HINT_CLICK}`)
+  check(`${tag}: a single click opens nothing — the list stays`, scene.viewing() === undefined && isCrewViewOpen(), `${describe(scene)} · ${HINT_CLICK}`)
   await sleep(600)
   click(scene, cellAt(scene.lines(), target)!)
-  check(`${tag}: the second click opens ${target} in the view and closes the list`, await settle(scene, () => scene.viewing() === seatId(seatIndex(target) + 1) && !isCrewViewOpen()), describe(scene))
+  check(`${tag}: the second click opens ${target} in the view and closes the list`, await settle(scene, () => scene.viewing() === seatId(seatIndex(target) + 1) && !isCrewViewOpen()), `${describe(scene)} · ${HINT_CLICK}`)
   scene.push(ESC)
   check(`${tag}: esc leaves the view`, await settle(scene, () => scene.viewing() === undefined), describe(scene))
 
   section(`§4 ${tag}: a double click on a row opens it`)
-  check(`${tag}: the list opens again`, await openList(scene), describe(scene))
+  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
   const fifth = seatName(5)
   const at = cellAt(scene.lines(), fifth)!
   scene.push(press(at.x, at.y) + release(at.x, at.y))
   await sleep(60)
   scene.push(press(at.x, at.y) + release(at.x, at.y))
-  check(`${tag}: the double click opens ${fifth} in the view`, await settle(scene, () => scene.viewing() === seatId(5) && !isCrewViewOpen()), describe(scene))
+  check(`${tag}: the double click opens ${fifth} in the view`, await settle(scene, () => scene.viewing() === seatId(5) && !isCrewViewOpen()), `${describe(scene)} · ${HINT_CLICK}`)
   scene.push(ESC)
   check(`${tag}: esc leaves the view`, await settle(scene, () => scene.viewing() === undefined), describe(scene))
 
   section(`§5 ${tag}: clicks that land off the rows do nothing, and the key line reads as before`)
-  check(`${tag}: the list opens again`, await openList(scene), describe(scene))
+  check(`${tag}: the list opens again`, await openList(scene), `${describe(scene)} · ${HINT_ROWS}; openCrewView is in src/utils/cockpit/crewView.ts`)
   const header = headerCell(scene.lines())!
   click(scene, header)
   await sleep(500)
-  check(`${tag}: a click on the Crewmates heading moves nothing and opens nothing`, cursorName(scene.lines()) === seatName(1) && scene.viewing() === undefined && isCrewViewOpen(), describe(scene))
+  check(`${tag}: a click on the Crewmates heading moves nothing and opens nothing`, cursorName(scene.lines()) === seatName(1) && scene.viewing() === undefined && isCrewViewOpen(), `${describe(scene)} · ${HINT_CLICK}`)
   click(scene, { x: header.x, y: header.y - 1 })
   await sleep(500)
-  check(`${tag}: a click on the blank line above the heading moves nothing and opens nothing`, cursorName(scene.lines()) === seatName(1) && scene.viewing() === undefined && isCrewViewOpen(), describe(scene))
+  check(`${tag}: a click on the blank line above the heading moves nothing and opens nothing`, cursorName(scene.lines()) === seatName(1) && scene.viewing() === undefined && isCrewViewOpen(), `${describe(scene)} · ${HINT_CLICK}`)
   const keys = keyLine(scene.lines())
-  check(`${tag}: the key line still names the keys it named before`, keys.includes('↑↓ move') && keys.includes('pgup/pgdn page') && keys.includes(CREW_OPEN_IN_VIEW_KEY) && keys.includes('esc close'), keys)
-  check(`${tag}: the key line gained no word for the mouse`, !/click|wheel|mouse|scroll/i.test(keys), keys)
-  check(`${tag}: the transcript scroller yields the wheel while the list is open`, wheelYieldsToTopOverlay())
+  check(`${tag}: the key line still names the keys it named before`, keys.includes('↑↓ move') && keys.includes('pgup/pgdn page') && keys.includes(CREW_OPEN_IN_VIEW_KEY) && keys.includes('esc close'), `${keys} · ${HINT_KEYS}`)
+  check(`${tag}: the key line gained no word for the mouse`, !/click|wheel|mouse|scroll/i.test(keys), `${keys} · ${HINT_KEYS}`)
+  check(`${tag}: the transcript scroller yields the wheel while the list is open`, wheelYieldsToTopOverlay(), HINT_YIELD)
   scene.push(ESC)
   check(`${tag}: esc closes the list`, await settle(scene, () => !isCrewViewOpen()), describe(scene))
-  check(`${tag}: the transcript scroller takes the wheel again once the list is closed`, !wheelYieldsToTopOverlay())
+  check(`${tag}: the transcript scroller takes the wheel again once the list is closed`, !wheelYieldsToTopOverlay(), HINT_YIELD)
   await scene.close()
 }
 
 section('§6 the yield rule reads the crew view store alone')
 {
-  check('closed ⇒ the transcript keeps the wheel', !isCrewViewOpen() && !wheelYieldsToTopOverlay())
+  check('closed ⇒ the transcript keeps the wheel', !isCrewViewOpen() && !wheelYieldsToTopOverlay(), `${HINT_YIELD}; the open flag is isCrewViewOpen in src/utils/cockpit/crewView.ts`)
   openCrewView()
-  check('open ⇒ the transcript yields the wheel', wheelYieldsToTopOverlay())
+  check('open ⇒ the transcript yields the wheel', wheelYieldsToTopOverlay(), HINT_YIELD)
   closeCrewView()
-  check('closed again ⇒ the transcript takes the wheel back', !wheelYieldsToTopOverlay())
+  check('closed again ⇒ the transcript takes the wheel back', !wheelYieldsToTopOverlay(), HINT_YIELD)
 }
 
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 600))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), `${faults.join('\n').slice(0, 600)} · fix the component the logged fault names, the crew list is src/components/mercury-ui/screens/CrewView.tsx`)
 rmSync(HOME, { recursive: true, force: true })
 rmSync(CWD, { recursive: true, force: true })
 console.log(`\n${failures === 0 ? '✅' : '❌'} crew-view-mouse — ${checks} checks, ${failures} failed`)

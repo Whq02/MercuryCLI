@@ -34,7 +34,7 @@ globalThis.fetch = Object.assign(async (input: string | URL | Request, init?: Re
 }, nativeFetch)
 let mounted: Mounted | undefined
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name + (mounted ? '\n' + mounted.screen() : '')); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the popup in src/commands/llmhost/llmhost.tsx or the search rows in src/services/host/hfRecipes.ts so this holds)' + (mounted ? '\n' + mounted.screen() : '')); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
   const { Box } = await import('../../src/ink.ts')
@@ -106,7 +106,7 @@ try {
     mounted!.push(KEY.up)
     assert.ok(await waitFor(() => selected() !== before, 3000), 'return to the suggested model\n' + screen())
   }
-  assert.equal(selected(), first)
+  assert.equal(selected(), first, 'the cursor did not return to the first row; check the row order in llmHostPopupRequest in src/commands/llmhost/llmhost.tsx')
   const account = ['Vendor keys', 'Machines I’m paying for']
   for (const row of account) {
     const before = selected()
@@ -119,7 +119,7 @@ try {
     mounted!.push(KEY.down)
     assert.ok(await waitFor(() => selected() !== before, 3000), 'back down to the suggested model\n' + screen())
   }
-  assert.equal(selected(), first)
+  assert.equal(selected(), first, 'the cursor did not return to the first row; check the row order in llmHostPopupRequest in src/commands/llmhost/llmhost.tsx')
   const plain = pages.join('\n')
   const hourlyPrices = (plain.match(/\$\d+\.\d\d\/hr/g) ?? []).map(word => Number(word.slice(1, -3)))
   check('without a query the popup is today’s popup plus the search line and the Bank row', plain.includes(HF_SEARCH_PLACEHOLDER) && plain.includes('Bank · your weights') && names.every(name => plain.includes(name)) && plain.includes('Machines I’m paying for') && plain.includes('My computers') && plain.includes('Refresh stock and prices') && plain.includes('More options') && !plain.includes('HUGGING FACE') && !plain.includes('VERIFIED RECIPES'))

@@ -30,16 +30,25 @@ process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
 let checks = 0
+const sectionPointers: Record<string, string> = {
+  '0': 'fix the stand-in engine in this file (engine and answer) or the recorded refusal in scripts/tool-economy/fixtures/llamacpp-qwen35-system-after-first.json',
+  '1': 'change deferralWireFormFor in src/services/providers/deferralWire.ts, or the prompt of ToolSearchTool in src/tools/ToolSearchTool/prompt.ts',
+  '2': 'change routedCallModel in src/services/providers/callModelRouter.ts so the request carries one system row and the loaded tools in the tools term',
+  '3': 'change ToolSearchTool in src/tools/ToolSearchTool/ToolSearchTool.ts, admissionRecordText in src/services/providers/toolEconomy.ts, or routedCallModel in src/services/providers/callModelRouter.ts so the admitted tool joins the tools term and no system row follows the first',
+}
+let pointerSection = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const where = !ok && sectionPointers[pointerSection] ? ` — to change: ${sectionPointers[pointerSection]}` : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${where}`)
 }
 const section = (t: string): void => {
+  pointerSection = t.slice(1, 2)
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the llama.cpp compat deferral proof exceeded 120s')
+  console.log('\nTIMEOUT — the llama.cpp compat deferral proof exceeded 120s; a drive of routedCallModel (src/services/providers/callModelRouter.ts) against the stand-in engine did not finish, so look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

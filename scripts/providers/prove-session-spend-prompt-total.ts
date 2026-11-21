@@ -12,9 +12,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'prove-spend-total-'
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
+const spendTotalFailureHint = 'change how providerSessionSpend sums a lane (input plus cache-read plus cache-creation tokens, output and cost unchanged) in src/services/providers/providerUsage/spend.ts, or how addToTotalSessionCost records usage in src/cost-tracker.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${spendTotalFailureHint}` : ''}`)
 }
 
 const ledger = await import('../../src/cost-tracker.ts')

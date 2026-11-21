@@ -14,7 +14,7 @@ delete process.env.MERCURY_STREAM_IDLE_TIMEOUT_MS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}change the pace memory and stream law in src/services/providers/localLiveness.ts (rememberedLocalPace, localStreamLawFor) or the wait row in src/services/providers/streamIdleBudget.ts (requestWaitLine)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -25,7 +25,7 @@ const { readStoredCompatApiKey } = await import('../../src/utils/accounts/provid
 let failures = 0
 function check(name: string, pass: boolean, detail = '') { if (!pass) failures++; console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass ? ` ${detail}` : ''}`) }
 const rows = loginFamilyRows({ engineLegs: true })
-check('the live logins roster includes both endpoint names', rows.some(row => row.value === 'compat/east') && rows.some(row => row.value === 'compat/west'))
+check('the live logins roster includes both endpoint names', rows.some(row => row.value === 'compat/east') && rows.some(row => row.value === 'compat/west'), 'hint: loginFamilyRows in src/components/loginFamilyRows.ts must list a compat/<name> row for each named endpoint of configuredCompatEndpoints; rows: ' + rows.map(row => row.value).join(','))
 try {
   for (const [columns, height] of [[80, 24], [120, 40]]) {
     let receipt = ''
@@ -37,16 +37,16 @@ try {
       )))), columns!, height!)
     await call((text: string | undefined) => { receipt = text ?? '' }, { onChangeAPIKey() {}, setMessages() {}, getAppState: () => ({}), setAppState() {} } as never, 'compat/east')
     try {
-      check(`${columns} columns: the requested endpoint is in view and focused`, await waitFor(() => mounted.screen().includes('east (east)'), 3000), mounted.screen())
+      check(`${columns} columns: the requested endpoint is in view and focused`, await waitFor(() => mounted.screen().includes('east (east)'), 3000), 'hint: the login call with compat/east must focus the east row of the logins list (src/commands/login/login.tsx, src/components/loginFamilyRows.ts); screen: ' + mounted.screen())
       mounted.push(KEY.enter)
-      check(`${columns} columns: Enter opens the endpoint key field`, await waitFor(() => mounted.screen().includes('Endpoint east — API key') && mounted.screen().includes('Key:'), 3000), mounted.screen())
+      check(`${columns} columns: Enter opens the endpoint key field`, await waitFor(() => mounted.screen().includes('Endpoint east — API key') && mounted.screen().includes('Key:'), 3000), 'hint: Enter on the endpoint row must open the key field drawn by src/components/CompatConnect.tsx; screen: ' + mounted.screen())
       const fixture = 'proof-key-east-login-fixture-not-a-real-key'
       mounted.push(fixture)
-      check(`${columns} columns: key entry is masked`, await waitFor(() => /Key: \*+/.test(mounted.screen()), 3000) && !mounted.screen().includes(fixture), mounted.screen())
+      check(`${columns} columns: key entry is masked`, await waitFor(() => /Key: \*+/.test(mounted.screen()), 3000) && !mounted.screen().includes(fixture), 'hint: the key field in src/components/CompatConnect.tsx must show asterisks, never the typed key; screen: ' + mounted.screen())
       mounted.push(KEY.enter)
-      check(`${columns} columns: the stored-key receipt is visible`, await waitFor(() => mounted.screen().includes('east API key stored'), 3000), mounted.screen())
+      check(`${columns} columns: the stored-key receipt is visible`, await waitFor(() => mounted.screen().includes('east API key stored'), 3000), 'hint: Enter on the key must store it and show the receipt of src/services/providers/openaicompat/compatLogin.ts; screen: ' + mounted.screen())
       mounted.push(KEY.enter)
-      check(`${columns} columns: the real writer stores only east and returns its receipt`, await waitFor(() => receipt.includes('east API key stored'), 3000) && readStoredCompatApiKey('east') === fixture && readStoredCompatApiKey('west') === undefined, receipt)
+      check(`${columns} columns: the real writer stores only east and returns its receipt`, await waitFor(() => receipt.includes('east API key stored'), 3000) && readStoredCompatApiKey('east') === fixture && readStoredCompatApiKey('west') === undefined, 'hint: the writer in src/services/providers/openaicompat/compatLogin.ts must store the key for east only and hand its receipt back through the login call (src/commands/login/login.tsx); receipt: ' + receipt)
     } finally { popup.closeSettingsPopup(); mounted.unmount() }
   }
   console.log(failures ? `NAMED ENDPOINT LOGINS RED (${failures})` : 'NAMED ENDPOINT LOGINS GREEN')

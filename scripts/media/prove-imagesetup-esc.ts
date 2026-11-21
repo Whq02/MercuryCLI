@@ -50,7 +50,7 @@ if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 600)}` : ''} — fix the /imagesetup popup (esc, click-outside, ctrl+c, pull card) in imageSetupPopupRequest in src/commands/imagesetup/imagesetup.tsx, its rows in src/services/media/setup.ts, or the popup state in src/utils/cockpit/settingsPopup.ts` : ''}`)
 }
 function keepFrame(name: string, m: Mounted): void {
   if (frameDir !== undefined) writeFileSync(join(frameDir, `${name}.txt`), m.lines().join('\n') + '\n')

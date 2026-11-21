@@ -33,6 +33,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond && !label.startsWith('R6')) console.log('      fix: the reactivate road is makeConcourseAdmitHandler in src/daemon/concourseWorkers.ts (the warm claim is claimWarmRunner in src/daemon/warmRunner.ts); change it until the law in the label holds')
 }
 
 class FakeRoster {
@@ -166,14 +167,14 @@ console.log('\n── R1: ↵ on a parked row rides the warm claim ──')
   const res = await admit({ workspaceDir: wsA, resumeSessionId: parkedSid })
   const felt = Date.now() - t0
   console.log(`  (the reactivate answered in ${felt}ms on the scripted claim — the receipt records the real daemon's number at the pool)`)
-  check('R1 the resume is ADMITTED on the claimed short (no cold spawn)', res.ok && res.runnerId === warmShort && res.sessionId === parkedSid, JSON.stringify(res))
+  check('R1 the resume is ADMITTED on the claimed short (no cold spawn)', res.ok && res.runnerId === warmShort && res.sessionId === parkedSid, JSON.stringify(res) + ' — an enter on a parked row must claim the warm runner, not spawn cold')
   const claim = roster.claims.slice(claimsBefore)[0]?.params
-  check('R1 the session/claim request carries the PARKED session id and `resume: true` (the runner loads the transcript)', claim?.session_id === parkedSid && claim?.resume === true && claim?.model === MODEL, JSON.stringify(claim))
+  check('R1 the session/claim request carries the PARKED session id and `resume: true` (the runner loads the transcript)', claim?.session_id === parkedSid && claim?.resume === true && claim?.model === MODEL, JSON.stringify(claim) + ' — the claim params sent to the warm runner must carry session_id, resume true and the model')
   const standing = recordsOf(parkedSid)
   const live = standing[0]
   check('R1 ONE record owns the session, keyed by the claimed short — the old short freed', standing.length === 1 && live?.runnerId === warmShort && sup.readSessionWorkers(dir)['concourse-w1'] === undefined, JSON.stringify(standing.map(r => r.runnerId)))
   check('R1 the row flipped parked → live: pid re-pointed, the park cleared, title and birth time kept', live?.pid === process.pid && live?.parkedAt === undefined && live?.parkedBy === undefined && live?.parkReason === undefined && live?.title === 'the parked chat' && live?.spawnedAt === now - 5 * T)
-  check('R1 in ONE publication (the delta stamp advanced exactly once for the flip)', revisionOf() === revisionBefore + 1, `${revisionBefore} → ${revisionOf()}`)
+  check('R1 in ONE publication (the delta stamp advanced exactly once for the flip)', revisionOf() === revisionBefore + 1, `${revisionBefore} → ${revisionOf()} — the flip must publish the concourse delta once, not twice or not at all`)
   check("R1 the ladder reads the record live now (never parked, never NEEDS YOU)", ['working', 'ready-to-review'].includes(workers.concourseRecordState(live!, { needsYou: false, alive: true })))
   check('R1 the respawn argv flipped to --resume <id> (a crash later continues the same chat)', roster.patched.some(p => p.short === warmShort && p.patch.respawnExtraArgv.join(' ').startsWith(`--resume ${parkedSid}`)))
   await new Promise(r => setTimeout(r, 20))
@@ -192,7 +193,7 @@ console.log('\n── R2: no warm runner ⇒ the same record respawns with --res
   check('R2 the resume is admitted on the record\'s OWN short', res.ok && res.runnerId === 'concourse-w3', JSON.stringify(res))
   const reg = roster.registered.slice(registeredBefore).find(r => r.short === 'concourse-w3')
   const argv = [...(reg?.spec.extraArgv ?? [])]
-  check('R2 the cold spawn RESUMES the same durable session (--resume <id>, never --session-id)', reg !== undefined && argv.includes('--resume') && argv.includes(parkedSid) && !argv.includes('--session-id'), JSON.stringify(argv))
+  check('R2 the cold spawn RESUMES the same durable session (--resume <id>, never --session-id)', reg !== undefined && argv.includes('--resume') && argv.includes(parkedSid) && !argv.includes('--session-id'), JSON.stringify(argv) + ' — the cold respawn spec must pass --resume with the parked session id')
   const standing = recordsOf(parkedSid)
   check('R2 one record, live: pid re-pointed, the park AND the stale crash fact cleared in the same publication', standing.length === 1 && standing[0]?.pid === process.pid && standing[0]?.parkedAt === undefined && standing[0]?.crash === undefined)
 }
@@ -220,7 +221,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   const res = await admit({ workspaceDir: wsD, resumeSessionId: crashedSid })
   roster.refuseRegister = false
   const after = recordsOf(crashedSid)[0]
-  check('R4 the cold road\'s spawn refusal is typed', !res.ok && res.code === 'spawn-failed' && /scripted spawn refusal/.test(res.error), JSON.stringify(res))
+  check('R4 the cold road\'s spawn refusal is typed', !res.ok && res.code === 'spawn-failed' && /scripted spawn refusal/.test(res.error), JSON.stringify(res) + ' — a refused spawn must answer ok false with code spawn-failed and the spawn error text')
   check('R4 the crashed row is now PARKED with the reason on it — never a ghost, never a crash', after?.parkedAt !== undefined && after.crash === undefined && after.endedAt === undefined && typeof after.parkReason === 'string' && /scripted spawn refusal/.test(after.parkReason), JSON.stringify(after))
   check('R4 the reason line is the row\'s cell', workers.concourseRecordState(after!, { needsYou: false, alive: false }) === 'parked')
   const lostSid = sid('d2')
@@ -229,7 +230,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   const registeredBeforeLost = roster.registered.length
   const lost = await admit({ workspaceDir: wsD, resumeSessionId: lostSid })
   const lostAfter = recordsOf(lostSid)[0]
-  check('R4 a parked row whose transcript is gone is refused BEFORE any spawn (nothing to resume it around)', !lost.ok && /transcript is gone/.test(lost.error) && roster.registered.length === registeredBeforeLost, JSON.stringify(lost))
+  check('R4 a parked row whose transcript is gone is refused BEFORE any spawn (nothing to resume it around)', !lost.ok && /transcript is gone/.test(lost.error) && roster.registered.length === registeredBeforeLost, JSON.stringify(lost) + ' — a parked row with no transcript must be refused with the words transcript is gone before any spawn')
   check('R4 …and stays parked with the loss as its reason, never a ghost, never live', lostAfter?.parkedAt !== undefined && lostAfter.pid === DEAD_PID && /transcript is gone/.test(lostAfter.parkReason ?? '') && workers.concourseRecordState(lostAfter, { needsYou: false, alive: false }) === 'parked', JSON.stringify(lostAfter))
   const holderSid = sid('e1')
   const parkedSid = sid('e2')
@@ -239,7 +240,7 @@ console.log('\n── R4: refusals leave the row PARKED with the daemon\'s sente
   seedRecord({ runnerId: 'concourse-w7', sessionId: parkedSid, workspaceId: wsIdE, pid: DEAD_PID, parkedAt: now - T, parkedBy: 'operator:test' })
   const held = await admit({ workspaceDir: wsE, resumeSessionId: parkedSid })
   const parkedAfter = recordsOf(parkedSid)[0]
-  check('R4 a held checkout refuses the reactivate typed (the holder keeps the room)', !held.ok && held.code === 'workspace-collision', JSON.stringify(held))
+  check('R4 a held checkout refuses the reactivate typed (the holder keeps the room)', !held.ok && held.code === 'workspace-collision', JSON.stringify(held) + ' — a checkout held by a live session must refuse the reactivate with code workspace-collision')
   check('R4 the row stays parked and says why', parkedAfter?.parkedAt !== undefined && typeof parkedAfter.parkReason === 'string' && /held by a live session/.test(parkedAfter.parkReason) && parkedAfter.endedAt === undefined, JSON.stringify(parkedAfter))
   check('R4 the holder is untouched', recordsOf(holderSid)[0]?.pid === process.pid && recordsOf(holderSid)[0]?.parkedAt === undefined)
 }
@@ -265,7 +266,7 @@ console.log('\n── R6: the warm claim binds and acks, then loads the transcri
     { env: { MERCURY_CONCOURSE_WORKER: '1', MERCURY_SESSION_HOME: pinnedHome } },
   ).catch(() => null)
   rmSync(pinnedHome, { recursive: true, force: true })
-  check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim))
+  check('R6 a missing transcript refuses the claim before it binds and hands the home pin back', refusedClaim?.resume?.message === `claim refused — no conversation found for session ${UNSEEN}` && refusedClaim.fresh === null && refusedClaim.pinned.some(name => name.startsWith(`${CLAIMED}.jsonl`)), JSON.stringify(refusedClaim) + ' — the runner session/claim handler (not the daemon) must refuse a resume claim with no transcript and still bind a fresh claim; a null value means the live runner did not start, so build dist first')
 }
 
 

@@ -11,10 +11,13 @@ const {
   MC_DIGEST_PREFIX,
 } = await import('../../src/services/compact/microCompactDigest.js')
 
+const DIGEST_HINT = 'change isMicroCompactDigestEnabled or digestClearedToolResult in src/services/compact/microCompactDigest.ts so the label is only counts and a content class'
+
 let fail = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) fail++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + DIGEST_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

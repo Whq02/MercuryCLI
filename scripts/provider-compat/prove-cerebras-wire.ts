@@ -54,7 +54,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_CEREBRAS_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} (change the Cerebras road in src/services/providers/cerebras/cerebrasCallModel.ts or cerebrasCatalogue.ts, or the route in src/services/providers/routeLaw.ts, whichever this check names)`); count++; console.log(`[PASS] ${name}`) }
 try {
   const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
   check('Cerebras qualified ids are declared before any inference request', classifyModelRoute('cerebras/gpt-oss-120b').route === 'cerebras')

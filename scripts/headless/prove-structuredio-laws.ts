@@ -10,9 +10,11 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'sio-laws-'))
 const { StructuredIO } = await import('../../src/cli/structuredIO.ts')
 
 let failures = 0
+const FRAMING_OWNER_HINT = 'change StructuredIO in src/cli/structuredIO.ts: its input stream frames and bounds lines (MAX_LINE_BYTES from src/runner/wire/errors.ts), and inputRefusal and emptyInputRow refuse rows'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failureText = [detail, FRAMING_OWNER_HINT].filter(part => part !== '').join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failureText ? ` — ${failureText}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -21,6 +23,7 @@ const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — structuredIO laws exceeded 60s')
+  console.log('a step waited for a row or a refusal that never came: see the last section header above, and the input stream in StructuredIO in src/cli/structuredIO.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

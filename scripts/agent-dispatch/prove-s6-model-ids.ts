@@ -3,11 +3,21 @@
 process.env.NODE_ENV = 'test'
 
 let failures = 0
+const modelIdsWhere: Record<string, string> = {
+  '1': 'change ENGINE_DISPATCH_MODELS, isExactEngineModelId and unrecognisedModelWordRefusal in src/services/crew/engineDispatch.ts',
+  '2': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts or the live catalogue in src/services/providers/openai/openaiCatalogue.ts',
+  '3': 'change DEPRECATED_GPT_IDS in src/services/providers/openai/openaiAdapter.ts or its refusal in resolveEngineDispatch (src/services/crew/engineDispatch.ts)',
+  '4': 'change the display-pin fallback (GPT_DISPLAY_PINS) in src/services/providers/openai/openaiCatalogue.ts or resolveEngineDispatch in src/services/crew/engineDispatch.ts',
+  '5': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts',
+  '6': 'change resolveEngineDispatch in src/services/crew/engineDispatch.ts or parseUserSpecifiedModel in src/services/model/model.ts',
+}
+let modelIdsHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' — ' : ''}${modelIdsHint}` : ''}`)
 }
 function section(t: string): void {
+  modelIdsHint = modelIdsWhere[t.split(' ')[0]!] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 async function refusal(fn: () => Promise<unknown>): Promise<string> {

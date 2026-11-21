@@ -20,8 +20,9 @@ const { isGitInternalPathPS, isDotGitPathPS } = await import('../../src/tools/Po
 setCwd(project)
 
 let failures = 0
+const GIT_PATH_FIX = 'fix isGitInternalPathPS or isDotGitPathPS in src/tools/PowerShellTool/gitSafety.ts so this path is judged as the label says, after resolving it against the session directory set by setCwd'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} · ` : ''}${GIT_PATH_FIX}` : ''}`)
   if (!ok) failures++
 }
 

@@ -152,11 +152,17 @@ const told = (over: Over[], facts: Map<string, Facts>): string =>
     .join('') + (over.length > 25 ? `\n      … and ${over.length - 25} more scripts` : '')
 
 let failures = 0
+let onPlanted = false
+const plantedHint = 'to fix, change how factsOf, srcOf or toolsOf read a script in scripts/lib/sourceTextReads.ts, or the table functions judge, refused, risen, tableOf and render in this file, until the planted estate reads as the check says'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && onPlanted ? (detail ? `${detail} (${plantedHint})` : plantedHint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => {
+  onPlanted = t.startsWith('§0')
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
 
 function plantedEstate(): void {
   const ONE = 'src/planted/one.ts'

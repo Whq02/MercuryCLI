@@ -20,10 +20,12 @@ const { isSqliteRowTarget } = await import('../../src/tools/FileWriteTool/struct
 
 let failures = 0
 let checks = 0
+let rowCountsHint = 'change statsBetween in src/components/messageSelector/stats.ts or isSqliteRowTarget in src/tools/FileWriteTool/structuredTargets.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = !ok ? `${detail}${detail ? ' | ' : ''}${rowCountsHint}` : detail
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 
 const prompt = (uuid: string, text: string) => ({ type: 'user', uuid, message: { role: 'user', content: text } })
@@ -93,6 +95,7 @@ const notRows = ['/w/rows.sqlite', '/w/rows.sqlite:items', '/w/notes.sqlite.md',
 check('every address a row write reports reads as a row, and nothing a rewind restores does', rowAddresses.every(path => isSqliteRowTarget(path)) && notRows.every(path => !isSqliteRowTarget(path)), JSON.stringify({ rows: rowAddresses.map(path => isSqliteRowTarget(path)), others: notRows.map(path => isSqliteRowTarget(path)) }))
 
 console.log('\n── rewind list and card after shell commands ──')
+rowCountsHint = 'the list row text and the confirm card text are built in src/components/messageSelector/views.tsx and the shell-command counts in src/components/messageSelector/stats.ts'
 {
   const React = await import('react')
   const { execFileSync } = await import('node:child_process')

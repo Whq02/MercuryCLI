@@ -3,8 +3,10 @@ import { createSplashCore, assembleCardRows } from '../../assets/splash/splash-c
 import { join as join2 } from 'node:path'
 
 let failures = 0
+let failHint = 'change composeLockup or assembleCardRows in assets/splash/splash-core.mjs (and for the section 4 doc checks, the card names in README.md, AGENTS.md or docs/INSTALL-WINDOWS-FROM-SOURCE.md)'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, failHint].filter(Boolean).join('; ')
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && failText ? ` — ${failText}` : ''}`)
   if (!ok) failures = 1
 }
 

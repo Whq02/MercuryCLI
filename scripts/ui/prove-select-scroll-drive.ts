@@ -26,7 +26,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const followHint = 'fix the selection and scroll translation: applyOverlayPass in src/ink/root/overlay-pass.ts (selection:xlate) and the scroll region in src/ink/compose-walk.ts (scroll:xlate); the flux marks printed below show which arm ran'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? '' : ` — ${detail ? `${detail} · ` : ''}${followHint}`}`)
 }
 
 const sgr = (b: number, col0: number, row0: number, release = false): string => `\\x1b[<${b};${col0 + 1};${row0 + 1}${release ? 'm' : 'M'}`
@@ -122,7 +123,7 @@ type Hi = { rows: number[]; cells: [number, number][]; texts: string[]; rowTexts
 const dumps: Shot[] = []
 try {
   if (run.outs.length === 0 || run.sends.length !== sends.length) {
-    console.error(`the drive did not deliver every send (${run.sends.length}/${sends.length}) — ${run.driverOut.slice(-400)}`)
+    console.error(`the drive did not deliver every send (${run.sends.length}/${sends.length}) — ${run.driverOut.slice(-400)} — check runCompassArena in scripts/navigation/arena.ts and that dist/mercury.mjs is built`)
     process.exit(1)
   }
   const first = run.outs[0]!.ts

@@ -23,12 +23,21 @@ for (const k of [
 }
 
 let failures = 0
+const sonnetRowHints: Record<string, string> = {
+  '§1': 'to fix, change the claude-sonnet-5-5 price row in src/services/usage/modelCost.ts (resolveModelPricing, getModelPricingString)',
+  '§2': 'to fix, change the canonical fold and display names for claude-sonnet-5-5 in src/utils/model/modelNames.ts (getCanonicalName) and src/services/model/model.ts (renderModelName, parseUserSpecifiedModel)',
+  '§3': 'to fix, change the sonnet generation declarations (FAMILY_GENERATIONS in src/utils/model/configs.ts), the picker rows in src/services/model/modelOptions.ts, or the effort and capability rows in src/utils/effort.ts and src/utils/model/capabilities.ts',
+  '§4': 'to fix, change the claude-sonnet-5-5 wire laws in src/utils/model/capabilities.ts (modelThinkingAlwaysOn, modelSupportsForcedToolChoice, foldToolChoiceForModel) or the thinking filter in src/services/messages/apiFilters.ts',
+}
+let sonnetRowSection = ''
 function check(label: string, cond: boolean, detail?: string): void {
   const mark = cond ? 'PASS' : 'FAIL'
   if (!cond) failures++
-  console.log(`  [${mark}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const sonnetRowHint = sonnetRowHints[sonnetRowSection]
+  console.log(`  [${mark}] ${label}${!cond ? ` — ${detail ? `${detail}${sonnetRowHint ? ' — ' : ''}` : ''}${sonnetRowHint ?? ''}` : ''}`)
 }
 function section(title: string): void {
+  sonnetRowSection = title.slice(0, 2)
   console.log(`\n${title}`)
 }
 

@@ -5,9 +5,11 @@
 import { join } from 'node:path'
 
 let failures = 0
+let failWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond || !failWhere ? detail : detail ? `${detail} · ${failWhere}` : failWhere
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,6 +33,7 @@ async function main(): Promise<void> {
 
   section('1. the frame capsule line')
   {
+    failWhere = 'fix buildRunCapsuleLine in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/services/run/runKernel.ts'
     check('no snapshot ⇒ no capsule', model.buildRunCapsuleLine(null, 2_000) === null)
     check(
       'lightweight (non-substantive) turn ⇒ no capsule',
@@ -59,6 +62,7 @@ async function main(): Promise<void> {
 
   section('2. the /run row model')
   {
+    failWhere = 'fix buildRunRows in src/commands/run/runInspectorModel.ts, or the run events it reads in reduceRunEvent in src/services/run/runKernel.ts'
     const snap = fold([
       { type: 'substantive', at: 2, reason: 'edits' },
       { type: 'task-transition', at: 3, taskId: 't1', title: 'parser', state: 'done' },
@@ -93,6 +97,7 @@ async function main(): Promise<void> {
 
   section('3. wiring + lifecycle')
   {
+    failWhere = 'fix subscribeRuns and acceptUserRequest in src/services/run/runCoordinator.ts so a subscriber is notified on accept and drained on unsubscribe'
     const coordinator = await import('../../src/services/run/runCoordinator.js')
     for (let i = 0; i < 100; i++) {
       const unsub = coordinator.subscribeRuns(() => {})

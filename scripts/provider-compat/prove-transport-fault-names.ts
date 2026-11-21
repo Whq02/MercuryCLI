@@ -5,7 +5,8 @@ const { describeTransportFailure } = await import('../../src/services/providers/
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const failHint = cond ? '' : ' (change describeTransportFailure in src/services/providers/openaicompat/compatChatClient.ts so each errno shape names its code, host and port)'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${failHint}`)
   if (!cond) failures++
 }
 

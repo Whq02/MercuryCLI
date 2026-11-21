@@ -5,18 +5,19 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const OVERFLOW_FAILURE_HINT = 'change the overflow recovery: decideOverflowRecovery in src/services/compact/overflowRecovery.ts, foldContext in src/run-core/turn/makeRequest.ts and classifyOverflowFault in src/services/api/overflowSignal.ts must read the limit from the vendor refusal and fold once; the row window comes from getContextWindowForModel in src/utils/model/capabilities.ts'
 let failures = 0
 let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok ? ` — ${OVERFLOW_FAILURE_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the served-window prover exceeded 240s')
+  console.log('\nTIMEOUT — the served-window prover exceeded 240s; the query loop did not settle: look at the overflow recovery in src/run-core/turn/makeRequest.ts and src/services/compact/overflowRecovery.ts for a refused request that is resent or a fold that never ends')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

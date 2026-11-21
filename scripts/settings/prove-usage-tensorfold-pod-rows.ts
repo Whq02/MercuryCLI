@@ -25,7 +25,7 @@ pinSourceRef()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 600) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — change the TensorFold ledger in src/services/providers/local/tensorfoldUsage.ts (turn readings), the Local models usage rows in src/components/Settings/Usage.tsx, or the pod registration in src/services/host/tensorfoldPod.ts${detail ? '; ' + detail.slice(0, 600) : ''}` : ''}`)
   if (!cond) failures++
 }
 

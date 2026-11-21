@@ -19,7 +19,8 @@ const { DEFAULT_BINDINGS } = await import('../../src/keybindings/defaultBindings
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: edit the named tip in src/services/tips/tipRegistry.ts (its text, id or cooldown), the order or pick in src/services/tips/tipScheduler.ts, or a chord in src/keybindings/defaultBindings.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${failHint}`)
 }
 
 const BUDGET = 94

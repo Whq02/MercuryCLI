@@ -7,10 +7,11 @@ import { seedScratchHome, startScriptedFixture, type ScriptedRequest } from '../
 
 let failures = 0
 let checks = 0
+const outliveHint = 'to fix, change the self-daemonize ward in src/utils/wards/wards.ts (its teach and refusal text), the background start result in src/tools/BashTool/resultBlock.ts, or the Service start in src/tools/ServiceTool/ServiceTool.ts, then rebuild dist'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${outliveHint}${detail ? `: ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}\n${'─'.repeat(76)}`)

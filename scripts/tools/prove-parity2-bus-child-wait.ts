@@ -44,8 +44,9 @@ const pinConfig = join(SCRATCH, 'bunfig.toml')
 writeFileSync(pinConfig, `preload = ${JSON.stringify([...repoPreloads, holdScript])}\n`)
 
 let failures = 0
+const childWaitHint = 'Change the real-child leg of scripts/tools/prove-parity2-bus.ts (CHILD_CLOSE_BUDGET_MS, the stderr drain and the SIGKILL on the bound) until this check holds'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${ok ? (detail ? ` — ${detail}` : '') : ` — ${childWaitHint}${detail ? `. ${detail}` : ''}`}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))

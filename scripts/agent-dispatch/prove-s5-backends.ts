@@ -8,11 +8,21 @@ import { z } from 'zod'
 import type { AssistantMessage, Message, StreamEvent } from '../../src/types/message.js'
 
 let failures = 0
+const backendsWhere: Record<string, string> = {
+  '1': 'change declaredRouteOf in src/services/providers/routeLaw.ts',
+  '1b': 'change routedCallModel in src/services/providers/callModelRouter.ts or resolveEngineDispatch in src/services/crew/engineDispatch.ts',
+  '2': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts',
+  '3': 'change zaiCallModel in src/services/providers/zai/zaiCallModel.ts',
+  '4': 'change buildAgentLaunchPlan in src/services/crew/agentLaunchPlan.ts',
+  '5': 'change SPECIALIST_ROLES and SPECIALIST_ROLE_ACCESS in src/services/providers/providerAdapter.ts',
+}
+let backendsHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' — ' : ''}${backendsHint}` : ''}`)
 }
 function section(t: string): void {
+  backendsHint = backendsWhere[t.split(' ')[0]!] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

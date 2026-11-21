@@ -43,9 +43,10 @@ section('the destination is captured at launch; readers fall back across dirs')
     agentId,
   )
   await getProject().flush()
-  check('the sidechain write landed at the CAPTURED destination', existsSync(captured))
+  check('the sidechain write landed at the CAPTURED destination', existsSync(captured),
+    `no file at ${captured}; the write path in src/utils/sessionStorage/writer.ts (recordSidechainTranscript, agentTranscriptDestinations lookup near lines 492 and 508) must use the path given to registerAgentTranscriptDestination`)
   const derived = getAgentTranscriptPath(asAgentId(agentId))
-  check('…not at the live-derived path', !existsSync(derived), derived)
+  check('…not at the live-derived path', !existsSync(derived), `${derived} exists; src/utils/sessionStorage/writer.ts must prefer the registered destination over getAgentTranscriptPath`)
 
   const oldDir = mkdtempSync(join(tmpdir(), 'transcript-destination-old-'))
   const newDir = mkdtempSync(join(tmpdir(), 'transcript-destination-new-'))
@@ -53,10 +54,12 @@ section('the destination is captured at launch; readers fall back across dirs')
   check(
     'the reader falls back to the OLD destination when the primary is empty',
     resolveAgentTranscriptFile([newDir, oldDir], 'agX') === agentTranscriptFile(oldDir, 'agX'),
+    'resolveAgentTranscriptFile in src/services/crew/agentTranscriptReader.ts must return the first dir in the list whose agent-<id>.jsonl exists',
   )
   check(
     'with no file anywhere the primary path is still named (honest missing state)',
     resolveAgentTranscriptFile([newDir, oldDir], 'agY') === agentTranscriptFile(newDir, 'agY'),
+    'resolveAgentTranscriptFile in src/services/crew/agentTranscriptReader.ts must return the first dir path when no dir holds the file',
   )
   rmSync(oldDir, { recursive: true, force: true })
   rmSync(newDir, { recursive: true, force: true })

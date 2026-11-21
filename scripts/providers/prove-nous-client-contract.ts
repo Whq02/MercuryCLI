@@ -13,10 +13,11 @@ Object.assign(process.env, fixture.signinEnv)
 
 let failures = 0
 let passes = 0
+const nousContractFailureHint = 'change the presented client facts, the peek and the record in src/services/providers/nous/nousClientContract.ts, the device-code request in src/services/providers/nous/nousOauth.ts, or the sign-in door in src/services/providers/nous/nousLogin.ts, whichever this label names'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — ${nousContractFailureHint}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 

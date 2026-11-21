@@ -22,7 +22,7 @@ const { zenObservedGoUsage, refreshZenGoUsage, __resetZenUsageForTest } = await 
 const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')
 const env = process.env
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — fix: the login is storeZenApiKeyLogin in src/services/providers/zen/zenLogin.ts, the key and account lookup is in src/services/providers/zen/zenAccounts.ts, the Go usage read is src/services/providers/zen/zenUsageState.ts, the stored key is in src/utils/accounts/providerSecrets.ts, and the slot views are src/services/providers/accountSlots.ts`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('the documented bases and the one env spelling belong to Zen', zenApiBase({} as NodeJS.ProcessEnv) === 'https://opencode.ai/zen/v1' && zenGoApiBase({} as NodeJS.ProcessEnv) === 'https://opencode.ai/zen/go/v1' && ZEN_ENV_KEY === 'OPENCODE_API_KEY' && ALL_PROVIDER_CREDENTIAL_ENV_VARS.includes('OPENCODE_API_KEY') && credentialEnvNames().includes('OPENCODE_API_KEY') && PROVIDER_CREDENTIAL_ENV_VARS.zen.join() === 'OPENCODE_API_KEY')
   const empty = await storeZenApiKeyLogin(' ', { env })

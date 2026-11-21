@@ -63,7 +63,7 @@ try {
   let width = 120, height = 40
   const screen = () => mounted?.screen() ?? ''
   const normal = () => screen().replace(/[│\s]+/g, ' ')
-  const check = (name: string, truth: unknown) => { assert.ok(truth, name + '\n' + screen()); checks++; console.log('PASS ' + name) }
+  const check = (name: string, truth: unknown) => { assert.ok(truth, name + ' (change the first-screen rows in llmHostPopupRequest in src/commands/llmhost/llmhost.tsx or the road in createHostRoad in src/services/host/index.ts so this holds)\n' + screen()); checks++; console.log('PASS ' + name) }
   const step = async (name: string) => assert.ok(await waitFor(() => question?.step === name && screen().includes(question.title.slice(0, 28)), 15000), 'question reaches ' + name + '\n' + screen())
   const selected = () => mounted!.lines().find(line => line.includes('› ')) ?? ''
   const rowText = (row: NonNullable<LlmHostQuestion['rows']>[number]) => row.label.replace(/^─[^\n]*\n/, '').split('\n')[0]!.split(' · ')[0]!.trim()

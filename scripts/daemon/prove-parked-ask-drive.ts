@@ -273,7 +273,7 @@ function dump(label: string, frame: string | undefined): void {
 
 console.log('parked ask — a seat asks with nobody there; the board says so; focus paints the card; the answer lands; the seat resumes')
 try {
-  check('P1 the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('P1 the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), `the daemon did not answer ping in 60s; read ${logPath}`)
   const reply = (await daemonControlRpc({
     op: 'concourseDispatch',
     clientMessageId: 'parked-ask-1',
@@ -284,24 +284,24 @@ try {
     effort: 'high',
     permissionMode: 'default',
   } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-  check('P1 the session dispatched in default mode with no screen attached', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply))
+  check('P1 the session dispatched in default mode with no screen attached', reply.ok === true && typeof reply.sessionId === 'string', JSON.stringify(reply) + ' — the concourseDispatch op must start a session with no screen attached; read ' + logPath)
   const sid = reply.sessionId ?? ''
   const transcript = join(paths.getProjectDir(work), `${sid}.jsonl`)
   const transcriptText = (): string => (existsSync(transcript) ? readFileSync(transcript, 'utf8') : '')
   const asksOf = (): ReturnType<typeof readSessionAsks> => readSessionAsks(sid, daemonDir)
   const openAsks = async (): Promise<number> => (await obligations.openObligations({ scope: 'switchboard' })).filter(o => o.sessionId === sid && (o.ref ?? '').startsWith('permission:')).length
 
-  check('P2 the seat asked and the daemon PARKED it: one ask on the seat', await untilAsync(() => (asksOf()?.asks.length ?? 0) === 1, 90_000), `asks: ${JSON.stringify(asksOf())} · hits: ${hits.map(h => h.route).join(',')}`)
+  check('P2 the seat asked and the daemon PARKED it: one ask on the seat', await untilAsync(() => (asksOf()?.asks.length ?? 0) === 1, 90_000), `asks: ${JSON.stringify(asksOf())} · hits: ${hits.map(h => h.route).join(',')} — the seat must park exactly one permission ask in the daemon (readSessionAsks in src/services/engine-connector/seatProjections.ts reads it); read ${logPath}`)
   const parked = asksOf()?.asks[0]
-  check("P2 the parked ask is the seat's writing command — the engine's own ask, no verdict and none of a verdict's words", parked?.toolName === 'Bash' && String((parked.input as { command?: unknown }).command ?? '').includes(PROBE_COMMIT) && (parked.decisionReasonDetail as { type?: string } | undefined)?.type !== 'classifier' && !JSON.stringify(parked).includes(BLOCK_REASON), JSON.stringify(parked))
-  check('P2 the needs-you row was minted for the session', await untilAsync(async () => (await openAsks()) === 1, 15_000))
-  check('P2 the shell did NOT run while the ask waited', commitCount() === '1', `commits ${commitCount()}`)
-  check('P2 no request left the seat for the decision: every hit is the seat\'s own streaming request', hits.filter(h => h.route === 'classifier').length === 0 && hits.every(h => h.streaming) && hits.length >= 1, hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(','))
+  check("P2 the parked ask is the seat's writing command — the engine's own ask, no verdict and none of a verdict's words", parked?.toolName === 'Bash' && String((parked.input as { command?: unknown }).command ?? '').includes(PROBE_COMMIT) && (parked.decisionReasonDetail as { type?: string } | undefined)?.type !== 'classifier' && !JSON.stringify(parked).includes(BLOCK_REASON), JSON.stringify(parked) + ' — the parked ask must be the Bash writing command as the engine asked it, with no classifier verdict attached')
+  check('P2 the needs-you row was minted for the session', await untilAsync(async () => (await openAsks()) === 1, 15_000), 'a parked permission ask must mint one needs-you obligation (scope switchboard, ref permission:) for the session; read ' + logPath)
+  check('P2 the shell did NOT run while the ask waited', commitCount() === '1', `commits ${commitCount()} — the writing command must not run while its ask is parked`)
+  check('P2 no request left the seat for the decision: every hit is the seat\'s own streaming request', hits.filter(h => h.route === 'classifier').length === 0 && hits.every(h => h.streaming) && hits.length >= 1, hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(',') + ' — a default-mode ask must wait for a person: no classifier request may leave the seat')
 
   const hitsAtPark = hits.length
   await sleep(8_000)
-  check("P3 a default-mode session's own parked ask has NO CLOCK — still parked long past the 3-second ask-clock knob (only Flow and Sovereign asks expire)", (asksOf()?.asks.length ?? 0) === 1 && (asksOf()?.asks[0]?.requestId ?? '') === (parked?.requestId ?? '?'), JSON.stringify(asksOf()))
-  check('P3 the needs-you row still stands; no denial reached the seat (nothing else left it)', (await openAsks()) === 1 && hits.length === hitsAtPark && transcriptText().split('\n').every(l => !isDenial(l)), `hits ${hitsAtPark}→${hits.length}`)
+  check("P3 a default-mode session's own parked ask has NO CLOCK — still parked long past the 3-second ask-clock knob (only Flow and Sovereign asks expire)", (asksOf()?.asks.length ?? 0) === 1 && (asksOf()?.asks[0]?.requestId ?? '') === (parked?.requestId ?? '?'), JSON.stringify(asksOf()) + ' — a default-mode ask must stay parked and unexpired; read ' + logPath)
+  check('P3 the needs-you row still stands; no denial reached the seat (nothing else left it)', (await openAsks()) === 1 && hits.length === hitsAtPark && transcriptText().split('\n').every(l => !isDenial(l)), `hits ${hitsAtPark}→${hits.length} — while the ask waits the needs-you row must stand and the seat must receive no denial or new request`)
 
   const cap = await capture(
     {
@@ -344,21 +344,21 @@ try {
   )
   console.log(`  evidence · sends ${cap.receipts}/${cap.sends} · end ${cap.endReason} · hits: ${hits.map(h => `${h.n}:${h.route}${h.streaming ? '' : '/json'}`).join(' ')}`)
   const board = cap.marks['board'] ?? ''
-  check(`P4 the board's row for the session reads "${WAIT_WORDS}"`, listRowOf(board).includes(WAIT_WORDS), listRowOf(board) || '(no row)')
+  check(`P4 the board's row for the session reads "${WAIT_WORDS}"`, listRowOf(board).includes(WAIT_WORDS), (listRowOf(board) || '(no row)') + ' — the board row of a session with a parked ask must read the wait words shown in the label')
   const card = cap.marks['card'] ?? ''
-  check('P5 entering the session painted the consent card for the parked ask — the command on the card', card.includes(CARD_WORDS) && card.includes('git commit --allow-empty') && !card.includes(BOARD_WORDS))
-  check("P5 the card is the plain ask's: no verdict line, none of a verdict's words", !card.includes(CARD_BLOCK_WORDS) && !card.includes(BLOCK_REASON))
-  check('P6 ↵ on Yes settled the needs-you row through the daemon', await untilAsync(async () => (await openAsks()) === 0, 15_000))
-  check("P6 the seat's ask table emptied (the card leaves at once)", await untilAsync(() => (asksOf()?.asks.length ?? 0) === 0, 15_000), JSON.stringify(asksOf()))
-  check("P6 the seat resumed: its report reached the session's file", await untilAsync(() => transcriptText().includes(REPORT_LEAD), 20_000), transcriptText().slice(-300))
+  check('P5 entering the session painted the consent card for the parked ask — the command on the card', card.includes(CARD_WORDS) && card.includes('git commit --allow-empty') && !card.includes(BOARD_WORDS), 'entering the session must paint the consent card with the command, read the card mark dump printed below')
+  check("P5 the card is the plain ask's: no verdict line, none of a verdict's words", !card.includes(CARD_BLOCK_WORDS) && !card.includes(BLOCK_REASON), 'the card of a plain parked ask must show no safety-check verdict; read the card mark dump printed below')
+  check('P6 ↵ on Yes settled the needs-you row through the daemon', await untilAsync(async () => (await openAsks()) === 0, 15_000), 'answering Yes on the card must settle the needs-you obligation through the daemon; read ' + logPath)
+  check("P6 the seat's ask table emptied (the card leaves at once)", await untilAsync(() => (asksOf()?.asks.length ?? 0) === 0, 15_000), JSON.stringify(asksOf()) + ' — the answered ask must leave the seat ask table; read ' + logPath)
+  check("P6 the seat resumed: its report reached the session's file", await untilAsync(() => transcriptText().includes(REPORT_LEAD), 20_000), transcriptText().slice(-300) + ' — after the answer the seat must run the command and report the sha; read ' + logPath)
   const shaAfter = /park-probe: sha=([0-9a-f]{7,12})/.exec(transcriptText())?.[1] ?? ''
   check('P6 the shell ran on the allow — the probe commit landed and the reported sha is a NEW commit', commitCount() === '2' && shaAfter !== '' && shaAfter !== shaBefore && isCommit(shaAfter), `commits ${commitCount()} · ${shaBefore} → ${shaAfter || '(no sha reported)'}`)
   const answered = cap.marks['answered'] ?? ''
-  check('P6 …and the report painted inside the focused chat', answered.includes(`${REPORT_LEAD}${shaAfter}`) && !answered.includes(BOARD_WORDS))
-  check('P6 no denial anywhere on the wire', hits.every(h => h.results.every(r => !isDenial(r))) && transcriptText().split('\n').every(l => !isDenial(l)))
+  check('P6 …and the report painted inside the focused chat', answered.includes(`${REPORT_LEAD}${shaAfter}`) && !answered.includes(BOARD_WORDS), 'the report must paint inside the focused chat after the answer; read the answered mark dump printed below')
+  check('P6 no denial anywhere on the wire', hits.every(h => h.results.every(r => !isDenial(r))) && transcriptText().split('\n').every(l => !isDenial(l)), 'a denial text reached the seat, so the Yes answer did not allow the ask; read the transcript under the kept scratch folder and ' + logPath)
   const after = cap.marks['board-after'] ?? cap.text
-  check('P7 back on the board the row no longer waits', after.includes(BOARD_WORDS) && listRowOf(after) !== '' && !listRowOf(after).includes(WAIT_WORDS), listRowOf(after) || '(no row)')
-  check('P8 every send became due (every frame the drive waited on painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason}`)
+  check('P7 back on the board the row no longer waits', after.includes(BOARD_WORDS) && listRowOf(after) !== '' && !listRowOf(after).includes(WAIT_WORDS), (listRowOf(after) || '(no row)') + ' — once answered, the board row must no longer show the wait words')
+  check('P8 every send became due (every frame the drive waited on painted)', cap.receipts === cap.sends, `${cap.receipts}/${cap.sends} · end ${cap.endReason} — a frame the drive waited for never painted; the mark dump below shows the last frames, so find the first send that did not fire`)
   if (failures > 0 || KEEP) {
     for (const [mark, frame] of Object.entries(cap.marks)) dump(mark, frame)
     dump('final grid', cap.text)

@@ -3,8 +3,9 @@ import { nextBusyRetry, openBusyRetryLadder, takesBusyLadder } from '../../src/s
 const classifier = await import(new URL('../../src/services/providers/temporaryStreamError.ts', import.meta.url).href).catch(() => undefined)
 
 let failures = 0
+const temporaryErrorsFailureHint = 'change how ResponsesStreamFold in src/services/providers/openai/openaiWire.ts marks a stream fault retryable, the classifier in src/services/providers/temporaryStreamError.ts, or the six-step ladder in src/services/providers/busyRetry.ts, whichever this label names'
 function check(label: string, value: boolean): void {
-  console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}`)
+  console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}${value ? '' : ` — ${temporaryErrorsFailureHint}`}`)
   if (!value) failures++
 }
 const probe = [

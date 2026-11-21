@@ -39,12 +39,21 @@ const SCRATCH = mkdtempSync(join(process.env.TMPDIR ?? tmpdir(), 'tf-fixture-pro
 
 let failures = 0
 let checks = 0
+const sectionPointers: Record<string, string> = {
+  '1': 'fix seedHfCache in scripts/tensorfold/fixtures/world.ts, or readHfSnapshot in src/services/tensorfold/inventory.ts if the product misreads the cache',
+  '2': 'fix openPanelCard in scripts/tensorfold/fixtures/panelCard.ts or the sealed environment in scripts/tensorfold/fixtures/world.ts, or installTensorFoldThen in src/commands/tensorfold/road.ts and adapterEntry in src/services/tensorfold/engine.ts if the product ran an install or a download',
+  '3': 'fix placeStandIn or fakeWorld in scripts/tensorfold/fixtures/world.ts, or resolveLlamaServer in src/services/tensorfold/adapter/llama.ts and findTensorFoldEngine in src/services/tensorfold/engine.ts',
+  '4': 'fix ADAPTER_ENTRY in scripts/tensorfold/fixtures/world.ts, or admission in src/services/tensorfold/adapter/serve.ts if the engine line changed',
+}
+let pointerSection = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  const where = !cond && sectionPointers[pointerSection] ? ` — to change: ${sectionPointers[pointerSection]}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}${where}`)
 }
 function section(title: string): void {
+  pointerSection = title.slice(0, 1)
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const refusing = (code: string) => (): never => {

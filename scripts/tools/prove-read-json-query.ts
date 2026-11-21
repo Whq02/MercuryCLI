@@ -25,7 +25,7 @@ if (!given) {
   const { getEmptyToolPermissionContext } = await import(`${src}/Tool.ts`)
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 1200)}`}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change the Read JSON query path, which starts in readQuery in src/tools/FileReadTool/readQuery.ts and runs readJson in src/tools/FileReadTool/readJson.ts and runJsonQuery in src/tools/FileReadTool/jsonQueryRuntime.ts, until this check holds. ${detail.slice(0, 1200)}`}`) }
   const context = (rules = getEmptyToolPermissionContext()) => ({ readFileState: createFileStateCacheWithSizeLimit(100), fileReadingLimits: undefined as { maxTokens: number; maxSizeBytes: number } | undefined, messages: [], abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: rules }), userModified: false, updateFileHistoryState: () => {}, dynamicSkillDirTriggers: new Set<string>(), nestedMemoryAttachmentTriggers: new Set<string>() })
   const file = (name: string, text: string) => { const path = join(given, name); writeFileSync(path, text); return path }
   const invoke = async (file_path: string, extra: Record<string, unknown> = {}, ctx = context()) => {

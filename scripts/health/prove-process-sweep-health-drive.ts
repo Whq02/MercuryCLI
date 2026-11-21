@@ -22,10 +22,12 @@ if (process.platform === 'win32') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
+const SWEEP_ROW_HINT = 'to change: mercuryProcessesCheck in src/services/health/sections/crew/daemon.ts builds the Mercury processes row, and classifyMercuryProcess in src/utils/processSweep.ts classifies each process'
 
 const SCRATCH = realpathSync(mkdtempSync(join(existsSync('/private/tmp/mw') ? '/private/tmp/mw' : tmpdir(), 'orphan-sweep-health-')))
 const HOME = join(SCRATCH, 'home')
@@ -182,10 +184,10 @@ try {
   const j = healthJson()
   const rows = rowsOf(j.text)
   const row = rows.find(r => r.id === 'mercury-processes')
-  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`)
-  check('the certificate carries the row "Mercury processes"', row !== undefined && row.label === 'Mercury processes', rows.map(r => r.id).join(',').slice(0, 200))
-  check('the row counts running · stale · cannot end · not ours', /^\d+ running · \d+ stale · \d+ cannot end · \d+ not ours/.test(row?.evidence ?? ''), row?.evidence)
-  check('the row warns and lists the stand-in as a stale line with pid, terminal and age', row?.status === 'warn' && (row.detail ?? '').includes(`pid ${standIn} · no terminal ·`), (row?.detail ?? '').slice(0, 160))
+  check('health --json produced a certificate', j.status === 0 || j.status === 3, `status=${String(j.status)}`, 'node dist/mercury.mjs health --json must exit 0 or 3 and print JSON; run it by hand with the same env and read stderr')
+  check('the certificate carries the row "Mercury processes"', row !== undefined && row.label === 'Mercury processes', rows.map(r => r.id).join(',').slice(0, 200), 'no row with id mercury-processes was in the certificate; ' + SWEEP_ROW_HINT)
+  check('the row counts running · stale · cannot end · not ours', /^\d+ running · \d+ stale · \d+ cannot end · \d+ not ours/.test(row?.evidence ?? ''), row?.evidence, 'the evidence must read N running · N stale · N cannot end · N not ours (PROCESS_SWEEP_WORDS.counts in src/utils/processSweep.ts); ' + SWEEP_ROW_HINT)
+  check('the row warns and lists the stand-in as a stale line with pid, terminal and age', row?.status === 'warn' && (row.detail ?? '').includes(`pid ${standIn} · no terminal ·`), (row?.detail ?? '').slice(0, 160), 'a stand-in node process with an expired record must classify as stale and show as a pid line in the row detail (processSweepLine); see the stand-in line printed below; ' + SWEEP_ROW_HINT)
   if (!(row?.detail ?? '').includes(`pid ${standIn} · no terminal ·`)) {
     const listing = spawnSync('node', [BIN, 'health', 'processes'], { cwd: CWD, encoding: 'utf8', timeout: vshotBudgetMs(120_000), env: childEnv, stdio: ['ignore', 'pipe', 'pipe'] }).stdout ?? ''
     let entries: Array<{ process?: { pid?: number; exe?: string; user?: string; args?: string[] }; classification?: string; reason?: string; startToken?: string | null }> = []
@@ -199,7 +201,7 @@ try {
     console.log(`  … the stand-in as the headless listing reads it: ${mine === undefined ? `no entry among ${entries.length}` : `${mine.classification} · ${mine.reason} · exe=${mine.process?.exe} · user=${mine.process?.user} · args=${(mine.process?.args ?? []).join(' ').slice(0, 60)} · token=${mine.startToken}`} · reader uid=${typeof process.getuid === 'function' ? process.getuid() : 'n/a'} · registered token=${token}`)
   }
   const rowIndex = Math.max(0, rows.findIndex(r => r.id === 'mercury-processes'))
-  check('the stand-in is untouched by the read-only health', alive(standIn))
+  check('the stand-in is untouched by the read-only health', alive(standIn), '', 'the headless health --json must only read the process table and never end a process; check the Mercury processes row run in src/services/health/sections/crew/daemon.ts')
   process.kill(standIn, 'SIGKILL')
   rmSync(join(HOME, 'processes'), { recursive: true, force: true })
 
@@ -214,10 +216,10 @@ try {
     const walk = rowIndex === 0 ? [] : [firstDown, ...downs.slice(1)]
     const onRow = { requireAwait: true, awaitText: 'Mercury processes', awaitPattern: '▸ ▲ Mercury processes', awaitSettleTicks: 3 }
     const before = capture(`row-${size}`, cols, termRows, [...walk, { ...onRow, data: '\r' }], 150 + rowIndex, `pid ${target}`)
-    check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')))
-    check(`${size}: the Mercury processes row is on screen`, before.some(l => l.includes('Mercury processes')), before.find(l => l.includes('Mercury processes'))?.trim().slice(0, 120))
-    check(`${size}: the row's trail lists the stale stand-in with pid, terminal and age`, before.some(l => l.includes(`pid ${target} · no terminal ·`)), before.find(l => l.includes(`pid ${target}`))?.trim().slice(0, 120))
-    check(`${size}: the read-only row ended nothing`, alive(target))
+    check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')), '', 'the /health command did not paint its certificate in the captured frame; run with --keep and read the grid JSON in the scratch folder')
+    check(`${size}: the Mercury processes row is on screen`, before.some(l => l.includes('Mercury processes')), before.find(l => l.includes('Mercury processes'))?.trim().slice(0, 120), SWEEP_ROW_HINT)
+    check(`${size}: the row's trail lists the stale stand-in with pid, terminal and age`, before.some(l => l.includes(`pid ${target} · no terminal ·`)), before.find(l => l.includes(`pid ${target}`))?.trim().slice(0, 120), 'the open row must list the stale stand-in as pid N · no terminal · age (processSweepLine in src/utils/processSweep.ts); ' + SWEEP_ROW_HINT)
+    check(`${size}: the read-only row ended nothing`, alive(target), '', 'opening the row must not end any process; only the f action after confirmation may (remedy in mercuryProcessesCheck, src/services/health/sections/crew/daemon.ts)')
     if (row === undefined) {
       process.kill(target, 'SIGKILL')
       continue
@@ -226,16 +228,16 @@ try {
       ...walk,
       { ...onRow, data: 'f' },
     ], 150 + rowIndex, ['End these', 'stale processes?'])
-    check(`${size}: the action asks with the approved words before anything is ended`, confirm.some(l => l.includes('End these') && l.includes('stale processes?')), confirm.find(l => l.includes('End these'))?.trim().slice(0, 120))
-    check(`${size}: the confirmation card shows the reviewed pid`, confirm.some(l => l.includes(`pid ${target}`)))
-    check(`${size}: the stand-in is untouched while the card waits`, alive(target))
+    check(`${size}: the action asks with the approved words before anything is ended`, confirm.some(l => l.includes('End these') && l.includes('stale processes?')), confirm.find(l => l.includes('End these'))?.trim().slice(0, 120), 'pressing f on the row must show PROCESS_SWEEP_WORDS.confirm (src/utils/processSweep.ts) before ending; the remedy plan is in mercuryProcessesCheck, src/services/health/sections/crew/daemon.ts')
+    check(`${size}: the confirmation card shows the reviewed pid`, confirm.some(l => l.includes(`pid ${target}`)), '', 'the remedy plan text must list each reviewed stale process line; ' + SWEEP_ROW_HINT)
+    check(`${size}: the stand-in is untouched while the card waits`, alive(target), '', 'nothing may end a process before the confirmation is accepted; the remedy apply is in mercuryProcessesCheck, src/services/health/sections/crew/daemon.ts')
     const result = capture(`result-${size}`, cols, termRows, [
       ...walk,
       { ...onRow, data: 'f' },
       { requireAwait: true, awaitText: 'End these', awaitSettleTicks: 3, data: '\r' },
     ], 200 + rowIndex, 'Ended 1 stale processes')
-    check(`${size}: the result names what was ended with the approved words`, result.some(l => /Ended 1 stale processes; 0 could not be ended/.test(l)), result.find(l => l.includes('Ended'))?.trim().slice(0, 120))
-    check(`${size}: the reviewed stand-in was ended through /health's action`, !alive(target))
+    check(`${size}: the result names what was ended with the approved words`, result.some(l => /Ended 1 stale processes; 0 could not be ended/.test(l)), result.find(l => l.includes('Ended'))?.trim().slice(0, 120), 'accepting the card must show the outcome line (processSweepOutcomeLine in src/daemon/processSweepRun.ts, words in PROCESS_SWEEP_WORDS of src/utils/processSweep.ts)')
+    check(`${size}: the reviewed stand-in was ended through /health's action`, !alive(target), '', 'accepting the card must end the reviewed stale process; check endStaleProcesses in src/daemon/processSweepRun.ts and the remedy apply in mercuryProcessesCheck, src/services/health/sections/crew/daemon.ts')
   }
 } catch (error) {
   failures++

@@ -20,6 +20,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const DOTDOT_ESCAPE_HINT = ' · fix relativePathEscapes in src/utils/permissions/filesystem.ts: only .. itself or .. followed by a separator escapes, a name that merely starts with .. stays inside'
+const DOTDOT_INSIDE_HINT = ' · fix pathInWorkingPath in src/utils/permissions/filesystem.ts: a ..-led name is inside the working directory, .. and ../x are outside'
+const DOTDOT_RULE_HINT = ' · fix matchingRuleForInput or pathMatchesRulePattern in src/utils/permissions/filesystem.ts so a rule reaches a ..-led name inside the working directory and never a path outside it'
 
 const escapes = (fsMod as { relativePathEscapes?: (relative: string, platform?: Platform) => boolean }).relativePathEscapes
 const cache = (getPlatform as unknown as { cache: Map<unknown, unknown> }).cache
@@ -43,7 +46,7 @@ const ctx = (behavior: 'allow' | 'deny', rules: string[]): Ctx =>
 
 section('§1 the one traversal test: `..` itself or `..` followed by a separator')
 {
-  check('the helper exists on filesystem.ts', typeof escapes === 'function')
+  check('the helper exists on filesystem.ts', typeof escapes === 'function', 'export relativePathEscapes from src/utils/permissions/filesystem.ts')
   const rows: Array<[string, Platform, boolean]> = [
     ['..', 'linux', true],
     ['../x', 'linux', true],
@@ -58,56 +61,56 @@ section('§1 the one traversal test: `..` itself or `..` followed by a separator
   ]
   for (const [relative, platform, expected] of rows) {
     const got = typeof escapes === 'function' ? escapes(relative, platform) : undefined
-    check(`${JSON.stringify(relative)} on ${platform} → ${expected ? 'outside' : 'inside'}`, got === expected, `got ${String(got)}`)
+    check(`${JSON.stringify(relative)} on ${platform} → ${expected ? 'outside' : 'inside'}`, got === expected, `got ${String(got)}` + DOTDOT_ESCAPE_HINT)
   }
   const primed = typeof escapes === 'function' ? onPlatform('windows', () => escapes('..\\x')) : undefined
-  check('the platform default reads the live seam (win32 primed: `..\\x` is outside)', primed === true, `got ${String(primed)}`)
+  check('the platform default reads the live seam (win32 primed: `..\\x` is outside)', primed === true, `got ${String(primed)}` + DOTDOT_ESCAPE_HINT + '; its platform default must read getPlatform() at call time')
 }
 
 section('§2 working-directory containment (the tester\'s Write ..foo)')
 {
   const inside = (path: string): boolean => fsMod.pathInWorkingPath(path, PROJ)
-  check('<cwd>/..foo is inside the working directory', inside(join(PROJ, '..foo')) === true)
-  check('<cwd>/..hidden/x.txt is inside', inside(join(PROJ, '..hidden', 'x.txt')) === true)
-  check('<cwd>/... is inside', inside(join(PROJ, '...')) === true)
-  check('<cwd>/..foo/bar is inside', inside(join(PROJ, '..foo', 'bar')) === true)
-  check('<cwd>/hello.py is inside (control)', inside(join(PROJ, 'hello.py')) === true)
-  check('the parent of <cwd> is outside', inside(join(PROJ, '..')) === false)
-  check('<cwd>/../x is outside', inside(join(PROJ, '..', 'x')) === false)
-  check('a sibling spelled with a ..-led name component is outside', inside(join(PROJ, '..', '..foo')) === false)
+  check('<cwd>/..foo is inside the working directory', inside(join(PROJ, '..foo')) === true, DOTDOT_INSIDE_HINT)
+  check('<cwd>/..hidden/x.txt is inside', inside(join(PROJ, '..hidden', 'x.txt')) === true, DOTDOT_INSIDE_HINT)
+  check('<cwd>/... is inside', inside(join(PROJ, '...')) === true, DOTDOT_INSIDE_HINT)
+  check('<cwd>/..foo/bar is inside', inside(join(PROJ, '..foo', 'bar')) === true, DOTDOT_INSIDE_HINT)
+  check('<cwd>/hello.py is inside (control)', inside(join(PROJ, 'hello.py')) === true, DOTDOT_INSIDE_HINT)
+  check('the parent of <cwd> is outside', inside(join(PROJ, '..')) === false, DOTDOT_INSIDE_HINT)
+  check('<cwd>/../x is outside', inside(join(PROJ, '..', 'x')) === false, DOTDOT_INSIDE_HINT)
+  check('a sibling spelled with a ..-led name component is outside', inside(join(PROJ, '..', '..foo')) === false, DOTDOT_INSIDE_HINT)
   const win = onPlatform('windows', () => ({
     dotdotName: fsMod.pathInWorkingPath('C:\\work\\..foo', 'C:\\work'),
     parent: fsMod.pathInWorkingPath('C:\\work\\..', 'C:\\work'),
     sibling: fsMod.pathInWorkingPath('C:\\work\\..\\x', 'C:\\work'),
     deep: fsMod.pathInWorkingPath('C:\\work\\..foo\\bar.txt', 'C:\\work'),
   }))
-  check('win32: C:\\work\\..foo is inside C:\\work', win.dotdotName === true)
-  check('win32: C:\\work\\..foo\\bar.txt is inside', win.deep === true)
-  check('win32: C:\\work\\.. is outside', win.parent === false)
-  check('win32: C:\\work\\..\\x is outside', win.sibling === false)
+  check('win32: C:\\work\\..foo is inside C:\\work', win.dotdotName === true, DOTDOT_INSIDE_HINT)
+  check('win32: C:\\work\\..foo\\bar.txt is inside', win.deep === true, DOTDOT_INSIDE_HINT)
+  check('win32: C:\\work\\.. is outside', win.parent === false, DOTDOT_INSIDE_HINT)
+  check('win32: C:\\work\\..\\x is outside', win.sibling === false, DOTDOT_INSIDE_HINT)
 }
 
 section('§3 rule matching: an allow rule and a deny rule both reach a ..-led name')
 {
   const target = join(PROJ, '..foo')
   const allow = fsMod.matchingRuleForInput(target, ctx('allow', ['Write(..foo)']), 'edit', 'allow')
-  check('Write(..foo) as an allow rule matches <cwd>/..foo', allow !== null, JSON.stringify(allow))
+  check('Write(..foo) as an allow rule matches <cwd>/..foo', allow !== null, JSON.stringify(allow) + DOTDOT_RULE_HINT)
   const deny = fsMod.matchingRuleForInput(target, ctx('deny', ['Write(..foo)']), 'edit', 'deny')
-  check('Write(..foo) as a deny rule matches <cwd>/..foo', deny !== null, JSON.stringify(deny))
+  check('Write(..foo) as a deny rule matches <cwd>/..foo', deny !== null, JSON.stringify(deny) + DOTDOT_RULE_HINT)
   const globAllow = fsMod.matchingRuleForInput(join(PROJ, '..hidden', 'x.txt'), ctx('allow', ['Write(..hidden/**)']), 'edit', 'allow')
-  check('Write(..hidden/**) as an allow rule matches <cwd>/..hidden/x.txt', globAllow !== null, JSON.stringify(globAllow))
+  check('Write(..hidden/**) as an allow rule matches <cwd>/..hidden/x.txt', globAllow !== null, JSON.stringify(globAllow) + DOTDOT_RULE_HINT)
   const outside = fsMod.matchingRuleForInput(join(PROJ, '..', 'x.txt'), ctx('allow', ['Write(**)']), 'edit', 'allow')
-  check('a rule rooted at cwd never reaches <cwd>/../x.txt', outside === null, JSON.stringify(outside))
-  check('pathMatchesRulePattern: <cwd>/..foo matches the pattern ..foo', fsMod.pathMatchesRulePattern(target, '..foo') === true)
-  check('pathMatchesRulePattern: <cwd>/../x never matches **', fsMod.pathMatchesRulePattern(join(PROJ, '..', 'x'), '**') === false)
+  check('a rule rooted at cwd never reaches <cwd>/../x.txt', outside === null, JSON.stringify(outside) + DOTDOT_RULE_HINT)
+  check('pathMatchesRulePattern: <cwd>/..foo matches the pattern ..foo', fsMod.pathMatchesRulePattern(target, '..foo') === true, DOTDOT_RULE_HINT)
+  check('pathMatchesRulePattern: <cwd>/../x never matches **', fsMod.pathMatchesRulePattern(join(PROJ, '..', 'x'), '**') === false, DOTDOT_RULE_HINT)
 }
 
 section('§4 pattern normalisation keeps a ..-led child root')
 {
   const kept = fsMod.normalizePatternsToPath(new Map([[join(PROJ, '..foo'), ['*.txt']]]), PROJ)
-  check('a child root named ..foo is rewritten under the reference root', kept.includes('/..foo/*.txt'), JSON.stringify(kept))
+  check('a child root named ..foo is rewritten under the reference root', kept.includes('/..foo/*.txt'), JSON.stringify(kept) + ' · fix normalizePatternsToPath in src/utils/permissions/filesystem.ts to keep a child root whose name starts with ..')
   const dropped = fsMod.normalizePatternsToPath(new Map([[join(PROJ, '..', 'elsewhere'), ['*.txt']]]), PROJ)
-  check('a root outside the reference root is still skipped', dropped.length === 0, JSON.stringify(dropped))
+  check('a root outside the reference root is still skipped', dropped.length === 0, JSON.stringify(dropped) + ' · fix normalizePatternsToPath in src/utils/permissions/filesystem.ts to skip a root outside the reference root')
 }
 
 process.chdir(launchDir)

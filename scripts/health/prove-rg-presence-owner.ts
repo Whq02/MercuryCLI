@@ -8,8 +8,9 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
+  const shown = cond || !hint ? detail : detail ? `${detail} — ${hint}` : hint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const ROOT = join(import.meta.dir, '..', '..')
@@ -27,8 +28,9 @@ check(
   'the presence verdict is cwd-independent (a 0-byte ./rg decoy changes nothing)',
   before.present === inDecoy.present && typeof before.present === 'boolean',
   `before=${before.present} inDecoy=${inDecoy.present} mode=${before.mode} path=${before.path}`,
+  'getRipgrepStatus in src/utils/ripgrep.ts must resolve presence from the engine path and never from process.cwd()',
 )
-check('this tree resolves a real engine (present)', before.present === true, `${before.mode} @ ${before.path}`)
+check('this tree resolves a real engine (present)', before.present === true, `${before.mode} @ ${before.path}`, 'getRipgrepStatus in src/utils/ripgrep.ts found no ripgrep engine; install ripgrep or rebuild the vendored one')
 {
   const { runtimeChecks } = await import('../../src/services/health/sections/runtime.ts')
   const { basename } = await import('node:path')
@@ -37,7 +39,7 @@ check('this tree resolves a real engine (present)', before.present === true, `${
   const rowInDecoy = await runtimeChecks().find(row => row.id === 'runtime')?.run()
   process.chdir(savedHere)
   const owner = getRipgrepStatus()
-  check('the row consumes the OWNER presence (rg.present, no local existsSync on rg.path)', rowInDecoy?.evidence.includes(`ripgrep ${owner.mode} @ ${basename(owner.path)} ${owner.present ? 'present' : 'MISSING'}`) === true, rowInDecoy?.evidence)
+  check('the row consumes the OWNER presence (rg.present, no local existsSync on rg.path)', rowInDecoy?.evidence.includes(`ripgrep ${owner.mode} @ ${basename(owner.path)} ${owner.present ? 'present' : 'MISSING'}`) === true, rowInDecoy?.evidence, 'runtimeCheck in src/services/health/sections/runtime/host.ts must build the ripgrep part of the evidence from getRipgrepStatus().present')
 }
 
 console.log('\n§2 the row reads a PROBED answer: a present ripgrep that fails its probe says so')
@@ -61,9 +63,9 @@ if (process.platform === 'win32') {
   } catch {
     row = undefined
   }
-  check('the runtime row exists in the certificate', row !== undefined, (res.stderr ?? '').slice(0, 200))
-  check('a system rg that exits 1 reads "present · probe FAILED" — the probe was awaited, never a cold null', row?.evidence?.includes('ripgrep system @ rg present · probe FAILED') === true, row?.evidence ?? '(no row)')
-  check('…and the row fails', row?.status === 'fail', row?.status ?? '(no row)')
+  check('the runtime row exists in the certificate', row !== undefined, (res.stderr ?? '').slice(0, 200), 'node dist/mercury.mjs health --json must print a certificate with a runtime row (runtimeCheck in src/services/health/sections/runtime/host.ts); run it by hand and read stderr')
+  check('a system rg that exits 1 reads "present · probe FAILED" — the probe was awaited, never a cold null', row?.evidence?.includes('ripgrep system @ rg present · probe FAILED') === true, row?.evidence ?? '(no row)', 'runtimeCheck in src/services/health/sections/runtime/host.ts must append probe FAILED when getRipgrepStatus().working is false, after warmRipgrepStatus has been awaited')
+  check('…and the row fails', row?.status === 'fail', row?.status ?? '(no row)', 'runtimeCheck in src/services/health/sections/runtime/host.ts must return status fail when the ripgrep probe failed')
   rmSync(fakeBin, { recursive: true, force: true })
   rmSync(home, { recursive: true, force: true })
 }

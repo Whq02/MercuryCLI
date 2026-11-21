@@ -18,7 +18,7 @@ const SEED_WORDS = 'remember the first turn'
 const PROMPT_WORDS = 'say the word'
 const PYTHON_PROMPT_WORDS = 'say the word again'
 const REPLY = 'THE WORD AFTER THE LOAD.'
-const guard = setTimeout(() => { console.error('FAIL prove-sdk-resumed-claim-waits timed out'); process.exit(1) }, 300_000)
+const guard = setTimeout(() => { console.error('FAIL prove-sdk-resumed-claim-waits timed out after 300s; a resumed claim or prompt never settled, see claim in sdk/src/runner.ts and the forensics world kept under the tmp folder sdk-resumed-claim-'); process.exit(1) }, 300_000)
 
 let failures = 0
 let checks = 0
@@ -62,7 +62,7 @@ try {
   const seededOutcome = await seeded.outcome
   check('the seed turn completes', seededOutcome.status === 'completed', j(seededOutcome))
   const sid = (await seeded.session).session_id
-  check('the seed session has an id', typeof sid === 'string' && sid.length > 0, j(sid))
+  check('the seed session has an id', typeof sid === 'string' && sid.length > 0, `${j(sid)} | the seed run must report its session through sdk.run in sdk/src/index.ts`)
   writeFileSync(join(home, 'settings.json'), `${JSON.stringify({ events: { hooks: { 'session.start': [{ name: 'slow-start', run: `sleep ${HOOK_SECONDS}` }] } } })}\n`)
 
   section(`§2 TypeScript: claim({ resume: true }) then prompt() at once — the prompt runs after the ${HOOK_SECONDS}s load`)
@@ -72,19 +72,19 @@ try {
     const claimAt = Date.now()
     const receipt = await warm.claim({ session_id: sid, resume: true })
     const claimMs = Date.now() - claimAt
-    check('the claim names the resumed session and the identity follows it', receipt.session_id === sid && warm.sessionId === sid, j({ receipt, sessionId: warm.sessionId }))
-    check(`the claim resolved after the load (${claimMs} ms ≥ ${HOOK_SECONDS}s): the facts answer is its readiness`, claimMs >= HOOK_SECONDS * 1000, `${claimMs} ms`)
+    check('the claim names the resumed session and the identity follows it', receipt.session_id === sid && warm.sessionId === sid, `${j({ receipt, sessionId: warm.sessionId })} | change claim in sdk/src/runner.ts so the identity follows the receipt`)
+    check(`the claim resolved after the load (${claimMs} ms ≥ ${HOOK_SECONDS}s): the facts answer is its readiness`, claimMs >= HOOK_SECONDS * 1000, `${claimMs} ms | claim in sdk/src/runner.ts must await session/facts when resume is true`)
     const promptAt = Date.now()
     let outcome: sdk.OutcomeRow | null = null
     let promptError: unknown = null
     try { outcome = await warm.prompt(PROMPT_WORDS, { timeoutMs: 60_000 }) } catch (error) { promptError = error }
-    check(`the first prompt is accepted and completes — no "${queueAddDeadlineMs} ms" queue/add deadline`, promptError === null && outcome?.status === 'completed', promptError instanceof Error ? promptError.message : j(outcome))
+    check(`the first prompt is accepted and completes — no "${queueAddDeadlineMs} ms" queue/add deadline`, promptError === null && outcome?.status === 'completed', `${promptError instanceof Error ? promptError.message : j(outcome)} | claim in sdk/src/runner.ts must wait for the loaded session before it resolves`)
     check('the reply is the fixture\'s word for the resumed turn', outcome?.answer === REPLY, j(outcome?.answer))
-    check('the prompt itself was not what waited for the load', Date.now() - promptAt < HOOK_SECONDS * 1000, `${Date.now() - promptAt} ms`)
+    check('the prompt itself was not what waited for the load', Date.now() - promptAt < HOOK_SECONDS * 1000, `${Date.now() - promptAt} ms | claim in sdk/src/runner.ts must absorb the load wait, not prompt`)
     const requests = api.messageRequests()
     const last = requests[requests.length - 1]
     const lastBody = JSON.stringify(last?.body ?? null)
-    check('the resumed turn carried the seeded conversation (the load finished before the prompt ran)', lastBody.includes(SEED_WORDS) && lastBody.includes(PROMPT_WORDS), `${requests.length} message request(s)`)
+    check('the resumed turn carried the seeded conversation (the load finished before the prompt ran)', lastBody.includes(SEED_WORDS) && lastBody.includes(PROMPT_WORDS), `${requests.length} message request(s) | claim in sdk/src/runner.ts must not resolve before the session load finishes`)
     const facts = await warm.facts()
     const usedTokens = (facts.usage as { context?: { used_tokens?: number | null } }).context?.used_tokens
     check('the facts after the claim carry the loaded context', typeof usedTokens === 'number' && usedTokens > 0, j(facts.usage))
@@ -93,16 +93,16 @@ try {
   section('§3 Python: the same road')
   const child = spawn(PYTHON, [join(root, 'scripts/sdk/python-resumed-claim.py'), JSON.stringify(mercury), cwd, sid, String(HOOK_SECONDS), PYTHON_PROMPT_WORDS, REPLY], { cwd, env: { ...env, PYTHONDONTWRITEBYTECODE: '1', PYTHONPATH: join(root, 'sdk-py/src') }, stdio: 'inherit' })
   const code = await new Promise<number | null>((resolve, reject) => { child.once('error', reject); child.once('close', resolve) })
-  check('the Python resumed claim resolves after the load and its first prompt completes', code === 0, `exit ${code}`)
+  check('the Python resumed claim resolves after the load and its first prompt completes', code === 0, `exit ${code} | the Python claim in sdk-py/src/mercury_cli_sdk/runner.py must await session/facts; the driver is scripts/sdk/python-resumed-claim.py`)
 
   section('§4 source pins: the waiting road in both packages')
   const ts = readFileSync(join(root, 'sdk/src/runner.ts'), 'utf8')
   const tsClaim = ts.slice(ts.indexOf('  async claim(params'), ts.indexOf('  async prompt<'))
-  check('the TypeScript claim awaits session/facts with no deadline when resume is true, before it takes the identity, and refuses the identity when the facts carry a boot refusal', tsClaim.includes("await this.request('session/facts', {}, { deadlineMs: null })") && tsClaim.includes('if (params.resume === true)') && tsClaim.indexOf("'session/facts'") >= 0 && tsClaim.indexOf('this.initialized.session_id = receipt.session_id') >= 0 && tsClaim.indexOf("'session/facts'") < tsClaim.indexOf('this.initialized.session_id = receipt.session_id') && tsClaim.includes("class: 'load'"))
+  check('the TypeScript claim awaits session/facts with no deadline when resume is true, before it takes the identity, and refuses the identity when the facts carry a boot refusal', tsClaim.includes("await this.request('session/facts', {}, { deadlineMs: null })") && tsClaim.includes('if (params.resume === true)') && tsClaim.indexOf("'session/facts'") >= 0 && tsClaim.indexOf('this.initialized.session_id = receipt.session_id') >= 0 && tsClaim.indexOf("'session/facts'") < tsClaim.indexOf('this.initialized.session_id = receipt.session_id') && tsClaim.includes("class: 'load'"), 'change claim in sdk/src/runner.ts')
   const py = readFileSync(join(root, 'sdk-py/src/mercury_cli_sdk/runner.py'), 'utf8')
   const pyClaim = py.slice(py.indexOf('    async def claim('), py.indexOf('    def clear_rows('))
-  check('the Python claim awaits session/facts with no timeout when resume is True, before it takes the identity, and refuses the identity when the facts carry a boot refusal', pyClaim.includes("await self.request('session/facts', timeout=None)") && pyClaim.includes('if resume is True:') && pyClaim.indexOf("'session/facts'") >= 0 && pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") >= 0 && pyClaim.indexOf("'session/facts'") < pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") && pyClaim.includes("'class': 'load'"))
-  check(`the method table gives queue/add a ${queueAddDeadlineMs} ms deadline (the number the base's red named)`, queueAddDeadlineMs === 5_000, j(queueAddDeadlineMs))
+  check('the Python claim awaits session/facts with no timeout when resume is True, before it takes the identity, and refuses the identity when the facts carry a boot refusal', pyClaim.includes("await self.request('session/facts', timeout=None)") && pyClaim.includes('if resume is True:') && pyClaim.indexOf("'session/facts'") >= 0 && pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") >= 0 && pyClaim.indexOf("'session/facts'") < pyClaim.indexOf("self.initialized['session_id'] = receipt['session_id']") && pyClaim.includes("'class': 'load'"), 'change claim in sdk-py/src/mercury_cli_sdk/runner.py')
+  check(`the method table gives queue/add a ${queueAddDeadlineMs} ms deadline (the number the base's red named)`, queueAddDeadlineMs === 5_000, `${j(queueAddDeadlineMs)} | queue/add deadlineMs is set in METHODS in sdk/src/wire.ts`)
 } catch (error) {
   failures++
   console.log(`  [FAIL] the proof threw — ${error instanceof Error ? error.stack ?? error.message : String(error)}`)

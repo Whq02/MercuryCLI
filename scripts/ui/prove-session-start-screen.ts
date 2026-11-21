@@ -25,6 +25,9 @@ const storedPath = (cols: number, rows: number): string => join(ROOT, 'scripts',
 const PROJECT = 'gridgame'
 const REPLY = 'Finished.'
 const PROMPT = 'say hi'
+const WHERE_FACE = 'fix the session-start face in src/components/MercuryHome.tsx, SwitchboardTagBar.tsx, HelmLanesRail.tsx or FullscreenLayout.tsx'
+const WHERE_PAINT = 'fix the frame writer in src/ink/frame-writer.ts or src/ink/root/screen-session.ts'
+const WHERE_STATUS = 'fix the status row, whose back hint is built in src/components/SwitchboardTagBar.tsx'
 const VOLATILE = [/\b\d{1,2}:\d{2}(?::\d{2})?\b/g]
 const COUNTS_ROW = /^\d+ sessions? on · .*(⇧← concourse|shift\+← concourse)$/
 const mask = (row: string): string => (COUNTS_ROW.test(row) ? row.replace(COUNTS_ROW, '⟪live counts⟫ $1') : VOLATILE.reduce((s, re) => s.replace(re, m => '·'.repeat(m.length)), row))
@@ -125,44 +128,44 @@ for (const [cols, rows] of SIZES) {
       writeFileSync(join(frameDir, `${tag}-chat.txt`), chat.join('\n') + '\n')
       writeFileSync(join(frameDir, `${tag}-after-turn.txt`), turn.join('\n') + '\n')
     }
-    check(`${cols}x${rows}: the drive reached the chat and the turn ended`, status === 0 && chat.length === rows && turn.length === rows && payload?.endReason === 'ready', `status ${status} end ${payload?.endReason} ${stderr.slice(-500)}`)
-    check(`${cols}x${rows}: the grid has the exact physical dimensions and the cursor stays in bounds`, payload !== null && payload.grid.length === rows && payload.grid.every(l => l.length === cols) && payload.cursor !== undefined && payload.cursor.x >= 0 && payload.cursor.x < cols && payload.cursor.y >= 0 && payload.cursor.y < rows)
-    check(`${cols}x${rows}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0)
+    check(`${cols}x${rows}: the drive reached the chat and the turn ended`, status === 0 && chat.length === rows && turn.length === rows && payload?.endReason === 'ready', `the drive did not reach the chat and the end of the turn: read the frames above and the capture output after the dash | status ${status} end ${payload?.endReason} ${stderr.slice(-500)}`)
+    check(`${cols}x${rows}: the grid has the exact physical dimensions and the cursor stays in bounds`, payload !== null && payload.grid.length === rows && payload.grid.every(l => l.length === cols) && payload.cursor !== undefined && payload.cursor.x >= 0 && payload.cursor.x < cols && payload.cursor.y >= 0 && payload.cursor.y < rows, `the grid or the cursor is off the ${cols}x${rows} screen: ${WHERE_PAINT}`)
+    check(`${cols}x${rows}: the drive stayed on loopback`, nonLoopback(netlines(leg.netlog)).length === 0, `the product reached a host that is not loopback: find the call that opens it | ${nonLoopback(netlines(leg.netlog)).join(' | ')}`)
     const doubled = (frame: string[]): number[] => frame.flatMap((row, i) => (i > 0 && /[╭╰A-Z]/.test(row) && row === frame[i - 1] ? [i] : []))
-    check(`${cols}x${rows}: no row of the session-start screen repeats the row above it (the doubled-header shape)`, doubled(chat).length === 0, `rows ${doubled(chat).join(',')}`)
-    check(`${cols}x${rows}: no row of the after-turn screen repeats the row above it`, doubled(turn).length === 0, `rows ${doubled(turn).join(',')}`)
+    check(`${cols}x${rows}: no row of the session-start screen repeats the row above it (the doubled-header shape)`, doubled(chat).length === 0, `${WHERE_FACE} | rows ${doubled(chat).join(',')}`)
+    check(`${cols}x${rows}: no row of the after-turn screen repeats the row above it`, doubled(turn).length === 0, `${WHERE_FACE} | rows ${doubled(turn).join(',')}`)
     const dirRow = chat.find(r => /\bdir\b/.test(r) && r.includes(PROJECT))
-    check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), dirRow ?? chat.slice(0, 4).join(' | '))
+    check(`${cols}x${rows}: the realm row names the project, its branch and its uncommitted state on one row`, wide ? dirRow !== undefined && /gridgame\s+\S\s*master · uncommitted/.test(dirRow) : chat.some(r => r.includes(PROJECT)), `fix the realm row in src/components/MercuryHome.tsx | ${dirRow ?? chat.slice(0, 4).join(' | ')}`)
     if (wide) {
       const top = chatFull[0] ?? ''
-      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), chat[0] ?? '')
+      check(`${cols}x${rows}: the top row carries the pane's top border — not a copy of the header below it`, top.includes('╭') && top.trimEnd().endsWith('╮') && top.includes('lanes'), `${WHERE_FACE} | ${chat[0] ?? ''}`)
       const boxTop = chat.findIndex(r => /│╭─+╮│/.test(r))
       const boxBottom = chat.findIndex(r => /│╰─+╯│/.test(r))
-      check(`${cols}x${rows}: the critter box has both corners whole, bottom border three rows under the top`, boxTop >= 0 && boxBottom === boxTop + 4, `top ${boxTop} bottom ${boxBottom}`)
+      check(`${cols}x${rows}: the critter box has both corners whole, bottom border three rows under the top`, boxTop >= 0 && boxBottom === boxTop + 4, `${WHERE_FACE} | top ${boxTop} bottom ${boxBottom}`)
       const paneBottom = chat.findIndex(r => /^\s*╰─+╯$/.test(r))
-      check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > boxBottom, `row ${paneBottom}`)
+      check(`${cols}x${rows}: the pane's bottom border is one whole row`, paneBottom > boxBottom, `${WHERE_FACE} | row ${paneBottom}`)
       const edges = chatFull.slice(1, paneBottom).map((r, i) => [i + 1, r[cols - 1]] as const).filter(([, ch]) => ch !== '│')
-      check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
-      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /crewmates /saturn /health /trace')), chat.filter(r => r.includes('sends')).join(' | '))
-      check(`${cols}x${rows}: the model row names the model`, chat.some(r => /│\s+model\s+Opus 5\.5/.test(r)), chat.filter(r => r.includes('model')).join(' | '))
-      check(`${cols}x${rows}: the memory row says what rode at start and that Recall finds the rest`, chat.some(r => /│\s+memory\s+1 of 1 earlier note rode at start; Recall finds the rest/.test(r)), chat.filter(r => r.includes('memory')).join(' | '))
+      check(`${cols}x${rows}: every pane row between the borders ends with the pane's right edge (no tail shifted off its row)`, edges.length === 0, `${WHERE_FACE} | rows ${edges.map(([i, ch]) => `${i}:${JSON.stringify(ch)}`).join(' ')}`)
+      check(`${cols}x${rows}: the hint row is whole on one row`, chat.some(r => r.includes('❯ ↵ sends  ·  /crewmates /saturn /health /trace')), `${WHERE_FACE} | ${chat.filter(r => r.includes('sends')).join(' | ')}`)
+      check(`${cols}x${rows}: the model row names the model`, chat.some(r => /│\s+model\s+Opus 5\.5/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('model')).join(' | ')}`)
+      check(`${cols}x${rows}: the memory row says what rode at start and that Recall finds the rest`, chat.some(r => /│\s+memory\s+1 of 1 earlier note rode at start; Recall finds the rest/.test(r)), `${WHERE_FACE} | ${chat.filter(r => r.includes('memory')).join(' | ')}`)
       const recent = chat.filter(r => /^\s+○ /.test(r))
-      check(`${cols}x${rows}: the RECENT lane lists the seeded sessions, newest first`, recent.length === 3 && recent[0]!.includes('carry on') && recent[2]!.includes('can you add walls'), recent.join(' | '))
+      check(`${cols}x${rows}: the RECENT lane lists the seeded sessions, newest first`, recent.length === 3 && recent[0]!.includes('carry on') && recent[2]!.includes('can you add walls'), `${WHERE_FACE} | ${recent.join(' | ')}`)
       const statusRows = turn.filter(r => /← back/.test(r))
-      check(`${cols}x${rows}: after the turn exactly one status row stands, it reads ready, and the esc hint is gone`, statusRows.length === 1 && /^\s*ready · Opus 5\.5 · /.test(statusRows[0]!) && !statusRows[0]!.includes('esc interrupts'), statusRows.join(' | '))
-      check(`${cols}x${rows}: the status row sits directly under the pane's bottom border, above the composer`, (() => { const s = turn.findIndex(r => /← back/.test(r)); return s > 0 && /^\s*╰─+╯$/.test(turn[s - 1] ?? '') && /^╭─+╮$/.test(turn[s + 1] ?? '') })(), turn.slice(-7).join('\n'))
+      check(`${cols}x${rows}: after the turn exactly one status row stands, it reads ready, and the esc hint is gone`, statusRows.length === 1 && /^\s*ready · Opus 5\.5 · /.test(statusRows[0]!) && !statusRows[0]!.includes('esc interrupts'), `${WHERE_STATUS} | ${statusRows.join(' | ')}`)
+      check(`${cols}x${rows}: the status row sits directly under the pane's bottom border, above the composer`, (() => { const s = turn.findIndex(r => /← back/.test(r)); return s > 0 && /^\s*╰─+╯$/.test(turn[s - 1] ?? '') && /^╭─+╮$/.test(turn[s + 1] ?? '') })(), `${WHERE_STATUS} | ${turn.slice(-7).join('\n')}`)
     } else {
-      check(`${cols}x${rows}: the compact header reads ready beside the model`, chat.some(r => r.includes('✶ Mercury') && r.includes('Opus 5.5')), chat.slice(0, 3).join(' | '))
-      check(`${cols}x${rows}: after the turn the header reads ready`, turn.some(r => r.includes('● ready') && r.includes('Opus 5.5')), turn.slice(0, 3).join(' | '))
+      check(`${cols}x${rows}: the compact header reads ready beside the model`, chat.some(r => r.includes('✶ Mercury') && r.includes('Opus 5.5')), `${WHERE_FACE} | ${chat.slice(0, 3).join(' | ')}`)
+      check(`${cols}x${rows}: after the turn the header reads ready`, turn.some(r => r.includes('● ready') && r.includes('Opus 5.5')), `${WHERE_FACE} | ${turn.slice(0, 3).join(' | ')}`)
     }
-    check(`${cols}x${rows}: no row of the after-turn screen carries the esc hint`, !turn.some(r => r.includes('esc interrupts')), turn.filter(r => r.includes('esc interrupts')).join(' | '))
+    check(`${cols}x${rows}: no row of the after-turn screen carries the esc hint`, !turn.some(r => r.includes('esc interrupts')), `${WHERE_STATUS} | ${turn.filter(r => r.includes('esc interrupts')).join(' | ')}`)
     const composerTop = turn.findIndex(r => /^╭─+╮$/.test(r))
-    check(`${cols}x${rows}: the composer's three rows are whole after the turn`, composerTop > 0 && /^│❯.*│$/.test(turn[composerTop + 1] ?? '') && /^╰─+╯$/.test(turn[composerTop + 2] ?? ''), turn.slice(composerTop, composerTop + 3).join('\n'))
-    check(`${cols}x${rows}: the reply landed in the chat`, joined(turn).includes(REPLY))
+    check(`${cols}x${rows}: the composer's three rows are whole after the turn`, composerTop > 0 && /^│❯.*│$/.test(turn[composerTop + 1] ?? '') && /^╰─+╯$/.test(turn[composerTop + 2] ?? ''), `${WHERE_FACE} | ${turn.slice(composerTop, composerTop + 3).join('\n')}`)
+    check(`${cols}x${rows}: the reply landed in the chat`, joined(turn).includes(REPLY), `the reply never reached the chat: read the after-turn frame above; the drive ends on the reply text ${REPLY}`)
     const auditRun = spawnSync(driver.python, [audit, tee, String(cols), String(rows)], { encoding: 'utf8' })
     let counts: Record<string, number> | null = null
     try { counts = JSON.parse(auditRun.stdout) as Record<string, number> } catch {}
-    check(`${cols}x${rows}: the product's own bytes never scroll the alternate screen — no line feed on the bottom row, no glyph drawn through the wrap at the corner, no SU/SD`, counts !== null && counts.altEntered! >= 1 && counts.lineFeedAtBottomOnAlt === 0 && counts.drawThroughWrapAtBottomOnAlt === 0 && counts.scrollUpDownOnAlt === 0, auditRun.stdout.trim() || auditRun.stderr.trim())
+    check(`${cols}x${rows}: the product's own bytes never scroll the alternate screen — no line feed on the bottom row, no glyph drawn through the wrap at the corner, no SU/SD`, counts !== null && counts.altEntered! >= 1 && counts.lineFeedAtBottomOnAlt === 0 && counts.drawThroughWrapAtBottomOnAlt === 0 && counts.scrollUpDownOnAlt === 0, `${WHERE_PAINT}; the audit is scripts/ui/alt-screen-scroll-audit.py | ${auditRun.stdout.trim() || auditRun.stderr.trim()}`)
     const stored = storedPath(cols, rows)
     const current = { chat: chat.map(mask), afterTurn: turn.map(mask) }
     if (PIN) {
@@ -175,8 +178,8 @@ for (const [cols, rows] of SIZES) {
         for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) return `row ${i}\n   stored: ${a[i] ?? ''}\n   now:    ${b[i] ?? ''}`
         return ''
       }
-      check(`${cols}x${rows}: the session-start screen matches the stored frame (scripts/ui/session-start-frames-${cols}x${rows}.json; --pin rewrites it)`, previous !== null && firstMove(previous.chat, current.chat) === '', previous === null ? 'no stored frame' : firstMove(previous.chat, current.chat))
-      check(`${cols}x${rows}: the after-turn screen matches the stored frame`, previous !== null && firstMove(previous.afterTurn, current.afterTurn) === '', previous === null ? 'no stored frame' : firstMove(previous.afterTurn, current.afterTurn))
+      check(`${cols}x${rows}: the session-start screen matches the stored frame (scripts/ui/session-start-frames-${cols}x${rows}.json; --pin rewrites it)`, previous !== null && firstMove(previous.chat, current.chat) === '', `if the change is intended rerun with --pin to rewrite the stored frame, else ${WHERE_FACE} | ${previous === null ? 'no stored frame' : firstMove(previous.chat, current.chat)}`)
+      check(`${cols}x${rows}: the after-turn screen matches the stored frame`, previous !== null && firstMove(previous.afterTurn, current.afterTurn) === '', `if the change is intended rerun with --pin to rewrite the stored frame, else ${WHERE_FACE} | ${previous === null ? 'no stored frame' : firstMove(previous.afterTurn, current.afterTurn)}`)
     }
   } finally {
     await endLeg(leg)

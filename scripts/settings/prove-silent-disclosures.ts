@@ -11,11 +11,15 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let whereToLook = 'src/context/notifications.tsx (enqueueNotification)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ' — ' + detail : ''} — change ${whereToLook}` : ''}`)
   if (!cond) failures++
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string): void => {
+  whereToLook = t.startsWith('§2') ? 'checkAndDisableSovereignIfNeeded in src/utils/permissions/bypassPermissionsKillswitch.ts (the mode reset and its notification)' : 'src/context/notifications.tsx (enqueueNotification)'
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 
 type Entry = { key: string; text?: string; priority?: string }
 type Store = {

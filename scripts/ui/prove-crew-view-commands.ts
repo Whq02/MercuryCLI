@@ -600,7 +600,7 @@ section("§4 back to Mercury Lead (the view's exit, as the rail's Lead row takes
   const ran = await command(scene, `/model ${SONNET}`, () => submits.length > submitsBefore)
   save('04-model-at-lead', scene.lines())
   check(`(f) /model ${SONNET} on the lead's screen takes the session's own command road again`, ran && submits[submits.length - 1] === `/model ${SONNET}`, JSON.stringify(submits.slice(submitsBefore)))
-  check('(f) no crewmate record moved', JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === atlasBefore && JSON.stringify(readRecord(hostedRecord(CEDAR.id))) === cedarBefore && JSON.stringify(readRecord(localRecord)) === localBefore)
+  check('(f) no crewmate record moved', JSON.stringify(readRecord(hostedRecord(ATLAS.id))) === atlasBefore && JSON.stringify(readRecord(hostedRecord(CEDAR.id))) === cedarBefore && JSON.stringify(readRecord(localRecord)) === localBefore, `a command typed on the lead's screen must not write any crewmate record \u00b7 atlas ${JSON.stringify(readRecord(hostedRecord(ATLAS.id)))} \u00b7 cedar ${JSON.stringify(readRecord(hostedRecord(CEDAR.id)))} \u00b7 local ${JSON.stringify(readRecord(localRecord))}`)
   check('(f) no "runs for this session, not" line on the lead\'s own screen', !screenWords(scene).includes('runs for this session, not'), screenWords(scene).slice(-300))
 }
 
@@ -655,7 +655,7 @@ section("§5 the crewmate's own compaction: the flag on its task makes its query
   check('the flag is taken as the fold begins — the task no longer asks', (appState.tasks as Record<string, Record<string, unknown>>)[LOCAL_ID]!.compactRequested === undefined, JSON.stringify((appState.tasks as Record<string, unknown>)[LOCAL_ID]))
   const again = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew')
   check('the next boundary folds nothing — one ask, one fold', again.wasCompacted === false && callsOf('compactConversation').length === 1, JSON.stringify({ wasCompacted: again.wasCompacted, refusal: again.refusal, calls: callsOf('compactConversation').length }))
-  check("a crewmate whose task does not ask is left to the threshold", (await autoCompactIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false)
+  check("a crewmate whose task does not ask is left to the threshold", (await autoCompactIfNeeded(messages as never, { ...context, agentId: 'a-other' } as never, cacheSafe as never, 'agent:builtin:mercury-crew')).wasCompacted === false, 'what to change: autoCompactIfNeeded in src/services/compact/autoCompact.ts must fold only a task whose compactRequested flag is set')
   askAgain()
   const overflow = { source: 'provider', family: 'anthropic', shape: 'prompt_too_long', actualTokens: 250_000, limitTokens: 200_000 }
   const forcedFold = await autoCompactIfNeeded(messages as never, context as never, cacheSafe as never, 'agent:builtin:mercury-crew', undefined, 0, overflow as never)
@@ -677,9 +677,9 @@ section("§6 the resume: a finished crewmate's recorded compaction reaches the t
     appState = updater(appState)
   }
   const registered = registerAsyncAgent({ agentId: 'a-resumed', description: 'Lane resumed', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL, compactRequested: true } as never)
-  check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']))
+  check('a task registered for a resume with the flag asks for the fold', compactionRequestedOf(registered) && compactionRequestedOf((appState.tasks as Record<string, unknown>)['a-resumed']), 'what to change: registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx must carry compactRequested onto the registered task')
   const plain = registerAsyncAgent({ agentId: 'a-plain', description: 'Lane plain', prompt: 'carry on', setAppState: setAppState as never, model: CREW_MODEL })
-  check('a task registered without it does not', !compactionRequestedOf(plain))
+  check('a task registered without it does not', !compactionRequestedOf(plain), 'what to change: registerAsyncAgent in src/tasks/LocalAgentTask/LocalAgentTask.tsx must set compactRequested only when asked')
   type RecordMerge = typeof import('../../src/services/crew/crewmateRecord.ts')
   const absent = (): never => { throw new Error('the record merge does not exist on this tree') }
   const merge = await import('../../src/services/crew/crewmateRecord.ts').catch((): RecordMerge => ({ recordAfterResume: absent, recordAtRunStart: absent }))

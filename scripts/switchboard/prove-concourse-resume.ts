@@ -10,9 +10,11 @@ for (const spelling of ['MERCURY_CONFIG_DIR', 'MERCURY_HOME']) process.env[spell
 process.env.MERCURY_CREDENTIAL_STORE = 'file'
 
 let failures = 0
+let failHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, failHint].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config.js')
@@ -101,6 +103,7 @@ const S_B = sid('b2')
 const S_BLANK = sid('00')
 const S_OTHER = sid('ee')
 {
+  failHint = 'the parked group is built by buildConcourseSnapshot, parkedBoardRows, markParkedCleared and readParkedCleared in src/services/concourse/concourseSnapshot.ts, from parkedSessionsOf and inProject in src/utils/bootCardFacts.ts'
   seedChat(P_CUR, S_LIVE, 'the live one', 10 * 60_000)
   const fileA = seedChat(P_CUR, S_A, 'resume me a', 60 * 60_000)
   seedChat(P_CUR, S_B, 'resume me b', 3 * 60 * 60_000)
@@ -175,6 +178,7 @@ const S_OTHER = sid('ee')
 
 console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the window never shrinks')
 {
+  failHint = 'the cap is PARKED_CAP in src/utils/bootCardFacts.ts applied by parkedBoardRows in src/services/concourse/concourseSnapshot.ts; the window geometry is switchboardGeometry in src/components/concourse/ConcourseLayout.tsx and paneWindow in src/components/mercury-ui/paneWindow.ts'
   for (let i = 1; i <= 14; i++) seedChat(P_CUR, sid(`c${i}`), `cap ${i}`, (4 + i) * 60 * 60_000)
   seedWorkers([liveRecord('concourse-w1', S_LIVE, P_CUR), liveRecord('concourse-w2', sid('55'), P_CUR), liveRecord('concourse-w3', sid('56'), join(SCRATCH, 'proj-live-3'))])
   const snap = await buildFor(P_CUR)
@@ -210,6 +214,7 @@ console.log('A2 — capacity: ≤10 per project (one owner); live rows lead; the
 
 console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N older chats · ↵ to browse" line for the rest; nothing removed')
 {
+  failHint = 'the week tier is PARKED_WEEK_MS, PARKED_CAP and projectChatCount in src/utils/bootCardFacts.ts, and the older-chats line is built by parkedBoardRows in src/services/concourse/concourseSnapshot.ts'
   const { PARKED_WEEK_MS, projectChatCount } = await import('../../src/utils/bootCardFacts.ts')
   const { OLDER_CHATS_ROW_PREFIX } = await import('../../src/services/concourse/concourseSnapshot.ts')
   const DAY = 24 * 60 * 60_000
@@ -246,6 +251,7 @@ console.log('A4 — the week tier: rows for this week\'s chats (≤10), one "N o
 
 console.log('B — the New Session tab: declared, keyed, born in the current ground, absent on the reduced stage')
 {
+  failHint = 'the controls, legends and key resolvers are declared in src/components/concourse/controlManifest.ts (CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor, browseKeysFor); the strip hint is stripKeyMapHintOf in src/context/surfaceRoute.ts'
   const { CONCOURSE_CONTROLS, CONCOURSE_REGION_KEYS, regionKeysFor } = await import('../../src/components/concourse/controlManifest.ts')
   const tab = CONCOURSE_CONTROLS.find(c => c.id === 'board:new-session')
   check('B1 the tab is a declared control of the list region — n by keyboard, click by pointer', tab !== undefined && tab.region === 'list' && tab.keys.includes('n') && tab.pointer === 'activate' && tab.action === 'concourse:new-session')
@@ -262,6 +268,7 @@ console.log('B — the New Session tab: declared, keyed, born in the current gro
 
 console.log('C — the renames: the idle knob speaks the session estate; the accent module says the screen; the in-process connector is gone')
 {
+  failHint = 'the knobs are read by concourseIdleRetireMs and concourseNewbornGraceMs in src/daemon/idleRetirement.ts and registered in FLAG_REGISTRY in src/substrate/flagRegistry.ts'
   const CANON = 'MERCURY_SESSION_IDLE_RETIRE_MINUTES'
   const OLD = 'MERCURY_CONCOURSE_' + 'IDLE_RETIRE_MINUTES'
   const saved = { canon: process.env[CANON], old: process.env[OLD] }

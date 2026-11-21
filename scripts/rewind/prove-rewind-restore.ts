@@ -12,11 +12,22 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const RESTORE_HINTS: Record<string, string> = {
+  '1': 'the session/facts file_checkpoints shape is declared in src/runner/wire/sessionVerbs.ts and the restore points come from src/services/changeTransaction/fileHistory.ts',
+  '2': 'the code restore lives in src/services/changeTransaction/fileHistory.ts and the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts',
+  '3': 'the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts and the no-checkpoint refusal comes from src/services/changeTransaction/fileHistory.ts',
+  '4': 'the drift refusal is built in src/services/changeTransaction/fileHistory.ts',
+  '5': 'the conversation record is written by src/services/compact/checkpointRewind.ts and the session/rewind verb is declared in src/runner/wire/sessionVerbs.ts',
+  '6': 'the both-mode receipt joins src/services/changeTransaction/fileHistory.ts and src/services/compact/checkpointRewind.ts behind the session/rewind verb in src/runner/wire/sessionVerbs.ts',
+}
+let restoreHint = 'the runner start-up and the session/rewind verb (src/runner/wire/sessionVerbs.ts); read the [dbg] lines above for the runner stderr'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond ? `${detail}${detail ? ' | ' : ''}${restoreHint}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  restoreHint = RESTORE_HINTS[t.match(/^§(\d)/)?.[1] ?? ''] ?? restoreHint
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -32,7 +43,7 @@ if (!nodeBin) {
   process.exit(1)
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — rewind restore proofs exceeded 240s')
+  console.log('\n❌ TIMEOUT — rewind restore proofs exceeded 240s; a runner turn or a session/rewind answer never arrived, see the [dbg] lines above for the runner stderr')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

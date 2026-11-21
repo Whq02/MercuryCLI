@@ -13,7 +13,7 @@ const { TestTool } = await import('../../src/tools/TestTool/TestTool.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 let failures = 0
 function check(name: string, ok: boolean, detail: unknown) {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}: ${JSON.stringify(detail)}${ok ? '' : ' | fix runRunnerProfile and rerunRunnerFailures in src/services/ide/projectRunners.ts (rerun selection, counts, no-match verdict) or the rerunFailed op of the Test tool in src/tools/TestTool/TestTool.ts'}`)
   if (!ok) failures++
 }
 try {

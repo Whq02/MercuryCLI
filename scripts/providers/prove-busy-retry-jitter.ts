@@ -3,7 +3,8 @@ import { BUSY_RETRY_RUNGS_MS, nextBusyRetry, nextBusyRetryWithinBudget, openBusy
 const jitter = await import(new URL('../../src/services/api/retryJitter.ts', import.meta.url).href).catch(() => undefined)
 let failures = 0
 function check(label: string, value: boolean): void {
-  console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}`)
+  const busyRetryFixHint = value ? '' : ' (fix the rung spread and budget in nextBusyRetry and openBusyRetryLadder in src/services/providers/busyRetry.ts, or jitterRetryDelay in src/services/api/retryJitter.ts)'
+  console.log(`[${value ? 'PASS' : 'FAIL'}] ${label}${busyRetryFixHint}`)
   if (!value) failures++
 }
 const random = Math.random

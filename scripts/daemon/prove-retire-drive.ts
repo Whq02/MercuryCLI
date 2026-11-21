@@ -19,6 +19,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('      fix: the park and revive road is in the daemon (src/daemon/concourseDispatch.ts holds the delivery side); the daemon log tail printed at the end of the run names what it refused')
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, everyMs = 100): Promise<boolean> => {
@@ -189,7 +190,7 @@ try {
   check('R2 the park verb answered applied for the runner', park.ok === true && park.outcome === 'applied' && /parked/.test(park.detail ?? ''), JSON.stringify(park))
   const after = recOf(sid)
   check('R2 the durable park intent was on the record while the park was in flight', intentSeen, JSON.stringify(after))
-  check('R3 a delivery during the retirement was HELD typed (session-retiring), never delivered and never failed', heldReply !== undefined && heldReply.ok === false && heldReply.heldReason === 'session-retiring' && heldReply.state !== 'failed', JSON.stringify(heldReply))
+  check('R3 a delivery during the retirement was HELD typed (session-retiring), never delivered and never failed', heldReply !== undefined && heldReply.ok === false && heldReply.heldReason === 'session-retiring' && heldReply.state !== 'failed', JSON.stringify(heldReply) + ' — a message sent to a retiring session must be held with heldReason session-retiring; see src/daemon/concourseDispatch.ts where heldReason is set')
   check('R4 parked landed on the record with the intent cleared and no refusal', after?.parkedAt !== undefined && after.parkedBy === 'operator:retire-drive' && after.parkIntent === undefined && after.parkRefused === undefined && after.endedAt === undefined && after.stoppedAt === undefined, JSON.stringify(after))
   check('R4 the runner had exited before parked was written', after?.parkedAt !== undefined && !pidAlive(pidBefore) && after.parkedAt >= parkStarted, `pid ${pidBefore} alive=${pidAlive(pidBefore)}`)
   const runnerRowId = `${before?.runnerId ?? '?'}@concourse`
@@ -227,7 +228,7 @@ try {
   const lostPidBefore = recOf(lostSid)?.pid
   const lostReplay = (await daemonControlRpc({ op: 'concourseDispatch', clientMessageId: 'retire-5', prompt: 'retire-probe-lost: must not run', workspaceDir: work, targetSessionId: lostSid } as never, { timeoutMs: 30_000 })) as { ok?: boolean; error?: string; state?: string; moves?: Array<{ verb: string; label: string }> }
   const lostRec = recOf(lostSid)
-  check('R8 a replay into the session whose transcript is gone is REFUSED, naming the loss and never a revive-and-deliver promise', lostReplay.ok === false && lostReplay.state === 'failed' && /could not be revived: its transcript is gone/.test(lostReplay.error ?? '') && lostReplay.moves?.[0]?.verb !== 'revive', JSON.stringify(lostReplay))
+  check('R8 a replay into the session whose transcript is gone is REFUSED, naming the loss and never a revive-and-deliver promise', lostReplay.ok === false && lostReplay.state === 'failed' && /could not be revived: its transcript is gone/.test(lostReplay.error ?? '') && lostReplay.moves?.[0]?.verb !== 'revive', JSON.stringify(lostReplay) + ' — a replay into a parked session with no transcript must fail with the words could not be revived: its transcript is gone')
   check('R8 nothing was respawned for it: no new birth row, no live pid, no crash fact', lostBirths() === lostBirthsBefore && lostRec !== undefined && lostRec.pid === lostPidBefore && !pidAlive(lostRec.pid) && (lostRec as { crash?: unknown }).crash === undefined, JSON.stringify({ births: lostBirths(), before: lostBirthsBefore, rec: lostRec }))
   check('R8 the row stays PARKED with the loss as its one-line reason (the board reads it where the age would be)', lostRec?.parkedAt !== undefined && /transcript is gone/.test((lostRec as { parkReason?: string }).parkReason ?? ''), JSON.stringify(lostRec))
   check('R8 the lost message never reached the model', !hits.some(h => h.body.includes('retire-probe-lost')), `hits ${hits.length}`)

@@ -63,7 +63,8 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_MELIOUS_API_BASE = `http://127.0.0.1:${server.port}/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const meliousFixHint = 'fix the Melious road for this check: the wire body (buildMeliousExtras) and the stream decoder (streamMeliousChat) in src/services/providers/melious/meliousCallModel.ts, the route in src/services/providers/routeLaw.ts, readiness in src/services/providers/primaryBackend.ts, billing state in src/services/providers/laneBillingState.ts, crewmate dispatch in src/services/crew/engineDispatch.ts'
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${meliousFixHint}`); count++; console.log(`[PASS] ${name}`) }
 try {
   const { enableConfigs } = await import('../../src/utils/config.ts'); enableConfigs()
   const { asSystemPrompt } = await import('../../src/utils/systemPromptType.ts')

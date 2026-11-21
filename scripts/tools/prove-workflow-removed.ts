@@ -45,11 +45,15 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fix = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 700 ? `${detail.slice(0, 700)}…` : detail}` : ''}${!cond && fix ? ` — to fix: ${fix}` : ''}`)
 }
+const WF_ROSTER_FIX = 'remove the Workflow tool from the list getAllBaseTools returns in src/tools.ts, and from ALL_AGENT_DISALLOWED_TOOLS in src/constants/tools.ts'
+const WF_COMMAND_FIX = 'remove the workflows command from the lists getCommands and builtinCommands return in src/commands.ts; unknownCommandLine in src/services/processUserInput/processSlashCommand.tsx must treat the name as any unknown command'
+const WF_BOOT_FIX = 'a saved Boot Menu profile that holds MERCURY_SESSION_WORKFLOWS must be set aside as retired by applyBootMenuEnv in src/substrate/startupMenu.ts, and the key must have no row in STARTUP_MENU or flag registry'
+const WF_BUILT_FIX = 'the built product (dist/mercury.mjs) no longer behaves as a home without workflows; rebuild with bun run build.ts if the bundle is old, then read the run output above for the step that differs'
 const section = (title: string): void => console.log(`\n${title}`)
 const watchdog = setTimeout(() => {
   console.log('\nTIMEOUT — the removal proof exceeded 420s')
@@ -86,22 +90,22 @@ const names = (list: readonly Named[], word: string): boolean => list.some(item 
 
 section('§1 the catalogue: no tool of that name, with either flag at any value')
 {
-  check('the base roster every road draws from holds no Workflow tool', !names(getAllBaseTools() as readonly Named[], TOOL), (getAllBaseTools() as readonly Named[]).map(tool => tool.name).join(', '))
+  check('the base roster every road draws from holds no Workflow tool', !names(getAllBaseTools() as readonly Named[], TOOL), (getAllBaseTools() as readonly Named[]).map(tool => tool.name).join(', '), WF_ROSTER_FIX)
   for (const value of ['1', '0']) {
     for (const name of FLAGS) process.env[name] = value
-    check(`…and none with both flags set to ${value}`, !names(getAllBaseTools() as readonly Named[], TOOL))
+    check(`…and none with both flags set to ${value}`, !names(getAllBaseTools() as readonly Named[], TOOL), '', WF_ROSTER_FIX)
     for (const name of FLAGS) delete process.env[name]
   }
-  check("a crewmate's barred list names no tool the catalogue does not have", !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL), [...ALL_AGENT_DISALLOWED_TOOLS].join(', '))
+  check("a crewmate's barred list names no tool the catalogue does not have", !ALL_AGENT_DISALLOWED_TOOLS.has(TOOL), [...ALL_AGENT_DISALLOWED_TOOLS].join(', '), WF_ROSTER_FIX)
 }
 
 section('§2 the command: /workflows is a name Mercury does not have')
 const commands = await getCommands(PROJECT)
 const ordinary = unknownCommandLine('zzznothing', commands).replace('zzznothing', COMMAND)
 {
-  check('no command of the session is named or aliased workflows', !names(commands as readonly Named[], COMMAND))
-  check('…and none of the built-in set', !names([...builtinCommands()] as readonly Named[], COMMAND))
-  check(`typed by habit it reads the sentence any unknown name reads — "${ordinary}"`, unknownCommandLine(COMMAND, commands) === ordinary && ordinary.startsWith(`Unknown command: /${COMMAND}`), unknownCommandLine(COMMAND, commands))
+  check('no command of the session is named or aliased workflows', !names(commands as readonly Named[], COMMAND), '', WF_COMMAND_FIX)
+  check('…and none of the built-in set', !names([...builtinCommands()] as readonly Named[], COMMAND), '', WF_COMMAND_FIX)
+  check(`typed by habit it reads the sentence any unknown name reads — "${ordinary}"`, unknownCommandLine(COMMAND, commands) === ordinary && ordinary.startsWith(`Unknown command: /${COMMAND}`), unknownCommandLine(COMMAND, commands), WF_COMMAND_FIX)
 }
 
 section('§3 a managed policy that carries disableWorkflows is still read')
@@ -109,8 +113,8 @@ section('§3 a managed policy that carries disableWorkflows is still read')
   const policy = join(WORLD, 'managed-settings.json')
   writeFileSync(policy, JSON.stringify({ disableWorkflows: true, guardrails: { deny: ['Bash(rm *)'] } }))
   const read = parseSettingsFile(policy) as { settings: { guardrails?: { deny?: string[] } } | null; errors: Array<{ severity?: string; unknownKeys?: string[]; message: string }> }
-  check('its other keys are in force', read.settings?.guardrails?.deny?.[0] === 'Bash(rm *)', JSON.stringify(read.settings))
-  check('the key reads as any key the schema does not know: one warning line that names it, no error', read.errors.length === 1 && read.errors[0]!.severity === 'warning' && JSON.stringify(read.errors[0]!.unknownKeys) === JSON.stringify(['disableWorkflows']), JSON.stringify(read.errors))
+  check('its other keys are in force', read.settings?.guardrails?.deny?.[0] === 'Bash(rm *)', JSON.stringify(read.settings), 'parseSettingsFile in src/utils/settings/settings.ts must still read the other keys of a policy file that carries disableWorkflows')
+  check('the key reads as any key the schema does not know: one warning line that names it, no error', read.errors.length === 1 && read.errors[0]!.severity === 'warning' && JSON.stringify(read.errors[0]!.unknownKeys) === JSON.stringify(['disableWorkflows']), JSON.stringify(read.errors), 'parseSettingsFile in src/utils/settings/settings.ts must report disableWorkflows as one unknown-key warning and no error')
 }
 
 section('§3b a saved Boot Menu profile that still holds the retired Workflows row')
@@ -124,11 +128,11 @@ section('§3b a saved Boot Menu profile that still holds the retired Workflows r
   const before = createHash('sha256').update(readFileSync(profile)).digest('hex')
   const env: NodeJS.ProcessEnv = {}
   const applied = menu.applyBootMenuEnv(profile, env)
-  check('no row of the menu and no flag of the registry carries the name', !menu.STARTUP_MENU.some(row => row.env === RETIRED) && getFlagSpec(RETIRED) === undefined)
-  check('the key is set aside: not applied, not refused, the environment untouched by it', applied !== null && applied.retired.includes(RETIRED) && applied.refused.length === 0 && !applied.applied.some(row => row.env === RETIRED) && env[RETIRED] === undefined, JSON.stringify(applied))
-  check('the row saved beside it is applied as before', applied?.applied.some(row => row.env === 'MERCURY_SESSION_SUBAGENTS' && row.value === '0') === true && env.MERCURY_SESSION_SUBAGENTS === '0', JSON.stringify(applied))
-  check('no boot note names it', !bootNotes().some(note => note.text.includes(RETIRED)), JSON.stringify(bootNotes()))
-  check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before)
+  check('no row of the menu and no flag of the registry carries the name', !menu.STARTUP_MENU.some(row => row.env === RETIRED) && getFlagSpec(RETIRED) === undefined, '', WF_BOOT_FIX)
+  check('the key is set aside: not applied, not refused, the environment untouched by it', applied !== null && applied.retired.includes(RETIRED) && applied.refused.length === 0 && !applied.applied.some(row => row.env === RETIRED) && env[RETIRED] === undefined, JSON.stringify(applied), WF_BOOT_FIX)
+  check('the row saved beside it is applied as before', applied?.applied.some(row => row.env === 'MERCURY_SESSION_SUBAGENTS' && row.value === '0') === true && env.MERCURY_SESSION_SUBAGENTS === '0', JSON.stringify(applied), WF_BOOT_FIX)
+  check('no boot note names it', !bootNotes().some(note => note.text.includes(RETIRED)), JSON.stringify(bootNotes()), 'bootNotes in src/substrate/bootNotes.ts must not name the retired MERCURY_SESSION_WORKFLOWS key')
+  check('reading the profile rewrites nothing', createHash('sha256').update(readFileSync(profile)).digest('hex') === before, '', 'applyBootMenuEnv in src/substrate/startupMenu.ts must only read the saved profile, never rewrite it')
 }
 
 type Captured = { body: { tools?: Array<{ name?: string }>; messages?: Array<{ role: string; content: unknown }> } }
@@ -230,12 +234,12 @@ function seedUsedHome(): string[] {
 const digest = (path: string): string => (existsSync(path) ? createHash('sha256').update(readFileSync(path)).digest('hex') : 'gone')
 
 if (!existsSync(DIST)) {
-  check('dist/mercury.mjs present (build first; the gate prebuilds it)', false, DIST)
+  check('dist/mercury.mjs present (build first; the gate prebuilds it)', false, DIST, 'build the bundle first with bun run build.ts')
 } else {
   const bundle = distBuildInputs(ROOT)
   console.log(`\nBUNDLE ${bundle.line}`)
   if (bundle.stale && process.env.MERCURY_GATE_PREBUILT !== '1' && process.env.MERCURY_STALE_DIST_OK !== '1') {
-    check('the bundle is the tree under proof (rebuild, or set MERCURY_STALE_DIST_OK=1 to read an older bundle on purpose)', false, bundle.line)
+    check('the bundle is the tree under proof (rebuild, or set MERCURY_STALE_DIST_OK=1 to read an older bundle on purpose)', false, bundle.line, 'rebuild with bun run build.ts, or set MERCURY_STALE_DIST_OK=1 to read the older bundle on purpose')
   } else {
     const estate = seedUsedHome()
     const before = new Map(estate.map(path => [path, digest(path)]))
@@ -249,23 +253,23 @@ if (!existsSync(DIST)) {
     for (const [label, flags] of SETTINGS) {
       const turn = await run(['say ready'], [{ kind: 'text', text: 'Ready.' }], flags)
       const tools = toolNames(turn.requests[0])
-      check(`${label}: mercury run answers and ends 0, with nothing on stderr`, turn.code === 0 && outcomeOf(turn.out).status === 'completed' && outcomeOf(turn.out).answer === 'Ready.' && turn.err === '', `exit ${turn.code} · ${turn.out.slice(0, 300)} · stderr ${turn.err.slice(0, 300)}`)
-      check(`${label}: its request offers tools, and none is the Workflow tool`, tools.length > 0 && !tools.includes(TOOL), tools.join(', '))
+      check(`${label}: mercury run answers and ends 0, with nothing on stderr`, turn.code === 0 && outcomeOf(turn.out).status === 'completed' && outcomeOf(turn.out).answer === 'Ready.' && turn.err === '', `exit ${turn.code} · ${turn.out.slice(0, 300)} · stderr ${turn.err.slice(0, 300)}`, WF_BUILT_FIX)
+      check(`${label}: its request offers tools, and none is the Workflow tool`, tools.length > 0 && !tools.includes(TOOL), tools.join(', '), WF_ROSTER_FIX)
       plain ??= tools
       check(`${label}: the tools offered are the ones offered with neither flag set`, JSON.stringify(tools) === JSON.stringify(plain))
-      check(`${label}: the run says nothing of workflows`, !/workflow/i.test(turn.out) && !/workflow/i.test(turn.err), `${turn.out.slice(0, 300)} ${turn.err.slice(0, 300)}`)
+      check(`${label}: the run says nothing of workflows`, !/workflow/i.test(turn.out) && !/workflow/i.test(turn.err), `${turn.out.slice(0, 300)} ${turn.err.slice(0, 300)}`, WF_BUILT_FIX)
       const offered = await served(flags)
-      check(`${label}: mcp serve lists tools, and none is the Workflow tool`, offered !== null && offered.length > 0 && !offered.includes(TOOL), offered === null ? 'no list' : offered.join(', '))
+      check(`${label}: mcp serve lists tools, and none is the Workflow tool`, offered !== null && offered.length > 0 && !offered.includes(TOOL), offered === null ? 'no list' : offered.join(', '), WF_ROSTER_FIX + '; the mcp serve tool list must match the catalogue')
       list ??= offered
       check(`${label}: its list is the one served with neither flag set`, JSON.stringify(offered) === JSON.stringify(list))
-      check(`${label}: every workflow script, run file and rule of the home is byte for byte as it was`, moved().length === 0, moved().join(', '))
+      check(`${label}: every workflow script, run file and rule of the home is byte for byte as it was`, moved().length === 0, moved().join(', '), WF_BUILT_FIX + '; a run must not write to the workflow files of the home')
     }
 
     section('§5 the built product answers /workflows as a command it does not have')
     for (const typed of [`/${COMMAND}`, `/${COMMAND} on`]) {
       const turn = await run([typed], [{ kind: 'text', text: 'Unreached.' }])
       const outcome = outcomeOf(turn.out)
-      check(`"${typed}": refused as a command, in the ordinary sentence, with no request sent`, outcome.status === 'refused' && outcome.error?.class === 'command' && outcome.error.message === ordinary && turn.requests.length === 0, `${turn.out.slice(0, 300)} · ${turn.requests.length} request(s)`)
+      check(`"${typed}": refused as a command, in the ordinary sentence, with no request sent`, outcome.status === 'refused' && outcome.error?.class === 'command' && outcome.error.message === ordinary && turn.requests.length === 0, `${turn.out.slice(0, 300)} · ${turn.requests.length} request(s)`, WF_COMMAND_FIX)
     }
 
     section('§6 a stored session whose record holds a Workflow call and a workflow task resumes and goes on')
@@ -273,7 +277,7 @@ if (!existsSync(DIST)) {
       const turn = await run(['--resume', SESSION, 'say that you are resumed'], [{ kind: 'text', text: 'Resumed.' }])
       check('it resumes: the answer lands and the run ends 0, with nothing on stderr', turn.code === 0 && outcomeOf(turn.out).answer === 'Resumed.' && turn.err === '', `exit ${turn.code} · ${turn.out.slice(0, 300)} · stderr ${turn.err.slice(0, 300)}`)
       const sent = JSON.stringify(turn.requests[0]?.body.messages ?? [])
-      check('the stored call and its result ride the request as they were stored', sent.includes('"toolu_stored_wf1"') && sent.includes(`"name":"${TOOL}"`) && sent.includes(`Workflow launched in background. Task ID: ${TASK_ID}`), sent.slice(0, 400))
+      check('the stored call and its result ride the request as they were stored', sent.includes('"toolu_stored_wf1"') && sent.includes(`"name":"${TOOL}"`) && sent.includes(`Workflow launched in background. Task ID: ${TASK_ID}`), sent.slice(0, 400), 'resuming a stored session must send its stored Workflow call, its result and the task notice unchanged; check the resume path that loads the transcript, then ' + WF_BUILT_FIX)
       check("the stored task's notice rides it too", sent.includes(`<task-id>${TASK_ID}</task-id>`))
       check('the record keeps every stored row and grows by the new turn', readFileSync(session, 'utf8').startsWith(stored) && readFileSync(session, 'utf8').length > stored.length)
       console.log(`  the resumed request's tool list holds a Workflow definition: ${toolNames(turn.requests[0]).includes(TOOL)}`)
@@ -283,7 +287,7 @@ if (!existsSync(DIST)) {
       const last = (turn.requests[1]?.body.messages ?? []).at(-1)
       const results = (Array.isArray(last?.content) ? (last!.content as Array<{ type?: string; is_error?: boolean; content?: unknown }>) : []).filter(block => block.type === 'tool_result')
       const said = JSON.stringify(results[0]?.content ?? '')
-      check('a Workflow call the model makes there is answered as a tool the session does not have', results.length === 1 && results[0]!.is_error === true && said.includes(`No such tool available: ${TOOL}`), said.slice(0, 400))
+      check('a Workflow call the model makes there is answered as a tool the session does not have', results.length === 1 && results[0]!.is_error === true && said.includes(`No such tool available: ${TOOL}`), said.slice(0, 400), 'a call to a tool the session does not have must come back as an error result reading No such tool available; ' + WF_ROSTER_FIX)
       check('…and the turn goes on to its answer, ending 0', turn.code === 0 && outcomeOf(turn.out).answer === 'Went on.', `exit ${turn.code} · ${turn.out.slice(0, 300)}`)
       check('…with the home\'s workflow files still byte for byte as they were', moved().length === 0, moved().join(', '))
     }

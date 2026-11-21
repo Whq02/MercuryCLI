@@ -29,6 +29,9 @@ function check(label: string, cond: boolean, detail = ''): void {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const HINT_EXIT = 'what to change: the /exit note path, leaveNoteBeforeExit in src/mneme/exitHandoff.ts and askForHandoff in src/mneme/handoffAsk.ts'
+const HINT_NOTICE = 'what to change: HANDOFF_EXIT_NOTICE and its painting while the note is written, src/mneme/exitHandoff.ts'
+const HINT_JOURNAL = 'what to change: the journal line of the close ask, src/mneme/handoffAsk.ts (askForHandoff) and the memory.journal setting'
 
 type LedgerRow = { sessionId: string; endedAt: string | null; outcome: string | null; handoff: { text: string; at: string } | null }
 
@@ -108,33 +111,33 @@ async function leg(tag: string, opts: { journal: boolean; turn: boolean }): Prom
     const last = lastRowOf(rows)
     const lastRead = run.ptyReads[run.ptyReads.length - 1]
     const writing = painted(run, WRITING)
-    check(`${tag}: the cockpit handed the terminal back (/exit ended the pty before the deadline)`, report !== null && report.ended === 'eof', run.outcome.reason ?? JSON.stringify(report))
+    check(`${tag}: the cockpit handed the terminal back (/exit ended the pty before the deadline)`, report !== null && report.ended === 'eof', `${HINT_EXIT}; the pty did not end at eof, so /exit hung or crashed · ${run.outcome.reason ?? JSON.stringify(report)}`)
     if (!opts.turn) {
-      check(`${tag}: no turn ran, so no note was asked for (the .32 law)`, asks.length === 0 && answers.length === 0, `${asks.length} asks · ${answers.length} answers`)
-      check(`${tag}: nothing was written for the next session`, last === null || last.handoff === null, JSON.stringify(last))
+      check(`${tag}: no turn ran, so no note was asked for (the .32 law)`, asks.length === 0 && answers.length === 0, `${HINT_EXIT}; exitNoteDue must be false when no turn ran · ${asks.length} asks · ${answers.length} answers`)
+      check(`${tag}: nothing was written for the next session`, last === null || last.handoff === null, `${HINT_EXIT}; no handoff may be stored when no turn ran · ${JSON.stringify(last)}`)
       return
     }
-    check(`${tag}: the one turn ran and was answered`, answers.length >= 1 && painted(run, REPLY) !== undefined, `${answers.length} answer requests`)
-    check(`${tag}: the screen said it was writing the handoff while the cockpit waited`, writing !== undefined, `no pty read carried "${WRITING}"`)
+    check(`${tag}: the one turn ran and was answered`, answers.length >= 1 && painted(run, REPLY) !== undefined, `the scripted turn was not answered or not painted, so the later checks mean nothing; read the pty frames · ${answers.length} answer requests`)
+    check(`${tag}: the screen said it was writing the handoff while the cockpit waited`, writing !== undefined, `${HINT_NOTICE} · no pty read carried "${WRITING}"`)
     if (writing !== undefined) {
       const at = Math.max(0, writing.ts - firstOutputTs(run))
       const [frame] = grabScreens(run, COLS, ROWS, [at])
       const text = frame ? frame.rows.join('\n') : ''
-      check(`${tag}: the frame carries the handoff line whole, with its skip hint`, text.includes(`${WRITING}… (ctrl-c skips)`), text.split('\n').filter(l => l.trim()).slice(-8).join(' | '))
+      check(`${tag}: the frame carries the handoff line whole, with its skip hint`, text.includes(`${WRITING}… (ctrl-c skips)`), `${HINT_NOTICE} · ${text.split('\n').filter(l => l.trim()).slice(-8).join(' | ')}`)
       if (frame) saveFrame(`exit-note-writing-${opts.journal ? 'journal-' : ''}${COLS}x${ROWS}`, frame.rows)
     }
-    check(`${tag}: the close ask reached the model once, after the answer`, asks.length === (opts.journal ? 2 : 1) && run.fixture.messageRequests().indexOf(asks[0]!) > run.fixture.messageRequests().indexOf(answers[0]!), `${asks.length} handoff requests of ${run.fixture.messageRequests().length}`)
-    check(`${tag}: the ledger row is closed with its end and its outcome`, last !== null && last.endedAt !== null && last.outcome !== null, JSON.stringify(last))
-    check(`${tag}: the note is in the ledger exactly as the model wrote it`, last?.handoff?.text === NOTE, JSON.stringify(last?.handoff ?? null))
-    check(`${tag}: the close was written by the exit itself, not by the signal that ends the runner (the road a Windows taskkill never walks)`, last?.outcome === 'quit', `outcome ${JSON.stringify(last?.outcome)}`)
-    check(`${tag}: the note landed before the terminal came back`, last?.handoff !== null && last?.handoff !== undefined && lastRead !== undefined && Date.parse(last.handoff.at) <= lastRead.ts, `note at ${last?.handoff?.at} · last output ${lastRead ? new Date(lastRead.ts).toISOString() : '-'}`)
+    check(`${tag}: the close ask reached the model once, after the answer`, asks.length === (opts.journal ? 2 : 1) && run.fixture.messageRequests().indexOf(asks[0]!) > run.fixture.messageRequests().indexOf(answers[0]!), `${HINT_EXIT} · ${asks.length} handoff requests of ${run.fixture.messageRequests().length}`)
+    check(`${tag}: the ledger row is closed with its end and its outcome`, last !== null && last.endedAt !== null && last.outcome !== null, `the exit must close the ledger row before the terminal returns, see ${HINT_EXIT} · ${JSON.stringify(last)}`)
+    check(`${tag}: the note is in the ledger exactly as the model wrote it`, last?.handoff?.text === NOTE, `${HINT_EXIT}; the stored note must be the model reply unchanged · ${JSON.stringify(last?.handoff ?? null)}`)
+    check(`${tag}: the close was written by the exit itself, not by the signal that ends the runner (the road a Windows taskkill never walks)`, last?.outcome === 'quit', `the /exit road must write outcome quit itself, see ${HINT_EXIT} · outcome ${JSON.stringify(last?.outcome)}`)
+    check(`${tag}: the note landed before the terminal came back`, last?.handoff !== null && last?.handoff !== undefined && lastRead !== undefined && Date.parse(last.handoff.at) <= lastRead.ts, `${HINT_EXIT}; store the note before the exit lets the terminal go · note at ${last?.handoff?.at} · last output ${lastRead ? new Date(lastRead.ts).toISOString() : '-'}`)
     const journals = journalFiles(configDir)
     if (opts.journal) {
       const body = journals[0] ? readFileSync(journals[0], 'utf8') : ''
-      check(`${tag}: the journal entry the model staged in the close ask is in the home`, journals.length === 1 && body.includes(ENTRY), journals.length === 0 ? 'no journal.md under the home' : body.slice(0, 300))
-      check(`${tag}: the note went to the ledger and the entry to the journal, each alone`, !body.includes(NOTE) && rows.every(row => row.handoff?.text !== ENTRY))
+      check(`${tag}: the journal entry the model staged in the close ask is in the home`, journals.length === 1 && body.includes(ENTRY), `${HINT_JOURNAL} · ${journals.length === 0 ? 'no journal.md under the home' : body.slice(0, 300)}`)
+      check(`${tag}: the note went to the ledger and the entry to the journal, each alone`, !body.includes(NOTE) && rows.every(row => row.handoff?.text !== ENTRY), `${HINT_JOURNAL}; the note belongs only in the ledger and the entry only in the journal`)
     } else {
-      check(`${tag}: the journal is off, so no journal file exists`, journals.length === 0, journals.join(', '))
+      check(`${tag}: the journal is off, so no journal file exists`, journals.length === 0, `${HINT_JOURNAL}; nothing may write a journal when memory.journal is false · ${journals.join(', ')}`)
     }
   } finally {
     run.cleanup()

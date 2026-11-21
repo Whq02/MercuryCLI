@@ -37,7 +37,7 @@ section('end-to-end — a real PTY drag + ⌫ (no API)')
       },
     })
     if (res.status !== 0) {
-      check(`${tag}: PTY capture ran`, false, res.stderr?.slice(0, 200) ?? '')
+      check(`${tag}: PTY capture ran`, false, `${res.stderr?.slice(0, 200) ?? ''} (run scripts/ui/vshot.py on the config it was given to see why the capture failed)`)
       return null
     }
     const grid = (JSON.parse(readFileSync(gridPath, 'utf8')) as { grid: Array<Array<{ c: string }>> }).grid
@@ -56,7 +56,7 @@ section('end-to-end — a real PTY drag + ⌫ (no API)')
         break
       }
     }
-    check('typed text lands in the input row', row0 >= 0, row0 >= 0 ? `row ${row0} col ${colStart0}` : 'not found')
+    check('typed text lands in the input row', row0 >= 0, row0 >= 0 ? `row ${row0} col ${colStart0}` : 'not found; the resume-2turn scenario in scripts/ui/renderScenarios.ts did not show the typed text on a row with the prompt, so check its sends and ticks')
   }
 
   if (row0 >= 0) {
@@ -78,14 +78,14 @@ section('end-to-end — a real PTY drag + ⌫ (no API)')
     )
     if (after) {
       const inputRow = after[row0] ?? ''
-      check('one ⌫ removed the WHOLE selection', !inputRow.includes('sfff'), inputRow.trim().slice(0, 40))
+      check('one ⌫ removed the WHOLE selection', !inputRow.includes('sfff'), `${inputRow.trim().slice(0, 40)} (the range-delete branch of onInputOf in src/hooks/textInput/keys.ts must splice the whole selected range on one backspace)`)
       check(
         "specifically NOT the 1-by-1 regression ('sff' remnant)",
         !inputRow.includes('sff'),
-        inputRow.trim().slice(0, 40),
+        `${inputRow.trim().slice(0, 40)} (the range-delete branch of onInputOf in src/hooks/textInput/keys.ts must splice the whole selected range, not one character)`,
       )
       const anywhere = after.some(l => l.includes('sfff'))
-      check('the typed text is gone from the screen', !anywhere)
+      check('the typed text is gone from the screen', !anywhere, 'the typed text is still on screen after the drag and backspace; see the range-delete branch of onInputOf in src/hooks/textInput/keys.ts')
     }
   }
   cleanupScenario('resume-2turn')

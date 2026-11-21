@@ -111,6 +111,7 @@ const inOrder = (lines: string[], needles: string[]): boolean => {
   return true
 }
 const short = (paths: string[], leg: Leg): string => paths.map(path => path.replace(leg.home, '<home>')).join(' · ')
+const heldHint = 'change holdCommandForLanding and HELD_FOR_LANDING in src/screens/chat/submit/screenCommand.ts so a verb typed while the session lands is held and replayed on the landed session'
 
 function stopDaemon(leg: Leg): void {
   for (const worker of workersOf(leg)) {
@@ -201,13 +202,13 @@ section('§1 /swarm off and then the first prompt, both typed while the session 
   check('the capture ran every send (engine exit 0)', run.status === 0 && sid !== '', `exit ${run.status} · session ${sid} · ${run.log.slice(-400)}`)
   const offAt = commandAt(record, 'off')
   const askedAt = promptAt(record, PROMPT)
-  check('the conversation heard the switch: its record holds /swarm off, and before the first prompt as typed (the parent\'s record holds no such row: its window answered for itself)', offAt >= 0 && askedAt > offAt, `/swarm off at row ${offAt}, the prompt at row ${askedAt}, of ${record.length}`)
-  check('…and the switch it recorded says off, then on once /swarm on is typed', switchRows(record).includes('off') && switchRows(record).at(-1) === 'on', switchRows(record).join(' '))
-  check('the first prompt\'s crewmate was launched with no board: no request of the lead or of the crewmate offers CrewBoard (the parent offers it in every one)', requests.length >= 4 && requests.every(request => !offers(request, 'CrewBoard')), requests.map(request => `${request.model}:${offers(request, 'CrewBoard')}`).join(' '))
-  check('…so the lead is not woken by a post: it waits, then notes the crewmate\'s end (the parent\'s lead is woken and answers the post)', record.some(row => row.includes(NOTED)) && !record.some(row => row.includes(WOKEN)) && !requests.some(request => says(request, 'crew-board-event:')), `woken ${record.some(row => row.includes(WOKEN))} · packets ${requests.filter(request => says(request, 'crew-board-event:')).length}`)
-  check('no board file stands under the home while the swarm is off', boardsBeforeOn !== null && (boardsBeforeOn as string[]).length === 0, boardsBeforeOn === null ? 'never sampled' : short(boardsBeforeOn, leg))
-  check('/swarm on after the first prompt behaves as it did: the command, its answer and the launch row', inOrder(after, [NOTED, '/swarm on', `${SWARM_ON}.`]) && after.some(line => line.includes('[main] Swarm launched')), after.filter(line => line.includes('warm')).map(line => line.trim()).join(' | '))
-  check('…and it makes the one board file, under the conversation\'s id', boards.length === 1 && boardSession(boards[0]!) === sid, short(boards, leg))
+  check('the conversation heard the switch: its record holds /swarm off, and before the first prompt as typed (the parent\'s record holds no such row: its window answered for itself)', offAt >= 0 && askedAt > offAt, `${heldHint} · /swarm off at row ${offAt}, the prompt at row ${askedAt}, of ${record.length}`)
+  check('…and the switch it recorded says off, then on once /swarm on is typed', switchRows(record).includes('off') && switchRows(record).at(-1) === 'on', `${heldHint} · switch rows ${switchRows(record).join(' ')}`)
+  check('the first prompt\'s crewmate was launched with no board: no request of the lead or of the crewmate offers CrewBoard (the parent offers it in every one)', requests.length >= 4 && requests.every(request => !offers(request, 'CrewBoard')), `${heldHint} · ${requests.map(request => `${request.model}:${offers(request, 'CrewBoard')}`).join(' ')}`)
+  check('…so the lead is not woken by a post: it waits, then notes the crewmate\'s end (the parent\'s lead is woken and answers the post)', record.some(row => row.includes(NOTED)) && !record.some(row => row.includes(WOKEN)) && !requests.some(request => says(request, 'crew-board-event:')), `${heldHint} · woken ${record.some(row => row.includes(WOKEN))} · packets ${requests.filter(request => says(request, 'crew-board-event:')).length}`)
+  check('no board file stands under the home while the swarm is off', boardsBeforeOn !== null && (boardsBeforeOn as string[]).length === 0, `${heldHint} · ${boardsBeforeOn === null ? 'never sampled' : short(boardsBeforeOn, leg)}`)
+  check('/swarm on after the first prompt behaves as it did: the command, its answer and the launch row', inOrder(after, [NOTED, '/swarm on', `${SWARM_ON}.`]) && after.some(line => line.includes('[main] Swarm launched')), heldHint + ' · ' + after.filter(line => line.includes('warm')).map(line => line.trim()).join(' | '))
+  check('…and it makes the one board file, under the conversation\'s id', boards.length === 1 && boardSession(boards[0]!) === sid, `${heldHint} · ${short(boards, leg)}`)
   check('one conversation file under the home, the conversation\'s', chats.length === 1 && basename(chats[0]!, '.jsonl') === sid, short(chats, leg))
   await endLeg(leg)
 }
@@ -232,14 +233,14 @@ section('§2 /swarm on typed while the session lands, then the first prompt')
   const woken = run.marks.get('woken') ?? []
   printFrame('woken by the crewmate\'s post', woken)
   check('the capture ran every send (engine exit 0)', run.status === 0 && sid !== '', `exit ${run.status} · session ${sid} · ${run.log.slice(-400)}`)
-  check('ONE board file stands under the home, the conversation\'s (the parent leaves a second, under the window\'s own id)', boards.length === 1 && boardSession(boards[0]!) === sid, short(boards, leg))
+  check('ONE board file stands under the home, the conversation\'s (the parent leaves a second, under the window\'s own id)', boards.length === 1 && boardSession(boards[0]!) === sid, `${heldHint} · ${short(boards, leg)}`)
   const mine = boards.find(path => boardSession(path) === sid)
   check('…and it holds the crewmate\'s post', mine !== undefined && eventsOf(mine).some(event => event.includes(ASK)), mine === undefined ? 'no board under the conversation' : `${eventsOf(mine).length} events`)
   const onAt = commandAt(record, 'on')
   const askedAt = promptAt(record, PROMPT)
-  check('the conversation heard the switch: its record holds /swarm on before the first prompt, and the switch it recorded says on (the parent\'s holds neither)', onAt >= 0 && askedAt > onAt && switchRows(record).length > 0 && switchRows(record).every(state => state === 'on'), `/swarm on at row ${onAt}, the prompt at row ${askedAt}, switch rows ${switchRows(record).join(' ') || 'none'}`)
-  check('the lead is woken by the post and reads it: the turn that answers carries the board\'s packet with the post', record.some(row => row.includes(WOKEN)) && requests.some(request => !request.model?.includes('fable') && says(request, 'crew-board-event:') && says(request, 'ALPHA-ASK')), `woken ${record.some(row => row.includes(WOKEN))}`)
-  check('…and the screen paints the post as the seat\'s own row above the lead\'s answer', inOrder(woken, [WAITING, `[alpha] ${ASK}`, WOKEN]), woken.filter(line => line.includes('alpha') || line.includes('REPLY') || line.includes('waiting')).map(line => line.trim()).join(' | '))
+  check('the conversation heard the switch: its record holds /swarm on before the first prompt, and the switch it recorded says on (the parent\'s holds neither)', onAt >= 0 && askedAt > onAt && switchRows(record).length > 0 && switchRows(record).every(state => state === 'on'), `${heldHint} · /swarm on at row ${onAt}, the prompt at row ${askedAt}, switch rows ${switchRows(record).join(' ') || 'none'}`)
+  check('the lead is woken by the post and reads it: the turn that answers carries the board\'s packet with the post', record.some(row => row.includes(WOKEN)) && requests.some(request => !request.model?.includes('fable') && says(request, 'crew-board-event:') && says(request, 'ALPHA-ASK')), `the lead request after the crewmate post must carry the board packet (crew-board-event:) with the ask · woken ${record.some(row => row.includes(WOKEN))}`)
+  check('…and the screen paints the post as the seat\'s own row above the lead\'s answer', inOrder(woken, [WAITING, `[alpha] ${ASK}`, WOKEN]), 'the screen must paint the crewmate post as its own row between the lead waiting line and the woken answer · ' + woken.filter(line => line.includes('alpha') || line.includes('REPLY') || line.includes('waiting')).map(line => line.trim()).join(' | '))
   check('one conversation file under the home, the conversation\'s', chats.length === 1 && basename(chats[0]!, '.jsonl') === sid, short(chats, leg))
 
   await untilAsync(() => daemonGone(leg), vshotBudgetMs(30_000), 100)
@@ -248,9 +249,9 @@ section('§2 /swarm on typed while the session lands, then the first prompt')
   const boardsAgain = boardFiles(leg)
   stopDaemon(leg)
   printFrame('the session resumed in a new window', again)
-  check('the session resumed in a new window paints its post and its answers again', resumed.status === 0 && inOrder(again, [`[alpha] ${ASK}`, WOKEN, NOTED]), `exit ${resumed.status} · ${again.filter(line => line.includes('alpha') || line.includes('REPLY') || line.includes('NOTED')).map(line => line.trim()).join(' | ')}`)
-  check('…and keeps its board: the conversation\'s file is where it was and still holds the post', mine !== undefined && boardsAgain.includes(mine) && eventsOf(mine).some(event => event.includes(ASK)), short(boardsAgain, leg))
-  check('…and resuming made no other board file', boardsAgain.length === boards.length, short(boardsAgain, leg))
+  check('the session resumed in a new window paints its post and its answers again', resumed.status === 0 && inOrder(again, [`[alpha] ${ASK}`, WOKEN, NOTED]), `resume must repaint the stored post and answers from the conversation record · exit ${resumed.status} · ${again.filter(line => line.includes('alpha') || line.includes('REPLY') || line.includes('NOTED')).map(line => line.trim()).join(' | ')}`)
+  check('…and keeps its board: the conversation\'s file is where it was and still holds the post', mine !== undefined && boardsAgain.includes(mine) && eventsOf(mine).some(event => event.includes(ASK)), `resume must reopen the conversation board file, not replace it · ${short(boardsAgain, leg)}`)
+  check('…and resuming made no other board file', boardsAgain.length === boards.length, `resume must reopen the conversation board file, not create another · ${short(boardsAgain, leg)}`)
   await endLeg(leg)
 }
 
@@ -279,12 +280,12 @@ section('§3 the other verbs typed while the session lands: a title, an owner\'s
   const replied = run.marks.get('replied') ?? run.final
   printFrame('the first prompt answered', replied)
   check('the capture ran every send (engine exit 0)', run.status === 0 && sid !== '', `exit ${run.status} · session ${sid} · ${run.log.slice(-400)}`)
-  check('/rename titled the conversation (the parent titles a file of the window\'s own and leaves the conversation unnamed)', worker?.title === TITLE, `the session's title: ${JSON.stringify(worker?.title)}`)
-  check('…and left no file under the window\'s id: one conversation file under the home, the conversation\'s', chats.length === 1 && basename(chats[0]!, '.jsonl') === sid, short(chats, leg))
-  check('the owner\'s /general line is on the conversation\'s board, the one board file under the home (the parent posts it to a board of the window\'s own, where nobody reads it)', boards.length === 1 && boardSession(boards[0]!) === sid && eventsOf(boards[0]!).some(event => event.includes(`"text":"${OWNER_LINE}"`)), `${short(boards, leg)} · ${boards.map(path => eventsOf(path).length).join(',')} events`)
+  check('/rename titled the conversation (the parent titles a file of the window\'s own and leaves the conversation unnamed)', worker?.title === TITLE, `${heldHint} · the session's title: ${JSON.stringify(worker?.title)}`)
+  check('…and left no file under the window\'s id: one conversation file under the home, the conversation\'s', chats.length === 1 && basename(chats[0]!, '.jsonl') === sid, `${heldHint} · ${short(chats, leg)}`)
+  check('the owner\'s /general line is on the conversation\'s board, the one board file under the home (the parent posts it to a board of the window\'s own, where nobody reads it)', boards.length === 1 && boardSession(boards[0]!) === sid && eventsOf(boards[0]!).some(event => event.includes(`"text":"${OWNER_LINE}"`)), `${heldHint} · ${short(boards, leg)} · ${boards.map(path => eventsOf(path).length).join(',')} events`)
   const first = requests[0]
-  check('…and the lead reads it in the first turn, in the board\'s packet', first !== undefined && says(first, 'crew-board-event:') && says(first, OWNER_LINE), `first request: packet ${first !== undefined && says(first, 'crew-board-event:')} · the line ${first !== undefined && says(first, OWNER_LINE)}`)
-  check('/contract answered for the landed session: its record holds the drafted contract (the parent says no chat is open)', worker?.contract?.text === CONTRACT, `the session's contract: ${JSON.stringify(worker?.contract)}`)
+  check('…and the lead reads it in the first turn, in the board\'s packet', first !== undefined && says(first, 'crew-board-event:') && says(first, OWNER_LINE), `${heldHint} · first request: packet ${first !== undefined && says(first, 'crew-board-event:')} · the line ${first !== undefined && says(first, OWNER_LINE)}`)
+  check('/contract answered for the landed session: its record holds the drafted contract (the parent says no chat is open)', worker?.contract?.text === CONTRACT, `${heldHint} · the session's contract: ${JSON.stringify(worker?.contract)}`)
   check('the prompt typed after them is answered', inOrder(replied, [PLAIN_PROMPT, FIRST]), replied.filter(line => line.includes('REPLY') || line.includes(PLAIN_PROMPT)).map(line => line.trim()).join(' | '))
   await endLeg(leg)
 }

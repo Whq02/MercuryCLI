@@ -15,8 +15,9 @@ if (!existsSync(dist)) {
 }
 
 let failures = 0
+const maxTimeHint = 'to fix, change how the run ends at --max-time in src/rows/turn/modelRows.ts (the time_limit end) and src/rows/turn/settle.ts, or how the Ollama transport aborts its request in src/services/providers/local/ollamaChatTransport.ts (options.signal), then rebuild dist'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}`}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : `: ${detail}${detail ? ' — ' : ''}${maxTimeHint}`}`)
   if (!ok) failures++
 }
 const record = (line: string): void => console.log(`  [record] ${line}`)

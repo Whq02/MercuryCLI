@@ -30,14 +30,14 @@ const config = { command: process.execPath, args: [script, join(home, 'mcp-env.j
 mkdirSync(join(home, '.mercury'))
 writeFileSync(join(home, '.mercury', 'mcp.json'), JSON.stringify({ mcpServers: { fixture: config } }))
 let failures = 0
-const check = (name: string, passed: boolean) => { console.log(`${passed ? 'PASS' : 'FAIL'} ${name}`); if (!passed) failures++ }
+const check = (name: string, passed: boolean, detail = '') => { console.log(`${passed ? 'PASS' : 'FAIL'} ${name}${!passed && detail ? ` — ${detail}` : ''}`); if (!passed) failures++ }
 try {
   const hook = await startCommandHook({ name: 'fixture', command: `"${process.execPath}" "${script}" hook`, shell: 'bash', event: 'tool.before', index: 0, payloadJson: '{}', timeoutMs: 10_000, source: { kind: 'settings' }, cwd: home })
   const ended = await hook.result
-  check('headless hook runs without inherited provider credentials', ended.kind === 'exited' && ended.code === 0 && ended.stdout.trim() === '{}')
+  check('headless hook runs without inherited provider credentials', ended.kind === 'exited' && ended.code === 0 && ended.stdout.trim() === '{}', 'the hook child env in startCommandHook (src/utils/hooks/commandRunner.ts) must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/utils/subprocessEnv.ts)')
   const server = await connectToServer('env-fixture', config)
   assert.equal(server.type, 'connected', JSON.stringify(server))
-  check('MCP child receives no inherited provider credentials', readFileSync(join(home, 'mcp-env.json'), 'utf8') === '{}')
+  check('MCP child receives no inherited provider credentials', readFileSync(join(home, 'mcp-env.json'), 'utf8') === '{}', 'the MCP stdio child env in src/services/mcp/client/transports.ts must come from subprocessEnv({ stripProviderCredentials: true }), which deletes ALL_PROVIDER_CREDENTIAL_ENV_VARS (src/utils/subprocessEnv.ts)')
   const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')
   const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
   const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
@@ -47,13 +47,13 @@ try {
   const bash = await runWithCwdOverride(home, () => BashTool.call({ command: `"${process.execPath}" "${script}" bash "${bashPath}"` }, context))
   assert.equal(bash.data.code, 0, bash.data.stderr)
   const bashEnv = JSON.parse(readFileSync(bashPath, 'utf8'))
-  check('Bash retains the exported provider keys', keys.every(key => bashEnv[key] === `fixture-${key}`))
+  check('Bash retains the exported provider keys', keys.every(key => bashEnv[key] === `fixture-${key}`), 'the Bash tool child must keep the exported provider keys; only hook and MCP children strip them, so remove the credential strip from the Bash tool env path')
   const React = (await import('react')).default
   const { renderToString } = await import('../../src/utils/staticRender.tsx')
   const { MCPServerApprovalDialog } = await import('../../src/components/MCPServerApprovalDialog.tsx')
   const frame = await renderToString(React.createElement(MCPServerApprovalDialog, { serverName: 'fixture', config, onDone() {} }), 100)
   console.log(frame)
-  check('single-server consent is highlighted, broad consent remains adjacent', /[❯›>]\s*.*Use this MCP server/.test(frame) && frame.includes('Use this and all future MCP servers in this project'))
+  check('single-server consent is highlighted, broad consent remains adjacent', /[❯›>]\s*.*Use this MCP server/.test(frame) && frame.includes('Use this and all future MCP servers in this project'), 'MCPServerApprovalDialog (src/components/MCPServerApprovalDialog.tsx) must focus the single-server option first and list the all-servers option next to it')
 } finally {
   await clearServerCache('env-fixture', config)
   rmSync(home, { recursive: true, force: true })

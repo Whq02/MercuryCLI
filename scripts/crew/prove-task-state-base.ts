@@ -23,7 +23,7 @@ mock.module(resolve(import.meta.dir, '../../src/utils/task/diskOutput.ts'), () =
 const { createTaskStateBase, generateTaskId, isTerminalTaskStatus } = await import('../../src/Task.js')
 
 for (const status of ['pending', 'running', 'completed', 'failed', 'killed', '', 'stopped', 'COMPLETED', 'toString']) {
-  equal(isTerminalTaskStatus(status as TaskStatus), ['completed', 'failed', 'killed'].includes(status))
+  equal(isTerminalTaskStatus(status as TaskStatus), ['completed', 'failed', 'killed'].includes(status), `isTerminalTaskStatus in src/Task.ts must be true only for completed, failed and killed; it answered wrongly for status ${JSON.stringify(status)}`)
 }
 for (const [type, prefix] of [
   ['local_bash', 'b'], ['local_agent', 'a'], ['remote_agent', 'r'],
@@ -34,8 +34,8 @@ for (const [type, prefix] of [
     nextByte = start
     events.length = 0
     const suffix = Array.from({ length: TASK_ID_SUFFIX_LENGTH }, (_, index) => TASK_ID_ALPHABET[((start + index) % 256) % TASK_ID_ALPHABET.length]).join('')
-    equal(generateTaskId(type as TaskType), prefix + suffix)
-    deepStrictEqual(events, [['random', TASK_ID_SUFFIX_LENGTH]])
+    equal(generateTaskId(type as TaskType), prefix + suffix, `generateTaskId in src/Task.ts must give the kind prefix then the suffix mapped through TASK_ID_ALPHABET from the random bytes; type ${type}, byte start ${start}`)
+    deepStrictEqual(events, [['random', TASK_ID_SUFFIX_LENGTH]], `generateTaskId in src/Task.ts must draw exactly one randomBytes(TASK_ID_SUFFIX_LENGTH) per id; type ${type}, byte start ${start}`)
   }
 }
 
@@ -51,20 +51,20 @@ try {
       get call_id() { events.push('call'); return call },
     }
     const state = createTaskStateBase(args)
-    deepStrictEqual(events, ['id', 'type', 'description', 'call', 'clock', ['path', 'a01234567']])
+    deepStrictEqual(events, ['id', 'type', 'description', 'call', 'clock', ['path', 'a01234567']], 'createTaskStateBase in src/Task.ts must read task_id, task_type, description, call_id, then Date.now, then getTaskOutputPath, once each and in that order')
     deepStrictEqual(state, {
       id: 'a01234567', type: 'local_agent', status: 'pending', description: 'work',
       toolUseId: call, startTime: 123456, outputFile: 'output/a01234567.output', outputOffset: 0, notified: false,
-    })
-    deepStrictEqual(Object.keys(state), ['id', 'type', 'status', 'description', 'toolUseId', 'startTime', 'outputFile', 'outputOffset', 'notified'])
-    equal(Object.getPrototypeOf(state), Object.prototype)
-    equal(Object.hasOwn(state, 'toolUseId'), true)
-    equal(Object.hasOwn(state, 'endTime'), false)
-    equal(Object.hasOwn(state, 'totalPausedMs'), false)
+    }, 'createTaskStateBase in src/Task.ts must return the pending state with these exact fields and values')
+    deepStrictEqual(Object.keys(state), ['id', 'type', 'status', 'description', 'toolUseId', 'startTime', 'outputFile', 'outputOffset', 'notified'], 'createTaskStateBase in src/Task.ts must build the state with its keys in this order')
+    equal(Object.getPrototypeOf(state), Object.prototype, 'createTaskStateBase in src/Task.ts must return a plain object')
+    equal(Object.hasOwn(state, 'toolUseId'), true, 'createTaskStateBase in src/Task.ts must keep toolUseId as an own key even when call_id is undefined')
+    equal(Object.hasOwn(state, 'endTime'), false, 'createTaskStateBase in src/Task.ts must not set endTime on a new state')
+    equal(Object.hasOwn(state, 'totalPausedMs'), false, 'createTaskStateBase in src/Task.ts must not set totalPausedMs on a new state')
     const second = createTaskStateBase(args)
-    notStrictEqual(state, second)
+    notStrictEqual(state, second, 'createTaskStateBase in src/Task.ts must return a new object on every call')
     state.outputOffset = 42
-    equal(second.outputOffset, 0)
+    equal(second.outputOffset, 0, 'createTaskStateBase in src/Task.ts must not share state between calls')
   }
 } finally {
   Date.now = clock

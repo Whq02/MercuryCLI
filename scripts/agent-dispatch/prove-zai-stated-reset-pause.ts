@@ -12,12 +12,20 @@ delete process.env.MERCURY_RECOVERY_BUDGET_MINUTES
 
 let failures = 0
 let checks = 0
+const statedResetWhere: Record<string, string> = {
+  '1': 'change zaiStatedResetWaitMs in src/services/providers/zai/zaiClient.ts',
+  '2': 'change mapZaiHttpFailure in src/services/providers/zai/zaiClient.ts or providerWaitIsWindow in src/services/api/recoveryBudget.ts',
+  '3': 'change usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx or pauseResumeWords and pauseStatusWords in src/tasks/LocalAgentTask/agentPause.ts',
+  '4': 'change usageWindowPauseOf in src/tasks/LocalAgentTask/LocalAgentTask.tsx or pauseResumeWords in src/tasks/LocalAgentTask/agentPause.ts',
+}
+let statedResetHint = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${statedResetHint}${detail ? ' — ' + detail.slice(0, 400) : ''}` : ''}`)
 }
 function section(t: string): void {
+  statedResetHint = statedResetWhere[t.slice(1, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

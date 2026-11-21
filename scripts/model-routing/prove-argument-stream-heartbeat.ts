@@ -6,10 +6,11 @@ import { join } from 'node:path'
 const ROOT = join(import.meta.dir, '..', '..')
 const { streamOpenaiResponses } = await import(join(ROOT, 'src/services/providers/openai/openaiClient.ts'))
 
+const HEARTBEAT_FAILURE_HINT = 'change the stream activity relay used by streamOpenaiResponses in src/services/providers/openai/openaiClient.ts (createStreamActivityRelay, called with onStreamActivity): decoded events must not mint a heartbeat, undecodable bytes must mint one at most once a second'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${[detail, HEARTBEAT_FAILURE_HINT].filter(Boolean).join(' — ')}` : ''}`)
 }
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const sse = (res: ServerResponse, event: Record<string, unknown>): void => {

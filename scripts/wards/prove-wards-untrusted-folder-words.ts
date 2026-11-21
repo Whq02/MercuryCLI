@@ -8,10 +8,11 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const untrustedWordsFixHint = 'change the denial words a folder rule of an untrusted folder gets (the text ending "the same call will be denied again") in src/utils/wards/wards.ts, or untrustedWorkspaceHeadless in src/utils/config/trust.ts for the trust reading, or the wards guard in src/guards/wardsGuard.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${untrustedWordsFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

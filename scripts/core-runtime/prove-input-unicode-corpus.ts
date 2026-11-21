@@ -32,11 +32,20 @@ const { AnsiEmulator } = await import('../ink-runtime/ansiEmulator.js')
 
 let failures = 0
 let checks = 0
+const UNICODE_WHERE: Array<[string, string]> = [
+  ['decoder ', 'parseMultipleKeypresses in src/ink/input/input-decoder.ts (paste start, end and flush handling)'],
+  ['width ', 'stringWidth in src/ink/stringWidth.ts'],
+  ['display ', 'the Parser text grapheme widths in src/ink/termio/display.ts'],
+  ['writer ', 'FrameWriter in src/ink/frame-writer.ts, then optimizePatches in src/ink/patch-stream.ts and writeDiffToTerminal in src/ink/session/delivery.ts'],
+  ['rig paste', 'usePasteHandler in src/hooks/usePasteHandler.ts'],
+  ['rig ', 'the stdin read and paste flush path of src/ink/ink.tsx and parseMultipleKeypresses in src/ink/input/input-decoder.ts'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) {
     failures++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    const hit = UNICODE_WHERE.find(([prefix]) => label.startsWith(prefix))
+    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}${hit ? ` | change ${hit[1]}` : ''}`)
   }
 }
 

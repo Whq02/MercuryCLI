@@ -12,7 +12,7 @@ delete process.env.MERCURY_HOME
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail.slice(0, 500)}` : ''} — fix the secret refusal and draft strike or replace in retainItems, correctMemory and readMemoryRecord in src/mneme/memoryVerbs.ts, secret kinds in detectSecrets in src/utils/detectSecrets.ts, the centre correction in correctFact in src/mneme/mnemeCorrect.ts, or the prompts in src/constants/tools/memory.ts` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -7,9 +7,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const atomicWriteFailureHint = 'change the fallback table in classifyAtomicWriteFailure, the typed AtomicWriteRefusal, or writeFileAndFlushAtomically (temp write, rename, guarded direct write with restore and temp cleanup) in src/utils/file.ts, or the fault injection in src/substrate/durablePublish.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${atomicWriteFailureHint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

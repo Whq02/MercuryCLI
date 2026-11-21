@@ -8,6 +8,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    fix: the credential store read, quarantine of torn bytes and rename publish are in src/utils/secureStorage/plainTextStorage.ts (store chosen by getSecureStorage in src/utils/secureStorage/index.ts); the provider secrets writers (writeStoredOpenaiApiKey and the other writeStored functions) are in src/utils/accounts/providerSecrets.ts; for the keychain checks (L8) look at the other files in src/utils/secureStorage')
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

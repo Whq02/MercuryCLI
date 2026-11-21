@@ -10,7 +10,8 @@ delete process.env.MERCURY_SEATS
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, 'the seat reading, the memory samplers (availableFromVmStat, availableFromMeminfo, availableFromCounter), machineSeatReading, heldMachineSeatReading, recommendSeats and probeCapacity are in src/utils/switchboard/capacityCheck.ts'].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 

@@ -284,7 +284,8 @@ type Act = import('../../src/components/tensorfold/tensorfoldRows.ts').TensorFol
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  const failHint = cond ? '' : ' | to fix: the picker rows, headings and legend are drawn by src/components/MercuryModelPicker.tsx from the facts read in src/components/tensorfold/tensorfoldModelFacts.ts and the rows in src/components/tensorfold/tensorfoldRows.ts; the keys hand their act to src/commands/tensorfold/road.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${failHint}`)
 }
 
 const SIZES: Array<[number, number]> = [[160, 48], [110, 34], [96, 30]]

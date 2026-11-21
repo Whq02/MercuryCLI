@@ -11,12 +11,13 @@ process.env.MERCURY_BARE = '1'
 delete process.env.MERCURY_CHANGE_RECEIPTS
 
 let failures = 0
+const nochangeWriteFailureHint = 'change validateInput, call or mapToolResultToToolResultBlockParam of FileWriteTool in src/tools/FileWriteTool/FileWriteTool.ts (its no-change, create and update classification and the read-before-write refusal), or the streak in src/services/changeTransaction/repetitionPolicy.ts, whichever this label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${nochangeWriteFailureHint}` : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — nochange-write proof exceeded 90s')
+  console.log('\nTIMEOUT — nochange-write proof exceeded 90s; a FileWriteTool call is stuck, so look at call in src/tools/FileWriteTool/FileWriteTool.ts')
   process.exit(1)
 }, 90_000)
 guard.unref?.()

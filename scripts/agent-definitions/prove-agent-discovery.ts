@@ -21,6 +21,7 @@ function check(name: string, cond: boolean, detail?: string): void {
   else {
     failures++
     console.error(`  ✗ ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error('    fix: agent discovery, precedence, memory tools and the standing rule are read in getAgentDefinitionsWithOverrides and parseAgentsFromJson in src/tools/AgentTool/loadAgentsDir.ts; the revision digest is revisionDigest in src/services/agents/contracts.ts')
   }
 }
 

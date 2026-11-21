@@ -24,14 +24,14 @@ try {
     cacheSafeParams: { systemPrompt: [] as never, userContext: {}, systemContext: {}, toolUseContext: {} as never, forkContextMessages: [] },
     run: async () => ({ messages: [createAssistantMessage({ content: text })], terminal: { reason: 'completed' } }),
   })
-  assert.equal(result?.text, text, 'extraction keeps indentation and trailing newlines')
+  assert.equal(result?.text, text, 'extraction keeps indentation and trailing newlines: keep the model text unaltered in askForHandoff in src/mneme/handoffAsk.ts')
   const key = mnemeProjectKey()
   const id = String(getSessionId())
-  assert.equal(ledger.ledgerEntryOf(key, id)?.handoff?.text, text, 'the stored note is byte-equal')
-  assert.equal(ledger.closeEntry(key, id, { outcome: 'closed', handoff: text })?.handoff?.text, text)
-  assert.equal(ledger.recordHandoff(key, id, '  \n')?.handoff?.text, text, 'blank text does not replace the note')
+  assert.equal(ledger.ledgerEntryOf(key, id)?.handoff?.text, text, 'the stored note is byte-equal: store the text unaltered in recordHandoff in src/mneme/ledger.ts')
+  assert.equal(ledger.closeEntry(key, id, { outcome: 'closed', handoff: text })?.handoff?.text, text, 'closing with a handoff must keep its text byte-equal: check closeEntry in src/mneme/ledger.ts')
+  assert.equal(ledger.recordHandoff(key, id, '  \n')?.handoff?.text, text, 'blank text does not replace the note: keep the earlier note when the new text is blank in recordHandoff in src/mneme/ledger.ts')
   const long = ' '.repeat(2) + 'x'.repeat(ledger.HANDOFF_TEXT_CAP)
-  assert.equal(ledger.recordHandoff(key, id, long)?.handoff?.text, long.slice(0, ledger.HANDOFF_TEXT_CAP), 'the existing cap remains')
+  assert.equal(ledger.recordHandoff(key, id, long)?.handoff?.text, long.slice(0, ledger.HANDOFF_TEXT_CAP), 'the existing cap remains: cut the note at HANDOFF_TEXT_CAP without trimming it in recordHandoff in src/mneme/ledger.ts')
   console.log('HANDOFF VERBATIM GREEN')
 } finally {
   rmSync(home, { recursive: true, force: true })

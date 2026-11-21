@@ -14,12 +14,21 @@ import {
 } from '../../src/services/providers/providerUsage.js'
 import type { WalletEntry } from '../../src/services/wallet/wallet.js'
 
+const USAGE_SECTION_HINTS: Record<string, string> = {
+  '1': 'change recordOpenaiRateHeaders in src/services/providers/openai/openaiLimitState.ts so it records only the bands and fields the x-codex headers state',
+  '2': 'change usageWindowLabel in src/services/providers/providerUsage/shared.ts so the label follows the stated window length',
+  '3': 'change activeSourceUsage, openaiObservedWindowViews or openaiSubscriptionCredits in src/services/providers/providerUsage.ts so the shape, label and windows follow the active source',
+  '3b': 'change activeSourceUsage in src/services/providers/providerUsage.ts so the tier word derives from the active wallet entry and plan',
+}
+let usageFailureHint = ''
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, usageFailureHint ? `change: ${usageFailureHint}` : ''].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  usageFailureHint = USAGE_SECTION_HINTS[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

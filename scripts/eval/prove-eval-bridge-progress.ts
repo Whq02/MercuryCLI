@@ -1,5 +1,6 @@
 import { check, cleanup, finish, loadEval, makeContext, setup, within } from './lib.js'
 
+const checkWithHint = (label: string, cond: boolean, detail: string, hint: string) => check(label, cond, cond ? detail : detail ? `${detail}. ${hint}` : hint)
 const { work } = setup()
 const { evalKernelManager } = await loadEval()
 const { EvalTool } = await import('../../src/tools/EvalTool/EvalTool.ts')
@@ -40,18 +41,18 @@ const progress = (row: { toolUseID: string; data: unknown }) => {
 try {
   const running = EvalTool.call({ language: 'js', code: 'await tool.FixtureBridgeProgress({}); await tool.FixtureBridgeProgress({}); await tool.FixtureBridgeProgress({});', timeoutSeconds: 30 }, context, (async (_tool: unknown, input: Record<string, unknown>) => ({ behavior: 'allow', updatedInput: input })) as never, parent, progress as never)
   await within('third bridge tool starts', 20_000, third)
-  check('the existing crew count advances before the cell finishes', getProgressUpdate(tracker).toolUseCount === 4, String(getProgressUpdate(tracker).toolUseCount))
+  checkWithHint('the existing crew count advances before the cell finishes', getProgressUpdate(tracker).toolUseCount === 4, String(getProgressUpdate(tracker).toolUseCount), 'expected 4 (the Eval call plus three bridge calls); look at updateProgressFromMessage in src/tasks/LocalAgentTask/LocalAgentTask.tsx, which must count nested bridge tool ids (evalNestedToolIds) while the cell is still running')
   await new Promise(resolve => setTimeout(resolve, 80))
   unblock()
   const result = await within('bridge cell finishes', 20_000, running)
   const text = String(EvalTool.mapToolResultToToolResultBlockParam(result.data, 'eval-progress').content)
   const metrics = (result.data as typeof result.data & { bridgeTools?: { calls: number; elapsedMs: number } }).bridgeTools
-  check('the cell succeeds', result.data.status === 'ok', text)
-  check('the result counts all three tools and their elapsed time', metrics?.calls === 3 && metrics.elapsedMs >= 80 && /Bridge tools: 3 calls/.test(text), text)
-  check('replayed progress does not double-count nested calls', getProgressUpdate(tracker).toolUseCount === 4)
-  check('settled total keeps the nested calls', countToolUses(messages) === 4, String(countToolUses(messages)))
+  checkWithHint('the cell succeeds', result.data.status === 'ok', text, 'the Eval cell failed, so read the cell output above and the call path in src/tools/EvalTool/EvalTool.ts')
+  checkWithHint('the result counts all three tools and their elapsed time', metrics?.calls === 3 && metrics.elapsedMs >= 80 && /Bridge tools: 3 calls/.test(text), text, 'expected bridgeTools.calls 3 with elapsedMs of at least 80 and a Bridge tools line; look at the bridgeTools field built in call() and its text line in src/tools/EvalTool/EvalTool.ts')
+  checkWithHint('replayed progress does not double-count nested calls', getProgressUpdate(tracker).toolUseCount === 4, '', 'each progress row is fed twice; the seen-id set (bridgeToolUseIds) in updateProgressFromMessage in src/tasks/LocalAgentTask/LocalAgentTask.tsx must count a nested tool id once')
+  checkWithHint('settled total keeps the nested calls', countToolUses(messages) === 4, String(countToolUses(messages)), 'expected 4; countToolUses in src/tools/AgentTool/agentToolUtils.ts must add the distinct nested ids from evalNestedToolIds to the assistant tool_use blocks')
   const prompt = await EvalTool.prompt({ tools: [fixture, EvalTool] } as never)
-  check('the prompt explains summed bridge time and live counting', prompt.includes('parallel call durations are summed') && prompt.includes('existing tool-use total'))
+  checkWithHint('the prompt explains summed bridge time and live counting', prompt.includes('parallel call durations are summed') && prompt.includes('existing tool-use total'), '', 'restore the phrases parallel call durations are summed and existing tool-use total in the Eval prompt in src/tools/EvalTool/prompt.ts')
 } finally {
   unblock()
   await evalKernelManager.disposeAll()

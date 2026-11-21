@@ -9,8 +9,9 @@ import {
 } from './durableOperationMatrix.ts'
 
 let failures = 0
+const durableMatrixFailureHint = 'fix the row or table named in the lines above in scripts/reliability/durableOperationMatrix.ts (a section 4 failure is the renderer scripts/reliability/gen-durable-matrix.ts)'
 const ok = (cond: boolean, label: string) => {
-  console.log(`${cond ? '  ✅' : '  ❌'} ${label}`)
+  console.log(`${cond ? '  ✅' : '  ❌'} ${label}${cond ? '' : ` — ${durableMatrixFailureHint}`}`)
   if (!cond) failures++
 }
 const repo = join(import.meta.dir, '..', '..')

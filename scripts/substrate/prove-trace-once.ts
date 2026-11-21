@@ -4,10 +4,13 @@ import { mkdtempSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+const TRACE_ONCE_HINT = 'change buildInvocationTrace or emitInvocationTrace in src/utils/observability/invocationTrace.ts (record fields killed, durationMs, ok; the MERCURY_TRACE gate) so one call writes one record of this shape'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : (detail ? detail + ' — ' : '') + TRACE_ONCE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

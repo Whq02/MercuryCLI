@@ -7,9 +7,10 @@ import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const stateFixHint = 'change src/utils/verification/verificationState.ts (classifyVerificationCommand for what mints evidence, observeCompletedToolCall and isMutationToolCall for order, verificationSummary for the state and detail, demandedReadBackPaths for read-back debt); the last two checks also read scripts/outcome-pack/ordering.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${stateFixHint}` : ''}`)
 }
 
 const REPO = join(new URL('.', import.meta.url).pathname, '../..')

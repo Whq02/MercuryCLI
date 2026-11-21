@@ -15,9 +15,10 @@ import {
 } from '../../src/services/crew/agentTranscriptReader.ts'
 
 let failures = 0
+const readerFailureHint = 'Change readAgentTranscript or summarizeToolInput in src/services/crew/agentTranscriptReader.ts until this check holds'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${cond ? (detail ? ` — ${detail}` : '') : ` — ${readerFailureHint}${detail ? `. ${detail}` : ''}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

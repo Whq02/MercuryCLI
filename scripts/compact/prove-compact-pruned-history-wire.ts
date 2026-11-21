@@ -312,11 +312,11 @@ let historyA: unknown[]
   const r = await drive(ctxA, seed)
   historyA = transcriptAfter(seed, r)
   check('the run completed without throwing', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('THE RECORD RULE: no turn record carries a function_call the turn did not mint as a tool_use', unmintedRecordCalls(historyA).length === 0, `unminted=${JSON.stringify(unmintedRecordCalls(historyA))}`)
-  check('the cut turn did not stand as the reply: the turn machine asked the model to continue (the notice speaks)', noticeTexts(r.yields).some(t => /ended the stream after partial content/.test(t) && /asked the model to continue/.test(t)), JSON.stringify(noticeTexts(r.yields)))
-  check('the re-issued call ran: its result rides the history', toolResultIds(historyA).includes('a_read_again'), JSON.stringify(toolResultIds(historyA)))
-  check('the closing answer settled last', lastAssistantText(r.yields).startsWith('all ten notes files are read'), lastAssistantText(r.yields))
-  check('twelve Responses requests: nine rounds, the cut, the continuation with its round, the answer', r.wire.length === ROUNDS + 3, String(r.wire.length))
+  check('THE RECORD RULE: no turn record carries a function_call the turn did not mint as a tool_use', unmintedRecordCalls(historyA).length === 0, `unminted=${JSON.stringify(unmintedRecordCalls(historyA))} — a turn record (apexProviderTurn.items) must not keep a function_call the cut turn never minted as a tool_use; the stream-cut settling lives in src/run-core/turn/noToolReply.ts`)
+  check('the cut turn did not stand as the reply: the turn machine asked the model to continue (the notice speaks)', noticeTexts(r.yields).some(t => /ended the stream after partial content/.test(t) && /asked the model to continue/.test(t)), `${JSON.stringify(noticeTexts(r.yields))} — a stream cut after partial content must be continued, not settled as the reply; the notice text is built in src/run-core/turn/noToolReply.ts`)
+  check('the re-issued call ran: its result rides the history', toolResultIds(historyA).includes('a_read_again'), `${JSON.stringify(toolResultIds(historyA))} — the call re-issued after the cut must run its tool and leave a tool_result in the history`)
+  check('the closing answer settled last', lastAssistantText(r.yields).startsWith('all ten notes files are read'), `${lastAssistantText(r.yields)} — the closing answer must be the last non-error assistant row; look for an error row or a continuation that did not finish`)
+  check('twelve Responses requests: nine rounds, the cut, the continuation with its round, the answer', r.wire.length === ROUNDS + 3, `${r.wire.length} requests — expected nine rounds, the cut, the continuation with its round and the answer; a different count means the cut turn was settled or retried differently (src/run-core/turn/noToolReply.ts)`)
 }
 
 section('R1 a history persisted with such a record heals on read — the wire replays no call the content does not carry')
@@ -355,9 +355,9 @@ section('R1 a history persisted with such a record heals on read — the wire re
   const r = await drive(ctxR, persisted)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
   const items = r.wire[0] !== undefined ? inputOf(r.wire[0].body) : []
-  check('the request carries no function_call for the call the content does not hold', !callIds(items).includes('call_persisted_unminted'), JSON.stringify(callIds(items)))
-  check('every function_call the request carries is answered', unansweredCalls(items).length === 0, JSON.stringify(unansweredCalls(items)))
-  check('the turn replays from its content: its text rides as an assistant message item', items.some(i => i.type === 'message' && i.role === 'assistant' && Array.isArray(i.content) && i.content.some(p => String(p.text ?? '') === CUT_TEXT)), JSON.stringify(items.filter(i => i.type === 'message')))
+  check('the request carries no function_call for the call the content does not hold', !callIds(items).includes('call_persisted_unminted'), `${JSON.stringify(callIds(items))} — a persisted turn record that disagrees with its content on function calls must be dropped and the turn replayed from its content (recordAgreesWithContent in src/services/providers/openai/openaiCallModel/bridgeMessages.ts)`)
+  check('every function_call the request carries is answered', unansweredCalls(items).length === 0, `${JSON.stringify(unansweredCalls(items))} — every function_call replayed to the Responses wire needs its function_call_output; see src/services/providers/openai/openaiCallModel/bridgeMessages.ts and src/services/providers/openai/responsesBridge.ts (mapMessagesToOpenaiInput)`)
+  check('the turn replays from its content: its text rides as an assistant message item', items.some(i => i.type === 'message' && i.role === 'assistant' && Array.isArray(i.content) && i.content.some(p => String(p.text ?? '') === CUT_TEXT)), `${JSON.stringify(items.filter(i => i.type === 'message'))} — a turn whose record was dropped must replay its text as an assistant message item (mapMessagesToOpenaiInput in src/services/providers/openai/responsesBridge.ts)`)
 }
 
 section('P1 the prune rung, then the automatic compaction — the summariser\'s request answers every function call')
@@ -372,22 +372,22 @@ section('P1 the prune rung, then the automatic compaction — the summariser\'s 
   const seed = [...historyA, createUserMessage({ content: SECOND_ASK })]
   const r = await drive(ctxA, seed)
   check('the run completed', r.threw === undefined && r.terminal.reason === 'completed', `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} errors=${JSON.stringify(errorTexts(r.yields))}`)
-  check('the notice names summary-first recovery with the provider numbers', noticeTexts(r.yields).some(t => t === 'context overflowed (OpenAI: 129,000 tokens > 128,000) — folding the conversation and retrying'), JSON.stringify(noticeTexts(r.yields)))
-  check('three Responses requests: overflow, summary, post-fold reply', r.wire.length === 3 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))}`)
+  check('the notice names summary-first recovery with the provider numbers', noticeTexts(r.yields).some(t => t === 'context overflowed (OpenAI: 129,000 tokens > 128,000) — folding the conversation and retrying'), `${JSON.stringify(noticeTexts(r.yields))} — the notice is built by overflowRecoveryNotice in src/services/compact/overflowRecovery.ts`)
+  check('three Responses requests: overflow, summary, post-fold reply', r.wire.length === 3 && r.wire.every(w => w.dialect === 'responses'), `${r.wire.length} ${JSON.stringify(r.wire.map(w => w.dialect))} — expected the overflowed request, the summary request and the post-fold reply, all on the responses dialect; the rung order is decided in decideOverflowRecovery (src/services/compact/overflowRecovery.ts)`)
   const retry = r.wire[0]
   const summariser = r.wire[1]
   const retryItems = retry !== undefined ? inputOf(retry.body) : []
   check('the pruned retry answers every function_call it replays', retry !== undefined && unansweredCalls(retryItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(retryItems))}`)
   check('the pruned retry carries placeholders for the results outside the keep-recent window', retryItems.filter(i => i.type === 'function_call_output' && isPlaceholder(i.output)).length >= ROUNDS - 5, JSON.stringify(retryItems.filter(i => i.type === 'function_call_output').map(i => String(i.output).slice(0, 40))))
-  check('the second request is the summariser\'s (the compaction prompt rides last)', summariser !== undefined && isSummariserRequest(summariser.body))
+  check('the second request is the summariser\'s (the compaction prompt rides last)', summariser !== undefined && isSummariserRequest(summariser.body), 'the request after the overflow was not the compaction request; the fold must send the summary prompt as the last input item')
   const items = summariser !== undefined ? inputOf(summariser.body) : []
   check('THE RULE: every function_call the summariser\'s request replays is answered by a function_call_output', summariser !== undefined && unansweredCalls(items).length === 0, `unanswered=${JSON.stringify(unansweredCalls(items))} calls=${JSON.stringify(callIds(items))} outputs=${JSON.stringify(outputIds(items))}`)
   check('no call id is sent twice', duplicateCalls(items).length === 0, JSON.stringify(duplicateCalls(items)))
   check('the pruned results ride the summariser\'s request as their placeholders (the summariser sees the pruned history)', items.filter(i => i.type === 'function_call_output' && isPlaceholder(i.output)).length >= ROUNDS - 5, JSON.stringify(items.filter(i => i.type === 'function_call_output').map(i => String(i.output).slice(0, 40))))
-  check('the late round\'s result rides whole (inside the keep-recent window)', items.some(i => i.type === 'function_call_output' && i.call_id === 'a_read_again' && !isPlaceholder(i.output)))
+  check('the late round\'s result rides whole (inside the keep-recent window)', items.some(i => i.type === 'function_call_output' && i.call_id === 'a_read_again' && !isPlaceholder(i.output)), 'the late round result a_read_again was pruned or missing in the summariser request; the prune rung must keep results inside the keep-recent window')
   check('the turn records replay: reasoning items with their encrypted content ride the summariser\'s request', items.filter(i => i.type === 'reasoning' && typeof i.encrypted_content === 'string').length >= ROUNDS, String(items.filter(i => i.type === 'reasoning').length))
-  check("the boundary yields, typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow', JSON.stringify((boundaryOf(r.yields) as { compactMetadata?: unknown } | undefined)?.compactMetadata))
-  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer' && freshErrorTexts(r.yields, seed).length === 0, JSON.stringify(freshErrorTexts(r.yields, seed)))
+  check("the boundary yields, typed 'overflow'", (boundaryOf(r.yields) as { compactMetadata?: { trigger?: string } } | undefined)?.compactMetadata?.trigger === 'overflow', `${JSON.stringify((boundaryOf(r.yields) as { compactMetadata?: unknown } | undefined)?.compactMetadata)} — the compact boundary of an overflow fold must carry trigger overflow`)
+  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer' && freshErrorTexts(r.yields, seed).length === 0, `${JSON.stringify(freshErrorTexts(r.yields, seed))} — the post-fold reply must settle last with no error row minted by the run; last text: ${lastAssistantText(r.yields)}`)
 }
 
 section('P2 the summariser itself overflows — the truncated retry answers every function call')
@@ -415,7 +415,7 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
   const first = r.wire[1]
   const part = r.wire[2]
   const second = r.wire[3]
-  check('every summariser request carries the compaction prompt', first !== undefined && part !== undefined && second !== undefined && isSummariserRequest(first.body) && isSummariserRequest(part.body) && isSummariserRequest(second.body))
+  check('every summariser request carries the compaction prompt', first !== undefined && part !== undefined && second !== undefined && isSummariserRequest(first.body) && isSummariserRequest(part.body) && isSummariserRequest(second.body), 'one of requests 2 to 4 was not a compaction request; the summariser part and whole retries must each end with the compaction prompt')
   const firstItems = first !== undefined ? inputOf(first.body) : []
   const partItems = part !== undefined ? inputOf(part.body) : []
   const secondItems = second !== undefined ? inputOf(second.body) : []
@@ -424,7 +424,7 @@ section('P2 the summariser itself overflows — the truncated retry answers ever
   check('THE RULE on the part request: every function_call is answered', unansweredCalls(partItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(partItems))} calls=${JSON.stringify(callIds(partItems))} outputs=${JSON.stringify(outputIds(partItems))}`)
   check('THE RULE on the whole retry: every function_call is answered', unansweredCalls(secondItems).length === 0, `unanswered=${JSON.stringify(unansweredCalls(secondItems))} calls=${JSON.stringify(callIds(secondItems))} outputs=${JSON.stringify(outputIds(secondItems))}`)
   check('no call id is sent twice on the whole retry', duplicateCalls(secondItems).length === 0, JSON.stringify(duplicateCalls(secondItems)))
-  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer after a compaction in parts' && freshErrorTexts(r.yields, historyB).length === 0, JSON.stringify(freshErrorTexts(r.yields, historyB)))
+  check('the reply settled last; the run minted no error row', lastAssistantText(r.yields) === 'the recovered answer after a compaction in parts' && freshErrorTexts(r.yields, historyB).length === 0, `${JSON.stringify(freshErrorTexts(r.yields, historyB))} — the reply after the fold in parts must settle last with no error row; last text: ${lastAssistantText(r.yields)}`)
 }
 
 section('P3 with the provider\'s own input rule armed, the whole run goes through with zero refusals')
@@ -448,8 +448,8 @@ section('P3 with the provider\'s own input rule armed, the whole run goes throug
   const r = await drive(ctxC, [...historyC, createUserMessage({ content: SECOND_ASK })])
   fixture.inputRule = false
   check('the history run and the compaction run both completed', a.threw === undefined && a.terminal.reason === 'completed' && r.threw === undefined && r.terminal.reason === 'completed', `history=${JSON.stringify(a.terminal)} compaction=${JSON.stringify(r.terminal)} errors=${JSON.stringify([...errorTexts(a.yields), ...errorTexts(r.yields)])}`)
-  check('the provider\'s input rule refused nothing on the whole run', fixture.refusals.length === 0, JSON.stringify(fixture.refusals))
-  check('the compaction landed and the reply settled last', boundaryOf(r.yields) !== undefined && lastAssistantText(r.yields) === 'the recovered answer under the rule', lastAssistantText(r.yields))
+  check('the provider\'s input rule refused nothing on the whole run', fixture.refusals.length === 0, `${JSON.stringify(fixture.refusals)} — each entry is a request the armed input rule refused for a function_call without its output; find which request in this section replays an unanswered call`)
+  check('the compaction landed and the reply settled last', boundaryOf(r.yields) !== undefined && lastAssistantText(r.yields) === 'the recovered answer under the rule', `${lastAssistantText(r.yields)} — the compact boundary must be yielded and the reply settle last`)
 }
 
 section('C1 a summariser refused for a malformed history — one attempt, a typed line, automatic compaction paused at once')
@@ -473,18 +473,18 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
   delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
   const summariserRequests = r.wire.filter(w => isSummariserRequest(w.body))
   check('the run never threw', r.threw === undefined, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)}`)
-  check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests`)
-  check('malformed history is not a size fallback: no other request is sent', r.wire.length === 1, String(r.wire.length))
+  check('exactly ONE summary request reached the wire — the refusal is not retried as a size problem', summariserRequests.length === 1, `${summariserRequests.length} of ${r.wire.length} requests were summary requests — a pairing refusal must not be retried as a size problem (malformedHistoryRefusalOf in src/services/compact/compact/refusals.ts)`)
+  check('malformed history is not a size fallback: no other request is sent', r.wire.length === 1, `${r.wire.length} requests — after a malformed-history refusal no prune or retry request may follow (src/services/compact/compact/refusals.ts, src/services/compact/autoCompact.ts)`)
   const notices = noticeTexts(r.yields)
   const line = notices.find(t => /malformed history/i.test(t))
-  check('a typed line names the class', line !== undefined, JSON.stringify(notices))
+  check('a typed line names the class', line !== undefined, `${JSON.stringify(notices)} — the class line comes from compactionPausedForHistoryText in src/services/compact/compact/refusals.ts`)
   check("…the provider's own reason", line !== undefined && line.includes('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a'), line ?? '')
   check('…and the remedies: /compact after the heal, /clear, a larger-window model', line !== undefined && line.includes('/compact') && line.includes('/clear') && line.includes('/model'), line ?? '')
   check('…and the pause it applies is the run\'s, never the session\'s (the failure count starts fresh at every query entry)', line !== undefined && line.includes('paused for the rest of this run') && !/for this session/.test(line), line ?? '')
   const errs = errorTexts(r.yields)
-  check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), JSON.stringify(errs))
-  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool-result bod/.test(t)), JSON.stringify(notices))
-  check('terminal blocking_limit', r.terminal.reason === 'blocking_limit', JSON.stringify(r.terminal))
+  check('a typed refusal retains the original malformed history', errs.length === 1 && errs[0]!.includes('paused for the rest of this run'), `${JSON.stringify(errs)} — the typed refusal row must be the only error row and say paused for the rest of this run (src/services/compact/compact/refusals.ts)`)
+  check('no prune is claimed for malformed history', !notices.some(t => /pruned \d+ superseded tool-result bod/.test(t)), `${JSON.stringify(notices)} — a malformed-history refusal must not claim a prune (overflowRecoveryNotice in src/services/compact/overflowRecovery.ts)`)
+  check('terminal blocking_limit', r.terminal.reason === 'blocking_limit', `${JSON.stringify(r.terminal)} — with compaction paused the run must end at the blocking limit`)
 
   section('C2 a manual /compact after that pause still makes its request, and reports the reason and the remedies without claiming a pause')
   {
@@ -499,9 +499,9 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
       threw = error instanceof Error ? error.message : String(error)
     }
     const wire = fixture.captured.slice(before)
-    check('the manual compaction made exactly one summary request', wire.length === 1 && isSummariserRequest(wire[0]!.body), `${wire.length} requests`)
-    check('it failed with the class, the provider\'s call id and the remedies', threw !== undefined && /malformed history/i.test(threw) && threw.includes('call_tlxFSxc72b7dbbq5yBsOGC7a') && threw.includes('/compact') && threw.includes('/clear') && threw.includes('/model'), threw ?? 'no error')
-    check('…and claims no pause: a manual retry stays available', threw !== undefined && !/paused/i.test(threw), threw ?? 'no error')
+    check('the manual compaction made exactly one summary request', wire.length === 1 && isSummariserRequest(wire[0]!.body), `${wire.length} requests — the manual /compact (src/commands/compact/compact.ts) must make exactly one summary request even after the automatic pause`)
+    check('it failed with the class, the provider\'s call id and the remedies', threw !== undefined && /malformed history/i.test(threw) && threw.includes('call_tlxFSxc72b7dbbq5yBsOGC7a') && threw.includes('/compact') && threw.includes('/clear') && threw.includes('/model'), `${threw ?? 'no error'} — the thrown text must come from compactionRefusedForHistoryText (src/services/compact/compact/refusals.ts)`)
+    check('…and claims no pause: a manual retry stays available', threw !== undefined && !/paused/i.test(threw), `${threw ?? 'no error'} — a manual compaction refusal must not say paused (src/services/compact/compact/refusals.ts)`)
   }
 
   section('C3 a subsequent query on the same history makes one fresh attempt — the pause was the run\'s — and says so in the run\'s own scope')
@@ -515,7 +515,7 @@ section('C1 a summariser refused for a malformed history — one attempt, a type
     const again = await drive(ctxD, seed)
     delete process.env.MERCURY_BLOCKING_LIMIT_OVERRIDE
     const summaries = again.wire.filter(w => isSummariserRequest(w.body))
-    check('the subsequent query made exactly one summary request (one attempt per run, never a loop within it)', again.threw === undefined && summaries.length === 1 && again.wire.length === 1, `threw=${again.threw ?? 'no'} requests=${again.wire.length}`)
+    check('the subsequent query made exactly one summary request (one attempt per run, never a loop within it)', again.threw === undefined && summaries.length === 1 && again.wire.length === 1, `threw=${again.threw ?? 'no'} requests=${again.wire.length} — the pause belongs to one run: a new query must make one fresh attempt and no more (src/services/compact/autoCompact.ts)`)
     const lineAgain = noticeTexts(again.yields).find(t => /malformed history/i.test(t))
     check('its line names the run, not the session', lineAgain !== undefined && lineAgain.includes('paused for the rest of this run') && !/for this session/.test(lineAgain), lineAgain ?? JSON.stringify(noticeTexts(again.yields)))
   }
@@ -541,12 +541,12 @@ section('N1 only a pairing complaint is the malformed-history class — a parame
   for (const negative of negatives) {
     fixture.script([negative.body, { text: 'never reached' }])
     const r = await compactOnce(ctxN, historyN, '16000')
-    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
+    check(`${negative.name}: one summary request, one failure counted, no pause`, r.threw === undefined && r.wire.length === 1 && r.result.wasCompacted === false && r.result.consecutiveFailures === 1 && r.result.paused === undefined, `only a pairing complaint may pause (PAIRING_COMPLAINTS in src/services/compact/compact/refusals.ts); threw=${r.threw ?? 'no'} requests=${r.wire.length} result=${JSON.stringify({ consecutiveFailures: r.result.consecutiveFailures, paused: r.result.paused, refusal: String(r.result.refusal ?? '').slice(0, 120) })}`)
     check(`${negative.name}: the reason still rides the refusal, unclassified`, typeof r.result.refusal === 'string' && (r.result.refusal as string).includes(negative.body.error.body.error.message) && !/malformed history/i.test(r.result.refusal as string), String(r.result.refusal ?? ''))
   }
   fixture.script([refusal('No tool output found for function call call_tlxFSxc72b7dbbq5yBsOGC7a.'), { text: 'never reached' }])
   const positive = await compactOnce(ctxN, historyN, '16000')
-  check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
+  check('the pairing complaint itself: one summary request, the breaker at once, the pause', positive.threw === undefined && positive.wire.length === 1 && positive.result.consecutiveFailures === 3 && positive.result.paused === true, `a pairing complaint must trip the breaker at once (src/services/compact/compact/refusals.ts, src/services/compact/autoCompact.ts); threw=${positive.threw ?? 'no'} requests=${positive.wire.length} result=${JSON.stringify({ consecutiveFailures: positive.result.consecutiveFailures, paused: positive.result.paused })}`)
   check("…its line names the class and the provider's call id", typeof positive.result.refusal === 'string' && /malformed history/i.test(positive.result.refusal as string) && (positive.result.refusal as string).includes('call_tlxFSxc72b7dbbq5yBsOGC7a'), String(positive.result.refusal ?? ''))
 }
 

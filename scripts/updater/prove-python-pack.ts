@@ -64,8 +64,9 @@ const BUN = process.execPath
 const IS_WIN = process.platform === 'win32'
 
 let failures = 0
+const pythonFixHint = 'change the owner src/services/privateChannel/vendoredPython.ts for platform, selection, record and check failures, vendor/python.lock.json for lock failures, scripts/vendor/fetch-python.ts for fetch failures, build.ts for build-row and manifest failures, src/services/privateChannel/installLayout.ts and artifactVerify.ts for payload failures, scripts/release/package.mjs and .github/workflows for packager and workflow failures'
 const check = (name: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${name}${cond ? '' : ` — ${detail ? `${detail}; ` : ''}${pythonFixHint}`}`)
   if (!cond) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)

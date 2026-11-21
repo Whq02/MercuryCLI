@@ -9,7 +9,8 @@ const HOME = pinScratchHome('mercury-settings-popup-frame')
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failHint = ok ? '' : ' | to fix: change settingsPopupGeometry in src/components/SettingsPopupSlot.tsx for a size or position mismatch, or the page rows and constants in src/components/Settings/Config.tsx for a row or text mismatch'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${failHint}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

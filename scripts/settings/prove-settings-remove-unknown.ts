@@ -23,7 +23,7 @@ const frames: string[] = []
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${detail ? `${detail}; ` : ''}change removableUnknownKeys and removeUnknownKeys in src/utils/settings/unknownKeyRemoval.ts, the unknown-field warnings getSettingsWithErrors builds in src/utils/settings/settings.ts, or the dialog opened by launchInvalidSettingsDialog in src/dialogLaunchers.tsx (rerun with --frames <dir> to write the painted frames)`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

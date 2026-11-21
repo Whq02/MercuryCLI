@@ -13,7 +13,7 @@ const root = sourceArg < 0 ? resolve(import.meta.dir, '../..') : resolve(process
 const DIST = join(root, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
 if (!existsSync(DIST) || !nodeBin) {
-  console.log(!existsSync(DIST) ? 'FAIL dist/mercury.mjs absent — build first (the pooled gate prebuilds it)' : 'FAIL no node binary on PATH')
+  console.log(!existsSync(DIST) ? 'FAIL dist/mercury.mjs absent — build first (the pooled gate prebuilds it): run bun run build.ts at the repository root, or pass --source-root to a tree that has dist/mercury.mjs' : 'FAIL no node binary on PATH — put a Node 24 binary on PATH before running this proof')
   process.exit(1)
 }
 const scratch = mkdtempSync(join(tmpdir(), 'mention-waits-'))
@@ -31,16 +31,28 @@ delete process.env.NODE_ENV
 
 let failures = 0
 let checks = 0
+const whereToLook: Record<string, string> = {
+  A: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and getAttachments in src/services/attachments/orchestrator.ts must wait for the mentioned file read and carry it to the model',
+  B: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must read mentioned files side by side, give each up at the 10 second ceiling, cancel the read and leave a dropped row with the ceiling reason; the wording the model reads is built in src/services/messages/attachmentText.ts',
+  C: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must leave a dropped row with the true reason for a file it leaves out; the wording the model reads is built in src/services/messages/attachmentText.ts',
+  D: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep its earlier behaviour for non-files, small files and interrupted turns',
+  E: 'the attachment row painted by src/components/messages/AttachmentMessage.tsx must show Read <path> or Dropped <path> with the reason of the row it is given',
+  F: 'the request the built bundle sends must carry each mention kind as processAtMentionedFiles in src/services/attachments/mentionResolvers.ts and src/services/messages/attachmentText.ts word it; rebuild dist/mercury.mjs first',
+  G: 'the request the built bundle sends must carry what processAtMentionedFiles in src/services/attachments/mentionResolvers.ts read or gave up on with a slow disk; rebuild dist/mercury.mjs first',
+  H: 'the read in src/services/attachments/mentionResolvers.ts must clip a dense mentioned file even when each provider token count is slow; rebuild dist/mercury.mjs first',
+  I: 'processAtMentionedFiles in src/services/attachments/mentionResolvers.ts must keep a large mentioned file via its estimate at once when the token count hits a connection error',
+}
 const check = (name: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail.slice(0, 700)}`}`)
+  const fix = ok ? '' : whereToLook[name.charAt(0)] ?? ''
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok || !detail ? '' : ` — ${detail.slice(0, 700)}`}${fix ? ` — to fix: ${fix}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 const sleep = (ms: number): Promise<void> => new Promise(done => setTimeout(done, ms))
 const strip = (text: string): string => text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const guard = setTimeout(() => {
-  console.log('\nFAIL the proof exceeded 300 s')
+  console.log('\nFAIL the proof exceeded 300 s — a read in processAtMentionedFiles (src/services/attachments/mentionResolvers.ts) or a bundle run did not finish; the checks printed above show how far it got')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

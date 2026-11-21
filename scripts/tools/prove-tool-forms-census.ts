@@ -16,14 +16,18 @@ if (process.env.NODE_ENV === 'test') delete process.env.NODE_ENV
 
 let failures = 0
 let checks = 0
-const t = (name: string, ok: boolean, detail = ''): void => {
+const t = (name: string, ok: boolean, detail = '', fix = ''): void => {
   checks++
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail.length > 600 ? `${detail.slice(0, 600)}…` : detail}` : ''}${!ok && fix ? ` — to fix: ${fix}` : ''}`)
   if (!ok) failures++
 }
+const STRICT_FORM_FIX = 'the strict tool form changed; check toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts, which mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts calls'
+const STRIP_NULLS_FIX = 'null stripping changed; check stripNullArgs in src/services/providers/openai/openaiWire.ts, which gateToolCall in src/services/providers/toolCallGate.ts calls'
+const GATE_FIX = 'the gate refused or changed a call it should admit; check gateToolCall in src/services/providers/toolCallGate.ts and stripNullArgs in src/services/providers/openai/openaiWire.ts'
+const STRUCTURED_FIX = 'check toOpenaiStrictSchema and stripExplicitNulls in src/utils/messages/structuredOutputDialect.ts, which this section expects unchanged'
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — tool forms census exceeded 240s')
+  console.log('\nTIMEOUT — tool forms census exceeded 240s; the last section line printed above names the step that hung')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()
@@ -142,8 +146,8 @@ for (const fixture of fixtures) {
 }
 
 section(`§1 the roster: ${catalogued} tools in the scratch catalogue, ${roster.size - catalogued - fixtures.length} more reached through their modules, ${fixtures.length} MCP-shaped fixtures`)
-t('the catalogue is the real one (more than 40 tools)', catalogued > 40, String(catalogued))
-for (const core of ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'Crewmate', 'AskUserQuestion']) t(`roster carries ${core}`, roster.has(core))
+t('the catalogue is the real one (more than 40 tools)', catalogued > 40, String(catalogued), 'getAllBaseTools in src/tools.ts returned too few tools; check the tool catalogue it assembles')
+for (const core of ['Read', 'Edit', 'Write', 'Bash', 'Glob', 'Grep', 'ChangeSet', 'WebFetch', 'Crewmate', 'AskUserQuestion']) t(`roster carries ${core}`, roster.has(core), '', 'the tool is missing from getAllBaseTools in src/tools.ts, or its module under src/tools no longer exports it by that name')
 
 const PUBLISHED_FORMATS = new Set(['date-time', 'time', 'date', 'duration', 'email', 'hostname', 'ipv4', 'ipv6', 'uuid'])
 const PUBLISHED_TYPES = new Set(['string', 'number', 'boolean', 'integer', 'object', 'array', 'null'])
@@ -444,7 +448,7 @@ for (const [name, tool] of roster) {
   try {
     original = originalFor(tool)
   } catch (error) {
-    t(`${name}: a declared schema exists`, false, String(error))
+    t(`${name}: a declared schema exists`, false, String(error), 'declaredInputSchema in src/services/providers/local/schemaTyping.ts could not read this tool schema; check the tool inputSchema or inputJSONSchema under src/tools')
     continue
   }
   const [wire] = mapToolsToOpenai([{ name, input_schema: original }]) as unknown as Node[]
@@ -469,51 +473,51 @@ for (const [name, tool] of roster) {
     if (!/^(G\d+|S\d+|F\d+)\b/.test(reason)) censusFailures.push(`${name}: the reason names no rule: ${reason}`)
   }
 }
-for (const name of MUST_BE_STRICT) t(`${name} is sent strict`, wireByTool.get(name)?.strict === true, JSON.stringify(wireByTool.get(name)?.strict))
-t('every strict form is valid under the published subset and every non-strict tool has a rule-named reason', censusFailures.length === 0, censusFailures.join(' | '))
+for (const name of MUST_BE_STRICT) t(`${name} is sent strict`, wireByTool.get(name)?.strict === true, JSON.stringify(wireByTool.get(name)?.strict), STRICT_FORM_FIX)
+t('every strict form is valid under the published subset and every non-strict tool has a rule-named reason', censusFailures.length === 0, censusFailures.join(' | '), STRICT_FORM_FIX + '; or update EXPECTED_NON_STRICT in this file when the fallback is intended')
 t('a tool whose schema is not an object is sent non-strict, never dropped and never a throw', (() => {
   const [wire] = mapToolsToOpenai([{ name: 'odd', input_schema: {} }]) as unknown as Node[]
   return wire!.strict === false && isNode(wire!.parameters) && wire!.name === 'odd'
-})())
+})(), '', STRICT_FORM_FIX)
 t('one bad schema never sinks its neighbours: a free-form tool beside Read leaves Read strict', (() => {
   const read = originalFor(roster.get('Read')!)
   const wires = mapToolsToOpenai([{ name: 'mcp__fx__freeform', input_schema: { type: 'object' } }, { name: 'Read', input_schema: read }]) as unknown as Node[]
   return wires[0]!.strict === false && wires[1]!.strict === true
-})())
+})(), '', STRICT_FORM_FIX)
 {
   const read = wireByTool.get('Read')!.parameters as Node
   const props = read.properties as Node
-  t('Read strict form: every key required, closed object', JSON.stringify(read.required) === JSON.stringify(Object.keys(props)) && read.additionalProperties === false, JSON.stringify(read.required))
-  t('Read strict form: file_path stays a plain required string', JSON.stringify(props.file_path) === JSON.stringify({ type: 'string', description: 'Absolute path of the file to read' }), JSON.stringify(props.file_path))
-  t('Read strict form: pages is "string or null" and keeps its description', isNode(props.pages) && JSON.stringify(props.pages.type) === '["string","null"]' && typeof props.pages.description === 'string', JSON.stringify(props.pages))
-  t('Read strict form: crop is "the four-integer box or null" (the vendor anyOf spelling for a constrained type)', isNode(props.crop) && Array.isArray(props.crop.anyOf) && JSON.stringify((props.crop.anyOf as Node[])[1]) === '{"type":"null"}' && (props.crop.anyOf as Node[])[0]!.minItems === 4, JSON.stringify(props.crop))
-  t('Read strict form: the description keeps the plain meaning (no vendor words added)', isNode(props.crop) && props.crop.description === ((originalFor(roster.get('Read')!).properties as Node).crop as Node).description && String(props.crop.description).includes('[x1, y1, x2, y2] in original pixels'))
+  t('Read strict form: every key required, closed object', JSON.stringify(read.required) === JSON.stringify(Object.keys(props)) && read.additionalProperties === false, JSON.stringify(read.required), STRICT_FORM_FIX)
+  t('Read strict form: file_path stays a plain required string', JSON.stringify(props.file_path) === JSON.stringify({ type: 'string', description: 'Absolute path of the file to read' }), JSON.stringify(props.file_path), STRICT_FORM_FIX)
+  t('Read strict form: pages is "string or null" and keeps its description', isNode(props.pages) && JSON.stringify(props.pages.type) === '["string","null"]' && typeof props.pages.description === 'string', JSON.stringify(props.pages), STRICT_FORM_FIX)
+  t('Read strict form: crop is "the four-integer box or null" (the vendor anyOf spelling for a constrained type)', isNode(props.crop) && Array.isArray(props.crop.anyOf) && JSON.stringify((props.crop.anyOf as Node[])[1]) === '{"type":"null"}' && (props.crop.anyOf as Node[])[0]!.minItems === 4, JSON.stringify(props.crop), STRICT_FORM_FIX)
+  t('Read strict form: the description keeps the plain meaning (no vendor words added)', isNode(props.crop) && props.crop.description === ((originalFor(roster.get('Read')!).properties as Node).crop as Node).description && String(props.crop.description).includes('[x1, y1, x2, y2] in original pixels'), '', STRICT_FORM_FIX)
   const changeSet = wireByTool.get('ChangeSet')!.parameters as Node
   const unwrap = (node: Node): Node => (Array.isArray(node.anyOf) ? (node.anyOf as Node[])[0]! : node)
   const changes = unwrap((changeSet.properties as Node).changes as Node)
   const hunk = unwrap(((changes.items as Node).properties as Node).hunks as Node)
   const insert = ((hunk.items as Node).properties as Node).insert as Node
-  t('ChangeSet strict form: the nested optional enum hunks[].insert is "before|after or null"', Array.isArray(insert.anyOf) && JSON.stringify((insert.anyOf as Node[])[0]!.enum) === '["before","after"]' && JSON.stringify((insert.anyOf as Node[])[1]) === '{"type":"null"}', JSON.stringify(insert))
+  t('ChangeSet strict form: the nested optional enum hunks[].insert is "before|after or null"', Array.isArray(insert.anyOf) && JSON.stringify((insert.anyOf as Node[])[0]!.enum) === '["before","after"]' && JSON.stringify((insert.anyOf as Node[])[1]) === '{"type":"null"}', JSON.stringify(insert), STRICT_FORM_FIX)
   const fx = wireByTool.get('mcp__fx__nested')!.parameters as Node
   const owner = (fx.properties as Node).owner as Node
   const person = Array.isArray(owner.anyOf) ? ((owner.anyOf as Node[])[0] as Node) : {}
-  t('fixture: an optional object (the inlined $ref) becomes "the closed object or null", its own optional role a nullable enum and name required', JSON.stringify((owner.anyOf as Node[])?.[1]) === '{"type":"null"}' && JSON.stringify(person.required) === '["name","role"]' && person.additionalProperties === false && JSON.stringify(((person.properties as Node).role as Node).anyOf) === JSON.stringify([{ type: 'string', enum: ['lead', 'member'] }, { type: 'null' }]), JSON.stringify(owner))
+  t('fixture: an optional object (the inlined $ref) becomes "the closed object or null", its own optional role a nullable enum and name required', JSON.stringify((owner.anyOf as Node[])?.[1]) === '{"type":"null"}' && JSON.stringify(person.required) === '["name","role"]' && person.additionalProperties === false && JSON.stringify(((person.properties as Node).role as Node).anyOf) === JSON.stringify([{ type: 'string', enum: ['lead', 'member'] }, { type: 'null' }]), JSON.stringify(owner), STRICT_FORM_FIX)
   const kind = (fx.properties as Node).kind as Node
-  t('fixture: a required const stays a const', kind.const === 'note' && kind.type === 'string')
+  t('fixture: a required const stays a const', kind.const === 'note' && kind.type === 'string', '', STRICT_FORM_FIX)
   const priority = (fx.properties as Node).priority as Node
-  t('fixture: a non-null default is kept and hoisted beside the nullable union', priority.default === 'low' && Array.isArray(priority.anyOf), JSON.stringify(priority))
+  t('fixture: a non-null default is kept and hoisted beside the nullable union', priority.default === 'low' && Array.isArray(priority.anyOf), JSON.stringify(priority), STRICT_FORM_FIX)
   const recursive = wireByTool.get('mcp__fx__recursive')!.parameters as Node
   const next = ((((recursive.$defs as Node).node as Node).properties as Node).next as Node)
-  t('fixture: a recursive $ref survives inlining and its optional slot becomes "the reference or null" (the vendor\'s linked-list spelling)', JSON.stringify(next.anyOf) === JSON.stringify([{ $ref: '#/$defs/node' }, { type: 'null' }]) && JSON.stringify(((recursive.$defs as Node).node as Node).required) === '["value","next"]', JSON.stringify(recursive))
+  t('fixture: a recursive $ref survives inlining and its optional slot becomes "the reference or null" (the vendor\'s linked-list spelling)', JSON.stringify(next.anyOf) === JSON.stringify([{ $ref: '#/$defs/node' }, { type: 'null' }]) && JSON.stringify(((recursive.$defs as Node).node as Node).required) === '["value","next"]', JSON.stringify(recursive), STRICT_FORM_FIX)
   const formats = wireByTool.get('mcp__fx__formats')!.parameters as Node
-  t('fixture: format uri is relaxed away and format email kept', ((formats.properties as Node).url as Node).format === undefined && JSON.stringify(((formats.properties as Node).mail as Node).anyOf) === JSON.stringify([{ type: 'string', format: 'email' }, { type: 'null' }]), JSON.stringify(formats.properties))
+  t('fixture: format uri is relaxed away and format email kept', ((formats.properties as Node).url as Node).format === undefined && JSON.stringify(((formats.properties as Node).mail as Node).anyOf) === JSON.stringify([{ type: 'string', format: 'email' }, { type: 'null' }]), JSON.stringify(formats.properties), STRICT_FORM_FIX)
   const unionRoot = wireByTool.get('mcp__fx__union_root')!.parameters as Node
-  t('fixture: the root union collapses to one closed object on the responses lane', unionRoot.type === 'object' && unionRoot.anyOf === undefined && JSON.stringify(unionRoot.required) === '["op","name","force"]', JSON.stringify(unionRoot))
+  t('fixture: the root union collapses to one closed object on the responses lane', unionRoot.type === 'object' && unionRoot.anyOf === undefined && JSON.stringify(unionRoot.required) === '["op","name","force"]', JSON.stringify(unionRoot), STRICT_FORM_FIX)
   const bash = wireByTool.get('Bash')!.parameters as Node
-  t('Bash strict form drops the root $schema pointer the model never reads', !('$schema' in bash))
+  t('Bash strict form drops the root $schema pointer the model never reads', !('$schema' in bash), '', STRICT_FORM_FIX)
   const original = originalFor(roster.get('Read')!)
   mapToolsToOpenai([{ name: 'Read', input_schema: original }])
-  t('the converter never mutates the tool\'s own schema (Read still has one required key)', JSON.stringify(original.required) === '["file_path"]' && !JSON.stringify((original.properties as Node).pages).includes('null'))
+  t('the converter never mutates the tool\'s own schema (Read still has one required key)', JSON.stringify(original.required) === '["file_path"]' && !JSON.stringify((original.properties as Node).pages).includes('null'), '', 'mapToolsToOpenai in src/services/providers/openai/responsesBridge.ts or toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts mutated the schema it was given; copy before editing')
 }
 
 section('§3 the strict form keeps every optional answerable with null and every required one required')
@@ -544,7 +548,7 @@ section('§3 the strict form keeps every optional answerable with null and every
       }
     }
   }
-  t(`every optional slot admits null and every required slot stays as declared (${optionalSlots} optional, ${requiredSlots} required slots across the strict roster)`, slotFailures.length === 0 && optionalSlots > 100, slotFailures.slice(0, 12).join(' | '))
+  t(`every optional slot admits null and every required slot stays as declared (${optionalSlots} optional, ${requiredSlots} required slots across the strict roster)`, slotFailures.length === 0 && optionalSlots > 100, slotFailures.slice(0, 12).join(' | '), STRICT_FORM_FIX + ' (every optional slot must admit null, every required slot must stay as declared)')
 }
 
 section('§4 translate back: null in every optional slot comes back as the omitted form; a required null stays for its own check')
@@ -561,35 +565,35 @@ section('§4 translate back: null in every optional slot comes back as the omitt
     nestedOptionalNulls += nestedNullPaths.length
     if (JSON.stringify(stripped).includes(':null') && !JSON.stringify(expected).includes(':null')) roundTripFailures.push(`${name}: a null survived that the schema calls optional`)
   }
-  t(`the nulls form of every tool strips to its omitted form (${nestedOptionalNulls} nested optional slots covered)`, roundTripFailures.length === 0, roundTripFailures.slice(0, 8).join(' | '))
+  t(`the nulls form of every tool strips to its omitted form (${nestedOptionalNulls} nested optional slots covered)`, roundTripFailures.length === 0, roundTripFailures.slice(0, 8).join(' | '), STRIP_NULLS_FIX)
 
   const changeSet = roster.get('ChangeSet')!
   const original = originalFor(changeSet)
   const call = { op: 'apply', plan_id: null, changes: [{ file_path: PLAIN, expected_anchor: 'fa:0000000000', hunks: [{ lines: '1', replace: 'x', insert: null }] }] }
   const stripped = stripNullArgs(call, original) as Node
   const hunk = (((stripped.changes as Node[])[0]!.hunks as Node[])[0]!) as Node
-  t('ChangeSet: hunks[].insert: null (an optional enum, nested two arrays deep) is removed; the required fields stay', !('insert' in hunk) && hunk.lines === '1' && hunk.replace === 'x' && !('plan_id' in stripped), JSON.stringify(stripped))
+  t('ChangeSet: hunks[].insert: null (an optional enum, nested two arrays deep) is removed; the required fields stay', !('insert' in hunk) && hunk.lines === '1' && hunk.replace === 'x' && !('plan_id' in stripped), JSON.stringify(stripped), STRIP_NULLS_FIX)
   const gated = gateWith(changeSet, call)
-  t('ChangeSet: the gate admits the call (on the base the nested null reached zod and was refused)', gated.ok, gated.ok ? '' : gated.message)
+  t('ChangeSet: the gate admits the call (on the base the nested null reached zod and was refused)', gated.ok, gated.ok ? '' : gated.message, GATE_FIX)
 
   const read = roster.get('Read')!
   const readOriginal = originalFor(read)
   const strictAnswer = { file_path: PLAIN, offset: null, limit: null, ranges: null, pages: null, crop: null, outline: null, line_anchors: null }
-  t('Read: a strict-dialect answer with null in every unused box strips to {file_path}', JSON.stringify(stripNullArgs(strictAnswer, readOriginal)) === JSON.stringify({ file_path: PLAIN }))
+  t('Read: a strict-dialect answer with null in every unused box strips to {file_path}', JSON.stringify(stripNullArgs(strictAnswer, readOriginal)) === JSON.stringify({ file_path: PLAIN }), '', STRIP_NULLS_FIX)
   t('Read: a null in the required file_path slot stays and the schema refuses it (the required check, not a silent drop)', (() => {
     const kept = stripNullArgs({ file_path: null, limit: null }, readOriginal) as Node
     return kept.file_path === null && !('limit' in kept) && read.inputSchema.safeParse(kept).success === false
-  })())
+  })(), '', STRIP_NULLS_FIX + ' (a null in a required slot must be kept, not dropped)')
   t('a null inside a free-form object is payload and stays', (() => {
     const schema = { type: 'object', properties: { doc: { type: 'object' } }, required: ['doc'] }
     const out = stripNullArgs({ doc: { a: null, b: 1 } }, schema) as Node
     return JSON.stringify(out) === JSON.stringify({ doc: { a: null, b: 1 } })
-  })())
-  t('a null element of an array is never dropped', JSON.stringify(stripNullArgs({ xs: [null, { a: null }] }, { type: 'object', properties: { xs: { type: 'array', items: { type: 'object', properties: { a: { type: 'string' } } } } } })) === JSON.stringify({ xs: [null, {}] }))
-  t('a required nullable slot keeps its null (payload)', JSON.stringify(stripNullArgs({ v: null }, { type: 'object', properties: { v: { type: ['string', 'null'] } }, required: ['v'] })) === JSON.stringify({ v: null }))
-  t('a union: optional in one arm and required in another — the null goes (the required arm refuses absence just the same)', JSON.stringify(stripNullArgs({ op: 'a', plan: null }, { type: 'object', properties: { op: { type: 'string' } }, anyOf: [{ properties: { plan: { type: 'string' } } }, { properties: { plan: { type: 'string' } }, required: ['plan'] }] })) === JSON.stringify({ op: 'a' }))
-  t('without a schema the old top-level law holds (back-compat for schema-less callers)', JSON.stringify(stripNullArgs({ a: null, b: { c: null } })) === JSON.stringify({ b: { c: null } }))
-  t('the fixture union root: a null for the optional force field goes through the collapsed root', JSON.stringify(stripNullArgs({ op: 'stop', name: 'svc', force: null }, originalFor(roster.get('mcp__fx__union_root')!))) === JSON.stringify({ op: 'stop', name: 'svc' }))
+  })(), '', STRIP_NULLS_FIX)
+  t('a null element of an array is never dropped', JSON.stringify(stripNullArgs({ xs: [null, { a: null }] }, { type: 'object', properties: { xs: { type: 'array', items: { type: 'object', properties: { a: { type: 'string' } } } } } })) === JSON.stringify({ xs: [null, {}] }), '', STRIP_NULLS_FIX)
+  t('a required nullable slot keeps its null (payload)', JSON.stringify(stripNullArgs({ v: null }, { type: 'object', properties: { v: { type: ['string', 'null'] } }, required: ['v'] })) === JSON.stringify({ v: null }), '', STRIP_NULLS_FIX)
+  t('a union: optional in one arm and required in another — the null goes (the required arm refuses absence just the same)', JSON.stringify(stripNullArgs({ op: 'a', plan: null }, { type: 'object', properties: { op: { type: 'string' } }, anyOf: [{ properties: { plan: { type: 'string' } } }, { properties: { plan: { type: 'string' } }, required: ['plan'] }] })) === JSON.stringify({ op: 'a' }), '', STRIP_NULLS_FIX)
+  t('without a schema the old top-level law holds (back-compat for schema-less callers)', JSON.stringify(stripNullArgs({ a: null, b: { c: null } })) === JSON.stringify({ b: { c: null } }), '', STRIP_NULLS_FIX)
+  t('the fixture union root: a null for the optional force field goes through the collapsed root', JSON.stringify(stripNullArgs({ op: 'stop', name: 'svc', force: null }, originalFor(roster.get('mcp__fx__union_root')!))) === JSON.stringify({ op: 'stop', name: 'svc' }), '', STRIP_NULLS_FIX)
 }
 
 section('§5 the all-blanks form: Astra\'s placeholders in every optional box on a plain valid target, through the gate and validateInput')
@@ -651,21 +655,21 @@ section('§5 the all-blanks form: Astra\'s placeholders in every optional box on
     const kept = parsedBlanks.ok ? Object.keys(parsedBlanks.input).filter(key => blankKeys.includes(key)) : []
     row.blanks = kept.length > 0 ? `passes (meaningful empties kept: ${kept.join(', ')})` : 'passes'
   }
-  t('no tool refuses a placeholder that carries no meaning', defects.length === 0, defects.join(' | '))
+  t('no tool refuses a placeholder that carries no meaning', defects.length === 0, defects.join(' | '), GATE_FIX + '; or the validateInput of the tool named in the defect, which must treat a blank optional as absent')
 
   const read = roster.get('Read')!
   const astra = { file_path: PLAIN, offset: 1, limit: 2000, ranges: [], pages: '', crop: [0, 0, 0, 0], outline: false, line_anchors: false }
   const gated = gateToolCall([read] as never, { id: 'astra', name: 'Read', argumentsRaw: JSON.stringify(astra), malformed: false })
-  t('Read: the exact Astra call (every box filled) passes the gate', gated.ok, gated.ok ? '' : gated.refusal.reason)
+  t('Read: the exact Astra call (every box filled) passes the gate', gated.ok, gated.ok ? '' : gated.refusal.reason, GATE_FIX)
   if (gated.ok) {
     const verdict = await validateWith(read, gated.input)
-    t('Read: the exact Astra call passes validateInput', verdict.ok, verdict.ok ? '' : verdict.message)
+    t('Read: the exact Astra call passes validateInput', verdict.ok, verdict.ok ? '' : verdict.message, 'validateInput of the Read tool under src/tools refused a call the gate admitted; it must treat the blank and zero optionals as absent')
     try {
       const result = await (read as unknown as { call: Function }).call(gated.input, makeContext(), null, { uuid: '00000000-0000-0000-0000-000000000001', message: { id: 'msg_census_1' } })
       const notes = ((result.newMessages ?? []) as Array<{ message?: { content?: unknown } }>).map(m => String(m.message?.content ?? ''))
-      t('Read: the exact Astra call reads the .md file with no refusal and no "ignored" note (the zero box is no crop at all)', result.data?.type === 'text' && !notes.some(note => note.includes('ignored')), `type=${result.data?.type} notes=${JSON.stringify(notes)}`)
+      t('Read: the exact Astra call reads the .md file with no refusal and no "ignored" note (the zero box is no crop at all)', result.data?.type === 'text' && !notes.some(note => note.includes('ignored')), `type=${result.data?.type} notes=${JSON.stringify(notes)}`, 'the Read tool call must read a .md file with a zero crop box and give no refusal and no ignored note')
     } catch (error) {
-      t('Read: the exact Astra call reads the .md file', false, error instanceof Error ? error.message : String(error))
+      t('Read: the exact Astra call reads the .md file', false, error instanceof Error ? error.message : String(error), 'the Read tool call under src/tools threw on the Astra call; fix the throw it names')
     }
   }
   const second = { file_path: PLAIN, offset: 1, limit: 2000, ranges: [], pages: '', crop: [0, 0, 1, 1], outline: false, line_anchors: false }
@@ -673,41 +677,41 @@ section('§5 the all-blanks form: Astra\'s placeholders in every optional box on
   if (gated2.ok) {
     const result = await (read as unknown as { call: Function }).call(gated2.input, makeContext(), null, { uuid: '00000000-0000-0000-0000-000000000002', message: { id: 'msg_census_2' } })
     const notes = ((result.newMessages ?? []) as Array<{ message?: { content?: unknown } }>).map(m => String(m.message?.content ?? ''))
-    t('Read: the other seat\'s [0,0,1,1] box on a .md file reads the file and attaches the one "crop ignored" note (the lead\'s net stays)', result.data?.type === 'text' && notes.filter(note => note.includes('crop ignored')).length === 1, JSON.stringify(notes))
-  } else t('Read: the [0,0,1,1] form passes the gate', false, gated2.refusal.reason)
+    t('Read: the other seat\'s [0,0,1,1] box on a .md file reads the file and attaches the one "crop ignored" note (the lead\'s net stays)', result.data?.type === 'text' && notes.filter(note => note.includes('crop ignored')).length === 1, JSON.stringify(notes), 'a [0,0,1,1] crop on a .md file must read the file and attach exactly one crop ignored note from the Read tool under src/tools')
+  } else t('Read: the [0,0,1,1] form passes the gate', false, gated2.refusal.reason, GATE_FIX)
   const edit = roster.get('Edit')!
   const editDelete = gateToolCall([edit] as never, { id: 'e', name: 'Edit', argumentsRaw: JSON.stringify({ file_path: PLAIN, old_string: 'body line', new_string: '' }), malformed: false })
-  t('Edit: new_string "" is meaningful (a deletion) and is kept by the gate, never stripped as a blank', editDelete.ok && editDelete.input.new_string === '', editDelete.ok ? JSON.stringify(editDelete.input) : editDelete.refusal.reason)
+  t('Edit: new_string "" is meaningful (a deletion) and is kept by the gate, never stripped as a blank', editDelete.ok && editDelete.input.new_string === '', editDelete.ok ? JSON.stringify(editDelete.input) : editDelete.refusal.reason, GATE_FIX + ' (an empty new_string is a deletion and must be kept)')
   const shared = makeContext() as { readFileState: unknown }
   await (read as unknown as { call: Function }).call({ file_path: PLAIN }, shared, null, { uuid: '00000000-0000-0000-0000-000000000003', message: { id: 'msg_census_3' } })
   const editBlanks = gateToolCall([edit] as never, { id: 'eb', name: 'Edit', argumentsRaw: JSON.stringify({ file_path: PLAIN, old_string: 'body line', new_string: 'x', expected_anchor: '', replace_all: false, hunks: [], append: '', section: '' }), malformed: false })
-  t('Edit: a replace with every other optional box blank reaches validateInput as the plain replace (the blanks read as absent)', editBlanks.ok && JSON.stringify(Object.keys(editBlanks.input).sort()) === JSON.stringify(['file_path', 'new_string', 'old_string', 'replace_all']), editBlanks.ok ? JSON.stringify(editBlanks.input) : editBlanks.refusal.reason)
+  t('Edit: a replace with every other optional box blank reaches validateInput as the plain replace (the blanks read as absent)', editBlanks.ok && JSON.stringify(Object.keys(editBlanks.input).sort()) === JSON.stringify(['file_path', 'new_string', 'old_string', 'replace_all']), editBlanks.ok ? JSON.stringify(editBlanks.input) : editBlanks.refusal.reason, GATE_FIX + ' (blank optionals must read as absent)')
   if (editBlanks.ok) {
     const verdict = await (edit.validateInput as Function)(editBlanks.input, shared)
-    t('Edit: validateInput accepts that replace after a Read in the same session', verdict.result === true, String(verdict.message ?? ''))
+    t('Edit: validateInput accepts that replace after a Read in the same session', verdict.result === true, String(verdict.message ?? ''), 'validateInput of the Edit tool under src/tools refused a plain replace after a Read in the same session')
   }
   const changeSet = roster.get('ChangeSet')!
   const previewBlanks = gateToolCall([changeSet] as never, { id: 'cb', name: 'ChangeSet', argumentsRaw: JSON.stringify({ op: 'preview', plan_id: '', changes: [{ file_path: PLAIN, expected_anchor: 'fa:0000000000', hunks: [{ lines: '1', replace: 'x' }] }] }), malformed: false })
-  t('ChangeSet: a preview with plan_id "" (the either/or box filled blank) reaches validateInput without the box', previewBlanks.ok && !('plan_id' in previewBlanks.input) && (await (changeSet.validateInput as Function)(previewBlanks.input, makeContext())).result === true, previewBlanks.ok ? JSON.stringify(previewBlanks.input) : previewBlanks.refusal.reason)
+  t('ChangeSet: a preview with plan_id "" (the either/or box filled blank) reaches validateInput without the box', previewBlanks.ok && !('plan_id' in previewBlanks.input) && (await (changeSet.validateInput as Function)(previewBlanks.input, makeContext())).result === true, previewBlanks.ok ? JSON.stringify(previewBlanks.input) : previewBlanks.refusal.reason, GATE_FIX + ' (a blank plan_id must read as absent)')
   const jev = roster.get('JevEval')!
   const noul = gateToolCall([jev] as never, { id: 'j', name: 'JevEval', argumentsRaw: JSON.stringify({ goal: 'g', evidence: [{ fact: 'x' }], questions: [{ id: 'q', kind: 'noul', ask: 'does it hold', levels: [], none_means: '', allow_none: false }] }), malformed: false })
   const parsedNoul = noul.ok ? (jev.inputSchema.safeParse(noul.input) as { success: boolean; data?: { questions: Node[] } }) : undefined
-  t('JevEval: a noul question with the choice/score boxes blank (levels [], none_means "", allow_none false) is admitted and parses to the plain question', noul.ok && parsedNoul?.success === true && JSON.stringify(parsedNoul.data?.questions[0]) === JSON.stringify({ id: 'q', kind: 'noul', ask: 'does it hold' }), noul.ok ? JSON.stringify(parsedNoul?.data?.questions[0]) : noul.refusal.reason)
+  t('JevEval: a noul question with the choice/score boxes blank (levels [], none_means "", allow_none false) is admitted and parses to the plain question', noul.ok && parsedNoul?.success === true && JSON.stringify(parsedNoul.data?.questions[0]) === JSON.stringify({ id: 'q', kind: 'noul', ask: 'does it hold' }), noul.ok ? JSON.stringify(parsedNoul?.data?.questions[0]) : noul.refusal.reason, GATE_FIX + ' (blank choice and score boxes on a noul question must read as absent)')
   const choice = gateToolCall([jev] as never, { id: 'j2', name: 'JevEval', argumentsRaw: JSON.stringify({ goal: 'g', evidence: [{ fact: 'x' }], questions: [{ id: 'q', kind: 'choice', ask: 'which', options: { a: null, b: null }, allow_none: false }] }), malformed: false })
   const parsedChoice = choice.ok ? (jev.inputSchema.safeParse(choice.input) as { success: boolean; data?: { questions: Node[] } }) : undefined
-  t('JevEval: allow_none false on a choice question stays (there it is meaningful and required)', choice.ok && parsedChoice?.success === true && parsedChoice.data?.questions[0]!.allow_none === false, choice.ok ? JSON.stringify(parsedChoice?.data?.questions[0]) : choice.refusal.reason)
+  t('JevEval: allow_none false on a choice question stays (there it is meaningful and required)', choice.ok && parsedChoice?.success === true && parsedChoice.data?.questions[0]!.allow_none === false, choice.ok ? JSON.stringify(parsedChoice?.data?.questions[0]) : choice.refusal.reason, GATE_FIX + ' (allow_none false on a choice question must be kept)')
   const emptyChoice = gateToolCall([jev] as never, { id: 'j3', name: 'JevEval', argumentsRaw: JSON.stringify({ goal: 'g', evidence: [{ fact: 'x' }], questions: [{ id: 'q', kind: 'choice', ask: 'which', options: {} }] }), malformed: false })
-  t('JevEval: a choice question with empty options is still refused (an empty map is meaningful there: no options at all)', !emptyChoice.ok, emptyChoice.ok ? JSON.stringify(emptyChoice.input) : '')
+  t('JevEval: a choice question with empty options is still refused (an empty map is meaningful there: no options at all)', !emptyChoice.ok, emptyChoice.ok ? JSON.stringify(emptyChoice.input) : '', GATE_FIX + ' (an empty options map on a choice question must stay and be refused)')
 }
 
 section('§6 the structured-output converter is untouched')
 {
   const schema = { type: 'object', properties: { a: { type: 'string' }, b: { type: 'number' } }, required: ['a'] }
   const strict = toOpenaiStrictSchema(schema) as Node
-  t('toOpenaiStrictSchema still spells optional as a type union and closes the object', JSON.stringify(strict) === JSON.stringify({ type: 'object', properties: { a: { type: 'string' }, b: { type: ['number', 'null'] } }, required: ['a', 'b'], additionalProperties: false }), JSON.stringify(strict))
-  t('toOpenaiStrictSchema is idempotent', JSON.stringify(toOpenaiStrictSchema(strict)) === JSON.stringify(strict))
-  t('stripExplicitNulls still drops every null key recursively and keeps array nulls', JSON.stringify(stripExplicitNulls({ a: null, b: { c: null, d: [null, 1] } })) === JSON.stringify({ b: { d: [null, 1] } }))
-  t('the tool dialect is a sibling, not a rewrite: the two converters differ on a constrained optional (anyOf spelling vs type union)', JSON.stringify(toOpenaiStrictToolSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })) !== JSON.stringify(toOpenaiStrictSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })))
+  t('toOpenaiStrictSchema still spells optional as a type union and closes the object', JSON.stringify(strict) === JSON.stringify({ type: 'object', properties: { a: { type: 'string' }, b: { type: ['number', 'null'] } }, required: ['a', 'b'], additionalProperties: false }), JSON.stringify(strict), STRUCTURED_FIX)
+  t('toOpenaiStrictSchema is idempotent', JSON.stringify(toOpenaiStrictSchema(strict)) === JSON.stringify(strict), '', STRUCTURED_FIX)
+  t('stripExplicitNulls still drops every null key recursively and keeps array nulls', JSON.stringify(stripExplicitNulls({ a: null, b: { c: null, d: [null, 1] } })) === JSON.stringify({ b: { d: [null, 1] } }), '', STRUCTURED_FIX)
+  t('the tool dialect is a sibling, not a rewrite: the two converters differ on a constrained optional (anyOf spelling vs type union)', JSON.stringify(toOpenaiStrictToolSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })) !== JSON.stringify(toOpenaiStrictSchema({ type: 'object', properties: { n: { type: 'integer', minimum: 0 } } })), '', STRICT_FORM_FIX + '; it must stay a sibling of toOpenaiStrictSchema in src/utils/messages/structuredOutputDialect.ts')
 }
 
 section('§7 the census table (tool · strict or not · why · all-blanks verdict)')

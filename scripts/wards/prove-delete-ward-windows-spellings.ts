@@ -1,9 +1,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const deleteWardFixHint = 'change the no-root-recursive-delete and no-other-user-delete rules or windowsRemovalPatterns in src/utils/wards/wards.ts (a refused spelling needs a pattern added, an allowed one a pattern narrowed), and isDangerousRemovalRawPath in src/tools/PowerShellTool/pathValidation.ts for the section 5 hard-deny checks'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '; ' : ' — '}${deleteWardFixHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

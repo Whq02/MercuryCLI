@@ -18,7 +18,8 @@ const { keyLaneProviderRows, keyConnectValue } = await import('../../src/service
 const { subModelConnectHome } = await import('../../src/services/model/subModelSlots.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const metaFailureHint = 'change the Meta rows and words in src/services/providers/ (modelRegistry.ts, providerUsage.ts, providerUsability.ts, providerDiscovery.ts), src/components/loginFamilyRows.ts, src/components/BootLoginsScreen.tsx, src/services/model/modelOptions.ts or src/services/model/subModelSlots.ts, whichever this check names'
+const check = (name: string, value: unknown): void => { assert.ok(value, `${name} — ${metaFailureHint}`); count++; console.log(`[PASS] ${name}`) }
 try {
   check('Meta is a primary provider, with a signed-out usage and readiness truth', buildProviderSnapshot().providers.some(provider => provider.id === 'meta') && usageForProvider('meta').sourceKind === 'none' && !resolveProviderUsability().meta.usable)
   check('both family words focus the same sign-in and default-provider doors', ['meta', 'muse'].every(word => parseFamilyFocus(word) === 'meta' && parseDefaultProviderWord(word) === 'meta'))

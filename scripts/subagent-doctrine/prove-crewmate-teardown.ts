@@ -60,7 +60,7 @@ const SEAT = processOwnerForLane(null)
 
 section('§1 THE SEAM — the run\'s finally ends the lane\'s live processes beside its shells; the live stores say so')
 {
-  check('ownerLifecycle exports disposeOwnerProcesses', typeof lifecycle.disposeOwnerProcesses === 'function')
+  check('ownerLifecycle exports disposeOwnerProcesses', typeof lifecycle.disposeOwnerProcesses === 'function', 'export disposeOwnerProcesses from src/utils/run/ownerLifecycle.ts; runAgent in src/tools/AgentTool/runAgent.ts calls it in its finally')
 }
 
 section('§2 EVAL — the crewmate\'s kernel and the children its cells spawned are gone; the seat\'s kernel stays')
@@ -77,14 +77,14 @@ if (posix) {
   }
   const crew = pids(crewCell as never)
   const seat = pids(seatCell as never)
-  check('the crewmate\'s cell ran and named its kernel and its child', crewCell.status === 'ok' && crew.kernel !== undefined && crew.child !== undefined, JSON.stringify(crewCell).slice(0, 300))
-  check('the seat\'s cell ran', seatCell.status === 'ok' && seat.kernel !== undefined, JSON.stringify(seatCell).slice(0, 200))
-  check('two kernels live before the crewmate ends', evalKernelManager.kernelCount() === 2 && alive(crew.kernel) && alive(crew.child) && alive(seat.kernel), `count=${evalKernelManager.kernelCount()}`)
+  check('the crewmate\'s cell ran and named its kernel and its child', crewCell.status === 'ok' && crew.kernel !== undefined && crew.child !== undefined, JSON.stringify(crewCell).slice(0, 300) + ' | the js cell must run and return its kernel and child pids; look at runCell in src/services/eval/kernelManager.ts')
+  check('the seat\'s cell ran', seatCell.status === 'ok' && seat.kernel !== undefined, JSON.stringify(seatCell).slice(0, 200) + ' | the js cell must run and return its kernel pid; look at runCell in src/services/eval/kernelManager.ts')
+  check('two kernels live before the crewmate ends', evalKernelManager.kernelCount() === 2 && alive(crew.kernel) && alive(crew.child) && alive(seat.kernel), `count=${evalKernelManager.kernelCount()} | each owner needs its own live kernel; look at runCell in src/services/eval/kernelManager.ts`)
   await disposeOwnerProcesses(CREW)
-  check('the crewmate\'s kernel row is gone and the seat\'s stays', evalKernelManager.kernelCount() === 1, `count=${evalKernelManager.kernelCount()}`)
-  check(`the crewmate's kernel process is gone (pid ${crew.kernel})`, await goneSoon(crew.kernel))
-  check(`the child its cell spawned is gone too (pid ${crew.child}) — the kernel led its own group`, await goneSoon(crew.child))
-  check(`the seat's kernel is still alive (pid ${seat.kernel})`, alive(seat.kernel))
+  check('the crewmate\'s kernel row is gone and the seat\'s stays', evalKernelManager.kernelCount() === 1, `count=${evalKernelManager.kernelCount()} | the owner-scoped store registered in src/services/eval/kernelManager.ts must drop the crewmate's kernel when disposeOwnerProcesses runs`)
+  check(`the crewmate's kernel process is gone (pid ${crew.kernel})`, await goneSoon(crew.kernel), 'the kernel store in src/services/eval/kernelManager.ts must kill the crewmate kernel process when disposeOwnerProcesses runs')
+  check(`the child its cell spawned is gone too (pid ${crew.child}) — the kernel led its own group`, await goneSoon(crew.child), 'the kernel in src/services/eval/kernelManager.ts must start in its own process group and be killed as a group, so the cell children die with it')
+  check(`the seat's kernel is still alive (pid ${seat.kernel})`, alive(seat.kernel), 'disposing one owner in src/services/eval/kernelManager.ts must leave other owners kernels running')
   await evalKernelManager.disposeAll()
   check('cleanup: every kernel disposed', evalKernelManager.kernelCount() === 0 && (await goneSoon(seat.kernel)))
   if (crew.child && alive(crew.child)) process.kill(crew.child, 'SIGKILL')
@@ -100,15 +100,15 @@ if (posix) {
   const crewProject = await services.startService({ spec: spec('crew-project', 'project'), sessionId: 'proof', owner: CREW } as never)
   const seatSession = await services.startService({ spec: spec('seat-session', 'session'), sessionId: 'proof', owner: SEAT } as never)
   const pidOf = (r: unknown): number | null => ('record' in (r as object) ? (r as { record: { pid: number | null } }).record.pid : null)
-  check('three services started', pidOf(crewSession) !== null && pidOf(crewProject) !== null && pidOf(seatSession) !== null, JSON.stringify([crewSession, crewProject, seatSession]).slice(0, 300))
-  check('the live store counts the two session-lifecycle rows', lifecycle.ownerLifecycleCounts().stores['project-services'] === 2, JSON.stringify(lifecycle.ownerLifecycleCounts().stores))
+  check('three services started', pidOf(crewSession) !== null && pidOf(crewProject) !== null && pidOf(seatSession) !== null, JSON.stringify([crewSession, crewProject, seatSession]).slice(0, 300) + ' | startService in src/services/projectServices/serviceManager.ts must return a record with a pid')
+  check('the live store counts the two session-lifecycle rows', lifecycle.ownerLifecycleCounts().stores['project-services'] === 2, JSON.stringify(lifecycle.ownerLifecycleCounts().stores) + ' | startService in src/services/projectServices/serviceManager.ts must count only session-lifecycle rows in its owner-scoped store')
   await disposeOwnerProcesses(CREW)
   const after = services.reconcileRecord(work, 'crew-session')
-  check('the crewmate\'s session service record reads stopped with no pid', after?.state === 'stopped' && after.pid === null, JSON.stringify(after))
-  check(`its process is gone (pid ${pidOf(crewSession)})`, await goneSoon(pidOf(crewSession)))
-  check('the registry holds no row for the crewmate', lifecycle.ownerLifecycleCounts().stores['project-services'] === 1)
-  check(`the crewmate's project-lifecycle service survives, by its own word (pid ${pidOf(crewProject)})`, alive(pidOf(crewProject)) && services.reconcileRecord(work, 'crew-project')?.state !== 'stopped')
-  check(`the seat's session service survives (pid ${pidOf(seatSession)})`, alive(pidOf(seatSession)))
+  check('the crewmate\'s session service record reads stopped with no pid', after?.state === 'stopped' && after.pid === null, JSON.stringify(after) + ' | the store registered in src/services/projectServices/serviceManager.ts must stop the crewmate session services and clear their pid when disposeOwnerProcesses runs')
+  check(`its process is gone (pid ${pidOf(crewSession)})`, await goneSoon(pidOf(crewSession)), 'the store registered in src/services/projectServices/serviceManager.ts must kill the session service process when disposeOwnerProcesses runs')
+  check('the registry holds no row for the crewmate', lifecycle.ownerLifecycleCounts().stores['project-services'] === 1, 'the store in src/services/projectServices/serviceManager.ts must drop the crewmate session row and keep the rest')
+  check(`the crewmate's project-lifecycle service survives, by its own word (pid ${pidOf(crewProject)})`, alive(pidOf(crewProject)) && services.reconcileRecord(work, 'crew-project')?.state !== 'stopped', 'the store in src/services/projectServices/serviceManager.ts must not stop a project-lifecycle service when the owner ends')
+  check(`the seat's session service survives (pid ${pidOf(seatSession)})`, alive(pidOf(seatSession)), 'the store in src/services/projectServices/serviceManager.ts must only touch the disposed owner services')
   for (const name of ['crew-project', 'seat-session', 'crew-session']) await services.stopService(work, name)
   check('cleanup: the other two stopped', (await goneSoon(pidOf(crewProject))) && (await goneSoon(pidOf(seatSession))))
 } else {
@@ -120,10 +120,10 @@ const journeys = await import('../../src/services/journeys/runner.ts')
 if (posix) {
   const record = await within('journey', 30_000, journeys.runJourney({ objective: 'keep a fixture service', steps: [{ kind: 'service.start', name: 'jy-kept', command: 'sleep', args: ['300'] }], cleanup: 'keep' } as never, { owner: CREW, root: work }))
   const kept = services.reconcileRecord(work, 'jy-kept')
-  check('the journey kept its service running', record.state === 'succeeded' && kept !== null && alive(kept.pid), JSON.stringify({ state: record.state, pid: kept?.pid }))
+  check('the journey kept its service running', record.state === 'succeeded' && kept !== null && alive(kept.pid), JSON.stringify({ state: record.state, pid: kept?.pid }) + ' | runJourney in src/services/journeys/runner.ts must succeed and leave a service.start step running when cleanup is keep')
   await disposeOwnerProcesses(CREW)
-  check('the kept service stopped at the lane\'s end', services.reconcileRecord(work, 'jy-kept')?.state === 'stopped' && (await goneSoon(kept?.pid)))
-  check('the journey\'s own record (a fact) stays until the owner goes', journeys.listJourneys(CREW).length === 1)
+  check('the kept service stopped at the lane\'s end', services.reconcileRecord(work, 'jy-kept')?.state === 'stopped' && (await goneSoon(kept?.pid)), 'the service store in src/services/projectServices/serviceManager.ts must stop services a journey kept when the owner lane ends')
+  check('the journey\'s own record (a fact) stays until the owner goes', journeys.listJourneys(CREW).length === 1, 'the store in src/services/journeys/runner.ts must keep journey records after disposeOwnerProcesses; only disposeOwner may drop them')
   await services.stopService(work, 'jy-kept')
 } else {
   console.log('  [SKIP] the journey leg is POSIX-shaped on this host (sleep)')
@@ -143,9 +143,9 @@ if (posix) {
     state = f(state)
   }
   const handle = await spawnShellTask({ command: 'sleep 300', description: 'crewmate watch', shellCommand: cmd, agentId: 'agent-crew-teardown', kind: 'monitor' } as never, { abortController: new AbortController(), getAppState: () => state, setAppState } as never)
-  check('the monitor task is running under the crewmate\'s id', state.tasks[handle.taskId]?.status === 'running' && state.tasks[handle.taskId]?.agentId === 'agent-crew-teardown' && state.tasks[handle.taskId]?.kind === 'monitor', JSON.stringify(state.tasks[handle.taskId]))
+  check('the monitor task is running under the crewmate\'s id', state.tasks[handle.taskId]?.status === 'running' && state.tasks[handle.taskId]?.agentId === 'agent-crew-teardown' && state.tasks[handle.taskId]?.kind === 'monitor', JSON.stringify(state.tasks[handle.taskId]) + ' | spawnShellTask in src/tasks/LocalShellTask/LocalShellTask.tsx must register the task as running with the agentId and kind it was given')
   killShellTasksForAgent('agent-crew-teardown', () => state as never, setAppState as never)
-  check('the task reads killed at once', state.tasks[handle.taskId]?.status === 'killed')
+  check('the task reads killed at once', state.tasks[handle.taskId]?.status === 'killed', 'killShellTasksForAgent in src/tasks/LocalShellTask/killShellTasks.ts must mark every running task of that agent killed')
   const receipt = await Promise.race([(cmd as unknown as { treeKillReceipt?: Promise<unknown> }).treeKillReceipt ?? Promise.resolve('no receipt'), sleep(5_000).then(() => 'receipt pending after 5s')])
   const watchGone = await goneSoon(child.pid)
   const row = (): string => {
@@ -155,7 +155,7 @@ if (posix) {
       return 'no row'
     }
   }
-  check(`the watch's process is gone (pid ${child.pid}); the stop's tree receipt: ${JSON.stringify(receipt)}`, watchGone, row())
+  check(`the watch's process is gone (pid ${child.pid}); the stop's tree receipt: ${JSON.stringify(receipt)}`, watchGone, row() + ' | killShellTasksForAgent in src/tasks/LocalShellTask/killShellTasks.ts must tree-kill the watch process')
 } else {
   console.log('  [SKIP] the monitor leg is POSIX-shaped on this host (sleep)')
 }
@@ -169,8 +169,8 @@ section('§6 DEBUG — an adapter registered under the lane (the dap:<id> road) 
   lifecycle.registerOwnerDisposer(SEAT, 'dap:seat', async () => undefined)
   const before = lifecycle.ownerLifecycleCounts().adhoc
   await disposeOwnerProcesses(CREW)
-  check('the crewmate\'s adapter disposer ran once', disposed === 1)
-  check('the seat\'s adapter row stays', lifecycle.ownerLifecycleCounts().adhoc === before - 1, `${before} → ${lifecycle.ownerLifecycleCounts().adhoc}`)
+  check('the crewmate\'s adapter disposer ran once', disposed === 1, 'disposeOwnerProcesses in src/utils/run/ownerLifecycle.ts must run each disposer registered with registerOwnerDisposer for that owner exactly once')
+  check('the seat\'s adapter row stays', lifecycle.ownerLifecycleCounts().adhoc === before - 1, `${before} → ${lifecycle.ownerLifecycleCounts().adhoc} | disposeOwnerProcesses in src/utils/run/ownerLifecycle.ts must drop only the disposed owner disposer rows`)
   lifecycle.unregisterOwnerDisposer(SEAT, 'dap:seat')
 }
 
@@ -193,11 +193,11 @@ section('§7 BROWSER — the crewmate\'s browser child is closed and its grants 
   }
   browser.setBrowserLaunchDriverForProof(async () => fixture as never)
   const opened = await browser.ensureBrowserSession(CREW)
-  check('the crewmate\'s browser session is live', !('state' in opened) && browser.activeSession(CREW) !== null, JSON.stringify(opened).slice(0, 200))
+  check('the crewmate\'s browser session is live', !('state' in opened) && browser.activeSession(CREW) !== null, JSON.stringify(opened).slice(0, 200) + ' | ensureBrowserSession in src/services/browser/browserSession.ts must open a session through the proof launch driver')
   browser.approveWebOrigin(CREW, 'https://example.test/path')
   await disposeOwnerProcesses(CREW)
-  check('the browser child was closed once', closed === 1)
-  check('the lane has no session and no grants', browser.activeSession(CREW) === null && browser.approvedOriginList(CREW).length === 0 && !browser.liveBrowserSessionCensus().some(row => row.owner === CREW))
+  check('the browser child was closed once', closed === 1, 'the owner store in src/services/browser/session/owners.ts must close the browser child when disposeOwnerProcesses runs')
+  check('the lane has no session and no grants', browser.activeSession(CREW) === null && browser.approvedOriginList(CREW).length === 0 && !browser.liveBrowserSessionCensus().some(row => row.owner === CREW), 'the owner store in src/services/browser/session/owners.ts must drop the session and approved origins when disposeOwnerProcesses runs')
   browser.setBrowserLaunchDriverForProof(null)
 }
 
@@ -207,15 +207,15 @@ section('§8 THE FACTS STAY — the lane\'s evidence survives its processes\' en
   const before = evidence.evidenceFor(CREW).length
   evidence.recordCanonicalEvidence({ owner: CREW, kind: 'check', origin: 'observed', claim: 'the crewmate observed a fact' })
   await disposeOwnerProcesses(CREW)
-  check('the evidence rows are still there after the processes ended (the hand-back reads them)', evidence.evidenceFor(CREW).length === before + 1 && before + 1 > 0, `${before} → ${evidence.evidenceFor(CREW).length}`)
+  check('the evidence rows are still there after the processes ended (the hand-back reads them)', evidence.evidenceFor(CREW).length === before + 1 && before + 1 > 0, `${before} → ${evidence.evidenceFor(CREW).length} | disposeOwnerProcesses in src/utils/run/ownerLifecycle.ts must skip the evidence store in src/services/primitives/evidencePlane.ts (a store without live: true)`)
   await lifecycle.disposeOwner(CREW)
-  check('disposeOwner (session close) takes it with the owner', evidence.evidenceFor(CREW).length === 0)
+  check('disposeOwner (session close) takes it with the owner', evidence.evidenceFor(CREW).length === 0, 'disposeOwner in src/utils/run/ownerLifecycle.ts must dispose every store, including src/services/primitives/evidencePlane.ts')
 }
 
 section('§9 THE WIN32 ARM — the strikes the Windows box re-checks live')
 {
   const { win32TaskkillCommand } = await import('../../src/utils/processGroup.ts')
-  check('the tree kill is taskkill /PID <pid> /T /F through an argv array', win32TaskkillCommand(4242).args.join(' ') === '/PID 4242 /T /F')
+  check('the tree kill is taskkill /PID <pid> /T /F through an argv array', win32TaskkillCommand(4242).args.join(' ') === '/PID 4242 /T /F', 'win32TaskkillCommand in src/utils/processGroup.ts must return args /PID <pid> /T /F')
 }
 
 section('§10 THE QUIT ROAD — the session\'s own cleanup ends session-lifecycle services and leaves a project-lifecycle one alive, as the Service tool promises')
@@ -224,11 +224,11 @@ if (posix) {
   const quitSession = await services.startService({ spec: spec('quit-session', 'session'), sessionId: 'proof', owner: SEAT } as never)
   const quitProject = await services.startService({ spec: spec('quit-project', 'project'), sessionId: 'proof', owner: SEAT } as never)
   const pidOf = (r: unknown): number | null => ('record' in (r as object) ? (r as { record: { pid: number | null } }).record.pid : null)
-  check('a session-lifecycle and a project-lifecycle service are up', alive(pidOf(quitSession)) && alive(pidOf(quitProject)))
+  check('a session-lifecycle and a project-lifecycle service are up', alive(pidOf(quitSession)) && alive(pidOf(quitProject)), 'startService in src/services/projectServices/serviceManager.ts must leave both services running')
   const { runCleanupFunctions } = await import('../../src/utils/cleanupRegistry.ts')
   await runCleanupFunctions().catch(() => undefined)
-  check(`the quit ended the session-lifecycle service (pid ${pidOf(quitSession)})`, await goneSoon(pidOf(quitSession)))
-  check(`the quit left the project-lifecycle service alive (pid ${pidOf(quitProject)}) — "project = detached, survives it"`, alive(pidOf(quitProject)))
+  check(`the quit ended the session-lifecycle service (pid ${pidOf(quitSession)})`, await goneSoon(pidOf(quitSession)), 'the cleanup registered by src/utils/run/ownerLifecycle.ts through runCleanupFunctions (src/utils/cleanupRegistry.ts) must stop session-lifecycle services')
+  check(`the quit left the project-lifecycle service alive (pid ${pidOf(quitProject)}) — "project = detached, survives it"`, alive(pidOf(quitProject)), 'the shutdown path in src/services/projectServices/serviceManager.ts must not kill a project-lifecycle service')
   await services.stopService(work, 'quit-project')
   check('cleanup: the project service stopped by hand', await goneSoon(pidOf(quitProject)))
 } else {

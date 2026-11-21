@@ -25,6 +25,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
+const CONSENT_COMPOSE_HINT = ' · fix composeAgentAppState or definitionModeWithinConsent in src/tools/AgentTool/agentPermissionPosture.ts so a definition word never exceeds the parent launch consent'
+const CONSENT_OFFER_HINT = ' · fix offeredDefinitionModes in src/tools/AgentTool/agentPermissionPosture.ts so sovereign is offered only under the launch consent'
+const CONSENT_ROUTE_HINT = ' · fix the permissionMode check in parseAgentsFromJson or parseAgentFromJson (src/tools/AgentTool/loadAgentsDir.ts) or decodeAgentDocument (src/services/agents/codec.ts) so both routes accept exactly PERMISSION_MODES and refuse other words alike'
 
 const { composeAgentAppState, definitionModeWithinConsent, offeredDefinitionModes } = await import('../../src/tools/AgentTool/agentPermissionPosture.ts')
 const { postureBypassesAsks } = await import('../../src/utils/permissions/decision/engine.ts')
@@ -44,42 +47,42 @@ section("§1 the posture owner: a definition's bypass word never exceeds the par
 {
   for (const parentMode of ['default', 'flow', 'dontAsk']) {
     const child = childOf(parentMode, false, 'sovereign')
-    check(`parent ${parentMode}, no consent, definition sovereign ⇒ the child keeps '${parentMode}' and its asks still ask`, child.mode === parentMode && !postureBypassesAsks(child as never), `child=${child.mode}`)
+    check(`parent ${parentMode}, no consent, definition sovereign ⇒ the child keeps '${parentMode}' and its asks still ask`, child.mode === parentMode && !postureBypassesAsks(child as never), `child=${child.mode}` + CONSENT_COMPOSE_HINT)
   }
   const consented = childOf('default', true, 'sovereign')
-  check('parent default WITH the launch consent, definition sovereign ⇒ the child is sovereign (the consent honoured)', consented.mode === 'sovereign' && postureBypassesAsks(consented as never), `child=${consented.mode}`)
+  check('parent default WITH the launch consent, definition sovereign ⇒ the child is sovereign (the consent honoured)', consented.mode === 'sovereign' && postureBypassesAsks(consented as never), `child=${consented.mode}` + CONSENT_COMPOSE_HINT)
   const implement = childOf('implement', true, 'sovereign')
-  check("parent implement never yields to a definition's word, consent or not", implement.mode === 'implement', `child=${implement.mode}`)
+  check("parent implement never yields to a definition's word, consent or not", implement.mode === 'implement', `child=${implement.mode}` + CONSENT_COMPOSE_HINT)
   for (const word of ['dontAsk', 'apollo', 'flow']) {
     const child = childOf('default', false, word)
-    check(`a non-bypass definition word ('${word}') still overrides a default parent without any consent`, child.mode === word, `child=${child.mode}`)
+    check(`a non-bypass definition word ('${word}') still overrides a default parent without any consent`, child.mode === word, `child=${child.mode}` + CONSENT_COMPOSE_HINT)
   }
-  check('definitionModeWithinConsent: sovereign under no consent is nothing; under consent itself; a plain word always itself; nothing is nothing', definitionModeWithinConsent('sovereign', { isBypassPermissionsModeAvailable: false }) === undefined && definitionModeWithinConsent('sovereign', { isBypassPermissionsModeAvailable: true }) === 'sovereign' && definitionModeWithinConsent('flow', { isBypassPermissionsModeAvailable: false }) === 'flow' && definitionModeWithinConsent(undefined, { isBypassPermissionsModeAvailable: true }) === undefined)
+  check('definitionModeWithinConsent: sovereign under no consent is nothing; under consent itself; a plain word always itself; nothing is nothing', definitionModeWithinConsent('sovereign', { isBypassPermissionsModeAvailable: false }) === undefined && definitionModeWithinConsent('sovereign', { isBypassPermissionsModeAvailable: true }) === 'sovereign' && definitionModeWithinConsent('flow', { isBypassPermissionsModeAvailable: false }) === 'flow' && definitionModeWithinConsent(undefined, { isBypassPermissionsModeAvailable: true }) === undefined, CONSENT_COMPOSE_HINT.slice(3))
 }
 
 section('§2 the Studio offers what a definition may carry: sovereign only under the launch consent')
 {
   const without = offeredDefinitionModes(false)
   const withConsent = offeredDefinitionModes(true)
-  check('without consent the offer is the mode list minus sovereign', j(without) === j(PERMISSION_MODES.filter(m => m !== 'sovereign')), j(without))
-  check('with consent the offer is the whole mode list', j(withConsent) === j([...PERMISSION_MODES]), j(withConsent))
+  check('without consent the offer is the mode list minus sovereign', j(without) === j(PERMISSION_MODES.filter(m => m !== 'sovereign')), j(without) + CONSENT_OFFER_HINT)
+  check('with consent the offer is the whole mode list', j(withConsent) === j([...PERMISSION_MODES]), j(withConsent) + CONSENT_OFFER_HINT)
 }
 
 section('§3 both agent routes validate the word against the one list and refuse an unknown word the same way')
 {
   for (const word of PERMISSION_MODES) {
     const agents = parseAgentsFromJson({ probe: { description: 'd', prompt: 'p', permissionMode: word } })
-    check(`JSON route · '${word}' is a word of the list ⇒ the definition loads carrying it`, agents.length === 1 && (agents[0] as { permissionMode?: string }).permissionMode === word, j(agents.map(a => (a as { permissionMode?: string }).permissionMode)))
+    check(`JSON route · '${word}' is a word of the list ⇒ the definition loads carrying it`, agents.length === 1 && (agents[0] as { permissionMode?: string }).permissionMode === word, j(agents.map(a => (a as { permissionMode?: string }).permissionMode)) + CONSENT_ROUTE_HINT)
   }
   for (const word of UNKNOWN_WORDS) {
     const batch = parseAgentsFromJson({ probe: { description: 'd', prompt: 'p', permissionMode: word } })
     const single = parseAgentFromJson('probe', { description: 'd', prompt: 'p', permissionMode: word })
     const markdown = decodeAgentDocument(`---\nname: probe\ndescription: d\npermissionMode: ${word}\n---\nbody\n`, 'probe.md')
     const markdownRefused = markdown.diagnostics.some(d => d.severity === 'error' && d.code === 'invalid-permission-mode')
-    check(`'${word}' ⇒ the JSON route refuses the definition (batch and single) exactly as the markdown route does`, batch.length === 0 && single === null && markdownRefused, `batch=${batch.length} single=${single === null ? 'null' : 'kept'} markdown=${markdownRefused ? 'refused' : j(markdown.diagnostics)}`)
+    check(`'${word}' ⇒ the JSON route refuses the definition (batch and single) exactly as the markdown route does`, batch.length === 0 && single === null && markdownRefused, `batch=${batch.length} single=${single === null ? 'null' : 'kept'} markdown=${markdownRefused ? 'refused' : j(markdown.diagnostics)}` + CONSENT_ROUTE_HINT)
   }
   const sovereignDoc = decodeAgentDocument('---\nname: probe\ndescription: d\npermissionMode: sovereign\n---\nbody\n', 'probe.md')
-  check('the markdown route keeps sovereign as a word of the list (the consent is asked at the spawn, not at the file)', sovereignDoc.fields.permissionMode === 'sovereign' && sovereignDoc.diagnostics.length === 0, j(sovereignDoc.diagnostics))
+  check('the markdown route keeps sovereign as a word of the list (the consent is asked at the spawn, not at the file)', sovereignDoc.fields.permissionMode === 'sovereign' && sovereignDoc.diagnostics.length === 0, j(sovereignDoc.diagnostics) + CONSENT_ROUTE_HINT)
 }
 
 if (!existsSync(BIN)) {
@@ -88,7 +91,7 @@ if (!existsSync(BIN)) {
   section('§4 one real sub-agent spawn on the built product: the definition says sovereign; only the launch consent arms it')
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'install node or put it on PATH; the built bundle spawn runs under it')
   } else {
     const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
     const BRIEF = 'agent-mode-probe: mark the repository and report the sha'

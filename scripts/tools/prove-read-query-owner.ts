@@ -25,7 +25,7 @@ if (!given) {
   const { createFileStateCacheWithSizeLimit } = await import(`${src}/utils/fileStateCache.ts`)
   setCwdState(given); setOriginalCwd(given)
   let passed = 0, failed = 0
-  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` ${detail.slice(0, 500)}`}`) }
+  const check = (name: string, ok: boolean, detail = '') => { ok ? passed++ : failed++; console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` Change how a #read? selector is dispatched so the target owner keeps its answer, in parseReadQueryTarget in src/tools/FileReadTool/readQueryTarget.ts and classifyReadTarget in src/tools/FileReadTool/readTarget.ts. ${detail.slice(0, 500)}`}`) }
   const source = join(given, 'denied.json')
   writeFileSync(source, '{"private":91}')
   let rules = { ...getEmptyToolPermissionContext(), alwaysDenyRules: { session: [`Read(/${source})`] } }
