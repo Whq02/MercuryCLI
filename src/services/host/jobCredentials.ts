@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { getAuthConfigHomeDir, withAuthScope } from '../../utils/envUtils.js'
 import { refreshHuggingfaceTokens, resolveHuggingfaceApiKey, resolveHuggingfaceDispatchCredential } from '../providers/huggingface/huggingfaceAccounts.js'
-import { readHostCredential, removeHostCredential, writeHostCredential } from '../providers/providerSecrets.js'
+import { readHostCredential, removeHostCredential, writeHostCredential } from '../../utils/accounts/providerSecrets.js'
 import { configuredProviderKeyCommand } from '../providers/providerKeyCommand.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 

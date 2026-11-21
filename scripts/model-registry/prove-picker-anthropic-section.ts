@@ -85,7 +85,8 @@ type ModelOption = import('../../src/services/model/modelOptions.ts').ModelOptio
 const { FAMILY_GENERATIONS, parseFirstPartyGeneration } = await import('../../src/utils/model/configs.ts')
 const { getModelStrings } = await import('../../src/utils/model/modelStrings.ts')
 const { parseUserSpecifiedModel, renderModelName } = await import('../../src/utils/model/model.ts')
-const { clearOAuthTokenCache, isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
+const { isClaudeAISubscriber, isMaxSubscriber } = await import('../../src/utils/auth.ts')
+const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.ts')
 const anthropicCatalogue = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
 
 let failures = 0

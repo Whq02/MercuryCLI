@@ -24,7 +24,7 @@ try {
   const { HOST_RECIPES } = await import('../../src/services/host/recipes.ts')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const tune = await import('../../src/services/host/tune.ts')
   const a = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-3090')!
   const b = HOST_RECIPES.find(row => row.id === 'tensorfold-qwen35-2b-rtx-a6000')!

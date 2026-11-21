@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredCerebrasApiKey } from '../providerSecrets.js'
+import { readStoredCerebrasApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

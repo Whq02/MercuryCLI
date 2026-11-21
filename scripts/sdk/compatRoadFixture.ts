@@ -47,7 +47,7 @@ export async function compatRoadFixture(turns: ScriptedTurn[] = []) {
   writeFileSync(join(f.home, 'settings.json'), JSON.stringify(settings))
   const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
   resetSettingsCache()
-  const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   writeStoredCompatApiKey(f.key, 'fixture')
   const env: NodeJS.ProcessEnv = { HOME: f.home, PATH: process.env.PATH, TMPDIR: process.env.TMPDIR, BROWSER: '/usr/bin/true', MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', MERCURY_LOCAL_PROBE_TARGETS: 'none', MERCURY_DAEMON_DIR: join(f.home, 'daemon'), ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url }
   return { ...f, cwd, api, env, model, settings, requests, script: (...next: CompatTurn[]) => queue.push(...next), close: async () => { proxy.stop(true); await api.close(); f.close() } }

@@ -183,7 +183,7 @@ export async function vmVendorDrive(vendor: string, makeFixture: () => Promise<a
     await choose('Terminate'); await until('Confirm terminate'); await choose('Confirm terminate'); await until('Machine terminated')
     check('popup termination also verifies absence', fixture.state.pods.size === 0 && !hostRecords().some((row: any) => row.id === record.id))
     await Promise.all(jobs)
-    const secrets = await import(f.root + '/src/services/providers/providerSecrets.ts')
+    const secrets = await import(f.root + '/src/utils/accounts/providerSecrets.ts')
     check('key is private and independently removable', ownerOnlyFile(secrets.providerSecretsPathForDisplay()) && registry.vendorKey(vendor) === fixture.key)
     registry.saveVendorKey(vendor, null)
     check('removed key is gone', registry.vendorKey(vendor) === undefined)

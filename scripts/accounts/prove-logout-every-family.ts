@@ -67,7 +67,7 @@ for (const base of [
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
 
-const secrets = await import('../../src/services/providers/providerSecrets.js')
+const secrets = await import('../../src/utils/accounts/providerSecrets.js')
 const openai = await import('../../src/services/providers/openai/openaiAccounts.js')
 const openrouter = await import('../../src/services/providers/openrouter/openrouterAccounts.js')
 const gemini = await import('../../src/services/providers/gemini/geminiAccounts.js')

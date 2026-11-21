@@ -38,7 +38,7 @@ writeFileSync(join(home, '.credentials.json'), JSON.stringify(MAX_CREDENTIAL), {
 const { enableConfigs, saveGlobalConfig, getGlobalConfig } = await import('../../src/utils/config.js')
 enableConfigs()
 saveGlobalConfig(config => ({ ...config, primaryApiKey: MANAGED_KEY }))
-const auth = await import('../../src/utils/auth.js')
+const auth = { ...(await import('../../src/utils/auth.js')), ...(await import('../../src/services/auth/oauthLifecycle.js')) }
 auth.clearOAuthTokenCache()
 
 let failures = 0

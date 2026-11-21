@@ -35,7 +35,14 @@ const context = () => ({
   getAppState: () => ({ toolPermissionContext: getEmptyToolPermissionContext(), sessionHooks: new Map(), tasks: {}, mcp: { tools: [], clients: [], commands: [], resources: {} } }),
   options: { tools: [], mcpClients: [], commands: [], agentDefinitions: { activeAgents: [] }, engineModel: 'claude-opus-4-8', thinkingConfig: { type: 'disabled' }, isNonInteractiveSession: true },
 }) as never
-const boundaries = () => decodeTranscriptBuffer<Message>(readFileSync(getTranscriptPath())).entries.filter((row): row is SystemCompactBoundaryMessage => row.type === 'system' && row.subtype === 'compact_boundary')
+const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
+const boundaries = (): SystemCompactBoundaryMessage[] => {
+  const out: SystemCompactBoundaryMessage[] = []
+  for (const line of historyLines(getTranscriptPath())) {
+    for (const row of decodeTranscriptBuffer<Message>(line).entries) if (row.type === 'system' && row.subtype === 'compact_boundary') out.push(row)
+  }
+  return out
+}
 const rounds = 12
 function stretch(n: number): Message[] {
   return Array.from({ length: rounds }, (_, i) => {
@@ -122,7 +129,11 @@ try {
   } else {
     const sizes = ledgers.map(ledger => Buffer.byteLength(JSON.stringify(ledger)))
     const ids = new Set(rows.map(row => row.uuid))
-    const lines = readFileSync(getTranscriptPath(), 'utf8').trimEnd().split('\n').filter(line => ids.has(JSON.parse(line).recordId))
+    const lines: string[] = []
+    for (const bytes of historyLines(getTranscriptPath())) {
+      const line = bytes.toString('utf8').trimEnd()
+      if (ids.has(JSON.parse(line).recordId)) lines.push(line)
+    }
     assert.equal(lines.length, rows.length)
     console.log(`durable boundary ledger bytes: ${sizes.join(', ')}; JSONL record bytes with newline: ${lines.map(line => Buffer.byteLength(line) + 1).join(', ')}`)
     check('six equally sized stretches do not store earlier stretches again', () => {

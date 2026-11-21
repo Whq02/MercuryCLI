@@ -3,13 +3,13 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const owner = join(import.meta.dir, '../../src/daemon/processSweep.ts')
+const owner = join(import.meta.dir, '../../src/utils/processSweep.ts')
 const posix = join(import.meta.dir, '../../src/daemon/processSweepPosix.ts')
 assert.ok(existsSync(owner) && existsSync(posix), 'Mercury composes process facts from its own records and one POSIX table reader')
-const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, processNamesMercury, tokenBinding }: typeof import('../../src/daemon/processSweep.ts') = await import(owner)
+const { composeProcessSweepFacts, classifyMercuryProcess, readProcessSweepCensus, processSweepCounts, PROCESS_SWEEP_WORDS, processNamesMercury, tokenBinding }: typeof import('../../src/utils/processSweep.ts') = await import(owner)
 const { parsePosixProcessTable, parseProcessStartToken, parsePidColumn, probePosixTerminal, collectPosixProcessTable }: typeof import('../../src/daemon/processSweepPosix.ts') = await import(posix)
 const { healthProcessesReport }: typeof import('../../src/cli/healthProcesses.ts') = await import(join(import.meta.dir, '../../src/cli/healthProcesses.ts'))
-import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/daemon/processSweep.ts'
+import type { ProcessSweepObservation, ProcessSweepRecords, ProcessSweepTable } from '../../src/utils/processSweep.ts'
 
 let checks = 0
 const check = (label: string, run: () => void | Promise<void>): Promise<void> => Promise.resolve(run()).then(() => {

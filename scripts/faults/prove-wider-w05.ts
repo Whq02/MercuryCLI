@@ -126,7 +126,7 @@ esac
       getDebugLogPath: () => '',
     }))
     const ss = await import(path.join(SRC, 'utils/secureStorage/index.ts'))
-    const auth = await import(path.join(SRC, 'utils/auth.ts'))
+    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
     const modeFile = path.join(HOME, 'sec-mode')
 
     fs.writeFileSync(modeFile, 'absent')
@@ -210,7 +210,7 @@ esac
         delete() { return false },
       }),
     }))
-    const auth = await import(path.join(SRC, 'utils/auth.ts'))
+    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
     out.syncNull = auth.getClaudeAIOAuthTokens()
     out.unreadAfterSyncThrow = real.credentialStoreUnread()
     auth.clearOAuthTokenCache()
@@ -395,11 +395,11 @@ exit 44
     const path = await import('node:path')
     const cfg = await import(path.join(SRC, 'utils/config/globalConfig.ts'))
     cfg.enableConfigs()
-    const auth = await import(path.join(SRC, 'utils/auth.ts'))
+    const auth = { ...(await import(path.join(SRC, 'utils/auth.ts'))), ...(await import(path.join(SRC, 'services/auth/oauthLifecycle.ts'))) }
     const portable = await import(path.join(SRC, 'utils/authPortable.ts'))
     const logout = await import(path.join(SRC, 'commands/logout/logout.tsx'))
     const removal = await import(path.join(SRC, 'services/providers/accountSlots/removal.ts'))
-    const ps = await import(path.join(SRC, 'services/providers/providerSecrets.ts'))
+    const ps = await import(path.join(SRC, 'utils/accounts/providerSecrets.ts'))
     const modeFile = path.join(HOME, 'del-mode')
 
     fs.writeFileSync(modeFile, 'absent')

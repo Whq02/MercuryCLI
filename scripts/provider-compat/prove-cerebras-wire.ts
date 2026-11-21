@@ -70,7 +70,7 @@ try {
   const { laneBillingState } = await import('../../src/services/providers/laneBillingState.ts')
   const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
   const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
-  const { readStoredCerebrasApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { readStoredCerebrasApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { liveModelsReference, knownModelsReference } = await import('../../src/services/resources/adapters/models.ts')
   const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never
   function params(model = 'cerebras/gpt-oss-120b', effortValue = 'max', thinking = true, messages: Message[] = [createUserMessage({ content: 'hello fixture' })]): CompatCallModelParams {

@@ -4,7 +4,7 @@ import { basename, dirname, isAbsolute, join, parse, resolve, sep } from 'node:p
 
 import { memoizeWithLRU } from './memoize.js'
 
-import type { GitUnavailable, GitWorktreeInfo } from '../services/gitGraph/contracts.js'
+import type { GitUnavailable, GitWorktreeInfo } from '../types/git.js'
 import { getCwd } from './cwd.js'
 import { MERCURY_PROJECT_DIR } from './projectConfig.js'
 import { projectScopePathspec } from './projectBoundary.js'
@@ -280,7 +280,7 @@ let snapshotVersion = 0
 let probeNotice: string | null = null
 
 async function probeLanes(): Promise<{ value: LanesFact | null; fault: string | null }> {
-  const { gitWorktreesAsync } = await import('../services/gitGraph/observe.js')
+  const { gitWorktreesAsync } = await import('./git/worktrees.js')
   const value = await gitWorktreesAsync(getCwd())
   if (!Array.isArray(value) && value.failure) return { value, fault: value.failure }
   return { value, fault: null }

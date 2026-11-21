@@ -1,5 +1,5 @@
-import { readStoredRunpodApiKey, readStoredVastApiKey, readStoredLambdaApiKey, writeStoredRunpodApiKey, writeStoredVastApiKey, writeStoredLambdaApiKey } from '../../providers/providerSecrets.js'
-import { readStoredHyperstackApiKey, writeStoredHyperstackApiKey, readStoredVerdaApiKey, writeStoredVerdaApiKey, readStoredDigitaloceanApiKey, writeStoredDigitaloceanApiKey } from '../../providers/providerSecrets.js'
+import { readStoredRunpodApiKey, readStoredVastApiKey, readStoredLambdaApiKey, writeStoredRunpodApiKey, writeStoredVastApiKey, writeStoredLambdaApiKey } from '../../../utils/accounts/providerSecrets.js'
+import { readStoredHyperstackApiKey, writeStoredHyperstackApiKey, readStoredVerdaApiKey, writeStoredVerdaApiKey, readStoredDigitaloceanApiKey, writeStoredDigitaloceanApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { HyperstackClient, HYPERSTACK_STORAGE_NOTICE, HYPERSTACK_KEY_NOTICE } from './hyperstack.js'
 import { VerdaClient, VERDA_STORAGE_NOTICE, VERDA_KEY_NOTICE } from './verda.js'
 import { DigitalOceanClient, DIGITALOCEAN_STORAGE_NOTICE, DIGITALOCEAN_KEY_NOTICE } from './digitalocean.js'

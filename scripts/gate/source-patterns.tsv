@@ -2,7 +2,6 @@ setTimeout	src/services/privateChannel/verifyArtifactStandalone.ts	1
 setTimeout	src/tools/BrowserTool/browser/settle.ts	1
 setTimeout	src/tools/FileReadTool/sqliteQueryProcess.ts	1
 Atomics.wait	src/tools/FileReadTool/jsonQueryWorker.mjs	1
-useEffect	src/services/crewBoard/implementation.ts	1
 useSubscription	src/components/MercuryFilesMenu.tsx	1
 useSubscription	src/components/mercury-ui/useCursorFollow.ts	1
 useSubscription	src/hooks/useVirtualScroll.ts	1

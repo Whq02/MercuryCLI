@@ -3,7 +3,7 @@
 
 import { spawnSync } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync, writeSync } from 'node:fs'
+import { appendFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -65,9 +65,10 @@ const section = (title: string): void => console.log(`\n${title}`)
 
 const { loadTranscriptFile, transcriptLoadDegradation } = await import('../../src/utils/sessionStorage/loading.ts')
 const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDecode.ts')
+const { historyLines } = await import('../../src/utils/sessionStorage/historyParts.ts')
 const THRESHOLD = 5 * 1024 * 1024
 
-type Written = { session: string; file: string; bytes: number; killed: boolean }
+type Written = { session: string; file: string; live: string; bytes: number; killed: boolean }
 const write = (shape: Shape): Written => {
   const session = randomUUID()
   const home = join(scratch, `home-${shape}`)
@@ -81,7 +82,10 @@ const write = (shape: Shape): Written => {
   const line = child.stdout.trim().split('\n').at(-1) ?? ''
   if (!line.startsWith('{')) throw new Error(`the writer of ${shape} did not answer: rc ${child.status} signal ${child.signal}\n${child.stdout.slice(-400)}\n${child.stderr.slice(-800)}`)
   const file = (JSON.parse(line) as { file: string }).file
-  return { session, file, bytes: readFileSync(file).length, killed: child.signal === 'SIGKILL' }
+  const legacy = join(home, `${session}.jsonl`)
+  writeFileSync(legacy, '', { flag: 'wx' })
+  for (const line of historyLines(file)) appendFileSync(legacy, line)
+  return { session, file: legacy, live: file, bytes: statSync(legacy).size, killed: child.signal === 'SIGKILL' }
 }
 type Read = { messages: number; title: string | undefined; agent: string | undefined; tag: string | undefined; mode: string | undefined }
 const read = async (file: string, session: string): Promise<Read> => {
@@ -121,6 +125,11 @@ try {
   const small = write('small')
   const smallRead = await read(small.file, small.session)
   check('all four are read back', small.bytes < THRESHOLD && allFour(smallRead), `${small.bytes} bytes · ${JSON.stringify(smallRead)}`)
+
+  for (const [shape, title] of [[fold, TITLE], [retitled, LATER_TITLE], [nothingKept, TITLE], [tailKept, TITLE], [small, TITLE]] as const) {
+    const seen = await read(shape.live, shape.session)
+    check('the live head restores all four fields without reporting damaged rows', allFour(seen, title) && transcriptLoadDegradation(shape.live) === null, JSON.stringify({ seen, damage: transcriptLoadDegradation(shape.live) }))
+  }
 
   section('§5 the lines collected from before a boundary are session rows alone: the decoder takes them without a header and refuses nothing')
   const sessionLines = readFileSync(fold.file, 'utf8').split('\n').filter(line => ['custom-title', 'agent-setting', 'tag', 'mode'].some(kind => line.includes(`"metaKind":"${kind}"`)))

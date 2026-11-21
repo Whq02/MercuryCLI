@@ -1,7 +1,7 @@
 import { readFile } from 'fs/promises'
 import { dirname, join } from 'path'
 import { getProcessStartInstantAsync, getProcessStartTokenAsync, isProcessAlive } from '../utils/ownerWatch.js'
-import { tokenBinding } from '../daemon/processSweep.js'
+import { tokenBinding } from '../utils/processSweep.js'
 import { publishAtomic } from '../substrate/fileStore.js'
 import { errorMessage, isENOENT } from '../utils/errors.js'
 import { logError } from '../utils/log.js'

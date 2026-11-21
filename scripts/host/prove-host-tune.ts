@@ -69,7 +69,7 @@ try {
   const { readHostRecord } = await import('../../src/services/host/store.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const { getContextWindowForModel } = await import('../../src/utils/model/capabilities.ts')
   const { resolveLlamacppTotalSlots } = await import('../../src/services/providers/openaicompat/compatProbe.ts')

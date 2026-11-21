@@ -200,11 +200,11 @@ try {
     console.log(`S the cockpit at ${cols}×${termRows} — /model reads the list, /health judges the typed ids against it`)
     const size = `${cols}x${termRows}`
     hits.length = 0
-    const settled = termRows >= 26
-      ? { awaitText: `${rows.length} checks` }
-      : { awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ' }
-    const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, ...settled, awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
+    const firstDown = termRows >= 26
+      ? { requireAwait: true, awaitText: `${rows.length} checks`, awaitSettleTicks: 3, data: '\x1b[B' }
+      : { requireAwait: true, awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ', awaitSettleTicks: 3, data: '\x1b[B' }
+    const downs = Array.from({ length: rowIndex }, () => ({ requireAwait: true, awaitText: 'Mercury · health', awaitSettleTicks: 1, data: '\x1b[B' }))
+    const walk = rowIndex === 0 ? [] : [firstDown, ...downs.slice(1)]
     const readyNeedle = cols >= 100 && termRows >= 26 ? '← back' : '1 session on'
     const readOn = termRows < 26
       ? Array.from({ length: 4 }, (_, i) => (i === 0
@@ -213,10 +213,10 @@ try {
       : []
     const frames = await capture(`row-${size}`, cols, termRows, [
       { atTick: 999, awaitText: readyNeedle, requireAwait: true, minTick: 5, awaitSettleTicks: 4, data: '/model' },
-      { afterPrevTicks: 6, data: '\r' },
+      { requireAwait: true, awaitText: '/model', awaitSettleTicks: 6, data: '\r' },
       { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 30, data: ESC },
       { requireAwait: true, awaitText: readyNeedle, awaitPattern: '\\A(?![\\s\\S]*Mercury · model)', awaitSettleTicks: 3, data: '/health' },
-      { afterPrevTicks: 6, data: '\r' },
+      { requireAwait: true, awaitText: '/health', awaitSettleTicks: 6, data: '\r' },
       ...walk,
       { requireAwait: true, awaitText: 'Model lists', awaitPattern: '▸ ▲ Model lists', awaitSettleTicks: 3, data: '\r' },
       ...readOn,

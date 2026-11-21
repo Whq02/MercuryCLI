@@ -53,7 +53,7 @@ axios.defaults.adapter = async (config: { url?: string; data?: unknown }) => {
 
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
-const auth = await import(join(SRC, 'utils/auth.ts'))
+const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
 const { getSecureStorage } = await import(join(SRC, 'utils/secureStorage/index.ts'))
 
 const CREDENTIALS = join(HOME, '.credentials.json')

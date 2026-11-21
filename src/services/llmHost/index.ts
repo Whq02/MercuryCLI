@@ -15,7 +15,7 @@ import { cachedCompatCatalogue, rememberCompatCatalogue, refreshCompatCatalogues
 import { compatCallModel } from '../providers/openaicompat/compatCallModel.js'
 import { storeCompatApiKeyLogin } from '../providers/openaicompat/compatLogin.js'
 import { CompatProbeError, compatServerBase, inspectCompatServer, type CompatDialect, type CompatServerReading } from '../providers/openaicompat/compatProbe.js'
-import { writeStoredCompatApiKey } from '../providers/providerSecrets.js'
+import { writeStoredCompatApiKey } from '../../utils/accounts/providerSecrets.js'
 import { hostModelEfforts } from '../providers/openaicompat/compatEffort.js'
 import { errorMessage } from '../../utils/errors.js'
 import { logError } from '../../utils/log.js'

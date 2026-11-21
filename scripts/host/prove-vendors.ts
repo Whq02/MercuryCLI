@@ -46,7 +46,7 @@ const expectFailure = async (work: () => Promise<unknown>, pattern: RegExp): Pro
 try {
   const { HOST_VENDORS, vendorKey } = await import('../../src/services/host/vendors/client.ts')
   check('the rental registry includes all seven adapters', HOST_VENDORS.join(',') === 'runpod,vast,lambda,huggingface,hyperstack,verda,digitalocean')
-  const secrets = await import('../../src/services/providers/providerSecrets.ts')
+  const secrets = await import('../../src/utils/accounts/providerSecrets.ts')
   const { hfEndpointsFixture } = await import('./hfEndpointsFixture.mjs')
   const { HuggingfaceClient } = await import('../../src/services/host/vendors/huggingface.ts')
   const hf = await hfEndpointsFixture()
@@ -313,7 +313,7 @@ try {
   globalThis.fetch = originalFetch
   resetRecipes()
   rmSync(recipeFile, { force: true })
-  const stored = await import('../../src/services/providers/providerSecrets.ts')
+  const stored = await import('../../src/utils/accounts/providerSecrets.ts')
   stored.writeStoredVastApiKey(null)
   stored.writeStoredLambdaApiKey(null)
   stored.writeStoredHuggingfaceApiKey(null)

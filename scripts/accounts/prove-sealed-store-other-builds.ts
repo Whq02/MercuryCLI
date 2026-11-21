@@ -49,7 +49,7 @@ if (process.argv[2] === 'stay') {
   console.log(JSON.stringify({ loaded: 'this-build', pid: process.pid, started, registration: registration === null ? null : registration.path }))
   process.stdin.resume()
 } else {
-  const { otherBuildAlive } = await import(SRC + '/utils/secureStorage/otherBuilds.ts')
+  const { otherBuildAlive } = await import(SRC + '/daemon/otherBuilds.ts')
   const { plainTextStorage } = await import(SRC + '/utils/secureStorage/plainTextStorage.ts')
   const { startSealedStore } = await import(SRC + '/utils/secureStorage/sealedStoreStart.ts')
   const { createKeyCustody } = await import(SRC + '/utils/secureStorage/sealedRecord.ts')

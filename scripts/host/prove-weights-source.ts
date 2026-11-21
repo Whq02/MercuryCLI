@@ -56,7 +56,7 @@ try {
   const { hostRecords, readHostRecord } = await import('../../src/services/host/store.ts')
   const { queueHostSetup } = await import('../../src/services/host/jobs.ts')
   const { saveVendorKey } = await import('../../src/services/host/vendors/client.ts')
-  const { writeStoredHuggingfaceApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredHuggingfaceApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { keptWeightsPath } = await import('../../src/services/host/keptWeights.ts')
   const bank = await import('../../src/services/host/bank.ts')
   const safe = await import('../../src/services/host/keepSafe.ts')

@@ -1,6 +1,5 @@
 import * as React from 'react'
 import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import 'node:path'
 import { useInput } from '../../ink.js'
 import { useSessionConnector } from '../../hooks/useSessionConnector.js'
 import {

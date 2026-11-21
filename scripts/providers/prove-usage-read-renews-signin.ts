@@ -141,7 +141,7 @@ await stub('../../src/components/ConfigurableShortcutHint.js', () => ({ Configur
 
 const reader = await import('../../src/services/providers/anthropic/anthropicUsageState.ts')
 const owner = await import('../../src/services/providers/providerUsage.ts')
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const limits = await import('../../src/services/anthropicLimits.ts')
 const fresh = await import('../../src/services/providers/usageFreshness.ts')
 const { isOAuthTokenExpired } = await import('../../src/services/oauth/client.ts')

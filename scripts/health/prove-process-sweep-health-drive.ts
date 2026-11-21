@@ -143,8 +143,8 @@ function capture(name: string, cols: number, rows: number, extraSends: Array<Rec
     cols,
     rows,
     sends: [
-      { atTick: 140, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/health' },
-      { afterPrevTicks: 6, data: '\r' },
+      { atTick: 140, requireAwait: true, awaitRaw: `${ESC}[?2004h`, minTick: 30, data: '/health' },
+      { requireAwait: true, awaitText: '/health', awaitSettleTicks: 6, data: '\r' },
       ...extraSends,
     ],
     readyText,
@@ -207,11 +207,11 @@ try {
     console.log(`S the cockpit at ${cols}×${termRows} — the row, the action, the result`)
     const size = `${cols}x${termRows}`
     const target = await standInWindow()
-    const settled = termRows >= 26
-      ? { awaitText: `${rows.length} checks` }
-      : { awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ' }
-    const downs = Array.from({ length: rowIndex }, () => ({ afterPrevTicks: 1, data: '\x1b[B' }))
-    const walk = rowIndex === 0 ? [] : [{ requireAwait: true, ...settled, awaitSettleTicks: 3, data: '\x1b[B' }, ...downs.slice(1)]
+    const firstDown = termRows >= 26
+      ? { requireAwait: true, awaitText: `${rows.length} checks`, awaitSettleTicks: 3, data: '\x1b[B' }
+      : { requireAwait: true, awaitText: `1/${rows.length}`, awaitPattern: 'Mercury · health · ', awaitSettleTicks: 3, data: '\x1b[B' }
+    const downs = Array.from({ length: rowIndex }, () => ({ requireAwait: true, awaitText: 'Mercury · health', awaitSettleTicks: 1, data: '\x1b[B' }))
+    const walk = rowIndex === 0 ? [] : [firstDown, ...downs.slice(1)]
     const onRow = { requireAwait: true, awaitText: 'Mercury processes', awaitPattern: '▸ ▲ Mercury processes', awaitSettleTicks: 3 }
     const before = capture(`row-${size}`, cols, termRows, [...walk, { ...onRow, data: '\r' }], 150 + rowIndex, `pid ${target}`)
     check(`${size}: /health painted its certificate`, before.some(l => l.includes('Mercury · health')))

@@ -3,15 +3,13 @@ import { flagEnv } from '../../substrate/flagRegistry.js'
 import { cliOk } from '../exit.js'
 import {
   clearApiKeyHelperCache,
-  clearOAuthTokenCache,
   getAnthropicApiKeyWithSource,
   getApiKeyFromConfigOrMacOSKeychain,
   getAuthTokenSource,
   getSubscriptionType,
   loginShadowWarning,
-  saveOAuthTokensIfNeeded,
-  validateForceLoginOrg,
 } from '../../utils/auth.js'
+import { clearOAuthTokenCache, saveOAuthTokensIfNeeded, validateForceLoginOrg } from '../../services/auth/oauthLifecycle.js'
 import {
   binaryName,
   getGlobalConfig,

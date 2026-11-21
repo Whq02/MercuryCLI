@@ -1,5 +1,5 @@
 
-import { credentialEnvNames } from '../providers/providerSecrets.js'
+import { credentialEnvNames } from '../../utils/accounts/providerSecrets.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 
 const SECRET_SUFFIX = /(_API_KEY|_TOKEN|_SECRET|_PASSWORD|_CREDENTIALS?)$/i

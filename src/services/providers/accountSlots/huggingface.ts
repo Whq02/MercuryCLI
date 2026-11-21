@@ -1,6 +1,6 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
 import { huggingfaceStoredTokens, huggingfaceStoredTokenIdentity, huggingfaceOauthIdentity } from '../huggingface/huggingfaceAccounts.js'
-import { readStoredHuggingfaceApiKey } from '../providerSecrets.js'
+import { readStoredHuggingfaceApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { label } from './keyLane.js'
 import { maskedKeyTail } from '../../../utils/accounts/credentialIdentity.js'
 import { signInWords } from '../../wallet/identityWords.js'

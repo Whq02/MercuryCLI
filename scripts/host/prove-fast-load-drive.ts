@@ -47,7 +47,7 @@ try {
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { RunpodClient } = await import('../../src/services/host/runpod.ts')
   const { hostRunner, ensureHostKey } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { readHostRecord, hostRecords, removeHostRecord } = await import('../../src/services/host/store.ts')
   const { queueHostSetup, queueHostWatch } = await import('../../src/services/host/jobs.ts')
   const { runHostJob } = await import('../../src/services/host/worker.ts')

@@ -166,8 +166,8 @@ async function main(): Promise<void> {
   }
 
   {
-    const { registerDefaultProviderCapabilities } = await import('../services/providers/registerCapabilities.js')
-    registerDefaultProviderCapabilities()
+    const { registerBootDoors } = await import('../services/boot/registerDoors.js')
+    registerBootDoors()
   }
 
   {

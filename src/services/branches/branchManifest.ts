@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, closeSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync, writeSync } from 'node:fs'
 import { basename, dirname, join } from 'node:path'
 import {
   decodeTranscriptBuffer,
   TRANSCRIPT_FORMAT_REFUSAL,
 } from '../../fabric/transcriptDecode.js'
-import { materializeEntriesAt } from '../../utils/sessionStorage/materialize.js'
+import { historyHead, historyLines } from '../../utils/sessionStorage/historyParts.js'
+import { applyTranscriptEntry, emptyFoldState } from '../../utils/sessionStorage/fold.js'
+import { materializationDigest } from '../../utils/sessionStorage/materialize.js'
 import { encodeTranscriptLine } from '../../utils/sessionStorage/vnext.js'
 import type { Entry } from '../../types/logs.js'
 import { isENOENT } from '../../utils/errors.js'
@@ -60,62 +62,60 @@ export function createBranchSession(args: {
   now?: () => number
 }): BranchResult {
   const now = args.now ?? Date.now
-  let raw: Buffer
+  const fold = emptyFoldState()
+  let prefixEnd = 0, needsNewline = false, total = 0, first = true
+  let head: ReturnType<typeof historyHead>
   try {
-    raw = readFileSync(args.sourceTranscriptPath)
+    statSync(args.sourceTranscriptPath)
+    head = historyHead(args.sourceTranscriptPath)
+    for (const row of historyLines(args.sourceTranscriptPath, 0, Infinity, head)) {
+      if (first && !isRecordTranscript(row.toString('utf8'))) break
+      first = false
+      const { entries } = decodeTranscriptBuffer<Entry>(row)
+      if (total < args.forkOrdinal) {
+        prefixEnd += row.length
+        needsNewline = row.at(-1) !== 10
+        for (const entry of entries) applyTranscriptEntry(fold, entry)
+      }
+      total += entries.length
+      if (total === args.forkOrdinal && args.forkOrdinal > 0) break
+    }
   } catch (e) {
     return { ok: false, reason: `source transcript unreadable: ${String(e)}` }
   }
-  const rawText = raw.toString('utf8')
-  if (!isRecordTranscript(rawText)) {
-    return {
-      ok: false,
-      reason: `unsupported-for-branch: ${TRANSCRIPT_FORMAT_REFUSAL}`,
-    }
-  }
-  const decoded = decodeTranscriptBuffer<Entry>(raw)
-  const total = decoded.entries.length
+  if (first) return { ok: false, reason: `unsupported-for-branch: ${TRANSCRIPT_FORMAT_REFUSAL}` }
   if (!(Number.isInteger(args.forkOrdinal) && args.forkOrdinal > 0 && args.forkOrdinal <= total)) {
-    return {
-      ok: false,
-      reason: `fork ordinal ${args.forkOrdinal} outside the committed range 1..${total}`,
-    }
+    return { ok: false, reason: `fork ordinal ${args.forkOrdinal} outside the committed range 1..${total}` }
   }
-  const point = materializeEntriesAt(decoded.entries, args.forkOrdinal)
-
-  const lines = rawText.split('\n')
-  let covered = 0
-  let endLine = -1
-  for (let i = 0; i < lines.length && covered < args.forkOrdinal; i++) {
-    const line = lines[i]!
-    if (line.trim()) {
-      covered += decodeTranscriptBuffer<Entry>(line).entries.length
-    }
-    endLine = i
-  }
-  if (covered < args.forkOrdinal) {
-    return { ok: false, reason: `prefix walk covered ${covered} < ${args.forkOrdinal} entries` }
-  }
-  const prefix = lines.slice(0, endLine + 1).join('\n') + '\n'
+  const digest = materializationDigest(fold)
 
   const parentSessionId = basename(args.sourceTranscriptPath).replace(/\.jsonl$/, '')
   const branchSessionId = randomUUID()
   const branchTranscriptPath = join(dirname(args.sourceTranscriptPath), `${branchSessionId}.jsonl`)
-  const receipt = `${args.boundaryKind} of ${parentSessionId} at ordinal ${args.forkOrdinal} (digest ${point.digest.slice(0, 12)})`
+  const receipt = `${args.boundaryKind} of ${parentSessionId} at ordinal ${args.forkOrdinal} (digest ${digest.slice(0, 12)})`
 
+  let created = false
   try {
-    writeFileSync(branchTranscriptPath, prefix)
+    const fd = openSync(branchTranscriptPath, 'wx', 0o600)
+    created = true
+    try {
+      for (const row of historyLines(args.sourceTranscriptPath, 0, prefixEnd, head)) {
+        for (let at = 0; at < row.length;) at += writeSync(fd, row, at, row.length - at)
+      }
+      if (needsNewline) writeSync(fd, '\n')
+    } finally { closeSync(fd) }
     const boundary = encodeTranscriptLine(branchTranscriptPath, {
       type: 'system',
       subtype: args.boundaryKind === 'fork' ? 'fork_boundary' : 'rewind_boundary',
       content: receipt,
       parentSessionId,
       forkOrdinal: args.forkOrdinal,
-      sourceSnapshotDigest: point.digest,
+      sourceSnapshotDigest: digest,
       branchSessionId,
     })
-    writeFileSync(branchTranscriptPath, prefix + boundary.line)
+    appendFileSync(branchTranscriptPath, boundary.line)
   } catch (e) {
+    if (created) unlinkSync(branchTranscriptPath)
     return { ok: false, reason: `branch write failed: ${String(e)}` }
   }
 
@@ -125,7 +125,7 @@ export function createBranchSession(args: {
     parentSessionId,
     forkOrdinal: args.forkOrdinal,
     boundaryKind: args.boundaryKind,
-    sourceSnapshotDigest: point.digest,
+    sourceSnapshotDigest: digest,
     project: { cwd: args.cwd, ...(args.worktree ? { worktree: args.worktree } : {}) },
     providerOrigin: args.providerOrigin,
     createdAt: now(),

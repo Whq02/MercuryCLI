@@ -14,11 +14,8 @@ import {
 } from '../../../services/oauth/refresh.js'
 import type { OAuthTokens } from '../../../utils/oauth/types.js'
 import { PROFILE_SCOPE } from '../../../constants/oauth.js'
-import {
-  loginShadowWarning,
-  saveOAuthTokensIfNeeded,
-  validateForceLoginOrg,
-} from '../../../utils/auth.js'
+import { loginShadowWarning } from '../../../utils/auth.js'
+import { saveOAuthTokensIfNeeded, validateForceLoginOrg } from '../../../services/auth/oauthLifecycle.js'
 import type { AccountInfo } from '../../../utils/config.js'
 import { getInitialSettings } from '../../../utils/settings/settings.js'
 import { recordSignIn as recordSignInLedger, type SignInKind } from '../../../utils/accounts/signInLedger.js'

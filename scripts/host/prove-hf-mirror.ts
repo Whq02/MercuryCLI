@@ -92,7 +92,7 @@ if (process.argv.includes('--worker-recipe') || process.argv.includes('--volume-
     writeFileSync(join(local, manifest.files[0]!.path), bytes[0]!)
     check('an embedded manifest rejects path traversal, missing hashes and a moving revision', !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ ...manifest.files[0], path: '../escape.gguf' }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, files: [{ path: 'empty.gguf', size: 1 }] } }).success && !hostRecipeSchema.safeParse({ ...recipe, weightManifest: { ...manifest, revision: 'main' } }).success)
     ssh = fakeSshRunner(f.baseUrl, hostRunner)
-    const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+    const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
     writeStoredRunpodApiKey(rp.key)
     const api = new RunpodClient(rp.key, rp.baseUrl)
     const jobs: Promise<void>[] = []

@@ -41,7 +41,7 @@ try {
   const { llmHostPopupRequest } = await import('../../src/commands/llmhost/llmhost.tsx')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { hostRunner } = await import('../../src/services/host/ssh.ts')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { currentHostRecipes, rememberSessionHostRecipe } = await import('../../src/services/host/recipesFile.ts')
   const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
   const bank = await import('../../src/services/host/bank.ts')

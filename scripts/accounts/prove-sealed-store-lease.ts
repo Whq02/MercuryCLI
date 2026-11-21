@@ -47,7 +47,7 @@ const { clearAuthScope } = await import(join(SRC, 'utils/envUtils.ts'))
 const { lockSync } = await import(join(SRC, 'utils/lockfile.ts'))
 const { enableConfigs } = await import(join(SRC, 'utils/config/globalConfig.ts'))
 enableConfigs()
-const auth = await import(join(SRC, 'utils/auth.ts'))
+const auth = { ...(await import(join(SRC, 'utils/auth.ts'))), ...(await import(join(SRC, 'services/auth/oauthLifecycle.ts'))) }
 const sealedRecord = await import(join(SRC, 'utils/secureStorage/sealedRecord.ts'))
 const sealedFile = await import(join(SRC, 'utils/secureStorage/sealedFileStorage.ts'))
 const starts = await import(join(SRC, 'utils/secureStorage/sealedStoreStart.ts'))

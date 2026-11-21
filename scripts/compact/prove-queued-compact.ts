@@ -75,6 +75,12 @@ async function drive(fails: boolean, commands: string[], early = false): Promise
     const entries = readFileSync(file, 'utf8').trim().split('\n').map(line => recordToEntry(JSON.parse(line)))
     const boundaries = entries.filter(row => row.type === 'system' && row.subtype === 'compact_boundary')
     if (!fails) check('one persisted fold boundary with its original trigger', boundaries.length === 1 && (boundaries[0]?.compactMetadata as { trigger?: string })?.trigger === trigger, boundaries.map(b => b.compactMetadata))
+    if (!fails) {
+      const receipts = entries.filter(row => row.type === 'system' && row.subtype === 'local_command' && String(row.content).includes('<local-command-stdout>') && String(row.content).includes('Compacted — '))
+      const receipt = String(receipts[0]?.content ?? '')
+      const kept = (boundaries[0]?.compactMetadata as { preservedSegment?: unknown } | undefined)?.preservedSegment !== undefined
+      check('only the early manual fold prints one chat receipt with its folded count, token change and surviving tail', early ? receipts.length === 1 && /Compacted — folded \d+ messages? into the summary · context \S+ → \S+ tokens/.test(receipt) && / · last \d+ messages? kept verbatim/.test(receipt) === kept : receipts.length === 0, receipts.map(row => row.content))
+    }
     check('each request has one enqueue and one completion in the queue journal', ids.every(id => {
       const ops = entries.filter(row => row.type === 'queue-operation' && row.commandUuid === id).map(row => row.operation)
       return ops.length === 2 && ops[0] === 'enqueue' && (ops[1] === 'dequeue' || ops[1] === 'remove')
@@ -129,7 +135,8 @@ async function lateArrival(duringFold: boolean): Promise<void> {
         const taken = await runner.waitFor('turn end takes the waiting /compact', r => r.type === 'turn' && r.state === 'started' && (r.message_ids as string[])?.includes(instructed))
         const folded = await runner.waitFor('manual fold at turn end', r => r.type === 'compaction' && r.state === 'ended')
         const rows = runner.rows.slice(start)
-        check('without another step the command runs once at turn end using its instructions', rows.indexOf(end) < rows.indexOf(taken) && rows.indexOf(taken) < rows.indexOf(folded) && folded.trigger === 'manual' && folded.exit === 'landed' && rawFolds.length === 1 && rawFolds[0]!.includes(NEW), folded)
+        const endIndex = rows.indexOf(end), takenIndex = rows.indexOf(taken), foldedIndex = rows.indexOf(folded)
+        check('without another step the command runs once at turn end using its instructions', endIndex >= 0 && takenIndex >= 0 && foldedIndex >= 0 && endIndex < takenIndex && takenIndex < foldedIndex && folded.trigger === 'manual' && folded.exit === 'landed' && rawFolds.length === 1 && rawFolds[0]!.includes(NEW), folded)
       }
     }, { argv: ['--model', 'claude-opus-4-6'], env: { MERCURY_CONFIG_DIR: home, MERCURY_SESSION_KIND: 'oculus', MERCURY_AUTOCOMPACT_PCT_OVERRIDE: '50', ANTHROPIC_API_KEY: 'fixture-key-000', ANTHROPIC_BASE_URL: api.url.origin } })
   } finally { release.resolve(); api.stop(true); rmSync(home, { recursive: true, force: true }) }

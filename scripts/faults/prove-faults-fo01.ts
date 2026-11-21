@@ -83,7 +83,7 @@ else {
 console.log('fresh sign-in restart: a failed ask is asked again')
 {
   const ownedMod = await import('../../src/daemon/ownedDaemon.js')
-  const { clearOAuthTokenCache } = await import('../../src/utils/auth.js')
+  const { clearOAuthTokenCache } = await import('../../src/services/auth/oauthLifecycle.js')
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({ claudeAiOauth: { accessToken: '[redacted]', refreshToken: '[redacted]', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),

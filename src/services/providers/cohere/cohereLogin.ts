@@ -1,6 +1,6 @@
 import { errorMessageWithCause } from '../../../utils/errors.js'
 import { recordSignIn } from '../../../utils/accounts/signInLedger.js'
-import { writeStoredCohereApiKey } from '../providerSecrets.js'
+import { writeStoredCohereApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { cohereApiBase, cohereEnvKey } from './cohereAccounts.js'
 import { CohereCatalogueHttpError, fetchCohereLiveModels } from './cohereCatalogue.js'
 import { hostEnv } from '../../../utils/hostEnv.js'

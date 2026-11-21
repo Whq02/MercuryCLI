@@ -29,7 +29,6 @@
     "src/services/providers/nous/nousOauth.ts",
     "src/services/providers/openai/openaiAccounts.ts",
     "src/services/providers/openrouter/openrouterAccounts.ts",
-    "src/services/providers/providerSecrets.ts",
     "src/services/providers/xai/xaiOauth.ts",
     "src/services/repoHost/repoHost.ts",
     "src/services/run/runSidecar.ts",
@@ -43,8 +42,8 @@
     "src/tools/LSPTool/mercuryOps/pathRename.ts",
     "src/tools/ToolSearchTool/cooccurPrior.ts",
     "src/utils/accounts/accountIdentity.ts",
+    "src/utils/accounts/providerSecrets.ts",
     "src/utils/accounts/signInLedger.ts",
-    "src/utils/artifacts/store.ts",
     "src/utils/bootCardFacts.ts",
     "src/utils/cache/cacheClock.ts",
     "src/utils/debug.ts",
@@ -62,13 +61,12 @@
   "lock": [
     "src/daemon/concourseWorkers/storeLock.ts",
     "src/history.ts",
+    "src/services/auth/oauthLifecycle.ts",
     "src/services/mcp/auth.ts",
     "src/services/providers/nous/nousOauth.ts",
     "src/substrate/fileStore.ts",
     "src/substrate/operationJournal.ts",
-    "src/utils/auth.ts",
     "src/utils/config/globalConfig.ts",
-    "src/utils/secureStorage/sealedStoreStart.ts",
     "src/utils/settings/settings.ts"
   ],
   "reasons": {

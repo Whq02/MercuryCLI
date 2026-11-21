@@ -68,7 +68,7 @@ export async function readScratchpadCensus(): Promise<{ idle: string[]; staleOwn
   const owners = [...recorded.owners, ...(await workerOwners())]
   if (owners.length === 0) return { idle: [], staleOwnerRecords: recorded.stale }
   const { getProcessStartTokensAsync } = await import('../utils/ownerWatch.js')
-  const { tokenBinding } = await import('./processSweep.js')
+  const { tokenBinding } = await import('../utils/processSweep.js')
   const tokens = await getProcessStartTokensAsync(owners.filter(owner => owner.pid > 1).map(owner => ({ pid: owner.pid, ...(owner.procStart ? { procStart: owner.procStart } : {}) })))
   const held = new Set<string>()
   for (const owner of owners) {

@@ -91,7 +91,7 @@ const { recognizeModelId } = await import('../../src/services/providers/idSpaces
 const { getModelOptions, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { storeZaiApiKeyLogin } = await import('../../src/services/providers/zai/zaiLogin.ts')
-const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+const { writeStoredDeepseekApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
 const { switchDefaultProvider } = await import('../../src/utils/model/defaultProviderRung.ts')
 const { clearAuthScope, setAuthScope } = await import('../../src/utils/envUtils.ts')
 

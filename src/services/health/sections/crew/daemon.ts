@@ -112,7 +112,7 @@ export function mercuryProcessesCheck(): CheckSpec {
     id: 'mercury-processes',
     label: 'Mercury processes',
     run: async () => {
-      const { PROCESS_SWEEP_WORDS, processSweepCounts, processSweepLine } = await import('../../../../daemon/processSweep.js')
+      const { PROCESS_SWEEP_WORDS, processSweepCounts, processSweepLine } = await import('../../../../utils/processSweep.js')
       const { readMercuryProcesses, endStaleProcesses, processSweepOutcomeLine } = await import('../../../../daemon/processSweepRun.js')
       const census = await readMercuryProcesses()
       const counts = processSweepCounts(census.entries)

@@ -1,13 +1,8 @@
 import axios from 'axios'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import {
-  checkAndRefreshOAuthTokenIfNeeded,
-  dropCredentialMemos,
-  getClaudeAIOAuthTokens,
-  isAnthropicOAuthSignInExpired,
-  isClaudeAISubscriber,
-} from '../../../utils/auth.js'
+import { getClaudeAIOAuthTokens, isAnthropicOAuthSignInExpired, isClaudeAISubscriber } from '../../../utils/auth.js'
+import { checkAndRefreshOAuthTokenIfNeeded, dropCredentialMemos } from '../../auth/oauthLifecycle.js'
 import { logForDebugging } from '../../../utils/debug.js'
 import { logError } from '../../../utils/log.js'
 import { getMercuryHome } from '../../../utils/envUtils.js'

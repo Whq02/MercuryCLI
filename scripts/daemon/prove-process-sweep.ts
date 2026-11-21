@@ -3,10 +3,10 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 
-const owner = join(import.meta.dir, '../../src/daemon/processSweep.ts')
+const owner = join(import.meta.dir, '../../src/utils/processSweep.ts')
 assert.ok(existsSync(owner), 'Mercury has one process classifier, not a parent-pid sweep')
-const { classifyMercuryProcess, sameSweepIdentity, processSweepCounts, processSweepLine }: typeof import('../../src/daemon/processSweep.ts') = await import(owner)
-import type { ProcessSweepFacts, ProcessSweepRead } from '../../src/daemon/processSweep.ts'
+const { classifyMercuryProcess, sameSweepIdentity, processSweepCounts, processSweepLine }: typeof import('../../src/utils/processSweep.ts') = await import(owner)
+import type { ProcessSweepFacts, ProcessSweepRead } from '../../src/utils/processSweep.ts'
 
 let checks = 0
 const check = (label: string, run: () => void): void => {

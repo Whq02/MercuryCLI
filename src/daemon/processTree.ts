@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { processStandsInTree } from '../utils/processGroup.js'
 import { subprocessEnv } from '../utils/subprocessEnv.js'
 import { getProcessStartInstantAsync } from '../utils/ownerWatch.js'
-import { parseProcessStartToken } from './processSweep.js'
+import { parseProcessStartToken } from '../utils/processSweep.js'
 import { passedOver } from '../utils/passedOver.js'
 import { processStartProbeKind } from '../utils/platform/processes.js'
 

@@ -69,7 +69,7 @@ const quietHome = join(SCRATCH, 'quiet-home')
 mkdirSync(quietHome, { recursive: true })
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 const { storeOAuthAccountInfo } = await import('../../src/services/oauth/client.ts')
 storeOAuthAccountInfo({ accountUuid: '00000000-0000-4000-8000-0000000000aa', emailAddress: 'sam@example.com' })

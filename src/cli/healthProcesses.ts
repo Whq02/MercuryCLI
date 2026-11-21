@@ -1,4 +1,4 @@
-import { PROCESS_SWEEP_WORDS, processSweepCounts, processSweepLine, type ProcessSweepCensus } from '../daemon/processSweep.js'
+import { PROCESS_SWEEP_WORDS, processSweepCounts, processSweepLine, type ProcessSweepCensus } from '../utils/processSweep.js'
 import { endStaleProcesses, processSweepOutcomeLine, readMercuryProcesses } from '../daemon/processSweepRun.js'
 
 export interface HealthProcessesReport {

@@ -1,5 +1,5 @@
 import { flagEnv } from '../../../substrate/flagRegistry.js'
-import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../providerSecrets.js'
+import { readStoredMistralAdminApiKey, readStoredMistralApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { resolveProviderKeyCommand } from '../providerKeyCommand.js'
 import { hostEnv } from '../../../utils/hostEnv.js'
 

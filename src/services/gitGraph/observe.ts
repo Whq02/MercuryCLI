@@ -1,12 +1,19 @@
 
-import { execFile, execFileSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { subprocessEnv } from '../../utils/subprocessEnv.js'
 import { projectScopePathspec } from '../../utils/projectBoundary.js'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join as joinPath } from 'node:path'
-import { gitArgs, gitArgsAsync } from '../../utils/git/spawnArgs.js'
+import { gitArgs } from '../../utils/git/spawnArgs.js'
+import {
+  classifyAsyncFailure,
+  gitWorktreesAsync,
+  notARepoNote,
+  parseWorktreeList,
+  tryGitAsync,
+} from '../../utils/git/worktrees.js'
 import { readConflictRegions } from './conflictRegionStore.js'
 import type {
   GitCommitMeta,
@@ -18,6 +25,7 @@ import type {
   GitWorktreeInfo,
 } from './contracts.js'
 
+export { gitWorktreesAsync }
 const MAX_BUFFER = 16 * 1024 * 1024
 const MAX_HUNKS = 200
 const MAX_HUNK_LINES = 120
@@ -34,46 +42,6 @@ export function git(root: string, args: string[]): string {
     env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   })
-}
-
-async function gitAsync(root: string, args: string[]): Promise<string> {
-  const argv = await gitArgsAsync(args, root)
-  return new Promise((resolve, reject) => {
-    execFile(
-      'git',
-      argv,
-      {
-        windowsHide: true,
-        cwd: root,
-        encoding: 'utf8',
-        maxBuffer: MAX_BUFFER,
-        timeout: GIT_TIMEOUT_MS,
-        env: { ...subprocessEnv(), GIT_OPTIONAL_LOCKS: '0' },
-      },
-      (err, stdout, stderr) => {
-        if (err === null) {
-          resolve(stdout)
-          return
-        }
-        const status = typeof err.code === 'number' ? err.code : null
-        reject(Object.assign(err, { status, stdout, stderr }))
-      },
-    )
-  })
-}
-
-type AsyncProbe = { out: string; failure: null } | { out: null; failure: string | null }
-
-async function tryGitAsync(root: string, args: string[]): Promise<AsyncProbe> {
-  try {
-    return { out: await gitAsync(root, args), failure: null }
-  } catch (e) {
-    const err = e as NodeJS.ErrnoException & { status?: number | null; signal?: string | null }
-    return {
-      out: null,
-      failure: typeof err.status === 'number' ? null : (err.code ?? err.signal ?? 'exec-failure'),
-    }
-  }
 }
 
 let lastProbeFailure: string | null = null
@@ -103,28 +71,7 @@ export function isGitRepo(root: string): boolean {
   return false
 }
 
-const notARepoNote = (failure: string | null): GitUnavailable => ({
-  state: 'unavailable',
-  note: `not a git repository (or git is not installed) — the work graph needs one${
-    failure ? ` (git probe failed: ${failure})` : ''
-  }`,
-})
-
 const notARepo = (): GitUnavailable => notARepoNote(lastProbeFailure)
-
-async function isGitRepoAsync(root: string): Promise<{ repo: boolean; failure: string | null }> {
-  const probe = await tryGitAsync(root, ['rev-parse', '--is-inside-work-tree'])
-  if (probe.out === null) return { repo: false, failure: probe.failure }
-  return { repo: probe.out.trim() === 'true', failure: null }
-}
-
-async function classifyAsyncFailure(root: string, failure: string | null, note: string): Promise<GitUnavailable> {
-  const probe = await isGitRepoAsync(root)
-  const mechanism = probe.failure ?? failure
-  if (!probe.repo) return { ...notARepoNote(mechanism), ...(mechanism !== null && { failure: mechanism }) }
-  return { state: 'unavailable', note: failure ? `${note} (${failure})` : note, ...(failure !== null && { failure }) }
-}
-
 
 const STATUS_ARGS = (root: string): string[] =>
   ['-c', 'status.relativePaths=true', 'status', '--porcelain=v2', '--branch', '--untracked-files=all', ...projectScopePathspec(root)]
@@ -378,28 +325,6 @@ export function gitWorktrees(root: string): GitWorktreeInfo[] | GitUnavailable {
   const raw = tryGit(root, ['worktree', 'list', '--porcelain'])
   if (raw === null) return { state: 'unavailable', note: 'git worktree list failed' }
   return parseWorktreeList(raw)
-}
-
-export async function gitWorktreesAsync(root: string): Promise<GitWorktreeInfo[] | GitUnavailable> {
-  const list = await tryGitAsync(root, ['worktree', 'list', '--porcelain'])
-  if (list.out === null) return classifyAsyncFailure(root, list.failure, 'git worktree list failed')
-  return parseWorktreeList(list.out)
-}
-
-function parseWorktreeList(raw: string): GitWorktreeInfo[] {
-  const out: GitWorktreeInfo[] = []
-  let cur: Partial<GitWorktreeInfo> = {}
-  for (const line of raw.split('\n')) {
-    if (line.startsWith('worktree ')) cur = { path: line.slice(9), isMain: out.length === 0 }
-    else if (line.startsWith('HEAD ')) cur.head = line.slice(5)
-    else if (line.startsWith('branch ')) cur.branch = line.slice(7).replace('refs/heads/', '')
-    else if (line === '') {
-      if (cur.path) out.push({ path: cur.path, head: cur.head ?? '', branch: cur.branch ?? null, isMain: cur.isMain ?? false })
-      cur = {}
-    }
-  }
-  if (cur.path) out.push({ path: cur.path, head: cur.head ?? '', branch: cur.branch ?? null, isMain: cur.isMain ?? false })
-  return out
 }
 
 

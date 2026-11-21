@@ -1,6 +1,5 @@
 import React, { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useLoad, useTimer } from '../hooks/effects.js';
-import 'figures';
 import { getCwd } from '../utils/cwd.js';
 import { adoptGroundFamily, createSplashCore, assembleCardRows, CARD_LABEL_W, WORD_W } from '../../assets/splash/splash-core.mjs';
 import { useTheme } from './design-system/ThemeProvider.js';

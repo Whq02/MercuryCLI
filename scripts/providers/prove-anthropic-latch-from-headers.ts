@@ -29,7 +29,7 @@ const section = (t: string): void => {
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const auth = await import('../../src/utils/auth.ts')
+const auth = { ...(await import('../../src/utils/auth.ts')), ...(await import('../../src/services/auth/oauthLifecycle.ts')) }
 const limits = await import('../../src/services/anthropicLimits.ts')
 const mocking = await import('../../src/services/rateLimitMocking.ts')
 const { quotaWindows } = await import('../../src/services/cockpit/quota.ts')

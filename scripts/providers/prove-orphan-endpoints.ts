@@ -51,7 +51,7 @@ try {
   const { getSettingsForSource, updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const { configuredCompatEndpoints } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
   const { refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-  const { readStoredCompatApiKey, writeStoredCompatApiKey, writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { readStoredCompatApiKey, writeStoredCompatApiKey, writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { loginFamilyRows } = await import('../../src/components/loginFamilyRows.ts')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { hostDirectory, readHostRecord, writeHostRecord } = await import('../../src/services/host/store.ts')

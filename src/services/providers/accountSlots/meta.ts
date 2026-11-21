@@ -1,5 +1,5 @@
 import type { AccountSlotReads, AccountSlot } from './shapes.js'
-import { readStoredMetaApiKey } from '../providerSecrets.js'
+import { readStoredMetaApiKey } from '../../../utils/accounts/providerSecrets.js'
 import { keyLaneSlots, label } from './keyLane.js'
 
 export function metaSlots(reads: AccountSlotReads): AccountSlot[] {

@@ -18,7 +18,7 @@ Object.assign(process.env, { MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE:
 const { enableConfigs, saveGlobalConfig } = await import(join(src, 'utils/config/globalConfig.ts'))
 enableConfigs()
 saveGlobalConfig((config: Record<string, unknown>) => ({ ...config, oauthAccount: { accountUuid: 'fixture-account', emailAddress: 'fixture@example.invalid', organizationUuid: 'fixture-organization' } }))
-const auth = await import(join(src, 'utils/auth.ts'))
+const auth = { ...(await import(join(src, 'utils/auth.ts'))), ...(await import(join(src, 'services/auth/oauthLifecycle.ts'))) }
 const { APIError } = await import(join(src, 'utils/api/sdkErrors.ts'))
 const { getAssistantMessageFromError } = await import(join(src, 'services/api/errors.ts'))
 const { isRetryableError, withRetry, CannotRetryError } = await import(join(src, 'services/api/withRetry.ts'))

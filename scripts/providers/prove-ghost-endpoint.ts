@@ -44,11 +44,11 @@ try {
   const { updateSettingsForSource } = await import('../../src/utils/settings/settings.ts')
   const { configuredCompatEndpoints, isCompatEndpointCredentialed } = await import('../../src/services/providers/openaicompat/compatAccounts.ts')
   const { cachedCompatCatalogue, namedCompatModelOptions, refreshCompatCatalogues } = await import('../../src/services/providers/openaicompat/compatCatalogue.ts')
-  const { writeStoredCompatApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredCompatApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const { createHostRoad } = await import('../../src/services/host/index.ts')
   const { writeHostRecord, readHostRecord } = await import('../../src/services/host/store.ts')
   const { runpodFixture } = await import('../host/runpodFixture.mjs')
-  const { writeStoredRunpodApiKey } = await import('../../src/services/providers/providerSecrets.ts')
+  const { writeStoredRunpodApiKey } = await import('../../src/utils/accounts/providerSecrets.ts')
   const configured = updateSettingsForSource('userSettings', { compatProvider: {
     ghost: { baseUrl: 'http://127.0.0.1:' + port + '/v1', label: 'Ghost GLM' },
     locked: { baseUrl: f.baseUrl, label: 'Locked GLM', keyCommand: 'printf ""' },
