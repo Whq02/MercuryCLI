@@ -46,7 +46,8 @@ for (const app of apps) {
     assert.deepEqual(installation.manifest.archives.map((a: { archive: string; bytes: number; sha256: string }) => [a.archive, a.bytes, a.sha256]), [[row.archive, row.bytes, row.sha256]])
     for (const name of ['LICENSE-MIT', 'LICENSE-APACHE', 'NOTICE']) assert(installation.manifest.licences.some((l: { name: string; path: string }) => l.name === name && !l.path.includes('supplemental-notices')), `${app} ${platform}: ${name} travels inside the archive`)
     assert.equal((await checkInstall(foreign, { dataDir, platform })).state, 'installed')
-    assert((await installPinned(foreign, { dataDir, platform, fetcher, authorize: () => { throw new Error('Reuse must not ask') } })).reused)
+    const reused = await installPinned(foreign, { dataDir, platform, fetcher, authorize: () => { throw new Error('Reuse must not ask') } })
+    assert(reused.reused, `${app} ${platform}: second installPinned did not reuse existing archive in src/extensions/bundled/shared/install.mjs`)
     evidence.rows.push({ app, platform, archive: row.archive, bytes: row.bytes, sha256: row.sha256, cli, gui, fileCount: installation.manifest.fileCount, treeDigest: installation.manifest.treeDigest, licences: installation.manifest.licences.map((l: { path: string }) => l.path) })
     console.log(`PASS ${app} ${platform}: ${row.archive} installed from the one pinned archive (${row.bytes} bytes, SHA-256 enforced); ${cli} and ${gui} identified; LICENSE-MIT, LICENSE-APACHE and NOTICE found in the tree; offline check and reuse without a second ask`)
   }
