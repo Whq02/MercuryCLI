@@ -13,7 +13,7 @@ delete process.env.MERCURY_SUBPROCESS_CREDENTIAL_ISOLATION
 delete process.env.MERCURY_BARE
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS: keys } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS: keys } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const key of keys) process.env[key] = `fixture-${key}`
 const { startCommandHook } = await import('../../src/utils/hooks/commandRunner.ts')
 const { connectToServer, clearServerCache } = await import('../../src/services/mcp/client.ts')

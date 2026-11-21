@@ -12,7 +12,7 @@ import { xaiUsageFixture, XAI_FIXTURE_NOW, XAI_FIXTURE_API_KEY, XAI_FIXTURE_MANA
 process.env.MERCURY_RECESS = '0'
 process.env.BROWSER = process.execPath
 process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
-const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 for (const name of ALL_PROVIDER_CREDENTIAL_ENV_VARS) delete process.env[name]
 const originalNow = Date.now
 Date.now = () => XAI_FIXTURE_NOW

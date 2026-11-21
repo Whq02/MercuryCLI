@@ -24,7 +24,7 @@ const { ZEN_DISPLAY_PINS, zenDisplayPin, zenIsFreeModel } = await import('../../
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
 const { effortVocabularyFor, resolveContextWindow, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { readModelListFacts } = await import('../../src/services/providers/typedModelIds.ts')
-const { PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/services/providers/credentialEnvSpellings.ts')
+const { PROVIDER_CREDENTIAL_ENV_VARS } = await import('../../src/constants/credentialEnvSpellings.ts')
 const { getFlagSpec } = await import('../../src/substrate/flagRegistry.ts')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }

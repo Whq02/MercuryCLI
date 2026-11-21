@@ -15,7 +15,7 @@ export async function prepare() {
   process.env.BROWSER = '/usr/bin/true'
   process.env.NODE_ENV = 'test'
   ;(globalThis as any).MACRO = { VERSION: '1.0.0', PACKAGE_URL: 'https://example.com/fixture' }
-  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/services/providers/credentialEnvSpellings.ts`)
+  const { ALL_PROVIDER_CREDENTIAL_ENV_VARS } = await import(`${root}/src/constants/credentialEnvSpellings.ts`)
   for (const name of [...ALL_PROVIDER_CREDENTIAL_ENV_VARS, 'MERCURY_COMPAT_BASE_URL', 'MERCURY_COMPAT_MODELS', 'MERCURY_COMPAT_LABEL']) delete process.env[name]
   for (const name of Object.keys(process.env)) if (/^MERCURY_COMPAT_.*_API_KEY$/.test(name)) delete process.env[name]
   const { enableConfigs } = await import(`${root}/src/utils/config.ts`)
