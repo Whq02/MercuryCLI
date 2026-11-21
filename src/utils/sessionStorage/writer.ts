@@ -82,41 +82,43 @@ export function registerAgentTranscriptDestination(
 
 const reportedAgentReadFailures = new Set<string>()
 
-const getAgentFileMessages = memoize(
-  async (filePath: string): Promise<Set<string>> => {
-    try {
-      const head = historyHead(filePath)
-      const set = new Set<string>()
-      for (const part of sealedExtents(head)) for (const [, id] of historyIndex(part)) if (id !== null) set.add(id)
-      let added = 0
-      for (const row of transcriptLineBytes(filePath, { end: head.end })) {
-        added += row.length
-        if (added >= 1024 * 1024) { await sleep(0); added = 0 }
-        try {
-          const id = JSON.parse(row.toString('utf8'))?.annotations?.uuid
-          if (typeof id === 'string') set.add(id)
-        } catch (error) { passedOver(error) }
-      }
-      return set
-    } catch (error) {
-      const code = getErrnoCode(error)
-      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-        logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
-        getAgentFileMessages.cache.delete(filePath)
-        if (!reportedAgentReadFailures.has(filePath)) {
-          reportedAgentReadFailures.add(filePath)
-          setStoreHealth({
-            failing: true,
-            sentence: `Agent transcript at ${filePath} could not be read (${errorMessage(error)}), so entries may be duplicated — restore read permission on the file.`,
-          })
-        }
-      }
-      return new Set()
-    }
+const agentFileMessages = new Map<string, Set<string>>()
 
-  },
-  (filePath: string) => filePath,
-)
+async function getAgentFileMessages(filePath: string): Promise<Set<string>> {
+  const cached = agentFileMessages.get(filePath)
+  if (cached !== undefined) return cached
+  try {
+    const head = historyHead(filePath)
+    const set = new Set<string>()
+    for (const part of sealedExtents(head)) for (const [, id] of historyIndex(part)) if (id !== null) set.add(id)
+    let added = 0
+    for (const row of transcriptLineBytes(filePath, { end: head.end })) {
+      added += row.length
+      if (added >= 1024 * 1024) { await sleep(0); added = 0 }
+      try {
+        const id = JSON.parse(row.toString('utf8'))?.annotations?.uuid
+        if (typeof id === 'string') set.add(id)
+      } catch (error) { passedOver(error) }
+    }
+    const known = agentFileMessages.get(filePath)
+    if (known !== undefined) return known
+    agentFileMessages.set(filePath, set)
+    return set
+  } catch (error) {
+    const code = getErrnoCode(error)
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') {
+      logForDebugging(`agent transcript read failed for ${filePath} (${code ?? 'unknown'})`, { level: 'error' })
+      if (!reportedAgentReadFailures.has(filePath)) {
+        reportedAgentReadFailures.add(filePath)
+        setStoreHealth({
+          failing: true,
+          sentence: `Agent transcript at ${filePath} could not be read (${errorMessage(error)}), so entries may be duplicated — restore read permission on the file.`,
+        })
+      }
+    }
+    return new Set()
+  }
+}
 
 let project: Project | null = null
 let cleanupRegistered = false
