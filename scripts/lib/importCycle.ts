@@ -15,7 +15,7 @@ type Reading = {
   passedOn: Set<string>
 }
 
-const SUFFIXES = ['.ts', '.tsx', '.mts', '.cts', '.js', '.jsx', '.mjs', '.cjs']
+const SUFFIXES = ['.ts', '.tsx', '.d.ts', '.mts', '.d.mts', '.cts', '.d.cts', '.js', '.jsx', '.mjs', '.cjs']
 
 function bare(expression: ts.Expression): ts.Expression {
   let current = expression
@@ -82,8 +82,11 @@ export function readImports(root: string): Reading {
         base,
         base.replace(/\.jsx?$/, '.ts'),
         base.replace(/\.jsx?$/, '.tsx'),
+        base.replace(/\.jsx?$/, '.d.ts'),
         base.replace(/\.mjs$/, '.mts'),
+        base.replace(/\.mjs$/, '.d.mts'),
         base.replace(/\.cjs$/, '.cts'),
+        base.replace(/\.cjs$/, '.d.cts'),
         ...SUFFIXES.map(suffix => base + suffix),
         ...SUFFIXES.map(suffix => `${base}/index${suffix}`),
       ]
