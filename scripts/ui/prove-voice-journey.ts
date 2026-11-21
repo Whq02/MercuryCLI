@@ -6,6 +6,7 @@ import { delimiter, dirname, join, resolve } from 'node:path'
 import { posixPtyDriverOrSkip, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
 import { nodeBinPath } from '../lib/nodeBin.ts'
+import { BOOT_FACE_READY, paintsBootFaceReady } from '../lib/bootFace.ts'
 import { referenceFixtureSnapshot } from '../notifications/concourseReferenceSeed.ts'
 import { synthesizeToneWav } from '../../src/services/voice/wav.ts'
 import { NO_BACKEND_RECEIPT } from '../../src/services/voice/capture.ts'
@@ -227,7 +228,7 @@ const seededHome = (name: string): string => {
 const ADMITTED = '← back'
 
 const OPENING: unknown[] = [
-  { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 110, data: '/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
   { afterPrevTicks: 3, data: '\r' },
 ]
@@ -286,7 +287,7 @@ console.log('[A] /voice off (already off: the status) → /voice on → a hold �
     seededHome('home-a'),
     netlog,
     [
-      { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+      { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
       { atTick: 110, data: '/voice off', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
       { afterPrevTicks: 3, data: '\r' },
       { requireAwait: true, awaitText: 'voice input OFF — /voice on turns it on', awaitStableTicks: 2, mark: 'status-off', data: '/voice on' },
@@ -498,7 +499,7 @@ console.log('[H] voice input on, space on the Session Concourse — nothing; shi
   check('the drive delivered', res.status === 0, stuckWords(res))
   const afterV = res.marks['after-v'] ?? ''
   check('space on the concourse starts nothing (no recording line, no receipt, the board still painted)', !afterV.includes('recording ·') && !afterV.includes('transcrib') && afterV.includes('╭'), afterV.split('\n').slice(0, 3).join(' · '))
-  check('shift+← walks home to the Boot face', (res.marks.home ?? '').includes('↑↓ choose'), (res.marks.home ?? '').split('\n').filter(l => l.includes('choose')).join(' · '))
+  check('shift+← walks home to the Boot face', paintsBootFaceReady(res.marks.home ?? ''), (res.marks.home ?? '').split('\n').filter(l => l.includes('↑↓')).join(' · '))
   const stray = nonLoopback(netlines(netlog))
   check('nothing left loopback', stray.length === 0, stray.join(' · '))
 }
@@ -519,7 +520,7 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
       { afterPrevTicks: 2, data: 'p' },
       { requireAwait: true, awaitText: 'fuzzy by name', awaitStableTicks: 1, mark: 'palette', data: '\x1b' },
       { afterPrevTicks: 4, mark: 'palette-closed', data: '\x1b[1;2D' },
-      { requireAwait: true, awaitText: '↑↓ choose', awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
+      { requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, awaitStableTicks: 2, mark: 'face', data: '\x1b[1;2C' },
       ...hold({ requireAwait: true, awaitText: 'Type a prompt', awaitStableTicks: 2, mark: 'chat' }, { mark: 'recording', beyondMs: 0 }),
       { afterPrevTicks: 1, data: '\x1b' },
       { requireAwait: true, awaitText: 'capture cancelled — nothing sent', awaitStableTicks: 1, mark: 'cancelled', data: '' },
@@ -532,7 +533,7 @@ console.log('[I] with voice input on: ? opens help · ctrl+x p opens the palette
   check('the drive delivered every send', res.status === 0, stuckWords(res))
   check('? in the empty composer opens the shortcuts panel (untouched by the space filter); ? again closes it', (res.marks.help ?? '').includes('/keybindings to customize') && !(res.marks['help-closed'] ?? '').includes('/keybindings to customize'), `${(res.marks.help ?? '').includes('/keybindings') ? 'opened' : 'never opened'} · ${(res.marks['help-closed'] ?? '').includes('/keybindings') ? 'still open' : 'closed'}`)
   check('the ctrl+x p chord opens the command palette; esc closes it', (res.marks.palette ?? '').includes('fuzzy by name') && !(res.marks['palette-closed'] ?? '').includes('fuzzy by name'))
-  check('shift+← walks to the Boot face and shift+→ returns to the chat', (res.marks.face ?? '').includes('↑↓ choose') && (res.marks.chat ?? '').includes('Type a prompt'))
+  check('shift+← walks to the Boot face and shift+→ returns to the chat', paintsBootFaceReady(res.marks.face ?? '') && (res.marks.chat ?? '').includes('Type a prompt'))
   check('after all that, a hold still records and esc still cancels', (res.marks.recording ?? '').includes('● recording') && (res.marks.cancelled ?? '').includes('capture cancelled — nothing sent'))
   check('no take was sent', ledgerPosts(fx.ledger).length === 0)
   const stray = nonLoopback(netlines(netlog))

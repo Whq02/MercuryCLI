@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { captureEngineEntry, resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { applyAppleTerminalReading, colorSgrSequences, readTeeFrames, teeBytes } from './appleTerminalReading.ts'
 import { fixture, ROOT } from './viewportFixture.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'colour-depth-')))
 process.env.MERCURY_CONFIG_DIR = join(scratch, 'proof-home')
@@ -103,8 +104,8 @@ async function capture(name: string, extra: Record<string, string | undefined>):
     { ...gate, awaitText: '↑↓ preview', data: '', mark: 'theme' },
     { ...gate, awaitText: '↑↓ preview', data: '\r' },
     { ...gate, awaitText: '↵ continue', data: '\r' },
-    { ...gate, awaitText: '↑↓ choose', data: '', mark: 'boot' },
-    { ...gate, awaitText: '↑↓ choose', data: '\r' },
+    { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '', mark: 'boot' },
+    { ...gate, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, data: '\r' },
     { ...gate, awaitText: 'Type a prompt', awaitSettleTicks: 12, data: '', mark: 'session' },
   ]
   const cfgFile = join(scratch, `${name}.capture.json`)

@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, vshotBudgetScale, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-seats-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -406,7 +407,7 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: `${ASK}\r`, awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3, mark: 'boot' },
         { data: '', awaitText: IDLE_WAITS, requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'chat-busy' },
         { data: '/crewmates\r', afterPrevTicks: 2 },

@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
 const argAfter = (flag: string): string | undefined => {
@@ -99,7 +100,7 @@ const PICKER = 'Mercury · model'
 const focusRow = (window: string): string => `│ │ Opus 4\\.6 {2,}[^\\n│]*\\b${window} ctx`
 const GROUP_TOP = '\\A(?![\\s\\S]*│ │ Opus 4\\.6 )(?=[\\s\\S]*│ ❯ [A-Z.]+ · )'
 const sends: Send[] = [
-  { atTick: 999, requireAwait: true, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 3, data: '\r' },
+  { atTick: 999, requireAwait: true, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, data: '\r' },
   { atTick: 999, requireAwait: true, awaitText: 'ready · ', minTick: 5, awaitSettleTicks: 3, data: '/model' },
   { afterPrevTicks: 3, data: '\r' },
   { requireAwait: true, awaitText: 'Mercury · model', awaitSettleTicks: 8, mark: 'opened', data: DOWN },

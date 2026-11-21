@@ -14,6 +14,7 @@ if (!existsSync(BIN)) {
 }
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { vshotBudgetMs, resolveCaptureDriver } = await import('../lib/captureDriver.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const driver = resolveCaptureDriver()
 if (driver.kind !== 'posix-pty') {
   console.error(`prove-motion-doors-drive: capture driver unavailable — ${driver.kind === 'unavailable' ? `${driver.reason}; ${driver.remedy}` : driver.kind}`)
@@ -155,7 +156,8 @@ const ESC = '\x1b'
 const SHIFT_RIGHT = '\x1b[1;2C'
 const { STARTUP_MENU } = await import('../../src/substrate/startupMenu.ts')
 const { withJevRow } = await import('../../src/components/BootSettingsScreen.tsx')
-const TO_MOTION = DOWN.repeat(withJevRow(STARTUP_MENU).length + 1)
+const { settingsEditors } = await import('../../src/components/bootSettings/menuModel.ts')
+const TO_MOTION = DOWN.repeat(settingsEditors.length + withJevRow(STARTUP_MENU).length + 1)
 let cap: Capture | null = null
 try {
   cap = await capture(
@@ -165,11 +167,11 @@ try {
       cols: COLS,
       rows: ROWS,
       sends: [
-        { data: 's', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+        { data: 's', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
         { data: TO_MOTION, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: RIGHT, awaitText: 'doors: /config · Boot Menu', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-motion' },
         { data: ESC, awaitText: 'motion full · set by you', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-full' },
-        { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
+        { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
         { data: '/config\r', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 3 },
         { data: 'motion', awaitText: 'Motion', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'config-open' },
         { data: '\r', afterPrevTicks: 4 },
@@ -181,7 +183,7 @@ try {
         { data: TO_MOTION, awaitText: 'SETTING DETAIL', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: BACKSPACE, awaitText: 'now: reduced (set by you)', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-reduced' },
         { data: ESC, awaitText: 'follows the machine again', requireAwait: true, minTick: 2, awaitSettleTicks: 4, mark: 'menu-auto' },
-        { data: SHIFT_RIGHT, awaitText: '↑↓ choose', requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
+        { data: SHIFT_RIGHT, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 2, awaitStableTicks: 4, awaitSettleTicks: 3 },
         { data: SHIFT_RIGHT, awaitText: 'SESSIONS', requireAwait: true, minTick: 2, awaitSettleTicks: 4 },
         { data: '', awaitText: 'ype a prompt', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: 'chat-auto' },
         { data: '', afterPrevTicks: 3, mark: 'end' },
@@ -250,7 +252,7 @@ console.log('\n— M3b the inline statusline (the surface that paints the motion
           cols: COLS,
           rows: ROWS,
           sends: [
-            { data: '\r', awaitText: '↑↓ choose', requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
+            { data: '\r', awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, requireAwait: true, minTick: 10, awaitStableTicks: 6, awaitSettleTicks: 4 },
             { data: '', awaitText: '? for shortcuts', requireAwait: true, minTick: 2, awaitSettleTicks: 6, mark: label },
           ],
           stableTicks: 6,

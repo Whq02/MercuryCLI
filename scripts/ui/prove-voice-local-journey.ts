@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { delimiter, dirname, join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 import { voicePackPlatform } from '../../src/utils/voice/voicePack.ts'
 import { checkWhisperPackDir, whisperPackDirFor } from '../../src/services/voice/whisperPack.ts'
 import { WHISPER_MODELS_SEGMENTS, WHISPER_MODELS_VENDOR_PATH, checkWhisperModel, whisperDefaultModel, type WhisperModelPin } from '../../src/services/voice/whisperModels.ts'
@@ -255,7 +256,7 @@ const seededHome = (name: string, withModel = true): string => {
 
 const ADMITTED = '← back'
 const OPENING: unknown[] = [
-  { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+  { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
   { atTick: 110, data: '\x15/voice on', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
   { afterPrevTicks: 3, data: '\r' },
 ]
@@ -394,7 +395,7 @@ console.log('[C] first on downloads once, the bare command captures, off persist
   check('one fixture model request, no voice upload', netlines(netlog).filter(l => l.startsWith('model-fixture')).length === 1 && voiceWires(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0 && nonLoopback(netlines(netlog).filter(l => !l.startsWith('model-fixture'))).length === 0)
   const secondNet = join(scratch, 'restart-net.log')
   const second = drive('restart', home, secondNet, [
-    { atTick: 40, awaitText: '↑↓ choose', minTick: 3, awaitSettleTicks: 2, data: '\r' },
+    { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, data: '\r' },
     { atTick: 110, data: '/voice', awaitText: ADMITTED, minTick: 5, awaitStableTicks: 2 },
     { afterPrevTicks: 3, data: '\r' },
     { requireAwait: true, awaitText: 'voice input is off', awaitStableTicks: 2, mark: 'off', data: '/voice on' },

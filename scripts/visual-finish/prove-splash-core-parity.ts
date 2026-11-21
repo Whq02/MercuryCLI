@@ -32,26 +32,18 @@ t.section('§3 — flatten parity at the capture matrix (incl. the operator prof
       continueTarget: { base: 'orchard-src', ageMs: 5 * 60000, cross: false },
       menuAvailable: true,
       concourse: { ctx: 'the live board · 2 live' },
-      projects: [
-        { base: 'moodle', ageMs: 60 * 60000 },
-        { base: 'avs2', ageMs: 3 * 86400000 },
-      ],
     }),
     cardSel: 0,
     hintSegments: [
-      { key: '↵ ', label: 'start', tone: 'ivory' as const },
+      { key: '↵', label: '', tone: 'ivory' as const },
       { key: 'm', label: ' menu', tone: 'faint' as const },
     ],
-    tinyHint: '↵ start',
+    tinyHint: '↵',
     stripLines: (w: number) =>
       core.composeStrip(
         {
           model: 'Opus 5',
-          critter: 'Octopus',
-          critterHue: '#B07BE0',
           dir: 'orchard-src',
-          acct: { state: 'email', text: 'operator@example.com' },
-          health: { verdict: 'certified', age: '2h' },
         },
         w,
       ),
@@ -90,8 +82,8 @@ t.section('§3 — flatten parity at the capture matrix (incl. the operator prof
     t.check(`${cols}x${rows}: run text is byte-preserved (no dropped cells)`, textOk, 'lossless text')
     t.check(`${cols}x${rows}: emit→reparse is a fixed point (cell output ≡ SGR flatten)`, roundtripOk, 'round-trip stable')
     t.check(
-      `${cols}x${rows}: the composition carries the ten action rows (the kit-era eight + Saturn + Agents, post the sessions-projects merge and the Logins row)`,
-      res.cardShown && res.actionLines.length === 10,
+      `${cols}x${rows}: the composition carries the five action rows (new · continue · logins · concourse · menu)`,
+      res.cardShown && res.actionLines.length === 5,
       `cardShown=${String(res.cardShown)} actions=${res.actionLines.length}`,
     )
   }
@@ -106,14 +98,13 @@ t.section('§4 — CB-11: background ink is art cells + the approved plate only 
       continueTarget: null,
       menuAvailable: true,
       concourse: { ctx: 'the live board' },
-      projects: [],
     }),
     cardSel: 0,
-    hintSegments: [{ key: '↵ ', label: 'start', tone: 'ivory' as const }],
-    tinyHint: '↵ start',
+    hintSegments: [{ key: '↵', label: '', tone: 'ivory' as const }],
+    tinyHint: '↵',
     stripLines: (w: number) =>
       core.composeStrip(
-        { model: 'Opus 5', critter: 'Crab', critterHue: '#DD4444', dir: 'proj', acct: { state: 'none' }, health: null },
+        { model: 'Opus 5', dir: 'proj' },
         w,
       ),
   })
