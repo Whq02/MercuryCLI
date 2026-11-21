@@ -1,4 +1,4 @@
-import { useSubscription } from './effects.js'
+import { useClaim } from './effects.js'
 import { currentSurfaceRoute, subscribeSurfaceRoute } from '../context/surfaceRoute.js'
 import { splitActiveAt, subscribeSplitView } from '../components/concourse/splitView.js'
 import { getFocusedSessionConnector, hasFocusedSession, subscribeFocusedSessionConnector } from '../services/engine-connector/focusedConnector.js'
@@ -15,7 +15,7 @@ function chatOnScreen(columns: number, rows: number): string | null {
 
 export function useFinishMarks(): void {
   const { columns, rows } = useTerminalSize()
-  useSubscription(() => {
+  useClaim(() => {
     let shown = chatOnScreen(columns, rows)
     if (shown !== null) void markSessionSeen(shown).catch(passedOver)
     const sync = (): void => {

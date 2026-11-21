@@ -1,10 +1,7 @@
-import { useState } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
+import { useSyncExternalStore } from 'react'
 
 import { signInLedgerEpoch, subscribeSignInEpoch } from './signInLedger.js'
 
 export function useSignInEpoch(): number {
-  const [epoch, setEpoch] = useState<number>(() => signInLedgerEpoch())
-  useSubscription(() => subscribeSignInEpoch(() => setEpoch(signInLedgerEpoch())), [])
-  return epoch
+  return useSyncExternalStore(subscribeSignInEpoch, signInLedgerEpoch, signInLedgerEpoch)
 }
