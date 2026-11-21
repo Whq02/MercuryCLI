@@ -14,8 +14,8 @@ assert.equal(wait({ 'x-ratelimit-reset-requests': '1d', 'x-ratelimit-remaining-r
 for (const headers of [{ 'retry-after-ms': '750' }, { 'x-ratelimit-reset-tokens': '750ms' }] as Record<string, string>[]) {
   const result = await turn(attempt => attempt === 1 ? Response.json(body, { status: 429, headers }) : answer())
   assert.equal(result.requests.length, 2)
-  assert(result.times[1]! - result.times[0]! >= 700)
-  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage))
+  assert(result.times[1]! - result.times[0]! >= 700, `compat 429 retry wait in src/services/providers/openaicompat/compatChatClient.ts must wait >=700ms (got ${result.times[1]! - result.times[0]!}ms)`)
+  assert(result.events.some(e => e.type === 'assistant' && !e.isApiErrorMessage), 'compat 429 retry in src/services/providers/openaicompat/compatChatCallModel.ts must settle with a non-error assistant reply')
 }
 console.log('P11 compat retries honor explicit waits before exhausted-window reset hints')
 assert.equal(mapCompatHttpFailure(500, {}, new Headers({ 'x-ratelimit-reset-requests': '1d' })).retryAfterMs, undefined)

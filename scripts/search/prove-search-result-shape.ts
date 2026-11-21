@@ -25,16 +25,16 @@ for (const text of ['x', '汉字', '\\"\n', '🧭']) {
   const hits = contract.normaliseHits(Array.from({ length: 100 }, (_, i) => ({
     title: text.repeat(1000), url: `https://example.com/${i}`, snippet: text.repeat(1000), source_type: 'brave' as const,
   })), 100)
-  assert.ok(hits.length <= contract.DEFAULT_MAX_RESULTS)
-  assert.ok(hits.every(h => h.snippet.length <= contract.MAX_SNIPPET_CHARS))
+  assert.ok(hits.length <= contract.DEFAULT_MAX_RESULTS, `normaliseHits in src/services/search/searchContract.js must cap hits <= ${contract.DEFAULT_MAX_RESULTS} (got ${hits.length})`)
+  assert.ok(hits.every(h => h.snippet.length <= contract.MAX_SNIPPET_CHARS), `normaliseHits in src/services/search/searchContract.js must cap snippet length <= ${contract.MAX_SNIPPET_CHARS}`)
   for (const tool of [WebSearchTool, ProviderSearchTool]) {
     const block = tool.mapToolResultToToolResultBlockParam({ query: text.repeat(20000), results: ['untrusted commentary'.repeat(5000), { tool_use_id: 'g', content: hits }], via: 'brave', tier: 'keyed', notes: [text.repeat(20000)], durationSeconds: 0 }, 'proof')
     const payload = String(block.content)
     assert.ok(searchTokenEstimate(payload) < SEARCH_PAYLOAD_TOKEN_CEILING, `token estimate ${searchTokenEstimate(payload)}`)
     const parsed = JSON.parse(payload)
-    assert.ok(parsed.hits.length > 0)
+    assert.ok(parsed.hits.length > 0, `${tool.name}.mapToolResultToToolResultBlockParam must preserve at least one hit under ceiling`)
     for (const hit of parsed.hits) assert.deepEqual(Object.keys(hit).sort(), ['snippet', 'source_type', 'title', 'url'])
-    assert.ok(!payload.includes('untrusted commentary'))
+    assert.ok(!payload.includes('untrusted commentary'), `${tool.name}.mapToolResultToToolResultBlockParam must drop untrusted commentary`)
   }
 }
 assert.equal(contract.normaliseHits([{ title: 'bad', url: 'javascript:alert(1)', snippet: '', source_type: 'brave' }]).length, 0)

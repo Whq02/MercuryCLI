@@ -38,7 +38,7 @@ try {
     const omittedBody = engine.captures.at(-1)!.body
     assert.doesNotMatch(JSON.stringify(omittedBody.messages ?? omittedBody.input), /"(?:image_url|input_image)"/, `${dialect}: text-only capability holds even when tool deferral is off`)
     assert.match(JSON.stringify(textOnly.map(row => row.message.content)), /Image content was not sent/)
-    assert.ok(textOnly.every(row => !row.isApiErrorMessage))
+    assert.ok(textOnly.every(row => !row.isApiErrorMessage), `${dialect}: text-only fallback turn must settle without API error`)
     engine.state.images = true
     await refreshCompatCatalogues({ name: dialect, force: true })
     engine.state.call = { name: 'StructuredOutput', arguments: JSON.stringify(payload) }
@@ -49,7 +49,7 @@ try {
     assert.deepEqual(declared.parameters, schema, `${dialect}: the bound output schema reaches the engine whole`)
     assert.match(JSON.stringify(request.messages ?? request.input), /"(?:image_url|input_image)"/)
     if (['llamacpp', 'vllm', 'sglang', 'ollama'].includes(dialect)) assert.equal(validateEngineRequest(dialect, request), undefined)
-    assert.ok(first.every(row => !row.isApiErrorMessage))
+    assert.ok(first.every(row => !row.isApiErrorMessage), `${dialect}: image + structured-output turn must settle without API error`)
     const calls = first.flatMap(row => row.message.content).filter((block: any) => block.type === 'tool_use')
     assert.equal(calls.length, 1, `${dialect}: one executable structured call`)
     assert.equal(calls[0].name, 'StructuredOutput')
@@ -83,13 +83,13 @@ try {
       const invalid = finalizeAgentTool([...invalidRows, invalidResult, ...reply], `crew-${dialect}`, metadata)
       assert.equal(invalid.outcome.status, 'failed')
       assert.equal(invalid.outcome.reason, 'schema-mismatch')
-    } else assert.ok(invalidRows.some(row => row.refusedToolCalls?.length))
+    } else assert.ok(invalidRows.some(row => row.refusedToolCalls?.length), `${dialect}: invalid structured call without tool_use must populate refusedToolCalls`)
     engine.state.call = undefined
     const finalUsage = reply.at(-1)!.message.usage
     const capture = engine.captures.at(-2)!
     assert.equal(finalUsage.output_tokens, 4)
-    assert.ok(finalUsage.input_tokens + finalUsage.cache_read_input_tokens > 0)
-    assert.ok(capture.total > 0)
+    assert.ok(finalUsage.input_tokens + finalUsage.cache_read_input_tokens > 0, `${dialect}: final usage must report positive input + cache_read tokens`)
+    assert.ok(capture.total > 0, `${dialect}: fixture capture must record positive total bytes`)
     console.log(`PASS ${dialect}: crewmate prompt and result images, full output schema, typed call, frozen replay, usage and strict success/missing/invalid settlement`)
   }
   console.log('COMPAT TURN PARITY GREEN — seven dialects through the router and real schema-bound tool; loopback only')

@@ -51,7 +51,7 @@ try {
   const imageResult = [f.createUserMessage({ content: 'read a picture' }), createAssistantMessage({ content: [{ type: 'tool_use', id: 'image-result', name: 'FixtureEcho', input: { text: 'picture' } }] as never }), f.createUserMessage({ content: [{ type: 'tool_result', tool_use_id: 'image-result', content: image()[0]!.message.content }] as never })]
   const unseenResult = await f.run(model, imageResult)
   assert.match(JSON.stringify(unseenResult.map(row => row.message.content)), /Image content was not sent.*without its vision projector/)
-  assert.ok(f.captures.at(-1)!.body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === 'image-result'))
+  assert.ok(f.captures.at(-1)!.body.messages.some((row: any) => row.role === 'tool' && row.tool_call_id === 'image-result'), 'compat wire messages in src/services/providers/openaicompat/ must retain paired tool_result for image-result')
   state.vision = true
   assert.equal(errors(await f.run(model, image())), '')
   assert.equal(hasImage(), true, 'same endpoint gains a projector without a model switch or Computer call')

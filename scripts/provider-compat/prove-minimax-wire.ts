@@ -39,7 +39,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.MINIMAX_API_KEY!))
+  assert.ok(!raw.includes(process.env.MINIMAX_API_KEY!), 'MiniMax chat request body in src/services/providers/minimax/ must never contain MINIMAX_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer })
   if (body.model === 'MiniMax-M3.1-Flash-Preview' && (body.reasoning_effort === 'none' || body.reasoning_effort === 'minimal' || body.thinking?.type === 'disabled' || body.reasoning_split === false)) {

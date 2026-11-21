@@ -23,7 +23,7 @@ try {
   const first = await f.run(model, undefined, AbortSignal.timeout(10000), 'max')
   assert.equal(f.captures.length, 1)
   assert.equal(f.captures[0]!.body.reasoning_effort, 'max', 'the first request carries the selected max, not a server default')
-  assert.ok(first.every(row => !row.isApiErrorMessage))
+  assert.ok(first.every(row => !row.isApiErrorMessage), 'cold Ollama compat turn in src/services/providers/openaicompat/compatChatCallModel.ts must settle without API error')
   assert.equal(first.at(-1).effort.applied, 'max')
   assert.equal(validateEngineRequest('ollama', f.captures[0]!.body), undefined)
   assert.ok(f.state.requests > before + 1, 'cold request reads the served metadata')
@@ -32,7 +32,7 @@ try {
   assert.equal(f.state.requests - warmBefore, 1, 'warm catalogue does not re-probe per turn')
   assert.equal(f.captures.at(-1)!.body.reasoning_effort, 'max')
   assert.deepEqual(f.captures.at(-1)!.body.tools, f.captures[0]!.body.tools)
-  assert.ok(second.every(row => !row.isApiErrorMessage))
+  assert.ok(second.every(row => !row.isApiErrorMessage), 'warm Ollama compat turn in src/services/providers/openaicompat/compatChatCallModel.ts must settle without API error')
   const controller = new AbortController()
   controller.abort()
   const cancelBefore = f.state.requests
