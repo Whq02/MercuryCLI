@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useDerivedState, useTimer } from '../../../hooks/effects.js'
+import { useTimer } from '../../../hooks/effects.js'
 import { CONTROL_NOTE_REFUSED_MS, stableSelectionFallback } from '../contracts.js'
 import type { OlderChatFact } from '../../../services/concourse/concourseSnapshot.js'
 import { NEW_SESSION_ROW_ID } from '../ConcourseLayout.js'
@@ -8,9 +8,21 @@ import type { Filter, Frame, ScreenProps } from './state.js'
 import { startTimeout, stopTimeout } from '../../../utils/timers.js'
 
 export function useConcourseSelection({ presentationCapsule, compact, newSessionLine, sessionRows }: Pick<ScreenProps, 'presentationCapsule'> & Pick<Frame, 'compact'> & Pick<Filter, 'newSessionLine' | 'sessionRows'>) {
-  const [boardSel, setBoardSel] = useState<string | null>(
+  const [rawBoardSel, setBoardSel] = useState<string | null>(
     () => presentationCapsule?.boardSel ?? sessionRows[0]?.sessionId ?? null,
   )
+  const [lastIdx, setLastIdx] = useState(0)
+  const keepNewSessionLine = newSessionLine && rawBoardSel === NEW_SESSION_ROW_ID
+  const fb = keepNewSessionLine
+    ? { sessionId: rawBoardSel, index: 0 }
+    : stableSelectionFallback(
+        sessionRows.map(r => r.sessionId),
+        rawBoardSel,
+        lastIdx,
+      )
+  const boardSel = fb.sessionId
+  if (boardSel !== rawBoardSel) setBoardSel(boardSel)
+  if (fb.index !== lastIdx) setLastIdx(fb.index)
   const boardSelRef = useRef<string | null>(boardSel)
   boardSelRef.current = boardSel
   const parkSightRef = useRef(new Map<string, number>())
@@ -37,17 +49,6 @@ export function useConcourseSelection({ presentationCapsule, compact, newSession
     timer.unref?.()
     return () => stopTimeout(timer)
   }, [compactParkNoteExpiresAt, parkNoteEpoch])
-  const lastIdxRef = useRef(0)
-  useDerivedState(() => {
-    if (newSessionLine && boardSel === NEW_SESSION_ROW_ID) {
-      lastIdxRef.current = 0
-      return
-    }
-    const ids = sessionRows.map(r => r.sessionId)
-    const fb = stableSelectionFallback(ids, boardSel, lastIdxRef.current)
-    lastIdxRef.current = fb.index
-    if (fb.sessionId !== boardSel) setBoardSel(fb.sessionId)
-  }, [sessionRows, boardSel, newSessionLine])
   const [boardScroll, setBoardScroll] = useState<number | null>(presentationCapsule?.boardScroll ?? null)
   const [rowPeekOpen, setRowPeekOpen] = useState(false)
   const rowPeekOpenRef = useRef(false)
