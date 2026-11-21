@@ -345,6 +345,9 @@ console.log('\n── rewind list and card after shell commands ──')
     for (const [id, cmd] of [
       ['null-then-rm', 'Get-Content a.txt 2>$null; Remove-Item b.txt'],
       ['nullx', 'Get-Content a.txt > $nullx'],
+      ['comment-quote-rm', "Get-Content a.txt # don't\nRemove-Item b.txt # isn't"],
+      ['ext-cmd', 'Get-Content.cmd a.txt'],
+      ['ext-exe', 'cat.exe a.txt'],
     ] as const) {
       const msgs = [
         userMsg(`u-ps-${id}`, `run ${cmd}`),
