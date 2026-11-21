@@ -44,8 +44,7 @@ import {
   type WorkbenchSourceInputs,
 } from './selectors.js'
 import { passedOver } from '../../utils/passedOver.js'
-import { subscribeUiClock } from '../../utils/cockpit/uiClock.js'
-import { startTimeout, stopTimeout } from '../../utils/timers.js'
+import { startInterval, startTimeout, stopInterval, stopTimeout } from '../../utils/timers.js'
 
 const REFRESH_DEBOUNCE_MS = 300
 const HEARTBEAT_MS = 20_000
@@ -319,7 +318,7 @@ function listArtifactHeadFacts(cwd: string): SourceState<WorkbenchSourceInputs['
 let snapshot: WorkbenchSnapshot | null = null
 const lastGood = new Map<string, unknown>()
 const listeners = new Set<() => void>()
-let heartbeat: (() => void) | null = null
+let heartbeat: ReturnType<typeof setInterval> | null = null
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const engineUnsubs: Array<() => void> = []
 const watchedAgentMeta = new Set<string>()
@@ -379,7 +378,8 @@ function startEngine(): void {
       logForDebugging(`[workbench] refresh failed (dropped): ${e}`)
     }
   }, 'workbench')
-  heartbeat = subscribeUiClock(HEARTBEAT_MS, () => pokeWorkbench())
+  heartbeat = startInterval(() => pokeWorkbench(), HEARTBEAT_MS)
+  heartbeat.unref?.()
   engineUnsubs.push(subscribeGitFacts(() => scheduleDebounced()))
   engineUnsubs.push(subscribeRuns(() => scheduleDebounced()))
   engineUnsubs.push(subscribeExecutionEvents(() => scheduleDebounced()))
@@ -388,7 +388,7 @@ function startEngine(): void {
 
 function stopEngine(): void {
   if (heartbeat) {
-    heartbeat()
+    stopInterval(heartbeat)
     heartbeat = null
   }
   coalescer?.release()

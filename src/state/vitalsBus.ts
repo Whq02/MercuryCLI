@@ -164,7 +164,7 @@ function startEngine(): void {
   unsubLive = subscribeFocusedLive(() => scheduleDebounced())
   unsubExecutions = subscribeExecutionEvents(() => scheduleDebounced())
   unsubGitFacts = subscribeGitFacts(() => pokeVitals())
-  unsubWorkers = subscribeConcourseWorkers(() => scheduleDebounced())
+  unsubWorkers = subscribeConcourseWorkers(() => pokeVitals())
   unsubTrace = subscribeStorageFile(getInvocationTracePath(), () => scheduleDebounced())
   pokeVitals()
 }

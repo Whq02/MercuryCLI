@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { accountsWorld, fixtureTurn, KEY, SUBSCRIPTION, until } from './anthropicAccountsFixture.ts'
 const world = await accountsWorld()
 try {
-  assert.equal(world.auth.saveOAuthTokensIfNeeded(SUBSCRIPTION).success, true)
+  const { saveOAuthTokensIfNeeded } = await import('../../src/services/auth/oauthLifecycle.ts')
+  assert.equal(saveOAuthTokensIfNeeded(SUBSCRIPTION).success, true)
   await world.auth.saveApiKey(KEY)
   world.hold()
   const first = [fixtureTurn('crewmate alpha first', 'alpha'), fixtureTurn('crewmate beta first', 'beta')]

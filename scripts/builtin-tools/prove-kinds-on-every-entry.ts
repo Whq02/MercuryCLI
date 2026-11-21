@@ -181,7 +181,7 @@ const reach = (entry: string): Set<string> => {
   while (queue.length > 0) for (const to of next.get(queue.shift()!) ?? []) if (!seen.has(to)) queue.push((seen.add(to), to))
   return seen
 }
-const direct = (entry: string): string[] => [...new Set(edges.filter(edge => edge.from === entry && edge.kind === 'static' && edge.to !== entry).map(edge => edge.to))]
+const direct = (entry: string): string[] => [...new Set(edges.filter(edge => edge.from === entry && edge.kind === 'static' && edge.to !== entry && !/\.d\.[cm]?ts$/.test(edge.to)).map(edge => edge.to))]
 const loadedBy = (file: string): string => {
   const importers = edges.filter(edge => edge.to === file && edge.kind === 'static' && edge.from !== file)
   return importers.length === 0 ? `nothing imports ${file}` : `${file} is loaded by ${importers.map(edge => `${edge.from}:${edge.line}`).join(', ')}`
