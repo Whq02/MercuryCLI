@@ -95,10 +95,7 @@ export async function* meliousCallModel(params: CallModelParams): CallModelStrea
     return
   }
   if (resolveMeliousApiKey()) {
-    let onAbort: () => void = () => {}
-    const cancelled = new Promise<void>(resolve => { onAbort = resolve; params.signal.addEventListener('abort', onAbort, { once: true }) })
-    try { await Promise.race([readCatalogueIfPending('melious'), cancelled]) }
-    finally { params.signal.removeEventListener('abort', onAbort) }
+    await readCatalogueIfPending('melious', { signal: params.signal })
     if (params.signal.aborted) return
     const snapshot = getCachedMeliousCatalogue()
     if (snapshot && snapshot.fetchedAtMs > 0 && !snapshot.lastError && !meliousListedModel(verdict.wireId)) {
