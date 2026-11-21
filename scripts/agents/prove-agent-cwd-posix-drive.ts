@@ -32,7 +32,7 @@ const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { AgentTool, agentCwdQuestion, resolveAgentCwd } = await import('../../src/tools/AgentTool/AgentTool.tsx')
-const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/utils/worktree.ts')
+const { createAgentWorktree, preflightWorktreeCapability } = await import('../../src/services/worktree.ts')
 const { getCwd } = await import('../../src/utils/cwd.ts')
 
 process.chdir(work)

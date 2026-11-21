@@ -569,8 +569,8 @@ console.log('\nsettings/model.ts — modelCheck propagates getSettingsWithAllErr
 {
   const r = runScenario(`
     const { mock } = await import('bun:test')
-    const realAllErrors = await import(SRC + '/utils/settings/allErrors.ts')
-    mock.module(SRC + '/utils/settings/allErrors.js', () => ({
+    const realAllErrors = await import(SRC + '/services/settings/allErrors.ts')
+    mock.module(SRC + '/services/settings/allErrors.js', () => ({
       ...realAllErrors,
       getSettingsWithAllErrors: () => { throw new Error('settings read boom') },
     }))

@@ -23,7 +23,7 @@ mock.module('node:fs/promises', () => ({
   symlink: async (_from: string, to: string) => { throw Object.assign(new Error('fixture link refused'), { code: to.endsWith('missing') ? 'ENOENT' : 'EPERM' }) },
   cp: async (from: string, to: string, options: Parameters<typeof fs.cp>[2]) => { copied.push(to); return copy(from, to, options) },
 }))
-const { prepareWorktreeFiles } = await import('../../src/utils/worktree.js')
+const { prepareWorktreeFiles } = await import('../../src/services/worktree.js')
 try {
   mkdirSync(join(source, 'deps'), { recursive: true })
   mkdirSync(join(source, 'vendor', 'pack'), { recursive: true })

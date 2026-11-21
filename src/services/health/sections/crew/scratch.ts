@@ -32,7 +32,7 @@ export function sessionScratchCheck(): CheckSpec {
     label: 'Session scratchpads',
     run: async () => {
       const { idleScratchpads, scratchpadFootprint, sweepIdleScratchpads, SCRATCHPAD_WALK_ENTRIES } = await import('../../../../daemon/scratchpadRetention.js')
-      const { retentionCutoffMs, retentionWindowDays } = await import('../../../../utils/cleanup.js')
+      const { retentionCutoffMs, retentionWindowDays } = await import('../../../cleanup.js')
       const { formatFileSize } = await import('../../../../utils/format.js')
       const none = 'only running sessions hold scratch'
       const idle = await idleScratchpads()
@@ -88,7 +88,7 @@ export function lifecycleCollectionCheck(): CheckSpec {
       } catch (error) {
         sentinelAge = isENOENT(error) ? 'no complete sweep recorded yet' : `last sweep unreadable (${errorMessage(error)})`
       }
-      const { fileHistoryStorage } = await import('../../../../utils/cleanup.js')
+      const { fileHistoryStorage } = await import('../../../cleanup.js')
       const history = await fileHistoryStorage()
       sentinelAge += ` · file history ${(history.bytes / (1024 * 1024)).toFixed(1)} MB / ${history.limit / (1024 * 1024)} MB`
       if (history.bytes > history.limit) return { status: 'warn', evidence: `${sentinelAge} · cleanup pending` }

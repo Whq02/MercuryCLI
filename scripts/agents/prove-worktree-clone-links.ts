@@ -22,7 +22,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/utils/worktree.ts')
+const { createAgentWorktree, unlockAgentWorktree } = await import('../../src/services/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-clone-links-')))
 const cloneRoad = cloneRoadExpected(scratch)

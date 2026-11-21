@@ -30,7 +30,7 @@ import {
   generateTmuxSessionName,
   worktreeBranchName,
   type WorktreeSession,
-} from './utils/worktree.js'
+} from './services/worktree.js'
 
 const TERMINAL_APP = 'Terminal.app'
 const TERMINAL_DEFAULTS_DOMAIN = 'com.apple.Terminal'

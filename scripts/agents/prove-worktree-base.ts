@@ -19,7 +19,7 @@ const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' 
 
 const state = await import('../../src/bootstrap/state.ts')
 const config = await import('../../src/utils/config/globalConfig.ts')
-const { createAgentWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/utils/worktree.ts')
+const { createAgentWorktree, createWorktreeForSession, keepWorktree } = await import('../../src/services/worktree.ts')
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'worktree-base-')))
 const gitEnv = { ...process.env, GIT_AUTHOR_NAME: 'proof', GIT_AUTHOR_EMAIL: 'proof@invalid', GIT_COMMITTER_NAME: 'proof', GIT_COMMITTER_EMAIL: 'proof@invalid' }

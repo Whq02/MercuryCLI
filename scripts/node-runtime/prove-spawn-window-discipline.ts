@@ -45,7 +45,7 @@ const ALLOWLIST: ReadonlyArray<{ path: string; callee: string; value: string; co
     reason: 'the launch splash asset IS the screen on a direct start (stdio inherit); CREATE_NO_WINDOW would sever it from this console',
   },
   {
-    path: 'src/utils/worktree.ts',
+    path: 'src/services/worktree.ts',
     callee: 'spawnSync',
     value: 'options?.inherit !== true',
     count: 1,

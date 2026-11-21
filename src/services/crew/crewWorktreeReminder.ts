@@ -3,7 +3,7 @@ import { basename, dirname } from 'node:path'
 
 import { execFileNoThrowWithCwd } from '../../utils/execFileNoThrow.js'
 import { findCanonicalGitRoot, gitExe } from '../../utils/git.js'
-import { isAgentLane, worktreeBranchName, worktreeRemovalSafe } from '../../utils/worktree.js'
+import { isAgentLane, worktreeBranchName, worktreeRemovalSafe } from '../worktree.js'
 
 export const CREW_JANITOR_DAYS = 7
 const DAY_MS = 86_400_000

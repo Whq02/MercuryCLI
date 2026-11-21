@@ -27,7 +27,7 @@ const context = await healthContext()
 const rows = new Map((await Promise.all(HEALTH_SECTIONS.map(entry => entry.checks(context)))).flat().map(row => [row.id, row]))
 const run = async (id: string) => rows.get(id)!.run()
 
-const { getSettingsWithAllErrors } = await import('../../src/utils/settings/allErrors.ts')
+const { getSettingsWithAllErrors } = await import('../../src/services/settings/allErrors.ts')
 const settingsRow = await run('settings')
 const settingsErrors = getSettingsWithAllErrors().errors
 const firstError = settingsErrors[0]

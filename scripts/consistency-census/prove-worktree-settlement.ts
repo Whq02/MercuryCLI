@@ -14,7 +14,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 const git = (cwd: string, ...args: string[]): string =>
   execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
 
-const wt = await import('../../src/utils/worktree.ts')
+const wt = await import('../../src/services/worktree.ts')
 const reminder = await import('../../src/services/crew/crewWorktreeReminder.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 

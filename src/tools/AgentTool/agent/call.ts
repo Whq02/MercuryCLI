@@ -24,7 +24,7 @@ import { matchReachableModelName, modelNameHeadlessRefusal } from '../../../serv
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from '../../../services/crew/engineDispatch.js'
 import { describeAgentRuntimeRef } from '../../../services/providers/primaryBackend.js'
 import { getTaskOutputPath } from '../../../utils/task/diskOutput.js'
-import { createAgentWorktree, preflightWorktreeCapability, unlockAgentWorktree } from '../../../utils/worktree.js'
+import { createAgentWorktree, preflightWorktreeCapability, unlockAgentWorktree } from '../../../services/worktree.js'
 import { holdToolsUntil, releaseToolHold } from '../../../utils/worktreeReadiness.js'
 import { crewWorktreeLeftoverOf, noteCrewWorktreeLeftover } from '../../../services/crew/crewWorktreeReminder.js'
 import { createUserMessage } from '../../../utils/messages.js'

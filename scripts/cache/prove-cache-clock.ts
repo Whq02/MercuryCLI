@@ -305,7 +305,7 @@ section('§3 SHELL — rollup persistence (the cadence prior on disk)')
 
 section('§3b STORE KEYING — a worktree lane meters to its ORIGIN project (L24)')
 {
-  const { restoreWorktreeSession } = await import('../../src/utils/worktree.ts')
+  const { restoreWorktreeSession } = await import('../../src/services/worktree.ts')
   const { mkdirSync: mkd } = await import('node:fs')
   const origin = join(mkdtempSync(join(tmpdir(), 'cache-clock proof origin-')), 'projected work')
   mkd(origin, { recursive: true })

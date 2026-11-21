@@ -63,7 +63,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 const { applyPermissionRulesToPermissionContext } = await import('../../src/utils/permissions/permissions.ts')
 const { loadAllPermissionRulesFromDisk } = await import('../../src/utils/permissions/permissionsLoader.ts')
 const { checkReadPermissionForTool } = await import('../../src/utils/permissions/filesystem.ts')
-const worktree = await import('../../src/utils/worktree.ts')
+const worktree = await import('../../src/services/worktree.ts')
 const { FileReadTool } = await import('../../src/tools/FileReadTool/FileReadTool.ts')
 type Made = { worktreePath: string; prepareFailure?: string; ready?: Promise<void> }
 const make = (slug: string, options: Record<string, unknown> = {}): Promise<Made> => (worktree.createAgentWorktree as (slug: string, options: unknown) => Promise<Made>)(slug, options)

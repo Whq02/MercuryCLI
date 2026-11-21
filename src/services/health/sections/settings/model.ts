@@ -3,7 +3,7 @@ import { getEngineModel, getUserSpecifiedModelSetting, parseUserSpecifiedModel, 
 import { describeFrontierDecision, frontierOperatorDecision } from '../../../../utils/model/frontierPolicy.js'
 import { CHOOSE_A_MODEL_WORDS, computedDefault, describeComputedDefault, isChooseAModel } from '../../../model/computedDefault.js'
 import { providerDisplayName } from '../../../providers/routeLaw.js'
-import { getSettingsWithAllErrors } from '../../../../utils/settings/allErrors.js'
+import { getSettingsWithAllErrors } from '../../../settings/allErrors.js'
 import { recognizeModelId, unrecognisedModelIdReason } from '../../../providers/idSpaces.js'
 import { unresolvedDefaultRow, type CheckSpec } from '../../healthReport.js'
 import { passedOver } from '../../../../utils/passedOver.js'
