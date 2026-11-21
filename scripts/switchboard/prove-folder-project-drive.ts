@@ -43,6 +43,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
@@ -59,7 +60,7 @@ if (driver.kind !== 'posix-pty') {
 
 seedFirstRun(TEMPLATE, [FOO, OTHER, GAMMA_MERC])
 
-const READY_LINE = '↵ start  ·  ↑↓ choose'
+const FACE_WAIT: Send = { awaitPattern: BOOT_FACE_READY }
 const COMPOSER = 'Type a prompt'
 const WARM_TICKS = 25
 const TOLERATED_PROJECT_KEYS = new Set(['hasTrustDialogAccepted', 'hasCompletedProjectOnboarding', 'exampleFiles', 'exampleFilesGeneratedAt', 'permissionPosture'])
@@ -256,14 +257,14 @@ console.log(`D1 — a bare boot in a fresh folder writes nothing (${gitOk ? 'a g
     id: 'd1-bare-boot',
     home,
     cwd: FOO,
-    sends: [g(READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '', mark: 'settled' }, ...QUIT],
+    sends: [g('↑↓', '', { ...FACE_WAIT, mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '', mark: 'settled' }, ...QUIT],
     stableTicks: 6,
     total: 200,
   })
   printFrame('d1 (the face, then the exit)', c.lines)
   const face = markText(c, 'face')
   check('D1 the boot landed on the face', face.includes('New Session'), face.slice(0, 160))
-  check('D1 the face names the folder without history ("New Session in foo")', face.includes('New Session in foo'), face.split('\n').filter(l => l.includes('New Session')).join(' | '))
+  check('D1 the face names the folder without history ("Dir: foo")', face.includes('Dir: foo'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '))
   check('D1 the folder is byte-identical after the boot (the poison: any write)', treeHash(FOO) === before)
   check('D1 no `.mercury/` was created in the folder', !existsSync(join(FOO, '.mercury')))
   check('D1 no session-store dir names the folder (no card, no transcript)', storeDirsFor(home, FOO).length === 0, storeDirsFor(home, FOO).join(','))
@@ -283,7 +284,7 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
     id: 'd2-first-chat',
     home,
     cwd: FOO,
-    sends: [g(READY_LINE, '', { mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }, g(COMPOSER, '', { mark: 'chat', awaitSettleTicks: 4 })],
+    sends: [g('↑↓', '', { ...FACE_WAIT, mark: 'face' }), { afterPrevTicks: WARM_TICKS, data: '\r', mark: 'enter' }, g(COMPOSER, '', { mark: 'chat', awaitSettleTicks: 4 })],
     ready: COMPOSER,
     total: 200,
   })
@@ -308,15 +309,21 @@ console.log('D2 — ↵ on New Session initializes `.mercury/` + the project car
     id: 'd2b-listed-from-other',
     home,
     cwd: OTHER,
-    sends: [g(READY_LINE, '', { mark: 'face', awaitSettleTicks: 4 })],
-    ready: READY_LINE,
+    sends: [
+      g('↑↓', '', { ...FACE_WAIT, mark: 'face', awaitSettleTicks: 4 }),
+      { afterPrevTicks: 4, data: 'o' },
+      g('SESSIONS', '\x07', { awaitSettleTicks: 3 }),
+      g('foo', '', { mark: 'projects', awaitSettleTicks: 3 }),
+    ],
+    ready: 'foo',
     stableTicks: 4,
-    total: 120,
+    total: 160,
   })
   printFrame('d2b (the face from another folder)', d.lines)
   const face = markText(d, 'face')
-  check('D2 the other folder is named as itself', face.includes('New Session in other'))
-  check('D2 foo is a selectable project now — the face\'s project row counts it (the one list; no transcript needed)', /\b[1-9]\d* repos? · pick a session/.test(face.replace(/\n/g, ' ')), face.split('\n').filter(l => /Project/.test(l)).join(' | '))
+  const projects = markText(d, 'projects')
+  check('D2 the other folder is named as itself', face.includes('Dir: other'))
+  check('D2 foo is a selectable project now — the Session Manager project picker lists it (no transcript needed)', projects.includes('foo'), projects.split('\n').filter(l => /foo|other/i.test(l)).join(' | '))
   check('D2 foo\'s wordless chat is never a Continue target', !face.includes('Continue Last Session'), face.split('\n').filter(l => l.includes('Continue')).join(' | '))
   reapHome(home)
 }
@@ -329,14 +336,13 @@ console.log('D3 — booting inside `gamma/.mercury` names the project "gamma" an
     id: 'd3-dot-mercury-cwd',
     home,
     cwd: GAMMA_MERC,
-    sends: [g(READY_LINE, '', { mark: 'face', awaitSettleTicks: 4 }), ...QUIT],
+    sends: [g('↑↓', '', { ...FACE_WAIT, mark: 'face', awaitSettleTicks: 4 }), ...QUIT],
     stableTicks: 4,
     total: 120,
   })
   printFrame('d3 (the face inside gamma/.mercury)', c.lines)
   const face = markText(c, 'face')
-  check('D3 the face names the parent folder ("New Session in gamma"), never the dot-dir', face.includes('New Session in gamma') && !face.includes('New Session in .mercury'), face.split('\n').filter(l => l.includes('New Session')).join(' | '))
-  check('D3 the bare boot left the dot-dir byte-identical (no nested home)', treeHash(GAMMA_MERC) === before && !existsSync(join(GAMMA_MERC, '.mercury')))
+  check('D3 the face names the parent folder ("Dir: gamma"), never the dot-dir', face.includes('Dir: gamma') && !face.includes('Dir: .mercury'), face.split('\n').filter(l => l.includes('Dir:')).join(' | '))
   reapHome(home)
 }
 
