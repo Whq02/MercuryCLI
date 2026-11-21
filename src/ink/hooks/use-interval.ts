@@ -1,6 +1,6 @@
 
 import { useContext, useRef, useState } from 'react'
-import { useSubscription } from '../../hooks/effects.js'
+import { useClaim, useSubscription } from '../../hooks/effects.js'
 import { ClockContext } from '../components/ClockContext.js'
 
 export function useAnimationTimer(intervalMs: number): number {
@@ -27,7 +27,7 @@ export function useInterval(callback: () => void, intervalMs: number | null): vo
   const callbackRef = useRef(callback)
   callbackRef.current = callback
 
-  useSubscription(() => {
+  useClaim(() => {
     if (!clock || intervalMs === null) return
     let anchor = clock.now()
     return clock.subscribe(() => {
