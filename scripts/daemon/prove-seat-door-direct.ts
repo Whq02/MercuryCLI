@@ -205,7 +205,7 @@ section('§4 rows once, verbs landed through session/applied, deliveries as rows
     admit: async () => { throw new Error('the existing seat must receive this input') },
     deliver: async (_, row) => {
       try {
-        const accepted = await stand.connection.deliver(row)
+        const accepted = await stand.connection.deliver(row, 'confirm-written')
         reached(false)
         return accepted
       } catch (error) {

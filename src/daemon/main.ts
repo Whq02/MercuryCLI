@@ -335,7 +335,7 @@ async function daemonRun(args: string[]): Promise<void> {
         }),
         deliver: async (runnerId, prompt) => {
           if (!roster) return false
-          const delivered = await roster.reply(runnerId, prompt)
+          const delivered = await roster.reply(runnerId, prompt, 'confirm-written')
           if (delivered && runnerId.startsWith('concourse-w')) requestSessionFacts(runnerId, roster, { immediate: true })
           return delivered
         },
