@@ -16,9 +16,10 @@ import { toOpenaiStrictSchema } from '../../src/utils/messages/structuredOutputD
 import { toOpenaiStrictToolSchema } from '../../src/utils/messages/toolSchemaDialect.js'
 
 let failures = 0
+const codecFixHint = 'fix: the OpenAI side in src/services/providers/openai/responsesBridge.ts (decodeOpenaiTurnRecord, mapMessagesToOpenaiInput, buildOpenaiResponsesRequest, mapToolsToOpenai), the Z.AI side in src/services/providers/zai/zaiCodec.ts (mapMessagesToZai, mapToolsToZai), the strict schemas in src/utils/messages/structuredOutputDialect.ts and toolSchemaDialect.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${codecFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

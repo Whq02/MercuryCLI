@@ -11,9 +11,11 @@ import {
 } from './sliceCore.ts'
 
 let failures = 0
+const sliceCoreFailHint = 'change estimatePooledWallS or planSlice in scripts/verify/sliceCore.ts (or parseClassHeader in scripts/verify/impactManifest.ts for the §8 checks) so the plan matches what this check states'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failShown = [detail, sliceCoreFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${failShown}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 

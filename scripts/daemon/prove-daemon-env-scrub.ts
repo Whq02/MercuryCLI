@@ -2,9 +2,9 @@
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -27,8 +27,8 @@ const viaSync = getClaudeAIOAuthTokens()
 const viaAsync = await getClaudeAIOAuthTokensAsync()
 if (heldToken === undefined) delete process.env.MERCURY_OAUTH_TOKEN
 else process.env.MERCURY_OAUTH_TOKEN = heldToken
-check('getClaudeAIOAuthTokens answers the token of the environment before any store', viaSync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaSync?.accessToken ?? null))
-check('getClaudeAIOAuthTokensAsync answers the token of the environment before any store', viaAsync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaAsync?.accessToken ?? null))
+check('getClaudeAIOAuthTokens answers the token of the environment before any store', viaSync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaSync?.accessToken ?? null), 'change getClaudeAIOAuthTokens in src/utils/auth.ts so a MERCURY_OAUTH_TOKEN in the environment is answered first')
+check('getClaudeAIOAuthTokensAsync answers the token of the environment before any store', viaAsync?.accessToken === 'env-scrub-proof-token', JSON.stringify(viaAsync?.accessToken ?? null), 'change getClaudeAIOAuthTokensAsync in src/utils/auth.ts so a MERCURY_OAUTH_TOKEN in the environment is answered first')
 
 section('behavioural mirror: the scrub removes the pinned vars (guard true) / keeps (false)')
 const AUTH_VARS = ['MERCURY_OAUTH_TOKEN', `${FOREIGN}_OAUTH_TOKEN`, `${FOREIGN}_SUBSCRIPTION_TYPE`, `${FOREIGN}_RATE_LIMIT_TIER`, 'CODEX_API_KEY', 'CODEX_ACCESS_TOKEN', 'MERCURY_OAUTH_TOKEN_FILE_DESCRIPTOR', `${FOREIGN}_OAUTH_TOKEN_FILE_DESCRIPTOR`]
@@ -66,9 +66,9 @@ section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
     return { ok: true, op: 'restart-when-idle', state: 'armed', live: 1 }
   }
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: false, spawnLabel: 'daemon' })
-  check('no env-kept record ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0)
+  check('no env-kept record ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0, '', 'restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must return not-applicable and ask nothing when envKeptAuthAtSpawn is false')
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: true, spawnLabel: 'daemon' })
-  check('env-kept record without a landed store ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0)
+  check('env-kept record without a landed store ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 0, '', 'restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must return not-applicable until hasStoredOAuthToken() is true')
   writeFileSync(
     join(home, '.credentials.json'),
     JSON.stringify({ claudeAiOauth: { accessToken: 'sk-ant-oat01-fixture', refreshToken: 'sk-ant-ort01-fixture', expiresAt: Date.now() + 3600_000, scopes: ['user:inference'], subscriptionType: 'max' } }),
@@ -82,10 +82,11 @@ section('the fresh-sign-in trigger: first-only, self-guarded, receipted by')
       asks[0]!.op === 'restart-when-idle' &&
       asks[0]!.by === 'fresh sign-in after an env-kept spawn — the successor re-runs the credential scrub',
     JSON.stringify(asks),
+    'restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must ask restart-when-idle once, with that by-line, when a stored sign-in lands after an env-kept spawn',
   )
-  check('a second landing never asks again (one-shot latch)', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1)
+  check('a second landing never asks again (one-shot latch)', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1, '', 'restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must stay latched (freshSigninRestartAsked) after the first ask')
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ envKeptAuthAtSpawn: true, spawnLabel: null })
-  check('a session that spawned no daemon ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1)
+  check('a session that spawned no daemon ⇒ not-applicable', (await ownedMod.restartOwnedDaemonForFreshSignin({ rpc })) === 'not-applicable' && asks.length === 1, '', 'restartOwnedDaemonForFreshSignin in src/daemon/ownedDaemon.ts must return not-applicable while ownedSpawnLabelThisProcess is null')
   ownedMod.__resetOwnedDaemonFreshSigninForTest({ spawnLabel: null })
   if (savedHome.config === undefined) delete process.env.MERCURY_CONFIG_DIR
   else process.env.MERCURY_CONFIG_DIR = savedHome.config

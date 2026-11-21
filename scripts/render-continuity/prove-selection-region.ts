@@ -22,7 +22,12 @@ const themeSelectionBgToPyte = (v: string): string => {
   return v.replace('#', '').toLowerCase()
 }
 const SELECTION_BG = themeSelectionBgToPyte(String(getTheme('dark').selectionBg))
-const t = checker()
+const SELECTION_FIX_HINT = 'to fix: change the drag selection and its copy in src/ink/ink/selection.ts (handleSelectionStart / handleSelectionDrag / handleSelectionRelease / copySelection) and the overlay in src/ink/geometry/overlay.ts; the label says whether the overlay, the copied text or the clear after resize is wrong'
+const selectionChecker = checker()
+const t = {
+  ...selectionChecker,
+  check: (label: string, cond: boolean, detail = ''): void => selectionChecker.check(label, cond, cond ? detail : `${detail}${detail ? ' | ' : ''}${SELECTION_FIX_HINT}`),
+}
 
 const ESC = String.fromCharCode(27)
 

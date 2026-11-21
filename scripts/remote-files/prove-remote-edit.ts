@@ -39,16 +39,17 @@ setCwdState(project)
 
 const PORT = 27066
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 420 seconds')
+  console.log('  [FAIL] the proof did not finish within 420 seconds — a remote edit, read or write never returned; see the last section printed above, then validateInput / call in src/tools/FileEditTool/FileEditTool.ts, src/services/remoteFiles/connection.ts, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 420_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const REMOTE_EDIT_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/FileEditTool/FileEditTool.ts (or FileWriteTool.ts, FileReadTool.ts when the label is about a write or a read) and the ssh:// file operations in src/services/remoteFiles/ and src/utils/remoteFiles/target.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok ? ` | ${REMOTE_EDIT_FIX_HINT}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

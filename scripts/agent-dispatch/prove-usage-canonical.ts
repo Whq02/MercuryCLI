@@ -2,7 +2,7 @@
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond ? ' — hint: change mapOpenaiUsageToAnthropic or buildProviderUsageReceipt in src/services/providers/openai/openaiCallModel/attemptSettle.ts, or getModelCosts in src/services/usage/modelCost.ts (the hosted-search price check)' : ''}`)
   if (!cond) failures++
 }
 

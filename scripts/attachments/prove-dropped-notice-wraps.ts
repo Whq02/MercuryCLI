@@ -24,7 +24,7 @@ let failures = 0
 const check = (label: string, pass: boolean, detail: string): void => {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : `: ${detail}`}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${label}${pass ? '' : `: ${detail} — change the dropped_image_file case in src/components/messages/AttachmentMessage.tsx so the notice wraps within 80 columns and keeps the following row below it`}`)
 }
 const strip = (text: string): string => text.replace(/\x1b\[[0-9;?]*[a-zA-Z]/g, '').replace(/\x1b\][^\x07]*\x07/g, '')
 const compact = (text: string): string => text.replace(/\s+/g, '')

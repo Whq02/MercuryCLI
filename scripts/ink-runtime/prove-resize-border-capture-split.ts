@@ -23,10 +23,11 @@ const REPLACEMENT = '\uFFFD'
 
 let checks = 0
 let failures = 0
+const borderSplitHint = 'section 1 failing means the renderer repaint after a resize is wrong, so fix src/ink/ink/resize.ts (applySettledResize, settleResize) or src/ink/ink.tsx; sections 2 and 3 failing means the capture model changed, so look at the AnsiEmulator in scripts/ink-runtime/ansiEmulator.ts and the decoder helpers in this file'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? detail + ' · ' : ''}${borderSplitHint}` : ''}`)
 }
 
 class Output extends EventEmitter {

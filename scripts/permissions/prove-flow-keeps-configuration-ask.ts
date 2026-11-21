@@ -13,6 +13,10 @@ const CONFIGURATION = [
   '<PROJECT>/.mercury/wards.json', '<PROJECT>/.mercury/mcp.json', '<PROJECT>/.mercury/keybindings.json', '<CONFIG>/keybindings.json',
   '<PROJECT>/MERCURY.md', '<PROJECT>/AGENTS.md',
 ]
+const configHint = 'a write to Mercury configuration must stay an ask under Flow: see decideUnderFlow in src/utils/permissions/flowPolicy.ts, isMercuryConfigSegment in src/utils/permissions/filesystem.ts, and for shell writes shellSelfProtectionReason in src/utils/permissions/shellProtectedPaths.ts · '
+const reachHint = 'the ask must reach only Mercury configuration: narrow isMercuryConfigSegment in src/utils/permissions/filesystem.ts · '
+const ruleHint = 'a rule that names the file exactly must grant that file alone: see decideUnderFlow in src/utils/permissions/flowPolicy.ts · '
+const settingsHint = 'a settings change while the session runs must bring the rule into force without letting it answer any of the five Flow asks: see applySettingsChange in src/utils/settings/applySettingsChange.ts and allowRulesThatPreAuthorise in src/utils/permissions/lateAllowRules.ts · '
 const told = (tool: string, input: Record<string, unknown>): string => (tool === 'Bash' ? shown(String(input.command)).slice(0, 110) : `${tool} ${shown(String(input.file_path))}`)
 
 section('the page, docs/TRUST.md')
@@ -22,7 +26,7 @@ section('§1 under Flow a write to Mercury\'s own configuration keeps its ask, b
 for (const path of CONFIGURATION) {
   for (const [tool, input] of written(path)) {
     const flow = await decide(tool, input, 'flow')
-    check(`flow · ${told(tool, input)} · asks`, flow.behavior === 'ask', said(flow))
+    check(`flow · ${told(tool, input)} · asks`, flow.behavior === 'ask', configHint + said(flow))
   }
 }
 
@@ -35,17 +39,17 @@ for (const path of CONFIGURATION) {
       if (decision.behavior !== behavior) wrong.push(`${mode} ${told(tool, input)}: ${said(decision)}`)
     }
   }
-  check(`${shown(fill(path))} · default and implement ask, sovereign allows, by the file tool and by both shell writes`, wrong.length === 0, wrong.join(' ‖ '))
+  check(`${shown(fill(path))} · default and implement ask, sovereign allows, by the file tool and by both shell writes`, wrong.length === 0, configHint + wrong.join(' ‖ '))
 }
 
 section('§3 the ask reaches no further than the configuration')
 for (const [tool, input] of [...written('<PROJECT>/notes.txt'), ...written('<PROJECT>/sub/settings.json'), ...written('<PROJECT>/docs/plain.md'), ...written('<PROJECT>/.mercury/worktrees/lane/src/a.ts'), ...written('<PROJECT>/.mercury/worktrees/lane/notes.txt')]) {
   const flow = await decide(tool, input, 'flow')
-  check(`flow · ${told(tool, input)} · runs unasked`, flow.behavior === 'allow', said(flow))
+  check(`flow · ${told(tool, input)} · runs unasked`, flow.behavior === 'allow', reachHint + said(flow))
 }
 for (const [tool, input] of [...written('<PROJECT>/.mercury/worktrees/lane/MERCURY.md'), ...written('<PROJECT>/.mercury/worktrees/lane/.mercury/settings.local.json')]) {
   const flow = await decide(tool, input, 'flow')
-  check(`flow · the configuration of a worktree is configuration: ${told(tool, input)} · asks`, flow.behavior === 'ask', said(flow))
+  check(`flow · the configuration of a worktree is configuration: ${told(tool, input)} · asks`, flow.behavior === 'ask', configHint + said(flow))
 }
 {
   const kept: string[] = []
@@ -55,14 +59,14 @@ for (const [tool, input] of [...written('<PROJECT>/.mercury/worktrees/lane/MERCU
       if (decision.behavior !== 'ask') kept.push(`${mode} ${told(tool, input)}: ${said(decision)}`)
     }
   }
-  check('default and implement · a write into a worktree under the folder asks as it did', kept.length === 0, kept.join(' ‖ '))
+  check('default and implement · a write into a worktree under the folder asks as it did', kept.length === 0, configHint + kept.join(' ‖ '))
 }
 {
   const exact: Rules = { allow: ['Edit(.mercury/wards.json)'] }
   const granted = await decide('Write', { file_path: fill('<PROJECT>/.mercury/wards.json'), content: '{}' }, 'flow', exact)
-  check('flow · a rule that names the file exactly grants the write', granted.behavior === 'allow', said(granted))
+  check('flow · a rule that names the file exactly grants the write', granted.behavior === 'allow', ruleHint + said(granted))
   const other = await decide('Write', { file_path: fill('<PROJECT>/.mercury/mcp.json'), content: '{}' }, 'flow', exact)
-  check('flow · that rule reaches its own file alone', other.behavior === 'ask', said(other))
+  check('flow · that rule reaches its own file alone', other.behavior === 'ask', ruleHint + said(other))
 }
 
 section('§4 a rule that arrives by a settings change while the session runs answers none of Flow\'s five until the next session')
@@ -115,34 +119,34 @@ section('§4 a rule that arrives by a settings change while the session runs ans
   put(local, [PUSH_RULE, 'Bash(npm run build *)'])
   first.changed('localSettings')
   const after = await first.judge(PUSH)
-  check('with a rule for the push written into the folder\'s settings.local.json and the settings change applied, the push still asks', after.behavior === 'ask' && /Flow asks before git push/.test(after.message ?? ''), `${told(after)} · allow rules in force: ${first.inForce()}`)
-  check('that rule is in force all the same: the change brought it into the session', first.inForce().includes(PUSH_RULE), first.inForce())
+  check('with a rule for the push written into the folder\'s settings.local.json and the settings change applied, the push still asks', after.behavior === 'ask' && /Flow asks before git push/.test(after.message ?? ''), `${settingsHint}${told(after)} · allow rules in force: ${first.inForce()}`)
+  check('that rule is in force all the same: the change brought it into the session', first.inForce().includes(PUSH_RULE), settingsHint + first.inForce())
   const buildAfter = await first.judge('npm run build', 'default')
-  check('every other effect of the change is live: the build rule that arrived with it answers in Default', buildAfter.behavior === 'allow', told(buildAfter))
+  check('every other effect of the change is live: the build rule that arrived with it answers in Default', buildAfter.behavior === 'allow', settingsHint + told(buildAfter))
   put(user, ['Bash(git push origin *)'])
   first.changed('userSettings')
   const fromHome = await first.judge(PUSH)
-  check('a rule for the push that arrives in the home\'s settings.json answers none of the five either', fromHome.behavior === 'ask', `${told(fromHome)} · ${first.inForce()}`)
+  check('a rule for the push that arrives in the home\'s settings.json answers none of the five either', fromHome.behavior === 'ask', `${settingsHint}${told(fromHome)} · ${first.inForce()}`)
   const grant = [{ type: 'addRules', rules: [{ toolName: 'Bash', ruleContent: 'git push *' }], behavior: 'allow', destination: 'localSettings' }] as never
   persistPermissionUpdates(grant)
   first.state.toolPermissionContext = applyPermissionUpdates(first.state.toolPermissionContext as never, grant) as never
   const grantedNow = await first.judge(PUSH)
-  check('a rule the user grants on a card in this session answers the push from then on', grantedNow.behavior === 'allow', told(grantedNow))
+  check('a rule the user grants on a card in this session answers the push from then on', grantedNow.behavior === 'allow', settingsHint + told(grantedNow))
   first.changed('localSettings')
   const grantedStill = await first.judge(PUSH)
-  check('and the settings change its own write causes leaves it answering', grantedStill.behavior === 'allow', told(grantedStill))
+  check('and the settings change its own write causes leaves it answering', grantedStill.behavior === 'allow', settingsHint + told(grantedStill))
 
   put(user, [])
   put(local, [PUSH_RULE])
   const next = await session()
   const nextSession = await next.judge(PUSH)
-  check('the next session reads the rule as it stands at its start: the push runs unasked', nextSession.behavior === 'allow', `${told(nextSession)} · ${next.inForce()}`)
+  check('the next session reads the rule as it stands at its start: the push runs unasked', nextSession.behavior === 'allow', `${settingsHint}${told(nextSession)} · ${next.inForce()}`)
   put(local, [])
   next.changed('localSettings')
   put(local, [PUSH_RULE])
   next.changed('localSettings')
   const returned = await next.judge(PUSH)
-  check('a rule taken out and put back while the session runs arrives by a settings change: the push asks', returned.behavior === 'ask', `${told(returned)} · ${next.inForce()}`)
+  check('a rule taken out and put back while the session runs arrives by a settings change: the push asks', returned.behavior === 'ask', `${settingsHint}${told(returned)} · ${next.inForce()}`)
   put(local, [])
   put(user, [])
   resetSettingsCache()
@@ -175,7 +179,7 @@ section('§5 the reach of the ask: under Flow a shell command that is not read-o
   ]
   for (const [label, command] of named) {
     const flow = await decide('Bash', { command: fillBash(command) }, 'flow')
-    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · asks`, flow.behavior === 'ask', said(flow))
+    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · asks`, flow.behavior === 'ask', configHint + said(flow))
   }
   const sovereign: string[] = []
   const inDefault: string[] = []
@@ -185,8 +189,8 @@ section('§5 the reach of the ask: under Flow a shell command that is not read-o
     const card = await decide('Bash', { command: fillBash(command) }, 'default')
     if (card.behavior !== 'ask') inDefault.push(`${shown(command)}: ${said(card)}`)
   }
-  check(`sovereign · the same ${named.length} commands ask nothing`, sovereign.length === 0, sovereign.join(' ‖ '))
-  check(`default · the same ${named.length} commands ask as before`, inDefault.length === 0, inDefault.join(' ‖ '))
+  check(`sovereign · the same ${named.length} commands ask nothing`, sovereign.length === 0, configHint + sovereign.join(' ‖ '))
+  check(`default · the same ${named.length} commands ask as before`, inDefault.length === 0, configHint + inDefault.join(' ‖ '))
   const free: Array<[string, string]> = [
     ['a read of it', `cat ${SETTINGS}`],
     ['a listing of the folder', 'ls .mercury'],
@@ -203,10 +207,10 @@ section('§5 the reach of the ask: under Flow a shell command that is not read-o
   ]
   for (const [label, command] of free) {
     const flow = await decide('Bash', { command: fillBash(command) }, 'flow')
-    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · runs unasked`, flow.behavior === 'allow', said(flow))
+    check(`flow · ${label}: ${shown(fillBash(command)).slice(0, 96)} · runs unasked`, flow.behavior === 'allow', reachHint + said(flow))
   }
   const exact = await decide('Bash', { command: `truncate -s 0 ${SETTINGS}` }, 'flow', { allow: ['Bash(truncate *)'] })
-  check('flow · a standing allow rule for the command answers it', exact.behavior === 'allow', said(exact))
+  check('flow · a standing allow rule for the command answers it', exact.behavior === 'allow', ruleHint + said(exact))
 }
 note('nothing in this proof is executed: tool inputs handed to the decision function with the real tools; the settings files are written into the proof\'s own scratch folder and home')
 finish('prove-flow-keeps-configuration-ask')

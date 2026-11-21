@@ -32,23 +32,24 @@ console.log(' critter-idle — living-splash timing + gate (render-free)')
 console.log('============================================================')
 
 section('blink SCHEDULE — lid shut only in its brief windows')
-check('phase 0 → lid SHUT', pupilForTime(0) === EYE_SHUT)
-check('phase just inside lid → SHUT', pupilForTime(LID_MS - 10) === EYE_SHUT)
-check('phase past the lid → OPEN', pupilForTime(LID_MS + 10) === EYE_OPEN)
-check('mid-cycle → OPEN (forward gaze)', pupilForTime(BLINK_CYCLE / 2) === EYE_OPEN)
-check('end of cycle → OPEN', pupilForTime(BLINK_CYCLE - 1) === EYE_OPEN)
+check('phase 0 → lid SHUT', pupilForTime(0) === EYE_SHUT, 'pupilForTime in src/utils/cockpit/critterIdle.ts must return EYE_SHUT at the start of BLINK_CYCLE')
+check('phase just inside lid → SHUT', pupilForTime(LID_MS - 10) === EYE_SHUT, 'pupilForTime in src/utils/cockpit/critterIdle.ts must stay shut until LID_MS')
+check('phase past the lid → OPEN', pupilForTime(LID_MS + 10) === EYE_OPEN, 'pupilForTime in src/utils/cockpit/critterIdle.ts must reopen after LID_MS')
+check('mid-cycle → OPEN (forward gaze)', pupilForTime(BLINK_CYCLE / 2) === EYE_OPEN, 'pupilForTime in src/utils/cockpit/critterIdle.ts must be open mid-cycle')
+check('end of cycle → OPEN', pupilForTime(BLINK_CYCLE - 1) === EYE_OPEN, 'pupilForTime in src/utils/cockpit/critterIdle.ts must be open at the end of BLINK_CYCLE')
 check(
   'plain cycle: no second blink at SECOND_LID_AT',
   pupilForTime(SECOND_LID_AT + 10) === EYE_OPEN,
+  'pupilForTime in src/utils/cockpit/critterIdle.ts must blink a second time only on every 4th cycle',
 )
 const c3 = BLINK_CYCLE * 3
-check('4th cycle: first lid SHUT', pupilForTime(c3 + 10) === EYE_SHUT)
-check('4th cycle: gap between lids OPEN', pupilForTime(c3 + (LID_MS + SECOND_LID_AT) / 2) === EYE_OPEN)
-check('4th cycle: SECOND lid SHUT', pupilForTime(c3 + SECOND_LID_AT + 10) === EYE_SHUT)
+check('4th cycle: first lid SHUT', pupilForTime(c3 + 10) === EYE_SHUT, 'pupilForTime in src/utils/cockpit/critterIdle.ts must shut the first lid in the 4th cycle')
+check('4th cycle: gap between lids OPEN', pupilForTime(c3 + (LID_MS + SECOND_LID_AT) / 2) === EYE_OPEN, 'pupilForTime in src/utils/cockpit/critterIdle.ts must be open between the two lids')
+check('4th cycle: SECOND lid SHUT', pupilForTime(c3 + SECOND_LID_AT + 10) === EYE_SHUT, 'pupilForTime in src/utils/cockpit/critterIdle.ts must shut the second lid at SECOND_LID_AT in the 4th cycle')
 let shut = 0
 for (let t = 0; t < BLINK_CYCLE; t += 20) if (pupilForTime(t) === EYE_SHUT) shut++
 const shutFrac = shut / (BLINK_CYCLE / 20)
-check('lid shut < 10% of a plain cycle (calm, not a tic)', shutFrac < 0.1, `${(shutFrac * 100).toFixed(1)}%`)
+check('lid shut < 10% of a plain cycle (calm, not a tic)', shutFrac < 0.1, `${(shutFrac * 100).toFixed(1)}% — shorten LID_MS or the shut windows in pupilForTime in src/utils/cockpit/critterIdle.ts`)
 
 section('breath WAVE — smooth, bounded 0→1→0')
 let lo = Infinity
@@ -58,8 +59,8 @@ for (let t = 0; t < 2800; t += 25) {
   lo = Math.min(lo, w)
   hi = Math.max(hi, w)
 }
-check('wave stays within [0,1]', lo >= 0 && hi <= 1, `min ${lo.toFixed(3)} max ${hi.toFixed(3)}`)
-check('wave actually breathes (spans most of the range)', hi - lo > 0.9, `span ${(hi - lo).toFixed(3)}`)
+check('wave stays within [0,1]', lo >= 0 && hi <= 1, `min ${lo.toFixed(3)} max ${hi.toFixed(3)} — breathWave in src/utils/cockpit/critterIdle.ts must return values in [0,1]`)
+check('wave actually breathes (spans most of the range)', hi - lo > 0.9, `span ${(hi - lo).toFixed(3)} — breathWave in src/utils/cockpit/critterIdle.ts must span nearly 0 to 1 over BREATH_PERIOD`)
 check('wave is continuous (no jump > 0.1 per tick)', (() => {
   let prev = breathWave(0)
   for (let t = 25; t < 2800; t += 25) {
@@ -68,7 +69,7 @@ check('wave is continuous (no jump > 0.1 per tick)', (() => {
     prev = w
   }
   return true
-})())
+})(), 'breathWave in src/utils/cockpit/critterIdle.ts jumps more than 0.1 between 25 ms steps; smooth the curve')
 
 section('derived-value EDGE RATE — the idle home must not commit per tick')
 const SIM_MS = 60_000
@@ -80,7 +81,7 @@ for (let t = IDLE_TICK_MS; t < SIM_MS; t += IDLE_TICK_MS) {
   prevPupil = p
 }
 const pupilRate = pupilEdges / (SIM_MS / 1000)
-check('pupil edges ≤ 2/s (blink lids only)', pupilRate <= 2, `${pupilRate.toFixed(2)}/s`)
+check('pupil edges ≤ 2/s (blink lids only)', pupilRate <= 2, `${pupilRate.toFixed(2)}/s — pupilForTime in src/utils/cockpit/critterIdle.ts changes value too often; lengthen BLINK_CYCLE or shorten the shut windows`)
 let bucketEdges = 0
 let prevBucket = breathBucket(0)
 for (let t = BREATH_TICK_MS; t < SIM_MS; t += BREATH_TICK_MS) {
@@ -89,7 +90,7 @@ for (let t = BREATH_TICK_MS; t < SIM_MS; t += BREATH_TICK_MS) {
   prevBucket = b
 }
 const bucketRate = bucketEdges / (SIM_MS / 1000)
-check('breath-bucket edges ≤ 6/s (quantized, below the raw tick rate)', bucketRate <= 6, `${bucketRate.toFixed(2)}/s`)
+check('breath-bucket edges ≤ 6/s (quantized, below the raw tick rate)', bucketRate <= 6, `${bucketRate.toFixed(2)}/s — breathBucket in src/utils/cockpit/critterIdle.ts changes bucket too often; use fewer BREATH_BUCKETS or a longer BREATH_PERIOD`)
 check(
   'breath buckets span the full range (still visibly breathes)',
   (() => {
@@ -97,17 +98,18 @@ check(
     for (let t = 0; t < BREATH_PERIOD; t += BREATH_TICK_MS) seen.add(breathBucket(t))
     return seen.has(0) && seen.has(BREATH_BUCKETS) && seen.size >= BREATH_BUCKETS - 1
   })(),
+  'breathBucket in src/utils/cockpit/critterIdle.ts must reach bucket 0 and BREATH_BUCKETS and visit nearly every bucket over BREATH_PERIOD',
 )
 
 section('fork + env GATE (OFF ⇒ static fallback ⇒ byte-identical)')
 setStamp(true)
 delete process.env.MERCURY_CRITTER_IDLE
-check('fork + no opt-out → idle ENABLED', critterIdleEnabled() === true)
+check('fork + no opt-out → idle ENABLED', critterIdleEnabled() === true, 'critterIdleEnabled in src/utils/cockpit/critterIdle.ts must return true when MERCURY_CRITTER_IDLE is unset')
 process.env.MERCURY_CRITTER_IDLE = '0'
-check('MERCURY_CRITTER_IDLE=0 → DISABLED (static)', critterIdleEnabled() === false)
+check('MERCURY_CRITTER_IDLE=0 → DISABLED (static)', critterIdleEnabled() === false, 'critterIdleEnabled in src/utils/cockpit/critterIdle.ts must return false when MERCURY_CRITTER_IDLE=0')
 delete process.env.MERCURY_CRITTER_IDLE
 setStamp(false)
-check('bare stamp → STILL enabled (stamp-independence)', critterIdleEnabled() === true)
+check('bare stamp → STILL enabled (stamp-independence)', critterIdleEnabled() === true, 'critterIdleEnabled in src/utils/cockpit/critterIdle.ts must not read the MACRO version stamp')
 setStamp(true)
 
 console.log('\n' + '═'.repeat(76))

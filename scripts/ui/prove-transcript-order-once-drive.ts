@@ -601,7 +601,7 @@ for (let run = 1; run <= RUNS; run++) {
       const receipts = cap.payload?.sendReceipts?.map(r => r.atTick) ?? []
       const resizeTicks = cap.payload?.stages?.map(s => s.untilTick) ?? []
       console.log(`  wire: ${fixture.hits.map(h => `${h.n}:${h.facts.seat ? 'seat' : h.facts.notice ? 'notice' : `s${h.facts.step}`}→${h.answer}`).join(' · ')}`)
-      check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === 3 && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}`)
+      check(`${tag}: the journey happened (engine exit 0, every send due, the turn ended on its last words)`, cap.status === 0 && receipts.length === 3 && cap.payload?.endReason === 'stable' && typeof cap.payload?.readyAt === 'number', `exit=${cap.status} sends=${receipts.length}/3 end=${cap.payload?.endReason} ready=${cap.payload?.readyAt} · ${leg.log}; the capture did not finish the journey, so read that engine log for the cause`)
       let ledger: Ledger = { reorder: 0, repeat: 0, pop: 0, events: [], frames: 0 }
       let frames: Frame[] = []
       try {
@@ -613,9 +613,9 @@ for (let run = 1; run <= RUNS; run++) {
       console.log(`  ledger: ${ledger.frames} frames · REORDER ${ledger.reorder} · REPEAT ${ledger.repeat} · POP ${ledger.pop}`)
       for (const e of ledger.events) console.log(`    ${e.kind} @tick ${e.tick} (frame ${e.frame}): ${JSON.stringify(e.row)} — ${e.detail}`)
       table.push(`${journey.name}\t${size.cols}x${size.rows}\tr${run}\tREORDER ${ledger.reorder}\tREPEAT ${ledger.repeat}\tPOP ${ledger.pop}\tframes ${ledger.frames}\t${Math.round((Date.now() - startedAt) / 1000)}s`)
-      check(`${tag}: no row moved against its neighbours after it painted (REORDER 0)`, ledger.reorder === 0, `${ledger.reorder}`)
-      check(`${tag}: no row painted twice at once and then lost a copy (REPEAT 0)`, ledger.repeat === 0, `${ledger.repeat}`)
-      check(`${tag}: no row appeared and vanished within a second without the operator's act (POP 0)`, ledger.pop === 0, `${ledger.pop}`)
+      check(`${tag}: no row moved against its neighbours after it painted (REORDER 0)`, ledger.reorder === 0, `${ledger.reorder}; a transcript row changed its place relative to rows around it after painting, so keep rows in a fixed order once painted; rerun with --frames <dir> and read moved-rows.txt in the journey folder`)
+      check(`${tag}: no row painted twice at once and then lost a copy (REPEAT 0)`, ledger.repeat === 0, `${ledger.repeat}; a row was painted twice at once and then lost a copy, so make the transcript paint each row once; rerun with --frames <dir> and read moved-rows.txt in the journey folder`)
+      check(`${tag}: no row appeared and vanished within a second without the operator's act (POP 0)`, ledger.pop === 0, `${ledger.pop}; a row appeared and vanished within a second with nothing replacing it, so stop painting rows that are withdrawn straight after; rerun with --frames <dir> and read moved-rows.txt in the journey folder`)
       saveArtifacts(leg, frames, ledger, fixture.hits)
     }
   }

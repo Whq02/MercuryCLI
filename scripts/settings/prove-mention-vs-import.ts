@@ -10,8 +10,9 @@ process.env.NODE_ENV = 'test'
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+const mentionVsImportFailHint = 'fix how an @ token is split into an import or a bare mention in parseInstructionFileContent (src/services/instructions/sourceText.ts), or how the walk composes imports and raises missing-import-target in processInstructionFile (src/services/instructions/discovery.ts)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + mentionVsImportFailHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

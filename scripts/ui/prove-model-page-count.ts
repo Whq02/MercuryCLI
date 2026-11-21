@@ -10,6 +10,6 @@ const models = [{ id: 'first', displayName: 'First' }, { id: 'second', displayNa
 const count = liveCount(models.map(model => ({ id: model.id, name: model.displayName, tag: '', group: 'OpenAI', gated: model.unavailable !== undefined })))
 const text = liveModelsReferenceText({ readAt: 'now', notSignedIn: [], providers: [{ provider: 'openai', providerName: 'OpenAI', account: 'fixture', list: { kind: 'live', count: 10, readAt: 'now' }, models }] })
 const ok = text.includes(`(${count} live)`) && !text.includes('(10 models)') && text.includes('hidden by the account source')
-console.log(`${ok ? 'PASS' : 'FAIL'} the provider header counts the same selectable rows as the picker, without hiding unavailable rows\n${text}`)
+console.log(`${ok ? 'PASS' : 'FAIL'} the provider header counts the same selectable rows as the picker, without hiding unavailable rows${ok ? '' : ' \u2014 to fix, make the provider header in liveModelsReferenceText (src/services/resources/adapters/models.ts) print the count liveCount (src/utils/model/modelPickerGroups.ts) gives, keep unavailable rows listed with their reason, and never print the provider list count as (N models)'}\n${text}`)
 rmSync(home, { recursive: true, force: true })
 process.exit(ok ? 0 : 1)

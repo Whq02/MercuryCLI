@@ -80,7 +80,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good ? ' | the activity screen is src/components/tasks/BackgroundTasksDialog.tsx (list, keys, scroll) inside src/components/FullscreenLayout.tsx; fix the one that owns what this check names' : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -114,7 +114,7 @@ class Input extends EventEmitter {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const hardLimit = setTimeout(() => { console.error('activity-screen-keys exceeded its deadline'); process.exit(1) }, 240_000)
+const hardLimit = setTimeout(() => { console.error('activity-screen-keys exceeded its deadline of 240 s: a wait in this proof never saw its frame, read the last FAIL line above and src/components/tasks/BackgroundTasksDialog.tsx'); process.exit(1) }, 240_000)
 hardLimit.unref()
 
 const rosterRows = Array.from({ length: MONITORS }, (_, index) => ({

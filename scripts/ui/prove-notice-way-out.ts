@@ -24,10 +24,12 @@ const { olderDaemonRefusalLine, restartDaemonWords } = await import('../../src/d
 const { MERCURY_DAEMON_PROTO } = await import('../../src/daemon/protocol.js')
 const { stringWidth } = await import('../../src/ink/stringWidth.js')
 
+const WAY_OUT_HINT = 'to fix, change the lines in decideHandshake (src/daemon/handshake.ts) or olderDaemonRefusalLine (src/daemon/controlSocket.ts), the seam split in splitWayOut (src/context/notifications.tsx), the notice row in src/components/PromptInput/Notifications.tsx (noticeRowWayOut, NoticeWords), or src/components/tasks/CompactWorkSummary.tsx'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${WAY_OUT_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

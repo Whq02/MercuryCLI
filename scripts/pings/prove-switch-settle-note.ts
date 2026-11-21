@@ -104,10 +104,11 @@ const connector = new DaemonSessionConnector({
   home,
 })
 await connector.attach()
-check('no note stands while the switch is parked', noteRows(connector).length === 0)
+check('no note stands while the switch is parked', noteRows(connector).length === 0, `rows=${noteRows(connector).length} — the facts read in src/services/engine-connector/daemonConnector.ts must mint a model_transition row only from a modelSettled stamp, never from a parked pendingModel`)
 check(
   'the readout shows the parked switch (the drive observed state A)',
   connector.modelFacts().pendingSwitch?.setting === 'fable',
+  `pendingSwitch=${JSON.stringify(connector.modelFacts().pendingSwitch)} — modelFacts in src/services/engine-connector/daemonConnector.ts must read pendingModel from the session facts published by publishSessionFacts`,
 )
 
 publishSessionFacts(
@@ -123,7 +124,7 @@ const painted = await until(() => noteRows(connector).length === 1, 4000)
 check('the settle paints exactly one note row at PUBLISH A (the lagging-answer publish)', painted, `rows=${noteRows(connector).length}`)
 {
   const row = noteRows(connector)[0]
-  check('the note is the applied turn-boundary receipt', row?.resolution === 'applied' && row?.boundary === 'turn-boundary')
+  check('the note is the applied turn-boundary receipt', row?.resolution === 'applied' && row?.boundary === 'turn-boundary', `row=${JSON.stringify(row)} — modelSettledRow in src/services/engine-connector/daemonConnector.ts must build the applied turn-boundary receipt`)
   check("the note names the settled model AS PICKED (the alias the label helper renders)", row?.applied === 'fable', `applied=${String(row?.applied)}`)
 }
 
@@ -165,7 +166,7 @@ publishSessionFacts(
   }),
 )
 const parkedObserved = await until(() => connector.modelFacts().pendingSwitch?.setting === 'glm-5.2', 4000)
-check('the readout shows the second park (the drive observed it)', parkedObserved)
+check('the readout shows the second park (the drive observed it)', parkedObserved, `pendingSwitch=${JSON.stringify(connector.modelFacts().pendingSwitch)} — modelFacts in src/services/engine-connector/daemonConnector.ts must follow the published pendingModel`)
 publishSessionFacts(
   facts({
     effective: 'claude-fable-5',
@@ -241,12 +242,12 @@ section('§4 the ruled copy and the never-a-bell law (structural)')
     check(
       'the boundary notification renders the label, Default included',
       named.startsWith(`${renderModelName(home)} applied — queued during the turn`) && byDefault.startsWith('Default applied — queued during the turn'),
-      `${named} | ${byDefault}`,
+      `${named} | ${byDefault} — the model-transition-applied notice in src/screens/chat/useChatStatus.tsx must render the model label, or Default when the setting is null`,
     )
     check(
       'the boundary notification carries the cross-provider note when the receipt says so',
       abroad !== '' && across === `${renderModelName(abroad)} applied — queued during the turn${crossProviderNote(abroad)}` && within === `${renderModelName(sibling)} applied — queued during the turn`,
-      `${across} | ${within}`,
+      `${across} | ${within} — the model-transition-applied notice in src/screens/chat/useChatStatus.tsx must append crossProviderNote (src/services/model/modelTransition.ts) only when the provider family changes`,
     )
   }
 }

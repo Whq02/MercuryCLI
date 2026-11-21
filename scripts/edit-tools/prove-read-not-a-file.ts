@@ -81,10 +81,11 @@ const RUNAWAY_BYTES = 1024 * MIB
 
 let failures = 0
 let count = 0
+const FAILURE_HINT = 'to fix: the refusal sentence is built in src/utils/regularFile.ts and raised by the Read checks in src/tools/FileReadTool/read/validate.ts; a reference goes through resolveResource in src/services/resources/registry.ts; rerun with --keep to inspect the world'
 function check(label: string, cond: boolean, detail = ''): void {
   count++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${FAILURE_HINT}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

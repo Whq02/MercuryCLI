@@ -16,7 +16,7 @@ mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the park request, retirement and withdrawal rules are in src/daemon/concourseWorkers/park.ts (completeRequestedPark, retireRequestedPark, parkAllConcourseSessions), focus.ts and stop.ts beside it, and the message cases in makeConcourseDispatchHandler in src/daemon/concourseDispatch.ts' : ''}`)
 }
 
 const sup = await import('../../src/daemon/concourseWorkers.ts')

@@ -26,9 +26,11 @@ function mkdtempOutsideProfiles(prefix: string): string {
 
 let passed = 0
 let failed = 0
+const homeAnywhereFailHint = 'change the no-home-recursive-delete and no-root-recursive-delete rules and wardHomes or setHomeSpellings in src/utils/wards/wards.ts, or homeSpellings, makeTargetResolver and registerWardsGuard in src/guards/wardsGuard.ts; a failing shape line from the parent means read the child output above it'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = ok ? detail : [detail, homeAnywhereFailHint].filter(Boolean).join(' | ')
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 if (process.argv[2] !== '--home') {

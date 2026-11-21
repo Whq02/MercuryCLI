@@ -28,9 +28,10 @@ const DOWN = `${ESC}[B`
 const RIGHT = `${ESC}[C`
 
 let failures = 0
+const FAIL_HINT = 'to fix: the theme roster is in src/utils/theme.ts (THEME_NAMES, isMonochromeTheme, getTheme) and the colour stripping in src/ink/colorize.ts (setMonochromeTheme, colorize, colorDepthWhy); a failure in the built-product sections (§3 to §5) reads dist/mercury.mjs, so rebuild with bun run build.ts and read the frames with --frames <dir>'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 500) : ''}${!cond ? ' | ' + FAIL_HINT : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

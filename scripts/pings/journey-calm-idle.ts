@@ -145,7 +145,7 @@ section('§0 the tripwire is non-vacuous (poison control: a forced connect logs)
     { encoding: 'utf8', timeout: vshotBudgetMs(20000) },
   )
   const logged = readFileSync(NETLOG, 'utf8')
-  check('the poisoned connect is logged and refused', poison.status === 0 && logged.includes('tcp 127.0.0.2:9'), `status=${poison.status} log=${logged.slice(0, 120)}`)
+  check('the poisoned connect is logged and refused', poison.status === 0 && logged.includes('tcp 127.0.0.2:9'), `status=${poison.status} log=${logged.slice(0, 120)} — the TRIPWIRE script written above in this file must log and refuse a forced net.Socket connect; fix its connect patch`)
   writeFileSync(NETLOG, '')
 }
 
@@ -245,18 +245,18 @@ function drive(cols: number, rows: number): void {
   const settleTick = receipts[0]!.atTick
   const heldTick = receipts[1]!.atTick
   const windowFromTick = settleTick + SETTLE_MARGIN_TICKS
-  check('the drive ended by readiness after the held window (never mid-burst)', payload.endReason === 'ready', String(payload.endReason))
+  check('the drive ended by readiness after the held window (never mid-burst)', payload.endReason === 'ready', `${String(payload.endReason)} — the drive must end by readiness after the held-idle send; read the grid and tee under the captures folder (OUT in this file) and see whether the screen kept moving or never showed the ready text`)
   check(
     `the settled-idle window really spans ≥ ${IDLE_TICKS} ticks (60 s)`,
     heldTick - windowFromTick >= IDLE_TICKS,
-    `${heldTick - windowFromTick}`,
+    `${heldTick - windowFromTick} — the held-idle send came too early; the drive must stay idle for IDLE_TICKS ticks after the settle margin (see sends in the cfg of drive in this file)`,
   )
-  check('the chat rests with the need armed (the cockpit paints no badge since the sessions box left — the board lists the need; the idle law is the same; keyless, the row rests on not signed in · /logins)', /not signed in · \/logins · /.test(text), text.split('\n').find(l => l.includes('signed in')) ?? '(no status row)')
+  check('the chat rests with the need armed (the cockpit paints no badge since the sessions box left — the board lists the need; the idle law is the same; keyless, the row rests on not signed in · /logins)', /not signed in · \/logins · /.test(text), `${text.split('\n').find(l => l.includes('signed in')) ?? '(no status row)'} — the idle chat must rest on the status row not signed in · /logins; read the grid text in the captures folder (OUT in this file) to see what the resumed session painted instead`)
   const tee = readFileSync(teePath)
   const settled = teeBytesIn(tee, windowFromTick, heldTick)
-  check(`byte-still: ZERO bytes over the settled-idle window [${windowFromTick}, ${heldTick})`, settled.bytes === 0, `${settled.bytes} byte(s) in ${settled.frames} frame(s)`)
+  check(`byte-still: ZERO bytes over the settled-idle window [${windowFromTick}, ${heldTick})`, settled.bytes === 0, `${settled.bytes} byte(s) in ${settled.frames} frame(s) — something repainted the screen while idle; find the timer, spinner or clock that wrote to the terminal in that tick window (frames are in the .tee.bin under the captures folder) and make it stay still when nothing changed`)
   const before = teeBytesIn(tee, 0, windowFromTick)
-  check('the tee is non-vacuous (the boot painted real bytes before the window)', before.bytes > 1000, `${before.bytes} byte(s)`)
+  check('the tee is non-vacuous (the boot painted real bytes before the window)', before.bytes > 1000, `${before.bytes} byte(s) — the tee captured no boot paint, so the zero-byte check proves nothing; check how VSHOT_TEE is written in scripts/ui/vshot.py`)
   const netlog = readFileSync(NETLOG, 'utf8')
   const windowFrom = receipts[0]!.ts
   const windowTo = receipts[1]!.ts
@@ -269,16 +269,16 @@ function drive(cols: number, rows: number): void {
   check(
     `the STEADY armed idle dials nothing (${windowTo - windowFrom - 5000} ms window)`,
     steady.length === 0,
-    steady.slice(0, 3).map(e => e.line).join(' · '),
+    `${steady.slice(0, 3).map(e => e.line).join(' · ')} — the armed idle product dialled out; find the caller of that host and make it wait for a user action instead of dialling while idle`,
   )
   const tail = stamps.filter(e => e.at >= windowFrom && e.at < windowFrom + 5000)
   console.log(`  · boot-adjacent dials in the 5 s settle tail (classified, all refused by the tripwire): ${tail.length}`)
   check(
     'no non-local host beyond the recorded api.anthropic.com preconnect class appears anywhere',
     stamps.every(e => e.line.includes('localhost') || e.line.includes('127.0.0.1') || e.line.includes('api.anthropic.com')),
-    stamps.map(e => e.line).find(l => !(l.includes('localhost') || l.includes('127.0.0.1') || l.includes('api.anthropic.com'))) ?? '',
+    stamps.map(e => e.line).find(l => !(l.includes('localhost') || l.includes('127.0.0.1') || l.includes('api.anthropic.com'))) ?? '' ? `${stamps.map(e => e.line).find(l => !(l.includes('localhost') || l.includes('127.0.0.1') || l.includes('api.anthropic.com')))} — the booted product dialled a non-local host other than the api.anthropic.com preconnect; find who dials it at boot and remove or gate it` : '',
   )
-  check('the tripwire was armed in the booted product', netlog.includes('armed'), netlog.slice(0, 120))
+  check('the tripwire was armed in the booted product', netlog.includes('armed'), `${netlog.slice(0, 120)} — the TRIPWIRE never loaded in the booted product; the NODE_OPTIONS --require in the env of drive in this file did not reach the child process`)
   writeFileSync(NETLOG, '')
 }
 

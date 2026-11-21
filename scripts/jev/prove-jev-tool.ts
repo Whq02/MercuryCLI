@@ -11,10 +11,11 @@ for (const key of ['TYPESAFE_API_KEY', 'NODE_ENV', 'https_proxy', 'HTTPS_PROXY',
 
 let failures = 0
 let checks = 0
+const jevToolHint = 'by section, fix src/tools/JevEvalTool/JevEvalTool.ts (the tool flags, the input schema, the size refusal and call) for sections 1, 2 and 4, jevEvalRequest.ts (assembleJevEvalRequest) for section 3, JevEvalTool.ts and jevEvalResult.ts (jevEvalCall, jevEvalCell, jevEvalProbability) for sections 5 and 6, prompt.ts for section 7, all in that folder'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' · ' : ''}${jevToolHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

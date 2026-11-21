@@ -7,9 +7,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const walletFailHint = 'change walletEntries, activeWalletEntry or notLoggedInGateDecision in src/services/wallet/wallet.ts, or describeAgentRuntimeRef in src/services/providers/primaryBackend.ts (§6 checks), whichever the section above names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failShown = [detail, walletFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${failShown}` : ''}`)
 }
 
 console.log('============================================================')

@@ -7,11 +7,23 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+let sectionFixHint = ''
+const sectionFixHints: Record<string, string> = {
+  '1': 'fix parseGptModelId in src/utils/model/pins/gptPins.ts',
+  '2': 'fix gptDisplayName / GPT_DISPLAY_PINS in src/utils/model/pins/gptPins.ts, or getPublicModelDisplayName / getMarketingNameForModel / renderModelChip in src/services/model/model.ts',
+  '3': 'fix getContextWindowForModel (src/utils/context.ts) or the pin window in src/utils/model/pins/gptPins.ts',
+  '4': 'fix getModelPricingString / calculateCostFromTokens in src/services/usage/modelCost.ts, or the pin rates in src/utils/model/pins/gptPins.ts',
+  '4b': 'fix the pin row in GPT_DISPLAY_PINS (src/utils/model/pins/gptPins.ts), or the consumer named by the check (model.ts, context.ts, capabilities.ts getModelMaxOutputTokens, modelCost.ts)',
+  '5': 'fix decideModelTransition / providerFamilyOfSetting / crossProviderNote in src/services/model/modelTransition.ts',
+  '6': 'fix the turn-boundary effect on pendingModelSwitch in src/screens/chat/useChatStatus.tsx',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shownDetail = !cond ? [detail, sectionFixHint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shownDetail ? ` — ${shownDetail}` : ''}`)
 }
 function section(t: string): void {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

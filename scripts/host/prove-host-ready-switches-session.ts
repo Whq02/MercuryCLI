@@ -73,7 +73,7 @@ const server = Bun.serve({
 const baseOf = (name: string): string => `http://127.0.0.1:${server.port}/${name}/v1`
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-host-ready-switches-session exceeded 240s')
+  console.log('\n❌ TIMEOUT — prove-host-ready-switches-session exceeded 240s; the daemon log in the scratch folder (daemon.log) shows where the daemon or the session switch in switchRentingSession (src/services/host/worker.ts) stalled')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -150,12 +150,12 @@ try {
   const record = { price: 8.99, startedAt: new Date(Date.now() - 1800_000).toISOString() }
   const kept = hostReadyWords('GLM-5.3-Flash', HOSTED_MODEL, record)
   const switched = hostReadyWords('GLM-5.3-Flash', HOSTED_MODEL, record, true)
-  check('not switched: the notice names the /model door with the id', kept.startsWith(`GLM-5.3-Flash ready · /model ${HOSTED_MODEL}\n~$4.`) && kept.endsWith(' so far + storage.'), JSON.stringify(kept))
-  check('switched: the notice reads "now your model" and names no door', switched.startsWith('GLM-5.3-Flash ready · now your model\n~$4.') && switched.endsWith(' so far + storage.') && !switched.includes('/model'), JSON.stringify(switched))
+  check('not switched: the notice names the /model door with the id', kept.startsWith(`GLM-5.3-Flash ready · /model ${HOSTED_MODEL}\n~$4.`) && kept.endsWith(' so far + storage.'), JSON.stringify(kept) + ' - hostReadyWords in src/commands/llmhost/words.ts must name the /model door when the session was not switched')
+  check('switched: the notice reads "now your model" and names no door', switched.startsWith('GLM-5.3-Flash ready · now your model\n~$4.') && switched.endsWith(' so far + storage.') && !switched.includes('/model'), JSON.stringify(switched) + ' - hostReadyWords in src/commands/llmhost/words.ts must read now your model and name no /model door when switched is true')
 
   section('§2 no session owns the record, or the session is gone: nothing is asked of the daemon')
-  check('a record with no session id switches nothing', (await switchRentingSession({ sessionId: undefined }, HOSTED_MODEL)) === false)
-  check('a session id no record owns switches nothing (no daemon is even running yet)', (await switchRentingSession({ sessionId: 'no-such-session' }, HOSTED_MODEL)) === false)
+  check('a record with no session id switches nothing', (await switchRentingSession({ sessionId: undefined }, HOSTED_MODEL)) === false, 'switchRentingSession in src/services/host/worker.ts must return false when the record has no sessionId')
+  check('a session id no record owns switches nothing (no daemon is even running yet)', (await switchRentingSession({ sessionId: 'no-such-session' }, HOSTED_MODEL)) === false, 'switchRentingSession in src/services/host/worker.ts must return false for a session no worker record owns')
 
   bootDaemon()
   check('the daemon boots and answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
@@ -169,17 +169,17 @@ try {
   const sid = born.sessionId
   check('the runner stands behind the session and reports its model', await untilAsync(() => readFacts(sid)?.model?.effective === BEFORE_MODEL, 60_000), JSON.stringify(readFacts(sid) ?? null))
 
-  check('the session’s model is readable before the switch', (await rentingSessionModel({ sessionId: sid })) === BEFORE_MODEL)
+  check('the session’s model is readable before the switch', (await rentingSessionModel({ sessionId: sid })) === BEFORE_MODEL, 'rentingSessionModel in src/services/host/worker.ts must read the live session model')
   const outcome = await switchRentingSession({ sessionId: sid }, HOSTED_MODEL)
-  check('the ready road switches the renting session', outcome === true)
+  check('the ready road switches the renting session', outcome === true, 'switchRentingSession in src/services/host/worker.ts returned ' + String(outcome) + '; it must return true for a live session on another model')
   check('…and the session runs the hosted model from here (its facts and its record agree)', await untilAsync(() => readFacts(sid)?.model?.effective === HOSTED_MODEL && readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 60_000), JSON.stringify({ facts: readFacts(sid)?.model, record: readWorkerRec(sid)?.modelKey }))
-  check('asking again is a no-op, not a second switch', (await switchRentingSession({ sessionId: sid }, HOSTED_MODEL)) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL)
+  check('asking again is a no-op, not a second switch', (await switchRentingSession({ sessionId: sid }, HOSTED_MODEL)) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 'switchRentingSession in src/services/host/worker.ts must return false and leave the record alone when the session already runs the hosted model')
 
   section('§3b Terminate: the session that was switched onto the machine goes back to the model it had; one that moved on is left alone')
-  check('a record that never switched a session restores nothing', (await restoreRentingSession({ sessionId: sid, sessionModel: undefined, sessionModelBefore: undefined })) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL)
-  check('a session that is no longer on the machine’s model is left alone', (await restoreRentingSession({ sessionId: sid, sessionModel: 'compat/other/model', sessionModelBefore: BEFORE_MODEL })) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL)
+  check('a record that never switched a session restores nothing', (await restoreRentingSession({ sessionId: sid, sessionModel: undefined, sessionModelBefore: undefined })) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 'restoreRentingSession in src/services/host/worker.ts must do nothing when the record never switched a session')
+  check('a session that is no longer on the machine’s model is left alone', (await restoreRentingSession({ sessionId: sid, sessionModel: 'compat/other/model', sessionModelBefore: BEFORE_MODEL })) === false && readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 'restoreRentingSession in src/services/host/worker.ts must leave a session alone when it is no longer on the machine model')
   check('Terminate puts the session back on the model it had before the rental', (await restoreRentingSession({ sessionId: sid, sessionModel: HOSTED_MODEL, sessionModelBefore: BEFORE_MODEL })) === true && await untilAsync(() => readFacts(sid)?.model?.effective === BEFORE_MODEL && readWorkerRec(sid)?.modelKey === BEFORE_MODEL, 60_000), JSON.stringify({ facts: readFacts(sid)?.model, record: readWorkerRec(sid)?.modelKey }))
-  check('the ready road switches it again for the next rental', (await switchRentingSession({ sessionId: sid }, HOSTED_MODEL)) === true && await untilAsync(() => readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 60_000))
+  check('the ready road switches it again for the next rental', (await switchRentingSession({ sessionId: sid }, HOSTED_MODEL)) === true && await untilAsync(() => readWorkerRec(sid)?.modelKey === HOSTED_MODEL, 60_000), 'switchRentingSession in src/services/host/worker.ts must switch the session again after a restore')
   check('the daemon logged no crash for the runner across the switch', !/crashed|DEGRADED/.test(daemonLog()), daemonLog().split('\n').filter(line => /crashed|DEGRADED/.test(line)).join(' | '))
 
   section('§4 a parked renting session is left alone: no switch, no revival')
@@ -187,11 +187,11 @@ try {
   updateConcourseWorkers(workers => {
     workers['concourse-parked'] = { schema: 1, runnerId: 'concourse-parked', sessionId: parkedSid, workspaceId: work, isolation: 'shared', modelKey: BEFORE_MODEL, spawnedAt: Date.now() - 60_000, lastLiveAt: Date.now() - 60_000, pid: 2_147_000_000, parkedAt: Date.now() - 30_000 } as never
   }, daemonDir)
-  check('a parked session switches nothing', (await switchRentingSession({ sessionId: parkedSid }, HOSTED_MODEL)) === false)
+  check('a parked session switches nothing', (await switchRentingSession({ sessionId: parkedSid }, HOSTED_MODEL)) === false, 'switchRentingSession in src/services/host/worker.ts must return false for a worker record that has parkedAt set')
   await wait(500)
   const parked = Object.values(readSessionWorkers(daemonDir) as Record<string, WorkerRec>).find(w => w.sessionId === parkedSid)
   check('…its record keeps its model and stays parked (no respawn was asked)', parked?.modelKey === BEFORE_MODEL && parked.parkedAt !== undefined && parked.pid === 2_147_000_000, JSON.stringify(parked ?? null))
-  check('…and the live session kept the hosted model', readFacts(sid)?.model?.effective === HOSTED_MODEL)
+  check('…and the live session kept the hosted model', readFacts(sid)?.model?.effective === HOSTED_MODEL, 'the parked-session switch attempt must not touch the live session; check switchRentingSession in src/services/host/worker.ts')
 } catch (error) {
   failures++
   console.log(`  [FAIL] the drive threw — ${error instanceof Error ? error.message : String(error)}`)

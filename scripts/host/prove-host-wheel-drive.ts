@@ -53,8 +53,9 @@ function Tap({ name }: { name: string }): null {
 const scrollRef = React.createRef<ScrollBoxHandle>()
 let mounted: Mounted | undefined
 let checks = 0
-const check = (label: string, condition: unknown): void => {
-  assert.ok(condition, label + '\n' + (mounted?.screen() ?? ''))
+const wheelRouteHint = 'the wheel and page keys of the choice popup are handled in src/components/LlmHostDialog.tsx (the wheelUp and wheelDown branch of its input handler); the background scroller is src/components/ScrollKeybindingHandler.tsx'
+const check = (label: string, condition: unknown, hint = ''): void => {
+  assert.ok(condition, label + (hint ? ' - ' + hint : '') + '\n' + (mounted?.screen() ?? ''))
   checks++
   console.log('PASS ' + label)
 }
@@ -85,8 +86,8 @@ const wheelMove = async (bytes: string, target: number, label: string) => {
   mounted!.push(bytes)
   const reached = await waitFor(() => selected() === target, 1500)
   console.log(JSON.stringify({ label, target, selected: selected(), input: seen.slice(before), transcriptBefore: transcript, transcriptAfter: scrollRef.current!.getScrollTop(), owner: topOverlay()?.id ?? null }))
-  check(label, reached)
-  check(label + ' leaves the transcript still', scrollRef.current!.getScrollTop() === transcript)
+  check(label, reached, 'the selection did not reach the target row; ' + wheelRouteHint)
+  check(label + ' leaves the transcript still', scrollRef.current!.getScrollTop() === transcript, 'the transcript scrolled while the popup was open; ' + wheelRouteHint)
 }
 const close = async () => {
   mounted!.push(KEY.esc)
@@ -124,7 +125,7 @@ const chatWheel = async () => {
 }
 try {
   const parsed = interpretKey(wheel(true))
-  check('SGR keeps wheeldown and its pointer coordinates', parsed.name === 'wheeldown' && parsed.x === 40 && parsed.y === 15 && new InputEvent(parsed).key.wheelDown)
+  check('SGR keeps wheeldown and its pointer coordinates', parsed.name === 'wheeldown' && parsed.x === 40 && parsed.y === 15 && new InputEvent(parsed).key.wheelDown, 'the SGR wheel parse lost its name, coordinates or wheelDown flag; see interpretKey in src/ink/input/interpreter.ts')
   for (const columns of [120, 80]) {
     await mount(columns)
     await chatWheel()
@@ -141,18 +142,18 @@ try {
       await step(KEY.down, 6, 'Down-arrow retains its one-row move')
       await step(KEY.up, 5, 'Up-arrow retains its one-row move')
       const pageRows = visible().length
-      check('the fixture overflows the popup and advertises paging', pageRows > 1 && pageRows < 40 && mounted!.screen().includes('pgup/pgdn page'))
+      check('the fixture overflows the popup and advertises paging', pageRows > 1 && pageRows < 40 && mounted!.screen().includes('pgup/pgdn page'), 'the choice list must show only a window of rows and advertise pgup/pgdn page in its footer; see src/components/LlmHostDialog.tsx')
       await step('\x1b[6~', Math.min(39, 5 + pageRows), 'PageDown keeps its measured page stride')
       const beforeUp = selected()!
       const upPageRows = visible().length
       await step('\x1b[5~', Math.max(0, beforeUp - upPageRows), 'PageUp keeps its measured page stride')
       while (selected()! < 39) await step(wheel(true), selected()! + 1, 'wheel reaches the next visible row across the page edge')
-      check('the last row remains visible with earlier rows above', visible().includes(39) && !visible().includes(0))
+      check('the last row remains visible with earlier rows above', visible().includes(39) && !visible().includes(0), 'after the last row is selected the list window must follow it; see the selection scrolling in src/components/LlmHostDialog.tsx')
       await capture(columns + '-' + kind + '-wheel-end', columns)
       await wheelMove(wheel(true), 39, 'the last row clamps without wrapping')
       while (selected()! > 0) await step(wheel(false), selected()! - 1, 'reverse wheel returns across each page edge')
       await wheelMove(wheel(false), 0, 'the first row clamps without wrapping')
-      check('wheel and page keys never accept a choice', answers.length === answersBefore)
+      check('wheel and page keys never accept a choice', answers.length === answersBefore, 'a wheel or page key answered the question; only Enter may accept in src/components/LlmHostDialog.tsx')
       await close()
     }
     const short = { ...plan('bank'), initial: undefined, rows: plan('bank').rows!.slice(0, 2) }
@@ -174,18 +175,18 @@ try {
     await close()
     await chatWheel()
     ink!.setMouseTrackingEnabled(false)
-    check('mouse-off disables capture', !ink!.isMouseTrackingEnabled())
+    check('mouse-off disables capture', !ink!.isMouseTrackingEnabled(), 'setMouseTrackingEnabled(false) did not turn mouse tracking off; see src/ink')
     popup.openSettingsPopup(llmHostPopupRequest(roadFor(plan('bank'))))
     await until(() => choicesReady(plan('bank')) && selected() === 0, 'mouse-off popup opens')
-    check('opening the popup does not re-enable mouse capture', !ink!.isMouseTrackingEnabled())
+    check('opening the popup does not re-enable mouse capture', !ink!.isMouseTrackingEnabled(), 'opening the popup must not call setMouseTrackingEnabled(true); see src/components/LlmHostDialog.tsx and src/components/SettingsPopupSlot.tsx')
     await step(KEY.down, 1, 'mouse-off alternate-scroll arrows navigate the popup')
     await step(KEY.up, 0, 'mouse-off reverse arrows navigate the popup')
     await close()
-    check('closing the popup leaves native selection mode intact', !ink!.isMouseTrackingEnabled())
+    check('closing the popup leaves native selection mode intact', !ink!.isMouseTrackingEnabled(), 'closing the popup must not call setMouseTrackingEnabled(true); see src/components/LlmHostDialog.tsx and src/components/SettingsPopupSlot.tsx')
     mounted!.unmount()
     mounted = undefined
   }
-  check('the proof made no network calls', networkCalls === 0)
+  check('the proof made no network calls', networkCalls === 0, 'something called fetch during the popup flow; look in src/commands/llmhost/llmhost.tsx and src/components/LlmHostDialog.tsx')
   console.log('HOST WHEEL DRIVE GREEN — ' + checks + ' checks; real parser, keybinding provider, background scroller and popup at 120/80 columns; no desktop or network calls')
 } finally {
   globalThis.fetch = nativeFetch

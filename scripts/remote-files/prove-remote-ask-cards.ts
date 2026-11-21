@@ -50,16 +50,17 @@ const { FileEditTool } = await import('../../src/tools/FileEditTool/FileEditTool
 const { closeRemoteConnections } = await import('../../src/services/remoteFiles/connection.ts')
 
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 240 seconds')
+  console.log('  [FAIL] the proof did not finish within 240 seconds — a permission card never settled or the local ssh transport hung; see the last section printed above, then src/components/permissions/FileWritePermissionRequest, FileEditPermissionRequest and FilesystemPermissionRequest, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 240_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const ASK_CARD_FIX_HINT = 'to fix: change the card in src/components/permissions/FileWritePermissionRequest, FileEditPermissionRequest or FilesystemPermissionRequest (the one the label names), or renderToolUseRejectedMessage in src/tools/FileWriteTool/UI.tsx or src/tools/FileEditTool/UI.tsx for the refused rows; the rows drawn are above'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok ? ` | ${ASK_CARD_FIX_HINT}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

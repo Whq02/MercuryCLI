@@ -20,9 +20,10 @@ const nullRendering = await import('../../src/components/messages/nullRenderingA
 const decode = await import('../../src/fabric/transcriptDecode.ts')
 
 let failures = 0
+const oldKindsFailHint = 'an old crew spelling is being renamed, dropped or given a meaning; fix the reader this check calls, among src/utils/sessionStorage/logs.ts (loadTranscriptFromFile, enrichSessionListings), src/fabric/transcriptDecode.ts, src/utils/sessionStorage/fold.ts (applyTranscriptEntry), src/utils/sessionStorage/paths.ts (readAgentMetadata), src/services/messages/attachmentText.ts (normalizeAttachmentForAPI), src/tools/AgentTool/AgentTool.tsx (inputSchema), src/keybindings/parser.ts and src/commands/crewmates/index.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${oldKindsFailHint}`}`)
 }
 const optional = async (rel: string): Promise<Record<string, unknown> | null> => {
   try {

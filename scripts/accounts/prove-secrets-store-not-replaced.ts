@@ -7,7 +7,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change the store writers and their kept-aside copy in src/utils/accounts/providerSecrets.ts (writeStoredOpenaiApiKey) or src/services/providers/meta/metaAccounts.ts (writePreferredMetaSource), the ledger in src/substrate/storeRecovery.ts, or the sign-out words in src/cli/handlers/providerAuth.ts (providerAuthLogout)' : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

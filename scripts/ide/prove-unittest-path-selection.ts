@@ -9,9 +9,10 @@ import * as path from 'node:path'
 const SYS_PY = '/usr/bin/python3'
 
 let failures = 0
+const selectionFixHint = 'fix: selection_plan in UNITTEST_RUNNER_SOURCE (and runPythonTests / discoverPythonTests) in src/services/ide/pythonTests.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${selectionFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

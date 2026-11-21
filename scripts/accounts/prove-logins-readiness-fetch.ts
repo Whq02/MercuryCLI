@@ -43,7 +43,7 @@ enableConfigs()
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' — hint: change resolveProviderUsability in src/services/providers/providerUsability.ts (passive read asks nothing, fetchCatalogues true fetches once) or the catalogue cache it reads under src/services/providers/' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

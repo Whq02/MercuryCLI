@@ -158,6 +158,8 @@ type AssistantMessage = import('../../src/types/message.ts').AssistantMessage
 type Message = import('../../src/types/message.ts').Message
 
 const BASH = BashTool.name
+const planHint = 'see buildTransitionPlan and transitionSourceRevision in src/services/providers/transitionPreview.ts'
+const wireHint = 'the request is built behind routedCallModel in src/services/providers/callModelRouter.ts; read the rejected reason above to see which wire rule the history broke'
 
 function assistantTurn(model: string, content: unknown[], stopReason: string): AssistantMessage {
   const turn = createAssistantMessage({ content: content as never })
@@ -260,31 +262,31 @@ const gptHistory = gptBornHistory()
 const claudeHistory = claudeBornHistory()
 {
   const plan = buildTransitionPlan({ messages: gptHistory, from: 'gpt-5.6-sol', to: 'claude-opus-5' })
-  check('GPT→Claude: the plan is cross-provider and typed', plan.crossProvider && plan.targetRoute === 'anthropic')
-  check('GPT→Claude: foreign thinking surfaces as thinking-continuity-reset', plan.counts['thinking-continuity-reset'] >= 1, text(plan.counts))
+  check('GPT→Claude: the plan is cross-provider and typed', plan.crossProvider && plan.targetRoute === 'anthropic', text({ crossProvider: plan.crossProvider, targetRoute: plan.targetRoute }) + ' — ' + planHint)
+  check('GPT→Claude: foreign thinking surfaces as thinking-continuity-reset', plan.counts['thinking-continuity-reset'] >= 1, text(plan.counts) + ' — ' + planHint)
   const thinkingTurnUuid = (gptHistory[1] as { uuid: string }).uuid
-  check('GPT→Claude: the lossy item names the exact message (the failing-index honesty)', plan.items.some(i => i.ref === thinkingTurnUuid), text(plan.items))
-  check('GPT→Claude: meaningful loss gates needsChoice — never an auto-apply', plan.needsChoice === true)
+  check('GPT→Claude: the lossy item names the exact message (the failing-index honesty)', plan.items.some(i => i.ref === thinkingTurnUuid), text(plan.items) + ' — ' + planHint)
+  check('GPT→Claude: meaningful loss gates needsChoice — never an auto-apply', plan.needsChoice === true, planHint)
   const appended = [...gptHistory, createUserMessage({ content: 'one more thing' })]
-  check('an append makes the plan stale by revision (never silently reused)', transitionSourceRevision(appended as never) !== plan.sourceRevision)
+  check('an append makes the plan stale by revision (never silently reused)', transitionSourceRevision(appended as never) !== plan.sourceRevision, 'transitionSourceRevision must change when a message is appended; ' + planHint)
 }
 {
   const plan = buildTransitionPlan({ messages: claudeHistory, from: 'claude-opus-5', to: 'gpt-5.6-sol' })
-  check('Claude→GPT: the plan is cross-provider and typed', plan.crossProvider && plan.targetRoute === 'openai')
-  check('Claude→GPT: native thinking cannot ride — counted as a reset class', plan.counts['thinking-continuity-reset'] + plan.counts['stateless-replay-reset'] >= 1, text(plan.counts))
+  check('Claude→GPT: the plan is cross-provider and typed', plan.crossProvider && plan.targetRoute === 'openai', text({ crossProvider: plan.crossProvider, targetRoute: plan.targetRoute }) + ' — ' + planHint)
+  check('Claude→GPT: native thinking cannot ride — counted as a reset class', plan.counts['thinking-continuity-reset'] + plan.counts['stateless-replay-reset'] >= 1, text(plan.counts) + ' — ' + planHint)
 }
 
 section('GPT → Claude · the incident direction (validating anthropic wire)')
 {
   const o = await drive('claude-opus-5', gptHistory)
   const body = o.body ?? {}
-  check('the pickup turn settled end_turn on the anthropic lane', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path === '/v1/messages', `threw=${String(o.threw)} errors=${o.errors.map(e => text(e.message.content)).join('|').slice(0, 200)} path=${o.path}`)
-  check('the fixture validator accepted the wire (no pairing/signature refusal)', rejected.length === 0, text(rejected))
+  check('the pickup turn settled end_turn on the anthropic lane', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path === '/v1/messages', `threw=${String(o.threw)} errors=${o.errors.map(e => text(e.message.content)).join('|').slice(0, 200)} path=${o.path} — ${wireHint}`)
+  check('the fixture validator accepted the wire (no pairing/signature refusal)', rejected.length === 0, text(rejected) + ' — ' + wireHint)
   const messages = (body.messages as Array<Record<string, unknown>> | undefined) ?? []
-  check('the ORPHANED stop-call was healed with a synthetic result before the wire', text(messages).includes('call_bash_stopped') && validateAnthropic(body) === null)
-  check('the interview answer content survived the switch', text(messages).includes('answers'))
-  check('foreign unsigned thinking never reached the anthropic wire', !text(body).includes('sol reasoning summary'))
-  check('the interruption line rode as ordinary user text', text(messages).includes('[Request interrupted by user for tool use]'))
+  check('the ORPHANED stop-call was healed with a synthetic result before the wire', text(messages).includes('call_bash_stopped') && validateAnthropic(body) === null, wireHint)
+  check('the interview answer content survived the switch', text(messages).includes('answers'), wireHint)
+  check('foreign unsigned thinking never reached the anthropic wire', !text(body).includes('sol reasoning summary'), wireHint)
+  check('the interruption line rode as ordinary user text', text(messages).includes('[Request interrupted by user for tool use]'), wireHint)
   console.log(`  · switch-to-first-assistant-event (fixture): ${o.msToFirstAssistantEvent.toFixed(0)}ms`)
 }
 
@@ -293,12 +295,12 @@ section('Claude → GPT · the reverse direction (validating responses wire)')
   rejected.length = 0
   const o = await drive('gpt-5.6-sol', claudeHistory)
   const body = o.body ?? {}
-  check('the pickup turn settled end_turn on the openai lane', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path?.endsWith('/responses') === true, `threw=${String(o.threw)} errors=${o.errors.map(e => text(e.message.content)).join('|').slice(0, 200)} path=${o.path}`)
-  check('the fixture validator accepted the wire (every function_call answered)', rejected.length === 0, text(rejected))
+  check('the pickup turn settled end_turn on the openai lane', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path?.endsWith('/responses') === true, `threw=${String(o.threw)} errors=${o.errors.map(e => text(e.message.content)).join('|').slice(0, 200)} path=${o.path} — ${wireHint}`)
+  check('the fixture validator accepted the wire (every function_call answered)', rejected.length === 0, text(rejected) + ' — ' + wireHint)
   const input = (body.input as Array<Record<string, unknown>> | undefined) ?? []
-  check('the ORPHANED stop-call was healed before the responses wire', input.some(i => i.type === 'function_call' && i.call_id === 'toolu_bash_stopped') && validateResponses(body) === null, input.map(i => `${i.type}:${i.call_id ?? ''}`).join(','))
-  check('native thinking never replayed to the responses wire', !input.some(i => i.type === 'reasoning') && !text(body).includes('plan the interview arc'))
-  check('the interview answer content survived the switch', text(input).includes('answers'))
+  check('the ORPHANED stop-call was healed before the responses wire', input.some(i => i.type === 'function_call' && i.call_id === 'toolu_bash_stopped') && validateResponses(body) === null, input.map(i => `${i.type}:${i.call_id ?? ''}`).join(',') + ' — ' + wireHint)
+  check('native thinking never replayed to the responses wire', !input.some(i => i.type === 'reasoning') && !text(body).includes('plan the interview arc'), wireHint)
+  check('the interview answer content survived the switch', text(input).includes('answers'), wireHint)
   console.log(`  · switch-to-first-assistant-event (fixture): ${o.msToFirstAssistantEvent.toFixed(0)}ms`)
 }
 

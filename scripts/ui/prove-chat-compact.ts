@@ -27,10 +27,14 @@ const SOVEREIGN_SETTINGS = { guardrails: { sovereignConsentSeen: true } }
 const HINT_TEXTS = ['? for shortcuts', 'for commands + files', 'ctrl+t activity', 'for a new line', 'shift + ↵']
 const STATUS_ROW = '← back'
 const RESTING_STATUS_ROW = /^ ready · Opus 5\.5 · high {2,}\S+(?: ⌥ \S+)? {2}(?:⇧|shift\+)← back$/
+const BAND_AT = 'change CompactIdentityBand in src/components/CompactIdentityBand.tsx or compactBandForm in src/components/mercury-ui/geometry.ts'
+const CHIP_AT = 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts or the chip row in src/components/MercuryFrame.tsx'
+const REST_ROW_FIX = 'change the resting status row of the full cockpit to read ready, Opus 5.5, high, the folder and branch, then the way back'
+const PAINT_FIX = 'the chat did not paint or the mark was not reached; read the engine log in the scratch folder named at the top of this run'
 const restingRowCheck = (tag: string, text: string[]): void => {
   const row = text.find(l => l.includes(STATUS_ROW)) ?? ''
-  check(`${tag}: the row above the composer reads ready · Opus 5.5 · high, the folder and branch at its right end, then the way back`, RESTING_STATUS_ROW.test(row), JSON.stringify(row))
-  check(`${tag}: the folder sits at the right end of the resting row, never beside ready`, new RegExp(` {2,}${tree.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: ⌥ \\S+)? {2}`).test(row) && !row.includes(`${tree} · ready`), JSON.stringify(row))
+  check(`${tag}: the row above the composer reads ready · Opus 5.5 · high, the folder and branch at its right end, then the way back`, RESTING_STATUS_ROW.test(row), `${REST_ROW_FIX}: ${JSON.stringify(row)}`)
+  check(`${tag}: the folder sits at the right end of the resting row, never beside ready`, new RegExp(` {2,}${tree.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?: ⌥ \\S+)? {2}`).test(row) && !row.includes(`${tree} · ready`), `${REST_ROW_FIX}: ${JSON.stringify(row)}`)
 }
 const SHIFT_RIGHT = '\x1b[1;2C'
 const BOARD_NEW_DOOR = 'new session'
@@ -50,7 +54,7 @@ function ladderFor(): (cols: number, rows: number) => Rung {
   const read = spawnSync(process.execPath, ['-e', code], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, MERCURY_CONFIG_DIR: home, MERCURY_CREDENTIAL_STORE: 'file' } })
   const table = new Map<string, Rung>()
   for (const [c, r, form, bandRows] of JSON.parse(read.stdout.trim().split('\n').pop() || '[]') as Array<[number, number, Rung['form'], number]>) table.set(`${c}x${r}`, { form, bandRows })
-  check('the band ladder is read in its own home (no settings file)', read.status === 0 && table.size === LADDER_SIZES.length && !existsSync(join(home, 'settings.json')), `exit=${read.status}; ${read.stderr.slice(-400)}`)
+  check('the band ladder is read in its own home (no settings file)', read.status === 0 && table.size === LADDER_SIZES.length && !existsSync(join(home, 'settings.json')), `compactBandForm in src/components/mercury-ui/geometry.ts must load with no settings file; exit=${read.status}; ${read.stderr.slice(-300)}`)
   return (cols, rows) => {
     const rung = table.get(`${cols}x${rows}`)
     if (rung === undefined) throw new Error(`no ladder rung for ${cols}x${rows}`)
@@ -103,48 +107,48 @@ function bandChecks(tag: string, cols: number, rows: number, grid: Grid, chip: '
   const text = textRows(grid)
   const { form, bandRows } = rung
   const all = joined(text)
-  check(`${tag}: the grid has the exact physical dimensions`, grid.length === rows && grid.every(row => row.length === cols))
-  check(`${tag}: no shortcut hint text anywhere`, !HINT_TEXTS.some(hint => all.includes(hint)), HINT_TEXTS.filter(hint => all.includes(hint)).join(' | '))
-  check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(all))
+  check(`${tag}: the grid has the exact physical dimensions`, grid.length === rows && grid.every(row => row.length === cols), `the capture grid is not ${cols}x${rows}; read the engine log in the scratch folder named at the top of this run`)
+  check(`${tag}: no shortcut hint text anywhere`, !HINT_TEXTS.some(hint => all.includes(hint)), `remove these shortcut hints from the compact chat: ${HINT_TEXTS.filter(hint => all.includes(hint)).join(' | ')}`)
+  check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for|needs \d+(?: columns|[×x]\d+)/.test(all), `the compact chat must paint at this size, not a refusal; ${BAND_AT}`)
   const modelRows = text.map((line, i) => (line.includes('Opus 5') ? i : -1)).filter(i => i >= 0)
-  check(`${tag}: the model appears on exactly one row`, modelRows.length === 1, JSON.stringify(modelRows))
+  check(`${tag}: the model appears on exactly one row`, modelRows.length === 1, `${BAND_AT}; model rows: ${JSON.stringify(modelRows)}`)
   if (form === 'dock') {
     const artLines = bandRows - 1
     const critter = spriteMatch(text.slice(0, artLines))
-    check(`${tag}: rows 1-${artLines} carry the session critter's dock form at column 2`, critter !== '', text.slice(0, artLines).map(l => JSON.stringify(l.slice(0, 16))).join(' '))
-    check(`${tag}: the rule closes the band on row ${bandRows}`, text[artLines] === '─'.repeat(cols), JSON.stringify(text[artLines] ?? ''))
+    check(`${tag}: rows 1-${artLines} carry the session critter's dock form at column 2`, critter !== '', `${BAND_AT}; ${text.slice(0, artLines).map(l => JSON.stringify(l.slice(0, 16))).join(' ')}`)
+    check(`${tag}: the rule closes the band on row ${bandRows}`, text[artLines] === '─'.repeat(cols), `${BAND_AT}; ${JSON.stringify(text[artLines] ?? '')}`)
     const facts = (y: number): string => (text[y] ?? '').slice(14)
-    check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), JSON.stringify(facts(0)))
-    check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), JSON.stringify(facts(1)))
-    check(`${tag}: row 3 is the critter alone`, facts(2) === '', JSON.stringify(facts(2)))
-    check(`${tag}: the tree state and the turn count never reach the chip line`, !text.slice(bandRows).some(l => /uncommitted|⤳/.test(l)))
+    check(`${tag}: row 1 folds the lockup, the readiness, the model, the effort and the context`, /^✶ Mercury · ● ready · Opus 5\.5 · effort \S+(?: \(asked\))? · ctx —$/.test(facts(0)), `${BAND_AT}; ${JSON.stringify(facts(0))}`)
+    check(`${tag}: row 2 is the directory and the branch`, new RegExp(`^${tree}(?: ⌥ \\S+)?$`).test(facts(1)), `${BAND_AT}; ${JSON.stringify(facts(1))}`)
+    check(`${tag}: row 3 is the critter alone`, facts(2) === '', `${BAND_AT}; ${JSON.stringify(facts(2))}`)
+    check(`${tag}: the tree state and the turn count never reach the chip line`, !text.slice(bandRows).some(l => /uncommitted|⤳/.test(l)), `${BAND_AT}; keep the tree state and turn count off the chip line`)
   } else if (form === 'line') {
-    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), JSON.stringify(text[0] ?? ''))
-    check(`${tag}: the rule closes the band on row 2`, text[1] === '─'.repeat(cols), JSON.stringify(text[1] ?? ''))
-    check(`${tag}: no critter under 20 rows`, !text.some(l => /[▀▄]{3,}/.test(l)))
+    check(`${tag}: row 1 is the one identity line`, new RegExp(`^✶ Mercury · ● ready · Opus 5\\.5 · effort \\S+(?: \\(asked\\))? · ctx — · ${tree}(?: ⌥ \\S+)?$`).test(text[0] ?? ''), `${BAND_AT}; ${JSON.stringify(text[0] ?? '')}`)
+    check(`${tag}: the rule closes the band on row 2`, text[1] === '─'.repeat(cols), `${BAND_AT}; ${JSON.stringify(text[1] ?? '')}`)
+    check(`${tag}: no critter under 20 rows`, !text.some(l => /[▀▄]{3,}/.test(l)), `${BAND_AT}; the dock sprite must not paint under 20 rows`)
   } else {
-    check(`${tag}: no band under 14 rows`, !all.includes('✶ Mercury') && !text.some(l => /^─+$/.test(l)))
+    check(`${tag}: no band under 14 rows`, !all.includes('✶ Mercury') && !text.some(l => /^─+$/.test(l)), `${BAND_AT}; the band must not paint under 14 rows`)
   }
   const last = rows - 1
-  check(`${tag}: the sessions line is the last row with the way back at its right edge`, SESSIONS_LINE.test(text[last] ?? '') && (text[last] ?? '').length === cols, JSON.stringify(text[last] ?? ''))
+  check(`${tag}: the sessions line is the last row with the way back at its right edge`, SESSIONS_LINE.test(text[last] ?? '') && (text[last] ?? '').length === cols, `change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts or the sessions line in src/components/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[last] ?? '')}`)
   const bordered = rows - bandRows >= 14
   const inputAt = bordered ? last - 2 : last - 1
-  check(`${tag}: the composer sits directly above the sessions line`, /^(?:│)?❯ /.test(text[inputAt] ?? '') && (text[inputAt] ?? '').includes(ADMITTED), JSON.stringify(text[inputAt] ?? ''))
+  check(`${tag}: the composer sits directly above the sessions line`, /^(?:│)?❯ /.test(text[inputAt] ?? '') && (text[inputAt] ?? '').includes(ADMITTED), `the composer must sit directly above the sessions line; change the compact layout in src/components/MercuryFrame.tsx; ${JSON.stringify(text[inputAt] ?? '')}`)
   if (bordered) {
-    check(`${tag}: the composer keeps its rounded frame`, (text[last - 1] ?? '').startsWith('╰') && (text[last - 3] ?? '').startsWith('╭'), `${JSON.stringify(text[last - 3] ?? '')} / ${JSON.stringify(text[last - 1] ?? '')}`)
+    check(`${tag}: the composer keeps its rounded frame`, (text[last - 1] ?? '').startsWith('╰') && (text[last - 3] ?? '').startsWith('╭'), `keep the composer rounded frame in the compact layout of src/components/MercuryFrame.tsx; ${JSON.stringify(text[last - 3] ?? '')} / ${JSON.stringify(text[last - 1] ?? '')}`)
   }
   const chipAt = bordered ? last - 4 : last - 2
   const chipRow = text[chipAt] ?? ''
   if (chip === 'sovereign') {
     const expected = compactModeChip('sovereign')!.text
-    check(`${tag}: the mode chip line sits directly above the composer`, chipRow.startsWith(expected), JSON.stringify(chipRow))
+    check(`${tag}: the mode chip line sits directly above the composer`, chipRow.startsWith(expected), `${CHIP_AT}; ${JSON.stringify(chipRow)}`)
   } else if (form !== 'none') {
-    check(`${tag}: no chip line in default mode with nothing needing you`, !/sovereign|need you/.test(chipRow) && !chipRow.includes('Opus 5'), JSON.stringify(chipRow))
+    check(`${tag}: no chip line in default mode with nothing needing you`, !/sovereign|need you/.test(chipRow) && !chipRow.includes('Opus 5'), `${CHIP_AT}; ${JSON.stringify(chipRow)}`)
   } else {
-    check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5\.5 · effort/.test(chipRow), JSON.stringify(chipRow))
+    check(`${tag}: under 14 rows the model returns to the chip line`, /^Opus 5\.5 · effort/.test(chipRow), `${CHIP_AT}; ${JSON.stringify(chipRow)}`)
   }
   const lines = text.filter(l => l.trim() !== '')
-  check(`${tag}: nothing is shown twice (ready · ctx · sessions on)`, ['● ready', 'ctx —', 'sessions on'].every(needle => lines.filter(l => l.includes(needle)).length <= 1))
+  check(`${tag}: nothing is shown twice (ready · ctx · sessions on)`, ['● ready', 'ctx —', 'sessions on'].every(needle => lines.filter(l => l.includes(needle)).length <= 1), `${BAND_AT}; each of ready, ctx and sessions on must paint once`)
 }
 
 const idleSends = (cols: number, rows: number): unknown[] => [
@@ -184,12 +188,12 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
   const tag = `chat-idle-${cols}x${rows}`
   const run = await capture(tag, cols, rows, idleSends(cols, rows), {})
   try {
-    check(`${tag}: the boot and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('idle'), `exit=${run.status}; ${run.log}`)
+    check(`${tag}: the boot and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('idle'), `${PAINT_FIX}; exit=${run.status}; ${run.log}`)
     const idle = run.marks.get('idle')
     if (idle === undefined) continue
     printFrame(`${tag} idle`, textRows(idle.grid))
     bandChecks(tag, cols, rows, idle.grid, null, ladder(cols, rows))
-    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
   } finally {
     await endLeg(run.leg)
   }
@@ -199,17 +203,17 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
   const wide = await capture('chat-sovereign-120x40', 120, 40, idleSends(120, 40), { argv: SOVEREIGN_ARGV, settings: SOVEREIGN_SETTINGS })
   let wideChipFg = ''
   try {
-    check('sovereign 120x40: the full cockpit painted', wide.status === 0 && wide.marks.has('idle'), `exit=${wide.status}; ${wide.log}`)
+    check('sovereign 120x40: the full cockpit painted', wide.status === 0 && wide.marks.has('idle'), `${PAINT_FIX}; exit=${wide.status}; ${wide.log}`)
     const idle = wide.marks.get('idle')
     if (idle !== undefined) {
       const text = textRows(idle.grid)
       printFrame('chat-sovereign-120x40 idle', text)
       restingRowCheck('sovereign 120x40', text)
       const bandAt = text.findIndex(l => l.includes('sovereign mode on'))
-      check('sovereign 120x40: the full cockpit paints its mode band', bandAt >= 0)
+      check('sovereign 120x40: the full cockpit paints its mode band', bandAt >= 0, 'the full cockpit must paint sovereign mode on; change the mode band in src/components/MercuryFrame.tsx')
       const cell = cellsAt(idle.grid, bandAt).find(c => c.c === '⊠')
       wideChipFg = cell?.fg ?? ''
-      check('sovereign 120x40: the band wears a real colour', wideChipFg !== '' && wideChipFg !== 'default', wideChipFg)
+      check('sovereign 120x40: the band wears a real colour', wideChipFg !== '' && wideChipFg !== 'default', `the mode band glyph must carry a real colour, not the default; got: ${wideChipFg}`)
     }
   } finally {
     await endLeg(wide.leg)
@@ -228,7 +232,7 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     total: 400,
   })
   try {
-    check(`${tag}: the boot, the stream and the interrupt ran (engine exit 0)`, run.status === 0 && run.marks.has('idle') && run.marks.has('streaming'), `exit=${run.status}; ${run.log}`)
+    check(`${tag}: the boot, the stream and the interrupt ran (engine exit 0)`, run.status === 0 && run.marks.has('idle') && run.marks.has('streaming'), `${PAINT_FIX}; exit=${run.status}; ${run.log}`)
     const idle = run.marks.get('idle')
     if (idle !== undefined) {
       printFrame(`${tag} idle`, textRows(idle.grid))
@@ -236,9 +240,9 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       const text = textRows(idle.grid)
       const chipAt = text.findIndex(l => l.startsWith(compactModeChip('sovereign')!.text))
       const cell = cellsAt(idle.grid, chipAt).find(c => c.c === '⊠')
-      check(`${tag}: the chip wears the colour the wide mode band wears (${wideChipFg})`, chipAt >= 0 && cell !== undefined && cell.fg === wideChipFg && wideChipFg !== '', `${cell?.fg ?? '(no chip)'}`)
+      check(`${tag}: the chip wears the colour the wide mode band wears (${wideChipFg})`, chipAt >= 0 && cell !== undefined && cell.fg === wideChipFg && wideChipFg !== '', `${CHIP_AT} so the chip glyph takes the colour of the wide mode band; got: ${cell?.fg ?? '(no chip)'}`)
       const tail = cellsAt(idle.grid, chipAt).slice(compactModeChip('sovereign')!.text.length).find(c => c.c.trim() !== '')
-      check(`${tag}: nothing after the chip on its line at idle`, tail === undefined, tail?.c ?? '')
+      check(`${tag}: nothing after the chip on its line at idle`, tail === undefined, `${CHIP_AT}; nothing may follow the chip at idle; found: ${tail?.c ?? ''}`)
     }
     const streaming = run.marks.get('streaming')
     if (streaming !== undefined) {
@@ -246,14 +250,14 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
       printFrame(`${tag} streaming`, text)
       const chipAt = text.findIndex(l => l.startsWith(compactModeChip('sovereign')!.text))
       const composerTop = text.findIndex(l => l.startsWith('╭'))
-      check(`${tag}: the chip line keeps its place directly above the composer while streaming`, chipAt >= 0 && composerTop === chipAt + 1, `chip=${chipAt} composer=${composerTop}`)
+      check(`${tag}: the chip line keeps its place directly above the composer while streaming`, chipAt >= 0 && composerTop === chipAt + 1, `${CHIP_AT}; chip=${chipAt} composer=${composerTop}`)
       const activity = text[chipAt - 1] ?? ''
-      check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && /^✶ \S.*… · \d+s · ↓ ~?\d+/.test(activity), JSON.stringify(activity))
-      check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')))
-      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), JSON.stringify(text[23] ?? ''))
-      check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1)
+      check(`${tag}: the glyph line rides directly above the chip line`, activity.startsWith('✶') && /^✶ \S.*… · \d+s · ↓ ~?\d+/.test(activity), `the glyph activity line must ride directly above the chip line; ${JSON.stringify(activity)}`)
+      check(`${tag}: the band keeps the lockup without the readiness word while the turn runs`, text.some(l => l.includes('✶ Mercury')) && !text.some(l => l.includes('● ready')), `${BAND_AT}; the band keeps the lockup and drops ready while a turn runs`)
+      check(`${tag}: the sessions line carries the interrupt rung beside the way back`, /esc interrupts · (?:⇧|shift\+)← (?:boot face|concourse)$/.test(text[23] ?? ''), `change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts or the escape rung in src/components/tasks/CompactWorkSummary.tsx; ${JSON.stringify(text[23] ?? '')}`)
+      check(`${tag}: the model still appears on exactly one row while streaming`, text.filter(l => l.includes('Opus 5')).length === 1, `${BAND_AT}; the model must paint once while streaming`)
     }
-    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
   } finally {
     await endLeg(run.leg)
   }
@@ -279,9 +283,9 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     total: 500,
   })
   try {
-    check(`${tag}: the journey ran as written (engine exit 0)`, run.status === 0, `exit=${run.status}; ${run.log}`)
+    check(`${tag}: the journey ran as written (engine exit 0)`, run.status === 0, `${PAINT_FIX}; exit=${run.status}; ${run.log}`)
     const labels = ['full-1', 'r90x31', 'r80x24', 'r82x17', 'full-2']
-    check(`${tag}: every mark exists`, labels.every(l => run.marks.has(l)), labels.filter(l => !run.marks.has(l)).join(', '))
+    check(`${tag}: every mark exists`, labels.every(l => run.marks.has(l)), `a resize step did not reach its text; read the engine log in the scratch folder; missing: ${labels.filter(l => !run.marks.has(l)).join(', ')}`)
     for (const l of labels) {
       const mark = run.marks.get(l)
       if (mark !== undefined) printFrame(`${tag} ${l} (${mark.cols}x${mark.rows})`, textRows(mark.grid))
@@ -290,22 +294,22 @@ for (const [cols, rows] of [[90, 31], [80, 24], [82, 17], [40, 10]] as const) {
     for (const [l, cols, rows] of [['r90x31', 90, 31], ['r80x24', 80, 24], ['r82x17', 82, 17]] as const) {
       const mark = at(l)
       if (mark === undefined) continue
-      check(`${tag} ${l}: the mark was taken at ${cols}x${rows}`, mark.cols === cols && mark.rows === rows, `${mark.cols}x${mark.rows}`)
+      check(`${tag} ${l}: the mark was taken at ${cols}x${rows}`, mark.cols === cols && mark.rows === rows, `the resize did not land; read the resizes in this proof and the engine log; got ${mark.cols}x${mark.rows}`)
       if (mark.cols === cols && mark.rows === rows) bandChecks(`${tag} ${l}`, cols, rows, mark.grid, null, ladder(cols, rows))
     }
     const first = at('full-1')
     const second = at('full-2')
     if (first !== undefined && second !== undefined) {
-      check(`${tag}: both full marks are 120x40`, first.cols === 120 && first.rows === 40 && second.cols === 120 && second.rows === 40)
+      check(`${tag}: both full marks are 120x40`, first.cols === 120 && first.rows === 40 && second.cols === 120 && second.rows === 40, `the last resize back to 120x40 did not land; got ${first.cols}x${first.rows} and ${second.cols}x${second.rows}`)
       check(`${tag}: both full marks carry the focused session's status row (the seat's facts had landed before each mark)`, joined(textRows(first.grid)).includes(STATUS_ROW) && joined(textRows(second.grid)).includes(STATUS_ROW))
       restingRowCheck(`${tag} full-1`, textRows(first.grid))
       restingRowCheck(`${tag} full-2`, textRows(second.grid))
       const bytes = (g: Grid): string => g.map(row => row.map(c => `${c.c}|${c.fg}|${c.bg}|${c.bold ? 1 : 0}${c.rev ? 1 : 0}`).join('\t')).join('\n')
-      check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
+      check(`${tag}: the full cockpit returns byte-identical (every cell, colour and attribute)`, bytes(first.grid) === bytes(second.grid), 'the full cockpit must repaint identically after the resize round trip; differing rows: ' + textRows(second.grid).filter((l, i) => l !== textRows(first.grid)[i]).slice(0, 3).join(' | '))
       const fullText = joined(textRows(first.grid))
       check(`${tag}: the full cockpit keeps its own chrome (the lanes label beside the pane's top border, the shortcut hint, no band rule), no title row and no SESSIONS card`, /\blanes\b[^\n]*╭/.test(fullText) && !fullText.includes('✶ VIEW') && !fullText.includes('⊞ SESSIONS') && fullText.includes('? for shortcuts') && !textRows(first.grid).some(l => /^─+$/.test(l)))
     }
-    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
+    check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
   } finally {
     await endLeg(run.leg)
   }
@@ -321,9 +325,9 @@ function firstFrameChecks(tag: string, cols: number, rows: number, grid: Grid): 
   const text = textRows(grid)
   const chipAt = chipRowAt(text, rows, ladder(cols, rows))
   const expected = compactModeChip('sovereign')!.text
-  check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)'))
-  check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5\.5 · effort \S+/.test(l)).length === 1, JSON.stringify(text.filter(l => l.includes('Opus 5'))))
-  check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for/.test(joined(text)))
+  check(`${tag}: the born posture's chip stands on the row above the composer`, chipAt >= 0 && (text[chipAt] ?? '').startsWith(expected), `${CHIP_AT}; ${JSON.stringify(chipAt >= 0 ? text[chipAt] ?? '' : '(no composer)')}`)
+  check(`${tag}: the born model and its effort word stand on one row`, text.filter(l => /Opus 5\.5 · effort \S+/.test(l)).length === 1, `${BAND_AT}; ${JSON.stringify(text.filter(l => l.includes('Opus 5')))}`)
+  check(`${tag}: no size refusal replaced the chat`, !/resize to continue|terminal too small|too small for/.test(joined(text)), `the compact chat must paint at this size, not a refusal; ${BAND_AT}`)
 }
 
 for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
@@ -347,14 +351,14 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
         ]
     const run = await capture(tag, cols, rows, sends, { argv: SOVEREIGN_ARGV, settings: SOVEREIGN_SETTINGS, world: door === 'face' ? 'chat' : 'strip', total: 260 })
     try {
-      check(`${tag}: the door opened and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('first') && run.marks.has('idle'), `exit=${run.status}; ${run.log.slice(-600)}`)
+      check(`${tag}: the door opened and the chat painted (engine exit 0)`, run.status === 0 && run.marks.has('first') && run.marks.has('idle'), `${PAINT_FIX}; exit=${run.status}; ${run.log.slice(-600)}`)
       for (const label of ['first', 'first-later', 'idle'] as const) {
         const mark = run.marks.get(label)
         if (mark === undefined) continue
         printFrame(`${tag} ${label}`, textRows(mark.grid))
         firstFrameChecks(`${tag} ${label}`, cols, rows, mark.grid)
       }
-      check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0)
+      check(`${tag}: the drive stayed on loopback`, nonLoopback(netlines(run.leg.netlog)).length === 0, 'the drive reached a non-loopback address; find the request in the leg netlog and stop the code that sends it')
     } finally {
       await endLeg(run.leg)
     }
@@ -363,12 +367,12 @@ for (const [cols, rows] of [[80, 21], [80, 14], [82, 17]] as const) {
 
 {
   const chip = compactModeChip('sovereign')
-  check('the chip owner spells the sovereign chip as approved', chip !== null && chip.text === '⊠ sovereign · auto-approved' && chip.tone === 'bypass')
-  check('the chip owner paints nothing for the default mode', compactModeChip('default') === null)
-  check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null)
-  check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '')
-  check('the band form ladder: one dock sprite at every size that paints one', ladder(90, 31).form === 'dock' && ladder(80, 26).form === 'dock' && ladder(80, 25).form === 'dock' && ladder(80, 20).form === 'dock' && ladder(82, 19).form === 'line' && ladder(82, 14).form === 'line' && ladder(40, 13).form === 'none' && ladder(20, 31).form === 'line' && ladder(120, 40).form === 'dock')
-  check('the band rows follow the forms', ladder(90, 31).bandRows === 4 && ladder(80, 24).bandRows === 4 && ladder(82, 17).bandRows === 2 && ladder(40, 10).bandRows === 0)
+  check('the chip owner spells the sovereign chip as approved', chip !== null && chip.text === '⊠ sovereign · auto-approved' && chip.tone === 'bypass', 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts so sovereign reads the approved chip text with the bypass tone')
+  check('the chip owner paints nothing for the default mode', compactModeChip('default') === null, 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts to return null for the default mode')
+  check('the chip owner paints nothing for an unreported mode (the honest blank, never a word)', compactModeChip(null) === null, 'change compactModeChip in src/components/mercury-ui/compactModeChip.ts to return null for an unreported mode')
+  check('the sessions line hint folds the focus, the interrupt rung and the way back in order', compactSummaryHint({ focused: true, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === '↵ details · esc back' && compactSummaryHint({ focused: false, vimInsert: true, escHint: 'esc interrupts', stripHint: '⇧← concourse' }) === 'INSERT · esc interrupts · ⇧← concourse' && compactSummaryHint({ focused: false, vimInsert: false, escHint: '', stripHint: '' }) === '', 'change compactSummaryHint in src/components/mercury-ui/compactModeChip.ts: focused reads details and back, else insert, interrupt rung, way back in order')
+  check('the band form ladder: one dock sprite at every size that paints one', ladder(90, 31).form === 'dock' && ladder(80, 26).form === 'dock' && ladder(80, 25).form === 'dock' && ladder(80, 20).form === 'dock' && ladder(82, 19).form === 'line' && ladder(82, 14).form === 'line' && ladder(40, 13).form === 'none' && ladder(20, 31).form === 'line' && ladder(120, 40).form === 'dock', 'change compactBandForm in src/components/mercury-ui/geometry.ts: dock from 20 rows and wide enough, line from 14 rows, none below')
+  check('the band rows follow the forms', ladder(90, 31).bandRows === 4 && ladder(80, 24).bandRows === 4 && ladder(82, 17).bandRows === 2 && ladder(40, 10).bandRows === 0, 'change compactBandRows in src/components/mercury-ui/geometry.ts: dock art lines plus one, line 2, none 0')
 }
 
 finish('chat-compact')

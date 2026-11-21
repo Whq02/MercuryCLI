@@ -20,10 +20,16 @@ const { processMainOwner } = await import('../../src/utils/run/resolveOwner.ts')
 
 let failures = 0
 let checks = 0
+function shapeHintFor(label: string): string {
+  if (label.startsWith('ChangeSet')) return 'to fix: the apply path of src/tools/ChangeSetTool/ChangeSetTool.ts must keep each untouched line terminator, the trailing newline and the BOM'
+  if (label.startsWith('Edit')) return 'to fix: src/tools/FileEditTool/edit/call.ts must keep each untouched line terminator, the trailing newline and the BOM'
+  return 'to fix: src/tools/FileWriteTool/write/call.ts must keep the file own line terminators, trailing newline and BOM, and name the path for nested memory'
+}
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, shapeHintFor(label)].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

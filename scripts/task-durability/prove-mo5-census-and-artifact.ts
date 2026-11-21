@@ -4,8 +4,10 @@ import { join } from 'node:path'
 
 const ROOT = join(import.meta.dir, '..', '..')
 let failures = 0
+const mo5FailHint = 'section 2 exercises isolationCheck in src/services/health/sections/crew/home.ts (its remedy must count a record only when the move landed); section 4 reads .github/workflows/windows-functional.yml (add scripts/task-durability/run-all.sh to it); section 5 reads the built dist/mercury.mjs, so rebuild with bun run build.ts after changing the persisted-through message in src/substrate/durablePublish.ts, the file-in-use words in src/utils/platform/words.ts or HELD_FILE_RETRY_DELAYS_MS in src/utils/platform/files.ts'
 const ok = (cond: boolean, label: string, detail = ''): void => {
-  console.log(`  ${cond ? '✅' : '❌'} ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${mo5FailHint}` : mo5FailHint
+  console.log(`  ${cond ? '✅' : '❌'} ${label}${shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 const read = (rel: string): string => readFileSync(join(ROOT, rel), 'utf8')

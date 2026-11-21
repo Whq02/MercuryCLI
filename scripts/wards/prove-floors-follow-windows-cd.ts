@@ -8,10 +8,12 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const windowsCdFailHint = 'for the §1 checks change how readShellCommands (re-exported by src/utils/wards/wardsShellRead.ts from src/utils/permissions/decision/commandAnalysis.ts) follows a cd; for §2 to §5 change shellMercurySecretPath, shellSelfProtectionReason or shellCredentialWritePath in src/utils/permissions/shellProtectedPaths.ts so they judge the folder the cd leaves'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failShown = [detail, windowsCdFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${failShown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

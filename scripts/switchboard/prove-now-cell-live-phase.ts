@@ -18,9 +18,10 @@ const words = await import('../../src/components/Spinner/liveCounterWords.js')
 const grammar = await import('../../src/components/messages/thinkingGrammar.js')
 
 let failures = 0
+const nowCellFailHint = 'section 1 reads tailActivity, tailActivityLabel, activityNowLabel and nowWordsAreLive in src/services/concourse/concourseSnapshot.ts; section 2 reads LiveTileStore.readTile and liveTilePhase in src/components/concourse/liveTiles.ts (the phase words come from src/components/Spinner/liveCounterWords.ts)'
 function check(name: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}${!ok ? ` — ${detail ? `${detail}; ` : ''}${nowCellFailHint}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)

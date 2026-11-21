@@ -15,7 +15,7 @@ config.enableConfigs()
 let failures = 0
 function check(name: string, run: () => void) {
   try { run(); console.log(`PASS ${name}`) }
-  catch (error) { failures++; console.log(`FAIL ${name}: ${String(error)}`) }
+  catch (error) { failures++; console.log(`FAIL ${name}: ${String(error)} (fix the function this check names: src/services/messages/merge.ts, apiView.ts or apiFilters.ts, src/services/providers/anthropic/cacheAndUsage.ts or requestParams.ts, src/utils/model/capabilities.ts, or src/utils/messages/streaming.ts)`) }
 }
 const text = (text: string) => ({ type: 'text', text })
 const user = (content: any) => ({ type: 'user', uuid: 'u', message: { role: 'user', content } })

@@ -21,6 +21,9 @@ const check = (label: string, cond: boolean, detail = ''): void => {
 }
 const section = (t: string): void => console.log(`\n── ${t} ──`)
 const text = (v: unknown): string => JSON.stringify(v)
+const WM_FIX = 'fix: defaultWorkerModelId, validateWorkerModelChoice or neutralSeatDefault in src/services/concourse/workerModels.ts'
+const SEAM_FIX = 'fix: subscribeSeatReceipts, mintImmediateReceipt or recentWarningReceipt in src/utils/model/seatReceipts.ts'
+const FACE_FIX = 'fix: rebuild with bun run build.ts, then the receipt and chat start in src/components/BootSplashScreen.tsx and src/main/interactiveLaunch.ts'
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'birth-flips-first-')))
 const home = join(scratch, 'home')
@@ -54,8 +57,8 @@ section('§2 the seed, pure — a keyless registry seeds the operator’s own ro
       { modelId: 'claude-opus-5', displayName: 'Opus 5', session: refused, crew: refused, isOperatorDefault: true as const },
     ],
   }
-  check('nothing dispatches ⇒ the operator’s own row, not the first listed row', defaultWorkerModelId(registry, 'session') === 'claude-opus-5' && defaultWorkerModelId(registry, 'crew') === 'claude-opus-5')
-  check('no marked row ⇒ the first row (visible, typed-refused)', defaultWorkerModelId({ schema: 1, entries: [registry.entries[0]!] }, 'session') === 'claude-sonnet-5')
+  check('nothing dispatches ⇒ the operator’s own row, not the first listed row', defaultWorkerModelId(registry, 'session') === 'claude-opus-5' && defaultWorkerModelId(registry, 'crew') === 'claude-opus-5', WM_FIX)
+  check('no marked row ⇒ the first row (visible, typed-refused)', defaultWorkerModelId({ schema: 1, entries: [registry.entries[0]!] }, 'session') === 'claude-sonnet-5', WM_FIX)
 }
 
 section('§3 a live keyless home — the unnamed session admits keyless; the crew seat speaks the two-door sentence')
@@ -65,18 +68,18 @@ section('§3 a live keyless home — the unnamed session admits keyless; the cre
   const wm = await import('../../src/services/concourse/workerModels.ts')
   const { NO_SIGN_IN_ROW, resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.ts')
   resetComputedDefaultMemo()
-  check('no neutral default on this home', wm.neutralSeatDefault() === null)
+  check('no neutral default on this home', wm.neutralSeatDefault() === null, WM_FIX + ' (the scratch home must hold no credential)')
   const unnamed = await wm.validateWorkerModelChoice(undefined, 'session')
-  check('an UNNAMED session launch admits KEYLESS (no family refused)', unnamed.ok && unnamed.keyless === true, text(unnamed))
-  check('…the row wears the keyless words', unnamed.ok && unnamed.entry.displayName === NO_SIGN_IN_ROW, text(unnamed))
+  check('an UNNAMED session launch admits KEYLESS (no family refused)', unnamed.ok && unnamed.keyless === true, WM_FIX + ' · ' + text(unnamed))
+  check('…the row wears the keyless words', unnamed.ok && unnamed.entry.displayName === NO_SIGN_IN_ROW, WM_FIX + ' · ' + text(unnamed))
   const { getEngineModel } = await import('../../src/services/model/model.ts')
   const placeholder = getEngineModel()
   const named = await wm.validateWorkerModelChoice(placeholder, 'session')
-  check(`the keyless entry spelled out ('${placeholder}') is the "choose a model" dud — no family to name, so it keeps the two-door sentence (no product door spells it: bornSession drops every model there)`, placeholder === 'choose-a-model' && !named.ok && named.reason === wm.NO_ACCOUNT_REFUSAL && String(named.action).includes('/logins to choose an account'), text(named))
+  check(`the keyless entry spelled out ('${placeholder}') is the "choose a model" dud — no family to name, so it keeps the two-door sentence (no product door spells it: bornSession drops every model there)`, placeholder === 'choose-a-model' && !named.ok && named.reason === wm.NO_ACCOUNT_REFUSAL && String(named.action).includes('/logins to choose an account'), WM_FIX + ' · ' + text(named))
   const crew = await wm.validateWorkerModelChoice(undefined, 'crew')
-  check('a keyless CREW seat refuses with the two-door sentence, naming no family', !crew.ok && crew.reason === wm.NO_ACCOUNT_REFUSAL && String(crew.action).includes('/logins to choose an account'), text(crew))
+  check('a keyless CREW seat refuses with the two-door sentence, naming no family', !crew.ok && crew.reason === wm.NO_ACCOUNT_REFUSAL && String(crew.action).includes('/logins to choose an account'), WM_FIX + ' · ' + text(crew))
   const other = await wm.validateWorkerModelChoice('claude-sonnet-5', 'session')
-  check("a NAMED Claude id that is not the default keeps its own refusal (the operator chose it)", !other.ok && other.reason === 'no-credential:anthropic' && String(other.action).includes('/logins anthropic'), text(other))
+  check("a NAMED Claude id that is not the default keeps its own refusal (the operator chose it)", !other.ok && other.reason === 'no-credential:anthropic' && String(other.action).includes('/logins anthropic'), WM_FIX + ' · ' + text(other))
 }
 
 section('§4 the seam’s order — a listener gone before the mint never sees it; a mint with no listener queues for the next')
@@ -87,24 +90,24 @@ section('§4 the seam’s order — a listener gone before the mint never sees i
   const stopChat = seam.subscribeSeatReceipts(r => chat.push(r.text))
   stopChat()
   seam.mintImmediateReceipt('▲ the chat could not start — the fixture refused', 'warning')
-  check('the chat that unsubscribed never sees the receipt', chat.length === 0, text(chat))
-  check('the latest warning is readable by a screen that mounts after the mint', seam.recentWarningReceipt()?.text.includes('could not start') === true, text(seam.recentWarningReceipt()))
+  check('the chat that unsubscribed never sees the receipt', chat.length === 0, SEAM_FIX + ' · ' + text(chat))
+  check('the latest warning is readable by a screen that mounts after the mint', seam.recentWarningReceipt()?.text.includes('could not start') === true, SEAM_FIX + ' · ' + text(seam.recentWarningReceipt()))
   const face: Array<{ text: string; level: string }> = []
   const stopFace = seam.subscribeSeatReceipts(r => face.push({ text: r.text, level: r.level }))
-  check('the face subscribing next drains it, warning-level, verbatim', face.length === 1 && face[0]?.level === 'warning' && face[0]?.text.includes('could not start'), text(face))
+  check('the face subscribing next drains it, warning-level, verbatim', face.length === 1 && face[0]?.level === 'warning' && face[0]?.text.includes('could not start'), SEAM_FIX + ' · ' + text(face))
   stopFace()
   seam.__resetSeatReceiptsForTests()
-  check('the reset clears the retained warning', seam.recentWarningReceipt() === null)
+  check('the reset clears the retained warning', seam.recentWarningReceipt() === null, SEAM_FIX + ' and __resetSeatReceiptsForTests')
   const warnings: string[] = []
   const stopWarningFace = seam.subscribeSeatReceipts(r => warnings.push(r.text), r => r.level === 'warning')
   seam.mintImmediateReceipt("--model Sonnet 5 wins over the session's Opus 5")
   seam.mintImmediateReceipt('▲ a warning the face takes', 'warning')
-  check('a face that takes warnings alone never consumes an info receipt: the hop receipt stays queued while the warning lands on the face', warnings.length === 1 && warnings[0] === '▲ a warning the face takes', text(warnings))
+  check('a face that takes warnings alone never consumes an info receipt: the hop receipt stays queued while the warning lands on the face', warnings.length === 1 && warnings[0] === '▲ a warning the face takes', SEAM_FIX + ' · ' + text(warnings))
   const lateChat: string[] = []
   const stopLateChat = seam.subscribeSeatReceipts(r => lateChat.push(r.text))
-  check('the chat that mounts after the mint drains the hop receipt it was minted for, in order, once', lateChat.length === 1 && lateChat[0] === "--model Sonnet 5 wins over the session's Opus 5", text(lateChat))
+  check('the chat that mounts after the mint drains the hop receipt it was minted for, in order, once', lateChat.length === 1 && lateChat[0] === "--model Sonnet 5 wins over the session's Opus 5", SEAM_FIX + ' · ' + text(lateChat))
   seam.mintImmediateReceipt('--effort high wins over the session\'s max')
-  check('with the chat mounted an info receipt reaches it at once, and the face still sees none', lateChat.length === 2 && warnings.length === 1, text(lateChat))
+  check('with the chat mounted an info receipt reaches it at once, and the face still sees none', lateChat.length === 2 && warnings.length === 1, SEAM_FIX + ' · ' + text(lateChat))
   stopLateChat()
   stopWarningFace()
   seam.__resetSeatReceiptsForTests()
@@ -196,7 +199,7 @@ const recs: Rec[] = existsSync(drive) ? readFileSync(drive, 'utf8').split('\n').
 const firstOut = recs.find(r => r.ts !== undefined)?.ts ?? 0
 const sendRecs = recs.filter(r => r.sent !== undefined)
 const at = (i: number): number => Math.round((sendRecs[i]?.sent ?? firstOut) - firstOut)
-check('every send fired (the face painted and took every ↵ and ⇧←)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''}`)
+check('every send fired (the face painted and took every ↵ and ⇧←)', sendRecs.length === sends.length, `${sendRecs.length}/${sends.length}${sendRecs.length < sends.length ? ` · ${unfiredDetail(driverOut)}` : ''} · the boot face never painted ready: check dist/mercury.mjs is current (bun run build.ts) and scripts/lib/bootFace.ts`)
 if (sendRecs.length === sends.length) {
   const res = spawnSync(driver.python, [join(REPO, 'scripts', 'streaming', 'screengrab.py'), drive, '120', '40', String(at(0) + 9500), String(at(3) + REFUSED_AT_MS), '-1'], { encoding: 'utf8', timeout: vshotBudgetMs(120_000), maxBuffer: 256 * 1024 * 1024 })
   if (res.status !== 0) {
@@ -206,10 +209,10 @@ if (sendRecs.length === sends.length) {
   const screens = (JSON.parse(res.stdout) as { screens: { atMs: number; rows: string[] }[] }).screens
   const [chatFrame, refusedFrame, finalFrame] = screens
   const t = (g: { rows: string[] }): string => g.rows.join('\n')
-  check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family — the rows say not signed in · /logins)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && /not signed in · \/logins/.test(t(chatFrame)), chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
-  check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && (paintsBootFaceReady(t(refusedFrame)) || /New Session/.test(t(refusedFrame))), refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
-  check('…and the receipt says what frees a seat, levers first: stop or park a session on the Session Concourse, or /seats N', /stop or park a session on the Session Concourse/.test(t(refusedFrame)) && /\/seats N/.test(t(refusedFrame)), refusedFrame.rows[refusedFrame.rows.length - 1]?.trim().slice(0, 120) ?? '')
-  check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? '')
+  check('the keyless birth ENTERED the chat: the cockpit painted with the composer open (the keyless home rides the neutral default; no gate, no refusal naming a family — the rows say not signed in · /logins)', /\? for shortcuts/.test(t(chatFrame)) && /Type a prompt/.test(t(chatFrame)) && !/no-credential:anthropic/.test(t(chatFrame)) && /not signed in · \/logins/.test(t(chatFrame)), FACE_FIX + ' · ' + chatFrame.rows.filter(r => r.trim().length > 0).slice(-6).map(r => r.trim().slice(0, 100)).join(' | '))
+  check('the second ↵ waited for a seat and, none freeing, the face returned wearing the receipt (the cause named: the seat)', /the chat could not start/.test(t(refusedFrame)) && /seat/i.test(t(refusedFrame)) && (paintsBootFaceReady(t(refusedFrame)) || /New Session/.test(t(refusedFrame))), FACE_FIX + ' · ' + refusedFrame.rows.filter(r => r.trim().length > 0).slice(-4).map(r => r.trim().slice(0, 110)).join(' | '))
+  check('…and the receipt says what frees a seat, levers first: stop or park a session on the Session Concourse, or /seats N', /stop or park a session on the Session Concourse/.test(t(refusedFrame)) && /\/seats N/.test(t(refusedFrame)), FACE_FIX + ' · ' + (refusedFrame.rows[refusedFrame.rows.length - 1]?.trim().slice(0, 120) ?? ''))
+  check('the face keeps the receipt on its last row at the end', /the chat could not start/.test(t(finalFrame)), FACE_FIX + ' · ' + (finalFrame.rows[finalFrame.rows.length - 1]?.trim().slice(0, 110) ?? ''))
   const milestonesPath = join(configDir, 'launch-milestones.json')
   const rows = existsSync(milestonesPath)
     ? ((JSON.parse(readFileSync(milestonesPath, 'utf8')) as { rows?: Array<{ milestone: string; atMs: number }> }).rows ?? [])
@@ -218,10 +221,10 @@ if (sendRecs.length === sends.length) {
   const flipped = names.indexOf('chat-flipped')
   const landed = names.indexOf('birth-landed')
   const refused = names.indexOf('birth-refused')
-  check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, names.join(' → '))
+  check('the milestones record the flip BEFORE the birth landed, then the second birth’s refusal', flipped !== -1 && landed > flipped && refused > landed, 'fix: the chat-flipped, birth-landed and birth-refused milestones in src/substrate/launchMilestones.ts and src/components/BootSplashScreen.tsx · ' + names.join(' → '))
   const records = Object.values(workers)
   const lastOut = recs.filter(r => r.ts !== undefined).map(r => r.ts!).pop() ?? 0
-  check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board; the one record ends with the screen’s own shutdown)', records.length === 1 && new Set(records.map(w => w.sessionId)).size === 1 && records.every(w => w.endedAt === undefined || w.endedAt >= lastOut - 5000), text(records.map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, endedAfterTheDrive: w.endedAt === undefined ? null : w.endedAt - lastOut }))))
+  check('the daemon’s records hold exactly ONE session (a refused birth leaves no ghost on the board; the one record ends with the screen’s own shutdown)', records.length === 1 && new Set(records.map(w => w.sessionId)).size === 1 && records.every(w => w.endedAt === undefined || w.endedAt >= lastOut - 5000), 'a refused birth must leave no extra worker record in the daemon file concourse-workers.json · ' + text(records.map(w => ({ sessionId: w.sessionId, endedAt: w.endedAt, endedAfterTheDrive: w.endedAt === undefined ? null : w.endedAt - lastOut }))))
 }
 
 section('§6 THE RESUME SIBLING — a resumed session whose retained model has no credential here is ADMITTED modelless: the receipt names the model and its door, and a shell line runs')

@@ -17,7 +17,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}fix transformMCPResult in src/services/mcp/client/results.ts so the content blocks beside structuredContent survive` : ''}`)
 }
 type Block = { type?: string; text?: string; source?: { data?: string } }
 const texts = (content: unknown): string[] => (Array.isArray(content) ? (content as Block[]).filter(b => b.type === 'text').map(b => b.text ?? '') : [])

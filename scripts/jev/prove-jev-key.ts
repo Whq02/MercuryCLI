@@ -11,10 +11,11 @@ delete process.env.TYPESAFE_API_KEY
 
 let failures = 0
 let checks = 0
+const jevKeyHint = 'fix the key store and resolver in src/services/jev/jevKey.ts (resolveJevApiKey, storeJevApiKey, jevKeyPresence, jevKeySourceWords) or the secrets file in src/utils/accounts/providerSecrets.ts; a stale invalid-key record is cleared in src/services/jev/jevLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' · ' : ''}${jevKeyHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -28,10 +28,11 @@ import type { GeminiContent, GeminiPart } from '../../src/services/providers/gem
 
 let passes = 0
 let failures = 0
+const GEMINI_SIGNED_PARTS_HINT = 'to fix, change how thought signatures are recorded and replayed in buildGeminiRequest (src/services/providers/gemini/geminiCodec.ts), geminiCallModel (src/services/providers/gemini/geminiCallModel.ts) or foldSplitTurnsForWire (src/utils/messages/resultPairing.ts)'
 function check(label: string, ok: boolean, detail = ''): void {
   if (ok) passes++
   else failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${GEMINI_SIGNED_PARTS_HINT}` : ''}`)
 }
 const model = 'gemini-4-argon'
 const bash = { name: 'Bash', prompt: async () => 'Runs a command.', inputSchema: z.object({ command: z.string() }), inputJSONSchema: { type: 'object', properties: { command: { type: 'string' } }, required: ['command'] } }

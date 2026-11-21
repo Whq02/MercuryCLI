@@ -1,9 +1,10 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 const { anthropicExtraUsageCredits, anthropicExtraUsageCarry } = await import('../../src/services/providers/providerUsage.ts')
 let failures = 0
+const EXTRA_USAGE_HINT = 'to fix, change the extra-usage reason wording in anthropicExtraUsageCredits and anthropicExtraUsageCarry in src/services/providers/providerUsage.ts'
 function check(label: string, ok: boolean, detail: string): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail} | ${EXTRA_USAGE_HINT}`}`)
 }
 for (const reason of ['new_provider_reason', 'org_level_disabled', 'org_service_zero_credit_limit', 'opaque_reason_123']) {
   const record = { stated: true, enabled: false, disabledReason: reason, source: 'endpoint', observedAtMs: 123 }

@@ -7,14 +7,24 @@ import { NODE_SUPPORT } from '../../src/utils/runtime/nodePolicy.js'
 
 const REPO = join(import.meta.dir, '..', '..')
 let failures = 0
+let sectionFixHint = ''
+const sectionFixHints: Record<string, string> = {
+  '(2)': 'fix evaluateNodeRuntime / nodeRefusalMessage in src/utils/runtime/nodePolicy.ts or the gate call in src/entrypoints/cli.tsx, then rebuild dist with bun run build.ts since this reads dist/mercury.mjs',
+  '(3)': 'fix the route that failed in src/entrypoints/cli.tsx (the gate must pass on a supported Node), or for health --json nodeRuntimeProjection in src/utils/runtime/nodePolicy.ts and src/services/health/healthReport.ts, then rebuild dist with bun run build.ts',
+  '(4)': 'fix the expect-refusal mode of scripts/node-runtime/qualify-artifact.sh or the refusal in src/utils/runtime/nodePolicy.ts, then rebuild dist with bun run build.ts',
+}
 const check = (name: string, cond: boolean, detail?: string): void => {
   if (cond) console.log(`  [PASS] ${name}`)
   else {
     failures++
-    console.log(`  [FAIL] ${name}${detail ? ` — ${detail}` : ''}`)
+    const shownDetail = [detail, sectionFixHint].filter(Boolean).join(' | ')
+    console.log(`  [FAIL] ${name}${shownDetail ? ` — ${shownDetail}` : ''}`)
   }
 }
-const section = (s: string): void => console.log(`\n── ${s} ──`)
+const section = (s: string): void => {
+  sectionFixHint = sectionFixHints[s.split(' ')[0] ?? ''] ?? ''
+  console.log(`\n── ${s} ──`)
+}
 
 
 section('(2) the REAL bundle refuses unsupported runtimes on every route')
@@ -135,6 +145,7 @@ try {
   execFileSync('bash', ['-n', join(REPO, 'scripts/node-runtime/qualify-artifact.sh')])
   check('qualify-artifact.sh survives bash -n', true)
 } catch (e) {
+  sectionFixHint = 'fix the shell syntax error that bash -n reports in scripts/node-runtime/qualify-artifact.sh'
   check('qualify-artifact.sh survives bash -n', false, String(e))
 }
 

@@ -23,10 +23,11 @@ const VSHOT = path.join(REPO, 'scripts/ui/vshot.py')
 
 let failures = 0
 let checks = 0
+const CARD_HINT = 'where to look: the card and its guide words are drawn by src/components/CapOfferCard.tsx, the row usage words by capUsageWords in src/services/capFailover.ts, the refusal wire by scripts/journey/cap-offer-fixture-server.ts; rebuild dist with bun run build.ts after a source change, and read the kept world under [forensics] at the end'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — ${CARD_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -5,9 +5,10 @@ const { decodeTranscriptBuffer } = await import('../../src/fabric/transcriptDeco
 const { ordinalOf } = await import('../../src/fabric/ordinal.js')
 
 let failures = 0
+const bodyShapeFixHint = 'fix: the kind registry BODY_SHAPE_KINDS and bodyShapeIssue in src/fabric/validate.ts, or the body-invalid thinning in src/fabric/transcriptDecode.ts, or this fixture list'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${bodyShapeFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${t}`)

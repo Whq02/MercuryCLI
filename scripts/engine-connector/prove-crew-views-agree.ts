@@ -4,9 +4,10 @@
 import { join } from 'node:path'
 
 let failures = 0
+const VIEWS_AGREE_HINT = 'to fix: make the runs board and the crew view derive from one source: boardAgentRowsOf and boardRowElapsedMs (src/components/tasks/BackgroundTasksDialog.tsx, src/components/tasks/backgroundTasks/rows.tsx), crewAgentFactsOf, crewElapsedLabel and workRowOfCrewFacts (src/services/engine-connector/crewFacts.ts), sessionCrewRows (src/state/crewLedger.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${VIEWS_AGREE_HINT}` : ''}`)
 }
 
 await import('../../src/tools/AgentTool/AgentTool.tsx')

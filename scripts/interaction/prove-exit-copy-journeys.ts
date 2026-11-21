@@ -13,8 +13,9 @@ const CTRL_C = String.fromCharCode(3)
 const ESC = String.fromCharCode(27)
 
 let failures = 0
+const exitCopyHint = 'the ctrl+c exit notice text lives in src/components/PromptInput/ExitChordNotice.tsx; read the frame dump printed above this line if there is one, and the scenario named in this section in scripts/ui/renderScenarios.ts (a failed PTY journey: run scripts/ui/vshot.py on it)'
 const check = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail && !ok ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? detail + ' · ' : ''}${exitCopyHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (name: string): void => {

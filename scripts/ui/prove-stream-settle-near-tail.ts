@@ -285,10 +285,10 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       check(
         `${tag}, N=${n} above tail: top row stays on ${beforeSettle} across stream settle`,
         beforeSettle !== undefined && afterSettle === beforeSettle && hasPill(m.screen()),
-        `before=${beforeSettle} after=${afterSettle} pill=${hasPill(m.screen())}`,
+        `before=${beforeSettle} after=${afterSettle} pill=${hasPill(m.screen())}; a reader scrolled up above the tail must keep the same top row when the streamed reply settles into a record, so keep the scroll position anchored through that swap and keep the back-to-the-bottom pill showing`,
       )
     }
-    check(`${tag}: N=1..8 stepped across eight distinct pre-settle top rows`, seenBeforeMarks.size === 8, `${seenBeforeMarks.size}: ${[...seenBeforeMarks].join(',')}`)
+    check(`${tag}: N=1..8 stepped across eight distinct pre-settle top rows`, seenBeforeMarks.size === 8, `${seenBeforeMarks.size}: ${[...seenBeforeMarks].join(',')}; each of the eight N values must scroll up one more row before the settle, so a count below 8 means the line-up key (ctrl+y, scroll:lineUp) did not move the view`)
 
     {
       const followEnd = `FOLLOW-END-${tag}`
@@ -321,7 +321,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       check(
         `${tag}: sticky view following the tail keeps the tail through settle with no jump pill`,
         m.screen().includes(followEnd) && !hasPill(m.screen()),
-        `end=${m.screen().includes(followEnd)} pill=${hasPill(m.screen())}`,
+        `end=${m.screen().includes(followEnd)} pill=${hasPill(m.screen())}; a view pinned to the tail must stay on the last line when the streamed reply settles and must not show the back-to-the-bottom pill`,
       )
     }
 
@@ -370,7 +370,7 @@ for (const [cols, rows] of [[120, 40], [178, 51]] as const) {
       check(
         `${tag}, N=50 above tail: reader fifty rows up stays on ${beforeDeep} across stream settle`,
         beforeDeep !== undefined && afterDeep === beforeDeep && hasPill(m.screen()),
-        `before=${beforeDeep} after=${afterDeep}`,
+        `before=${beforeDeep} after=${afterDeep}; a reader fifty rows up must keep the same top row when the streamed reply settles into a record, so keep the scroll position anchored through that swap and keep the back-to-the-bottom pill showing`,
       )
     }
   } finally {

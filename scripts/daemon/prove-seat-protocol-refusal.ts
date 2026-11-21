@@ -24,6 +24,8 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const refuseRunnerHint = ' — change refuseRunner (the onProtocolError handler) in src/daemon/roster/spawn.ts so a refused runner settles its open turn, marks the record settled and ends the child'
+const connectionHint = ' — change RunnerConnection (the onProtocolError hook and close) in src/daemon/runnerConnection.ts'
 const tick = (ms = 20): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 
 const { PassThrough } = await import('node:stream')
@@ -96,10 +98,10 @@ section("§1 a seat whose runner answers a schema the daemon does not read: the 
   await tick()
   await tick()
   const after = seatRow(rig)
-  check('red on the base: the seat is freed — the open turn settles the moment the runner’s wire is refused', after?.busy === false && after.turnActive === false, j({ busy: after?.busy, turnActive: after?.turnActive, state: after?.state }))
+  check('red on the base: the seat is freed — the open turn settles the moment the runner’s wire is refused', after?.busy === false && after.turnActive === false, j({ busy: after?.busy, turnActive: after?.turnActive, state: after?.state }) + refuseRunnerHint)
   const record = sup.readSessionWorkers(daemonDir)[rig.short]
-  check("red on the base: the record's turn is settled too (the board never paints 'working' against a refused runner)", record !== undefined && !sup.turnInFlightOf(record), j({ delivery: record?.lastDeliveryAt, settled: record?.lastTurnSettledAt }))
-  check('red on the base: the child is ended (SIGTERM to its tree), never left alive behind a closed door', rig.child.killed.length > 0, j({ killed: rig.child.killed }))
+  check("red on the base: the record's turn is settled too (the board never paints 'working' against a refused runner)", record !== undefined && !sup.turnInFlightOf(record), j({ delivery: record?.lastDeliveryAt, settled: record?.lastTurnSettledAt }) + refuseRunnerHint)
+  check('red on the base: the child is ended (SIGTERM to its tree), never left alive behind a closed door', rig.child.killed.length > 0, j({ killed: rig.child.killed }) + refuseRunnerHint)
   check('the seat’s door is closed to later verbs (no live child stands behind it)', rig.roster.door(rig.short) === undefined)
   const before = children.length
   rig.child.end()
@@ -117,7 +119,7 @@ section("§2 a runner that answers initialize with another protocol never opens 
   const delivered = await rig.roster.reply(rig.short, { type: 'prompt', content: 'work', id: '0b5c2d0a-6e9e-4c4b-8a2c-3f1d2e5b7a02' })
   const row = seatRow(rig)
   check('the delivery is refused (the door closed on the protocol refusal) and the seat is not busy', delivered === false && row?.busy !== true && row?.turnActive !== true, j({ delivered, busy: row?.busy, turnActive: row?.turnActive }))
-  check('red on the base: the child is ended', rig.child.killed.length > 0, j({ killed: rig.child.killed }))
+  check('red on the base: the child is ended', rig.child.killed.length > 0, j({ killed: rig.child.killed }) + refuseRunnerHint)
   rig.roster.kill(rig.short)
   rig.runner.close('done')
 }
@@ -140,9 +142,9 @@ section('§3 the refusal is the peer’s typed -32010, kind protocol — the dae
   await connection.initialized
   runner.notify('row', { type: 'session', seq: 1, ...stamp('s'), schema: 2, mode: 'default', model: 'm', cwd: home, tools: [] } as never)
   await tick()
-  check('one typed refusal reaches the daemon', refusals.length === 1 && refusals[0]!.code === RPC_REFUSED && refusals[0]!.kind === 'protocol', j(refusals))
-  check('the refusal names the row and the schema the daemon reads', /session row schema 2/.test(refusals[0]?.message ?? '') && /expected 1/.test(refusals[0]?.message ?? ''), j(refusals[0]?.message))
-  check('the connection is closed after it', connection.closed)
+  check('one typed refusal reaches the daemon', refusals.length === 1 && refusals[0]!.code === RPC_REFUSED && refusals[0]!.kind === 'protocol', j(refusals) + connectionHint)
+  check('the refusal names the row and the schema the daemon reads', /session row schema 2/.test(refusals[0]?.message ?? '') && /expected 1/.test(refusals[0]?.message ?? ''), j(refusals[0]?.message) + connectionHint)
+  check('the connection is closed after it', connection.closed, connectionHint)
   const later = await connection.request('session/facts', {}).then(() => 'answered', (error: unknown) => (error instanceof Error ? error.name : String(error)))
   check('a later verb is refused typed (PeerClosed), never a hang', later === 'PeerClosed', later)
   runner.close('done')

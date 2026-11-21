@@ -19,7 +19,7 @@ process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change ResponsesStreamFold and bareStreamErrorCount in src/services/providers/openai/openaiWire.ts (bare stream error folding), streamFaultAfterPartialText and streamFaultNoticeLine in src/services/api/errors.ts (fault words), or toBridgeMessages in src/services/providers/openai/openaiCallModel/bridgeMessages.ts (section 3)' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

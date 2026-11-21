@@ -6,7 +6,8 @@ import { FileStateCache } from '../../src/utils/fileStateCache.ts'
 
 let checks = 0
 const equal = (actual: unknown, expected: unknown): void => {
-  assert.deepEqual(actual, expected)
+  const shown = (value: unknown): string => JSON.stringify(value, (_key, item) => (typeof item === 'number' && !Number.isFinite(item) ? String(item) : item))
+  assert.deepEqual(actual, expected, `call-chain check ${checks + 1} failed: got ${shown(actual)}, expected ${shown(expected)}; change advanceToolCallChain or readToolCallChain in src/Tool.ts, or createSubagentContext in src/services/agents/forkedAgent.ts`)
   checks++
 }
 
@@ -27,10 +28,10 @@ for (const parent of parents) {
     })
     equal(minted, mode === 'fork' || parent === undefined ? 1 : 0)
     equal(context, parent === undefined ? {} : { callChain: parent })
-    assert.notEqual(next, parent)
+    assert.notEqual(next, parent, 'advanceToolCallChain in src/Tool.ts returned the parent chain object itself; it must return a new object')
     checks++
   }
-  assert.equal(readToolCallChain(context), context.callChain)
+  assert.equal(readToolCallChain(context), context.callChain, 'readToolCallChain in src/Tool.ts must return the context callChain object unchanged')
   checks++
 }
 equal(readToolCallChain(undefined), undefined)

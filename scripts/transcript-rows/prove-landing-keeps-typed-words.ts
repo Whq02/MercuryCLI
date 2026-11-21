@@ -22,6 +22,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${detail && !ok ? ` — ${detail}` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
+const rekeyWhere = ' | fix rekeyToSession, edit or flushDrafts in src/input-core/pending-input.ts'
+const claimWhere = ' | the child process that imports src/input-core/pending-input.ts and calls switchSession in src/bootstrap/state.ts did not exit 0, read its stderr here'
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
@@ -64,12 +66,12 @@ console.log('§1 letters typed since the last save stay through a landing whose 
   await p.flushDrafts()
   p.edit('fix the bug')
   const claim = runnerClaims(dir, 'born-session')
-  check("the runner's part ran to its end (a process with no composer that switches its identity to the born session, as the claim does)", claim.ended, claim.words)
-  check("the runner's claim moves no page of the composer's: the saved page is still under the screen's own id, none under the born session's", page('boot-screen') === 'fix the' && page('born-session') === null, j({ screen: page('boot-screen'), born: page('born-session') }))
+  check("the runner's part ran to its end (a process with no composer that switches its identity to the born session, as the claim does)", claim.ended, claim.words + claimWhere)
+  check("the runner's claim moves no page of the composer's: the saved page is still under the screen's own id, none under the born session's", page('boot-screen') === 'fix the' && page('born-session') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + ' | the child process must not write the composer pages: check src/input-core/pending-input.ts module load and onSessionSwitch')
   await p.rekeyToSession('born-session', { landing: true })
-  check('THE DEFECT PIN: after the landing the composer holds every letter typed, the ones typed since the last save among them', p.text() === 'fix the bug', j(p.text()))
+  check('THE DEFECT PIN: after the landing the composer holds every letter typed, the ones typed since the last save among them', p.text() === 'fix the bug', j(p.text()) + rekeyWhere)
   await p.flushDrafts()
-  check("the page is the born session's now, whole, and the screen's own id keeps none", page('born-session') === 'fix the bug' && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }))
+  check("the page is the born session's now, whole, and the screen's own id keeps none", page('born-session') === 'fix the bug' && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + rekeyWhere)
 }
 
 console.log('\n§2 a letter deleted before the landing stays deleted')
@@ -80,11 +82,11 @@ console.log('\n§2 a letter deleted before the landing stays deleted')
   await p.flushDrafts()
   p.edit('')
   const claim = runnerClaims(dir, 'born-session')
-  check("the runner's part ran to its end", claim.ended, claim.words)
+  check("the runner's part ran to its end", claim.ended, claim.words + claimWhere)
   await p.rekeyToSession('born-session', { landing: true })
-  check('THE DEFECT PIN: after the landing the composer is empty, the deleted letter is not back', p.text() === '', j(p.text()))
+  check('THE DEFECT PIN: after the landing the composer is empty, the deleted letter is not back', p.text() === '', j(p.text()) + rekeyWhere)
   await p.flushDrafts()
-  check('no page of the deleted letter is left under either id', page('born-session') === null && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }))
+  check('no page of the deleted letter is left under either id', page('born-session') === null && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + rekeyWhere)
 }
 
 console.log('\n§3 the laws of the draft that stand as they stood')
@@ -95,7 +97,7 @@ console.log('\n§3 the laws of the draft that stand as they stood')
   await p.flushDrafts()
   const claim = runnerClaims(dir, 'born-session')
   await p.rekeyToSession('born-session', { landing: true })
-  check('words saved before the landing, with nothing typed since, follow into the born session', claim.ended && p.text() === 'hello' && page('born-session') === 'hello' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session'), claim: claim.words }))
+  check('words saved before the landing, with nothing typed since, follow into the born session', claim.ended && p.text() === 'hello' && page('born-session') === 'hello' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session'), claim: claim.words }) + rekeyWhere)
 }
 {
   const dir = project('own-page')
@@ -106,11 +108,11 @@ console.log('\n§3 the laws of the draft that stand as they stood')
   p.initSession('boot-screen', '')
   const claim = runnerClaims(dir, 'owned-session')
   await p.rekeyToSession('owned-session', { landing: true })
-  check('a session that owns a saved page of its own shows that page when the screen lands in it', claim.ended && p.text() === 'a page of its own', j({ text: p.text(), claim: claim.words }))
+  check('a session that owns a saved page of its own shows that page when the screen lands in it', claim.ended && p.text() === 'a page of its own', j({ text: p.text(), claim: claim.words }) + rekeyWhere)
   await p.rekeyToSession(null)
   p.edit('typed on the resting slot')
   await p.rekeyToSession('owned-session', { landing: true })
-  check('…and its page still wins over words typed on the resting slot, as it did', p.text() === 'a page of its own', j(p.text()))
+  check('…and its page still wins over words typed on the resting slot, as it did', p.text() === 'a page of its own', j(p.text()) + rekeyWhere)
 }
 {
   project('identity-switch')
@@ -122,7 +124,7 @@ console.log('\n§3 the laws of the draft that stand as they stood')
   state.switchSession('resumed-session' as never, null)
   const until = Date.now() + 5000
   while (p.text() !== 'words of the resumed session' && Date.now() < until) await new Promise(r => setTimeout(r, 10))
-  check('in a process whose composer is seeded, with no seat in the slot, an identity switch still re-keys the composer to the session it switched to', p.text() === 'words of the resumed session', j(p.text()))
+  check('in a process whose composer is seeded, with no seat in the slot, an identity switch still re-keys the composer to the session it switched to', p.text() === 'words of the resumed session', j(p.text()) + ' | the onSessionSwitch listener in src/input-core/pending-input.ts must call rekeyToSession when switchSession in src/bootstrap/state.ts runs')
 }
 
 console.log('\n§4 a key that falls into the landing re-key itself')
@@ -134,15 +136,15 @@ console.log('\n§4 a key that falls into the landing re-key itself')
   p.edit('first words and more')
   await landing
   await p.flushDrafts()
-  check('the composer keeps the key typed into the re-key', p.text() === 'first words and more', j(p.text()))
-  check("its page is the born session's alone: no copy stays under the screen's own id", page('born-session') === 'first words and more' && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }))
+  check('the composer keeps the key typed into the re-key', p.text() === 'first words and more', j(p.text()) + rekeyWhere)
+  check("its page is the born session's alone: no copy stays under the screen's own id", page('born-session') === 'first words and more' && page('boot-screen') === null, j({ screen: page('boot-screen'), born: page('born-session') }) + rekeyWhere)
   p.edit('first words and more, sent')
   p.clearForSubmit('first words and more, sent')
   p.edit('')
   await p.flushDrafts()
   await p.rekeyToSession(null)
   await p.rekeyToSession('second-session', { landing: true })
-  check('THE DEFECT PIN: the next new session of the project, landed with nothing typed, opens with an empty composer and not with the words already sent', p.text() === '', j(p.text()))
+  check('THE DEFECT PIN: the next new session of the project, landed with nothing typed, opens with an empty composer and not with the words already sent', p.text() === '', j(p.text()) + rekeyWhere + ' (clearForSubmit must drop the saved page)')
 }
 {
   project('cursor-key-in-the-rekey')
@@ -152,7 +154,7 @@ console.log('\n§4 a key that falls into the landing re-key itself')
   p.reportCursor(5)
   await landing
   await p.flushDrafts()
-  check("a cursor key pressed into the re-key leaves no copy under the screen's own id either", p.text() === 'first words' && page('born-session') === 'first words' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }))
+  check("a cursor key pressed into the re-key leaves no copy under the screen's own id either", p.text() === 'first words' && page('born-session') === 'first words' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }) + rekeyWhere)
 }
 {
   project('key-saved-before-the-move')
@@ -164,13 +166,13 @@ console.log('\n§4 a key that falls into the landing re-key itself')
   const early = p.flushDrafts()
   await Promise.all([landing, early])
   await p.flushDrafts()
-  check("a key typed into the landing whose save reaches the file before the screen's page is moved: the born session keeps the later words and no copy stays under the screen's own id", p.text() === 'first words and more' && page('born-session') === 'first words and more' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }))
+  check("a key typed into the landing whose save reaches the file before the screen's page is moved: the born session keeps the later words and no copy stays under the screen's own id", p.text() === 'first words and more' && page('born-session') === 'first words and more' && page('boot-screen') === null, j({ text: p.text(), screen: page('boot-screen'), born: page('born-session') }) + rekeyWhere)
   p.clearForSubmit('first words and more')
   p.edit('')
   await p.flushDrafts()
   await p.rekeyToSession(null)
   await p.rekeyToSession('second-session', { landing: true })
-  check('THE DEFECT PIN (read by hand on Windows): the next new session of the project, landed with nothing typed, opens with an empty composer and not with words the screen left behind', p.text() === '' && page('second-session') === null, j({ text: p.text(), second: page('second-session') }))
+  check('THE DEFECT PIN (read by hand on Windows): the next new session of the project, landed with nothing typed, opens with an empty composer and not with words the screen left behind', p.text() === '' && page('second-session') === null, j({ text: p.text(), second: page('second-session') }) + rekeyWhere)
 }
 
 console.log('\n§5 only a born session is named early: in a hop, or a landing on a session that owns a page, what is pressed into the wait stays with the session it was pressed in')
@@ -182,7 +184,7 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
   p.reportCursor(3)
   await hop
   await p.flushDrafts()
-  check('a cursor key pressed into a hop writes nothing under the session hopped to, and the one hopped from keeps its words', p.text() === '' && page('session-b') === null && page('session-a') === 'half-typed for a', j({ text: p.text(), a: page('session-a'), b: page('session-b') }))
+  check('a cursor key pressed into a hop writes nothing under the session hopped to, and the one hopped from keeps its words', p.text() === '' && page('session-b') === null && page('session-a') === 'half-typed for a', j({ text: p.text(), a: page('session-a'), b: page('session-b') }) + rekeyWhere)
 }
 {
   project('hop-with-a-mode-key')
@@ -192,7 +194,7 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
   p.setMode('bash')
   await hop
   await p.flushDrafts()
-  check('a mode key pressed into a hop from an empty composer leaves the saved page of the session hopped to as it was', p.text() === 'words of b' && page('session-b') === 'words of b', j({ text: p.text(), b: page('session-b') }))
+  check('a mode key pressed into a hop from an empty composer leaves the saved page of the session hopped to as it was', p.text() === 'words of b' && page('session-b') === 'words of b', j({ text: p.text(), b: page('session-b') }) + rekeyWhere)
 }
 {
   project('hop-with-enter')
@@ -204,7 +206,7 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
   p.edit('')
   await hop
   await p.flushDrafts()
-  check('an Enter pressed into a hop clears the page of the session its words were typed in, and leaves the saved page of the session hopped to', p.text() === '' && page('session-a') === null && page('session-b') === 'words of b', j({ text: p.text(), a: page('session-a'), b: page('session-b') }))
+  check('an Enter pressed into a hop clears the page of the session its words were typed in, and leaves the saved page of the session hopped to', p.text() === '' && page('session-a') === null && page('session-b') === 'words of b', j({ text: p.text(), a: page('session-a'), b: page('session-b') }) + rekeyWhere)
 }
 {
   project('two-hops-in-one-wait')
@@ -217,7 +219,7 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
   await Promise.all([first, second])
   p.reportCursor(1)
   await p.flushDrafts()
-  check('two hops begun in one wait, and a cursor key after them, leave each of the three sessions its own page', page('session-a') === 'half-typed for a' && page('session-b') === 'words of b' && page('session-c') === 'words of c', j({ a: page('session-a'), b: page('session-b'), c: page('session-c') }))
+  check('two hops begun in one wait, and a cursor key after them, leave each of the three sessions its own page', page('session-a') === 'half-typed for a' && page('session-b') === 'words of b' && page('session-c') === 'words of c', j({ a: page('session-a'), b: page('session-b'), c: page('session-c') }) + rekeyWhere)
 }
 {
   project('landing-on-an-owned-page')
@@ -228,7 +230,7 @@ console.log('\n§5 only a born session is named early: in a hop, or a landing on
   p.reportCursor(4)
   await landing
   await p.flushDrafts()
-  check("a cursor key pressed into a landing on a session that owns a page leaves that page its own, and the resting slot's words under the screen's id", p.text() === 'a page of its own' && page('owned-session') === 'a page of its own' && page('boot-screen') === 'typed on the resting slot', j({ text: p.text(), screen: page('boot-screen'), owned: page('owned-session') }))
+  check("a cursor key pressed into a landing on a session that owns a page leaves that page its own, and the resting slot's words under the screen's id", p.text() === 'a page of its own' && page('owned-session') === 'a page of its own' && page('boot-screen') === 'typed on the resting slot', j({ text: p.text(), screen: page('boot-screen'), owned: page('owned-session') }) + rekeyWhere)
 }
 
 
@@ -253,7 +255,7 @@ console.log('\n§7 a flush waits for a save that is still being written')
   const waited = !returned && page('flight-session') === 'seed'
   await release()
   await flushed
-  check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }))
+  check('a flush called while a save the timer started is still being written returns when that page is in the file, and not before', waited && page('flight-session') === 'typed and left alone', j({ returnedBeforeTheWrite: !waited, page: page('flight-session') }) + ' | flushDrafts in src/input-core/pending-input.ts (it returns flushDraftSaves) must wait for a save in flight')
 }
 
 

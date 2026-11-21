@@ -108,12 +108,12 @@ const same = (a: Roads, b: Roads): string[] => [...routes.filter(route => a.road
 console.log(`unset: Grep's definition is the recorded one, byte for byte, on every road (recorded at ${stored.base.slice(0, 10)})`)
 const unset = await read()
 {
-  check('the recording covers twenty-four roads, the local one among them, and the MCP listing', routes.length === 24 && routes.includes('local') && routes.includes('anthropic') && stored.mcp.length > 0, routes.join(' '))
-  check('every road of the product is in it', JSON.stringify(Object.keys(unset.roads)) === JSON.stringify(routes), Object.keys(unset.roads).join(' '))
+  check('the recording covers twenty-four roads, the local one among them, and the MCP listing', routes.length === 24 && routes.includes('local') && routes.includes('anthropic') && stored.mcp.length > 0, `${routes.join(' ')} — the recording scripts/tools/fixtures/grep-definition-base.json lists the roads it was made on; a road added to or dropped from PROVIDER_ID_SPACES (src/services/providers/routeLaw.ts) needs a fresh recording from a committed tree with this script and --record`)
+  check('every road of the product is in it', JSON.stringify(Object.keys(unset.roads)) === JSON.stringify(routes), `${Object.keys(unset.roads).join(' ')} — the roads of PROVIDER_ID_SPACES (src/services/providers/routeLaw.ts) differ from the recording scripts/tools/fixtures/grep-definition-base.json`)
   const moved = same(unset, stored)
-  check('with the switch unset every road and the MCP listing send the recorded bytes', moved.length === 0, moved.join(', '))
+  check('with the switch unset every road and the MCP listing send the recorded bytes', moved.length === 0, `${moved.join(', ')} — Grep's definition moved with the switch unset; keep src/tools/GrepTool/prompt.ts and GrepTool.ts byte-identical when ${SWITCH} is not 1, or re-record with --record if the change is meant`)
   const offCorpus = routes.filter(route => route !== 'local' && stored.roads[route]!.definition !== corpusGrep)
-  check('on twenty-three roads those bytes are also the 61-definition corpus\'s own Grep entry, recorded apart from this proof', offCorpus.length === 0 && routes.length - 1 === 23, offCorpus.join(', '))
+  check('on twenty-three roads those bytes are also the 61-definition corpus\'s own Grep entry, recorded apart from this proof', offCorpus.length === 0 && routes.length - 1 === 23, `${offCorpus.join(', ')} — these roads send a Grep definition that differs from the Grep entry of scripts/tool-economy/fixtures/definition-corpus.json`)
   check('the local road sends its short form, which the recording holds', stored.roads.local!.definition !== corpusGrep && unset.roads.local!.definition === stored.roads.local!.definition && stored.roads.local!.definition.length < corpusGrep.length)
   check('nothing of the mode is in any of them', !JSON.stringify(unset).includes('ranked'))
 }
@@ -121,7 +121,7 @@ const unset = await read()
 console.log('unset in every spelling but 1: the same bytes, in a process of its own')
 for (const [label, value] of [['absent', undefined], ['0', '0'], ['empty', ''], ['true', 'true'], ['yes', 'yes'], ['on', 'on'], ['1 with a space', ' 1'], ['2', '2']] as Array<[string, string | undefined]>) {
   const moved = same(emitted(`off-${label.replace(/\W+/g, '-')}`, value), stored)
-  check(`${SWITCH} ${label}: every road and the MCP listing send the recorded bytes`, moved.length === 0, moved.join(', '))
+  check(`${SWITCH} ${label}: every road and the MCP listing send the recorded bytes`, moved.length === 0, `${moved.join(', ')} — only the exact value 1 may turn the ranked mode on; fix the reader of ${SWITCH} in src/tools/GrepTool/prompt.ts`)
 }
 
 console.log('set to 1: Grep gains the mode and one sentence, and nothing else')
@@ -142,37 +142,37 @@ console.log('set to 1: Grep gains the mode and one sentence, and nothing else')
     }
     if (JSON.stringify(after) !== JSON.stringify(expected)) wrong.push(route)
   }
-  check('on twenty-three roads: the description plus one sentence, the enum plus "ranked", output_mode\'s text plus one clause, every other byte the same', wrong.filter(route => route !== 'local').length === 0, wrong.join(', '))
-  check('on the local road: the enum plus "ranked" and no other byte (its short form names no mode)', !wrong.includes('local') && !set.roads.local!.definition.includes('plain words'), set.roads.local!.definition.slice(0, 200))
+  check('on twenty-three roads: the description plus one sentence, the enum plus "ranked", output_mode\'s text plus one clause, every other byte the same', wrong.filter(route => route !== 'local').length === 0, `${wrong.join(', ')} — with ${SWITCH}=1 the Grep definition on these roads differs from the recording by more than the ranked sentence, enum entry and output_mode clause; see src/tools/GrepTool/prompt.ts`)
+  check('on the local road: the enum plus "ranked" and no other byte (its short form names no mode)', !wrong.includes('local') && !set.roads.local!.definition.includes('plain words'), `${set.roads.local!.definition.slice(0, 200)} — the local road must gain only the enum entry; see src/tools/GrepTool/prompt.ts`)
   const listed = JSON.parse(stored.mcp) as { description: string; inputSchema: Definition['input_schema']; outputSchema: { properties: Record<string, unknown> } }
   const expectedListing = structuredClone(listed)
   expectedListing.description = listed.description + SENTENCE
   expectedListing.inputSchema.properties.output_mode.enum = [...listed.inputSchema.properties.output_mode.enum, 'ranked']
   expectedListing.inputSchema.properties.output_mode.description = listed.inputSchema.properties.output_mode.description.replace(/\.$/, '') + CLAUSE
   expectedListing.outputSchema.properties = { ...listed.outputSchema.properties, ranked: { type: 'string' } }
-  check('in the MCP listing: the same three, and the output schema gains the field that carries the answer', set.mcp === JSON.stringify(expectedListing), set.mcp.slice(-300))
+  check('in the MCP listing: the same three, and the output schema gains the field that carries the answer', set.mcp === JSON.stringify(expectedListing), `${set.mcp.slice(-300)} — the MCP listing of Grep (description, input schema, output schema) must change by exactly the ranked additions; see src/tools/GrepTool/prompt.ts and the Grep schemas in src/tools/GrepTool/GrepTool.ts`)
 }
 
 console.log('the standing corpus of 61 definitions: green unset, and with the switch set Grep is the only definition that moves')
 {
   const corpusProof = join(ROOT, 'scripts', 'tool-economy', 'prove-definition-corpus-parity.ts')
   const off = child('corpus-off', corpusProof, [], undefined)
-  check('unset: the corpus proof passes, 61 definitions identical', off.status === 0 && off.out.includes('PASS CORPUS 61 definitions identical'), `${String(off.status)} ${off.out.slice(-200)} ${off.err.slice(-300)}`)
+  check('unset: the corpus proof passes, 61 definitions identical', off.status === 0 && off.out.includes('PASS CORPUS 61 definitions identical'), `${String(off.status)} ${off.out.slice(-200)} ${off.err.slice(-300)} — run scripts/tool-economy/prove-definition-corpus-parity.ts on its own to see which definition moved`)
   const on = child('corpus-on', corpusProof, [], '1')
   const moved = /^AssertionError: a definition moved since the recording at [0-9a-f]+ — re-record with --record and list the diff: ([^\n]*)$/m.exec(`${on.out}\n${on.err}`)
-  check('set: it fails naming Grep and no other tool, so the other 60 definitions are unchanged', on.status !== 0 && moved !== null && moved[1]!.trim() === 'Grep', `${String(on.status)} ${moved?.[1] ?? on.err.slice(-300)}`)
+  check('set: it fails naming Grep and no other tool, so the other 60 definitions are unchanged', on.status !== 0 && moved !== null && moved[1]!.trim() === 'Grep', `${String(on.status)} ${moved?.[1] ?? on.err.slice(-300)} — with ${SWITCH}=1 only Grep may differ from scripts/tool-economy/fixtures/definition-corpus.json; another tool definition read the switch`)
 }
 
 console.log('the switch is a registered opt-in, read once')
 {
   const { FLAG_REGISTRY } = await import(`${SRC}/substrate/flagRegistry.ts`)
   const row = (FLAG_REGISTRY as Array<{ env: string; kind: string; tier?: string; evidence?: string; summary: string; off: string; consumer: string }>).find(flag => flag.env === SWITCH)
-  check('its row: opt-in, behavioral, this proof as its evidence, its reader named', row?.kind === 'opt-in' && row.tier === 'behavioral' && row.evidence === 'scripts/tools/prove-grep-ranked-unset.ts' && row.consumer === 'src/tools/GrepTool/prompt.ts' && existsSync(join(ROOT, row.consumer)), JSON.stringify(row))
-  check('the row says where it must stand', row !== undefined && row.summary.includes('must stand in the environment Mercury starts in') && row.summary.includes('a settings env value arrives too late'), row?.summary)
+  check('its row: opt-in, behavioral, this proof as its evidence, its reader named', row?.kind === 'opt-in' && row.tier === 'behavioral' && row.evidence === 'scripts/tools/prove-grep-ranked-unset.ts' && row.consumer === 'src/tools/GrepTool/prompt.ts' && existsSync(join(ROOT, row.consumer)), `${JSON.stringify(row)} — fix the ${SWITCH} row in FLAG_REGISTRY (src/substrate/flagRegistry.ts)`)
+  check('the row says where it must stand', row !== undefined && row.summary.includes('must stand in the environment Mercury starts in') && row.summary.includes('a settings env value arrives too late'), `${row?.summary} — reword the summary of the ${SWITCH} row in FLAG_REGISTRY (src/substrate/flagRegistry.ts)`)
   const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
   const { getDescription } = await import(`${SRC}/tools/GrepTool/prompt.ts`)
   process.env[SWITCH] = '1'
-  check('set after the tools have loaded it changes nothing: the description and the schema still agree', !getDescription().includes('ranked') && !GrepTool.inputSchema.safeParse({ pattern: 'x', output_mode: 'ranked' }).success && (await GrepTool.prompt({ tools: [] } as never)) === getDescription())
+  check('set after the tools have loaded it changes nothing: the description and the schema still agree', !getDescription().includes('ranked') && !GrepTool.inputSchema.safeParse({ pattern: 'x', output_mode: 'ranked' }).success && (await GrepTool.prompt({ tools: [] } as never)) === getDescription(), `${SWITCH} must be read once when src/tools/GrepTool/prompt.ts loads, not on each call, so the description and the input schema cannot disagree`)
   delete process.env[SWITCH]
 }
 

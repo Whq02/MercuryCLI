@@ -39,6 +39,7 @@ await writer.recordTranscript([createUserMessage({ content: 'Prove the attachmen
 await writer.flushSessionStorage()
 console.log(`build under proof: ${DIST}`)
 console.log(`seed records: ${readFileSync(transcript, 'utf8').split('\n').filter(Boolean).length}`)
+const capsuleHint = 'the capsule is built by foldAttachmentsIntoCapsule in src/services/attachments/contextCapsule.ts and must reach the request body once, carrying every old reminder fact'
 const fixture = await startScriptedFixture(() => [{ type: 'text', text: 'capsule request answered' }])
 const port = Number(new URL(fixture.base).port)
 try {
@@ -54,22 +55,22 @@ try {
     child.on('close', code => { clearTimeout(timer); resolveRun({ code, stderr, stdout }) })
     child.on('error', error => { clearTimeout(timer); resolveRun({ code: null, stderr: String(error), stdout }) })
   })
-  tally.check('the built product resumes the stored fixture and completes', run.code === 0 && fixture.requests.length > 0, JSON.stringify(run).slice(-1500))
+  tally.check('the built product resumes the stored fixture and completes', run.code === 0 && fixture.requests.length > 0, `${JSON.stringify(run).slice(-1500)} — the built dist resume of the stored session failed; read the child stderr above, then ${capsuleHint}`)
   const request = fixture.requests.find(row => row.ask.includes('capsule resume proof')) ?? fixture.requests.at(-1)
   const text = request?.allTexts.join('\n') ?? ''
   const reminders = text.match(/<system-reminder>[\s\S]*?<\/system-reminder>/g) ?? []
   const capsules = reminders.filter(block => block.includes('capsule-digest:'))
-  tally.check('one capsule reaches the actual request body', capsules.length === 1, `capsules=${capsules.length}, reminders=${reminders.length}, sections=${JSON.stringify(capsules.map(block => block.match(/^## .*$/gm)))}`)
+  tally.check('one capsule reaches the actual request body', capsules.length === 1, `capsules=${capsules.length}, reminders=${reminders.length}, sections=${JSON.stringify(capsules.map(block => block.match(/^## .*$/gm)))} — ${capsuleHint}`)
   const old = JSON.parse(readFileSync(resolve(import.meta.dir, 'capsule-old.json'), 'utf8'))
   for (const [kind, blocks] of Object.entries(old) as Array<[string, Array<{ type: string; text?: string }>]>) {
     const oldText = blocks.filter(block => block.type === 'text').map(block => block.text!)
     const bodies = oldText.map(block => block.startsWith('<system-reminder>\n') && block.endsWith('\n</system-reminder>') ? block.slice(18, -19) : block)
-    tally.check(`${kind}: the capsule carries every old fact on the wire`, capsules.length === 1 && bodies.every(body => capsules[0]!.includes(body)))
-    tally.check(`${kind}: no separate old reminder block remains`, oldText.every(block => !reminders.includes(block)))
+    tally.check(`${kind}: the capsule carries every old fact on the wire`, capsules.length === 1 && bodies.every(body => capsules[0]!.includes(body)), capsuleHint)
+    tally.check(`${kind}: no separate old reminder block remains`, oldText.every(block => !reminders.includes(block)), capsuleHint)
   }
   const disk = readFileSync(transcript, 'utf8')
   const persistedKinds = original.filter(row => normalizeAttachmentForAPI(row).length > 0).map(row => row.type)
-  tally.check('the transcript keeps every previously-persisted receipt kind for old readers', persistedKinds.every(kind => disk.includes(`"attachmentType":"${kind}"`)))
+  tally.check('the transcript keeps every previously-persisted receipt kind for old readers', persistedKinds.every(kind => disk.includes(`"attachmentType":"${kind}"`)), 'the transcript on disk must keep each attachment as its own record; check recordTranscript in src/utils/sessionStorage/writer.ts and foldAttachmentsIntoCapsule in src/services/attachments/contextCapsule.ts')
 } finally {
   await fixture.close()
   process.chdir(source)

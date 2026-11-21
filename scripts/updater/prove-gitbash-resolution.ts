@@ -6,9 +6,10 @@ import { join } from 'node:path'
 import { gitBashCandidatePaths } from '../../src/utils/windowsPaths.ts'
 
 let failures = 0
+const GITBASH_FAIL_HINT = ' — fix the candidate derivation in gitBashCandidatePaths in src/utils/windowsPaths.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : GITBASH_FAIL_HINT}`)
 }
 const GIT_ROOT_BASH = 'C:\\Program Files\\Git\\bin\\bash.exe'
 

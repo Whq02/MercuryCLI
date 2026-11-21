@@ -24,6 +24,7 @@ function check(cond: boolean, label: string, detail = ''): void {
 }
 
 const TOOL_USE_ID = 'toolu_trunc_01'
+const rowWhere = ' | fix the truncate-middle Text of the tool row in src/components/messages/AssistantToolUseMessage.tsx'
 
 function lookupsFor(): unknown {
   return {
@@ -59,18 +60,18 @@ console.log('tool-row truncation — one line, middle cut, width-aware')
 
 for (const columns of [60, 80, 120]) {
   const lines = await renderRow(LONG_PATH, columns)
-  check(lines.length === 1, `width ${columns}: a long path keeps the row to ONE line`, `${lines.length} lines: ${JSON.stringify(lines)}`)
+  check(lines.length === 1, `width ${columns}: a long path keeps the row to ONE line`, `${lines.length} lines: ${JSON.stringify(lines)}${rowWhere}`)
   const row = lines[0] ?? ''
-  check(row.includes('…'), `width ${columns}: the overflow cut is marked with an ellipsis`, row)
-  check(row.includes('Read'), `width ${columns}: the head keeps the tool name`, row)
-  check(row.includes('the-load-bearing-filename.ts'), `width ${columns}: the tail keeps the FILENAME`, row)
-  check(row.includes('/scratch/'), `width ${columns}: the head keeps the path's leading directories`, row)
+  check(row.includes('…'), `width ${columns}: the overflow cut is marked with an ellipsis`, row + rowWhere)
+  check(row.includes('Read'), `width ${columns}: the head keeps the tool name`, row + rowWhere)
+  check(row.includes('the-load-bearing-filename.ts'), `width ${columns}: the tail keeps the FILENAME`, row + rowWhere)
+  check(row.includes('/scratch/'), `width ${columns}: the head keeps the path's leading directories`, row + rowWhere)
 }
 
 {
   const lines = await renderRow('/scratch/notes.md', 80)
   const row = lines[0] ?? ''
-  check(lines.length === 1 && row.includes('/scratch/notes.md') && !row.includes('…'), 'a short path renders whole, ellipsis-free', JSON.stringify(lines))
+  check(lines.length === 1 && row.includes('/scratch/notes.md') && !row.includes('…'), 'a short path renders whole, ellipsis-free', JSON.stringify(lines) + rowWhere)
 }
 
 console.log(failures === 0 ? '✅ tool-row middle-truncation law holds' : `❌ ${failures} check(s) FAILED`)

@@ -26,19 +26,22 @@ const { getNewlineInstructions } = await import('../../src/components/PromptInpu
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 
-check('this world declares no extended keys (the sniff list is silent)', caps.extendedKeysSupportedNow() === false)
-check('latch down ⇒ the backslash form', getNewlineInstructions() === 'backslash (\\) + ↵ for a new line', getNewlineInstructions())
+const hintLatchState = ' | extendedKeysSupportedNow and upgradeExtendedKeysSupport in src/ink/session/capabilities.ts own the latch'
+const hintNewlineText = ' | getNewlineInstructions in src/components/PromptInput/utils.ts must pick its text from extendedKeysSupportedNow()'
+
+check('this world declares no extended keys (the sniff list is silent)', caps.extendedKeysSupportedNow() === false, 'the latch started up; the env set at the top of this file (TERM_PROGRAM, TERM, TMUX, WT_SESSION) must leave the sniff list silent' + hintLatchState)
+check('latch down ⇒ the backslash form', getNewlineInstructions() === 'backslash (\\) + ↵ for a new line', getNewlineInstructions() + hintNewlineText)
 
 let heard = 0
 const off = caps.subscribeExtendedKeysSupport(() => {
   heard++
 })
 caps.upgradeExtendedKeysSupport()
-check('the probe reply upgrades the latch', caps.extendedKeysSupportedNow() && caps.extendedKeysProvedNow())
-check('the upgrade notified its subscriber once', heard === 1, `heard ${heard}`)
-check('latch up ⇒ shift + ↵ (the chord the pushed protocol delivers)', getNewlineInstructions() === 'shift + ↵ for a new line', getNewlineInstructions())
+check('the probe reply upgrades the latch', caps.extendedKeysSupportedNow() && caps.extendedKeysProvedNow(), 'upgradeExtendedKeysSupport must raise both extendedKeysSupportedNow and extendedKeysProvedNow' + hintLatchState)
+check('the upgrade notified its subscriber once', heard === 1, `heard ${heard}` + ' | upgradeExtendedKeysSupport must notify each subscribeExtendedKeysSupport listener once' + hintLatchState)
+check('latch up ⇒ shift + ↵ (the chord the pushed protocol delivers)', getNewlineInstructions() === 'shift + ↵ for a new line', getNewlineInstructions() + hintNewlineText)
 caps.upgradeExtendedKeysSupport()
-check('a repeated upgrade is silent (nothing changed)', heard === 1, `heard ${heard}`)
+check('a repeated upgrade is silent (nothing changed)', heard === 1, `heard ${heard}` + ' | upgradeExtendedKeysSupport must not notify when the latch is already up' + hintLatchState)
 off()
 
 

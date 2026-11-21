@@ -10,7 +10,12 @@ import type { ProcessSweepFacts, ProcessSweepRead } from '../../src/utils/proces
 
 let checks = 0
 const check = (label: string, run: () => void): void => {
-  run()
+  try {
+    run()
+  } catch (error) {
+    console.log(`[FAIL] ${label} — to fix: classifyMercuryProcess, sameSweepIdentity, processSweepCounts and processSweepLine in src/utils/processSweep.ts must give the verdict this check names`)
+    throw error
+  }
   checks++
   console.log(`[PASS] ${label}`)
 }

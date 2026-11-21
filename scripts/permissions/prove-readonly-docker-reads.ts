@@ -18,9 +18,10 @@ process.env.NODE_ENV = 'test'
 const { checkReadOnlyConstraints, describeBashNotReadOnly, notReadOnlyClause } = await import('../../src/tools/BashTool/readOnlyValidation.js')
 
 let failures = 0
+const dockerReadsHint = 'only the four docker reads (ps, images, logs, inspect with known flags) may count as read-only; fix checkReadOnlyConstraints and describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts, the flag tables in src/utils/shell/readOnlyCommandValidation.ts, isAllowlistedCommand in src/tools/PowerShellTool/readOnlyValidation.ts, or scoutRefusal in src/tools/AgentTool/scoutPolicy.ts, whichever the label names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${dockerReadsHint}` : ''}`)
 }
 
 const readsOnly = async (command: string, cd = false): Promise<boolean> => (await checkReadOnlyConstraints({ command }, cd)).behavior === 'allow'

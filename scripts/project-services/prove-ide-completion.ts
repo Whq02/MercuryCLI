@@ -24,7 +24,7 @@ function section(t: string): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — ide completion proof exceeded 120s')
+  console.log('\n❌ TIMEOUT — ide completion proof exceeded 120s; a call into runMercuryLspOp (src/tools/LSPTool/mercuryOps.ts) or DebugTool (src/tools/DebugTool/DebugTool.ts) never returned, so look at the last section printed above')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -170,7 +170,8 @@ section('PR. pathRename — the one-transaction import-updating move')
     preview.effect.outcome === 'succeeded' &&
     preview.effect.changedPaths.length === 0 &&
     existsSync(aPath) && !existsSync(newPath) &&
-    preview.result.includes('Move:') && preview.result.includes('import-updating'))
+    preview.result.includes('Move:') && preview.result.includes('import-updating'),
+    `applied=${preview.applied} outcome=${preview.effect.outcome} changed=${preview.effect.changedPaths.length} result=${String(preview.result).slice(0, 300)} — the pathRename preview in src/tools/LSPTool/mercuryOps/pathRename.ts must report the Move and the import-updating edits and write nothing`)
 
   mkdirSync(join(dir, 'sub'), { recursive: true })
   writeFileSync(newPath, 'occupied\n')
@@ -178,7 +179,8 @@ section('PR. pathRename — the one-transaction import-updating move')
     env({ operation: 'pathRename', filePath: aPath, newPath, apply: true, line: 1, character: 1 }, aPath),
   )
   check('PR2 existing target refuses, nothing moved',
-    occupied.effect.outcome === 'failed' && existsSync(aPath))
+    occupied.effect.outcome === 'failed' && existsSync(aPath),
+    `outcome=${occupied.effect.outcome} source kept=${existsSync(aPath)} — pathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must refuse when the target path already exists, before moving anything`)
   const { unlinkSync } = await import('node:fs')
   unlinkSync(newPath)
 
@@ -193,14 +195,17 @@ section('PR. pathRename — the one-transaction import-updating move')
     applied.applied === true &&
     applied.effect.outcome === 'succeeded' &&
     !existsSync(aPath) && movedText.includes(`'../lib.js'`) &&
-    bText.includes(`'./sub/a2.js'`))
+    bText.includes(`'./sub/a2.js'`),
+    `applied=${applied.applied} outcome=${applied.effect.outcome} result=${String(applied.result).slice(0, 300)} — pathRename with apply in src/tools/LSPTool/mercuryOps/pathRename.ts must write the willRenameFiles import edits and move the file`)
   check('PR3b changedPaths carry edited files + both move endpoints',
     applied.effect.changedPaths.includes(aPath) &&
     applied.effect.changedPaths.includes(newPath) &&
-    applied.effect.changedPaths.includes(bPath))
+    applied.effect.changedPaths.includes(bPath),
+    `changedPaths=${JSON.stringify(applied.effect.changedPaths)} — pathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must list the edited files and both move endpoints in effect.changedPaths`)
   check('PR3c didRenameFiles notified; readFileState followed the move',
     state.notifications.some(n => n.method === 'workspace/didRenameFiles') &&
-    !rfs.has(aPath) && rfs.has(newPath))
+    !rfs.has(aPath) && rfs.has(newPath),
+    `didRenameFiles sent=${state.notifications.some(n => n.method === 'workspace/didRenameFiles')} old key kept=${rfs.has(aPath)} new key=${rfs.has(newPath)} — pathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must notify workspace/didRenameFiles and move the readFileState entry to the new path`)
 
   writeFileSync(aPath, readFileSync(newPath, 'utf8').replace(`'../lib.js'`, `'./lib.js'`))
   unlinkSync(newPath)
@@ -230,7 +235,8 @@ section('PR. pathRename — the one-transaction import-updating move')
   check('PR4 drift aborts BEFORE the move — nothing written, nothing moved',
     drifted.effect.outcome === 'failed' &&
     drifted.result.includes('drift') &&
-    existsSync(aPath) && !existsSync(newPath))
+    existsSync(aPath) && !existsSync(newPath),
+    `outcome=${drifted.effect.outcome} result=${String(drifted.result).slice(0, 300)} — pathRename in src/tools/LSPTool/mercuryOps/pathRename.ts must recheck the edited files for drift after willRenameFiles and abort with a drift message before moving`)
   writeFileSync(bPath, `import { twice } from './a.js'\nconsole.log(twice)\n`)
 }
 
@@ -254,7 +260,8 @@ section('AI. code-action identity — reordered lists can never mis-apply')
   )
   check('AI1 listing rows carry stable ids',
     listing.result.includes(`id:${fixId}`) &&
-    listing.result.includes(`id:${actionIdentity(actRemove as never)}`))
+    listing.result.includes(`id:${actionIdentity(actRemove as never)}`),
+    `${String(listing.result).slice(0, 400)} — the codeActions listing under src/tools/LSPTool/mercuryOps/ must print id:<actionIdentity> on every action row`)
 
   state.actionLists = [[actRemove, actFix], [actRemove, actFix], [actRemove, actFix]]
   state.actionFetches = 0
@@ -264,7 +271,8 @@ section('AI. code-action identity — reordered lists can never mis-apply')
   )
   const after = readFileSync(aPath, 'utf8')
   check('AI2 reordered list: actionId applies the NAMED action',
-    applied.applied === true && after.includes('answer + answer') && after.includes('export const twice'))
+    applied.applied === true && after.includes('answer + answer') && after.includes('export const twice'),
+    `applied=${applied.applied} result=${String(applied.result).slice(0, 300)} — codeActions with apply under src/tools/LSPTool/mercuryOps/ must pick the action by actionId (actionIdentity), not by its list position`)
 
   state.actionLists = [[actRemove]]
   state.actionFetches = 0
@@ -272,7 +280,8 @@ section('AI. code-action identity — reordered lists can never mis-apply')
     env({ operation: 'codeActions', filePath: aPath, line: 2, character: 14, apply: true, actionId: fixId }, aPath),
   )
   check('AI3 vanished actionId refuses (list changed)',
-    vanished.effect.outcome === 'failed' && vanished.result.includes('changed'))
+    vanished.effect.outcome === 'failed' && vanished.result.includes('changed'),
+    `outcome=${vanished.effect.outcome} result=${String(vanished.result).slice(0, 300)} — codeActions under src/tools/LSPTool/mercuryOps/ must refuse with a message saying the list changed when the actionId is no longer offered`)
 
   state.actionLists = [[actRemove, actFix]]
   state.actionFetches = 0
@@ -280,7 +289,8 @@ section('AI. code-action identity — reordered lists can never mis-apply')
     env({ operation: 'codeActions', filePath: aPath, line: 2, character: 14, apply: true, actionId: fixId, actionIndex: 0 }, aPath),
   )
   check('AI4 actionId/actionIndex disagreement refuses',
-    disagree.effect.outcome === 'failed' && disagree.result.includes('different actions'))
+    disagree.effect.outcome === 'failed' && disagree.result.includes('different actions'),
+    `outcome=${disagree.effect.outcome} result=${String(disagree.result).slice(0, 300)} — codeActions under src/tools/LSPTool/mercuryOps/ must refuse with different actions when actionId and actionIndex name different actions`)
 }
 
 section('WD. workspaceDiagnostics — bounded deterministic multi-file pull')
@@ -309,7 +319,8 @@ section('WD. workspaceDiagnostics — bounded deterministic multi-file pull')
     env({ operation: 'workspaceDiagnostics', paths: [bulk], line: 1, character: 1 }, bulk),
   )
   check('WD2 the 50-file cap reports itself (never silent truncation)',
-    capped.result.includes('CAPPED') && capped.fileCount === 50)
+    capped.result.includes('CAPPED') && capped.fileCount === 50,
+    `fileCount=${capped.fileCount} result=${String(capped.result).slice(0, 300)} — workspaceDiagnostics in src/tools/LSPTool/mercuryOps/workspaceDiagnostics.ts must stop at 50 files and say CAPPED`)
 }
 
 section('SS. serverStatus — the typed roster')
@@ -320,10 +331,12 @@ section('SS. serverStatus — the typed roster')
   check('SS1 rows carry state/generation/capabilities incl. pathRename + file claim',
     ss.result.includes('fake-ts — running (gen 1') &&
     ss.result.includes('claims this file') &&
-    ss.result.includes('pathRename'))
+    ss.result.includes('pathRename'),
+    `${String(ss.result).slice(0, 400)} — serverStatus in src/tools/LSPTool/mercuryOps/serverStatus.ts must print name, state, generation, the file claim and the pathRename capability per server`)
   const details = ss.effect.details as { servers?: { name: string; capabilities: { pathRename: boolean } }[] }
   check('SS2 typed rows ride effect.details (health-consumable)',
-    Array.isArray(details.servers) && details.servers[0]?.capabilities.pathRename === true)
+    Array.isArray(details.servers) && details.servers[0]?.capabilities.pathRename === true,
+    `details=${JSON.stringify(details).slice(0, 300)} — serverStatus in src/tools/LSPTool/mercuryOps/serverStatus.ts must put the typed servers rows, with capabilities.pathRename, in effect.details`)
 }
 
 section('FX. fixDiagnostic — diagnose → fix → prove')
@@ -357,7 +370,8 @@ section('FX. fixDiagnostic — diagnose → fix → prove')
   )
   check('FX1 preview names the diagnostics + candidate fixes with ids',
     preview.result.includes('prefer multiplication') &&
-    preview.result.includes(`id:${actionIdentity(fixAction as never)}`))
+    preview.result.includes(`id:${actionIdentity(fixAction as never)}`),
+    `${String(preview.result).slice(0, 400)} — the fixDiagnostic preview in src/tools/LSPTool/mercuryOps/fixDiagnostic.ts must name the diagnostic message and each candidate fix with its id:<actionIdentity>`)
 
   state.actionFetches = 0
   markRead(aPath)
@@ -367,7 +381,8 @@ section('FX. fixDiagnostic — diagnose → fix → prove')
   check('FX2 sole candidate auto-applies; before→after proof reported',
     fixed.applied === true &&
     readFileSync(aPath, 'utf8').includes('answer * 2') &&
-    /errors before: 1 → after: 0/.test(fixed.result))
+    /errors before: 1 → after: 0/.test(fixed.result),
+    `applied=${fixed.applied} result=${String(fixed.result).slice(0, 300)} — fixDiagnostic with apply in src/tools/LSPTool/mercuryOps/fixDiagnostic.ts must apply the sole candidate and report errors before and after`)
   state.diagnostics.get = origGet as never
 }
 
@@ -393,45 +408,55 @@ section('DA. DAP additions — capability-gated inspection through the real clie
     launched.data.debuggee === 'stopped' &&
     launched.effect.details?.stopCard?.reason === 'breakpoint' &&
     launched.effect.details?.stopCard?.verifiedBreakpoints === 1 &&
-    launched.effect.details?.stopCard?.topFrame?.line === 3)
+    launched.effect.details?.stopCard?.topFrame?.line === 3,
+    `debuggee=${launched.data.debuggee} stopCard=${JSON.stringify(launched.effect.details?.stopCard)} — the launch op in src/tools/DebugTool/DebugTool.ts must stop at the verified breakpoint and put the stop card in effect.details`)
 
   const sources = await call({ op: 'loadedSources', session: 'vg' })
   check('DA2 loadedSources lists debuggee sources (capability advertised)',
     sources.data.result.includes('/tmp/demo.py') &&
-    sources.data.result.includes('sourceReference 7'))
+    sources.data.result.includes('sourceReference 7'),
+    `${String(sources.data.result).slice(0, 300)} — the loadedSources op in src/tools/DebugTool/DebugTool.ts must list the adapter sources with their sourceReference`)
 
   const modules = await call({ op: 'modules', session: 'vg' })
   check('DA3 modules answers PRECISELY unsupported (capability named)',
     modules.data.result.includes('does not support modules') &&
-    modules.data.result.includes('supportsModulesRequest'))
+    modules.data.result.includes('supportsModulesRequest'),
+    `${String(modules.data.result).slice(0, 300)} — the modules op in src/tools/DebugTool/DebugTool.ts must say the adapter does not support modules and name supportsModulesRequest`)
 
   const completions = await call({ op: 'completions', text: 'x', session: 'vg' })
   check('DA4 completions answers PRECISELY unsupported',
     completions.data.result.includes('does not support completions') &&
-    completions.data.result.includes('supportsCompletionsRequest'))
+    completions.data.result.includes('supportsCompletionsRequest'),
+    `${String(completions.data.result).slice(0, 300)} — the completions op in src/tools/DebugTool/DebugTool.ts must say the adapter does not support completions and name supportsCompletionsRequest`)
 
   const filters = await call({ op: 'exceptionBreakpoints', session: 'vg' })
   check('DA5 exception filters listed from capabilities',
     filters.data.result.includes('raised: Raised Exceptions') &&
-    filters.data.result.includes('uncaught: Uncaught Exceptions (default)'))
+    filters.data.result.includes('uncaught: Uncaught Exceptions (default)'),
+    `${String(filters.data.result).slice(0, 300)} — the exceptionBreakpoints op in src/tools/DebugTool/DebugTool.ts must list the exception filters the adapter advertises`)
 
   const armed = await call({ op: 'exceptionBreakpoints', filters: ['raised'], session: 'vg' })
-  check('DA6 arming known filters succeeds', armed.data.result.includes('armed: raised'))
+  check('DA6 arming known filters succeeds', armed.data.result.includes('armed: raised'),
+    `${String(armed.data.result).slice(0, 300)} — the exceptionBreakpoints op in src/tools/DebugTool/DebugTool.ts must arm known filters and answer armed: <filters>`)
 
   const bogus = await call({ op: 'exceptionBreakpoints', filters: ['bogus'], session: 'vg' })
   check('DA7 unknown filter refuses with the available set',
-    bogus.effect.outcome === 'failed' && bogus.data.result.includes('available: raised, uncaught'))
+    bogus.effect.outcome === 'failed' && bogus.data.result.includes('available: raised, uncaught'),
+    `outcome=${bogus.effect.outcome} result=${String(bogus.data.result).slice(0, 300)} — the exceptionBreakpoints op in src/tools/DebugTool/DebugTool.ts must refuse an unknown filter and list the available ones`)
 
   const src = await call({ op: 'source', sourceReference: 7, session: 'vg' })
   check('DA8 source retrieves generated content by reference',
-    src.data.result.includes('generated line 1'))
+    src.data.result.includes('generated line 1'),
+    `${String(src.data.result).slice(0, 300)} — the source op in src/tools/DebugTool/DebugTool.ts must return the adapter content for the sourceReference`)
 
   const setVar = await call({ op: 'setVariable', variablesReference: 100, name: 'x', value: '99', session: 'vg' })
   check('DA9 setVariable mutates and reports the adapter-confirmed value',
-    setVar.effect.outcome === 'succeeded' && setVar.data.result.includes('x = 99'))
+    setVar.effect.outcome === 'succeeded' && setVar.data.result.includes('x = 99'),
+    `outcome=${setVar.effect.outcome} result=${String(setVar.data.result).slice(0, 300)} — the setVariable op in src/tools/DebugTool/DebugTool.ts must report the value the adapter confirmed`)
 
   const bye = await call({ op: 'disconnect', session: 'vg' })
-  check('DA10 disconnect reaps', bye.data.result.includes('disconnected'))
+  check('DA10 disconnect reaps', bye.data.result.includes('disconnected'),
+    `${String(bye.data.result).slice(0, 300)} — the disconnect op in src/tools/DebugTool/DebugTool.ts must reap the session and answer disconnected`)
 }
 
 console.log('\n' + '═'.repeat(76))

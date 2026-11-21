@@ -21,10 +21,11 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+let failHint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${!ok && failHint ? ` | to fix: ${failHint}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -40,6 +41,7 @@ saveCurrentProjectConfig(c => ({ ...c, hasCompletedProjectOnboarding: true }))
 saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 
 section('§1 the layout words: human dates, the overview cells, the lineage rows, the page lines, the footers')
+failHint = 'change the function the check names (humanStamp, overviewRows, pinnedRow, lineageRows, tableLine, pageLines, memoryFooter, memoryPopupLine) in src/components/memory/memoryCentreLayout.ts'
 {
   const stamp = layout.humanStamp('2026-10-11T01:13:00.000Z')
   const local = new Date('2026-10-11T01:13:00.000Z')
@@ -252,6 +254,7 @@ function judgeOverview(label: string, scene: Scene): void {
 
 for (const [columns, rows] of [[80, 24], [100, 30], [120, 40]] as const) {
   section(`§2 the overview at ${columns}x${rows}`)
+  failHint = 'the /memory popup (src/commands/memory/memory.tsx) painted something else; compare the printed rows with overviewRows, memoryFooter and tableLine in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir> to see the screen'
   const scene = await openMemory(columns, rows)
   save(`memory-overview-${columns}x${rows}`, scene.m.lines())
   judgeOverview(`${columns}x${rows}`, scene)
@@ -281,6 +284,7 @@ for (const [columns, rows] of [[80, 24], [100, 30], [120, 40]] as const) {
 }
 
 section('§3 the lineage as a table and a session\'s note as a page (120x40, then the same page at 80x24 and 100x30)')
+failHint = 'the lineage table or note page of the /memory popup (src/commands/memory/memory.tsx) differs; compare with lineageRows, tableLine and pageLines in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
 for (const [columns, rows] of [[120, 40], [100, 30], [80, 24]] as const) {
   const scene = await openMemory(columns, rows)
   await moveTo(scene.m, 'lineage')
@@ -320,6 +324,7 @@ for (const [columns, rows] of [[120, 40], [100, 30], [80, 24]] as const) {
 }
 
 section('§4 the journal newest first and an entry as a page; the topics and a topic page (120x40)')
+failHint = 'the journal, topics or search views of the /memory popup (src/commands/memory/memory.tsx) differ; compare with pageLines and memoryFooter in src/components/memory/memoryCentreLayout.ts, or save frames with --frames <dir>'
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'journal')
@@ -370,6 +375,7 @@ section('§4 the journal newest first and an entry as a page; the topics and a t
 }
 
 section('§5 the instruction files picker rides the same popup; /memory files opens straight into it')
+failHint = 'the instruction files picker inside the /memory popup: check the files argument and MEMORY_FILES_CLOSED in src/commands/memory/memory.tsx, and the footers in memoryFooter in src/components/memory/memoryCentreLayout.ts'
 {
   const scene = await openMemory(120, 40)
   await moveTo(scene.m, 'instruction files')

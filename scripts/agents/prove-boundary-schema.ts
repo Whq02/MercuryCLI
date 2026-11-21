@@ -69,7 +69,7 @@ if (childAt !== -1) {
   const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'schema-'))
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '')) }
+  const check = (name: string, truth: unknown, detail?: unknown, hint?: string) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '') + (!truth && hint ? ' — to fix: ' + hint : '')) }
   const child = async (mode: string) => {
     const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], {
       cwd: home,
@@ -89,16 +89,16 @@ if (childAt !== -1) {
   }
   try {
     const launched = await child('launch')
-    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata)
+    check('the exact schema, strict requirement and source are durable launch facts', isDeepStrictEqual(launched.metadata?.structuredOutputSpec, spec), launched.metadata, 'runAgent in src/tools/AgentTool/runAgent.ts must write the structuredOutputSpec it was given into the agent metadata (type in src/utils/sessionStorage/paths.ts)')
     const resumed = await child('resume')
-    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed)
-    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec))
+    check('a prose-only continuation fails the original strict contract', resumed.status === 'failed', resumed, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must restore the stored structuredOutputSpec so a strict run that ends without a StructuredOutput call fails')
+    check('the resumed metadata still carries the strict contract', isDeepStrictEqual(resumed.metadata?.structuredOutputSpec, spec), resumed.metadata, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must pass the stored structuredOutputSpec back into runAgent and keep it in the metadata')
     const first = fixture.messageRequests()[0]?.body as any
     const second = fixture.messageRequests()[1]?.body as any
-    check('the same structured-output schema remains available in the fresh process', isDeepStrictEqual(first?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema, second?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema))
+    check('the same structured-output schema remains available in the fresh process', isDeepStrictEqual(first?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema, second?.tools.find((row: any) => row.name === 'StructuredOutput')?.input_schema), undefined, 'the resumed request must offer the StructuredOutput tool with the stored schema; see structuredOutputSpec in src/tools/AgentTool/resumeAgent.ts')
     const valid = await child('valid')
-    check('the same strict continuation accepts a newly validated payload', valid.status === 'completed', valid)
-    check('the conforming StructuredOutput call was actually executed', fixture.messageRequests().some(row => JSON.stringify(row.body).includes('Structured output provided successfully')))
+    check('the same strict continuation accepts a newly validated payload', valid.status === 'completed', valid, 'a resumed strict run that calls StructuredOutput with a payload matching the stored schema must complete; see src/tools/AgentTool/resumeAgent.ts')
+    check('the conforming StructuredOutput call was actually executed', fixture.messageRequests().some(row => JSON.stringify(row.body).includes('Structured output provided successfully')), undefined, 'the StructuredOutput tool call in the valid run was not executed; check how resumeAgent.ts hands the structuredOutputSpec to the resumed run')
     console.log('BOUNDARY SCHEMA ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; real launch/resume processes and validated tool execution')
   } finally { await fixture.close(); rmSync(home, { recursive: true, force: true }) }
   process.exitCode = failures ? 1 : 0

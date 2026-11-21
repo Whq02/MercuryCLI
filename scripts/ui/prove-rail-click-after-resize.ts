@@ -74,6 +74,7 @@ const SHRINK_AT = 70
 const GROW_AT = 110
 const tk = (authored: number): number => Math.round(authored * vshotBudgetScale())
 const STORM_AT = 140
+const RAIL_CLICK_HINT = 'fix the click-to-select path of the lanes rail rows: onSelect of InteractiveRow in WorkbenchCardRow and the lane row in src/components/HelmLanesRail.tsx must move the helm cursor (setHelmCursor or setHelmCursorBySig) after a terminal resize; the captured marks are in the artifacts folder named on the last line'
 
 mkdirSync(SCRATCH, { recursive: true })
 
@@ -115,10 +116,10 @@ for (const shape of SHAPES) {
     encoding: 'utf-8', timeout: vshotBudgetMs(420000), cwd: ROOT,
     env: { ...process.env, MERCURY_FULLSCREEN: '1', MERCURY_CONFIG_DIR: home, ANTHROPIC_API_KEY: FIXTURE_API_KEY, ...shape.env },
   })
-  check(`${shape.tag}: drive exits 0`, res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-500)}`)
+  check(`${shape.tag}: drive exits 0`, res.status === 0, `status ${res.status}: ${(res.stdout ?? '').slice(-500)} — the vshot drive failed: read its output above and rerun scripts/ui/vshot.py with the config in the artifacts folder named on the last line`)
   const undelivered = /UNDELIVERED-SENDS/.test(res.stdout ?? '')
   check(`${shape.tag}: every send became due (clicks resolved on the live grid)`, !undelivered,
-    (res.stdout ?? '').split('\n').filter(l => l.includes('UNDELIVERED')).join(' '))
+    `${(res.stdout ?? '').split('\n').filter(l => l.includes('UNDELIVERED')).join(' ')} — a scripted send never found its awaitText or click target on the live grid; the screen text in the sends list of this file no longer matches what src/components/HelmLanesRail.tsx draws`)
   if (res.status !== 0 || undelivered) continue
 
   const payload = JSON.parse(readFileSync(out, 'utf-8')) as { marks: Mark[] }
@@ -133,36 +134,36 @@ for (const shape of SHAPES) {
 
   check(`${shape.tag}: the warm-up press moves the caret from the workbench card, where the rail rested, to the mission row`,
     warmup !== undefined && caretOn(warmup.grid, 'no prompts sent yet') && click1 !== undefined && caretOn(click1.grid, '◆ relay probe') && !caretOn(click1.grid, 'no prompts sent yet'),
-    `before ${warmup ? JSON.stringify(rowWith(warmup.grid, 'no prompts sent yet')) : 'no warmup mark'} after ${click1 ? JSON.stringify(rowWith(click1.grid, '◆ relay probe')) : 'no click1 mark'}`)
-  check(`${shape.tag}: phase 1 closed before the shrink`, (after1?.atTick ?? 999) < tk(SHRINK_AT), `after1 @${after1?.atTick}`)
+    `before ${warmup ? JSON.stringify(rowWith(warmup.grid, 'no prompts sent yet')) : 'no warmup mark'} after ${click1 ? JSON.stringify(rowWith(click1.grid, '◆ relay probe')) : 'no click1 mark'} — ${RAIL_CLICK_HINT}`)
+  check(`${shape.tag}: phase 1 closed before the shrink`, (after1?.atTick ?? 999) < tk(SHRINK_AT), `after1 @${after1?.atTick} — phase 1 ran too late: the drive is starved or an earlier send stalled, check the awaitText of the sends list in this file`)
   check(`${shape.tag}: phase 2 fired after the shrink and closed before the grow`,
     (click2?.atTick ?? 0) > tk(SHRINK_AT) && (after2?.atTick ?? 999) < tk(GROW_AT),
-    `click2 @${click2?.atTick} after2 @${after2?.atTick}`)
+    `click2 @${click2?.atTick} after2 @${after2?.atTick} — the click did not land between the shrink and the grow: the drive is starved or a send stalled, check the awaitText and minTick of click2 and after2 in the sends list of this file`)
 
   check(`${shape.tag}: pre-resize click claims the workbench card`,
     after1 !== undefined && caretOn(after1.grid, 'no prompts sent yet'),
-    after1 ? JSON.stringify(rowWith(after1.grid, 'no prompts sent yet')) : 'no after1 mark')
+    `${after1 ? JSON.stringify(rowWith(after1.grid, 'no prompts sent yet')) : 'no after1 mark'} — ${RAIL_CLICK_HINT}`)
 
   check(`${shape.tag}: post-shrink click claims the mission row`,
     after2 !== undefined && caretOn(after2.grid, '◆ relay probe'),
-    after2 ? JSON.stringify(rowWith(after2.grid, '◆ relay probe')) : 'no after2 mark')
+    `${after2 ? JSON.stringify(rowWith(after2.grid, '◆ relay probe')) : 'no after2 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-shrink the workbench card released the caret`,
     after2 !== undefined && !caretOn(after2.grid, 'no prompts sent yet'),
-    after2 ? JSON.stringify(rowWith(after2.grid, 'no prompts sent yet')) : 'no after2 mark')
+    `${after2 ? JSON.stringify(rowWith(after2.grid, 'no prompts sent yet')) : 'no after2 mark'} — ${RAIL_CLICK_HINT}`)
 
   check(`${shape.tag}: post-grow click claims the workbench card again`,
     after3 !== undefined && caretOn(after3.grid, 'no prompts sent yet'),
-    after3 ? JSON.stringify(rowWith(after3.grid, 'no prompts sent yet')) : 'no after3 mark')
+    `${after3 ? JSON.stringify(rowWith(after3.grid, 'no prompts sent yet')) : 'no after3 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-grow the mission row released the caret`,
     after3 !== undefined && !caretOn(after3.grid, '◆ relay probe'),
-    after3 ? JSON.stringify(rowWith(after3.grid, '◆ relay probe')) : 'no after3 mark')
+    `${after3 ? JSON.stringify(rowWith(after3.grid, '◆ relay probe')) : 'no after3 mark'} — ${RAIL_CLICK_HINT}`)
 
   check(`${shape.tag}: post-storm click claims the mission row`,
     after4 !== undefined && caretOn(after4.grid, '◆ relay probe'),
-    after4 ? JSON.stringify(rowWith(after4.grid, '◆ relay probe')) : 'no after4 mark')
+    `${after4 ? JSON.stringify(rowWith(after4.grid, '◆ relay probe')) : 'no after4 mark'} — ${RAIL_CLICK_HINT}`)
   check(`${shape.tag}: post-storm the workbench card released the caret`,
     after4 !== undefined && !caretOn(after4.grid, 'no prompts sent yet'),
-    after4 ? JSON.stringify(rowWith(after4.grid, 'no prompts sent yet')) : 'no after4 mark')
+    `${after4 ? JSON.stringify(rowWith(after4.grid, 'no prompts sent yet')) : 'no after4 mark'} — ${RAIL_CLICK_HINT}`)
 
 }
 

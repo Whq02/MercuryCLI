@@ -25,7 +25,8 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = 'rows, scrubbing and stream reading are wrapFetchWithWireDump, scrubCredentials and createWireResponseReader in src/services/api/dumpPrompts.ts; the replay checks exercise readCapture, reportPairs and normalizeWireBody in scripts/api/wire-prefix-replay.ts; the section 2 checks run the built dist/mercury.mjs with MERCURY_WIRE_DUMP set'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

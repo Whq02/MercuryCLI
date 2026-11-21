@@ -4,10 +4,12 @@
 
 let failures = 0
 let checks = 0
+const profileFailHint = 'change the no-home-recursive-delete rule in AUTONOMOUS_WARDS (src/utils/wards/wards.ts) for a delete that is not denied, or what the rule should leave to the card, and deleteWardActive in src/guards/wardsGuard.ts for the MERCURY_SPAWNED_BY checks'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, profileFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

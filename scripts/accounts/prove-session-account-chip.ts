@@ -51,7 +51,7 @@ for (const base of [
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — hint: change sessionAccountFamily or sessionAccountWords in src/services/accounts/sessionAccount.ts (checks C1 to C5), or evaluateComputedDefault and computedDefault in src/services/model/computedDefault.ts (check C7)' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n── ${t} ${'─'.repeat(Math.max(2, 68 - t.length))}`)

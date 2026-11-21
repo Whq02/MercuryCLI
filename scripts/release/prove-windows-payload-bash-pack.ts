@@ -6,9 +6,10 @@ import { dirname, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+const BASH_PACK_FIX_HINT = 'to fix: change bundledVendorPacks / checkBundledVendorPacks / vendorPackTreeDigest in scripts/release/payloadContract.mjs (the bash row and its tree check), or vendor/bash.lock.json when the lock and the row disagree'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` | ${BASH_PACK_FIX_HINT}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const flagAt = (flag: string): string | null => (process.argv.includes(flag) ? (process.argv[process.argv.indexOf(flag) + 1] ?? null) : null)

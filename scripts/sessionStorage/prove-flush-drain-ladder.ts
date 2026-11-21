@@ -12,8 +12,9 @@ delete process.env.MERCURY_HOME
 const writer = await import(join(SRC, 'utils/sessionStorage/writer.ts'))
 
 let failures = 0
+const drainLadderFailHint = 'fix the drain, retry timer and failure streak in src/utils/sessionStorage/writer/queue.ts, the flush entry flushSessionStorage in src/utils/sessionStorage/writer.ts, or the published fact in src/utils/sessionStorage/writer/storeHealth.ts (transcriptStoreHealth)'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${drainLadderFailHint}`}`)
   if (!ok) failures = 1
 }
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))

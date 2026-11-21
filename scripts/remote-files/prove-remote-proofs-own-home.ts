@@ -8,10 +8,11 @@ const HOME = underScratchHome(import.meta.path)
 
 let failures = 0
 let checks = 0
+const OWN_HOME_FIX_HINT = 'to fix: a proof named in the label must call underScratchHome(import.meta.path) from ./remoteKit.ts on its first lines, before any import of ../../src/; a check on the kit or on this run reads scripts/remote-files/remoteKit.ts (underScratchHome and the private sshd settings)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 300)}` : ''}${!ok ? ` | ${OWN_HOME_FIX_HINT}` : ''}`)
 }
 
 const here = import.meta.dir

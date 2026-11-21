@@ -23,7 +23,7 @@ const { CANCEL_MESSAGE } = await import('../../src/services/messages.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix runToolUse in src/services/tools/toolExecution.ts (start and terminal observations are published from src/utils/run/effectObserver.ts)` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -31,7 +31,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — transaction proof exceeded 60s')
+  console.log('\n❌ TIMEOUT — transaction proof exceeded 60s; a runToolUse call in src/services/tools/toolExecution.ts never finished')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

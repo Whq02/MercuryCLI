@@ -3,10 +3,12 @@ process.env.NODE_ENV = 'test'
 
 import { Readable, Writable } from 'node:stream'
 
+const OPEN_GATE_HINT = 'to fix, change how an opened palette ignores the key that opened it (src/components/mercury-ui/useOpenEventGate.ts, used by src/components/MercuryCommandPalette.tsx), or how every stdin event bumps the sequence (currentInputEventSeq in src/ink/events/input-event.ts)'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ` — ${OPEN_GATE_HINT}` : ''}`)
 }
 
 const React = await import('react')

@@ -7,11 +7,13 @@ import {
 } from '../../src/utils/messages/rejectionText.js'
 
 let failures = 0
+const denialClassifierHint =
+  'fix isDenialResultText in src/utils/messages/rejectionText.ts: the REJECT_MESSAGE canon and any text carrying " has been denied" plus DENIAL_WORKAROUND_GUIDANCE must classify, and the retired switchboard wording must not'
 const check = (name: string, ok: boolean, detail?: string): void => {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  RED ${name}${detail ? ` — ${detail}` : ''} — ${denialClassifierHint}`)
   }
 }
 

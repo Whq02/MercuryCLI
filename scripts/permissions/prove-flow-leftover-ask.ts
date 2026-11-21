@@ -40,6 +40,8 @@ const MODEL = 'claude-opus-5'
 const FIXTURE_API_KEY = 'fixture-key-000'
 const VERDICT_WORDS = [VERDICT_REASON, 'safety check', 'Permission for this action has been denied. Reason:', 'consent card']
 const HEADLESS_REFUSAL_WORDS = ['auto-denied', '--allowed-tools', '--mode']
+const leftoverAskHint = 'a git push under Flow must ask once with the one-sentence reason from flowAskSentence, and a commit must not ask: see decideUnderFlow in src/utils/permissions/flowPolicy.ts and flowShellAsk in src/utils/permissions/flowLaw.ts · '
+const leftoverWireHint = 'no verdict classifier request or denial text may reach the wire under Flow: see decideUnderFlow in src/utils/permissions/flowPolicy.ts · '
 
 type Route = 'verdict' | 'parent' | 'parent-ack' | 'seat-1' | 'seat-done' | 'side'
 interface Hit {
@@ -481,25 +483,25 @@ async function runLeg(leg: Leg): Promise<void> {
   const shellResult = doneHit?.results[doneHit.results.length - 1]
 
   const blocked = !leg.channel && !leg.free
-  check(`${leg.name}: the run settled (${turns.length} turn${turns.length === 1 ? '' : 's'}) and exited ${blocked ? '1 (the one call nobody could answer leaves the turn blocked)' : '0'}`, texts.length === turns.length && run.exit === (blocked ? 1 : 0), `${texts.length} result(s) · exit ${run.exit} · stderr ${j(run.stderr.slice(-300))}`)
-  check(`${leg.name}: every request on the wire is the main loop's own (streaming, the session's tools) — no request left for the decision`, others.length === 0 && mainLoop.length === fixture.hits.length && fixture.hits.length >= 2, `${fixture.hits.length} hit(s): ${fixture.hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(' ')}`)
-  check(`${leg.name}: no verdict words anywhere on the wire`, VERDICT_WORDS.every(w => !wireJson.includes(w)), wireJson.slice(0, 400))
+  check(`${leg.name}: the run settled (${turns.length} turn${turns.length === 1 ? '' : 's'}) and exited ${blocked ? '1 (the one call nobody could answer leaves the turn blocked)' : '0'}`, texts.length === turns.length && run.exit === (blocked ? 1 : 0), `the run did not settle as expected, read the stderr tail below · ${texts.length} result(s) · exit ${run.exit} · stderr ${j(run.stderr.slice(-300))}`)
+  check(`${leg.name}: every request on the wire is the main loop's own (streaming, the session's tools) — no request left for the decision`, others.length === 0 && mainLoop.length === fixture.hits.length && fixture.hits.length >= 2, `${leftoverWireHint}${fixture.hits.length} hit(s): ${fixture.hits.map(h => `${h.route}${h.streaming ? '' : '/json'}`).join(' ')}`)
+  check(`${leg.name}: no verdict words anywhere on the wire`, VERDICT_WORDS.every(w => !wireJson.includes(w)), leftoverWireHint + wireJson.slice(0, 400))
 
   if (leg.free) {
-    check(`${leg.name}: no ask left the session — a commit is none of the five`, asks.length === 0, `${asks.length} ask(s)`)
+    check(`${leg.name}: no ask left the session — a commit is none of the five`, asks.length === 0, `${leftoverAskHint}${asks.length} ask(s)`)
     check(`${leg.name}: the commit ran without a question (the new commit and its sha came back)`, commits === '2' && after !== world.sha && isSha(firstLine(shellResult)) && firstLine(shellResult) === after, `head ${after} · commits ${commits} · ${j(quoted(shellResult))}`)
     check(`${leg.name}: no refusal is returned`, HEADLESS_REFUSAL_WORDS.every(w => !(shellResult ?? '').includes(w)) && !wireJson.includes('has been denied'), j(quoted(shellResult)))
     check(`${leg.name}: the result wears no verdict words`, VERDICT_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))
   } else if (leg.channel) {
-    check(`${leg.name}: ONE permission/request left the seat for the shell — the push, parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${asks.length} request(s)`)
-    check(`${leg.name}: the ask names item 2 of the five in one sentence and nothing else`, asks[0]?.reason === PUSH_WORDS && VERDICT_WORDS.every(w => !askJson.includes(w)), askJson.slice(0, 400))
+    check(`${leg.name}: ONE permission/request left the seat for the shell — the push, parked with the host`, asks.length === 1 && asks[0]?.tool_name === 'Bash' && String((asks[0]?.input as { command?: string })?.command).includes(PROBE_COMMIT), `${leftoverAskHint}${asks.length} request(s)`)
+    check(`${leg.name}: the ask names item 2 of the five in one sentence and nothing else`, asks[0]?.reason === PUSH_WORDS && VERDICT_WORDS.every(w => !askJson.includes(w)), leftoverAskHint + askJson.slice(0, 400))
     if (leg.agent) {
       check(`${leg.name}: the request carries the background agent's id`, typeof asks[0]?.agent_id === 'string' && String(asks[0]?.agent_id).length > 0, askJson.slice(0, 300))
     }
     check(`${leg.name}: the host's allow ran the shell — the probe commit landed, was published to origin, and its sha came back`, isSha(firstLine(shellResult)) && firstLine(shellResult) === after && commits === '2' && after !== world.sha && published === after, `${j(quoted(shellResult))} · head ${after} · origin ${published} · commits ${commits}`)
-    check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes('auto-denied'), wireJson.slice(0, 400))
+    check(`${leg.name}: no denial anywhere on the wire`, !wireJson.includes('has been denied') && !wireJson.includes('auto-denied'), leftoverWireHint + wireJson.slice(0, 400))
   } else {
-    check(`${leg.name}: no ask left the run (no host)`, asks.length === 0, `${asks.length} ask(s)`)
+    check(`${leg.name}: no ask left the run (no host)`, asks.length === 0, `${leftoverAskHint}${asks.length} ask(s)`)
     check(`${leg.name}: nobody could answer, so nothing ran — no commit, nothing published`, commits === '1' && after === world.sha && published === '', `head ${after} · commits ${commits} · origin ${published}`)
     check(`${leg.name}: the refusal leads with the five's sentence and names the roads that let it run`, (shellResult ?? '').includes(PUSH_WORDS) && (shellResult ?? '').includes('--allowed-tools'), j(quoted(shellResult)))
     check(`${leg.name}: the result wears no verdict words`, VERDICT_WORDS.every(w => !(shellResult ?? '').includes(w)), j(quoted(shellResult)))

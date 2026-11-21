@@ -19,8 +19,9 @@ const adapter = await import('../../src/services/instructions/nativeSource.ts')
 const { resetSettingsCache } = await import('../../src/utils/settings/settingsCache.ts')
 
 let failures = 0
+const excludesScopeFailHint = 'fix isProjectInstructionExcluded (the isExcluded of mercuryNativeConvention in src/services/instructions/nativeSource.ts) so a briefs.exclude pattern applies only to files of the scope whose settings declared it'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + excludesScopeFailHint}`)
   if (!cond) failures++
 }
 

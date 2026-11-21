@@ -24,7 +24,7 @@ console.log(' the delivery drill — a mid-tool send lands once, the stop speaks
 console.log('============================================================')
 
 if (!existsSync(BIN)) {
-  check('dist/mercury.mjs exists (build first)', false)
+  check('dist/mercury.mjs exists (build first)', false, 'dist/mercury.mjs is missing: run bun run build.ts at the repo root, then run this drill again')
   process.exit(1)
 }
 
@@ -73,7 +73,7 @@ const res = spawnSync('/usr/bin/python3', [VSHOT, cfgPath], {
   },
 })
 if (res.status !== 0) {
-  check('PTY capture ran', false, `exit=${res.status} ${(res.stderr ?? '').slice(0, 300)}`)
+  check('PTY capture ran', false, `exit=${res.status} ${(res.stderr ?? '').slice(0, 300)} | the vshot capture (scripts/ui/vshot.py) failed or timed out: read its stderr above, and check that dist/mercury.mjs starts and the hammer-breaker script in src/query/scriptedStream.ts still runs`)
   process.exit(1)
 }
 
@@ -83,10 +83,10 @@ const lines = grid.map(r => r.map(c => c.c).join(''))
 const screen = lines.join('\n')
 const flat = screen.replace(/\s+/g, ' ')
 
-check('M1 the drive ran (the first prompt is on the glass)', flat.includes('please list that directory'), screen.slice(0, 800))
+check('M1 the drive ran (the first prompt is on the glass)', flat.includes('please list that directory'), 'the first prompt never reached the screen: the capture did not get past the New Session face and Type a prompt waits in this drill; screen: ' + screen.slice(0, 800))
 
 const paintCount = lines.filter(l => /\[sam\] ❯ mid tool words xyzzy/.test(l)).length
-check('M2 the mid-tool message paints EXACTLY ONCE in the transcript (delivered, never doubled, never vanished)', paintCount === 1, `nameplated rows=${paintCount}`)
+check('M2 the mid-tool message paints EXACTLY ONCE in the transcript (delivered, never doubled, never vanished)', paintCount === 1, `nameplated rows=${paintCount} | a message sent mid-tool must paint once in the transcript: 0 means it vanished, 2 or more means it was delivered twice; find the path that delivers a message typed while a tool runs`)
 
 {
   let rows = 0
@@ -110,11 +110,11 @@ check('M2 the mid-tool message paints EXACTLY ONCE in the transcript (delivered,
     }
   } catch {
   }
-  check('M3 the transcript store carries it exactly once', files > 0 && rows === 1, `files=${files} rows=${rows}`)
+  check('M3 the transcript store carries it exactly once', files > 0 && rows === 1, `files=${files} rows=${rows} | the session transcript under the config home projects folder must hold the mid-tool message as exactly one input or attachment row; 0 means it was never stored, 2 or more means it was stored twice`)
 }
 
 for (const poison of ['steering', 'queued —', 'waits for the next turn', 'Tab queues', 'holds for the next turn']) {
-  check(`M4 the glass never says '${poison}'`, !flat.includes(poison))
+  check(`M4 the glass never says '${poison}'`, !flat.includes(poison), 'the screen shows a retired delivery phrase, so a message sent mid-tool is announced as queued or steering; remove that wording from the screen text that announces mid-tool delivery')
 }
 
 console.log('\n' + '='.repeat(60))

@@ -69,7 +69,7 @@ if (childAt !== -1) {
   const home = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR, 'thinking-'))
   let checks = 0
   let failures = 0
-  const check = (name: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '')) }
+  const check = (name: string, truth: unknown, detail?: unknown, hint?: string) => { checks++; if (!truth) failures++; console.log((truth ? 'PASS ' : 'FAIL ') + name + (!truth && detail ? ' — ' + JSON.stringify(detail) : '') + (!truth && hint ? ' — to fix: ' + hint : '')) }
   const child = async (mode: string) => {
     const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode], {
       cwd: home,
@@ -90,17 +90,17 @@ if (childAt !== -1) {
   const bodyAt = (index: number) => fixture.messageRequests()[index]?.body as any
   try {
     const launched = await child('launch')
-    check('an ordinary crewmate keeps enabled thinking without requiring an effort override', bodyAt(0)?.thinking?.type === 'adaptive' || bodyAt(0)?.thinking?.type === 'enabled', bodyAt(0)?.thinking)
-    check('launch persists the exact enabled thinking configuration and token budget', isDeepStrictEqual(launched.metadata?.thinkingConfig, thinking), launched.metadata)
+    check('an ordinary crewmate keeps enabled thinking without requiring an effort override', bodyAt(0)?.thinking?.type === 'adaptive' || bodyAt(0)?.thinking?.type === 'enabled', bodyAt(0)?.thinking, 'the launched crewmate request must carry a thinking block of type adaptive or enabled; look at how runAgent in src/tools/AgentTool/runAgent.ts resolves thinkingConfig from the parent options')
+    check('launch persists the exact enabled thinking configuration and token budget', isDeepStrictEqual(launched.metadata?.thinkingConfig, thinking), launched.metadata, 'the agent metadata written at launch must record the parent thinkingConfig unchanged (field thinkingConfig in src/utils/sessionStorage/paths.ts)')
     const resumed = await child('resume')
-    check('a fresh resumed process retains thinking despite its parent now disabling it', bodyAt(1)?.thinking?.type === bodyAt(0)?.thinking?.type && bodyAt(1)?.thinking?.type !== undefined && bodyAt(1)?.thinking?.type !== 'disabled', bodyAt(1)?.thinking)
-    check('the continuation retains the original thinking budget in its metadata', isDeepStrictEqual(resumed.metadata?.thinkingConfig, thinking), resumed.metadata)
-    check('the earlier signed thinking block reaches the continuation unchanged', bodyAt(1)?.messages.some((row: any) => Array.isArray(row.content) && row.content.some((block: any) => block.type === 'thinking' && block.thinking === 'kept signed thought' && block.signature === 'fixture-signed-thinking')))
+    check('a fresh resumed process retains thinking despite its parent now disabling it', bodyAt(1)?.thinking?.type === bodyAt(0)?.thinking?.type && bodyAt(1)?.thinking?.type !== undefined && bodyAt(1)?.thinking?.type !== 'disabled', bodyAt(1)?.thinking, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must pass the stored meta.thinkingConfig as thinkingConfigOverride, not the resuming parent option')
+    check('the continuation retains the original thinking budget in its metadata', isDeepStrictEqual(resumed.metadata?.thinkingConfig, thinking), resumed.metadata, 'resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts must keep meta.thinkingConfig in the metadata it writes back')
+    check('the earlier signed thinking block reaches the continuation unchanged', bodyAt(1)?.messages.some((row: any) => Array.isArray(row.content) && row.content.some((block: any) => block.type === 'thinking' && block.thinking === 'kept signed thought' && block.signature === 'fixture-signed-thinking')), bodyAt(1)?.messages, 'the resumed request must replay the first turn thinking block with its text and signature unchanged; the resume path is resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts')
     await child('default')
-    check('an absent parent option follows the established thinking-on default', bodyAt(2)?.thinking?.type === 'adaptive' || bodyAt(2)?.thinking?.type === 'enabled')
+    check('an absent parent option follows the established thinking-on default', bodyAt(2)?.thinking?.type === 'adaptive' || bodyAt(2)?.thinking?.type === 'enabled', bodyAt(2)?.thinking, 'when the parent options carry no thinkingConfig, the crewmate request must still send thinking adaptive or enabled')
     await child('disabled')
-    check('an explicitly disabled new launch remains disabled', bodyAt(3)?.thinking === undefined || bodyAt(3)?.thinking?.type === 'disabled')
-    check('all four turns settle through the selected Messages route', fixture.messageRequests().length === 4 && fixture.messageRequests().every(row => (row.body as any).model === model))
+    check('an explicitly disabled new launch remains disabled', bodyAt(3)?.thinking === undefined || bodyAt(3)?.thinking?.type === 'disabled', bodyAt(3)?.thinking, 'a launch whose parent thinkingConfig is disabled must send no thinking block or type disabled')
+    check('all four turns settle through the selected Messages route', fixture.messageRequests().length === 4 && fixture.messageRequests().every(row => (row.body as any).model === model), fixture.messageRequests().map(row => (row.body as any).model), 'expected exactly four Messages requests, all on the fixture model; a missing or extra request means a child run did not reach the fixture or retried')
     console.log('BOUNDARY THINKING ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; actual worker requests, synthetic signed reasoning, loopback only')
   } finally { await fixture.close(); rmSync(home, { recursive: true, force: true }) }
   process.exitCode = failures ? 1 : 0

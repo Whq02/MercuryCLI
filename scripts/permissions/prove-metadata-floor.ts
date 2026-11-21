@@ -20,10 +20,12 @@ const { WebFetchTool } = await load('src/tools/WebFetchTool/WebFetchTool.ts')
 const { BrowserTool } = await load('src/tools/BrowserTool/BrowserTool.ts')
 let failures = 0
 let checks = 0
+const metadataFloorHint = 'fix the guard the label names: the tool decision in src/utils/permissions/decision/engine.ts (decideToolPermission), metadataSafeAddresses in src/tools/WebFetchTool/privateHost.ts, fetchPage in src/tools/WebFetchTool/fetchTransport.ts, tryStructuredFetch in src/tools/WebFetchTool/structuredHosts.ts, or startMetadataProxy in src/services/browser/metadataProxy.ts; cloud metadata addresses must be refused and ordinary private addresses must stay available'
 function check(label: string, ok: boolean, detail = '') {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shownDetail = ok ? detail : [detail, metadataFloorHint].filter(part => part !== '').join(' — ')
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${shownDetail ? ` — ${shownDetail}` : ''}`)
 }
 const hosts = ['169.254.169.254', '169.254.170.2', '169.254.169.253', '100.100.100.200', '[fd00:ec2::254]', 'metadata.google.internal', 'metadata.goog', '169.254.0.1', '169.254.255.255', '2852039166', '0xa9fea9fe', '0251.0376.0251.0376', '[::ffff:169.254.169.254]', '[::ffff:a9fe:a9fe]', '[::169.254.169.254]', '[64:ff9b::169.254.169.254]', '[::ffff:0:169.254.169.254]', '[::100.100.100.200]', '[64:ff9b::100.100.100.200]']
 const context = (mode: string) => ({ abortController: new AbortController(), getAppState: () => ({ toolPermissionContext: { ...getEmptyToolPermissionContext(), mode, alwaysAllowRules: { session: ['WebFetch', 'Browser'] } } }), options: {}, messages: [] })

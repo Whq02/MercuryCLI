@@ -15,6 +15,9 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
+const launchBpHint = ' — a failed or slow setBreakpoints round must be recorded unverified with its reason and must not fail the launch; see the breakpoint round in src/services/dap/client/start.ts and createDapSession in src/services/dap/dapClient.ts'
+const launchResultHint = ' — the launch result text is built in src/tools/DebugTool/DebugTool.ts (the launch path that prints UNVERIFIED lines)'
+
 async function main(): Promise<void> {
   const MOCK = join(import.meta.dir, 'mock-dap-adapter.mjs')
   process.env.MERCURY_DAP_ADAPTERS = JSON.stringify({ mock: { command: process.execPath, args: [MOCK] } })
@@ -44,11 +47,11 @@ async function main(): Promise<void> {
     } catch (e) {
       error = e instanceof Error ? e.message : String(e)
     }
-    check('the launch succeeded despite the refusal', session !== undefined, error)
-    check('the session is registered and live', getDapSession(OWNER, 'refused') !== undefined && session?.alive === true)
+    check('the launch succeeded despite the refusal', session !== undefined, error + launchBpHint)
+    check('the session is registered and live', getDapSession(OWNER, 'refused') !== undefined && session?.alive === true, launchBpHint)
     const rows = session?.breakpoints.get('/tmp/demo.py') ?? []
-    check('the lines are recorded UNVERIFIED with the reason', rows.length === 2 && rows.every(r => r.verified === false && /no symbols loaded/.test(r.message ?? '')), JSON.stringify(rows))
-    check('the ring says the round failed and the program runs without them', (session?.output ?? []).some(l => l.includes('breakpoints for /tmp/demo.py') && l.includes('program runs without them')), (session?.output ?? []).join(' | '))
+    check('the lines are recorded UNVERIFIED with the reason', rows.length === 2 && rows.every(r => r.verified === false && /no symbols loaded/.test(r.message ?? '')), JSON.stringify(rows) + launchBpHint)
+    check('the ring says the round failed and the program runs without them', (session?.output ?? []).some(l => l.includes('breakpoints for /tmp/demo.py') && l.includes('program runs without them')), (session?.output ?? []).join(' | ') + launchBpHint)
     delete process.env.MOCK_DAP_REFUSE_BREAKPOINTS
     await removeDapSession(OWNER, 'refused')
   }
@@ -72,8 +75,8 @@ async function main(): Promise<void> {
       error = e instanceof Error ? e.message : String(e)
     }
     const took = Date.now() - t0
-    check('the launch waited the slow round out', session !== undefined && took >= 8_500, `${error} after ${took}ms`)
-    check('the breakpoint verified once the adapter answered', (session?.breakpoints.get('/tmp/demo.py') ?? []).some(r => r.verified === true), JSON.stringify(session?.breakpoints.get('/tmp/demo.py')))
+    check('the launch waited the slow round out', session !== undefined && took >= 8_500, `${error} after ${took}ms` + launchBpHint)
+    check('the breakpoint verified once the adapter answered', (session?.breakpoints.get('/tmp/demo.py') ?? []).some(r => r.verified === true), JSON.stringify(session?.breakpoints.get('/tmp/demo.py')) + launchBpHint)
     delete process.env.MOCK_DAP_BREAKPOINT_DELAY_MS
     await removeDapSession(OWNER, 'slow')
   }
@@ -85,8 +88,8 @@ async function main(): Promise<void> {
       { op: 'launch', adapter: 'mock', program: '/tmp/demo.py', file: '/tmp/demo.py', lines: [3] } as never,
       {} as never,
     )) as { data: { result: string; outcome?: string } }
-    check('the tool reports a launch, not a failure', /launched/.test(launched.data.result) && !/launch failed/.test(launched.data.result), launched.data.result.split('\n')[0])
-    check('…naming the line UNVERIFIED with the reason', /UNVERIFIED/.test(launched.data.result) && /no symbols loaded/.test(launched.data.result), launched.data.result)
+    check('the tool reports a launch, not a failure', /launched/.test(launched.data.result) && !/launch failed/.test(launched.data.result), launched.data.result.split('\n')[0] + launchResultHint)
+    check('…naming the line UNVERIFIED with the reason', /UNVERIFIED/.test(launched.data.result) && /no symbols loaded/.test(launched.data.result), launched.data.result + launchResultHint)
     delete process.env.MOCK_DAP_REFUSE_BREAKPOINTS
     await DebugTool.call({ op: 'disconnect' } as never, {} as never)
   }

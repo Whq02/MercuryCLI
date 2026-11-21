@@ -28,7 +28,7 @@ let checks = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | to fix: the open-time list read is useCatalogueRefreshOnOpen and MOONSHOT_ROAD in src/commands/model/picker/roads.ts; the list and its rows come from src/services/providers/moonshot/moonshotCatalogue.ts (refreshMoonshotCatalogue); if the drive itself did not reach every state, read capture.log in the scratch folder printed at the top and rebuild dist/mercury.mjs'}`)
 }
 type Cell = { c?: string }
 type Grid = Cell[][]

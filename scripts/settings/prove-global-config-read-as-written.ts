@@ -23,9 +23,10 @@ const launchDir = process.cwd()
 process.chdir(CWD)
 
 let failures = 0
+const globalConfigWrittenFailHint = 'fix how getGlobalConfig and saveGlobalConfig in src/utils/config/globalConfig.ts load and save the file (keys the schema in src/utils/config/schema.ts does not declare must stay as written, and no default may be written in their place); the built-product leg also boots dist/mercury.mjs, so run bun run build.ts after a fix'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${globalConfigWrittenFailHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)

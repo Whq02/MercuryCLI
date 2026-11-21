@@ -27,7 +27,7 @@ const TOKEN = 'at_signed_out_runner_proof'
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — hint: a process that booted signed out must re-read a credential stored later; change checkAndRefreshOAuthTokenIfNeeded in src/services/auth/oauthLifecycle.ts, or the cached reads getClaudeAIOAuthTokens and getAnthropicApiKeyWithSource in src/utils/auth.ts' : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

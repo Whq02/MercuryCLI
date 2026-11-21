@@ -84,14 +84,14 @@ if (childMode !== -1) {
     f.state.slots = 4
     writeStoredRunpodApiKey(rp.key)
     const watch = queueHostWatch({ id: 'boundary-watch', name: privateRecipe.label, recipe: privateRecipe.id, price: 10, status: 'WATCHING', startedAt: new Date().toISOString(), apiBaseUrl: rp.baseUrl, sessionId: 'boundary-session', workspace: f.home })
-    check('the foreground saves its private recipe before it exits', watch.recipeRow?.id === privateRecipe.id)
+    check('the foreground saves its private recipe before it exits', watch.recipeRow?.id === privateRecipe.id, 'queueHostWatch in src/services/host/jobs.ts must store the selected recipe on the record as recipeRow')
     await child('watch')
     const setup = hostRecords().find(row => row.watchedFrom === watch.id)
-    check('watch-created setup carries the exact selected recipe across its next handoff', setup && isDeepStrictEqual(hostRecipeOfRecord(setup), privateRecipe))
-    check('a private-recipe watch completes setup rather than terminating the newly rented pod', setup?.jobState === 'ready' && rp.state.creates === 1 && rp.state.deletes === 0, JSON.stringify(setup))
+    check('watch-created setup carries the exact selected recipe across its next handoff', setup && isDeepStrictEqual(hostRecipeOfRecord(setup), privateRecipe), 'the setup record made by the watch must keep the watch recipeRow unchanged; see queueHostSetup in src/services/host/jobs.ts and hostRecipeOfRecord in src/services/host/recipesFile.ts')
+    check('a private-recipe watch completes setup rather than terminating the newly rented pod', setup?.jobState === 'ready' && rp.state.creates === 1 && rp.state.deletes === 0, JSON.stringify(setup) + ' - runHostJob in src/services/host/worker.ts must finish a watch by setting up the pod it rented, not deleting it')
     const commands = readFileSync(join(f.home, 'worker-commands.json'), 'utf8')
-    check('the separate worker launches the private recipe flags', commands.includes('--boundary-proof-marker'))
-    check('workspace, session, vendor address and SSH key remain attached to the watch result', setup?.workspace === f.home && setup.sessionId === 'boundary-session' && setup.apiBaseUrl === rp.baseUrl && setup.sshKey === join(f.home, 'host', 'keys', 'id_ed25519'))
+    check('the separate worker launches the private recipe flags', commands.includes('--boundary-proof-marker'), 'the commands the worker ran over ssh (worker-commands.json) lack the private recipe flags; runHostJob in src/services/host/worker.ts must launch the recipe from the record recipeRow')
+    check('workspace, session, vendor address and SSH key remain attached to the watch result', setup?.workspace === f.home && setup.sessionId === 'boundary-session' && setup.apiBaseUrl === rp.baseUrl && setup.sshKey === join(f.home, 'host', 'keys', 'id_ed25519'), 'the setup record handed over by a watch in runHostJob (src/services/host/worker.ts) must carry workspace, sessionId, apiBaseUrl and sshKey from the watch record: ' + JSON.stringify(setup))
     for (const record of hostRecords()) removeHostRecord(record.id)
     delete process.env.MERCURY_HOST_RECIPES_FILE
     const savedRecipe = { ...source, flags: [...source.flags, '--saved-recipe-marker'] }
@@ -99,7 +99,7 @@ if (childMode !== -1) {
       writeHostRecord({ id: 'saved-' + kind, name: source.label, recipe: source.id, recipeRow: savedRecipe, price: 0, startedAt: new Date().toISOString(), status: 'FAILED', jobKind: kind, jobState: 'failed' })
     }
     await child('requeue')
-    for (const kind of ['setup', 'watch', 'bank']) check('requeued ' + kind + ' preserves its saved recipe instead of the same-id shipped recipe', readHostRecord('saved-' + kind)?.recipeRow?.flags.includes('--saved-recipe-marker'))
+    for (const kind of ['setup', 'watch', 'bank']) check('requeued ' + kind + ' preserves its saved recipe instead of the same-id shipped recipe', readHostRecord('saved-' + kind)?.recipeRow?.flags.includes('--saved-recipe-marker'), 'queueHostSetup, queueHostWatch and queueHostBank in src/services/host/jobs.ts must prefer the record recipeRow over the shipped recipe with the same id (see jobRecipe)')
     console.log('BOUNDARY WORKER ' + (failures ? 'RED' : 'GREEN') + ' — ' + (checks - failures) + '/' + checks + '; spawned workers, loopback vendor and model only')
   } finally { delete process.env.MERCURY_HOST_RECIPES_FILE; await rp.close(); f.close() }
   process.exitCode = failures ? 1 : 0

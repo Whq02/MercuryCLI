@@ -81,8 +81,9 @@ if (process.argv.includes('--process-defaults')) {
 }
 
 let failures = 0
+const pinsFailHint = 'change the code the section title names: src/ink.ts (render, createRoot, re-exports), src/ink/root.ts (renderSync, render, createRoot) or src/ink/frame.ts (emptyFrame and the frame types); change this file only if the pinned behaviour was meant to change'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + ' · ' : '') + pinsFailHint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -500,10 +501,10 @@ export type Pins = [
     return unit ? [...program.getSyntacticDiagnostics(unit), ...program.getSemanticDiagnostics(unit)] : []
   }
   const pinNotes = told(pinsFile)
-  check('all 22 type pins hold (frame vocabulary, the mount types, the door\'s types)', pinNotes.length === 0, pinNotes.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).slice(0, 3).join(' | '))
+  check('all 22 type pins hold (frame vocabulary, the mount types, the door\'s types)', pinNotes.length === 0, pinNotes.map(d => ts.flattenDiagnosticMessageText(d.messageText, ' ')).slice(0, 3).join(' | ') + ' (the first three type errors; fix the exported type named in them in src/ink/frame.ts or src/ink/root.ts)')
   const teethNotes = told(teethFile)
   const caughtLines = new Set(teethNotes.map(d => (d.file ? d.file.getLineAndCharacterOfPosition(d.start ?? 0).line : -1)))
-  check(`each of the ${planted.length} planted faults is caught on its own line (a dropped reason, kind, field rename, readonly, optional phases, pool, door, required stdout)`, teethNotes.length === planted.length && caughtLines.size === planted.length && teethNotes.every(d => d.code === 2344), `${teethNotes.length} notes: ${teethNotes.map(d => d.code).join(',')}`)
+  check(`each of the ${planted.length} planted faults is caught on its own line (a dropped reason, kind, field rename, readonly, optional phases, pool, door, required stdout)`, teethNotes.length === planted.length && caughtLines.size === planted.length && teethNotes.every(d => d.code === 2344), `${teethNotes.length} notes: ${teethNotes.map(d => d.code).join(',')} (a planted fault passed or failed on the wrong line, so a pin in this file is too loose; tighten the Equal pin in the pins text of section 9)`)
 }
 
 rmSync(scratch, { recursive: true, force: true })

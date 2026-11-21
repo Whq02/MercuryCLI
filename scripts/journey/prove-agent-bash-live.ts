@@ -20,9 +20,10 @@ if (!existsSync(DIST)) {
 const DRIVER = resolveCaptureDriver()
 
 let failures = 0
+const LEG_HINT = 'where to look: the evidence line above lists every request this leg made (route, dialect, model, tools); a wire check fails when the seat agent did not get Bash, a command was refused or not run, or the report did not reach the parent; the consent card is src/components/permissions/BashPermissionRequest/BashPermissionRequest.tsx and the headless auto-denied note comes from src/services/tools/toolExecution.ts; rebuild dist with bun run build.ts after a source change, and rerun one leg with AB_LEG=<leg> and AB_KEEP=1'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${LEG_HINT}` : ''}`)
 }
 const KEEP = process.env.AB_KEEP === '1'
 
@@ -470,7 +471,7 @@ async function capture(cfg: Record<string, unknown>, env: Record<string, string>
       resolve()
     })
   })
-  if (!existsSync(outPath)) throw new Error(`vshot wrote no grid: ${stderr.join('').slice(0, 400)}`)
+  if (!existsSync(outPath)) throw new Error(`vshot wrote no grid: ${stderr.join('').slice(0, 400)} | the pty capture (scripts/ui/vshot.py) timed out or crashed; read its stderr here and check that dist/mercury.mjs starts`)
   const payload = JSON.parse(readFileSync(outPath, 'utf8')) as {
     grid: Grid
     sendReceipts?: unknown[]

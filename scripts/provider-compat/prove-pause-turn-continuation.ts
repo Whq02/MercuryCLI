@@ -15,9 +15,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
+let failHintWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, failHintWhere].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && failText ? ` — ${failText}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
@@ -55,6 +57,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 type AnyMsg = Record<string, unknown> & { type?: string }
 
 section('P1 the decision')
+failHintWhere = 'to fix, change decidePauseTurnContinuation and PAUSE_TURN_CONTINUATION_LIMIT in src/run-core/turn/judgements.ts (re-exported by src/run-core/turn-machine.ts)'
 {
   const decide = (turnMachine as { decidePauseTurnContinuation?: (input: { continuations: number }) => { kind: string; attempt?: number } }).decidePauseTurnContinuation
   const limit = (turnMachine as { PAUSE_TURN_CONTINUATION_LIMIT?: number }).PAUSE_TURN_CONTINUATION_LIMIT
@@ -70,6 +73,7 @@ section('P1 the decision')
 }
 
 section('P2 the Anthropic seam over the loopback')
+failHintWhere = 'to fix, change how a pause_turn stop reason is settled in the stream handling of src/services/providers/anthropic/streamCore.ts (it must not become a refusal or an API error) and how the paused assistant turn is sent back in the request'
 async function callLane(model: string, messages: unknown[]): Promise<{ rows: AnyMsg[]; body: Record<string, unknown> | null }> {
   const before = fixture.captured.length
   const rows: AnyMsg[] = []
@@ -115,6 +119,7 @@ async function callLane(model: string, messages: unknown[]): Promise<{ rows: Any
 }
 
 section('P3 the turn machine over a scripted model')
+failHintWhere = 'to fix, change pauseTurnContinuation in src/run-core/turn/noToolReply.ts (continuation count, notice lines, max-turns check, replayed messages)'
 function makeCtx(model: string): Record<string, unknown> {
   let appState: Record<string, unknown> = { ...(getDefaultAppState() as unknown as Record<string, unknown>), effortValue: 'high' }
   return {
@@ -232,6 +237,7 @@ const roles = (msgs: unknown[]): string[] => (msgs as AnyMsg[]).map(m => String(
 }
 
 section('refusals — an empty paused reply, a paused error row, the replay bytes, the control')
+failHintWhere = 'to fix, change pausedReplyOf and pauseTurnContinuation in src/run-core/turn/noToolReply.ts (which replies may be sent back)'
 {
   const model = 'claude-opus-4-8'
   const empty = createAssistantMessage({ content: [] as never })

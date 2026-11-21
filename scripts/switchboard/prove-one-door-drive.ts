@@ -33,9 +33,11 @@ const { startFixtureApi } = await import('../lib/fixtureApi.ts')
 const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.ts')
 
 let failures = 0
+const oneDoorFailHint = 'a session born at the face carries bornBlankAt, stamped in src/daemon/concourseWorkers/admitWarm.ts and admitCold.ts when the request is bornBlank, and the records are read with readSessionWorkers (src/daemon/concourseWorkers.ts); the face rows and the concourse on/off switch come from chatOnlyBootOf in src/context/surfaceRoute.ts and concourseEnabled in src/services/concourse/concourseEnabled.ts; set MERCURY_ONEDOOR_CAPTURE_DIR to keep the captured screens and MERCURY_ONEDOOR_KEEP=1 to keep the scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${oneDoorFailHint}` : oneDoorFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()

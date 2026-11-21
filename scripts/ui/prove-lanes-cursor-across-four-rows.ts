@@ -43,12 +43,14 @@ const arg = (key: string): string | undefined => (process.argv.includes(key) ? p
 const frameDir = arg('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
+const LANES_CURSOR_HINT = 'to fix, change how the lanes cursor is remembered when the rail rows are unpublished and published again (publishHelmRows and moveHelmCursor in src/utils/cockpit/helmFocus.ts); for a frame mismatch, look at how the lanes pane resizes in src/components/FullscreenLayout.tsx'
+
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ` — ${LANES_CURSOR_HINT}` : ''}`)
 }
 
 const React = await import('react')

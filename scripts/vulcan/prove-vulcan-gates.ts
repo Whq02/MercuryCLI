@@ -6,11 +6,23 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
+let sectionFailHint = ''
+const failHintsBySection: Record<string, string> = {
+  '§1': 'change the gate in src/services/vulcan/vulcanGates.ts (vulcanEnabled and the section, doctrine and harness-map lines) or the tool catalog in src/tools.ts so nothing of Godot shows while MERCURY_GODOT_TOOLS is unset',
+  '§2': 'change src/services/vulcan/vulcanGates.ts (vulcanEnabled, godotToolWithholding, the prompt lines), src/tools/GodotTool/GodotTool.ts (call) or src/services/vulcan/vulcanClient.ts (getVulcanClient) so the armed seams match this check',
+  '§3': 'change getGodotToolDescription in src/tools/GodotTool/prompt.ts or the lite and unknown-op refusals in src/tools/GodotTool/GodotTool.ts',
+  '§4': 'change checkPermissions and isReadOnly in src/tools/GodotTool/GodotTool.ts so read, mutate and exec ops get the permission class this check names',
+  '§5': 'change src/services/vulcan/addonInstaller.ts (vulcanInstallStatus, applyVulcanInstall, applyVulcanUninstall, describeVulcanStatus, readEnabledPlugins, readRuntimeAutoloadEntry) so install, refresh and uninstall report what this check names',
+  '§6': 'change the MERCURY_GODOT_TOOLS rows in src/substrate/flagRegistry.ts',
+  '§7': 'change src/services/cockpit/harnessMap.ts, src/constants/subagentDoctrine.ts, src/substrate/startupMenu.ts or the vulcan row in src/services/health/sections/runtime.ts, whichever this check names',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, sectionFailHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
+  sectionFailHint = failHintsBySection[t.slice(0, 2)] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 

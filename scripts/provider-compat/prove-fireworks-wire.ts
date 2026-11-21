@@ -55,7 +55,8 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
 } })
 process.env.MERCURY_FIREWORKS_API_BASE = `http://127.0.0.1:${server.port}/inference/v1`
 let count = 0
-const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }
+const fireworksFailHint = 'look in src/services/providers/fireworks/ (fireworksCallModel.ts for the request body, effort and tool replay, fireworksCatalogue.ts for the model list and pins, fireworksLogin.ts for the key login) and routedCallModel in src/services/providers/callModelRouter.ts; the failed name above says which'
+const check = (name: string, value: unknown): void => { assert.ok(value, name + ' — ' + fireworksFailHint); count++; console.log(`[PASS] ${name}`) }
 try {
   const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
   check('Fireworks qualified ids are declared before any inference request', classifyModelRoute('fireworks/gpt-oss-120b').route === 'fireworks')

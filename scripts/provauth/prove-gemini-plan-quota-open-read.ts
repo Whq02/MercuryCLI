@@ -79,6 +79,9 @@ const catalogue = await import('../../src/services/providers/gemini/geminiCatalo
 const owner = await import('../../src/services/providers/providerUsage.ts')
 const freshness = await import('../../src/services/providers/usageFreshness.ts')
 const sleep = async (): Promise<void> => {}
+const quotaHint = 'see refreshGeminiPlanQuota in src/services/providers/gemini/geminiPlanQuota.ts, which the gemini case of refreshProviderUsage in src/services/providers/providerUsage.ts calls'
+const stampHint = 'see usagePollTtlMs, usageStaleAfterMs and usageSourceWords in src/services/providers/usageFreshness.ts'
+const accountHint = 'see beginGeminiPlanBrowserConnect and resolveGeminiAccount in src/services/providers/gemini/geminiAccounts.ts'
 
 async function signIn(): Promise<'resolved' | 'rejected' | 'timed-out'> {
   const handles = accounts.beginGeminiPlanBrowserConnect({ skipBrowserOpen: true, loopbackPort: 0, sleep })
@@ -110,29 +113,29 @@ function ageTheLastRead(): void {
 try {
   console.log('── a Google sign-in holds the plan; the roster read with it carries the quota rows ──')
   writeFileSync(accounts.geminiAuthPathForDisplay(), JSON.stringify({ version: 1 }), { mode: 0o600 })
-  check('the sign-in resolves and the plan is the active source', (await signIn()) === 'resolved' && accounts.resolveGeminiAccount()?.kind === 'plan')
+  check('the sign-in resolves and the plan is the active source', (await signIn()) === 'resolved' && accounts.resolveGeminiAccount()?.kind === 'plan', accountHint)
   const first = await catalogue.refreshGeminiCatalogue('plan', { force: true })
   const readsAfterFirst = assist.rosterReads
-  check('the first roster read lands the quota row', first?.models.some(m => m.id === 'gemini-4-argon-high' && m.quota?.remainingFraction === 0.8) === true && quotaOf().value === '80%', j(quotaOf()))
+  check('the first roster read lands the quota row', first?.models.some(m => m.id === 'gemini-4-argon-high' && m.quota?.remainingFraction === 0.8) === true && quotaOf().value === '80%', j(quotaOf()) + ' — fetchGeminiLiveModels and refreshGeminiCatalogue in src/services/providers/gemini/geminiCatalogue.ts must keep the roster quota, and geminiPlanUsageFigures in src/services/providers/providerUsage/gemini.ts must turn it into a plan-quota figure')
 
   console.log('── the popup opens: one read through the owner\'s door, bounded by the one floor every family honours ──')
   const floor = freshness.usagePollTtlMs()
-  check('the floor is the endpoint readers\' one floor (60 s) and the quota figures read stale past twice it, as every endpoint figure does', floor === 60_000 && freshness.usageStaleAfterMs() === 120_000 && quotaOf().stamp === 'endpoint-fed · read 0 s ago', j({ floor, stale: freshness.usageStaleAfterMs(), stamp: quotaOf().stamp }))
+  check('the floor is the endpoint readers\' one floor (60 s) and the quota figures read stale past twice it, as every endpoint figure does', floor === 60_000 && freshness.usageStaleAfterMs() === 120_000 && quotaOf().stamp === 'endpoint-fed · read 0 s ago', j({ floor, stale: freshness.usageStaleAfterMs(), stamp: quotaOf().stamp }) + ' — ' + stampHint)
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
-  check('an open inside the floor serves the last observation — no roster request', assist.rosterReads === readsAfterFirst, String(assist.rosterReads - readsAfterFirst))
+  check('an open inside the floor serves the last observation — no roster request', assist.rosterReads === readsAfterFirst, String(assist.rosterReads - readsAfterFirst) + ' extra roster reads — ' + quotaHint)
   ageTheLastRead()
-  check("the owner's shape: a roster read six hours ago paints as stale with its age", quotaOf().stamp === 'endpoint-fed · stale · last read 6 h ago', j(quotaOf()))
+  check("the owner's shape: a roster read six hours ago paints as stale with its age", quotaOf().stamp === 'endpoint-fed · stale · last read 6 h ago', j(quotaOf()) + ' — ' + stampHint)
   assist.remaining = 0.42
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
   const reread = quotaOf()
-  check('an open past the floor reads the roster once (the catalogue\'s own 5-minute horizon notwithstanding) and the quota row moves with it, the stamp reading the new read', assist.rosterReads === readsAfterFirst + 1 && reread.value === '42%' && (reread.observedAtMs ?? 0) >= Date.now() - 5_000 && reread.stamp === 'endpoint-fed · read 0 s ago' && reread.note === undefined, j(reread))
+  check('an open past the floor reads the roster once (the catalogue\'s own 5-minute horizon notwithstanding) and the quota row moves with it, the stamp reading the new read', assist.rosterReads === readsAfterFirst + 1 && reread.value === '42%' && (reread.observedAtMs ?? 0) >= Date.now() - 5_000 && reread.stamp === 'endpoint-fed · read 0 s ago' && reread.note === undefined, j(reread) + ' — ' + quotaHint)
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
-  check('a second open at once makes no second request (the floor)', assist.rosterReads === readsAfterFirst + 1, String(assist.rosterReads - readsAfterFirst))
+  check('a second open at once makes no second request (the floor)', assist.rosterReads === readsAfterFirst + 1, String(assist.rosterReads - readsAfterFirst) + ' roster reads since the first — ' + quotaHint)
   assist.remaining = 0.4
   await owner.refreshProviderUsage('gemini', { reason: 'operator' })
-  check('the operator\'s own ask is never refused for the floor', assist.rosterReads === readsAfterFirst + 2 && quotaOf().value === '40%', j({ reads: assist.rosterReads - readsAfterFirst, value: quotaOf().value }))
+  check('the operator\'s own ask is never refused for the floor', assist.rosterReads === readsAfterFirst + 2 && quotaOf().value === '40%', j({ reads: assist.rosterReads - readsAfterFirst, value: quotaOf().value }) + ' — ' + quotaHint)
   await owner.refreshProviderUsage('gemini', { reason: 'sign-in' })
-  check('a sign-in moves the account: the roster is read at once', assist.rosterReads === readsAfterFirst + 3, String(assist.rosterReads - readsAfterFirst))
+  check('a sign-in moves the account: the roster is read at once', assist.rosterReads === readsAfterFirst + 3, String(assist.rosterReads - readsAfterFirst) + ' roster reads since the first — ' + quotaHint)
 
   console.log('── a refused roster: the last figures stand with their age, and the refusal is said in Google\'s words ──')
   assist.rosterStatus = 403
@@ -140,12 +143,12 @@ try {
   const beforeRefusal = quotaOf()
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
   const refused = quotaOf()
-  check('the refused read made one request, kept the last quota row with its age, and the owner names the refusal', assist.rosterReads === readsAfterFirst + 4 && refused.value === beforeRefusal.value && refused.observedAtMs === beforeRefusal.observedAtMs && refused.stamp === 'endpoint-fed · stale · last read 6 h ago' && refused.note === "no quota read (Google's Code Assist roster refused the credential (HTTP 403))", j(refused))
+  check('the refused read made one request, kept the last quota row with its age, and the owner names the refusal', assist.rosterReads === readsAfterFirst + 4 && refused.value === beforeRefusal.value && refused.observedAtMs === beforeRefusal.observedAtMs && refused.stamp === 'endpoint-fed · stale · last read 6 h ago' && refused.note === "no quota read (Google's Code Assist roster refused the credential (HTTP 403))", j(refused) + ' — ' + quotaHint + '; the refusal words are built in refreshGeminiCatalogue in src/services/providers/gemini/geminiCatalogue.ts')
   await owner.refreshProviderUsage('gemini', { reason: 'open' })
-  check('an open inside the floor after a failure does not re-ask', assist.rosterReads === readsAfterFirst + 4, String(assist.rosterReads - readsAfterFirst))
+  check('an open inside the floor after a failure does not re-ask', assist.rosterReads === readsAfterFirst + 4, String(assist.rosterReads - readsAfterFirst) + ' roster reads since the first — ' + quotaHint)
   assist.rosterStatus = 200
   await owner.refreshProviderUsage('gemini', { reason: 'operator' })
-  check('the next successful read clears the refusal and the stamp reads the new read', assist.rosterReads === readsAfterFirst + 5 && quotaOf().note === undefined && quotaOf().value === '40%' && quotaOf().stamp === 'endpoint-fed · read 0 s ago', j(quotaOf()))
+  check('the next successful read clears the refusal and the stamp reads the new read', assist.rosterReads === readsAfterFirst + 5 && quotaOf().note === undefined && quotaOf().value === '40%' && quotaOf().stamp === 'endpoint-fed · read 0 s ago', j(quotaOf()) + ' — ' + quotaHint)
 
 
   console.log('── a key lane has no plan quota: the door reads nothing ──')
@@ -153,7 +156,7 @@ try {
   process.env.GEMINI_API_KEY = 'AIza-fixture-key-not-real'
   const readsBeforeKey = assist.rosterReads
   await owner.refreshProviderUsage('gemini', { reason: 'operator' })
-  check('with a key as the active source the door makes no roster request', accounts.resolveGeminiAccount()?.kind === 'api-key' && assist.rosterReads === readsBeforeKey, j({ kind: accounts.resolveGeminiAccount()?.kind, reads: assist.rosterReads - readsBeforeKey }))
+  check('with a key as the active source the door makes no roster request', accounts.resolveGeminiAccount()?.kind === 'api-key' && assist.rosterReads === readsBeforeKey, j({ kind: accounts.resolveGeminiAccount()?.kind, reads: assist.rosterReads - readsBeforeKey }) + ' — ' + quotaHint + ' (it must read nothing for a key lane)')
 } finally {
   googleServer.stop(true)
   assistServer.stop(true)

@@ -20,9 +20,12 @@ function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const j = (v: unknown): string => JSON.stringify(v) ?? ''
+const hintFold = 'read the run output above and the debug log; the fold is compactConversation in src/services/compact/compact.ts, the summariser fork is in src/services/compact/compact/summarise.ts'
+const hintSummaryPrompt = 'change getCompactPrompt (and AGENTS_IN_FLIGHT_SECTION) in src/services/compact/prompt.ts'
+const hintRoster = 'change getAgentRosterAttachment in src/services/attachments/agentRoster.ts or its text in src/services/messages/attachmentText.ts'
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the compact roster wire drive exceeded 240s')
+  console.log('\n❌ TIMEOUT — the compact roster wire drive exceeded 240s; read the request lines printed above (a missing summary or post-fold request means the fold never fired: src/services/compact/autoCompact.ts)')
   process.exit(1)
 }, 240_000)
 guard.unref?.()
@@ -285,7 +288,7 @@ if (!existsSync(DIST)) {
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'put node on PATH before running this proof')
   } else {
     const PORT = Number(process.env.COMPACT_ROSTER_PORT ?? 0)
     const arenaSeed = makeArena('', nodeBin)
@@ -319,61 +322,61 @@ if (!existsSync(DIST)) {
     section('W0 the run')
     check('the run exits 0', r.exit === 0, `exit=${r.exit} stderr=${r.stderr.slice(0, 600)}`)
     const launch = hits.find(h => h.route === 'launch')
-    check('the launch turn went out and was answered with the three launches', launch !== undefined)
+    check('the launch turn went out and was answered with the three launches', launch !== undefined, 'no launch request reached the fixture; read the stderr and the exit line above')
     const summary = hits.find(h => h.route === 'summary')
     const launchResults = itemsOf(summary?.body ?? null)
       .filter(i => i.role === 'user')
       .flatMap(i => blocksOf(i.content).filter(b => b.type === 'tool_result' && /^toolu_roster_(long|agent|shell)_/.test(String(b.tool_use_id))))
-    check('fold 46ah: every launch landed; the delivered manual is not a permission refusal', summary !== undefined && launchResults.length === 3 && launchResults.every(b => b.is_error !== true), j(launchResults.filter(b => b.is_error === true)).slice(0, 400))
-    check('the fold fired on the cycle after the launches (the summariser request went out)', summary !== undefined, hits.map(h => h.route).join(' → '))
-    check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300))
+    check('fold 46ah: every launch landed; the delivered manual is not a permission refusal', summary !== undefined && launchResults.length === 3 && launchResults.every(b => b.is_error !== true), `${j(launchResults.filter(b => b.is_error === true)).slice(0, 400)}; ${launchResults.length} launch result(s) reached the summary request; ${hintFold}`)
+    check('the fold fired on the cycle after the launches (the summariser request went out)', summary !== undefined, `${hits.map(h => h.route).join(' → ')}; ${hintFold}`)
+    check('the fold took the cache-sharing fork road (Claude Fable 5.1 on the Anthropic wire)', debug.includes('forkedAgent(compact)'), debug.split('\n').filter(l => l.includes('compact')).slice(0, 3).join(' | ').slice(0, 300) + `; the summariser must run as the cache-sharing fork labelled compact in src/services/compact/compact/summarise.ts`)
     const post = hits.find(h => h.route === 'post')
-    check('a post-fold request went out (its first user item is the summary row)', post !== undefined)
-    check('the post-fold turn answered', r.stdout.includes(POST_DONE))
+    check('a post-fold request went out (its first user item is the summary row)', post !== undefined, hintFold)
+    check('the post-fold turn answered', r.stdout.includes(POST_DONE), hintFold)
 
     section('W1 the summariser asks for the agents in flight')
     const promptText = summary?.lastUserText ?? ''
-    check('the prompt lists ten numbered sections', promptText.includes('ten numbered sections'), promptText.slice(promptText.indexOf('numbered sections') - 40, promptText.indexOf('numbered sections') + 40))
-    check('…the tenth is Agents in flight', /10\. Agents in flight/.test(promptText))
-    check('…and it says a running agent is never re-spawned and a pending result is collected, not re-derived', /never re-spawn/i.test(promptText) && /collected, not re-derived/i.test(promptText))
-    check('…the output example shows the tenth section', /10\. Agents in flight:\n\s+\[\.\.\.\]/.test(promptText))
+    check('the prompt lists ten numbered sections', promptText.includes('ten numbered sections'), promptText.slice(promptText.indexOf('numbered sections') - 40, promptText.indexOf('numbered sections') + 40) + `; ${hintSummaryPrompt}`)
+    check('…the tenth is Agents in flight', /10\. Agents in flight/.test(promptText), hintSummaryPrompt)
+    check('…and it says a running agent is never re-spawned and a pending result is collected, not re-derived', /never re-spawn/i.test(promptText) && /collected, not re-derived/i.test(promptText), hintSummaryPrompt)
+    check('…the output example shows the tenth section', /10\. Agents in flight:\n\s+\[\.\.\.\]/.test(promptText), hintSummaryPrompt)
 
     section('W2 the post-fold request carries ONE roster naming every agent')
     const postTexts = post !== undefined ? userTextsOf(itemsOf(post.body)) : []
     const postAll = postTexts.join('\n')
-    check('the post-fold request starts from the summary row (the fold happened)', postAll.includes('The context window turned over'))
-    check('…and carries the summary whole, the tenth section included', postAll.includes(SUMMARY_MARK) && postAll.includes('10. Agents in flight'))
+    check('the post-fold request starts from the summary row (the fold happened)', postAll.includes('The context window turned over'), `the summary row text is built by getCompactUserSummaryMessage in src/services/compact/prompt.ts; ${hintFold}`)
+    check('…and carries the summary whole, the tenth section included', postAll.includes(SUMMARY_MARK) && postAll.includes('10. Agents in flight'), `the summary body must reach the post-fold request whole; ${hintFold}`)
     const reminders = postAll.split('<system-reminder>').filter(t => t.includes('Agents in flight at the context turnover'))
     const roster = reminders[0] ?? ''
     for (const line of roster.split('\n').filter(l => l.startsWith('- '))) console.log(`  roster: ${line.slice(0, 260)}`)
-    check('ONE roster attachment rides the post-fold request', reminders.length === 1, `${reminders.length} roster reminder(s); user items ${postTexts.length}`)
-    check(`the roster names the long sub-agent ${LONG_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster))
-    check(`…the plain sub-agent ${PLAIN_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting|landed)`).test(roster))
-    check(`…the shell by its command, asked "${SHELL_DESCRIPTION}"`, roster.includes(`local_bash "sleep ${SHELL_SECONDS}"`) && roster.includes(`asked: ${SHELL_DESCRIPTION}`))
+    check('ONE roster attachment rides the post-fold request', reminders.length === 1, `${reminders.length} roster reminder(s); user items ${postTexts.length}; ${hintRoster}`)
+    check(`the roster names the long sub-agent ${LONG_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${LONG_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting)`).test(roster), hintRoster)
+    check(`…the plain sub-agent ${PLAIN_DESCRIPTION} with the crew view's status word`, new RegExp(`local_agent "${PLAIN_DESCRIPTION}" \\[a[0-9a-z]+\\]: (running|waiting|landed)`).test(roster), hintRoster)
+    check(`…the shell by its command, asked "${SHELL_DESCRIPTION}"`, roster.includes(`local_bash "sleep ${SHELL_SECONDS}"`) && roster.includes(`asked: ${SHELL_DESCRIPTION}`), hintRoster)
     const agentRow = roster.split('\n').find(line => line.startsWith(`- local_agent "${PLAIN_DESCRIPTION}"`)) ?? ''
     const running = /\]: running(?: ·|$)/.test(agentRow)
-    check('every row names what is owed and the correct state-specific message door', /owed:/.test(roster) && (running ? /reach it: SendMessage to "a[0-9a-z]+"/.test(agentRow) : /resume it: ResumeCrewmate to "a[0-9a-z]+"/.test(agentRow)) && roster.includes('reach it: TaskStop by its id'))
-    check('the sub-agent row carries its output path', new RegExp(`\\[a[0-9a-z]+\\][^\\n]*output: [^\\n]*\\.output`).test(roster))
-    check('the roster says a running agent is never re-spawned and an owed result is collected', roster.includes('A running agent is never re-spawned') && roster.includes('never re-derived'))
-    check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'))
+    check('every row names what is owed and the correct state-specific message door', /owed:/.test(roster) && (running ? /reach it: SendMessage to "a[0-9a-z]+"/.test(agentRow) : /resume it: ResumeCrewmate to "a[0-9a-z]+"/.test(agentRow)) && roster.includes('reach it: TaskStop by its id'), hintRoster)
+    check('the sub-agent row carries its output path', new RegExp(`\\[a[0-9a-z]+\\][^\\n]*output: [^\\n]*\\.output`).test(roster), hintRoster)
+    check('the roster says a running agent is never re-spawned and an owed result is collected', roster.includes('A running agent is never re-spawned') && roster.includes('never re-derived'), hintRoster)
+    check('no second announcer names the plain sub-agent (the old per-task line is gone)', !postAll.includes('is still running. Do NOT spawn a duplicate'), 'a second per-task announcer still rides the post-fold request; the roster in src/services/attachments/agentRoster.ts should be the only one')
 
     section('W3 the agents are untouched by the fold')
     const summaryAnsweredAt = summary?.answeredAtMs ?? Number.POSITIVE_INFINITY
     const after = hits.filter(h => h.seat === LONG_SEAT && h.atMs > summaryAnsweredAt).length
-    check(`the long sub-agent kept calling after the summary landed (${after} calls)`, after >= 2)
+    check(`the long sub-agent kept calling after the summary landed (${after} calls)`, after >= 2, `${after} call(s) after the summary; the fold must not stop running agents (${hintFold})`)
     const notes = hits.filter(h => h.route === 'note')
     for (const n of notes) console.log(`  note: ${n.lastUserText.replace(/\s+/g, ' ').slice(0, 260)}`)
-    check('no agent was stopped by the fold (no killed notice)', notes.every(n => !n.lastUserText.includes('<status>killed</status>')))
-    check('the long sub-agent settled on its own after the fold (its completion notice reached the main)', notes.some(n => n.lastUserText.includes(LONG_DESCRIPTION) && /<status>completed/.test(n.lastUserText)))
+    check('no agent was stopped by the fold (no killed notice)', notes.every(n => !n.lastUserText.includes('<status>killed</status>')), 'a notice reports a killed agent; the fold must leave agents running (compactConversation in src/services/compact/compact.ts)')
+    check('the long sub-agent settled on its own after the fold (its completion notice reached the main)', notes.some(n => n.lastUserText.includes(LONG_DESCRIPTION) && /<status>completed/.test(n.lastUserText)), `${notes.length} notice(s) reached the main; ${hintFold}`)
 
     section('W4 a result that lands during the fold is delivered once, after the boundary')
     const plainDone = hits.find(h => h.seat === PLAIN_SEAT && readsOf(itemsOf(h.body)) >= PLAIN_READS)
     const summaryStartedAt = summary?.atMs ?? 0
     check('the plain sub-agent settled while the summary was held', plainDone !== undefined && plainDone.answeredAtMs > summaryStartedAt && plainDone.answeredAtMs < summaryAnsweredAt, plainDone ? `settled +${((plainDone.answeredAtMs - t0) / 1000).toFixed(1)}s; summary +${((summaryStartedAt - t0) / 1000).toFixed(1)}s → +${((summaryAnsweredAt - t0) / 1000).toFixed(1)}s` : 'no settle seen')
     const plainNotes = notes.filter(n => n.lastUserText.includes(PLAIN_DESCRIPTION))
-    check('exactly one notice carried the plain sub-agent\'s completion', plainNotes.length === 1, `${plainNotes.length} notice(s)`)
-    check('…delivered after the boundary (its request starts from the summary row)', plainNotes.length === 1 && (userTextsOf(itemsOf(plainNotes[0]!.body))[0] ?? '').includes('The context window turned over'))
-    check('…and never twice across every later request', hits.filter(h => h.seat === null && h.lastUserText.includes(PLAIN_DESCRIPTION) && h.lastUserText.includes('task-notification')).length === 1)
+    check('exactly one notice carried the plain sub-agent\'s completion', plainNotes.length === 1, `${plainNotes.length} notice(s); ${hintFold}`)
+    check('…delivered after the boundary (its request starts from the summary row)', plainNotes.length === 1 && (userTextsOf(itemsOf(plainNotes[0]!.body))[0] ?? '').includes('The context window turned over'), `the notice that lands during the fold must wait for the boundary; ${hintFold}`)
+    check('…and never twice across every later request', hits.filter(h => h.seat === null && h.lastUserText.includes(PLAIN_DESCRIPTION) && h.lastUserText.includes('task-notification')).length === 1, `the plain sub-agent's completion notice must be delivered once; ${hintFold}`)
   }
 }
 

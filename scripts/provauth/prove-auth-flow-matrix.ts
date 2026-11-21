@@ -82,6 +82,12 @@ const { writeStoredZaiApiKey, readStoredZaiApiKey } = await import(
   '../../src/utils/accounts/providerSecrets.js'
 )
 
+const hintUsabilityResolver = ' | resolveProviderUsability in src/services/providers/providerUsability must give the family its typed blocker'
+const hintLoginRows = ' | loginFamilyRows, loginFamilyInitialFocus and loginFamilyFocusFor in src/components/loginFamilyRows decide this'
+const hintCredentialWall = ' | classifyCredentialWall and credentialWallLine in src/services/providers/credentialWall decide this'
+const hintSlotRemoval = ' | executeSlotRemoval, slotSigninState and mainLoopIdentity in src/services/providers/accountSlots decide this'
+const hintGridTables = ' | edit the DRIVEN and ABSENT tables in section 0 of this file so every family in resolveProviderUsability has every arm either driven or typed absent'
+
 const SEAT_ABSENT_REASON = 'no OpenAI account — /logins openai connects one'
 const absentReads: UsabilityReads = {
   anthropicApiKey: () => null,
@@ -216,7 +222,7 @@ const ABSENT: Partial<Record<string, Partial<Record<Arm, string>>>> = {
   },
 }
 
-check('the family set is the resolver’s twenty-four (including Anthropic)', families.length === 24, families.join(', '))
+check('the family set is the resolver’s twenty-four (including Anthropic)', families.length === 24, families.join(', ') + hintUsabilityResolver + ' (a family added or removed needs its rows in every table of this file)')
 {
   let driven = 0
   let absent = 0
@@ -227,7 +233,7 @@ check('the family set is the resolver’s twenty-four (including Anthropic)', fa
       const absentReason = ABSENT[family]?.[arm]
       if (isDriven && absentReason !== undefined) {
         holes++
-        check(`${family} × ${arm}: cell is BOTH driven and absent`, false)
+        check(`${family} × ${arm}: cell is BOTH driven and absent`, false, 'remove it from one of DRIVEN or ABSENT' + hintGridTables)
       } else if (isDriven) {
         driven++
       } else if (absentReason !== undefined) {
@@ -235,13 +241,14 @@ check('the family set is the resolver’s twenty-four (including Anthropic)', fa
         console.log(`  [ABSENT] ${family} × ${arm} — ${absentReason}`)
       } else {
         holes++
-        check(`${family} × ${arm}: cell unaccounted (no drive, no typed absence)`, false)
+        check(`${family} × ${arm}: cell unaccounted (no drive, no typed absence)`, false, 'add it to DRIVEN or give it a typed reason in ABSENT' + hintGridTables)
       }
     }
   }
   check(
     `every cell accounted: ${driven} driven + ${absent} typed-absent = ${families.length * ARMS.length}`,
     holes === 0 && driven + absent === families.length * ARMS.length,
+    `holes=${holes} driven=${driven} absent=${absent}` + hintGridTables,
   )
 }
 
@@ -308,7 +315,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     check(
       `${family}: signed-out ⇒ not usable, credential 'none', typed blocker`,
       lane.usable === false && lane.credential === 'none' && lane.blockers[0] === expectedBlocker[family],
-      JSON.stringify(lane.blockers),
+      JSON.stringify(lane.blockers) + hintUsabilityResolver,
     )
   }
 
@@ -358,7 +365,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     check(
       `${family}: usage card signed-out whyNot names the door`,
       view.sourceKind === 'none' && view.whyNot === expectedWhyNot[family],
-      `whyNot=${JSON.stringify(view.whyNot)}`,
+      `whyNot=${JSON.stringify(view.whyNot)} | activeSourceUsage in src/services/providers/providerUsage must name the door for a signed-out family`,
     )
   }
 
@@ -366,30 +373,31 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
     check(
       `${family}: reconnectDoorFor = '${RECONNECT_DOORS[family]}'`,
       reconnectDoorFor(family) === RECONNECT_DOORS[family],
-      reconnectDoorFor(family),
+      reconnectDoorFor(family) + hintCredentialWall,
     )
   }
 
   const offered = loginFamilyRows({ engineLegs: true })
   const rows = offered.map(row => row.value)
-  check('no sign-in starts on the first offered row (OpenAI)', loginFamilyInitialFocus(offered, undefined) === 'openai')
-  check('recent Anthropic sign-in selects its named row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('anthropic')) === 'anthropic')
-  check('explicit selection takes precedence over recent sign-in', loginFamilyInitialFocus(offered, 'anthropic', 'openrouter') === 'openrouter')
-  check('unlisted family falls back to the first offered row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('local')) === 'openai')
+  check('no sign-in starts on the first offered row (OpenAI)', loginFamilyInitialFocus(offered, undefined) === 'openai', 'got ' + String(loginFamilyInitialFocus(offered, undefined)) + hintLoginRows)
+  check('recent Anthropic sign-in selects its named row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('anthropic')) === 'anthropic', hintLoginRows)
+  check('explicit selection takes precedence over recent sign-in', loginFamilyInitialFocus(offered, 'anthropic', 'openrouter') === 'openrouter', hintLoginRows)
+  check('unlisted family falls back to the first offered row', loginFamilyInitialFocus(offered, loginFamilyFocusFor('local')) === 'openai', hintLoginRows)
   const restricted = loginFamilyRows({ engineLegs: false })
-  check('a host without engine support starts on its actual first row', loginFamilyInitialFocus(restricted, 'openai') === 'anthropic')
+  check('a host without engine support starts on its actual first row', loginFamilyInitialFocus(restricted, 'openai') === 'anthropic', hintLoginRows)
   const reversed = [...offered].reverse()
-  check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value)
-  check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined)
+  check('the starting row follows display order, not a fixed index mapping', loginFamilyInitialFocus(reversed, undefined) === reversed[0]!.value, hintLoginRows)
+  check('an empty list has no selected row', loginFamilyInitialFocus([], undefined) === undefined, hintLoginRows)
   check(
     'the /logins catalogue carries the twenty-two sign-in families, one row each',
     rows.join('|') ===
       ['openai', 'anthropic', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen', 'zen'].join('|'),
-    rows.join('|'),
+    rows.join('|') + hintLoginRows,
   )
   check(
     "compat and local parse NO /logins focus (their door is the env variable — never a dead /logins row)",
     loginFamilyFocusFor('openai-compat') === undefined && loginFamilyFocusFor('local') === undefined,
+    hintLoginRows,
   )
   check(
     "the twenty-two sign-in families parse a /logins focus (anthropic → 'anthropic')",
@@ -397,6 +405,7 @@ section('§1 sign-in: the signed-out answers name the right door, every family')
       (['openai', 'openrouter', 'gemini', 'huggingface', 'moonshot', 'zai', 'deepseek', 'xai', 'meta', 'mistral', 'nous', 'zen', 'minimax', 'together', 'cohere', 'groq', 'melious', 'orcarouter', 'cerebras', 'fireworks', 'qwen'] as const).every(
         family => loginFamilyFocusFor(family) === family,
       ),
+    hintLoginRows,
   )
 }
 
@@ -428,11 +437,13 @@ const NOW_MS = Date.now()
   check(
     'anthropic: expired WITH a refresh token is NOT stranded (refresh happens at use)',
     isAnthropicOAuthSignInExpired() === false,
+    'isAnthropicOAuthSignInExpired in src/utils/auth must treat a clock-expired set with a refresh token as refreshable',
   )
   seed(null)
   check(
     'anthropic: expired with NO refresh token IS the stranded sign-in',
     isAnthropicOAuthSignInExpired() === true,
+    'isAnthropicOAuthSignInExpired in src/utils/auth must report an expired set with no refresh token as stranded',
   )
   seed('fixture-refresh-token-00000000001')
 }
@@ -598,7 +609,7 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
   check(
     'anthropic: presence stays credentialed AND carries expired:true (present-but-dead honesty)',
     presence.credentialed === true && presence.expired === true,
-    JSON.stringify(presence),
+    JSON.stringify(presence) + ' | anthropicCredentialPresence in src/services/providers/providerUsage must keep an expired set credentialed and mark expired',
   )
 
   const scopeSlot = {
@@ -628,6 +639,7 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
   check(
     "anthropic: the slot's live-identity 'expired' answers signedIn:false, basis 'expired' (never a counted sign-in)",
     state.signedIn === false && state.basis === 'expired',
+    JSON.stringify(state) + hintSlotRemoval,
   )
 
   const identity = mainLoopIdentity({
@@ -647,7 +659,7 @@ section('§3 expiry-at-rest: the stranded states paint loud, with the right door
     identity.basis === 'expired' &&
       identity.text ===
         'not signed in — credential expired (snapshot op@example.dev) · ↵ on the Anthropic slot reauths',
-    identity.text,
+    identity.text + hintSlotRemoval,
   )
 }
 
@@ -819,20 +831,20 @@ section('§4 expiry-mid-flight: the wall classifies, the line names the family a
     check(
       `${family}: wall line names the door (${RECONNECT_DOORS[family]})`,
       line.includes(RECONNECT_DOORS[family]) && line.includes('switch providers (/model)'),
-      line,
+      line + hintCredentialWall,
     )
   }
   const headless = credentialWallLine('anthropic', 'sign-in', { nonInteractive: true })
   check(
     'headless spelling names --model and the interactive door honestly',
     headless.includes('--model') && headless.includes('in an interactive session'),
-    headless,
+    headless + hintCredentialWall,
   )
   const keyLimitLine = credentialWallLine('openrouter', 'key-limit')
   check(
     "the key-limit line offers 'connect another key' with the family door",
     keyLimitLine.includes('key limit reached') && keyLimitLine.includes('/logins openrouter'),
-    keyLimitLine,
+    keyLimitLine + hintCredentialWall,
   )
 
   const fault = (status: number): Parameters<typeof compatFaultToTypedError>[0] =>
@@ -905,7 +917,7 @@ section('§5 revocation: routed removals, honest notes, env pins refused as the 
     check(
       `${row.family}: ${row.removal.route} fires exactly its owner, mutates, note honest`,
       fired.length === 1 && fired[0] === row.removal.route && result.mutated === true && result.note.includes(row.note),
-      `fired=${fired.join(',')} note=${result.note}`,
+      `fired=${fired.join(',')} note=${result.note}` + hintSlotRemoval,
     )
   }
 
@@ -914,7 +926,7 @@ section('§5 revocation: routed removals, honest notes, env pins refused as the 
   check(
     'an env pin refuses honestly: shell-owned, nothing fired, never edited',
     fired.length === 0 && envResult.mutated === false && envResult.note.includes('Mercury never edits your environment'),
-    envResult.note,
+    envResult.note + hintSlotRemoval,
   )
   fired.length = 0
   const signedOut = executeSlotRemoval(
@@ -924,7 +936,7 @@ section('§5 revocation: routed removals, honest notes, env pins refused as the 
   check(
     'a signed-out oauth slot refuses the sign-out honestly (nothing to revoke)',
     fired.length === 0 && signedOut.mutated === false && signedOut.note.includes('nothing to sign out'),
-    signedOut.note,
+    signedOut.note + hintSlotRemoval,
   )
   fired.length = 0
   const ownerRouted = executeSlotRemoval(
@@ -934,7 +946,7 @@ section('§5 revocation: routed removals, honest notes, env pins refused as the 
   check(
     'an owner-routed slot answers its own note and mutates nothing',
     fired.length === 0 && ownerRouted.mutated === false && ownerRouted.note.includes('discovered live'),
-    ownerRouted.note,
+    ownerRouted.note + hintSlotRemoval,
   )
 }
 

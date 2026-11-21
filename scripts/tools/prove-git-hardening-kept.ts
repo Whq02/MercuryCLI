@@ -122,7 +122,7 @@ console.log('the scene has teeth: git with none of the spawn layer\'s settings r
   forget()
   plain(inner, 'diff')
   const within = marks()
-  check('a plain diff runs the monitor and the external differ, without the differ the converter, and inside the carried repository its own monitor', bare.includes('monitor') && bare.includes('differ') && converted.includes('converter') && within.includes('monitor-inner'), `${bare.join(' ')} | ${converted.join(' ')} | ${within.join(' ')}`)
+  check('a plain diff runs the monitor and the external differ, without the differ the converter, and inside the carried repository its own monitor', bare.includes('monitor') && bare.includes('differ') && converted.includes('converter') && within.includes('monitor-inner'), `${bare.join(' ')} | ${converted.join(' ')} | ${within.join(' ')} — the scene itself is broken, not the spawn layer: a plain git here did not run the programs named in the fixture repository config, so fix the fixture setup at the top of this script`)
   forget()
 }
 
@@ -138,7 +138,7 @@ console.log('the spawn layer: its own settings stay whatever a path, a revision 
     ['a path named so after another global\'s value', ['-c', 'core.quotepath=off', 'ls-tree', '-l', 'HEAD', SETTING]],
   ]
   const lost = KEPT.filter(([, args]) => !settled(gitArgs(args))).map(([label]) => label)
-  check(`${KEPT.length} argument lists that only name the setting: each still begins with the layer's own four settings`, lost.length === 0, lost.join(' | '))
+  check(`${KEPT.length} argument lists that only name the setting: each still begins with the layer's own four settings`, lost.length === 0, `${lost.join(' | ')} — gitArgs in src/utils/git/spawnArgs.ts must put its own settings first whatever a path or revision is named`)
   const FLAGGED: Array<[string, string[]]> = [
     ['paths named as the two flags', ['diff', '--no-color', '--', '--no-ext-diff', '--no-textconv']],
     ['the same beside an honest path', ['diff', '--no-color', '--', 'a.txt', '--no-ext-diff', '--no-textconv']],
@@ -150,12 +150,12 @@ console.log('the spawn layer: its own settings stay whatever a path, a revision 
     const cut = argv.findIndex(word => word === '--' || word === '--end-of-options')
     return !(argv.slice(0, cut).includes('--no-ext-diff') && argv.slice(0, cut).includes('--no-textconv'))
   }).map(([label]) => label)
-  check(`${FLAGGED.length} argument lists whose path or revision is named as a diff flag: both flags still stand among the command's options`, bare.length === 0, bare.join(' | '))
+  check(`${FLAGGED.length} argument lists whose path or revision is named as a diff flag: both flags still stand among the command's options`, bare.length === 0, `${bare.join(' | ')} — gitArgs in src/utils/git/spawnArgs.ts must add --no-ext-diff and --no-textconv before the -- or --end-of-options marker`)
   const once = gitArgs(['-c', SETTING, 'status'])
   const flagged = gitArgs(['diff', '--no-ext-diff', '--no-textconv', '--name-only', '--', 'a.txt'])
   const HONEST = [['status', '--porcelain'], ['diff'], ['diff', '--cached', '--', 'a.txt'], ['show', '--format=', 'HEAD'], ['log', '-1'], ['rev-parse', 'HEAD']]
   const twice = HONEST.filter(args => JSON.stringify(gitArgs(gitArgs(args))) !== JSON.stringify(gitArgs(args))).map(args => args.join(' '))
-  check('a caller that already set them is given nothing twice: the setting as a global\'s value, the flags among the options, and a list the layer already assembled', times(once, SETTING) === 1 && times(flagged, '--no-ext-diff') === 1 && times(flagged, '--no-textconv') === 1 && twice.length === 0, `${once.join(' ')} | ${flagged.join(' ')} | ${twice.join(' ; ')}`)
+  check('a caller that already set them is given nothing twice: the setting as a global\'s value, the flags among the options, and a list the layer already assembled', times(once, SETTING) === 1 && times(flagged, '--no-ext-diff') === 1 && times(flagged, '--no-textconv') === 1 && twice.length === 0, `${once.join(' ')} | ${flagged.join(' ')} | ${twice.join(' ; ')} — gitArgs in src/utils/git/spawnArgs.ts must not repeat a setting or flag the caller already gave, nor on its own output`)
 }
 
 console.log('through the doors: a path or a reference named as the setting runs no program of the repository\'s config')
@@ -175,15 +175,15 @@ console.log('through the doors: a path or a reference named as the setting runs 
     const got = await used(tool, input)
     if (marks().length > 0) wrong.push(`${label}: ${got.stage}, RAN ${marks().join(' ')}`)
   }
-  check(`${CALLS.length} calls, each allowed with no question: no program runs`, wrong.length === 0, wrong.join(' | '))
+  check(`${CALLS.length} calls, each allowed with no question: no program runs`, wrong.length === 0, `${wrong.join(' | ')} — the call named reached git without the settings of gitArgs (src/utils/git/spawnArgs.ts); find the spawn that skips it, starting from its tool: src/tools/GitTool/GitTool.ts, src/tools/InspectTool/InspectTool.ts, src/tools/FileReadTool/FileReadTool.ts or gitDiff in src/services/gitGraph/observe.ts`)
   writeFileSync(join(inner, 'line.sh'), `: > "${posixPath(join(ran, 'shell-line'))}"\n`)
   quiet(inner, 'config', 'core.fsmonitor', 'sh ./line.sh')
   forget()
   const line = await used(GitTool, { op: 'diff', cwd: inner, paths: ['data.txt', SETTING] })
-  check('nor does a line for the shell that a carried repository names, relative to its own folder', marks().length === 0 && line.stage === 'ran', `${line.stage} ${marks().join(' ')}`)
+  check('nor does a line for the shell that a carried repository names, relative to its own folder', marks().length === 0 && line.stage === 'ran', `${line.stage} ${marks().join(' ')} — a repository that carries its own core.fsmonitor shell line must not get to run it; see gitArgs in src/utils/git/spawnArgs.ts and the Git tool call in src/tools/GitTool/GitTool.ts`)
   forget()
   gitDiff(project, { scope: 'worktree', paths: ['a.txt', 'b.conv', '--no-ext-diff', '--no-textconv'] })
-  check('under the tool, a diff whose paths are named as the two flags runs neither the differ nor the converter', marks().length === 0, marks().join(' '))
+  check('under the tool, a diff whose paths are named as the two flags runs neither the differ nor the converter', marks().length === 0, `${marks().join(' ')} — gitDiff in src/services/gitGraph/observe.ts must pass its git arguments through gitArgs (src/utils/git/spawnArgs.ts)`)
 }
 
 console.log('nothing an honest call does moves')
@@ -207,7 +207,7 @@ console.log('nothing an honest call does moves')
     const got = await used(tool, input)
     if (got.stage !== 'ran' || !expected.test(got.text) || marks().length > 0) wrong.push(`${label}: ${got.stage} ${marks().join(' ')} ${got.text.slice(0, 400)}`)
   }
-  check(`${HONEST.length} honest calls: each runs, answers, and runs no program`, wrong.length === 0, wrong.join(' | '))
+  check(`${HONEST.length} honest calls: each runs, answers, and runs no program`, wrong.length === 0, `${wrong.join(' | ')} — an honest call stopped working or ran a program; look at gitArgs in src/utils/git/spawnArgs.ts and the tool named in the line`)
   const LISTS: Array<[string[], string[]]> = [
     [['status', '--porcelain'], [...OWN, 'status', '--porcelain']],
     [['diff'], [...OWN, 'diff', '--no-ext-diff', '--no-textconv']],
@@ -218,7 +218,7 @@ console.log('nothing an honest call does moves')
     [['diff', '--no-textconv', '--stat'], [...OWN, 'diff', '--no-ext-diff', '--no-textconv', '--stat']],
   ]
   const moved = LISTS.filter(([args, expected]) => JSON.stringify(gitArgs(args)) !== JSON.stringify(expected)).map(([args]) => `${args.join(' ')} → ${gitArgs(args).join(' ')}`)
-  check(`${LISTS.length} honest argument lists are assembled word for word as before`, moved.length === 0, moved.join(' | '))
+  check(`${LISTS.length} honest argument lists are assembled word for word as before`, moved.length === 0, `${moved.join(' | ')} — gitArgs in src/utils/git/spawnArgs.ts changed the assembly of an ordinary argument list; restore the order own settings, command, flags, caller words`)
 }
 
 rmSync(world, { recursive: true, force: true })

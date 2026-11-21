@@ -13,7 +13,7 @@ const MODEL = 'claude-opus-4-8'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' — to fix: the quiesce refusals (prepare, commit, cancel) are decided in src/daemon/runnerQuiescence.ts and the live-process hold wording in src/daemon/runnerCapabilityCensus.ts; rebuild with bun run build.ts before the drive' : ''}`)
 }
 function section(t: string): void {
   console.log(`\n${t}`)

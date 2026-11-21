@@ -128,6 +128,9 @@ const messageOf = (run: Run, file: string): string => {
 }
 const describeReports = (run: Run): string => reportsOf(run).map(f => `${f}: ${messageOf(run, f)}`).join(' | ')
 const ranToEnd = (run: Run): string => `status=${run.status} stderr=${JSON.stringify(run.stderr.slice(-300))}`
+const hintStartService = ' | fix startService in src/services/projectServices/serviceManager.ts: a spawn that yields no pid must attach child.on(error) and return { error } without writing a record'
+const hintCrashReport = ' | check the uncaughtException handler in setupGracefulShutdown in src/utils/gracefulShutdown.ts and persistCrashReport in src/utils/crashReport.ts'
+const hintChildRun = ' | run the child by hand with: bun run scripts/project-services/prove-service-missing-program.ts --child <missing|found|control> <workDir> <home> and read its stderr'
 
 console.log('============================================================')
 console.log(' a service start whose program is not found fails where it happens')
@@ -136,37 +139,37 @@ console.log('============================================================')
 section('§1 a program that is not found: the model gets its error and nothing crashes')
 {
   const run = runChild('missing')
-  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run))
+  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run) + hintChildRun)
   const dir = tagged(run, 'CRASHDIR')
-  check('its crash reporter writes inside the throwaway home (never the real one)', dir !== undefined && relative(run.home, dir) === 'crashes', String(dir))
-  check(`the model gets exactly the error it got before: ${REPLY}`, tagged(run, 'RESULT') === JSON.stringify({ error: REPLY }), String(tagged(run, 'RESULT')))
-  check('no service record is left behind', tagged(run, 'RECORD') === 'null', String(tagged(run, 'RECORD')))
-  check('NO UNCAUGHT EXCEPTION reaches the process (the base left the spawn failure unlistened)', uncaughtOf(run).length === 0, uncaughtOf(run).join(' | '))
-  check('NO CRASH REPORT is written (the next boot reads one as a crashed session)', reportsOf(run).length === 0, describeReports(run))
+  check('its crash reporter writes inside the throwaway home (never the real one)', dir !== undefined && relative(run.home, dir) === 'crashes', String(dir) + ' | crashReportDir in src/utils/crashReport.ts must resolve under MERCURY_CONFIG_DIR/crashes')
+  check(`the model gets exactly the error it got before: ${REPLY}`, tagged(run, 'RESULT') === JSON.stringify({ error: REPLY }), String(tagged(run, 'RESULT')) + hintStartService)
+  check('no service record is left behind', tagged(run, 'RECORD') === 'null', String(tagged(run, 'RECORD')) + hintStartService)
+  check('NO UNCAUGHT EXCEPTION reaches the process (the base left the spawn failure unlistened)', uncaughtOf(run).length === 0, uncaughtOf(run).join(' | ') + hintStartService)
+  check('NO CRASH REPORT is written (the next boot reads one as a crashed session)', reportsOf(run).length === 0, describeReports(run) + hintStartService)
 }
 
 section('§2 control: the same child still reports a real uncaught exception')
 {
   const run = runChild('control')
   const reports = reportsOf(run)
-  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run))
-  check('one uncaught-exception report lands in the throwaway home', reports.length === 1 && reports[0]!.endsWith('-uncaught-exception.json'), describeReports(run) || '(none)')
-  check('…carrying the thrown error (so an empty crashes folder in §1 means something)', reports.length === 1 && messageOf(run, reports[0]!) === 'control-uncaught', describeReports(run) || '(none)')
+  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run) + hintChildRun)
+  check('one uncaught-exception report lands in the throwaway home', reports.length === 1 && reports[0]!.endsWith('-uncaught-exception.json'), (describeReports(run) || '(none)') + hintCrashReport)
+  check('…carrying the thrown error (so an empty crashes folder in §1 means something)', reports.length === 1 && messageOf(run, reports[0]!) === 'control-uncaught', (describeReports(run) || '(none)') + hintCrashReport)
 }
 
 section('§3 a program that is found starts and stops exactly as before')
 {
   const run = runChild('found')
-  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run))
+  check('the child ran to its end (exit 0)', run.status === 0, ranToEnd(run) + hintChildRun)
   const result = parse(tagged(run, 'RESULT')) as { error?: string; record?: { pid?: number; state?: string } } | undefined
   const pid = Number(result?.record?.pid)
-  check('the start answers a record: a pid and state starting, no error', result !== undefined && result.error === undefined && Number.isInteger(pid) && pid > 0 && result.record?.state === 'starting', String(tagged(run, 'RESULT')).slice(0, 300))
-  check('the stop settles it as stopped', parse(tagged(run, 'STOPPED')) === 'stopped', String(tagged(run, 'STOPPED')))
-  check('no uncaught exception and no crash report', uncaughtOf(run).length === 0 && reportsOf(run).length === 0, `${uncaughtOf(run).join(' | ')} ${describeReports(run)}`)
+  check('the start answers a record: a pid and state starting, no error', result !== undefined && result.error === undefined && Number.isInteger(pid) && pid > 0 && result.record?.state === 'starting', String(tagged(run, 'RESULT')).slice(0, 300) + ' | startService in src/services/projectServices/serviceManager.ts must still return the record for a program that is found')
+  check('the stop settles it as stopped', parse(tagged(run, 'STOPPED')) === 'stopped', String(tagged(run, 'STOPPED')) + ' | stopService in src/services/projectServices/serviceManager.ts must settle the record as stopped')
+  check('no uncaught exception and no crash report', uncaughtOf(run).length === 0 && reportsOf(run).length === 0, `${uncaughtOf(run).join(' | ')} ${describeReports(run)}` + hintStartService)
   const deadline = Date.now() + 5000
   while (Number.isInteger(pid) && pid > 0 && alive(pid) && Date.now() < deadline) await sleep(50)
   const gone = !(Number.isInteger(pid) && pid > 0 && alive(pid))
-  check('the service process is gone', gone, `pid ${pid} is still running`)
+  check('the service process is gone', gone, `pid ${pid} is still running | stopService in src/services/projectServices/serviceManager.ts must end the spawned process`)
   if (!gone) {
     try {
       process.kill(pid, 'SIGKILL')

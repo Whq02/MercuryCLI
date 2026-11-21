@@ -6,9 +6,10 @@ const { entryToRecord } = await import('../../src/fabric/entryCodec.js')
 const { ordinalOf } = await import('../../src/fabric/ordinal.js')
 
 let failures = 0
+const transcriptDecodeFixHint = 'fix: decodeTranscriptBuffer (line classification into entries, malformed, invalid, refusal) in src/fabric/transcriptDecode.ts; the record shape floor is validateRecord in src/fabric/validate.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${transcriptDecodeFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

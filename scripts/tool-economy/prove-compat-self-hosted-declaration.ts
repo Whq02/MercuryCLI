@@ -31,16 +31,17 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 
 let failures = 0
 let checks = 0
+const declarationFailHint = 'the wire form per dialect is chosen by deferralWireFormFor in src/services/providers/deferralWire.ts; the admission record text is admissionRecordText in src/services/providers/toolEconomy.ts; the deferred-tools delta comes from getDeferredToolsDeltaAttachment in src/services/attachments/deltas.ts; the request itself is built behind routedCallModel in src/services/providers/callModelRouter.ts; the shipped recipes are HOST_RECIPES in src/services/host/recipes.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${declarationFailHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — the self-hosted declaration proof exceeded 180s')
+  console.log('\nTIMEOUT — the self-hosted declaration proof exceeded 180s; a turn through routedCallModel (src/services/providers/callModelRouter.ts) against a fixture engine did not settle, so read the last section line printed above')
   process.exit(1)
 }, 180_000)
 guard.unref?.()

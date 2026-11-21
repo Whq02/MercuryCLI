@@ -24,7 +24,7 @@ const tools = restrictReviewerTools([FileEditTool, BashTool] as Tool[], canonica
 const edit = tools.find(tool => tool.name === 'Edit')!
 const shell = tools.find(tool => tool.name === 'Bash')!
 let checks = 0
-const check = (label: string, ok: unknown): void => { assert(ok, label); checks++; console.log(`PASS ${label}`) }
+const check = (label: string, ok: unknown): void => { assert(ok, label + ' — to fix: the reviewer gate is canonicalReviewerReceipt, reviewerRefusal and restrictReviewerTools in src/tools/AgentTool/reviewerPolicy.ts; change the rule this label names there, not this test'); checks++; console.log(`PASS ${label}`) }
 const context = (): ToolUseContext => ({
   readFileState: new Map([[report, { content: readFileSync(report, 'utf8'), timestamp: Date.now() + 60000 }]]),
   userModified: false,
@@ -71,9 +71,9 @@ try {
     { file_path: report, section: '## Review', append: '```md\nunterminated example' },
     { file_path: report, section: '## Review', new_string: '## Review\n## Section boundary\n```md\nunterminated' },
   ]) {
-    await assert.rejects(() => edit.call(input, context()), /review|Review/)
-    assert.equal(readFileSync(report, 'utf8'), before)
-    assert.equal(readFileSync(other, 'utf8'), 'protected\n')
+    await assert.rejects(() => edit.call(input, context()), /review|Review/, 'the restricted Edit tool accepted a write outside the Review section of the declared receipt; fix reviewerRefusal in src/tools/AgentTool/reviewerPolicy.ts for input ' + JSON.stringify(input))
+    assert.equal(readFileSync(report, 'utf8'), before, 'the receipt changed after a refused edit; the refusal in src/tools/AgentTool/reviewerPolicy.ts must run before the write for input ' + JSON.stringify(input))
+    assert.equal(readFileSync(other, 'utf8'), 'protected\n', 'a file outside the receipt changed; reviewerRefusal in src/tools/AgentTool/reviewerPolicy.ts must refuse every path but the declared receipt')
   }
   check('all alternate write targets and section escapes are refused before mutation', true)
   const alias = join(scratch, 'alias.md')

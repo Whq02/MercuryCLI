@@ -40,11 +40,19 @@ const REACHED_THROUGH_A_CAST: ReadonlyArray<{ script: string; name: string; reas
 ]
 
 let failures = 0
+let sectionOpened = ''
+const planHint = `to fix: read() in ${SELF} did not refuse this planted tree with exactly the one finding named; change the law there, or the plant above the check, and not the estate`
+const estateHint = `to fix: change the file and line each finding names, under ${FOLDER}/ (the door ${DOOR} and the parts in ${PARTS_DIR}/), or the lists at the top of ${SELF}`
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const hint = sectionOpened.startsWith('§1') ? planHint : sectionOpened.startsWith('§2') ? estateHint : ''
+  const shown = [detail, hint].filter(Boolean).join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+const section = (t: string): void => {
+  sectionOpened = t
+  console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
+}
 const slash = (p: string): string => p.split('\\').join('/')
 const rel = (file: string): string => slash(relative(ROOT, file))
 const abs = (file: string): string => join(ROOT, file)

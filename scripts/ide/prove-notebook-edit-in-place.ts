@@ -10,8 +10,9 @@ process.chdir(ROOT)
 const SCRATCH = realpathSync(mkdtempSync(join(tmpdir(), 'notebook-edit-')))
 
 let failures = 0
+const notebookFixHint = 'fix: notebookTextAfterEdit (the in-place splice that keeps the file layout) in src/tools/NotebookEditTool/notebookText.ts, or call / validateInput in src/tools/NotebookEditTool/NotebookEditTool.ts'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ' — ' + detail : ''} — ${notebookFixHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

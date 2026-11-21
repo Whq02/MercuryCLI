@@ -16,9 +16,13 @@ const { judgeToolCall } = await import('../../src/guards/guards.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 let failures = 0
 let serial = 0
+const uiScopeFailHint = 'change the no-new-hex-outside-theme and no-emoji-in-tui-source rules (and how a path counts as Mercury source) in src/utils/wards/wards.ts, or the wards guard in src/guards/wardsGuard.ts; for the built product checks, build dist/mercury.mjs and read the child output named in the answer'
 const check = (label: string, good: boolean, answer: unknown): void => {
   console.log(`${good ? 'PASS' : 'FAIL'} ${label}: ${JSON.stringify(answer)}`)
-  if (!good) failures++
+  if (!good) {
+    failures++
+    console.log(`  to fix: ${uiScopeFailHint}`)
+  }
 }
 const project = (name: string, packageName: string, palette: boolean, git = true): string => {
   const dir = join(scratch, name)

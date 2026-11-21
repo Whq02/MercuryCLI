@@ -12,8 +12,9 @@ const { appendEntryToFile } = await import('../../src/utils/sessionStorage/write
 const { resetTranscriptFormatCacheForTesting } = await import('../../src/utils/sessionStorage/vnext.ts')
 
 let failures = 0
+const tornTailFailHint = 'fix how appendEntryToFile in src/utils/sessionStorage/writer.ts treats the tail of an existing file (heal a torn tail with a newline, add no blank line, write the header first on a fresh file)'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' — ' + tornTailFailHint}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

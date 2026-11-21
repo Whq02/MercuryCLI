@@ -35,16 +35,17 @@ setCwdState(project)
 
 const PORT = 27067
 const watchdog = setTimeout(() => {
-  console.log('  [FAIL] the proof did not finish within 540 seconds')
+  console.log('  [FAIL] the proof did not finish within 540 seconds — a remote glob never returned; see the last section printed above, then validateInput / call in src/tools/GlobTool/GlobTool.ts, src/services/remoteFiles/connection.ts, or scripts/remote-files/remoteKit.ts')
   process.exit(1)
 }, 540_000)
 watchdog.unref()
 let failures = 0
 let checks = 0
+const REMOTE_GLOB_FIX_HINT = 'to fix: change checkPermissions / validateInput / call in src/tools/GlobTool/GlobTool.ts and the ssh:// listing in src/services/remoteFiles/ that the label names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok ? ` | ${REMOTE_GLOB_FIX_HINT}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 

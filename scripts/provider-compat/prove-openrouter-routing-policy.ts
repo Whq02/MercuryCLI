@@ -14,9 +14,9 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.HOME = home
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', fix = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || fix) ? ` — ${[detail, fix && `change: ${fix}`].filter(Boolean).join(' | ')}` : ''}`)
 }
 type Body = Record<string, unknown>
 type Capture = { path: string; raw: string; body: Body }
@@ -98,7 +98,7 @@ async function turn(model: string, responses = false, singleShot = false): Promi
 }
 async function drive(model: string, responses = false): Promise<Capture | undefined> {
   const result = await turn(model, responses)
-  check(`${model}: ${responses ? 'responses' : 'chat'} turn settles once`, result.settled && result.captures.length === 1 && !!result.captures[0]?.path.endsWith(responses ? '/responses' : '/chat/completions'), result.errors.join(' | '))
+  check(`${model}: ${responses ? 'responses' : 'chat'} turn settles once`, result.settled && result.captures.length === 1 && !!result.captures[0]?.path.endsWith(responses ? '/responses' : '/chat/completions'), result.errors.join(' | '), 'routedCallModel in src/services/providers/callModelRouter.ts and the road under src/services/providers/openrouter/')
   return result.captures[0]
 }
 function setting(value: Routing): void {
@@ -118,8 +118,8 @@ try {
   setting(undefined)
   const absentChat = await drive('openrouter/fixture/model')
   const absentResponses = await drive('openrouter/fixture/model', true)
-  check('untouched chat sends exactly the deny and require policy bytes', JSON.stringify(absentChat?.body.provider) === policyBytes && absentChat?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentChat?.body.provider))
-  check('untouched responses sends exactly the deny and require policy bytes', JSON.stringify(absentResponses?.body.provider) === policyBytes && absentResponses?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentResponses?.body.provider))
+  check('untouched chat sends exactly the deny and require policy bytes', JSON.stringify(absentChat?.body.provider) === policyBytes && absentChat?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentChat?.body.provider), 'the default policy in src/services/providers/openrouter/openrouterRoutingPolicy.ts must send data_collection deny and require_parameters true when the setting is absent')
+  check('untouched responses sends exactly the deny and require policy bytes', JSON.stringify(absentResponses?.body.provider) === policyBytes && absentResponses?.raw.includes(`"provider":${policyBytes}`) === true, JSON.stringify(absentResponses?.body.provider), 'the default policy in src/services/providers/openrouter/openrouterRoutingPolicy.ts must also reach the responses body')
   receipts.chat = absentChat?.raw
   receipts.responses = absentResponses?.raw
   for (const model of ['deepseek-v4-pro', 'kimi-k3', 'compat/fixture-model']) {
@@ -127,25 +127,25 @@ try {
     const before = await drive(model)
     setting({ zeroDataRetention: true, allowFallbacks: false })
     const after = await drive(model)
-    check(`${model}: policy changes not one body byte`, before !== undefined && after?.raw === before.raw && !('provider' in after.body))
+    check(`${model}: policy changes not one body byte`, before !== undefined && after?.raw === before.raw && !('provider' in after.body), JSON.stringify([before?.raw, after?.raw]), 'the routing policy in src/services/providers/openrouter/openrouterRoutingPolicy.ts must apply only to openrouter/ models')
     receipts[model] = before?.raw
   }
   for (const responses of [false, true]) {
     setting({})
     const defaults = await drive('openrouter/fixture/model', responses)
-    check(`${responses ? 'responses' : 'chat'}: present empty setting sends deny and require`, JSON.stringify(defaults?.body.provider) === policyBytes, JSON.stringify(defaults?.body))
+    check(`${responses ? 'responses' : 'chat'}: present empty setting sends deny and require`, JSON.stringify(defaults?.body.provider) === policyBytes, JSON.stringify(defaults?.body), 'src/services/providers/openrouter/openrouterRoutingPolicy.ts must treat an empty routing.openrouter setting as the defaults')
     const absent = responses ? absentResponses : absentChat
-    check(`${responses ? 'responses' : 'chat'}: absent and empty settings produce byte-identical bodies`, defaults !== undefined && defaults.raw === absent?.raw)
+    check(`${responses ? 'responses' : 'chat'}: absent and empty settings produce byte-identical bodies`, defaults !== undefined && defaults.raw === absent?.raw, JSON.stringify([defaults?.raw, absent?.raw]), 'src/services/providers/openrouter/openrouterRoutingPolicy.ts must resolve an absent and an empty setting to the same policy')
     setting(allOff)
     const off = await drive('openrouter/fixture/model', responses)
-    check(`${responses ? 'responses' : 'chat'}: explicit all-off removes only the policy bytes`, off !== undefined && !('provider' in off.body) && off.raw === withoutPolicy(absent?.body), JSON.stringify([off?.body, absent?.body]))
+    check(`${responses ? 'responses' : 'chat'}: explicit all-off removes only the policy bytes`, off !== undefined && !('provider' in off.body) && off.raw === withoutPolicy(absent?.body), JSON.stringify([off?.body, absent?.body]), 'src/services/providers/openrouter/openrouterRoutingPolicy.ts must omit provider entirely when every policy flag is off')
     receipts[responses ? 'responsesAllOff' : 'chatAllOff'] = off?.raw
     for (const dataCollection of ['allow', 'deny'] as const) for (const requireParameters of [false, true]) for (const allowFallbacks of [false, true]) for (const zeroDataRetention of [false, true]) {
       setting({ dataCollection, requireParameters, allowFallbacks, zeroDataRetention })
       const expected = { ...(dataCollection === 'deny' ? { data_collection: 'deny' } : {}), ...(requireParameters ? { require_parameters: true } : {}), ...(!allowFallbacks ? { allow_fallbacks: false } : {}), ...(zeroDataRetention ? { zdr: true } : {}) }
       const result = await drive('openrouter/fixture/model', responses)
-      check(`${responses ? 'responses' : 'chat'}: exact policy ${JSON.stringify(expected)}`, same(result?.body.provider, Object.keys(expected).length > 0 ? expected : undefined), JSON.stringify(result?.body.provider))
-      check('ZDR off is absent, never false', zeroDataRetention || !('zdr' in ((result?.body.provider ?? {}) as Body)))
+      check(`${responses ? 'responses' : 'chat'}: exact policy ${JSON.stringify(expected)}`, same(result?.body.provider, Object.keys(expected).length > 0 ? expected : undefined), JSON.stringify(result?.body.provider), 'the mapping from routing.openrouter settings to provider fields in src/services/providers/openrouter/openrouterRoutingPolicy.ts')
+      check('ZDR off is absent, never false', zeroDataRetention || !('zdr' in ((result?.body.provider ?? {}) as Body)), JSON.stringify(result?.body.provider), 'src/services/providers/openrouter/openrouterRoutingPolicy.ts must leave zdr out when zeroDataRetention is off')
     }
   }
   }
@@ -159,18 +159,18 @@ try {
       const off = await turn('openrouter/fixture/model', responses, true)
       setting(undefined)
       const on = await turn('openrouter/fixture/model', responses, true)
-      check(`${responses ? 'responses' : 'chat'}: policy 503 adds only the remedy to the existing error`, off.errors.length === 1 && on.errors.length === 1 && on.errors[0] === off.errors[0] + remedy, JSON.stringify({ off: off.errors, on: on.errors }))
-      check('policy-off 503 never names the config row', !off.errors.join('').includes('OpenRouter routing policy'))
-      if (!responses) check('policy-off chat keeps exact terminal words', off.errors[0] === `API Error: OpenRouter stream failed (http-503) — ${message}`, off.errors[0])
+      check(`${responses ? 'responses' : 'chat'}: policy 503 adds only the remedy to the existing error`, off.errors.length === 1 && on.errors.length === 1 && on.errors[0] === off.errors[0] + remedy, JSON.stringify({ off: off.errors, on: on.errors }), 'the policy remedy appended to a 503 in src/services/providers/openrouter/openrouterCallModel.ts')
+      check('policy-off 503 never names the config row', !off.errors.join('').includes('OpenRouter routing policy'), off.errors.join(''), 'the policy remedy in src/services/providers/openrouter/openrouterCallModel.ts must be added only when the policy was sent')
+      if (!responses) check('policy-off chat keeps exact terminal words', off.errors[0] === `API Error: OpenRouter stream failed (http-503) — ${message}`, off.errors[0], 'the terminal error wording in src/services/providers/openrouter/openrouterCallModel.ts')
     }
     setting({})
     faultReply = { status: 503, message: overloaded }
     const busy = await turn('openrouter/fixture/model', responses, true)
-    check('the documented overloaded sentence never gets a policy label', busy.errors.length === 1 && busy.errors[0]!.includes(overloaded) && !busy.errors[0]!.includes('OpenRouter routing policy'), busy.errors.join(''))
+    check('the documented overloaded sentence never gets a policy label', busy.errors.length === 1 && busy.errors[0]!.includes(overloaded) && !busy.errors[0]!.includes('OpenRouter routing policy'), busy.errors.join(''), 'the policy-miss test in src/services/providers/openrouter/openrouterCallModel.ts must not match the overloaded sentence')
     for (const status of [400, 404, 500]) {
       faultReply = { status, message: noProvider[0]! }
       const other = await turn('openrouter/fixture/model', responses, true)
-      check(`${status} is not relabelled as the policy 503`, other.errors.length === 1 && !other.errors[0]!.includes('OpenRouter routing policy'), other.errors.join(''))
+      check(`${status} is not relabelled as the policy 503`, other.errors.length === 1 && !other.errors[0]!.includes('OpenRouter routing policy'), other.errors.join(''), 'the policy remedy in src/services/providers/openrouter/openrouterCallModel.ts must apply to status 503 only')
     }
     process.env.MERCURY_BUSY_RETRY_SCALE = '0.001'
     for (const message of [overloaded, noProvider[0]!]) {
@@ -179,29 +179,29 @@ try {
       onPosted = () => setting(allOff)
       const retried = await turn('openrouter/fixture/model', responses)
       const wantsNote = message !== overloaded
-      check(`${responses ? 'responses' : 'chat'}: ${wantsNote ? 'policy miss' : 'overload'} keeps all six busy retries`, retried.captures.length === 7 && retried.errors.length === 1 && retried.errors[0]!.includes('stayed busy through 6 retries'), `${retried.captures.length} ${retried.errors.join('')}`)
-      check('terminal note describes the request snapshot, not a later settings edit', retried.errors[0]?.endsWith(remedy) === wantsNote, retried.errors.join(''))
-      check('each retry keeps the identical request policy and tools', retried.captures.every(c => c.raw === retried.captures[0]?.raw && Array.isArray(c.body.tools) && (c.body.provider as Body)?.require_parameters === true))
+      check(`${responses ? 'responses' : 'chat'}: ${wantsNote ? 'policy miss' : 'overload'} keeps all six busy retries`, retried.captures.length === 7 && retried.errors.length === 1 && retried.errors[0]!.includes('stayed busy through 6 retries'), `${retried.captures.length} ${retried.errors.join('')}`, 'the busy-retry loop under src/services/providers/openrouter/ must keep six retries for both messages')
+      check('terminal note describes the request snapshot, not a later settings edit', retried.errors[0]?.endsWith(remedy) === wantsNote, retried.errors.join(''), 'src/services/providers/openrouter/openrouterCallModel.ts must decide the remedy from the policy snapshot taken when the request was built')
+      check('each retry keeps the identical request policy and tools', retried.captures.every(c => c.raw === retried.captures[0]?.raw && Array.isArray(c.body.tools) && (c.body.provider as Body)?.require_parameters === true), JSON.stringify(retried.captures.map(c => c.raw)), 'the retry loop under src/services/providers/openrouter/ must resend the same request body')
     }
     setting(allOff)
     faultReply = { status: 503, message: noProvider[0]! }
     onPosted = () => setting(undefined)
     const after = await turn('openrouter/fixture/model', responses, true)
-    check('turning policy on after posting cannot relabel an unfiltered request', after.errors.length === 1 && !after.errors[0]!.includes('OpenRouter routing policy'))
+    check('turning policy on after posting cannot relabel an unfiltered request', after.errors.length === 1 && !after.errors[0]!.includes('OpenRouter routing policy'), after.errors.join(''), 'src/services/providers/openrouter/openrouterCallModel.ts must decide the remedy from the policy snapshot taken when the request was built')
   }
   faultReply = { status: 503, message: noProvider[0]! }
   setting({})
   const otherLane = await turn('deepseek-v4-pro', false, true)
-  check('the same 503 on DeepSeek has no OpenRouter remedy', otherLane.errors.length === 1 && !otherLane.errors[0]!.includes('OpenRouter routing policy'))
+  check('the same 503 on DeepSeek has no OpenRouter remedy', otherLane.errors.length === 1 && !otherLane.errors[0]!.includes('OpenRouter routing policy'), otherLane.errors.join(''), 'the policy remedy is added only on the OpenRouter road (src/services/providers/openrouter/openrouterCallModel.ts)')
   faultReply = undefined
   rejectUnsupportedTools = true
   for (const responses of [false, true]) {
     setting({})
     const required = await turn('openrouter/fixture/model', responses, true)
-    check('tools with no supporting endpoint fail with the policy remedy when parameters are required', required.errors.length === 1 && required.errors[0]!.endsWith(remedy) && !required.settled)
+    check('tools with no supporting endpoint fail with the policy remedy when parameters are required', required.errors.length === 1 && required.errors[0]!.endsWith(remedy) && !required.settled, required.errors.join(''), 'src/services/providers/openrouter/openrouterCallModel.ts must append the policy remedy to the no-endpoint error')
     setting({ requireParameters: false })
     const relaxed = await turn('openrouter/fixture/model', responses, true)
-    check('relaxing parameters widens the fixture pool without relaxing collection', relaxed.settled && relaxed.errors.length === 0 && (relaxed.captures[0]?.body.provider as Body)?.data_collection === 'deny' && !('require_parameters' in (relaxed.captures[0]?.body.provider as Body)))
+    check('relaxing parameters widens the fixture pool without relaxing collection', relaxed.settled && relaxed.errors.length === 0 && (relaxed.captures[0]?.body.provider as Body)?.data_collection === 'deny' && !('require_parameters' in (relaxed.captures[0]?.body.provider as Body)), JSON.stringify({ settled: relaxed.settled, errors: relaxed.errors, provider: relaxed.captures[0]?.body.provider }), 'src/services/providers/openrouter/openrouterRoutingPolicy.ts must drop only require_parameters when requireParameters is false')
   }
   const at = process.argv.indexOf('--wire-receipt')
   if (at >= 0 && process.argv[at + 1]) writeFileSync(process.argv[at + 1]!, JSON.stringify(receipts, null, 2) + '\n')

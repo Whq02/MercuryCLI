@@ -42,7 +42,11 @@ const {
   getGeminiModelOptions,
   refreshGeminiCatalogue,
 } = catalogue
-
+const catalogueFile = 'src/services/providers/gemini/geminiCatalogue.ts'
+const availHint = 'fix getGeminiAvailability in ' + catalogueFile
+const rowsHint = 'fix getGeminiModelOptions or geminiRowLabels in ' + catalogueFile
+const refreshHint = 'fix refreshGeminiCatalogue or fetchGeminiLiveModels in ' + catalogueFile
+const wordsHint = 'fix geminiCredentialRefusedReason or geminiCatalogueUnreachableReason in ' + catalogueFile
 const PAGE_ONE = {
   models: [
     {
@@ -87,9 +91,9 @@ function pagedFetch(counter: { calls: string[] }): typeof fetch {
 {
   __resetGeminiCatalogueForTest()
   const availability = getGeminiAvailability()
-  check('no credential ⇒ disabled/no-account', availability.state === 'disabled' && availability.why === 'no-account')
+  check('no credential ⇒ disabled/no-account', availability.state === 'disabled' && availability.why === 'no-account', JSON.stringify(availability) + ' — ' + availHint)
   const rows = getGeminiModelOptions()
-  check('signed-out picker = ONE connect action row', rows.length === 1 && rows[0]!.value === '__mercury_gemini_connect__' && rows[0]!.label === 'Gemini — sign in')
+  check('signed-out picker = ONE connect action row', rows.length === 1 && rows[0]!.value === '__mercury_gemini_connect__' && rows[0]!.label === 'Gemini — sign in', JSON.stringify(rows.map(r => [r.value, r.label])) + ' — ' + rowsHint)
 }
 
 process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
@@ -97,22 +101,22 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   __resetGeminiCatalogueForTest()
   const counter = { calls: [] as string[] }
   const snapshot = await refreshGeminiCatalogue('api-key', { fetchImpl: pagedFetch(counter) })
-  check('both pages fetched from the PINNED base', counter.calls.length === 2 && counter.calls.every(u => u.startsWith('https://fixture.invalid/v1beta/models?')))
-  check('3 models decoded; models/ prefix stripped', snapshot?.models.length === 3 && snapshot.models[0]!.id === 'gemini-fixture-pro')
+  check('both pages fetched from the PINNED base', counter.calls.length === 2 && counter.calls.every(u => u.startsWith('https://fixture.invalid/v1beta/models?')), JSON.stringify(counter.calls) + ' — ' + refreshHint)
+  check('3 models decoded; models/ prefix stripped', snapshot?.models.length === 3 && snapshot.models[0]!.id === 'gemini-fixture-pro', refreshHint)
   const pro = snapshot!.models[0]!
-  check('stated fields decoded (limits, methods, thinking)', pro.inputTokenLimit === 1048576 && pro.outputTokenLimit === 65536 && pro.thinking === true && pro.supportedGenerationMethods?.includes('generateContent'))
+  check('stated fields decoded (limits, methods, thinking)', pro.inputTokenLimit === 1048576 && pro.outputTokenLimit === 65536 && pro.thinking === true && pro.supportedGenerationMethods?.includes('generateContent'), refreshHint)
   const availability = getGeminiAvailability()
-  check('ready: only generateContent-capable ids qualify (embedding row filtered by the VENDOR statement)', availability.state === 'ready' && availability.ids.length === 2 && !availability.ids.includes('embedding-fixture'))
+  check('ready: only generateContent-capable ids qualify (embedding row filtered by the VENDOR statement)', availability.state === 'ready' && availability.ids.length === 2 && !availability.ids.includes('embedding-fixture'), JSON.stringify(availability) + ' — ' + availHint)
 }
 
 {
-  check('the REAL routing law recognizes gemini ids (the fold landed)', geminiDispatchReady() === true)
-  check('an injected non-recognizing law flips readiness off (the probe stays live)', geminiDispatchReady(() => null) === false)
+  check('the REAL routing law recognizes gemini ids (the fold landed)', geminiDispatchReady() === true, 'geminiDispatchReady in ' + catalogueFile + ' reads the declared route of gemini-2.5-pro; it must be gemini')
+  check('an injected non-recognizing law flips readiness off (the probe stays live)', geminiDispatchReady(() => null) === false, 'geminiDispatchReady in ' + catalogueFile + ' must use the route function it is given')
   const rows = getGeminiModelOptions()
-  check('two chat rows render (the embedding row never reaches the picker)', rows.length === 2 && rows.every(r => r.group === 'Mercury — Gemini models'))
-  check('routed rows carry no dispatch-pending refusal', rows.every(r => r.unavailable === undefined || !r.unavailable.includes('dispatch wire pending')))
-  check('model rows carry no description (the neutral grammar)', rows.every(r => r.description === ''), JSON.stringify(rows.map(r => [r.value, r.description])))
-  check('the live row window rides the typed statedContextWindow', rows[0]!.statedContextWindow === 1_048_576, String(rows[0]!.statedContextWindow))
+  check('two chat rows render (the embedding row never reaches the picker)', rows.length === 2 && rows.every(r => r.group === 'Mercury — Gemini models'), JSON.stringify(rows.map(r => [r.value, r.group])) + ' — ' + rowsHint)
+  check('routed rows carry no dispatch-pending refusal', rows.every(r => r.unavailable === undefined || !r.unavailable.includes('dispatch wire pending')), JSON.stringify(rows.map(r => [r.value, r.unavailable])) + ' — ' + rowsHint)
+  check('model rows carry no description (the neutral grammar)', rows.every(r => r.description === ''), JSON.stringify(rows.map(r => [r.value, r.description])) + ' — ' + rowsHint)
+  check('the live row window rides the typed statedContextWindow', rows[0]!.statedContextWindow === 1_048_576, String(rows[0]!.statedContextWindow) + ' — ' + rowsHint)
 }
 
 {
@@ -120,22 +124,22 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   const unauthorized: typeof fetch = (async () =>
     new Response('{}', { status: 403 })) as unknown as typeof fetch
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unauthorized })
-  check('403 ⇒ disabled/auth-invalid', getGeminiAvailability().state === 'disabled' && (getGeminiAvailability() as { why?: string }).why === 'auth-invalid')
+  check('403 ⇒ disabled/auth-invalid', getGeminiAvailability().state === 'disabled' && (getGeminiAvailability() as { why?: string }).why === 'auth-invalid', JSON.stringify(getGeminiAvailability()) + ' — ' + availHint)
   const refused = getGeminiAvailability()
-  check('the refusal names the key source and the status', refused.state === 'disabled' && refused.reason === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) · update GEMINI_API_KEY', JSON.stringify(refused))
-  check('the snapshot keeps the status the endpoint answered', catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus === 403, String(catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus))
+  check('the refusal names the key source and the status', refused.state === 'disabled' && refused.reason === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) · update GEMINI_API_KEY', JSON.stringify(refused) + ' — ' + wordsHint)
+  check('the snapshot keeps the status the endpoint answered', catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus === 403, String(catalogue.getCachedGeminiCatalogue('api-key')?.lastStatus) + ' — ' + refreshHint)
   __resetGeminiCatalogueForTest()
   const unauthenticated: typeof fetch = (async () =>
     new Response('{"error":{"code":401,"status":"UNAUTHENTICATED"}}', { status: 401 })) as unknown as typeof fetch
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unauthenticated })
   const refused401 = getGeminiAvailability()
-  check('401 ⇒ the same words with its own status', refused401.state === 'disabled' && refused401.why === 'auth-invalid' && refused401.reason.includes('(HTTP 401)'), JSON.stringify(refused401))
+  check('401 ⇒ the same words with its own status', refused401.state === 'disabled' && refused401.why === 'auth-invalid' && refused401.reason.includes('(HTTP 401)'), JSON.stringify(refused401) + ' — ' + wordsHint)
   const words = catalogue.geminiCredentialRefusedReason
-  check('the OAuth template', words({ kind: 'oauth' }, 403) === "the Google account's token was refused (HTTP 403) · /logins re-connects")
-  check('the stored-key template', words({ kind: 'api-key', keySource: 'stored' }, 403) === 'the stored Gemini API key was refused (HTTP 403) · /logins replaces it')
-  check('the GOOGLE_API_KEY template', words({ kind: 'api-key', keySource: 'env-google' }, 401) === 'the Gemini API key from GOOGLE_API_KEY was refused (HTTP 401) · update GOOGLE_API_KEY')
-  check('the GEMINI_API_KEY template', words({ kind: 'api-key', keySource: 'env-gemini' }, 403) === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) · update GEMINI_API_KEY')
-  check('an unknown status leaves the parenthesis out', words({ kind: 'oauth' }, undefined) === "the Google account's token was refused · /logins re-connects")
+  check('the OAuth template', words({ kind: 'oauth' }, 403) === "the Google account's token was refused (HTTP 403) · /logins re-connects", wordsHint)
+  check('the stored-key template', words({ kind: 'api-key', keySource: 'stored' }, 403) === 'the stored Gemini API key was refused (HTTP 403) · /logins replaces it', wordsHint)
+  check('the GOOGLE_API_KEY template', words({ kind: 'api-key', keySource: 'env-google' }, 401) === 'the Gemini API key from GOOGLE_API_KEY was refused (HTTP 401) · update GOOGLE_API_KEY', wordsHint)
+  check('the GEMINI_API_KEY template', words({ kind: 'api-key', keySource: 'env-gemini' }, 403) === 'the Gemini API key from GEMINI_API_KEY was refused (HTTP 403) · update GEMINI_API_KEY', wordsHint)
+  check('an unknown status leaves the parenthesis out', words({ kind: 'oauth' }, undefined) === "the Google account's token was refused · /logins re-connects", wordsHint)
 
   __resetGeminiCatalogueForTest()
   const unreachable: typeof fetch = (async () => {
@@ -143,14 +147,14 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   }) as unknown as typeof fetch
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: unreachable })
   const down = getGeminiAvailability()
-  check('a connection failure ⇒ disabled/catalogue-error', down.state === 'disabled' && down.why === 'catalogue-error', JSON.stringify(down))
-  check('the unreachable reason names the source it tried', down.state === 'disabled' && down.reason.startsWith('the Gemini API key from GEMINI_API_KEY could not reach the live catalogue ('), JSON.stringify(down))
-  check('the remedy rides its own segment after the failure', down.state === 'disabled' && down.reason.endsWith(') · retry from /model, or /model <id> names a model directly'), JSON.stringify(down))
+  check('a connection failure ⇒ disabled/catalogue-error', down.state === 'disabled' && down.why === 'catalogue-error', JSON.stringify(down) + ' — ' + availHint)
+  check('the unreachable reason names the source it tried', down.state === 'disabled' && down.reason.startsWith('the Gemini API key from GEMINI_API_KEY could not reach the live catalogue ('), JSON.stringify(down) + ' — ' + wordsHint)
+  check('the remedy rides its own segment after the failure', down.state === 'disabled' && down.reason.endsWith(') · retry from /model, or /model <id> names a model directly'), JSON.stringify(down) + ' — ' + wordsHint)
   const unreachableWords = catalogue.geminiCatalogueUnreachableReason
-  check('the OAuth unreachable template', unreachableWords({ kind: 'oauth' }, 'fetch failed') === 'the Google account could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly')
-  check('the stored-key unreachable template', unreachableWords({ kind: 'api-key', keySource: 'stored' }, 'fetch failed') === 'the stored Gemini API key could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly')
+  check('the OAuth unreachable template', unreachableWords({ kind: 'oauth' }, 'fetch failed') === 'the Google account could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly', wordsHint)
+  check('the stored-key unreachable template', unreachableWords({ kind: 'api-key', keySource: 'stored' }, 'fetch failed') === 'the stored Gemini API key could not reach the live catalogue (fetch failed) · retry from /model, or /model <id> names a model directly', wordsHint)
   const cached = catalogue.getCachedGeminiCatalogue('api-key')
-  check('the snapshot keeps the failure and no status', cached?.lastError?.includes('ECONNREFUSED') === true && cached.lastStatus === undefined, JSON.stringify(cached))
+  check('the snapshot keeps the failure and no status', cached?.lastError?.includes('ECONNREFUSED') === true && cached.lastStatus === undefined, JSON.stringify(cached) + ' — ' + refreshHint)
 
   __resetGeminiCatalogueForTest()
   const noChat: typeof fetch = (async () =>
@@ -160,7 +164,7 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
     )) as unknown as typeof fetch
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: noChat })
   const availability = getGeminiAvailability()
-  check('a chat-less catalogue ⇒ disabled/no-generate-models (never an invented row)', availability.state === 'disabled' && availability.why === 'no-generate-models')
+  check('a chat-less catalogue ⇒ disabled/no-generate-models (never an invented row)', availability.state === 'disabled' && availability.why === 'no-generate-models', JSON.stringify(availability) + ' — ' + availHint)
 
   __resetGeminiCatalogueForTest()
   const sharedName: typeof fetch = (async () =>
@@ -177,11 +181,11 @@ process.env.GEMINI_API_KEY = 'AIza-PROVER-000000000000000'
   await refreshGeminiCatalogue('api-key', { force: true, fetchImpl: sharedName })
   const rows = getGeminiModelOptions()
   const labels = Object.fromEntries(rows.map(row => [row.value, row.label]))
-  check('a display name the roster gives several ids labels none of them: each of those rows reads as its id', labels['gemini-2.5-flash'] === 'gemini-2.5-flash' && labels['gemini-2.5-flash-thinking'] === 'gemini-2.5-flash-thinking' && labels['gemini-2.5-flash-lite'] === 'gemini-2.5-flash-lite', JSON.stringify(labels))
-  check('a display name one id owns still labels its row', labels['gemini-2.5-pro'] === 'Gemini 2.5 Pro', JSON.stringify(labels))
-  check('a row the roster leaves unnamed reads as its id', labels['gemini-3.8-flash-tiered'] === 'gemini-3.8-flash-tiered', JSON.stringify(labels))
-  check('no two rows share a label', new Set(rows.map(row => row.label)).size === rows.length, JSON.stringify(rows.map(row => row.label)))
-  check("the model-facing description keeps Google's name beside the id", (rows.find(row => row.value === 'gemini-2.5-flash')?.descriptionForModel ?? '').startsWith('Gemini 3.5 Flash Lite (gemini-2.5-flash)'))
+  check('a display name the roster gives several ids labels none of them: each of those rows reads as its id', labels['gemini-2.5-flash'] === 'gemini-2.5-flash' && labels['gemini-2.5-flash-thinking'] === 'gemini-2.5-flash-thinking' && labels['gemini-2.5-flash-lite'] === 'gemini-2.5-flash-lite', JSON.stringify(labels) + ' — ' + rowsHint)
+  check('a display name one id owns still labels its row', labels['gemini-2.5-pro'] === 'Gemini 2.5 Pro', JSON.stringify(labels) + ' — ' + rowsHint)
+  check('a row the roster leaves unnamed reads as its id', labels['gemini-3.8-flash-tiered'] === 'gemini-3.8-flash-tiered', JSON.stringify(labels) + ' — ' + rowsHint)
+  check('no two rows share a label', new Set(rows.map(row => row.label)).size === rows.length, JSON.stringify(rows.map(row => row.label)) + ' — ' + rowsHint)
+  check("the model-facing description keeps Google's name beside the id", (rows.find(row => row.value === 'gemini-2.5-flash')?.descriptionForModel ?? '').startsWith('Gemini 3.5 Flash Lite (gemini-2.5-flash)'), rowsHint)
 }
 
 delete process.env.GEMINI_API_KEY

@@ -8,10 +8,12 @@ import {
   resetRailTier,
 } from '../../src/utils/helmGeometry.js'
 
+const RAIL_HYSTERESIS_HINT = 'to fix, change railPlan and railPlanAt in src/utils/helmGeometry.ts, or the HELM_BOTH_RAILS_MIN, HELM_BOTH_RAILS_RELEASE and HELM_CENTER_FLOOR constants there'
+
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond ? ` — ${RAIL_HYSTERESIS_HINT}` : ''}`)
 }
 
 resetRailTier()

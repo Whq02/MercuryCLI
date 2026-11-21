@@ -114,7 +114,7 @@ function main(): void {
   }
 
   if (rows.length === 0) {
-    console.error('✗ no capability matrix rows found (expected a table with Verdict + Source columns)')
+    console.error('✗ no capability matrix rows found (expected a table with Verdict + Source columns); restore the Capability, Verdict and Source column headers in docs/CAPABILITY-GRADUATION-MATRIX.md')
     process.exit(1)
   }
 
@@ -186,6 +186,7 @@ function main(): void {
   if (problems.length) {
     console.error(`✗ ${problems.length} matrix integrity problem(s):`)
     for (const p of problems) console.error(`  - ${p}`)
+    console.error('  fix each named row (or the Roll-up section) in docs/CAPABILITY-GRADUATION-MATRIX.md, by the line number shown')
     process.exit(1)
   }
   console.log(`✓ all ${rows.length} rows complete: verdict ∈ vocab · source file exists · flag present · proof-or-reason`)

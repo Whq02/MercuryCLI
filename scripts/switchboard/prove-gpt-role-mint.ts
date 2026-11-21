@@ -6,9 +6,10 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
+const mintFailHint = 'the receipt is written by settleOpenaiTurn in src/services/providers/openai/openaiCallModel/turnSettled.ts through recordLiveQualification (one row per model, role and source, the older row of that key replaced) and judged by receiptCurrency, both in src/services/providers/openai/qualificationStore.ts; the call itself goes through routedCallModel in src/services/providers/callModelRouter.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${mintFailHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

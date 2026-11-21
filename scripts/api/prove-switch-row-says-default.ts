@@ -27,7 +27,8 @@ function check(label: string, cond: boolean, detail = ''): void {
   if (cond) console.log(`  ✓ ${label}`)
   else {
     failures++
-    console.log(`  ✗ ${label}${detail ? `\n      ${detail}` : ''}`)
+    const failHint = 'the row words and clock are modelSwitchStdoutText, createModelSwitchBreadcrumbs and switchClockWords in src/utils/messages/factories.ts; the saved-default write and restore are persistModelChoice in src/commands/model/persistModelChoice.ts'
+    console.log(`  ✗ ${label}\n      ${detail ? `${detail}\n      ` : ''}${failHint}`)
   }
 }
 function section(title: string): void {

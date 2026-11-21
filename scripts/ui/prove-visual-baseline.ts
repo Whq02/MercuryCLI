@@ -13,6 +13,7 @@ const SPOTS = [
 ]
 
 let fail = 0
+const fixHint = (ok: boolean, text: string): string => (ok ? '' : ' — ' + text)
 
 {
   const { DEFAULT_MASKS, neutralizeGrid } = await import('./visualBaseline.ts')
@@ -21,11 +22,11 @@ let fail = 0
   const there = '◐ first task · a-much-longer-checkout-name · ready' + ' '.repeat(60) + '⇧← back '
   const same =
     neutralizeGrid(oneRow(here), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(there), DEFAULT_MASKS).text[0]
-  console.log(`  [${same ? 'PASS' : 'FAIL'}] the session tag bar canonicalizes across checkout basenames`)
+  console.log(`  [${same ? 'PASS' : 'FAIL'}] the session tag bar canonicalizes across checkout basenames${fixHint(same, 'fix DEFAULT_MASKS and neutralizeGrid in scripts/ui/visualBaseline.ts')}`)
   if (!same) fail = 1
   const composer = '│❯ Type a prompt, start a slash command, or Tab to focus the rails' + ' '.repeat(52) + '│'
   const kept = neutralizeGrid(oneRow(composer), DEFAULT_MASKS).text[0] === composer
-  console.log(`  [${kept ? 'PASS' : 'FAIL'}] the composer row is not a tag-bar row (no mask fires)`)
+  console.log(`  [${kept ? 'PASS' : 'FAIL'}] the composer row is not a tag-bar row (no mask fires)${fixHint(kept, 'a mask in DEFAULT_MASKS in scripts/ui/visualBaseline.ts matches the composer row; narrow it')}`)
   if (!kept) fail = 1
 
   const { canonicalizeCheckoutRows } = await import('./visualBaseline.ts')
@@ -38,11 +39,11 @@ let fail = 0
     canon.text[0].includes('│ mercury ⌥main │ ⤳2') && canon.text[1].startsWith('◐ first task · mercury · ready  ')
   const widths = canon.text[0].length === band.length && canon.text[1].length === tag.length
   const named = !canon.text.some(r => r.includes('some-worktree') || r.includes('some-lane'))
-  console.log(`  [${spelled && widths && named ? 'PASS' : 'FAIL'}] the checkout rows store one fixed spelling at the captured width`)
+  console.log(`  [${spelled && widths && named ? 'PASS' : 'FAIL'}] the checkout rows store one fixed spelling at the captured width${fixHint(spelled && widths && named, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!(spelled && widths && named)) fail = 1
   const tight = { schema: 1, cols: 30, rows: 1, text: ['◐ t · m · ready' + ' '.repeat(7) + '⇧← back '], styles: [[]] }
   const left = canonicalizeCheckoutRows(tight, { basename: 'm', branch: 'x' }).text[0] === tight.text[0]
-  console.log(`  [${left ? 'PASS' : 'FAIL'}] a name the fixed spelling would not fit is left as captured`)
+  console.log(`  [${left ? 'PASS' : 'FAIL'}] a name the fixed spelling would not fit is left as captured${fixHint(left, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!left) fail = 1
   const bandNow = '│ ▚▛▀▜▞ │ Opus 5 · ● high │ some-worktree ⌥ fix/some-lane │ ⤳2' + ' '.repeat(55) + '│'
   const tagNow = ' some-worktree · ready' + ' '.repeat(90) + '⇧← back '
@@ -53,15 +54,15 @@ let fail = 0
     canonNow.text[0].length === bandNow.length &&
     canonNow.text[1].length === tagNow.length &&
     !canonNow.text.some(r => r.includes('some-worktree') || r.includes('some-lane'))
-  console.log(`  [${nowOk ? 'PASS' : 'FAIL'}] the checkout rows as painted today (a space after ⌥, the tag bar leading with the checkout) store the fixed spelling too`)
+  console.log(`  [${nowOk ? 'PASS' : 'FAIL'}] the checkout rows as painted today (a space after ⌥, the tag bar leading with the checkout) store the fixed spelling too${fixHint(nowOk, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!nowOk) fail = 1
   const tagThere = ' a-much-longer-checkout-name · ready' + ' '.repeat(76) + '⇧← back '
   const sameNow = neutralizeGrid(oneRow(tagNow), DEFAULT_MASKS).text[0] === neutralizeGrid(oneRow(tagThere), DEFAULT_MASKS).text[0]
-  console.log(`  [${sameNow ? 'PASS' : 'FAIL'}] the session tag bar as painted today canonicalizes across checkout basenames`)
+  console.log(`  [${sameNow ? 'PASS' : 'FAIL'}] the session tag bar as painted today canonicalizes across checkout basenames${fixHint(sameNow, 'fix DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!sameNow) fail = 1
 
   const noFlipMask = !DEFAULT_MASKS.some(m => m.includes('←→ flip'))
-  console.log(`  [${noFlipMask ? 'PASS' : 'FAIL'}] no mask names the sessions strip's flip hint (the strip is gone; a mask for a row that never paints is a dead tooth)`)
+  console.log(`  [${noFlipMask ? 'PASS' : 'FAIL'}] no mask names the sessions strip's flip hint (the strip is gone; a mask for a row that never paints is a dead tooth)${fixHint(noFlipMask, 'remove the mask naming the flip hint from DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!noFlipMask) fail = 1
 
   const tagMac = ' mercury · ready' + ' '.repeat(96) + '⇧← back '
@@ -70,7 +71,7 @@ let fail = 0
   const taskLinux = '◐ first task · mercury · ready' + ' '.repeat(78) + 'shift+← back '
   const rowOf = (text: string, masks: string[]) => neutralizeGrid(oneRow(text), masks).text[0]
   const backSame = rowOf(tagMac, DEFAULT_MASKS) === rowOf(tagLinux, DEFAULT_MASKS) && rowOf(taskMac, DEFAULT_MASKS) === rowOf(taskLinux, DEFAULT_MASKS)
-  console.log(`  [${backSame ? 'PASS' : 'FAIL'}] the session tag bar canonicalizes across the back hint's host spellings (⇧← back · shift+← back) in both of its shapes — ${JSON.stringify(rowOf(tagLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(taskLinux, DEFAULT_MASKS))}`)
+  console.log(`  [${backSame ? 'PASS' : 'FAIL'}] the session tag bar canonicalizes across the back hint's host spellings (⇧← back · shift+← back) in both of its shapes — ${JSON.stringify(rowOf(tagLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(taskLinux, DEFAULT_MASKS))}${fixHint(backSame, 'fix the back-hint mask in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!backSame) fail = 1
   const withoutBackMask = DEFAULT_MASKS.filter(m => !m.includes('← back'))
   const backDiverged = rowOf(tagMac, withoutBackMask) !== rowOf(tagLinux, withoutBackMask)
@@ -79,7 +80,7 @@ let fail = 0
   const restingMac = ' ready · Opus 5 · high' + ' '.repeat(90) + '⇧← back '
   const restingLinux = ' ready · Opus 5 · high' + ' '.repeat(86) + 'shift+← back '
   const restingSame = rowOf(restingMac, DEFAULT_MASKS) === rowOf(restingLinux, DEFAULT_MASKS) && rowOf(restingMac, DEFAULT_MASKS) === '⟪row⟫'
-  console.log(`  [${restingSame ? 'PASS' : 'FAIL'}] the resting status row (ready · the model · the effort) canonicalizes across the back hint's host spellings as one row — ${JSON.stringify(rowOf(restingLinux, DEFAULT_MASKS))}`)
+  console.log(`  [${restingSame ? 'PASS' : 'FAIL'}] the resting status row (ready · the model · the effort) canonicalizes across the back hint's host spellings as one row — ${JSON.stringify(rowOf(restingLinux, DEFAULT_MASKS))}${fixHint(restingSame, 'fix the resting-row mask in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!restingSame) fail = 1
   const restingDiverged = rowOf(restingMac, withoutBackMask) !== rowOf(restingLinux, withoutBackMask)
   console.log(`  [${restingDiverged ? 'PASS' : 'FAIL'}] without the back hint's masks the two hosts diverge on the resting row — the reason the resting row has a mask of its own`)
@@ -103,7 +104,7 @@ let fail = 0
   }
   const inlineBand = (name: string, branch: string) => canonicalizeCheckoutRows(oneRow(`  ▄▄▄▄▄▄▄▄▄   ${name} ⌥ ${branch} · ⤳2` + ' '.repeat(60 - name.length - branch.length)), { basename: name, branch }).text[0]
   const inlineKept = inlineBand('agent-ayc8z8g2', 'lane/beta28-rail') === inlineBand('mercury-28', 'working-28') && inlineBand('mercury-28', 'working-28')!.startsWith('  ▄▄▄▄▄▄▄▄▄   mercury ⌥ main · ⤳2   ')
-  console.log(`  [${inlineKept ? 'PASS' : 'FAIL'}] the inline band's left chip stays where it paints (the freed cells go to the trailing run, not the gap after the sprite) — ${JSON.stringify(inlineBand('agent-ayc8z8g2', 'lane/beta28-rail'))}`)
+  console.log(`  [${inlineKept ? 'PASS' : 'FAIL'}] the inline band's left chip stays where it paints (the freed cells go to the trailing run, not the gap after the sprite) — ${JSON.stringify(inlineBand('agent-ayc8z8g2', 'lane/beta28-rail'))}${fixHint(inlineKept, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!inlineKept) fail = 1
   const fromLong = recorded('agent-ayc8z8g2', 'lane/beta28-rail')
   const fromShort = recorded('mercury-28', 'working-28')
@@ -111,11 +112,11 @@ let fail = 0
   const nameRun = fromLong.styles[0]!.some(([startCol, len, , , flags]) => startCol === 4 && len === 'mercury'.length && flags === 1)
   const statusRuns = JSON.stringify(fromLong.styles[1]) === JSON.stringify([[1, 5, 'b0c4c8', 'default', 0], [71, 7, '71807b', 'default', 0], [79, 6, '9fb3b8', 'default', 0], [86, 9, '71807b', 'default', 0]])
   const widthsKept = fromLong.text[0]!.length === 35 && fromLong.text[1]!.length === recorded('mercury-28', 'working-28').text[1]!.length && fromLong.text[0]!.startsWith('│ │ mercury ▸') && fromLong.text[1]!.includes('mercury ⌥ main  ⇧← back')
-  console.log(`  [${stylesSame && nameRun && statusRuns && widthsKept ? 'PASS' : 'FAIL'}] two checkouts of different name lengths store byte-identical rows, styles included: the checkout words' runs take the fixed spelling's widths (the folder's dim run, the branch's run) and the freed cells join the longer neighbouring padding run, so a right-aligned chip stays right-aligned — ${JSON.stringify(fromLong.styles)}`)
+  console.log(`  [${stylesSame && nameRun && statusRuns && widthsKept ? 'PASS' : 'FAIL'}] two checkouts of different name lengths store byte-identical rows, styles included: the checkout words' runs take the fixed spelling's widths (the folder's dim run, the branch's run) and the freed cells join the longer neighbouring padding run, so a right-aligned chip stays right-aligned — ${JSON.stringify(fromLong.styles)}${fixHint(stylesSame && nameRun && statusRuns && widthsKept, 'fix the style-run rewrite in canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!(stylesSame && nameRun && statusRuns && widthsKept)) fail = 1
-  console.log(`  [${clippedOk ? 'PASS' : 'FAIL'}] the narrow statusline's clipped checkout chip (ctx — · some…) stores the fixed spelling's prefix at the same width; a clipped word elsewhere and a clip longer than the fixed spelling are left as captured — ${JSON.stringify(clippedCanon)}`)
+  console.log(`  [${clippedOk ? 'PASS' : 'FAIL'}] the narrow statusline's clipped checkout chip (ctx — · some…) stores the fixed spelling's prefix at the same width; a clipped word elsewhere and a clip longer than the fixed spelling are left as captured — ${JSON.stringify(clippedCanon)}${fixHint(clippedOk, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!clippedOk) fail = 1
-  console.log(`  [${restingNamed ? 'PASS' : 'FAIL'}] the resting row names no checkout, so the canonical spelling leaves it as captured`)
+  console.log(`  [${restingNamed ? 'PASS' : 'FAIL'}] the resting row names no checkout, so the canonical spelling leaves it as captured${fixHint(restingNamed, 'fix canonicalizeCheckoutRows in scripts/ui/visualBaseline.ts')}`)
   if (!restingNamed) fail = 1
 
   const hintMac = 'shift + ↵ for a new line · ⇧← concourse'.padEnd(120)
@@ -124,7 +125,7 @@ let fail = 0
   const countsLinux = '1 session on · 0 monitors here · 0 crewmates here' + ' '.repeat(15) + 'shift+← concourse'
   const concourseSame = rowOf(hintMac, DEFAULT_MASKS) === rowOf(hintLinux, DEFAULT_MASKS) && rowOf(countsMac, DEFAULT_MASKS) === rowOf(countsLinux, DEFAULT_MASKS)
   const concourseKeepsWords = rowOf(hintLinux, DEFAULT_MASKS).startsWith('shift + ↵ for a new line ·') && rowOf(countsLinux, DEFAULT_MASKS).startsWith('1 session on · 0 monitors here · 0 crewmates here')
-  console.log(`  [${concourseSame && concourseKeepsWords ? 'PASS' : 'FAIL'}] the composer hint row and the compact count row canonicalize across the concourse hint's host spellings (⇧← · shift+←) and keep their words — ${JSON.stringify(rowOf(hintLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(countsLinux, DEFAULT_MASKS))}`)
+  console.log(`  [${concourseSame && concourseKeepsWords ? 'PASS' : 'FAIL'}] the composer hint row and the compact count row canonicalize across the concourse hint's host spellings (⇧← · shift+←) and keep their words — ${JSON.stringify(rowOf(hintLinux, DEFAULT_MASKS))} · ${JSON.stringify(rowOf(countsLinux, DEFAULT_MASKS))}${fixHint(concourseSame && concourseKeepsWords, 'fix the concourse-hint masks in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!(concourseSame && concourseKeepsWords)) fail = 1
   const withoutConcourseMask = DEFAULT_MASKS.filter(m => !m.includes('← concourse'))
   const concourseDiverged = rowOf(hintMac, withoutConcourseMask) !== rowOf(hintLinux, withoutConcourseMask)
@@ -138,7 +139,7 @@ let fail = 0
   const bandKeepsWords = rowOf(bandThere, DEFAULT_MASKS).startsWith('✶ Mercury · ● ready · Opus 5 · effort high · ctx — ·')
   const chipRowsStillMasked = rowOf('  ▀▀▀▀▀▀▀▀▀   tree ⌥ HEAD · ⤳2', DEFAULT_MASKS) === '⟪row⟫' && rowOf('  ▀▀▀▀▀▀▀▀▀   a-much-longer-checkout-name ⌥lane/x · ⤳2', DEFAULT_MASKS) === '⟪row⟫'
   const railCtxUntouched = rowOf('  · ctx — · 1000k       │', DEFAULT_MASKS) === '  · ctx — · 1000k       │'
-  console.log(`  [${bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched ? 'PASS' : 'FAIL'}] the compact band's checkout chip canonicalizes across checkout names cut before the branch glyph, the band's words kept, the wide chip rows still row-masked and the rail's ctx row untouched — ${JSON.stringify(rowOf(bandThere, DEFAULT_MASKS))}`)
+  console.log(`  [${bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched ? 'PASS' : 'FAIL'}] the compact band's checkout chip canonicalizes across checkout names cut before the branch glyph, the band's words kept, the wide chip rows still row-masked and the rail's ctx row untouched — ${JSON.stringify(rowOf(bandThere, DEFAULT_MASKS))}${fixHint(bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched, 'fix the checkout-chip masks in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!(bandSame && bandKeepsWords && chipRowsStillMasked && railCtxUntouched)) fail = 1
   const glyphOnly = ['row:\\S+ ⌥ ?\\S+']
   const bandDiverged = rowOf(bandHere, glyphOnly) !== rowOf(bandThere, glyphOnly)
@@ -163,14 +164,14 @@ let fail = 0
   const linux80 = countRow(80, 'shift+← concourse')
   const mac62 = countRow(62, '⇧← concourse')
   const squeezed = mac62.startsWith('1 session on · 0 monitors here · 0 crewmates here') && mac60.startsWith('S:1 · M:0 · C:0') && linux60.startsWith('S:1 · M:0 · C:0')
-  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 62 columns the count row keeps its words under the glyph; at 60 it drops to its short form under either hint (the product's own budget: the words take 49 cells beside the glyph hint's 13) — ${JSON.stringify([mac62.trim(), mac60.trim(), linux60.trim()])}`)
+  console.log(`  [${squeezed ? 'PASS' : 'FAIL'}] at 62 columns the count row keeps its words under the glyph; at 60 it drops to its short form under either hint (the product's own budget: the words take 49 cells beside the glyph hint's 13) — ${JSON.stringify([mac62.trim(), mac60.trim(), linux60.trim()])}${fixHint(squeezed, 'fix compactWorkSummaryText in src/components/tasks/useFocusedWork.ts, or this proof if its budget changed')}`)
   if (!squeezed) fail = 1
   const rowMasked = canon(mac60, DEFAULT_MASKS) === canon(linux60, DEFAULT_MASKS) && canon(mac60, DEFAULT_MASKS) === '⟪row⟫'
-  console.log(`  [${rowMasked ? 'PASS' : 'FAIL'}] the squeezed count row canonicalizes across the hosts as one row`)
+  console.log(`  [${rowMasked ? 'PASS' : 'FAIL'}] the squeezed count row canonicalizes across the hosts as one row${fixHint(rowMasked, 'fix the count-row mask in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!rowMasked) fail = 1
   const wide = canon(mac80, DEFAULT_MASKS)
   const wideKept = wide === canon(linux80, DEFAULT_MASKS) && wide.includes('1 session on · 0 monitors here · 0 crewmates here') && !wide.includes('concourse')
-  console.log(`  [${wideKept ? 'PASS' : 'FAIL'}] at 80 columns the count row keeps its words on both hosts and only the hint is masked — ${wide.trim()}`)
+  console.log(`  [${wideKept ? 'PASS' : 'FAIL'}] at 80 columns the count row keeps its words on both hosts and only the hint is masked — ${wide.trim()}${fixHint(wideKept, 'fix the count-row and concourse masks in DEFAULT_MASKS in scripts/ui/visualBaseline.ts')}`)
   if (!wideKept) fail = 1
   const withoutRowMask = DEFAULT_MASKS.filter(m => !m.includes('sessions? on'))
   const linux62 = countRow(62, 'shift+← concourse')
@@ -188,7 +189,7 @@ const run = (only?: string): void => {
   })
   const tail = (r.stdout + r.stderr).split('\n').filter(Boolean).slice(-3).join(' · ')
   const ok = r.status === 0
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] baseline check ${only ?? 'FULL MATRIX'} — ${tail}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] baseline check ${only ?? 'FULL MATRIX'} — ${tail}${fixHint(ok, 'run bun run scripts/ui/generate-visual-baseline.ts --check' + (only ? ' --only ' + only : '') + ' and read the first divergence it prints; fix the rendering that changed')}`)
   if (!ok) fail = 1
 }
 
@@ -214,7 +215,7 @@ if (FULL) {
     const grid = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as { text: string[]; styles: unknown[][] }) : null
     const styled = grid?.styles.reduce((n, row) => n + row.length, 0) ?? 0
     const painted = r.status === 0 && grid !== null && grid.text.some(row => row.trim() !== '')
-    console.log(`  [${painted && styled > 0 ? 'PASS' : 'FAIL'}] the truecolor capture launched under an inherited NO_COLOR=1 FORCE_COLOR=0 (a seat's tool shell stamps every command it runs) still carries styled cells — ${styled} style spans, rc=${r.status}`)
+    console.log(`  [${painted && styled > 0 ? 'PASS' : 'FAIL'}] the truecolor capture launched under an inherited NO_COLOR=1 FORCE_COLOR=0 (a seat's tool shell stamps every command it runs) still carries styled cells — ${styled} style spans, rc=${r.status}${fixHint(painted && styled > 0, 'scripts/ui/generate-visual-baseline.ts must capture styled cells whatever NO_COLOR and FORCE_COLOR the shell inherited; run it with --only frame--100x30--dark--truecolor --out <dir> --jobs 1')}`)
     if (!(painted && styled > 0)) fail = 1
   } finally {
     rmSync(out, { recursive: true, force: true })

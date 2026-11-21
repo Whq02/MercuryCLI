@@ -2246,13 +2246,13 @@ for (const row of ROWS) {
       const threw = got.startsWith('"threw ')
       if (threw) failed++
       else unread++
-      console.log(`  [${threw ? 'FAIL' : 'SKIP'}] ${row.name} · ${stand.name} — ${threw ? `the function ${JSON.parse(got) as string}` : 'not read on Windows: this arm asks the host, and the recording was taken on a POSIX host'}`)
+      console.log(`  [${threw ? 'FAIL' : 'SKIP'}] ${row.name} · ${stand.name} — ${threw ? `the function ${JSON.parse(got) as string}; the function named by this row threw on this stand, so make it return an answer for this platform pair instead of throwing` : 'not read on Windows: this arm asks the host, and the recording was taken on a POSIX host'}`)
       continue
     }
     const want = row.old ? await standIn(stand, row.old) : row.recorded && stand.name in row.recorded ? show(row.recorded[stand.name]) : undefined
     const ok = got === want
     if (!ok) failed++
-    const against = want === undefined ? 'the row holds neither the old code nor a recorded answer' : `${row.old ? 'the old code' : 'the recording'} answers ${want}`
+    const against = want === undefined ? 'the row holds neither the old code nor a recorded answer' : `${row.old ? 'the old code' : 'the recording'} answers ${want}; to fix, change the function this row names (rows named paths.* are in src/utils/platform/paths.ts) so it answers as expected, or add the row old or recorded answer; if the new answer is intended, run this file with --record and paste the printed recorded line into the row`
     console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${row.name} · ${stand.name}${ok ? '' : ` — the function answers ${got}, ${against}`}`)
   }
   if (record) console.log(`${row.name}\n    recorded: ${JSON.stringify(recording)},`)

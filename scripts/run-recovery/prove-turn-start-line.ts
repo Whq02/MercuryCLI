@@ -13,7 +13,7 @@ const ROOT = join(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
 if (!existsSync(DIST) || !nodeBin) {
-  console.log(!existsSync(DIST) ? '❌ dist/mercury.mjs absent — build first (the pooled gate prebuilds it)' : '❌ no node binary on PATH')
+  console.log(!existsSync(DIST) ? '❌ dist/mercury.mjs absent — build first with bun run build.ts (the pooled gate prebuilds it)' : '❌ no node binary on PATH — put node on PATH, this proof spawns dist/mercury.mjs with it')
   process.exit(1)
 }
 
@@ -45,7 +45,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 900)}` : ''}${cond ? '' : ' — to fix: the check label says which door or record shape failed; the turn-start and turn-end rows are written by recordTurnStart and recordTurnEnd in src/utils/sessionStorage/writer.ts, and the resume reading is in loadConversationForResume in src/services/resume/conversationRecovery.ts'}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -53,7 +53,7 @@ function section(title: string): void {
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — the turn-start proof exceeded 420s')
+  console.log('\n❌ TIMEOUT — the turn-start proof exceeded 420s; a spawned dist/mercury.mjs run, the hosted runner or the fixture API is stuck, so the last section title above says which step was running')
   process.exit(1)
 }, 420_000)
 guard.unref?.()

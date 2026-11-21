@@ -13,7 +13,7 @@ import { getCommandQueue, resetCommandQueue } from '../../src/utils/messageQueue
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}${!ok ? `${detail ? ` — ${detail}` : ''} — fix src/tools/MonitorTool/watchReceipts.ts (receipts, settling, dead-watch line, resume notice) or, for the delivery batching and folded row checks, src/tools/MonitorTool/watchMailbox.ts` : ''}`)
   if (!ok) failures = 1
 }
 

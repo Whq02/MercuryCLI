@@ -33,7 +33,7 @@ let failures = 0
 function check(label: string, ok: unknown, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${ok ? '' : ' — fix the /mcp popup screens in src/commands/mcp/McpPopup.tsx, or the mcp-tools door payload in src/services/mcp/toolsAnswer.ts'}`)
 }
 
 async function until(pred: () => boolean | Promise<boolean>, ms = S(25_000)): Promise<boolean> {

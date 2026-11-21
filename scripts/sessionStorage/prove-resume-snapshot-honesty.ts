@@ -15,8 +15,9 @@ const snapshot = await import(join(SRC, 'utils/sessionStorage/resumeSnapshot.ts'
 const vnext = await import(join(SRC, 'utils/sessionStorage/vnext.ts'))
 
 let failures = 0
+const resumeSnapshotFailHint = 'fix how the load reads the snapshot tail and advances its byte cursor in src/utils/sessionStorage/loading.ts (loadTranscriptFile) and src/utils/sessionStorage/resumeSnapshot.ts (writeResumeSnapshot)'
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${resumeSnapshotFailHint}`}`)
   if (!ok) failures = 1
 }
 

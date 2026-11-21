@@ -6,9 +6,9 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', failHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && failHint ? ` — fix: ${failHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -70,11 +70,13 @@ section('1. disarmed — a STATE naming the arm surface; readiness rows absent')
     'lane disarmed names the arm surface',
     session.blenderLane.state === 'disarmed' &&
       (session.blenderLane as { armSurface: string }).armSurface === BLENDER_LANES_ARM_SURFACE,
+    '',
+    'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must report blenderLane disarmed with armSurface BLENDER_LANES_ARM_SURFACE when MERCURY_BLENDER is unset',
   )
-  check('bridge disarmed names the boot-menu row', session.bridge.state === 'disarmed' && session.bridge.detail.includes('Blender dev lanes'))
-  check('editor truth unavailable with the why', session.editor.state === 'unavailable' && /bridge disarmed/.test((session.editor as { detail: string }).detail))
-  check('context truth still collected (ungated, the landed doctrine)', session.context.state === 'ok')
-  check('readiness rows are armed-only (off ⇒ none)', blenderBridgeReadinessRecords().length === 0)
+  check('bridge disarmed names the boot-menu row', session.bridge.state === 'disarmed' && session.bridge.detail.includes('Blender dev lanes'), '', 'the disarmed bridge detail from buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must name the Blender dev lanes boot-menu row')
+  check('editor truth unavailable with the why', session.editor.state === 'unavailable' && /bridge disarmed/.test((session.editor as { detail: string }).detail), '', 'the editor truth from buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must say bridge disarmed')
+  check('context truth still collected (ungated, the landed doctrine)', session.context.state === 'ok', '', 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must collect context even when the lane is disarmed')
+  check('readiness rows are armed-only (off ⇒ none)', blenderBridgeReadinessRecords().length === 0, '', 'blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must return no rows while MERCURY_BLENDER is off')
 }
 
 section('2. armed, no home — the every-road reason; readiness names it')
@@ -82,10 +84,10 @@ section('2. armed, no home — the every-road reason; readiness names it')
   process.env.MERCURY_BLENDER = '1'
   process.env.MERCURY_BLENDER_BIN = path.join(scratch, 'no-such-blender')
   const session = await buildBlenderBridgeIdeSession(work)
-  check('bridge no-home state carries the reason', session.bridge.state === 'no-home' && /MERCURY_BLENDER_BIN/.test(session.bridge.detail))
-  check('editor truth unavailable (no addon home)', session.editor.state === 'unavailable' && /no addon home/.test((session.editor as { detail: string }).detail))
+  check('bridge no-home state carries the reason', session.bridge.state === 'no-home' && /MERCURY_BLENDER_BIN/.test(session.bridge.detail), session.bridge.state, 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must return state no-home with a detail naming MERCURY_BLENDER_BIN')
+  check('editor truth unavailable (no addon home)', session.editor.state === 'unavailable' && /no addon home/.test((session.editor as { detail: string }).detail), '', 'the editor truth from buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must say no addon home')
   const rows = blenderBridgeReadinessRecords()
-  check('readiness: unavailable naming the reason + the pin roads', rows.length === 1 && rows[0]!.state === 'unavailable' && /MERCURY_BLENDER_BRIDGE_ADDON_DIR/.test(rows[0]!.remedy ?? ''))
+  check('readiness: unavailable naming the reason + the pin roads', rows.length === 1 && rows[0]!.state === 'unavailable' && /MERCURY_BLENDER_BRIDGE_ADDON_DIR/.test(rows[0]!.remedy ?? ''), JSON.stringify(rows).slice(0, 200), 'blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must return one unavailable row whose remedy names MERCURY_BLENDER_BRIDGE_ADDON_DIR')
   process.env.MERCURY_BLENDER_BIN = noBlender
 }
 
@@ -95,14 +97,16 @@ section('3. armed, home, nothing listening — unreachable with teaching; readin
   process.env.MERCURY_BLENDER_BRIDGE_PORT = String(await freshDeadPort())
   resetBlenderBridgeClientForTest()
   const session = await buildBlenderBridgeIdeSession(work)
-  check('bridge unreachable with the install + ENABLE hint', session.bridge.state === 'unreachable' && /blender_bridge_install/.test(session.bridge.detail) && /enable/i.test(session.bridge.detail))
-  check('install truth carried (not installed)', session.bridge.state === 'unreachable' && session.bridge.install.installed === false)
-  check('token truth carried (absent), and the read left the add-on home empty', session.bridge.state === 'unreachable' && session.bridge.tokenPresent === false && readdirSync(home).length === 0, readdirSync(home).join(','))
-  check('editor truth unavailable (bridge unreachable)', session.editor.state === 'unavailable' && /unreachable/.test((session.editor as { detail: string }).detail))
+  check('bridge unreachable with the install + ENABLE hint', session.bridge.state === 'unreachable' && /blender_bridge_install/.test(session.bridge.detail) && /enable/i.test(session.bridge.detail), session.bridge.state, 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must return unreachable with a detail naming blender_bridge_install and enabling the add-on')
+  check('install truth carried (not installed)', session.bridge.state === 'unreachable' && session.bridge.install.installed === false, '', 'the unreachable bridge from buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must carry install.installed false')
+  check('token truth carried (absent), and the read left the add-on home empty', session.bridge.state === 'unreachable' && session.bridge.tokenPresent === false && readdirSync(home).length === 0, readdirSync(home).join(','), 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must report tokenPresent false and must not write into the add-on home when it reads')
+  check('editor truth unavailable (bridge unreachable)', session.editor.state === 'unavailable' && /unreachable/.test((session.editor as { detail: string }).detail), '', 'the editor truth from buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must say unreachable')
   const rows = blenderBridgeReadinessRecords()
   check(
     'readiness: unavailable + the install remedy that keeps enabling the operator’s act',
     rows.length === 1 && rows[0]!.state === 'unavailable' && /blender_bridge_install/.test(rows[0]!.remedy ?? '') && /your act/.test(rows[0]!.remedy ?? ''),
+    JSON.stringify(rows).slice(0, 200),
+    'blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must return one unavailable row whose remedy names blender_bridge_install and says enabling is your act',
   )
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
 }
@@ -116,9 +120,9 @@ section('4. readiness NEVER connects — the render-safety teeth')
   resetBlenderBridgeClientForTest()
   const rows = blenderBridgeReadinessRecords()
   check('readiness: configured with install truth', rows.length === 1 && rows[0]!.state === 'configured' && / \(up to date\)/.test(rows[0]!.detail), rows[0]?.detail.slice(0, 120))
-  check('readiness points at blender_status for the live probe', /blender_status/.test(rows[0]!.detail))
-  check('readiness reports enablement unknowable-from-disk', /unknowable from disk/.test(rows[0]!.detail))
-  check('ZERO connections were made by readiness (the law with teeth)', fake.connectionCount() === 0, `${fake.connectionCount()}`)
+  check('readiness points at blender_status for the live probe', /blender_status/.test(rows[0]!.detail), '', 'the readiness detail from blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must point at blender_status')
+  check('readiness reports enablement unknowable-from-disk', /unknowable from disk/.test(rows[0]!.detail), '', 'the readiness detail from blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must say enablement is unknowable from disk')
+  check('ZERO connections were made by readiness (the law with teeth)', fake.connectionCount() === 0, `${fake.connectionCount()}`, 'blenderBridgeReadinessRecords in src/services/ide/blenderBridgeSession.ts must read the disk only and never open a connection to the bridge')
   await fake.close()
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
 }
@@ -130,14 +134,14 @@ section('5. reachable — editor truth through the client; the NO-scope-guard la
   const fake = await startFakeBlenderBridge({ token })
   process.env.MERCURY_BLENDER_BRIDGE_PORT = String(fake.port)
   const session = await runWithCwdOverride(work, () => buildBlenderBridgeIdeSession(work))
-  check('bridge reachable', session.bridge.state === 'reachable', session.bridge.state)
+  check('bridge reachable', session.bridge.state === 'reachable', session.bridge.state, 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must reach the fake bridge on MERCURY_BLENDER_BRIDGE_PORT with the stored token')
   check('editor truth ok: scene info string', session.editor.state === 'ok' && /"engine":"BLENDER_EEVEE"/.test((session.editor as { sceneInfo: string }).sceneInfo))
   check('editor truth ok: render state string', session.editor.state === 'ok' && /"render":false/.test((session.editor as { renderState: string }).renderState) && /"engine":"BLENDER_EEVEE"/.test((session.editor as { renderState: string }).renderState))
   check('editor truth ok: report head string', session.editor.state === 'ok' && /entries/.test((session.editor as { reportHead: string }).reportHead))
   const elsewhere = path.join(scratch, 'elsewhere')
   mkdirSync(elsewhere, { recursive: true })
   const foreign = await runWithCwdOverride(elsewhere, () => buildBlenderBridgeIdeSession(elsewhere))
-  check('a foreign cwd still answers editor truth (user-scoped bridge, by design)', foreign.editor.state === 'ok')
+  check('a foreign cwd still answers editor truth (user-scoped bridge, by design)', foreign.editor.state === 'ok', '', 'buildBlenderBridgeIdeSession in src/services/ide/blenderBridgeSession.ts must not scope editor truth to the working directory')
   await fake.close()
   delete process.env.MERCURY_BLENDER_BRIDGE_PORT
   resetBlenderBridgeClientForTest()

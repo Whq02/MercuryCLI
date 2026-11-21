@@ -11,7 +11,7 @@ const PROBE = join(ROOT, 'scripts/splash/ripple-probe.mjs')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' — the leg ran assets/splash/mercury-splash.mjs through scripts/splash/ripple-probe.mjs; a late or missing exit or action means the splash drain or cancel path in assets/splash/mercury-splash.mjs needs fixing'}`)
 }
 
 interface ProbeReport {

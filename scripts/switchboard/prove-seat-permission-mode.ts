@@ -5,9 +5,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const seatModeFailHint = 'change seatInitialPermissionMode in src/daemon/concourseWorkers/spec.ts (the mode a seat boots in: the override, else the saved guardrails.mode in settings.json, else default; a saved sovereign or unknown word gives default)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${seatModeFailHint}` : seatModeFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const HERE = import.meta.dir

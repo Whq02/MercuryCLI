@@ -13,6 +13,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const keepEmptyHint = ' — keepEmptyInputs in src/tools/DebugTool/DebugTool.ts must list the key so dropEmptyOptionalArgs (src/services/providers/toolCallGate.ts) keeps an empty array'
+const clearSetHint = ' — an empty set must still be sent to every adapter session; see breakpointsOp in src/tools/DebugTool/debug/breakpoints.ts and setBreakpointsTree in src/services/dap/client/start.ts'
+const validateEmptyHint = ' — validateInput in src/tools/DebugTool/DebugTool.ts must accept an empty lines or breakpoints array and refuse only an omitted one'
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -56,9 +59,9 @@ async function main(): Promise<void> {
   section('G  the provider gate keeps an explicit empty set')
   {
     const keptLines = dropEmptyOptionalArgs({ op: 'breakpoints', file: FILE, lines: [] }, DebugTool)
-    check('lines: [] survives dropEmptyOptionalArgs', Array.isArray(keptLines.lines), JSON.stringify(keptLines))
+    check('lines: [] survives dropEmptyOptionalArgs', Array.isArray(keptLines.lines), JSON.stringify(keptLines) + keepEmptyHint)
     const keptRich = dropEmptyOptionalArgs({ op: 'breakpoints', file: FILE, breakpoints: [] }, DebugTool)
-    check('breakpoints: [] survives dropEmptyOptionalArgs', Array.isArray(keptRich.breakpoints), JSON.stringify(keptRich))
+    check('breakpoints: [] survives dropEmptyOptionalArgs', Array.isArray(keptRich.breakpoints), JSON.stringify(keptRich) + keepEmptyHint)
   }
 
   section('C1 set two, clear with lines: [] — the report and the wire')
@@ -72,14 +75,14 @@ async function main(): Promise<void> {
     const early = await call({ op: 'customRequest', method: 'mock/spawnChild', body: JSON.stringify({ name: 'child-early', id: 'target-early' }) })
     check('mock/spawnChild answered', early.outcome === 'succeeded', early.result.slice(0, 120))
     check('the early child came up', await waitFor(() => ring().some(l => l.includes('[mock] child target-early up'))), ring().join(' | '))
-    check('…and received the current set for the file', lastRound('child target-early')?.includes('lines=[3,9]') === true, lastRound('child target-early') ?? '(no round)')
+    check('…and received the current set for the file', lastRound('child target-early')?.includes('lines=[3,9]') === true, (lastRound('child target-early') ?? '(no round)') + ' — a child started after a set must be given the stored set; see setBreakpointsTree in src/services/dap/client/start.ts')
 
     section('C1 (continued) the clear')
     const cleared = await call({ op: 'breakpoints', file: FILE, lines: [] })
-    check('lines: [] succeeds and reports 0 breakpoints', cleared.outcome === 'succeeded' && /0 breakpoints/.test(cleared.result), `${cleared.outcome}: ${cleared.result}`)
-    check("the child's LAST setBreakpoints for the file carried none", lastRound('child target-1')?.includes('lines=[]') === true, lastRound('child target-1') ?? '(no round)')
-    check("the early child's LAST round carried none too", lastRound('child target-early')?.includes('lines=[]') === true, lastRound('child target-early') ?? '(no round)')
-    check("the parent's LAST round carried none", lastRound('parent')?.includes('lines=[]') === true, lastRound('parent') ?? '(no round)')
+    check('lines: [] succeeds and reports 0 breakpoints', cleared.outcome === 'succeeded' && /0 breakpoints/.test(cleared.result), `${cleared.outcome}: ${cleared.result}` + clearSetHint)
+    check("the child's LAST setBreakpoints for the file carried none", lastRound('child target-1')?.includes('lines=[]') === true, (lastRound('child target-1') ?? '(no round)') + clearSetHint)
+    check("the early child's LAST round carried none too", lastRound('child target-early')?.includes('lines=[]') === true, (lastRound('child target-early') ?? '(no round)') + clearSetHint)
+    check("the parent's LAST round carried none", lastRound('parent')?.includes('lines=[]') === true, (lastRound('parent') ?? '(no round)') + clearSetHint)
 
     section('C2 status shows no breakpoints for the file')
     const status = await call({ op: 'status' })
@@ -97,18 +100,18 @@ async function main(): Promise<void> {
     const rich = await call({ op: 'breakpoints', file: FILE, breakpoints: [{ line: 3 }] })
     check('a rich breakpoint set again, verified by the child', /line 3: verified by child-1/.test(rich.result), rich.result)
     const richCleared = await call({ op: 'breakpoints', file: FILE, breakpoints: [] })
-    check('breakpoints: [] succeeds and reports 0 breakpoints', richCleared.outcome === 'succeeded' && /0 breakpoints/.test(richCleared.result), `${richCleared.outcome}: ${richCleared.result}`)
-    check("the child's LAST round carried none", lastRound('child target-1')?.includes('lines=[]') === true, lastRound('child target-1') ?? '(no round)')
+    check('breakpoints: [] succeeds and reports 0 breakpoints', richCleared.outcome === 'succeeded' && /0 breakpoints/.test(richCleared.result), `${richCleared.outcome}: ${richCleared.result}` + clearSetHint)
+    check("the child's LAST round carried none", lastRound('child target-1')?.includes('lines=[]') === true, (lastRound('child target-1') ?? '(no round)') + clearSetHint)
 
     section('C5 omitting both still refuses with the usage words')
     const omitted = await call({ op: 'breakpoints', file: FILE })
-    check('no lines and no breakpoints ⇒ the usage refusal', omitted.outcome === 'failed' && /breakpoints needs file \+ lines \(or the rich breakpoints array\)/.test(omitted.result), `${omitted.outcome}: ${omitted.result}`)
+    check('no lines and no breakpoints ⇒ the usage refusal', omitted.outcome === 'failed' && /breakpoints needs file \+ lines \(or the rich breakpoints array\)/.test(omitted.result), `${omitted.outcome}: ${omitted.result} — the breakpoints case of runOp in src/tools/DebugTool/DebugTool.ts owns this refusal`)
     const validEmpty = await DebugTool.validateInput?.({ op: 'breakpoints', file: FILE, lines: [] } as never, {} as never)
-    check('validateInput accepts lines: []', validEmpty?.result === true, JSON.stringify(validEmpty))
+    check('validateInput accepts lines: []', validEmpty?.result === true, JSON.stringify(validEmpty) + validateEmptyHint)
     const validRichEmpty = await DebugTool.validateInput?.({ op: 'breakpoints', file: FILE, breakpoints: [] } as never, {} as never)
-    check('validateInput accepts breakpoints: []', validRichEmpty?.result === true, JSON.stringify(validRichEmpty))
+    check('validateInput accepts breakpoints: []', validRichEmpty?.result === true, JSON.stringify(validRichEmpty) + validateEmptyHint)
     const invalid = await DebugTool.validateInput?.({ op: 'breakpoints', file: FILE } as never, {} as never)
-    check('validateInput refuses the omission', invalid?.result === false, JSON.stringify(invalid))
+    check('validateInput refuses the omission', invalid?.result === false, JSON.stringify(invalid) + validateEmptyHint)
 
     const disc = await call({ op: 'disconnect' })
     check('disconnect reaps the tree', /disconnected/.test(disc.result), disc.result)

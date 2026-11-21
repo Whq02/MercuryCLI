@@ -43,10 +43,12 @@ const arg = (name: string): string | undefined => {
 const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 
+const PICKER_EDGES_HINT = 'to fix, change the row, heading, filter or floor layout in src/components/MercuryModelPicker.tsx, or the pure column, heading and door words (pickerColumns, headingWords, doorWords) in src/utils/model/modelPickerGroups.ts'
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond ? ` — ${PICKER_EDGES_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

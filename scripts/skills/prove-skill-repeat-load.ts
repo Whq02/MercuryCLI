@@ -53,21 +53,21 @@ const resultText = (data: Call['data']): string => String((SkillTool.mapToolResu
 console.log('1 the first load sends the body')
 const first = (await SkillTool.call({ skill: 'repeat-fixture', args: 'alpha' }, context([]), canUse, parent)) as Call
 const firstBodies = bodiesOf(first.newMessages)
-check('the body rides into the conversation once', firstBodies.length === 1 && firstBodies[0]!.includes('Repeat fixture body for "alpha"'), JSON.stringify(firstBodies))
-check('the first load is not marked as a repeat', first.data.alreadyLoaded === undefined && resultText(first.data) === 'Launching skill: repeat-fixture', resultText(first.data))
+check('the body rides into the conversation once', firstBodies.length === 1 && firstBodies[0]!.includes('Repeat fixture body for "alpha"'), JSON.stringify(firstBodies) + ' — SkillTool.call in src/tools/SkillTool/SkillTool.ts must send the expanded body in newMessages on the first load')
+check('the first load is not marked as a repeat', first.data.alreadyLoaded === undefined && resultText(first.data) === 'Launching skill: repeat-fixture', resultText(first.data) + ' — SkillTool.call and mapToolResultToToolResultBlockParam in src/tools/SkillTool/SkillTool.ts must not set alreadyLoaded on a first load')
 
 console.log('2 the same call with the body still in context does not send it again')
 const second = (await SkillTool.call({ skill: 'repeat-fixture', args: 'alpha' }, context(first.newMessages ?? []), canUse, parent)) as Call
-check('no body message is added the second time', bodiesOf(second.newMessages).length === 0, JSON.stringify(bodiesOf(second.newMessages)))
-check('the result says the skill is already loaded', second.data.alreadyLoaded === true && resultText(second.data) === 'Skill "repeat-fixture" is already loaded in this conversation; follow the instructions it gave above.', resultText(second.data))
-check('the other messages of the expansion still ride (permissions attachment)', (second.newMessages ?? []).some(message => message.type === 'attachment'), JSON.stringify((second.newMessages ?? []).map(message => message.type)))
+check('no body message is added the second time', bodiesOf(second.newMessages).length === 0, JSON.stringify(bodiesOf(second.newMessages)) + ' — SkillTool.call in src/tools/SkillTool/SkillTool.ts must not resend a body that is still in context.messages')
+check('the result says the skill is already loaded', second.data.alreadyLoaded === true && resultText(second.data) === 'Skill "repeat-fixture" is already loaded in this conversation; follow the instructions it gave above.', resultText(second.data) + ' — SkillTool.call and mapToolResultToToolResultBlockParam in src/tools/SkillTool/SkillTool.ts must set alreadyLoaded and word the result as the check expects')
+check('the other messages of the expansion still ride (permissions attachment)', (second.newMessages ?? []).some(message => message.type === 'attachment'), JSON.stringify((second.newMessages ?? []).map(message => message.type)) + ' — SkillTool.call in src/tools/SkillTool/SkillTool.ts must drop only the body message on a repeat and keep the other expansion messages')
 
 console.log('3 controls: different arguments, and a context without the body, send the body again')
 const other = (await SkillTool.call({ skill: 'repeat-fixture', args: 'beta' }, context(first.newMessages ?? []), canUse, parent)) as Call
-check('different arguments give a different body, which is sent', bodiesOf(other.newMessages).length === 1 && bodiesOf(other.newMessages)[0]!.includes('"beta"') && other.data.alreadyLoaded === undefined, JSON.stringify(bodiesOf(other.newMessages)))
+check('different arguments give a different body, which is sent', bodiesOf(other.newMessages).length === 1 && bodiesOf(other.newMessages)[0]!.includes('"beta"') && other.data.alreadyLoaded === undefined, JSON.stringify(bodiesOf(other.newMessages)) + ' — SkillTool.call in src/tools/SkillTool/SkillTool.ts must compare the rendered body, so different arguments send the body again')
 const afterFold = (await SkillTool.call({ skill: 'repeat-fixture', args: 'alpha' }, context([]), canUse, parent)) as Call
-check('with the body gone from context (a fold), it is sent again', bodiesOf(afterFold.newMessages).length === 1 && afterFold.data.alreadyLoaded === undefined)
-check('every call expanded the skill (the dedupe compares rendered bytes, it never skips the render)', expansions === 4, String(expansions))
+check('with the body gone from context (a fold), it is sent again', bodiesOf(afterFold.newMessages).length === 1 && afterFold.data.alreadyLoaded === undefined, 'SkillTool.call in src/tools/SkillTool/SkillTool.ts must send the body again when no message in context.messages carries it')
+check('every call expanded the skill (the dedupe compares rendered bytes, it never skips the render)', expansions === 4, String(expansions) + ' — SkillTool.call in src/tools/SkillTool/SkillTool.ts must render the skill on every call and dedupe on the rendered text')
 
 console.log(failures === 0 ? 'SKILL REPEAT LOAD GREEN' : `SKILL REPEAT LOAD RED (${failures})`)
 process.exit(failures === 0 ? 0 : 1)

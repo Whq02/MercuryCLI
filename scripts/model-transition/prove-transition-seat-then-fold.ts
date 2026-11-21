@@ -9,16 +9,24 @@ import { mountOffscreen, settle, waitFor, type Mounted } from '../lib/settingsPo
 
 let failures = 0
 let checks = 0
+let sectionFixHint = ''
+const sectionFixHints: Record<string, string> = {
+  '1': 'fix seatWithFold in src/services/model/modelTransition.ts (the order of the seat and /compact per route and carrier)',
+  '2': 'fix the road named in the label (src/commands/model/model.tsx, src/commands/model/mercuryModel.tsx or src/components/PromptInput/composerModelDoorsParts.tsx), which must call seatWithFold from src/services/model/modelTransition.ts after the preview card is confirmed',
+  '3': 'fix the /compact fold (src/commands/compact/compact.ts, src/services/compact/compact.ts) or the window and fold line it reads from src/services/compact/autoCompact.ts, or buildTransitionPlan / transitionWindowFact in src/services/providers/transitionPreview.ts',
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shownDetail = !ok ? [detail, sectionFixHint].filter(Boolean).join(' | ') : ''
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${shownDetail ? ` — ${shownDetail}` : ''}`)
 }
 const section = (t: string): void => {
+  sectionFixHint = sectionFixHints[t.split(' ')[0] ?? ''] ?? ''
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the seat-then-fold prover exceeded 240s')
+  console.log('\nTIMEOUT — the seat-then-fold prover exceeded 240s. Look at the last section printed above: a waitFor on the preview card or on the seat and /compact calls (the three model roads, section 2), or the compact call or query turn (section 3), never finished.')
   process.exit(1)
 }, 240_000)
 watchdog.unref?.()

@@ -12,7 +12,7 @@ const { grepAll } = await import('../../src/mneme/mnemeRetrieval.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' — ' : '') + 'fix correctFact or retireFact in src/mneme/mnemeCorrect.ts, or the topic document read and write in src/mneme/mnemeConsolidate.ts' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

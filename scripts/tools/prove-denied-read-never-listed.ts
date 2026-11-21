@@ -49,6 +49,8 @@ const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
   if (!cond) failures++
 }
+const searchHint = 'what a search lists is decided by readDenialFilter in src/utils/permissions/filesystem.ts, applied in src/tools/GrepTool/GrepTool.ts and src/utils/glob.ts (Glob); it must agree with checkReadPermissionForTool in the same file'
+const globsHint = 'the ignore globs given to ripgrep come from normalizePatternsToPath (and rootForPattern) in src/utils/permissions/filesystem.ts'
 
 const { GrepTool } = await import(`${SRC}/tools/GrepTool/GrepTool.ts`)
 const { GlobTool } = await import(`${SRC}/tools/GlobTool/GlobTool.ts`)
@@ -89,14 +91,14 @@ console.log('the control: with no rule every file is in every answer')
   const open = getEmptyToolPermissionContext()
   const missing: string[] = []
   for (const [tool, run] of TOOLS) for (const [start, path] of STARTS) for (const file of [...DENIED, ...NEIGHBOURS]) if (!shows(await run(path, open), file)) missing.push(`${tool} from ${start}: ${file}`)
-  check('five tools from three starts: the five files are all named', missing.length === 0, missing.join(' | '))
+  check('five tools from three starts: the five files are all named', missing.length === 0, `${missing.join(' | ')} — with no rule a search must name every file; ${searchHint}`)
 }
 
 console.log('the law: a file whose direct Read is denied appears in no answer; its neighbours stay')
 const red: string[] = []
 for (const [spelling, rule] of SPELLINGS) {
   const permission = deny(rule)
-  check(`${spelling} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: a direct Read of both files in the folder is denied, of the three neighbours not`, DENIED.every(file => directRead(join(project, 'src', file), permission) === 'deny') && NEIGHBOURS.every(file => directRead(join(project, 'src', file), permission) !== 'deny'))
+  check(`${spelling} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: a direct Read of both files in the folder is denied, of the three neighbours not`, DENIED.every(file => directRead(join(project, 'src', file), permission) === 'deny') && NEIGHBOURS.every(file => directRead(join(project, 'src', file), permission) !== 'deny'), `the rule text must deny a direct Read of the two denied files and no neighbour; see checkReadPermissionForTool and rootForPattern in src/utils/permissions/filesystem.ts`)
   for (const [start, path] of STARTS) {
     const cells: string[] = []
     for (const [tool, run] of TOOLS) {
@@ -107,7 +109,7 @@ for (const [spelling, rule] of SPELLINGS) {
       if (!ok) red.push(`${spelling} · ${start} · ${tool}${leaked.length ? ` shows ${leaked.join(', ')}` : ''}${lost.length ? ` loses ${lost.join(', ')}` : ''}`)
       cells.push(`${tool} ${ok ? 'ok' : leaked.length ? 'SHOWS' : 'LOSES'}`)
     }
-    check(`${spelling} · searched from ${start}: ${cells.join(' · ')}`, cells.every(cell => cell.endsWith(' ok')), cells.filter(cell => !cell.endsWith(' ok')).join(' · '))
+    check(`${spelling} · searched from ${start}: ${cells.join(' · ')}`, cells.every(cell => cell.endsWith(' ok')), `${cells.filter(cell => !cell.endsWith(' ok')).join(' · ')} — SHOWS means a denied file leaked into the answer, LOSES means a neighbour went missing; ${searchHint}`)
   }
 }
 console.log(`  (${red.length} of ${SPELLINGS.length * STARTS.length * TOOLS.length} cells red)`)
@@ -131,7 +133,7 @@ console.log('the same law from other sources, from a folder above the project, a
       for (const file of hidden) if (shows(answer, file)) wrong.push(`${tool} shows ${file}`)
       for (const file of visible) if (!shows(answer, file)) wrong.push(`${tool} loses ${file}`)
     }
-    check(`${label}: hidden from all five, the others named by all five`, wrong.length === 0 && hidden.every(file => directRead(join(project, 'src', file), permission) === 'deny') && visible.every(file => directRead(join(project, 'src', file), permission) !== 'deny'), wrong.join(' | '))
+    check(`${label}: hidden from all five, the others named by all five`, wrong.length === 0 && hidden.every(file => directRead(join(project, 'src', file), permission) === 'deny') && visible.every(file => directRead(join(project, 'src', file), permission) !== 'deny'), `${wrong.join(' | ')} — ${searchHint}`)
   }
 }
 
@@ -140,16 +142,16 @@ console.log('nothing of a denied file reaches a number either')
   const permission = deny(SPELLINGS[2]![1])
   const bare = getEmptyToolPermissionContext()
   const count = await TOOLS[2]![1](undefined, permission)
-  check('Grep count: the total counts the four files that may be read', /^4 matches across 4 files$/m.test(count), count)
+  check('Grep count: the total counts the four files that may be read', /^4 matches across 4 files$/m.test(count), `${count} — the total must not count denied files; the Grep count path is in src/tools/GrepTool/GrepTool.ts, filtered by readDenialFilter (src/utils/permissions/filesystem.ts)`)
   const ranked = await TOOLS[3]![1](undefined, permission)
   const listedTs = await TOOLS[4]![1](undefined, permission)
-  check('Glob: a denied file that holds none of the words searched is not listed either', !shows(listedTs, 'quiet.ts') && shows(await TOOLS[4]![1](undefined, bare), 'secret/quiet.ts'), listedTs)
+  check('Glob: a denied file that holds none of the words searched is not listed either', !shows(listedTs, 'quiet.ts') && shows(await TOOLS[4]![1](undefined, bare), 'secret/quiet.ts'), `${listedTs} — Glob must drop denied files whether or not they match the pattern; see readDenialFilter use in src/utils/glob.ts`)
   rmSync(join(project, 'src/secret'), { recursive: true, force: true })
   const rankedWithout = await TOOLS[3]![1](undefined, bare)
   const countWithout = await TOOLS[2]![1](undefined, bare)
-  check('Grep ranked: every number, the files searched among them, is what it is when the denied folder does not exist (one of its files holds none of the words)', ranked === rankedWithout && /among 4 searched\.$/m.test(ranked), `${ranked}\n---\n${rankedWithout}`)
+  check('Grep ranked: every number, the files searched among them, is what it is when the denied folder does not exist (one of its files holds none of the words)', ranked === rankedWithout && /among 4 searched\.$/m.test(ranked), `${ranked}\n---\n${rankedWithout}\n— ranked totals must be computed after denied files are removed; see src/tools/GrepTool/GrepTool.ts and rankedSearch.ts beside it`)
   const rows = (answer: string): string => answer.split('\n').sort().join('\n')
-  check('Grep count: the rows and the total are what they are when the denied folder does not exist', rows(count) === rows(countWithout), `${count}\n---\n${countWithout}`)
+  check('Grep count: the rows and the total are what they are when the denied folder does not exist', rows(count) === rows(countWithout), `${count}\n---\n${countWithout}\n— count rows and total must not betray a denied folder; see src/tools/GrepTool/GrepTool.ts`)
   for (const file of ['src/secret/keys.ts', 'src/secret/deep/more.ts', 'src/secret/quiet.ts']) {
     mkdirSync(dirname(join(project, file)), { recursive: true })
     writeFileSync(join(project, file), TREE[file]!)
@@ -157,7 +159,7 @@ console.log('nothing of a denied file reaches a number either')
   writeFileSync(join(project, '.gitignore'), 'src/secret/deep/\n')
   mkdirSync(join(project, '.git'), { recursive: true })
   const globbed = await TOOLS[4]![1](undefined, permission)
-  check('Glob: a denied file that an ignore rule also hides is not counted among the ignored paths', !globbed.includes('under ignore rules'), globbed)
+  check('Glob: a denied file that an ignore rule also hides is not counted among the ignored paths', !globbed.includes('under ignore rules'), `${globbed} — denied files must not be counted in the ignored-paths note; see src/utils/glob.ts and src/tools/GlobTool/GlobTool.ts`)
   rmSync(join(project, '.gitignore'))
   rmSync(join(project, '.git'), { recursive: true, force: true })
 }
@@ -168,23 +170,23 @@ console.log('letter case, a link into the denied folder, and .. in the path: the
   const insensitive = existsSync(join(project, 'SRC', 'OPEN.TS'))
   if (insensitive) {
     const upper = await Promise.all(TOOLS.map(([, run]) => run('SRC', permission)))
-    check('a folder named in another letter case (this file system folds case): the denied files are in no answer, as their direct Read is denied', directRead(join(project, 'SRC/secret/keys.ts'), permission) === 'deny' && upper.every(answer => DENIED.every(file => !shows(answer, file) && !shows(answer.toLowerCase(), file))), upper.join('\n---\n'))
+    check('a folder named in another letter case (this file system folds case): the denied files are in no answer, as their direct Read is denied', directRead(join(project, 'SRC/secret/keys.ts'), permission) === 'deny' && upper.every(answer => DENIED.every(file => !shows(answer, file) && !shows(answer.toLowerCase(), file))), `${upper.join('\n---\n')}\n— ${searchHint}`)
     const shouted = deny('Read(SRC/SECRET/**)')
     const answers = await Promise.all(TOOLS.map(([, run]) => run(undefined, shouted)))
-    check('a rule written in another letter case: a direct Read is denied and no answer names the files', DENIED.every(file => directRead(join(project, 'src', file), shouted) === 'deny') && answers.every(answer => DENIED.every(file => !shows(answer, file))), answers.join('\n---\n'))
+    check('a rule written in another letter case: a direct Read is denied and no answer names the files', DENIED.every(file => directRead(join(project, 'src', file), shouted) === 'deny') && answers.every(answer => DENIED.every(file => !shows(answer, file))), `${answers.join('\n---\n')}\n— ${searchHint}`)
   } else {
     console.log('  [SKIP] this file system keeps letter case apart: a folder named in another case does not exist')
   }
   symlinkSync(join(project, 'src/secret'), join(project, 'src/link'))
   symlinkSync(join(project, 'src/secret/keys.ts'), join(project, 'src/alias.ts'))
   const linked = await Promise.all(TOOLS.map(([, run]) => run(undefined, permission)))
-  check('a link to the denied folder and a link to a file in it: a direct Read through either is denied, and no answer follows them', directRead(join(project, 'src/link/keys.ts'), permission) === 'deny' && directRead(join(project, 'src/alias.ts'), permission) === 'deny' && linked.every(answer => !/needle in the denied|needle deeper/.test(answer) && !shows(answer, 'link/keys.ts') && !shows(answer, 'alias.ts')), linked.join('\n---\n'))
+  check('a link to the denied folder and a link to a file in it: a direct Read through either is denied, and no answer follows them', directRead(join(project, 'src/link/keys.ts'), permission) === 'deny' && directRead(join(project, 'src/alias.ts'), permission) === 'deny' && linked.every(answer => !/needle in the denied|needle deeper/.test(answer) && !shows(answer, 'link/keys.ts') && !shows(answer, 'alias.ts')), `${linked.join('\n---\n')}\n— ${searchHint}; a link must be judged by its resolved path`)
   const throughLink = await Promise.all(TOOLS.map(([, run]) => run('src/link', permission).catch((error: unknown) => `refused: ${String(error)}`)))
-  check('the link named as the folder to search: nothing of the denied folder is in any answer', throughLink.every(answer => !/needle in the denied|needle deeper/.test(answer) && !shows(answer, 'keys.ts') && !shows(answer, 'more.ts')), throughLink.join('\n---\n'))
+  check('the link named as the folder to search: nothing of the denied folder is in any answer', throughLink.every(answer => !/needle in the denied|needle deeper/.test(answer) && !shows(answer, 'keys.ts') && !shows(answer, 'more.ts')), `${throughLink.join('\n---\n')}\n— a search started at a link into the denied folder must resolve it first; ${searchHint}`)
   rmSync(join(project, 'src/link'))
   rmSync(join(project, 'src/alias.ts'))
   const dotted = await Promise.all(TOOLS.map(([, run]) => run('src/secret/../../src', permission)))
-  check('.. in the path searched: the same answer as the plain path', dotted.every(answer => DENIED.every(file => !shows(answer, file)) && NEIGHBOURS.every(file => shows(answer, file))), dotted.join('\n---\n'))
+  check('.. in the path searched: the same answer as the plain path', dotted.every(answer => DENIED.every(file => !shows(answer, file)) && NEIGHBOURS.every(file => shows(answer, file))), `${dotted.join('\n---\n')}\n— the search path must be normalised before the denial filter runs; ${searchHint}`)
 }
 
 console.log('the other half: a rule hides no more than a direct Read refuses, where ripgrep reads a rule\'s text otherwise than the rule\'s matcher does')
@@ -227,7 +229,7 @@ for (const [label, rule, strange] of STRANGE) {
       cells.push(`${tool} from ${start} ${answer.startsWith('the search failed') ? 'FAILS' : apart.map(file => `${shows(answer, file) ? 'SHOWS' : 'LOSES'} ${file}`).join(', ')}`)
     }
   }
-  check(`${label} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: in the fifteen answers a file is there exactly when its direct Read is not denied`, cells.length === 0, cells.join(' | '))
+  check(`${label} ${rule.replace(project.replace(/^\/+/, ''), '<project>')}: in the fifteen answers a file is there exactly when its direct Read is not denied`, cells.length === 0, `${cells.join(' | ')} — SHOWS or LOSES names a file whose listing differs from its direct Read; the rule text is read by ripgrep globs (normalizePatternsToPath) and by the matcher behind checkReadPermissionForTool, both in src/utils/permissions/filesystem.ts`)
   if (planted !== null) rmSync(join(project, 'src', planted.slice(0, planted.indexOf('/'))), { recursive: true, force: true })
 }
 console.log(`  (${strangeRed.length} of ${STRANGE.length * STARTS.length * TOOLS.length} cells red)`)
@@ -235,7 +237,7 @@ console.log(`  (${strangeRed.length} of ${STRANGE.length * STARTS.length * TOOLS
 console.log('one decision: what hides a file from a search is what denies its direct Read')
 {
   const filter = (permissions as { readDenialFilter?: (permission: Permission, root: string) => (file: string) => boolean }).readDenialFilter
-  check('the search tools ask one function whether a direct Read of a file is denied', typeof filter === 'function')
+  check('the search tools ask one function whether a direct Read of a file is denied', typeof filter === 'function', 'export readDenialFilter(context, root) from src/utils/permissions/filesystem.ts')
   if (typeof filter === 'function') {
     const files = Object.keys(TREE).map(path => join(project, path))
     const contexts: Array<[string, Permission]> = [
@@ -255,16 +257,16 @@ console.log('one decision: what hides a file from a search is what denies its di
         for (const file of files.filter(file => file.startsWith(root))) if (denied(file) !== (directRead(file, permission) === 'deny')) apart.push(`${label} from ${root.slice(world.length) || '/'}: ${file.slice(project.length + 1)}`)
       }
     }
-    check(`${contexts.length} sets of rules, three folders, seven files: it answers as the direct Read does every time`, apart.length === 0, apart.join(' | '))
+    check(`${contexts.length} sets of rules, three folders, seven files: it answers as the direct Read does every time`, apart.length === 0, `${apart.join(' | ')} — readDenialFilter and checkReadPermissionForTool (src/utils/permissions/filesystem.ts) must read the same rules`)
     const secret = join(HOME, '.credentials.json')
     writeFileSync(secret, '{"note":"needle"}\n', { mode: 0o600 })
-    check('Mercury\'s own credential file is denied by it as by a direct Read, with no rule at all', filter(getEmptyToolPermissionContext(), world)(secret) === true && directRead(secret, getEmptyToolPermissionContext()) === 'deny')
+    check('Mercury\'s own credential file is denied by it as by a direct Read, with no rule at all', filter(getEmptyToolPermissionContext(), world)(secret) === true && directRead(secret, getEmptyToolPermissionContext()) === 'deny', 'readDenialFilter and checkReadPermissionForTool in src/utils/permissions/filesystem.ts must both deny the credential file of the config home')
     const ask = withRules('alwaysAskRules', 'session', ['Read(src/secret/**)'])
     const asked = await TOOLS[1]![1](undefined, ask)
-    check('an ask rule hides nothing from a search, as on the parent', directRead(join(project, 'src/secret/keys.ts'), ask) === 'ask' && shows(asked, 'secret/keys.ts'), asked)
+    check('an ask rule hides nothing from a search, as on the parent', directRead(join(project, 'src/secret/keys.ts'), ask) === 'ask' && shows(asked, 'secret/keys.ts'), `${asked} — an ask rule must not hide files; see readDenialFilter in src/utils/permissions/filesystem.ts`)
     const narrowed = withRules('alwaysAllowRules', 'toolsNarrowing', ['Read(src/secrets-public/**)'])
     const narrow = await Promise.all(TOOLS.map(([, run]) => run(undefined, narrowed)))
-    check('tools narrowed to one folder: a search names that folder\'s file and no other, as a direct Read of the others is denied', narrow.every(answer => shows(answer, 'secrets-public/keys.ts') && !shows(answer, 'secret/keys.ts') && !shows(answer, 'open.ts') && !shows(answer, 'secret.ts')), narrow.join('\n---\n'))
+    check('tools narrowed to one folder: a search names that folder\'s file and no other, as a direct Read of the others is denied', narrow.every(answer => shows(answer, 'secrets-public/keys.ts') && !shows(answer, 'secret/keys.ts') && !shows(answer, 'open.ts') && !shows(answer, 'secret.ts')), `${narrow.join('\n---\n')}\n— ${searchHint}`)
   }
 }
 
@@ -303,12 +305,12 @@ console.log('the globs: ripgrep is kept out of a denied folder wherever the sear
     ['a backslash gives no glob', project, '/src/q\\?/**', project, []],
   ]
   const wrong = cases.filter(([, root, pattern, start, expected]) => globs(root, pattern, start) !== JSON.stringify([...expected].sort())).map(([label, root, pattern, start]) => `${label}: ${globs(root, pattern, start)}`)
-  check(`${cases.length} rules and starts: each gives exactly the globs that name the denied paths below the start, and none where the rule cannot reach`, wrong.length === 0, wrong.join(' | '))
-  check('a rule with no leading slash is still given as written, and is also anchored at the working folder', globs(null, 'src/secret/**', join(project, 'src')) === JSON.stringify(['/secret', '/secret/**', 'src/secret/**']), globs(null, 'src/secret/**', join(project, 'src')))
-  check('a bare name with no root is given as written: any depth, as before', globs(null, 'more.ts', join(project, 'src')) === JSON.stringify(['more.ts']), globs(null, 'more.ts', join(project, 'src')))
-  check('a pattern with no leading slash has a brace that reaches the globs written as a letter too', globs(null, 'src/{secret,a}/**', project) === JSON.stringify(['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**', 'src/[{]secret,a[}]/**']), globs(null, 'src/{secret,a}/**', project))
+  check(`${cases.length} rules and starts: each gives exactly the globs that name the denied paths below the start, and none where the rule cannot reach`, wrong.length === 0, `${wrong.join(' | ')} — ${globsHint}`)
+  check('a rule with no leading slash is still given as written, and is also anchored at the working folder', globs(null, 'src/secret/**', join(project, 'src')) === JSON.stringify(['/secret', '/secret/**', 'src/secret/**']), `${globs(null, 'src/secret/**', join(project, 'src'))} — ${globsHint}`)
+  check('a bare name with no root is given as written: any depth, as before', globs(null, 'more.ts', join(project, 'src')) === JSON.stringify(['more.ts']), `${globs(null, 'more.ts', join(project, 'src'))} — ${globsHint}`)
+  check('a pattern with no leading slash has a brace that reaches the globs written as a letter too', globs(null, 'src/{secret,a}/**', project) === JSON.stringify(['/src/[{]secret,a[}]', '/src/[{]secret,a[}]/**', 'src/[{]secret,a[}]/**']), `${globs(null, 'src/{secret,a}/**', project)} — ${globsHint}`)
   const none = ['src/q\\?/**', '!secret/**', '#secret/**', 'src/[x/**', 'src/[a/b]/**'].filter(pattern => globs(null, pattern, project) !== '[]')
-  check('a rule with no leading slash that holds a backslash, begins with a bang or a hash, or leaves a class open gives no glob', none.length === 0, none.map(pattern => `${pattern}: ${globs(null, pattern, project)}`).join(' | '))
+  check('a rule with no leading slash that holds a backslash, begins with a bang or a hash, or leaves a class open gives no glob', none.length === 0, `${none.map(pattern => `${pattern}: ${globs(null, pattern, project)}`).join(' | ')} — ${globsHint}`)
   const platform = await import(`${SRC}/utils/platform.ts`)
   const cache = (platform.getPlatform as unknown as { cache: Map<unknown, unknown> }).cache
   const had = cache.has(undefined)
@@ -319,7 +321,7 @@ console.log('the globs: ripgrep is kept out of a denied folder wherever the sear
     const fromProject = JSON.stringify(normalise(new Map([[drive.root, [drive.relative]]]), 'C:\\Users\\me\\proj').sort())
     const fromFolder = JSON.stringify(normalise(new Map([[drive.root, [drive.relative]]]), 'c:\\users\\ME\\proj\\src').sort())
     const elsewhere = JSON.stringify(normalise(new Map([[drive.root, [drive.relative]]]), 'D:\\other'))
-    check('a rule with a drive letter (the Windows seam, primed): searched from the project, from a folder below it in another letter case, and from another drive', fromProject === '["/src/secret","/src/secret/**"]' && fromFolder === '["/secret","/secret/**"]' && elsewhere === '[]', `${fromProject} ${fromFolder} ${elsewhere}`)
+    check('a rule with a drive letter (the Windows seam, primed): searched from the project, from a folder below it in another letter case, and from another drive', fromProject === '["/src/secret","/src/secret/**"]' && fromFolder === '["/secret","/secret/**"]' && elsewhere === '[]', `${fromProject} ${fromFolder} ${elsewhere} — ${globsHint}; the drive split is rootForPattern there`)
   } finally {
     if (had) cache.set(undefined, real)
     else cache.delete(undefined)

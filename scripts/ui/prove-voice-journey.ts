@@ -18,9 +18,10 @@ const VSHOT = join(import.meta.dir, 'vshot.py')
 const TRANSCRIPT = 'the quick brown fox jumps over the lazy dog'
 
 let failures = 0
+const VOICE_FAIL_HINT = ' — this drives dist/mercury.mjs: rebuild with bun run build.ts, then read the failing mark in the grid files (<tag>-grid.json) kept under the scratch folder named on the final RED line; the voice code is src/services/voice (holdToTalk.ts, capture.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}${cond ? '' : VOICE_FAIL_HINT}`)
 }
 
 const driver = posixPtyDriverOrSkip('voice-journey')

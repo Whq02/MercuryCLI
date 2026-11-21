@@ -3,10 +3,11 @@
 
 let failures = 0
 let checks = 0
+const jevStatusHint = 'fix resolveJevStatus, JEV_STATUS_HEADWORDS, jevStatusIsFinalForSession or jevStatusLine in src/services/jev/jevStatus.ts (the reason order and the words), or the attempt and wire-failure records in src/services/jev/jevLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' · ' : ''}${jevStatusHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

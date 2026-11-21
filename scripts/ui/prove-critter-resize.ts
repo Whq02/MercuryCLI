@@ -58,7 +58,7 @@ const res = spawnSync('/usr/bin/python3', [join(import.meta.dir, 'vshot.py'), cf
 cleanupScenario('frame')
 rmSync(RUN_HOME, { recursive: true, force: true })
 if (res.status !== 0) {
-  console.log(`FAIL  capture ran — ${res.stderr?.slice(0, 300)}`)
+  console.log(`FAIL  capture ran — ${res.stderr?.slice(0, 300)} (the vshot.py capture of this script exited ${res.status}; read its stderr above, then rerun this script)`)
   process.exit(1)
 }
 const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as RawGrid & {
@@ -69,22 +69,22 @@ const frames: Array<{ name: string; cols: number; rows: number; grid: RawGrid['g
   ...(payload.stages ?? []).map((s, i) => ({ name: `stage${i} (${s.cols}x${s.rows})`, cols: s.cols, rows: s.rows, grid: s.grid })),
   { name: 'final (120x40)', cols: payload.cols, rows: payload.rows, grid: payload.grid },
 ]
-t('resize stages captured', (payload.stages?.length ?? 0) === 2, `${payload.stages?.length ?? 0}`)
+t('resize stages captured', (payload.stages?.length ?? 0) === 2, `${payload.stages?.length ?? 0} — the capture must record one stage per entry of resizes in this script (2); check vshot.py resize handling`)
 
 for (const f of frames) {
   const text = f.grid.map(row => row.map(c => c.c).join(''))
   const wordmarkRows = text.filter(r => r.includes('█▄▄▄█')).length
   const lockups = text.filter(r => r.includes('✶ Mercury')).length
   const brands = (wordmarkRows > 0 ? 1 : 0) + lockups
-  t(`${f.name}: single brand (wordmark rows=${wordmarkRows}, lockups=${lockups})`, brands <= 1)
+  t(`${f.name}: single brand (wordmark rows=${wordmarkRows}, lockups=${lockups})`, brands <= 1, 'the splash draws more than one brand after a resize; the wordmark and the lockup must never both show, so find the splash render path that draws the critter or wordmark and make it replace the old one on resize')
   const ink = text.reduce((n, r) => n + r.trim().length, 0)
-  t(`${f.name}: not blank`, ink > 40, `${ink} ink chars`)
+  t(`${f.name}: not blank`, ink > 40, `${ink} ink chars — the frame is blank after the resize; the screen did not repaint, so check the resize repaint of the splash and the capture settle ticks in this script`)
 }
 
 const manifest = readManifest()
 const baselineEntry = manifest?.entries.find(e => e.id === 'frame--120x40--dark--truecolor--full')
 if (!baselineEntry) {
-  t('baseline entry present', false)
+  t('baseline entry present', false, 'id frame--120x40--dark--truecolor--full is missing from the visual baseline manifest; regenerate it with scripts/ui/generate-visual-baseline.ts')
 } else {
   const baseline = readStoredGrid(baselineEntry)
   const finalGrid = compactGrid({ cols: payload.cols, rows: payload.rows, grid: payload.grid })
@@ -92,10 +92,10 @@ if (!baselineEntry) {
   const fText = finalGrid.text
   const bArt = bText.filter(r => /[▀▄]{3,}/.test(r)).length
   const fArt = fText.filter(r => /[▀▄]{3,}/.test(r)).length
-  t('round-trip art-row count equals the fresh-boot baseline', fArt === bArt, `fresh=${bArt} roundtrip=${fArt}`)
+  t('round-trip art-row count equals the fresh-boot baseline', fArt === bArt, `fresh=${bArt} roundtrip=${fArt} — after the 120x40 to 60x18 to 120x40 round trip the art rows differ from a fresh boot; the splash must redraw the same as a fresh boot after a resize`)
   const bBrand = bText.filter(r => r.includes('█▄▄▄█')).length
   const fBrand = fText.filter(r => r.includes('█▄▄▄█')).length
-  t('round-trip wordmark rows equal the baseline', fBrand === bBrand, `fresh=${bBrand} roundtrip=${fBrand}`)
+  t('round-trip wordmark rows equal the baseline', fBrand === bBrand, `fresh=${bBrand} roundtrip=${fBrand} — after the resize round trip the wordmark rows differ from a fresh boot; the splash must redraw the same as a fresh boot after a resize`)
 }
 
 if (fail) {

@@ -8,7 +8,7 @@ process.env.MERCURY_CONFIG_DIR = home
 const { withheldThinkingDisclosure } = await import('../../src/components/messages/withheldThinkingDisclosure.ts')
 let failures = 0
 const check = (label: string, ok: boolean): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'} ${label}${ok ? '' : ' - to fix: withheldThinkingDisclosure in src/components/messages/withheldThinkingDisclosure.ts must return the byRow and hidden sets this check describes'}`)
   if (!ok) failures++
 }
 const row = (uuid: string, type: string, content: unknown[]): RenderableMessage => ({ uuid, type, message: { content } }) as RenderableMessage

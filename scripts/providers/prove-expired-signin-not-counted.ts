@@ -17,9 +17,10 @@ const slots = await import('../../src/services/providers/accountSlots.js')
 const logins = await import('../../src/components/BootLoginsScreen.js')
 
 let failures = 0
+const EXPIRED_SIGNIN_HINT = 'to fix, change the expiry handling in deriveFamilySlotGroups (src/services/providers/accountSlots.ts), slotSigninState (src/services/providers/accountSlots/signin.ts), or loginsFamilyCounts, loginsRowStateOf and loginsDetailLines (src/components/bootLogins/facts.ts)'
 const check = (label: string, ok: boolean, detail = '') => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${EXPIRED_SIGNIN_HINT}` : ''}`)
 }
 const scope = { name: 'personal', dir: join(home, 'scope-personal'), isCurrent: true, hasConfig: true, authed: true, foreignHarness: false, email: 'op@example.com' }
 const providers = [{ id: 'anthropic', available: true, description: { account: { kind: 'oauth', label: 'Claude subscription' } } }] as never

@@ -18,7 +18,7 @@ const engine = resolveShellEngine('brush')
 assert.equal(engine.engine, 'brush', 'the proof requires the bundled persistent shell engine')
 if (engine.engine !== 'brush') throw new Error(engine.reason)
 let checks = 0
-const check = (name: string, value: unknown) => { assert.ok(value, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, value: unknown) => { assert.ok(value, name + ' — fix runEngineCommand in src/utils/shell/engineSession.ts (live output, kill, session state) or the mirror and spill in src/utils/task/TaskOutput.ts (mirrorToDisk, writeStdout, flush)'); checks++; console.log('PASS ' + name) }
 const outputs: InstanceType<typeof TaskOutput>[] = []
 const controller = new AbortController()
 try {

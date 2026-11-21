@@ -26,9 +26,11 @@ if (!existsSync(DIST)) {
 }
 
 let failures = 0
+const tilesFailHint = 'the NOW cell text comes from LiveTileStore and liveTilePhase in src/components/concourse/liveTiles.ts and is painted by src/components/concourse/LiveNowCell.tsx inside the list pane src/components/concourse/layout/listPane.tsx; the dispatch and permission ask legs go through the daemon (daemonControlRpc concourseDispatch); set MERCURY_TILES_CAPTURE_DIR to keep the captured frames and TILES_DRIVE_KEEP=1 to keep the scratch folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${tilesFailHint}` : tilesFailHint
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')

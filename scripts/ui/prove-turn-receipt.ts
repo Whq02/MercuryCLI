@@ -12,9 +12,10 @@ const TEMP_ROOT = '/tmp/claude-1/'
 const inject = (rows: never[]) => injectTurnReceipts(rows, TEMP_ROOT)
 
 let failures = 0
+const RECEIPT_FAIL_HINT = ' — the receipt rows are derived by injectTurnReceipts and its helpers in src/utils/cockpit/turnReceipt.ts; fix the counting or boundary rule there'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : RECEIPT_FAIL_HINT}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

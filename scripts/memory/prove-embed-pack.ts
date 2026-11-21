@@ -17,7 +17,7 @@ process.chdir(ROOT)
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail.slice(0, 400)} — ` : ''}fix the embedding model catalogue and download in src/mneme/embedModels.ts (and its lock file), the native pack loader in src/mneme/embedPack.ts, or the vendor scripts scripts/vendor/build-embed.ts and scripts/vendor/fetch-embed-models.ts` : ''}`)
   if (!cond) failures++
 }
 const warn = (line: string): void => console.log(`  [WARN] ${line}`)

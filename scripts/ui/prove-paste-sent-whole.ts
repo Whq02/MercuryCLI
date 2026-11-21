@@ -33,12 +33,14 @@ const ROWS = 40
 const PLACEHOLDER = 'Type a prompt'
 const LANDING_NOTICE = 'the session is landing — your line sends when it lands'
 
+const PASTE_WHOLE_HINT = 'to fix, make a submitted line keep its pasted text bound: the hold while a session lands is holdForLanding in src/screens/chat/submit/sessionSend.ts with armForLanding in src/screens/chat/submit/submitLine.ts, and the placeholder expansion is resolvePastedContents, expandPastedTextRefs and danglingReferences in src/history.ts'
+
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${!ok ? ` — ${PASTE_WHOLE_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

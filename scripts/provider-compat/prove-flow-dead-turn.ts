@@ -44,8 +44,12 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const loopHint = 'the run loop is query in src/query.ts; the stream-fault words and recovery nudge come from src/services/api/errors.ts'
+const openaiStreamHint = 'see streamOneOpenaiAttempt in src/services/providers/openai/openaiCallModel.ts and ResponsesStreamFold in src/services/providers/openai/openaiWire.ts'
+const healHint = 'see healWalkableForWire in src/services/messages/pairing.ts'
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — flow dead-turn prover exceeded 120s')
+  console.log('a section is still waiting; the last section header above names it. ' + loopHint + ' (a scripted model call that never ends keeps query waiting)')
   process.exit(1)
 }, 120_000)
 guard.unref?.()
@@ -268,17 +272,18 @@ section('S1 — the fault-recovery budget is per-episode: fault · tool round ·
   check(
     'four model calls — BOTH faults recovered (a completed tool round resets the episode)',
     r.calls.length === 4,
-    `calls=${r.calls.length} (3 = the per-run budget died on the second fault: the incident)`,
+    `calls=${r.calls.length} (3 = the per-run budget died on the second fault: the incident) — ${loopHint}`,
   )
-  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal) + ' — ' + loopHint)
   const nudges = (i: number): number =>
     userTexts(r.calls[i]?.messages ?? []).filter(t => t === STREAM_FAULT_RECOVERY_NUDGE).length
-  check('the first recovery nudge rides call 2', nudges(1) === 1, String(nudges(1)))
-  check('the second recovery nudge rides call 4', nudges(3) >= 1, String(nudges(3)))
+  check('the first recovery nudge rides call 2', nudges(1) === 1, String(nudges(1)) + ' — ' + loopHint)
+  check('the second recovery nudge rides call 4', nudges(3) >= 1, String(nudges(3)) + ' — ' + loopHint)
   const lastCall = r.calls.at(-1)
   check(
     'the final call still carries the completed tool round (settled work survives recovery)',
     toolResults(lastCall?.messages ?? []).some(t => t.id === 'tu_mid' && t.text.includes('echo:progress')),
+    loopHint,
   )
 }
 
@@ -289,8 +294,8 @@ section('S2 — the anti-spiral bound holds: two CONSECUTIVE faults, the second 
     partialThenFault('partial two'),
     [y(textTurn('never reached'))],
   ])
-  check('exactly two calls — the consecutive second fault surfaces terminally', r.calls.length === 2, String(r.calls.length))
-  check('terminal completed (the error tail is the visible outcome)', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('exactly two calls — the consecutive second fault surfaces terminally', r.calls.length === 2, String(r.calls.length) + ' calls — ' + loopHint)
+  check('terminal completed (the error tail is the visible outcome)', r.terminal.reason === 'completed', JSON.stringify(r.terminal) + ' — ' + loopHint)
 }
 
 section('S3 — a FAILED tool round never ends the run: the error rides back as a tool_result')
@@ -302,12 +307,12 @@ section('S3 — a FAILED tool round never ends the run: the error rides back as 
     ],
     [makeEchoTool(), makeBoomTool()],
   )
-  check('two calls — the failed round CONTINUES the run', r.calls.length === 2, String(r.calls.length))
-  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('two calls — the failed round CONTINUES the run', r.calls.length === 2, String(r.calls.length) + ' calls — ' + loopHint)
+  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal) + ' — ' + loopHint)
   const results = toolResults(r.calls[1]?.messages ?? [])
   const boom = results.find(t => t.id === 'tu_boom')
-  check('the thrown error is DELIVERED as an is_error tool_result', boom !== undefined && boom.isError, JSON.stringify(results))
-  check('the delivered error names the cause', boom?.text.includes('rig exploded on alpha') === true, boom?.text ?? '')
+  check('the thrown error is DELIVERED as an is_error tool_result', boom !== undefined && boom.isError, JSON.stringify(results) + ' — ' + loopHint)
+  check('the delivered error names the cause', boom?.text.includes('rig exploded on alpha') === true, (boom?.text ?? '') + ' — ' + loopHint)
 }
 
 section('S4 — a grouped round failing WHOLE settles every member and continues')
@@ -326,13 +331,13 @@ section('S4 — a grouped round failing WHOLE settles every member and continues
     ],
     [makeEchoTool(), makeBoomTool()],
   )
-  check('two calls — the grouped failure CONTINUES the run', r.calls.length === 2, String(r.calls.length))
+  check('two calls — the grouped failure CONTINUES the run', r.calls.length === 2, String(r.calls.length) + ' calls — ' + loopHint)
   const results = toolResults(r.calls[1]?.messages ?? [])
   const g1 = results.find(t => t.id === 'tu_g1')
   const g2 = results.find(t => t.id === 'tu_g2')
-  check('EVERY grouped member settles its own error result (no unit death)', g1 !== undefined && g2 !== undefined, JSON.stringify(results.map(t => t.id)))
-  check('both results are error-marked and name their member', g1?.isError === true && g2?.isError === true && g1.text.includes('g1') && g2.text.includes('g2'))
-  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal))
+  check('EVERY grouped member settles its own error result (no unit death)', g1 !== undefined && g2 !== undefined, JSON.stringify(results.map(t => t.id)) + ' — ' + loopHint)
+  check('both results are error-marked and name their member', g1?.isError === true && g2?.isError === true && g1.text.includes('g1') && g2.text.includes('g2'), JSON.stringify(results) + ' — ' + loopHint)
+  check('terminal completed', r.terminal.reason === 'completed', JSON.stringify(r.terminal) + ' — ' + loopHint)
 }
 
 section('S5 — an unmapped INCOMPLETE finish on the GPT lane settles visibly, never silently')
@@ -387,10 +392,10 @@ section('S5 — an unmapped INCOMPLETE finish on the GPT lane settles visibly, n
   check(
     'the incomplete end is VISIBLE: a note names the provider\'s own reason',
     texts.some(t => t.includes('INCOMPLETE') && t.includes('fixture_reason_word')),
-    texts.join(' | ').slice(0, 200),
+    texts.join(' | ').slice(0, 200) + ' — ' + openaiStreamHint,
   )
-  check('the partial content still settles', texts.some(t => t.includes('partial work before the cut')))
-  check('stop_reason stays end_turn (the note, not a fake error, carries the truth)', stopReason === 'end_turn', String(stopReason))
+  check('the partial content still settles', texts.some(t => t.includes('partial work before the cut')), openaiStreamHint)
+  check('stop_reason stays end_turn (the note, not a fake error, carries the truth)', stopReason === 'end_turn', String(stopReason) + ' — ' + openaiStreamHint)
 }
 
 section('S6 — done-carried text paints and settles (never an empty turn)')
@@ -413,9 +418,9 @@ section('S6 — done-carried text paints and settles (never an empty turn)')
     }),
   ]
   const textDeltas = events.filter(e => e.type === 'text-delta') as Array<{ text: string }>
-  check('the un-deltaed text emits as a text-delta at the done event', textDeltas.map(d => d.text).join('') === 'done-carried body', JSON.stringify(textDeltas))
+  check('the un-deltaed text emits as a text-delta at the done event', textDeltas.map(d => d.text).join('') === 'done-carried body', JSON.stringify(textDeltas) + ' — ' + openaiStreamHint)
   const finish = events.find(e => e.type === 'finish') as { finalText?: string } | undefined
-  check('the finish still settles the same text', finish?.finalText === 'done-carried body', String(finish?.finalText))
+  check('the finish still settles the same text', finish?.finalText === 'done-carried body', String(finish?.finalText) + ' — ' + openaiStreamHint)
 
   const fold2 = new wire.ResponsesStreamFold()
   const events2 = [
@@ -428,7 +433,7 @@ section('S6 — done-carried text paints and settles (never an empty turn)')
     ...fold2.fold({ type: 'response.completed', response: { id: 'r2', usage: { input_tokens: 1, output_tokens: 1 } } }),
   ]
   const deltas2 = (events2.filter(e => e.type === 'text-delta') as Array<{ text: string }>).map(d => d.text).join('')
-  check('fully-streamed text never re-paints at done (exactly once)', deltas2 === 'streamed whole', JSON.stringify(deltas2))
+  check('fully-streamed text never re-paints at done (exactly once)', deltas2 === 'streamed whole', JSON.stringify(deltas2) + ' — ' + openaiStreamHint)
 
   const fold3 = new wire.ResponsesStreamFold()
   const events3 = [
@@ -439,7 +444,7 @@ section('S6 — done-carried text paints and settles (never an empty turn)')
     }),
   ]
   const deltas3 = (events3.filter(e => e.type === 'text-delta') as Array<{ text: string }>).map(d => d.text).join('')
-  check('a partially-streamed item paints exactly its remainder', deltas3 === 'half and rest', JSON.stringify(deltas3))
+  check('a partially-streamed item paints exactly its remainder', deltas3 === 'half and rest', JSON.stringify(deltas3) + ' — ' + openaiStreamHint)
 }
 
 section('S7 — the wire heal folds split turns: a grouped round is ONE turn, never a pairing violation')
@@ -465,14 +470,14 @@ section('S7 — the wire heal folds split turns: a grouped round is ONE turn, ne
   ]
   const healed = pairing.healWalkableForWire(split as never)
   const healedJson = JSON.stringify(healed)
-  check('NO synthetic missing-result is injected for the split grouped round', !healedJson.includes(SYNTHETIC_TOOL_RESULT_PLACEHOLDER), healedJson.slice(0, 200))
-  check('BOTH real results survive the heal', healedJson.includes('body of a') && healedJson.includes('body of b'))
+  check('NO synthetic missing-result is injected for the split grouped round', !healedJson.includes(SYNTHETIC_TOOL_RESULT_PLACEHOLDER), healedJson.slice(0, 200) + ' — ' + healHint)
+  check('BOTH real results survive the heal', healedJson.includes('body of a') && healedJson.includes('body of b'), healedJson.slice(0, 200) + ' — ' + healHint)
   const assistantRows = healed.filter(m => m.type === 'assistant')
-  check('the grouped round folds to ONE assistant turn', assistantRows.length === 1, String(assistantRows.length))
+  check('the grouped round folds to ONE assistant turn', assistantRows.length === 1, String(assistantRows.length) + ' assistant rows — ' + healHint)
   const uses = assistantRows.flatMap(m => (m.message.content as Array<{ type?: string; id?: string }>).filter(b => b.type === 'tool_use').map(b => b.id))
-  check('the folded turn carries both tool_use blocks in order', uses.join(',') === 'call_a,call_b', uses.join(','))
+  check('the folded turn carries both tool_use blocks in order', uses.join(',') === 'call_a,call_b', uses.join(',') + ' — ' + healHint)
   const userRows = healed.filter(m => m.type === 'user' && JSON.stringify(m.message.content).includes('tool_result'))
-  check('the results fold to ONE user row (the canonical round shape)', userRows.length === 1, String(userRows.length))
+  check('the results fold to ONE user row (the canonical round shape)', userRows.length === 1, String(userRows.length) + ' user rows — ' + healHint)
 
   const twoTurns = [
     createUserMessage({ content: 'seed' }),
@@ -482,7 +487,7 @@ section('S7 — the wire heal folds split turns: a grouped round is ONE turn, ne
     userResult('c2', 'r2'),
   ]
   const healed2 = pairing.healWalkableForWire(twoTurns as never)
-  check('distinct turns stay distinct (no cross-turn merge)', healed2.filter(m => m.type === 'assistant').length === 2)
+  check('distinct turns stay distinct (no cross-turn merge)', healed2.filter(m => m.type === 'assistant').length === 2, healHint)
   check('a text-bearing user row never merges into results', (() => {
     const mixed = [
       createUserMessage({ content: 'seed' }),

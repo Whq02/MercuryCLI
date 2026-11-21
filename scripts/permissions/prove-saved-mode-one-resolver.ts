@@ -30,9 +30,10 @@ const PROOF_ENV = {
 }
 
 let failures = 0
+const savedModeHint = 'a saved guardrails.mode must resolve to the same posture at every door: fix seatInitialPermissionMode in src/daemon/concourseWorkers.ts, headlessPermissionArgv in src/daemon/headlessRun.ts, or initialPermissionModeFromCLI in src/utils/permissions/permissionSetup.ts so they share one resolver'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${savedModeHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const wait = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

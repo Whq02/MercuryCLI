@@ -69,21 +69,21 @@ const sameAnswer = (control: Run, probe: Run, controlWord: string, probeWord: st
 section('§1 the command roster: an unregistered planning word answers as any unknown name')
 {
   const control = await run(['run', '/frobnicate'])
-  check('control: the headless door refuses an unregistered name with its unknown-command sentence (exit 1, the .34 ruling)', control.code === 1 && control.out === '' && /Unknown command: \/frobnicate/.test(control.err), JSON.stringify(control))
+  check('control: the headless door refuses an unregistered name with its unknown-command sentence (exit 1, the .34 ruling)', control.code === 1 && control.out === '' && /Unknown command: \/frobnicate/.test(control.err), 'make `mercury run /frobnicate` print the Unknown command sentence on stderr, empty stdout, exit 1; ' + JSON.stringify(control))
   for (const word of ['strategy', 'plan']) {
     const probe = await run(['run', `/${word}`])
-    check(`/${word} answers exactly as /frobnicate does (same words, same exit code)`, sameAnswer(control, probe, 'frobnicate', word), JSON.stringify({ control, probe }))
+    check(`/${word} answers exactly as /frobnicate does (same words, same exit code)`, sameAnswer(control, probe, 'frobnicate', word), 'the word must not be registered as a command anywhere (src/commands.ts builtinCommands); it must answer like an unknown name; ' + JSON.stringify({ control, probe }))
   }
-  check('the probes made no model request', api.messageRequests().length === 0, String(api.messageRequests().length))
+  check('the probes made no model request', api.messageRequests().length === 0, 'an unknown slash name must be refused before any model request (resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx); requests seen: ' + String(api.messageRequests().length))
 
   const { builtinCommands } = await import('../../src/commands.ts')
   const { resolveUnknownSlashName } = await import('../../src/services/processUserInput/processSlashCommand.tsx')
   type Named = { name: string; aliases?: string[] }
   const roster = builtinCommands() as unknown as Named[]
   const names = new Set(roster.flatMap(c => [c.name, ...(c.aliases ?? [])]))
-  check('the roster registers no planning command under either word', !names.has('strategy') && !names.has('plan'), [...names].filter(n => /strateg|^plan$/.test(n)).join(','))
-  check('the unknown-name resolver resolves both words (the screen will answer "Unknown command")', resolveUnknownSlashName('/strategy', roster as never) === 'strategy' && resolveUnknownSlashName('/plan', roster as never) === 'plan')
-  check('control: a registered name never resolves as unknown', resolveUnknownSlashName('/help', roster as never) === undefined)
+  check('the roster registers no planning command under either word', !names.has('strategy') && !names.has('plan'), 'remove the strategy or plan command and its aliases from builtinCommands in src/commands.ts; found: ' + [...names].filter(n => /strateg|^plan$/.test(n)).join(','))
+  check('the unknown-name resolver resolves both words (the screen will answer "Unknown command")', resolveUnknownSlashName('/strategy', roster as never) === 'strategy' && resolveUnknownSlashName('/plan', roster as never) === 'plan', 'resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx must return the bare name for a word that is not in the roster')
+  check('control: a registered name never resolves as unknown', resolveUnknownSlashName('/help', roster as never) === undefined, 'resolveUnknownSlashName in src/services/processUserInput/processSlashCommand.tsx must return undefined for a registered name')
 }
 
 section('§2 the tool roster: the planning tools the model is offered are Apollo\'s alone')
@@ -91,17 +91,17 @@ section('§2 the tool roster: the planning tools the model is offered are Apollo
   const mainRequests = (): number => api.messageRequests().filter(r => !isHandoffRequest(r)).length
   const before = mainRequests()
   const run2 = await run(['run', 'hello'])
-  check('control: a plain run reaches the fixture provider once (the session\'s closing ask set aside)', run2.code === 0 && mainRequests() === before + 1, JSON.stringify(run2))
+  check('control: a plain run reaches the fixture provider once (the session\'s closing ask set aside)', run2.code === 0 && mainRequests() === before + 1, 'a plain mercury run hello must exit 0 and make exactly one model request; ' + JSON.stringify(run2))
   const request = api.messageRequests()[before] as { body?: { tools?: Array<{ name: string }> } } | undefined
   const offered = (request?.body?.tools ?? []).map(t => t.name)
-  check('the wire carries a tool roster', offered.length > 5, offered.join(','))
+  check('the wire carries a tool roster', offered.length > 5, 'the request body to the fixture API carried too few tools; ' + offered.join(','))
   const planning = offered.filter(name => /Strategy|PlanMode/.test(name))
-  check('no tool on the wire enters or exits a planning mode', planning.length === 0, planning.join(','))
-  check('the Apollo review stays the one mode-moving tool the roster declares', offered.includes('ApolloReview'), offered.join(','))
+  check('no tool on the wire enters or exits a planning mode', planning.length === 0, 'remove the tool that enters or exits a planning mode from the tool roster (src/tools.ts getAllBaseTools); found: ' + planning.join(','))
+  check('the Apollo review stays the one mode-moving tool the roster declares', offered.includes('ApolloReview'), 'the ApolloReview tool must stay on the wire (src/tools.ts getAllBaseTools); offered: ' + offered.join(','))
 
   const { getAllBaseTools } = await import('../../src/tools.ts')
   const names = getAllBaseTools().map(t => t.name)
-  check('the base tool registry agrees', !names.some(name => /Strategy|PlanMode/.test(name)) && names.includes('ApolloReview'), names.filter(name => /Strategy|PlanMode|Apollo/.test(name)).join(','))
+  check('the base tool registry agrees', !names.some(name => /Strategy|PlanMode/.test(name)) && names.includes('ApolloReview'), 'getAllBaseTools in src/tools.ts must hold ApolloReview and no Strategy or PlanMode tool; found: ' + names.filter(name => /Strategy|PlanMode|Apollo/.test(name)).join(','))
 }
 
 section('§3 the crew wire: a crewmate spawns in the ordinary posture and no message approves a plan')
@@ -109,27 +109,27 @@ section('§3 the crew wire: a crewmate spawns in the ordinary posture and no mes
   const request = api.messageRequests().at(-1) as { body?: { tools?: Array<{ name: string; input_schema?: { properties?: Record<string, unknown> } }> } } | undefined
   const tools = request?.body?.tools ?? []
   const agent = tools.find(t => t.name === 'Crewmate')
-  check('the Crewmate tool rides the wire', agent !== undefined, tools.map(t => t.name).join(','))
+  check('the Crewmate tool rides the wire', agent !== undefined, 'the last model request must carry the Crewmate tool; tools seen: ' + tools.map(t => t.name).join(','))
   const agentProps = Object.keys(agent?.input_schema?.properties ?? {})
-  check('the Crewmate tool offers no permission posture for a spawned crewmate', !agentProps.includes('mode') && !agentProps.includes('plan_mode_required'), agentProps.join(','))
+  check('the Crewmate tool offers no permission posture for a spawned crewmate', !agentProps.includes('mode') && !agentProps.includes('plan_mode_required'), 'remove the mode and plan_mode_required fields from the Crewmate tool input schema; found: ' + agentProps.join(','))
   const sendMessage = tools.find(t => t.name === 'SendMessage')
-  check('the SendMessage tool rides the wire', sendMessage !== undefined)
-  check('no SendMessage variant approves or rejects a plan', !JSON.stringify(sendMessage?.input_schema ?? {}).includes('plan_approval'))
+  check('the SendMessage tool rides the wire', sendMessage !== undefined, 'the last model request must carry the SendMessage tool')
+  check('no SendMessage variant approves or rejects a plan', !JSON.stringify(sendMessage?.input_schema ?? {}).includes('plan_approval'), 'remove the plan_approval message variant from the SendMessage tool input schema')
 
 }
 
 section('§4 the mode word: --mode strategy is an unknown value, the lists and schemas carry Apollo as the planning mode')
 {
   const control = await run(['run', '--mode', 'frobnicate', 'hello'])
-  check('control: an unknown --mode value is the parser\'s own error on stderr, exit 2', control.code === 2 && control.out === '' && control.err.startsWith("error: option '--mode <mode>' argument 'frobnicate' is invalid."), JSON.stringify(control))
+  check('control: an unknown --mode value is the parser\'s own error on stderr, exit 2', control.code === 2 && control.out === '' && control.err.startsWith("error: option '--mode <mode>' argument 'frobnicate' is invalid."), 'an unknown --mode value must fail in the option parser with exit 2 and that error text on stderr; ' + JSON.stringify(control))
   const probe = await run(['run', '--mode', 'strategy', 'hello'])
-  check('--mode strategy answers exactly as --mode frobnicate does', sameAnswer(control, probe, 'frobnicate', 'strategy'), JSON.stringify({ control, probe }))
-  check('the allowed-choices list the parser prints names apollo and no other planning station', /Allowed choices are [^\n]*\bapollo\b/.test(control.err) && !/strateg/.test(control.err), control.err)
+  check('--mode strategy answers exactly as --mode frobnicate does', sameAnswer(control, probe, 'frobnicate', 'strategy'), 'strategy must not be an allowed --mode choice; it must be refused like any unknown word; ' + JSON.stringify({ control, probe }))
+  check('the allowed-choices list the parser prints names apollo and no other planning station', /Allowed choices are [^\n]*\bapollo\b/.test(control.err) && !/strateg/.test(control.err), 'the --mode choices list must name apollo and no strategy word; ' + control.err)
 
   const vocab = await import('../../src/types/permissions.ts')
   const pm = await import('../../src/utils/permissions/PermissionMode.ts')
   const lists = [...vocab.PERMISSION_MODES, ...vocab.EXTERNAL_PERMISSION_MODES, ...vocab.INTERNAL_PERMISSION_MODES]
-  check('no mode list carries a planning station other than apollo', lists.includes('apollo') && !lists.some(m => /strateg/.test(m)), lists.join(','))
+  check('no mode list carries a planning station other than apollo', lists.includes('apollo') && !lists.some(m => /strateg/.test(m)), 'PERMISSION_MODES, EXTERNAL_PERMISSION_MODES and INTERNAL_PERMISSION_MODES in src/types/permissions.ts must hold apollo and no strategy word; found: ' + lists.join(','))
   check('the carousel never reaches a planning stop other than apollo from any mode', (vocab.PERMISSION_MODES as readonly string[]).every(mode => {
     const { getNextPermissionMode } = require('../../src/utils/permissions/getNextPermissionMode.ts') as typeof import('../../src/utils/permissions/getNextPermissionMode.ts')
     for (const bypass of [false, true]) {
@@ -137,11 +137,11 @@ section('§4 the mode word: --mode strategy is an unknown value, the lists and s
       if (/strateg/.test(next)) return false
     }
     return true
-  }))
-  check('an unknown stored mode word resolves to the default mode', pm.permissionModeFromString('strategy') === 'default' && pm.permissionModeFromString('frobnicate') === 'default')
-  check('the external permission-mode schema refuses the word as it refuses any unknown word', !pm.externalPermissionModeSchema().safeParse('strategy').success && !pm.externalPermissionModeSchema().safeParse('frobnicate').success && pm.externalPermissionModeSchema().safeParse('implement').success)
+  }), 'getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts must never return a strategy mode from any mode')
+  check('an unknown stored mode word resolves to the default mode', pm.permissionModeFromString('strategy') === 'default' && pm.permissionModeFromString('frobnicate') === 'default', 'permissionModeFromString in src/utils/permissions/PermissionMode.ts must return default for an unknown word such as strategy')
+  check('the external permission-mode schema refuses the word as it refuses any unknown word', !pm.externalPermissionModeSchema().safeParse('strategy').success && !pm.externalPermissionModeSchema().safeParse('frobnicate').success && pm.externalPermissionModeSchema().safeParse('implement').success, 'externalPermissionModeSchema in src/utils/permissions/PermissionMode.ts must refuse strategy and frobnicate and accept implement')
   const headless = await import('../../src/daemon/headlessRun.ts')
-  check('the daemon child postures carry no planning station', !(headless.HEADLESS_PERMISSION_MODES as readonly string[]).some(m => /strateg/.test(m)))
+  check('the daemon child postures carry no planning station', !(headless.HEADLESS_PERMISSION_MODES as readonly string[]).some(m => /strateg/.test(m)), 'remove the strategy word from HEADLESS_PERMISSION_MODES in src/daemon/headlessRun.ts')
 }
 
 section('§5 a saved chat that was in a mode this build does not know opens in default')
@@ -150,9 +150,9 @@ section('§5 a saved chat that was in a mode this build does not know opens in d
   const row = (mode: string) => ({ type: 'user', uuid: '11111111-1111-4111-8111-111111111111', timestamp: '2026-01-01T00:00:00.000Z', message: { role: 'user', content: 'saved prompt' }, permissionMode: mode }) as never
   const userRow = (rows: unknown[]): { permissionMode?: string } | undefined => (rows as Array<{ type: string; permissionMode?: string }>).find(r => r.type === 'user')
   const restored = userRow(recovery.deserializeMessages([row('strategy')]))
-  check('the stored mode word is not carried into the resumed session (it reads as default)', restored !== undefined && restored.permissionMode === undefined, JSON.stringify(restored))
+  check('the stored mode word is not carried into the resumed session (it reads as default)', restored !== undefined && restored.permissionMode === undefined, 'deserializeMessages in src/services/resume/conversationRecovery.ts must drop a stored permissionMode this build does not know; ' + JSON.stringify(restored))
   const kept = userRow(recovery.deserializeMessages([row('implement')]))
-  check('control: a mode this build knows is kept', kept?.permissionMode === 'implement')
+  check('control: a mode this build knows is kept', kept?.permissionMode === 'implement', 'deserializeMessages in src/services/resume/conversationRecovery.ts must keep a stored permissionMode this build knows')
 }
 
 await api.close?.()

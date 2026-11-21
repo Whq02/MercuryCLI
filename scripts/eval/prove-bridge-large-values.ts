@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { check, cleanup, finish, loadEval, makeContext, section, setup } from './lib.js'
 
+const checkWithFix = (label: string, cond: boolean, detail: string, fix: string): void => check(label, cond, cond ? detail : detail === '' ? fix : `${detail} — ${fix}`)
 const { work } = setup()
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
@@ -45,30 +46,30 @@ const words = (result: Awaited<ReturnType<typeof run>>): string => result.data.e
 try {
   section(`§1 a tool result above the persist threshold (${large.length} chars over a 50,000 ceiling) is the cell's value whole`)
   const first = await run('js', 'const ledger = await tool.FixtureLedger({ size: "large" })\nconst parsed = JSON.parse(ledger)\nparsed.end')
-  check('L1 JSON.parse reads the large result and finds its last field', first.data.status === 'ok' && first.data.resultRepr === '42', words(first))
+  checkWithFix('L1 JSON.parse reads the large result and finds its last field', first.data.status === 'ok' && first.data.resultRepr === '42', words(first), 'the cell must get the whole tool result, not the persisted display; see the nested tool call in makeEvalBridgeServer in src/services/eval/evalBridge.ts')
   const next = await run('js', 'JSON.parse(ledger).rows.length')
-  check('L2 the next cell reads the retained binding whole', next.data.status === 'ok' && next.data.resultRepr === '4000', words(next))
+  checkWithFix('L2 the next cell reads the retained binding whole', next.data.status === 'ok' && next.data.resultRepr === '4000', words(next), 'the kernel must keep the binding between cells; see the kernel manager that loadEval returns in scripts/eval/lib.ts')
   const size = await run('js', 'ledger.length')
-  check('L3 the value is the whole result, character for character', size.data.resultRepr === String(large.length), words(size))
+  checkWithFix('L3 the value is the whole result, character for character', size.data.resultRepr === String(large.length), words(size), 'the bridge must hand the cell the untruncated text; see makeEvalBridgeServer in src/services/eval/evalBridge.ts')
 
   section('§2 the transcript keeps the bounded display, which names where the full output lives')
   const display = nested.find(text => text.startsWith(PERSISTED_OUTPUT_TAG))
-  check('D1 the nested tool result the model sees is the persisted-output display', display !== undefined && display.length < 5_000, `${nested.length} nested results, first ${(nested[0] ?? '').slice(0, 60)}`)
+  checkWithFix('D1 the nested tool result the model sees is the persisted-output display', display !== undefined && display.length < 5_000, `${nested.length} nested results, first ${(nested[0] ?? '').slice(0, 60)}`, 'a result over the ceiling must reach the transcript as the persisted-output display; see PERSISTED_OUTPUT_TAG and buildLargeToolResultMessage in src/utils/toolResultStorage.ts')
   const saved = /Full output saved to: (.+)\n/.exec(display ?? '')?.[1]
-  check('D2 the display names a file that holds exactly the value the cell received', saved !== undefined && existsSync(saved) && readFileSync(saved, 'utf8') === large, saved ?? 'no path in the display')
+  checkWithFix('D2 the display names a file that holds exactly the value the cell received', saved !== undefined && existsSync(saved) && readFileSync(saved, 'utf8') === large, saved ?? 'no path in the display', 'the display must carry a Full output saved to: path whose file holds the whole result; see persistToolResult in src/utils/toolResultStorage.ts')
   const shown = String(EvalTool.mapToolResultToToolResultBlockParam(first.data, 'eval-large-values').content)
-  check('D3 the Eval result itself stays small: the cell printed 42, not the ledger', shown.length < 2_000 && shown.includes('42'), shown.slice(0, 200))
+  checkWithFix('D3 the Eval result itself stays small: the cell printed 42, not the ledger', shown.length < 2_000 && shown.includes('42'), shown.slice(0, 200), 'the Eval result must hold only what the cell returned; see mapToolResultToToolResultBlockParam in src/tools/EvalTool/EvalTool.ts')
 
   section('§3 Python, a small result, and a value that merely contains the tag words')
   const py = await run('py', 'import json\njson.loads(tool.FixtureLedger(size="large"))["end"]')
-  check('P1 the Python kernel reads the same whole value', py.data.status === 'ok' && py.data.resultRepr === '42', words(py))
+  checkWithFix('P1 the Python kernel reads the same whole value', py.data.status === 'ok' && py.data.resultRepr === '42', words(py), 'the Python tool bridge must return the whole result too; see makeEvalBridgeServer in src/services/eval/evalBridge.ts')
   const control = await run('js', 'JSON.parse(await tool.FixtureLedger({ size: "small" })).rows')
-  check('S1 a result under the threshold is unchanged', control.data.status === 'ok' && control.data.resultRepr === "'small'", words(control))
+  checkWithFix('S1 a result under the threshold is unchanged', control.data.status === 'ok' && control.data.resultRepr === "'small'", words(control), 'a result under the ceiling must pass through untouched; see makeEvalBridgeServer in src/services/eval/evalBridge.ts')
   const literal = await run('js', 'const own = await tool.FixtureLedger({ size: "tagged" })\nown === ' + JSON.stringify(tagged))
-  check('S2 a small result that merely contains the tag words is returned as the tool wrote it', literal.data.status === 'ok' && literal.data.resultRepr === 'true', words(literal))
+  checkWithFix('S2 a small result that merely contains the tag words is returned as the tool wrote it', literal.data.status === 'ok' && literal.data.resultRepr === 'true', words(literal), 'only a result the bridge itself persisted may be unwrapped, not text that contains PERSISTED_OUTPUT_TAG; see src/services/eval/evalBridge.ts')
 } finally {
   await evalKernelManager.disposeAll()
-  check('no kernel left behind', evalKernelManager.kernelCount() === 0)
+  checkWithFix('no kernel left behind', evalKernelManager.kernelCount() === 0, '', 'evalKernelManager.disposeAll must close every kernel; see src/services/eval')
   cleanup()
 }
 finish('BRIDGE LARGE VALUES')

@@ -32,12 +32,14 @@ const COLS = 120
 const ROWS = 40
 const PLACEHOLDER = 'Type a prompt'
 
+const LANDING_ORDER_HINT = 'to fix, change how a line submitted while a session lands is held and replayed (holdForLanding in src/screens/chat/submit/sessionSend.ts, armForLanding in src/screens/chat/submit/submitLine.ts); a refused landing hands the lines back to the composer'
+
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}${!ok ? ` — ${LANDING_ORDER_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

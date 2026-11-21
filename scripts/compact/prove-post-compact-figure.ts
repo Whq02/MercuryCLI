@@ -30,12 +30,12 @@ section('§1 the real estimators over the post-compact shape')
   const oldFigure = estimateMessageTokens(post as never)
   const newFigure = estimateContextTokens(post as never)
   const summaryAlone = roughTokenCountEstimation(summaryText)
-  check('the string-bodied summary is thousands of tokens (the fixture is meaningful)', summaryAlone > 1500, String(summaryAlone))
-  check('THE OLD ESTIMATOR DROPPED THE STRING SUMMARY (the receipt\'s "after" figure omitted it)', oldFigure < summaryAlone / 2, `old=${oldFigure} summary=${summaryAlone}`)
-  check('the new figure counts the summary', newFigure >= summaryAlone, `new=${newFigure}`)
-  check('…and the kept tail beside it', newFigure > summaryAlone)
+  check('the string-bodied summary is thousands of tokens (the fixture is meaningful)', summaryAlone > 1500, `${summaryAlone}; roughTokenCountEstimation in src/services/tokenEstimation.ts returned too little for the fixture, so check that function or lengthen summaryText in this script`)
+  check('THE OLD ESTIMATOR DROPPED THE STRING SUMMARY (the receipt\'s "after" figure omitted it)', oldFigure < summaryAlone / 2, `old=${oldFigure} summary=${summaryAlone}; estimateMessageTokens in src/services/compact/microCompact.ts now counts string-bodied messages, so this script no longer shows the old gap and its fixture or label needs updating`)
+  check('the new figure counts the summary', newFigure >= summaryAlone, `new=${newFigure}; estimateContextTokens in src/services/compact/microCompact.ts must count a string-bodied user message`)
+  check('…and the kept tail beside it', newFigure > summaryAlone, `new=${newFigure} summary=${summaryAlone}; estimateContextTokens in src/services/compact/microCompact.ts must also count the kept assistant message`)
   const rawSum = summaryAlone + roughTokenCountEstimation('reply: module 5 adjusted. '.repeat(20))
-  check('the figure counts the summary AND the tail under the estimator\'s one headroom factor', newFigure >= rawSum && newFigure <= Math.ceil((rawSum * 4) / 3) + 8, `new=${newFigure} raw=${rawSum}`)
+  check('the figure counts the summary AND the tail under the estimator\'s one headroom factor', newFigure >= rawSum && newFigure <= Math.ceil((rawSum * 4) / 3) + 8, `new=${newFigure} raw=${rawSum}; estimateContextTokens in src/services/compact/microCompact.ts must count summary plus tail once, with at most the one 4/3 headroom factor`)
 }
 
 

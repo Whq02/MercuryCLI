@@ -28,27 +28,27 @@ const needlesOf = vb.settleNeedles as undefined | ((cfg: Cfg, cockpit: readonly 
 const law = vb.SETTLE_LAW as undefined | { tickMs: number; stillTicks: number; ceilingTicks: number }
 
 section('§1 the settle law is written once: every needle of the scene on screen, then still for 8 ticks; a 60 s ceiling')
-check('the law exists beside the masks', law !== undefined && typeof settle === 'function' && typeof cockpit === 'function' && typeof needlesOf === 'function')
-check('the stillness window is 8 ticks (1.6 s) and the ceiling 300 ticks (60 s) of 200 ms ticks', law !== undefined && law.tickMs === 200 && law.stillTicks === 8 && law.ceilingTicks === 300, JSON.stringify(law))
+check('the law exists beside the masks', law !== undefined && typeof settle === 'function' && typeof cockpit === 'function' && typeof needlesOf === 'function', 'export SETTLE_LAW, settleCaptureConfig, cockpitReadyText and settleNeedles from scripts/ui/visualBaseline.ts')
+check('the stillness window is 8 ticks (1.6 s) and the ceiling 300 ticks (60 s) of 200 ms ticks', law !== undefined && law.tickMs === 200 && law.stillTicks === 8 && law.ceilingTicks === 300, JSON.stringify(law) + ' — set SETTLE_LAW in scripts/ui/visualBaseline.ts to tickMs 200, stillTicks 8, ceilingTicks 300')
 if (law && settle && cockpit && needlesOf) {
   const wide = cockpit(120, 100)
   const narrow = cockpit(60, 100)
   const both = cockpit(150, 100)
-  check('a wide cockpit is ready when the composer and the rail scan have landed', wide.join('|') === 'Type a prompt|RECENT|○ ', wide.join('|'))
-  check('a narrow cockpit is ready when the composer and the late count row have landed (the host-neutral word of that row)', narrow.join('|') === 'Type a prompt|concourse', narrow.join('|'))
-  check('a both-rails cockpit waits on the needles of a wide one: no cell of the second rail is a readiness needle', both.join('|') === 'Type a prompt|RECENT|○ ', both.join('|'))
+  check('a wide cockpit is ready when the composer and the rail scan have landed', wide.join('|') === 'Type a prompt|RECENT|○ ', wide.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
+  check('a narrow cockpit is ready when the composer and the late count row have landed (the host-neutral word of that row)', narrow.join('|') === 'Type a prompt|concourse', narrow.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
+  check('a both-rails cockpit waits on the needles of a wide one: no cell of the second rail is a readiness needle', both.join('|') === 'Type a prompt|RECENT|○ ', both.join('|') + ' — fix cockpitReadyText in scripts/ui/visualBaseline.ts')
 
   const frame = settle({ argv: ['node', 'x'], sends: [], total: 45, cols: 120, rows: 40 }, wide, wide)
   const chain = (frame.sends ?? []).map(s => s.awaitText)
-  check('the wide frame waits on its own needles, one gate per needle, never a tick guess', chain.join('|') === wide.join('|') && (frame.sends ?? []).every(s => s.requireAwait === true && s.data === ''), JSON.stringify(frame.sends))
-  check('the authored 45-tick budget becomes the ceiling and the still window becomes the end gate', frame.total === 300 && frame.stableTicks === 8 && frame.requireStable === true && frame.readyText === undefined, JSON.stringify({ total: frame.total, still: frame.stableTicks, req: frame.requireStable, ready: frame.readyText }))
+  check('the wide frame waits on its own needles, one gate per needle, never a tick guess', chain.join('|') === wide.join('|') && (frame.sends ?? []).every(s => s.requireAwait === true && s.data === ''), JSON.stringify(frame.sends) + ' — fix settleCaptureConfig and readyChain in scripts/ui/visualBaseline.ts')
+  check('the authored 45-tick budget becomes the ceiling and the still window becomes the end gate', frame.total === 300 && frame.stableTicks === 8 && frame.requireStable === true && frame.readyText === undefined, JSON.stringify({ total: frame.total, still: frame.stableTicks, req: frame.requireStable, ready: frame.readyText }) + ' — fix settleCaptureConfig in scripts/ui/visualBaseline.ts')
 
   const help = settle({ argv: [], sends: [{ atTick: 30, data: '?' }], total: 46, cols: 120, rows: 40 }, needlesOf({}, wide, ['/keybindings to customize']), wide)
   const helpSends = help.sends ?? []
   const key = helpSends.find(s => s.data === '?')
-  check('the help key is typed only into a cockpit whose needles have landed and held still — never blind at tick 30', key !== undefined && key.atTick === undefined && key.requireAwait === true && key.awaitText === '○ ' && key.awaitStableTicks === 8, JSON.stringify(key))
-  check('the boot needles before the key are gates of their own, in order', helpSends.slice(0, 2).map(s => s.awaitText).join('|') === 'Type a prompt|RECENT', JSON.stringify(helpSends.slice(0, 2)))
-  check("the help scene ends on the overlay's own row beside the cockpit needles", helpSends.slice(-1)[0]?.awaitText === '/keybindings to customize', JSON.stringify(helpSends.slice(-1)))
+  check('the help key is typed only into a cockpit whose needles have landed and held still — never blind at tick 30', key !== undefined && key.atTick === undefined && key.requireAwait === true && key.awaitText === '○ ' && key.awaitStableTicks === 8, JSON.stringify(key) + ' — fix gateSends in scripts/ui/visualBaseline.ts')
+  check('the boot needles before the key are gates of their own, in order', helpSends.slice(0, 2).map(s => s.awaitText).join('|') === 'Type a prompt|RECENT', JSON.stringify(helpSends.slice(0, 2)) + ' — fix gateSends and readyChain in scripts/ui/visualBaseline.ts')
+  check("the help scene ends on the overlay's own row beside the cockpit needles", helpSends.slice(-1)[0]?.awaitText === '/keybindings to customize', JSON.stringify(helpSends.slice(-1)) + ' — fix settleCaptureConfig and settleNeedles in scripts/ui/visualBaseline.ts')
 
   const sessions = settle(
     { argv: [], sends: [{ atTick: 30, data: '/sessions' }, { atTick: 36, data: '\r' }], readyText: 'Switch to', stableTicks: 4, total: 100, cols: 120, rows: 40 },
@@ -57,46 +57,46 @@ if (law && settle && cockpit && needlesOf) {
   )
   const sSends = sessions.sends ?? []
   const enter = sSends.find(s => s.data === '\r')
-  check("the sessions scene ends on the manager's own word, not the rail marks the manager hides", sSends.slice(-1)[0]?.awaitText === 'Switch to' && !sSends.slice(-1)[0]?.hasOwnProperty('atTick') && sessions.readyText === undefined, JSON.stringify(sSends.slice(-1)))
-  check('the ↵ keeps its authored 6-tick gap after the command actually fired', enter !== undefined && enter.afterPrevTicks === 6 && enter.atTick === undefined, JSON.stringify(enter))
-  check("the scene's own still window yields to the law's", sessions.stableTicks === 8 && sessions.total === 300)
+  check("the sessions scene ends on the manager's own word, not the rail marks the manager hides", sSends.slice(-1)[0]?.awaitText === 'Switch to' && !sSends.slice(-1)[0]?.hasOwnProperty('atTick') && sessions.readyText === undefined, JSON.stringify(sSends.slice(-1)) + ' — fix settleCaptureConfig and settleNeedles in scripts/ui/visualBaseline.ts')
+  check('the ↵ keeps its authored 6-tick gap after the command actually fired', enter !== undefined && enter.afterPrevTicks === 6 && enter.atTick === undefined, JSON.stringify(enter) + ' — fix gateSends in scripts/ui/visualBaseline.ts')
+  check("the scene's own still window yields to the law's", sessions.stableTicks === 8 && sessions.total === 300, JSON.stringify({ still: sessions.stableTicks, total: sessions.total }) + ' — fix settleCaptureConfig in scripts/ui/visualBaseline.ts so the SETTLE_LAW window and ceiling replace the scene values')
 
   const own = needlesOf({ readyText: ['a', 'b'] }, wide, ['c'])
-  check('a scene that names its own ready text keeps it (plus the extra), a scene without one takes the cockpit set', own.join('|') === 'a|b|c' && needlesOf({}, narrow).join('|') === narrow.join('|'), own.join('|'))
+  check('a scene that names its own ready text keeps it (plus the extra), a scene without one takes the cockpit set', own.join('|') === 'a|b|c' && needlesOf({}, narrow).join('|') === narrow.join('|'), own.join('|') + ' — fix settleNeedles in scripts/ui/visualBaseline.ts')
 }
 
 section('§2 a never-settled capture is refused at once — the doubling retry is gone')
-check('no budget-doubling retry exists any more', vb.retryBudgetScale === undefined)
-check('the refusal class and the settle kinds exist', typeof vb.CaptureRefusal === 'function' && typeof vb.isSettleRefusal === 'function')
+check('no budget-doubling retry exists any more', vb.retryBudgetScale === undefined, 'remove retryBudgetScale from scripts/ui/visualBaseline.ts')
+check('the refusal class and the settle kinds exist', typeof vb.CaptureRefusal === 'function' && typeof vb.isSettleRefusal === 'function', 'export CaptureRefusal and isSettleRefusal from scripts/ui/visualBaseline.ts')
 {
   const isSettle = vb.isSettleRefusal as undefined | ((k: string) => boolean)
-  check('never-ready, never-still and a wall kill are settle refusals; an oracle rejection is not', isSettle !== undefined && isSettle('never-ready') && isSettle('never-still') && isSettle('wall') && !isSettle('refused'))
+  check('never-ready, never-still and a wall kill are settle refusals; an oracle rejection is not', isSettle !== undefined && isSettle('never-ready') && isSettle('never-still') && isSettle('wall') && !isSettle('refused'), 'fix isSettleRefusal in scripts/ui/visualBaseline.ts')
 }
 
 section('§3 --jobs N: isolated homes, a claim queue in matrix order, results assembled by the parent')
 const jobsPath = join(ROOT, 'scripts/lib/captureJobs.ts')
-check('the jobs plumbing exists as one shared module', existsSync(jobsPath))
+check('the jobs plumbing exists as one shared module', existsSync(jobsPath), 'restore scripts/lib/captureJobs.ts')
 if (existsSync(jobsPath)) {
   const cj = (await import('../lib/captureJobs.ts')) as typeof import('../lib/captureJobs.ts')
-  check('--jobs parses, -jN parses, the default is 1', cj.parseJobs(['--jobs', '4']) === 4 && cj.parseJobs(['-j6']) === 6 && cj.parseJobs([]) === 1)
+  check('--jobs parses, -jN parses, the default is 1', cj.parseJobs(['--jobs', '4']) === 4 && cj.parseJobs(['-j6']) === 6 && cj.parseJobs([]) === 1, 'fix parseJobs in scripts/lib/captureJobs.ts')
   let threw = ''
   try {
     cj.parseJobs(['--jobs', '0'])
   } catch (e) {
     threw = String(e)
   }
-  check('--jobs 0 is refused', threw.includes('--jobs'))
-  check('the vshot slot count follows the jobs when they exceed the machine-wide default, and never shrinks it', cj.vshotSlotsFor(4, {}) === '4' && cj.vshotSlotsFor(1, {}) === '3' && cj.vshotSlotsFor(2, { VSHOT_SLOTS: '5' }) === '5')
+  check('--jobs 0 is refused', threw.includes('--jobs'), 'parseJobs in scripts/lib/captureJobs.ts must throw an error naming --jobs for 0; it threw: ' + (threw || 'nothing'))
+  check('the vshot slot count follows the jobs when they exceed the machine-wide default, and never shrinks it', cj.vshotSlotsFor(4, {}) === '4' && cj.vshotSlotsFor(1, {}) === '3' && cj.vshotSlotsFor(2, { VSHOT_SLOTS: '5' }) === '5', 'fix vshotSlotsFor in scripts/lib/captureJobs.ts')
   const dir = mkdtempSync(join(tmpdir(), 'capture-jobs-proof-'))
   try {
     const run = cj.openJobsRun(join(dir, 'run'))
-    check('a job is claimed exactly once across workers', cj.claimJob(run, 'a--1') && !cj.claimJob(run, 'a--1') && cj.claimJob(run, 'b--2'))
+    check('a job is claimed exactly once across workers', cj.claimJob(run, 'a--1') && !cj.claimJob(run, 'a--1') && cj.claimJob(run, 'b--2'), 'fix claimJob in scripts/lib/captureJobs.ts')
     cj.writeJobResult(run, 'a--1', { ok: true, n: 1 })
-    check('a result round-trips by id and a missing one reads null', JSON.stringify(cj.readJobResult(run, 'a--1')) === '{"ok":true,"n":1}' && cj.readJobResult(run, 'zzz') === null)
-    check('every worker slot has a home of its own under the run', cj.workerHome(run, 1) !== cj.workerHome(run, 2) && cj.workerHome(run, 1).startsWith(run.dir))
-    check('a refused capture has a place to keep what it saw, and the run reports it', cj.refusedDir(run, 'a--1').startsWith(run.refused) && cj.hasRefusals(run))
+    check('a result round-trips by id and a missing one reads null', JSON.stringify(cj.readJobResult(run, 'a--1')) === '{"ok":true,"n":1}' && cj.readJobResult(run, 'zzz') === null, 'fix writeJobResult and readJobResult in scripts/lib/captureJobs.ts')
+    check('every worker slot has a home of its own under the run', cj.workerHome(run, 1) !== cj.workerHome(run, 2) && cj.workerHome(run, 1).startsWith(run.dir), 'fix workerHome in scripts/lib/captureJobs.ts')
+    check('a refused capture has a place to keep what it saw, and the run reports it', cj.refusedDir(run, 'a--1').startsWith(run.refused) && cj.hasRefusals(run), 'fix refusedDir and hasRefusals in scripts/lib/captureJobs.ts')
     cj.closeJobsRun(run, false)
-    check('a closed run is removed', !existsSync(run.dir))
+    check('a closed run is removed', !existsSync(run.dir), 'fix closeJobsRun in scripts/lib/captureJobs.ts')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
@@ -104,16 +104,16 @@ if (existsSync(jobsPath)) {
 
 section('§4 the three generators consume the law and the plumbing')
 const gen = readFileSync(GENERATOR, 'utf8')
-check('the grid generator takes --jobs, --out and a worker mode', gen.includes('parseJobs(') && gen.includes("'--out'") && gen.includes("'--worker'"))
-check('the grid generator captures through the settle law and no longer overrides a scene with the rail marks', gen.includes('settleCaptureConfig(') && !gen.includes('stableTicks: 8 }'))
-check('the grid generator never stretches a budget on retry', !gen.includes('MERCURY_VSHOT_BUDGET_SCALE: String('))
-check('the grid generator keeps what a refused capture saw beside its log', gen.includes('last-frame.txt') && gen.includes('refusal.log'))
+check('the grid generator takes --jobs, --out and a worker mode', gen.includes('parseJobs(') && gen.includes("'--out'") && gen.includes("'--worker'"), 'add parseJobs, --out and --worker handling to scripts/ui/generate-visual-baseline.ts')
+check('the grid generator captures through the settle law and no longer overrides a scene with the rail marks', gen.includes('settleCaptureConfig(') && !gen.includes('stableTicks: 8 }'), 'in scripts/ui/generate-visual-baseline.ts capture through settleCaptureConfig and drop the stableTicks: 8 override')
+check('the grid generator never stretches a budget on retry', !gen.includes('MERCURY_VSHOT_BUDGET_SCALE: String('), 'remove the MERCURY_VSHOT_BUDGET_SCALE retry from scripts/ui/generate-visual-baseline.ts')
+check('the grid generator keeps what a refused capture saw beside its log', gen.includes('last-frame.txt') && gen.includes('refusal.log'), 'scripts/ui/generate-visual-baseline.ts must write last-frame.txt and refusal.log for a refused capture')
 check('the grid generator still consumes the one capture-driver contract', gen.includes('resolveCaptureDriver('))
 const contract = readFileSync(join(ROOT, 'scripts/visual-contract/baseline-capture.ts'), 'utf8')
-check('the visual-contract generator takes --jobs and isolates every capture', contract.includes('parseJobs(') && contract.includes('--grid') && !contract.includes("`/tmp/grid-${cols}.json`"))
-check('the visual-contract generator waits on the splash and the surfaces settling, not a 10-tick window', contract.includes('SETTLE_LAW') && !contract.includes('total: 10,'))
+check('the visual-contract generator takes --jobs and isolates every capture', contract.includes('parseJobs(') && contract.includes('--grid') && !contract.includes("`/tmp/grid-${cols}.json`"), 'in scripts/visual-contract/baseline-capture.ts take parseJobs and --grid, and stop writing the shared /tmp grid file')
+check('the visual-contract generator waits on the splash and the surfaces settling, not a 10-tick window', contract.includes('SETTLE_LAW') && !contract.includes('total: 10,'), 'in scripts/visual-contract/baseline-capture.ts use SETTLE_LAW and drop the 10-tick total')
 const interview = readFileSync(join(ROOT, 'scripts/interview/baseline-capture.ts'), 'utf8')
-check('the interview generator takes --jobs and refuses an unsettled journey with what it saw', interview.includes('parseJobs(') && interview.includes('settledScreens(') )
+check('the interview generator takes --jobs and refuses an unsettled journey with what it saw', interview.includes('parseJobs(') && interview.includes('settledScreens('), 'scripts/interview/baseline-capture.ts must call parseJobs and settledScreens')
 
 const drive = process.argv.includes('--drive')
 const identity = process.argv.includes('--identity')

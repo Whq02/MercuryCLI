@@ -11,7 +11,7 @@ const { updateConcourseWorkers } = await import('../../src/daemon/concourseWorke
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — to fix: onSeatRow in src/daemon/sessionSeat/rows.ts must decide by the row type, never by words inside the row; the tail it publishes is read by readSessionTail in src/services/engine-connector/seatProjections.ts' : ''}`)
   if (!ok) failures++
 }
 

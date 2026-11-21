@@ -36,8 +36,8 @@ try {
   ]))
   const rows = await listSessionsImpl({ dir: cwd })
   const listed = rows.find((entry: { sessionId: string }) => entry.sessionId === sessionId)
-  assert.ok(listed !== undefined, 'FAIL the tagged session is listed')
-  assert.equal(listed.tag, 'operator tag', 'FAIL the editor listing reads the tag the product stored as a session-meta record')
+  assert.ok(listed !== undefined, 'FAIL the tagged session is listed; fix listSessionsImpl in src/utils/listSessionsImpl.ts so a session saved with saveTag (src/utils/sessionStorage/logs.ts) is listed for the directory')
+  assert.equal(listed.tag, 'operator tag', 'FAIL the editor listing reads the tag the product stored as a session-meta record; fix the tag scan in listSessionsImpl (src/utils/listSessionsImpl.ts) so it reads the tag-kind session-meta line and ignores a tag-shaped field inside tool output')
   writer.resetProjectForTesting()
   console.log('PASS the editor session list carries the saved tag and ignores a tag-shaped field inside tool output')
 } finally {

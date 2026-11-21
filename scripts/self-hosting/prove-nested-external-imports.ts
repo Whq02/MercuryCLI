@@ -10,9 +10,10 @@ delete process.env.NODE_ENV
 delete process.env.MERCURY_BARE
 
 let failures = 0
+const nestedExternalFailHint = 'fix getInstructionFilesForNestedDirectory in src/services/instructions/engine.ts so a nested guide reads hasExternalIncludesApproved: an outside import is dropped with an external-import-blocked diagnostic without approval and composes with it'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` — ${nestedExternalFailHint}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

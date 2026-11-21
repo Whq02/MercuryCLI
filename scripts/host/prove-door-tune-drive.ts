@@ -29,7 +29,7 @@ let mounted: Mounted | undefined
 let ssh: ReturnType<typeof fakeSshRunner> | undefined
 const jobs: Promise<void>[] = []
 let checks = 0
-const check = (name: string, truth: unknown) => { assert.ok(truth, name); checks++; console.log('PASS ' + name) }
+const check = (name: string, truth: unknown, detail = '') => { assert.ok(truth, detail ? name + ' - ' + detail : name); checks++; console.log('PASS ' + name) }
 try {
   const React = await import('react')
   const { Box } = await import('../../src/ink.ts')
@@ -92,7 +92,7 @@ try {
     await step('door-model'); await capture('model'); await choose('Rent · Runpod')
     await until(() => plan?.step === 'rent-confirm' || plan?.step === 'door-confirm', 'rental confirmation')
     await capture('rental-before')
-    check('door rental confirmation exposes Tune', plan!.rows?.some(row => row.value === 'tune'))
+    check('door rental confirmation exposes Tune', plan!.rows?.some(row => row.value === 'tune'), 'the rental confirmation step must list a tune row; see confirmTunedRental in src/services/host/tune.ts and the rows in src/components/LlmHostDialog.tsx')
     check('rental confirmation keeps the weights source and time estimate', plan!.rows?.some(row => row.value === 'weights-source' && /~\d+ min/.test(row.label)) && !plan!.title.includes('min'))
     check('no rental before consent', rp.state.creates === queued.length && queued.length === (width === 120 ? 0 : 1))
     await choose('Tune:'); await step('tune-quality'); check('Tune starts on the quality from the rental confirmation', plan!.initial === recipe.id && selected().includes('Balanced')); await capture('quality'); await choose('Balanced')
@@ -107,14 +107,14 @@ try {
     check('rental actions remain visible', mounted!.screen().includes('Tune:') && mounted!.screen().includes('Confirm $8.99/hr') && mounted!.screen().includes('Cancel'))
     await choose('Confirm $8.99/hr'); await step('pod-controls'); await Promise.all(jobs)
     const record = readHostRecord(queued.at(-1)!)!
-    check('door creates one pod carrying its confirmed preferences', record.jobState === 'ready' && record.tune?.quality === recipe.id && record.tune.conversations === conversations && record.tune.contextPerConversation === context && record.tune.effort === 'high')
+    check('door creates one pod carrying its confirmed preferences', record.jobState === 'ready' && record.tune?.quality === recipe.id && record.tune.conversations === conversations && record.tune.contextPerConversation === context && record.tune.effort === 'high', 'the job record must carry the confirmed tune preferences and reach ready; see runHostJob in src/services/host/worker.ts and runTune in src/services/host/tune.ts: ' + JSON.stringify({ jobState: record.jobState, tune: record.tune }))
     check('door setup launches the chosen total context and conversation count', ssh!.state.script.includes("'--ctx-size' '1048576'") && ssh!.state.script.includes("'--parallel' '" + conversations + "'"))
-    check('stored preferences match the created rental', readTunePreferences(model)?.conversations === conversations)
+    check('stored preferences match the created rental', readTunePreferences(model)?.conversations === conversations, 'the confirmed tune must be saved per model; see readTunePreferences and runTune in src/services/host/tune.ts')
     check('ready pod controls expose Tune without closing and reopening', await waitFor(() => mounted!.screen().includes('Tune · quality'), 4000))
     await capture('controls'); await close()
     popup.openSettingsPopup(llmHostPopupRequest(observed)); await step('door-models'); await choose('Machines I’m paying for'); await step('paid-pods'); await choose(record.id); await step('pod-controls')
     await choose('Tune ·'); await step('tune-quality'); await choose('Balanced'); await step('tune-context'); await choose('4 × 128k'); await step('tune-thinking'); await choose('max'); await step('tune-confirm'); await capture('reload-confirm'); await choose('Confirm · reload'); await step('pod-controls')
-    check('a door-rented pod retunes in place without a second rental', rp.state.creates === queued.length && readHostRecord(record.id)?.tune?.conversations === 4 && readHostRecord(record.id)?.tune?.effort === 'max')
+    check('a door-rented pod retunes in place without a second rental', rp.state.creates === queued.length && readHostRecord(record.id)?.tune?.conversations === 4 && readHostRecord(record.id)?.tune?.effort === 'max', 'a Tune from pod-controls must update the existing record and create no second pod; see the pod-controls step in src/services/host/index.ts and runTune in src/services/host/tune.ts')
     await close(); closeHostTunnel(record.id)
     mounted.unmount(); mounted = undefined
   }
@@ -145,7 +145,7 @@ try {
     }
     await choose('Confirm $'); await step('pod-controls')
     const record = readHostRecord(qualityPods.at(-1)!)!
-    check(vendor + ' creates the changed offer and tuning snapshot', record.recipe === id && record.tune?.quality === id && !record.volumeId)
+    check(vendor + ' creates the changed offer and tuning snapshot', record.recipe === id && record.tune?.quality === id && !record.volumeId, 'the created record must carry the changed quality as recipe and tune.quality and no kept volume; see tunedRecipe and confirmTunedRental in src/services/host/tune.ts: ' + JSON.stringify({ recipe: record.recipe, tune: record.tune, volumeId: record.volumeId }))
     await close(); mounted.unmount(); mounted = undefined
   }
   check('Vast rental sends the changed GPU offer and never a Runpod disk', vast.requests.some((request: any) => request.method === 'PUT' && request.path === '/api/v0/asks/103/' && !request.body.mounts))

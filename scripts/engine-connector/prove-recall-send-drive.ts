@@ -15,10 +15,16 @@ const BUN = process.env.BUN ?? path.join(process.env.HOME ?? '', '.bun/bin/bun')
 
 let failures = 0
 let checks = 0
+const recallHintFor = (label: string): string => {
+  if (label.includes('vshot ran') || label.includes('capture ended')) return 'to fix: the journey did not reach its ready text; read the status and stderr above and the frames kept under the world named by [forensics], then rebuild with bun run build.ts and check scripts/ui/vshot.py'
+  if (label.includes('submitted') || label.includes('delivered') || label.includes('other writer')) return 'to fix: the submit census is written by submitTrace in src/screens/chat/useChatSubmit.ts (repl-onSubmit) and src/services/engine-connector/daemon/delivery.ts (connector-deliver); the words must pass through those two sites only'
+  if (label.includes('withdraw') || label.includes('ledger') || label.includes('interrupt') || label.includes('sleep was served') || label.includes('sleep twice')) return 'to fix: the withdraw and interrupt path in src/services/engine-connector/daemon/sends.ts and src/services/engine-connector/daemonConnector.ts'
+  return 'to fix: the up-arrow recall of a queued line (the queued row, the composer refill and the RECALL_TAKEN_LINE refusal) in src/services/engine-connector/daemonConnector.ts and src/services/engine-connector/daemon/sends.ts, then rebuild with bun run build.ts'
+}
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} | ` : ''}${recallHintFor(label)}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

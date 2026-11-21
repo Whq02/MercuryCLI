@@ -13,6 +13,9 @@ function check(label: string, cond: boolean, detail = ''): void {
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
+const fnSchemaHint = ' — change the functions field of the input schema in src/tools/DebugTool/debug/schema.ts'
+const fnTreeHint = ' — the set must reach every tree session and later children; see setFunctionBreakpointsTree in src/services/dap/client/start.ts and functionBreakpointsOp in src/tools/DebugTool/debug/breakpoints.ts'
+const fnGateHint = ' — the refusal comes from gateCapabilityTree and its callers in src/tools/DebugTool/DebugTool.ts'
 async function waitFor(cond: () => boolean, ms = 5_000): Promise<boolean> {
   const deadline = Date.now() + ms
   while (Date.now() < deadline) {
@@ -65,12 +68,12 @@ async function main(): Promise<void> {
   section('S  the schema: names, or {name, condition?, hitCondition?} rows')
   {
     const schema = DebugTool.inputSchema as { safeParse: (v: unknown) => { success: boolean } }
-    check('plain names are accepted', schema.safeParse({ op: 'functionBreakpoints', functions: ['compute', 'helper'] }).success === true)
-    check('a conditional row is accepted', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', condition: 'x > 1' }] }).success === true)
-    check('a hit-count row is accepted', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', hitCondition: '3' }] }).success === true)
-    check('names and rows mix', schema.safeParse({ op: 'functionBreakpoints', functions: ['helper', { name: 'compute', condition: 'x > 1' }] }).success === true)
-    check('a row without a name is refused', schema.safeParse({ op: 'functionBreakpoints', functions: [{ condition: 'x > 1' }] }).success === false)
-    check('a row with a logMessage is refused (function breakpoints carry none)', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', logMessage: 'hit' }] }).success === false)
+    check('plain names are accepted', schema.safeParse({ op: 'functionBreakpoints', functions: ['compute', 'helper'] }).success === true, fnSchemaHint)
+    check('a conditional row is accepted', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', condition: 'x > 1' }] }).success === true, fnSchemaHint)
+    check('a hit-count row is accepted', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', hitCondition: '3' }] }).success === true, fnSchemaHint)
+    check('names and rows mix', schema.safeParse({ op: 'functionBreakpoints', functions: ['helper', { name: 'compute', condition: 'x > 1' }] }).success === true, fnSchemaHint)
+    check('a row without a name is refused', schema.safeParse({ op: 'functionBreakpoints', functions: [{ condition: 'x > 1' }] }).success === false, fnSchemaHint)
+    check('a row with a logMessage is refused (function breakpoints carry none)', schema.safeParse({ op: 'functionBreakpoints', functions: [{ name: 'compute', logMessage: 'hit' }] }).success === false, fnSchemaHint)
   }
 
   section('F1 a conditional function breakpoint reaches every tree member')
@@ -78,10 +81,10 @@ async function main(): Promise<void> {
     const launch = await call({ op: 'launch', adapter: 'mockmulti', program: FILE, file: FILE, lines: [3] })
     check('launch stops in the child', /stopped in 'child-1' — reason breakpoint/.test(launch.data.result), launch.data.result.split('\n')[0])
     const set = await call({ op: 'functionBreakpoints', functions: [{ name: 'compute', condition: 'x > 1' }, 'helper'] })
-    check('the op succeeds naming the condition and the verifier', set.data.outcome === 'succeeded' && /compute if x > 1: verified by child-1/.test(set.data.result) && /helper: verified by child-1/.test(set.data.result), `${set.data.outcome}: ${set.data.result}`)
-    check('the effect details carry the merged rows', JSON.stringify((set.effect.details?.functionBreakpoints as Array<{ name: string; verified: boolean; verifier?: string }> | undefined)?.map(r => [r.name, r.verified, r.verifier])) === JSON.stringify([['compute', true, 'child-1'], ['helper', true, 'child-1']]), JSON.stringify(set.effect.details))
-    check('the existing child received the rows with the condition', lastRound('child target-1')?.endsWith(CONDITIONAL) === true, lastRound('child target-1') ?? '(no round)')
-    check('the parent received the same rows', lastRound('parent')?.endsWith(CONDITIONAL) === true, lastRound('parent') ?? '(no round)')
+    check('the op succeeds naming the condition and the verifier', set.data.outcome === 'succeeded' && /compute if x > 1: verified by child-1/.test(set.data.result) && /helper: verified by child-1/.test(set.data.result), `${set.data.outcome}: ${set.data.result}` + fnTreeHint)
+    check('the effect details carry the merged rows', JSON.stringify((set.effect.details?.functionBreakpoints as Array<{ name: string; verified: boolean; verifier?: string }> | undefined)?.map(r => [r.name, r.verified, r.verifier])) === JSON.stringify([['compute', true, 'child-1'], ['helper', true, 'child-1']]), JSON.stringify(set.effect.details) + fnTreeHint)
+    check('the existing child received the rows with the condition', lastRound('child target-1')?.endsWith(CONDITIONAL) === true, (lastRound('child target-1') ?? '(no round)') + fnTreeHint)
+    check('the parent received the same rows', lastRound('parent')?.endsWith(CONDITIONAL) === true, (lastRound('parent') ?? '(no round)') + fnTreeHint)
     const status = await call({ op: 'status' })
     check('status names the function breakpoints', /function breakpoints: compute,helper/.test(status.data.result), status.data.result)
 
@@ -89,17 +92,17 @@ async function main(): Promise<void> {
     const late = await call({ op: 'customRequest', method: 'mock/spawnChild', body: JSON.stringify({ name: 'child-late', id: 'target-late' }) })
     check('mock/spawnChild answered', late.data.outcome === 'succeeded', late.data.result.slice(0, 120))
     check('the late child came up', await waitFor(() => ring().some(l => l.includes('[mock] child target-late up'))), ring().join(' | '))
-    check('…and received the rows with the condition before its launch finished', lastRound('child target-late')?.endsWith(CONDITIONAL) === true && ring().findIndex(l => l.includes('child target-late setFunctionBreakpoints')) < ring().findIndex(l => l.includes('[mock] child target-late up')), lastRound('child target-late') ?? '(no round)')
+    check('…and received the rows with the condition before its launch finished', lastRound('child target-late')?.endsWith(CONDITIONAL) === true && ring().findIndex(l => l.includes('child target-late setFunctionBreakpoints')) < ring().findIndex(l => l.includes('[mock] child target-late up')), (lastRound('child target-late') ?? '(no round)') + fnTreeHint)
     const lateStopped = (): boolean =>
       (getDapSession(owner, 'main')?.treeSessions() as Array<{ label: string; lastStopped: unknown }> | undefined)?.some(s => s.label === 'child-late' && s.lastStopped !== null) === true
     check('the late child stopped on the inherited source breakpoint (it stays live for the clear)', await waitFor(lateStopped))
 
     section('F3 functions: [] clears the set on every member')
     const cleared = await call({ op: 'functionBreakpoints', functions: [] })
-    check('the clear succeeds and says so', cleared.data.outcome === 'succeeded' && /function breakpoints cleared on every session of the tree/.test(cleared.data.result), `${cleared.data.outcome}: ${cleared.data.result}`)
-    check("the existing child's LAST round carried none", lastRound('child target-1')?.endsWith(' []') === true, lastRound('child target-1') ?? '(no round)')
-    check("the late child's LAST round carried none", lastRound('child target-late')?.endsWith(' []') === true, lastRound('child target-late') ?? '(no round)')
-    check("the parent's LAST round carried none", lastRound('parent')?.endsWith(' []') === true, lastRound('parent') ?? '(no round)')
+    check('the clear succeeds and says so', cleared.data.outcome === 'succeeded' && /function breakpoints cleared on every session of the tree/.test(cleared.data.result), `${cleared.data.outcome}: ${cleared.data.result}` + fnTreeHint)
+    check("the existing child's LAST round carried none", lastRound('child target-1')?.endsWith(' []') === true, (lastRound('child target-1') ?? '(no round)') + fnTreeHint)
+    check("the late child's LAST round carried none", lastRound('child target-late')?.endsWith(' []') === true, (lastRound('child target-late') ?? '(no round)') + fnTreeHint)
+    check("the parent's LAST round carried none", lastRound('parent')?.endsWith(' []') === true, (lastRound('parent') ?? '(no round)') + fnTreeHint)
     const statusCleared = await call({ op: 'status' })
     check('status no longer names function breakpoints', !/function breakpoints:/.test(statusCleared.data.result), statusCleared.data.result)
 
@@ -107,7 +110,7 @@ async function main(): Promise<void> {
     const after = await call({ op: 'customRequest', method: 'mock/spawnChild', body: JSON.stringify({ name: 'child-after', id: 'target-after' }) })
     check('mock/spawnChild answered', after.data.outcome === 'succeeded', after.data.result.slice(0, 120))
     check('the child came up', await waitFor(() => ring().some(l => l.includes('[mock] child target-after up'))), ring().join(' | '))
-    check('it received NO setFunctionBreakpoints', lastRound('child target-after') === undefined, lastRound('child target-after') ?? '')
+    check('it received NO setFunctionBreakpoints', lastRound('child target-after') === undefined, (lastRound('child target-after') ?? '') + fnTreeHint)
     check('…while it still received the source breakpoint', ring().some(l => l.includes(`[mock] child target-after setBreakpoints ${FILE} lines=[3]`)), ring().join(' | '))
 
     const disc = await call({ op: 'disconnect' })
@@ -128,23 +131,23 @@ async function main(): Promise<void> {
   {
     await call({ op: 'launch', adapter: 'mock', program: '/tmp/demo.py', file: '/tmp/demo.py', lines: [3], session: 'nofn' })
     const unsupported = await call({ op: 'functionBreakpoints', functions: ['compute'], session: 'nofn' })
-    check('an adapter without supportsFunctionBreakpoints refuses naming the capability', unsupported.data.outcome === 'no-change' && /supportsFunctionBreakpoints not advertised/.test(unsupported.data.result), `${unsupported.data.outcome}: ${unsupported.data.result}`)
+    check('an adapter without supportsFunctionBreakpoints refuses naming the capability', unsupported.data.outcome === 'no-change' && /supportsFunctionBreakpoints not advertised/.test(unsupported.data.result), `${unsupported.data.outcome}: ${unsupported.data.result}` + fnGateHint)
     await call({ op: 'disconnect', session: 'nofn' })
 
     process.env.MOCK_MULTI_NO_CONDITIONS = '1'
     await call({ op: 'launch', adapter: 'mockmulti', program: FILE, file: FILE, lines: [3], session: 'nocond' })
     const cond = await call({ op: 'functionBreakpoints', functions: [{ name: 'compute', condition: 'x > 1' }], session: 'nocond' })
-    check('a condition on an adapter without supportsConditionalBreakpoints refuses precisely', cond.data.outcome === 'no-change' && /does not support conditional breakpoints \(capability supportsConditionalBreakpoints not advertised/.test(cond.data.result), `${cond.data.outcome}: ${cond.data.result}`)
+    check('a condition on an adapter without supportsConditionalBreakpoints refuses precisely', cond.data.outcome === 'no-change' && /does not support conditional breakpoints \(capability supportsConditionalBreakpoints not advertised/.test(cond.data.result), `${cond.data.outcome}: ${cond.data.result}` + fnGateHint)
     const hits = await call({ op: 'functionBreakpoints', functions: [{ name: 'compute', hitCondition: '3' }], session: 'nocond' })
-    check('a hit count on an adapter without supportsHitConditionalBreakpoints refuses precisely', hits.data.outcome === 'no-change' && /does not support hit-count breakpoints \(capability supportsHitConditionalBreakpoints not advertised/.test(hits.data.result), `${hits.data.outcome}: ${hits.data.result}`)
-    check('nothing reached the adapter for the refused calls', lastRound('child target-1', 'nocond') === undefined && lastRound('parent', 'nocond') === undefined, ring('nocond').join(' | '))
+    check('a hit count on an adapter without supportsHitConditionalBreakpoints refuses precisely', hits.data.outcome === 'no-change' && /does not support hit-count breakpoints \(capability supportsHitConditionalBreakpoints not advertised/.test(hits.data.result), `${hits.data.outcome}: ${hits.data.result}` + fnGateHint)
+    check('nothing reached the adapter for the refused calls', lastRound('child target-1', 'nocond') === undefined && lastRound('parent', 'nocond') === undefined, ring('nocond').join(' | ') + fnGateHint)
     const plain = await call({ op: 'functionBreakpoints', functions: ['compute'], session: 'nocond' })
     check('a plain name never gates on conditions', plain.data.outcome === 'succeeded' && /compute: verified by child-1/.test(plain.data.result), `${plain.data.outcome}: ${plain.data.result}`)
     await call({ op: 'disconnect', session: 'nocond' })
     clearKnobs()
 
     const omitted = await DebugTool.validateInput?.({ op: 'functionBreakpoints' } as never, {} as never)
-    check('validateInput still refuses a missing functions field', omitted?.result === false, JSON.stringify(omitted))
+    check('validateInput still refuses a missing functions field', omitted?.result === false, JSON.stringify(omitted) + ' — validateInput in src/tools/DebugTool/DebugTool.ts must refuse functionBreakpoints without functions')
   }
 
   section('D  the functions field says it once; the manual names the op and nothing twice')
@@ -152,8 +155,8 @@ async function main(): Promise<void> {
     const text = getDebugToolDescription(false)
     const fields = (DebugTool.inputSchema as { shape: Record<string, { description?: string }> }).shape
     const functions = fields.functions?.description ?? ''
-    check('…the rows', /names, or \{name, condition\?, hitCondition\?\} rows/.test(functions), functions)
-    check('…every session and a later child; [] clears everywhere', /the set reaches every session of the tree and a child session started later, and \[\] clears it everywhere/.test(functions), functions)
+    check('…the rows', /names, or \{name, condition\?, hitCondition\?\} rows/.test(functions), functions + fnSchemaHint)
+    check('…every session and a later child; [] clears everywhere', /the set reaches every session of the tree and a child session started later, and \[\] clears it everywhere/.test(functions), functions + fnSchemaHint)
     check('…the manual names functionBreakpoints once and leaves the tree fact to the field', text.split('functionBreakpoints').length === 2 && !/child session started later/.test(text))
     check('…no capability gate is pre-empted in the text', !/capability-gated/.test(functions) && !/capability-gated/.test(text))
   }

@@ -94,9 +94,9 @@ const guard = setTimeout(() => {
 guard.unref?.()
 
 let failures = 0
-const check = (label: string, cond: boolean, detail = ''): void => {
+const check = (label: string, cond: boolean, detail = '', hint = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -333,7 +333,7 @@ console.log(`  bundle ${DIST}\n  home ${home}\n  fixture ${base}`)
 
 let sid = ''
 try {
-  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), '', `the daemon from the bundle never answered ping; read ${daemonLogPath} for why it did not start`)
 
   section('§1 a hosted session on the Anthropic main model, signed in to OpenAI as account A')
   const born = await say('hello there', undefined, MAIN_MODEL)
@@ -369,9 +369,9 @@ try {
   const wireBeforeRelogin = wire().length
   landOpenaiSignIn(ACCOUNTS.b)
   await pokesSettled()
-  check("the sign-in raised the screen's poke (signIns with refresh)", pokeRequests.slice(pokesBefore).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore)))
+  check("the sign-in raised the screen's poke (signIns with refresh)", pokeRequests.slice(pokesBefore).some(r => r.op === 'signIns' && r.refresh === true), JSON.stringify(pokeRequests.slice(pokesBefore)), 'armDaemonSignInPoke in src/daemon/ownedDaemon.ts must send a signIns request with refresh true when a sign-in lands')
   const catalogueReadForB = await untilAsync(() => since(wireBeforeRelogin).some(h => h.kind === 'models' && h.token === ACCOUNTS.b.tail), 10_000)
-  check("the daemon's word reached the runner: it read the catalogue under B on the poke, before any errand (its memo follows the credential)", catalogueReadForB, brief(since(wireBeforeRelogin)))
+  check("the daemon's word reached the runner: it read the catalogue under B on the poke, before any errand (its memo follows the credential)", catalogueReadForB, brief(since(wireBeforeRelogin)), 'the signIns verb in src/daemon/run/control.ts must call relayCredentialChange (src/daemon/sessionSeat/door.ts) so each runner reads the catalogue again under the new account')
   console.log(`      daemon: ${daemonLog().slice(logBefore).split('\n').filter(l => l.includes('credential moved')).join(' | ') || '(the relay line is a debug-only log; the wire above is the evidence)'}`)
   check('the published usage facts forget the previous account on sign-in', await untilAsync(() => { const facts = readFacts(sid); return facts?.usage !== undefined && facts.usage.openaiObserved?.primary === undefined }))
   keep('facts-after-relogin.json', readFileSync(factsPath(sid), 'utf8'))
@@ -380,7 +380,7 @@ try {
   const after = await errand(sid, DELEGATE_GPT_ASK, 'the errand after the re-login')
   if (after.refused) console.log(`      refusal: ${after.refusal}`)
   keep('refusal-after-relogin.txt', `${after.refused ? after.refusal : '(not refused)'}\n`)
-  check('the dispatch is not refused: the wall observed under A does not outlive A', !after.refused, after.refusal)
+  check('the dispatch is not refused: the wall observed under A does not outlive A', !after.refused, after.refusal, 'the refusal above is raised in src/tools/AgentTool/runAgent.ts (delegationDispatchBlocker); a window observed under account A must not block a dispatch after a sign-in as account B')
   check("the delegate's request rode the OpenAI wire under B and was answered", after.proceeded && after.hits.some(h => h.kind === 'openai' && h.arm === 'delegate' && h.token === ACCOUNTS.b.tail && h.status === 200), brief(after.hits))
   check("the transcript carries the delegate's reply, not the pending-catalogue words", after.rows.includes(SUBAGENT_REPLY) && !after.rows.includes('live catalogue not fetched yet'), unescaped(after.rows).match(/the delegate reported:[^"\\]{0,200}/)?.[0] ?? '(no report)')
   check('the published usage facts carry the new account response', await untilAsync(() => readFacts(sid)?.usage?.openaiObserved?.primary?.usedPct === 40))

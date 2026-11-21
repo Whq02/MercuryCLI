@@ -22,10 +22,11 @@ delete process.env.MERCURY_HOME
 
 let checks = 0
 let failures = 0
+let failHint = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${!ok && failHint ? ` | to fix: ${failHint}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -56,6 +57,7 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 const dir = mnemeLibraryDir()
 const ownerSaid = (text: string) => ({ messageId: `owner-${text.length}`, text })
+failHint = 'change retainItems in src/mneme/memoryVerbs.ts or maybeConsolidate in src/mneme/mnemeConsolidate.ts so a pinned rule the user asked for is stored and consolidated'
 const seeded = retainItems([RULE_A, RULE_B, RULE_C, RULE_D].map(content => ({ content, pin: true, topic: 'user-preferences' })), { session: 'rule-sovereign-seed', pinIntent: ownerSaid(`Remember these as standing rules:\n- ${RULE_A}\n- ${RULE_B}\n- ${RULE_C}\n- ${RULE_D}`) }, dir)
 check('seed: four rules the user asked for are staged pinned and land on the shelf', seeded.every(o => o.status === 'stored') && maybeConsolidate({ force: true, dir }).consolidated === true, j(seeded))
 _resetMemoryVerbSessionStateForTesting()
@@ -89,6 +91,7 @@ const door = (async () => {
 const resultText = (tool: { mapToolResultToToolResultBlockParam: (o: never, id: string) => { content?: unknown } }, data: unknown): string => String(tool.mapToolResultToToolResultBlockParam(data as never, 'toolu_rule_sovereign').content ?? '')
 
 section('§1 under sovereign a retract runs without the card; the receipt and /memory\'s history row both say it was unpinned and struck from the chat under sovereign')
+failHint = 'change the retract road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and the card verdict in src/tools/MemoryTools/ruleCard.ts (sovereign skips the card), or the history row words in topicPageLines and sourceWords in src/components/memory/MemoryCentreView.tsx'
 {
   const seqA = seqOf(RULE_A)
   doorCalls = 0
@@ -105,6 +108,7 @@ section('§1 under sovereign a retract runs without the card; the receipt and /m
 }
 
 section('§2 under sovereign a correction runs without the card; the new words land exactly; /memory\'s row says corrected from the chat under sovereign')
+failHint = 'change the supersede road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts, or the row words in sourceWords in src/components/memory/MemoryCentreView.tsx'
 {
   const seqC = seqOf(RULE_C)
   doorCalls = 0
@@ -118,6 +122,7 @@ section('§2 under sovereign a correction runs without the card; the new words l
 }
 
 section('§3 under sovereign Retain with replaces runs without the card; /memory\'s row says replaced from the chat under sovereign')
+failHint = 'change the replaces road of RetainTool in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts, or the row words in sourceWords in src/components/memory/MemoryCentreView.tsx'
 {
   const seqD = seqOf(RULE_D)
   doorCalls = 0
@@ -130,6 +135,7 @@ section('§3 under sovereign Retain with replaces runs without the card; /memory
 }
 
 section('§4 under sovereign a draft the user asked for is struck without the card; the receipt names sovereign and claims no history row (a draft leaves none)')
+failHint = 'change the draft retract road of CorrectTool in src/tools/MemoryTools/MemoryTools.ts and its receipt sentence there'
 {
   doorCalls = 0
   const call = await CorrectTool.call({ op: 'retract', id: draftId, reason: 'withdrawn' }, contextOf('sovereign'), door, assistant)
@@ -140,6 +146,7 @@ section('§4 under sovereign a draft the user asked for is struck without the ca
 }
 
 section('§5 outside sovereign the card road stands: the door is asked; the plain roads read as before')
+failHint = 'change the card road in src/tools/MemoryTools/ruleCard.ts (outside sovereign the door is asked) or sourceWords in src/components/memory/MemoryCentreView.tsx'
 {
   doorCalls = 0
   const seqB = seqOf(RULE_B)
@@ -149,6 +156,7 @@ section('§5 outside sovereign the card road stands: the door is asked; the plai
 }
 
 section('§6 the built product: a headless run with no host refuses and names /memory; a sovereign run unpins and strikes the rule and says so')
+failHint = 'rebuild with bun run build.ts, then check the Correct and Retain roads in src/tools/MemoryTools/MemoryTools.ts and src/tools/MemoryTools/ruleCard.ts for a headless run (no host) and a sovereign run'
 type Frame = Record<string, unknown>
 type Body = Record<string, unknown>
 type Run = { frames: Frame[]; stderr: string; exit: number | null; bodies: Body[] }

@@ -19,9 +19,17 @@ const grepModule = (await import('../../src/tools/GrepTool/GrepTool.ts')) as unk
 const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
+const FAILURE_HINTS: Record<string, string> = {
+  S: 'fix findSection or planSectionEdit in src/tools/FileEditTool/sectionEdit.ts so a straight quote in the heading matches its curly twin and the file bytes stay as they were',
+  T: 'fix the section mode of validateInput and call in src/tools/FileEditTool/FileEditTool.ts (and findSection in src/tools/FileEditTool/sectionEdit.ts)',
+  G: 'fix quoteTolerantPattern in src/tools/GrepTool/GrepTool.ts',
+  H: 'fix the pattern the Grep tool passes to the search, quoteTolerantPattern and its callers in src/tools/GrepTool/GrepTool.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = FAILURE_HINTS[label.charAt(0)]
+  const shown = [detail, hint ? `to fix: ${hint}` : ''].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

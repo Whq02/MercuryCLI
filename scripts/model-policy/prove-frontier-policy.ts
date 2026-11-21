@@ -22,7 +22,7 @@ import { computedDefault } from '../../src/services/model/computedDefault.js'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' (fix evaluateFrontierDecision in src/services/model/frontierPolicy.ts for the decision rows; model precedence and best or default in src/services/model/model.ts; retention in restoreConversationModelFromMessages, src/services/resume/sessionRestore.ts; the default in src/services/model/computedDefault.ts)'}`)
 }
 
 const base = (): FrontierFacts => ({

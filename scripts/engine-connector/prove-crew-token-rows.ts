@@ -55,9 +55,17 @@ const { setFocusedSessionConnector, _resetFocusedSessionConnectorForTesting } = 
 const { noSessionConnector } = await import('../../src/services/engine-connector/noSessionConnector.ts')
 const ui = await import('../../src/tools/AgentTool/UI.tsx')
 let failures = 0
+function tokenRowsHint(label: string): string {
+  if (label.startsWith('stored still')) return 'to fix: if the new frame is the intended one, regenerate it with bun scripts/engine-connector/prove-crew-token-rows.ts --write; otherwise change the row text in src/components/mercury-ui/screens/CrewView.tsx or renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx'
+  if (label.includes('inline')) return 'to fix: renderGroupedAgentToolUse in src/tools/AgentTool/UI.tsx (the AgentProgressLine row)'
+  if (label.includes('columns')) return 'to fix: the crew row in src/components/mercury-ui/screens/CrewView.tsx'
+  if (label.includes('wire')) return 'to fix: sessionFactsToWire and sessionFactsFromWire in src/services/engine-connector/seatWire.ts'
+  if (label.includes('fixture records')) return 'to fix: decodeTranscriptBuffer in src/fabric/transcriptDecode.ts or the fixture written above the check'
+  return 'to fix: crewAgentFactsOf and the crewTokens functions in src/services/engine-connector/crewFacts.ts, or the progress tracker in src/tasks/LocalAgentTask/LocalAgentTask.tsx'
+}
 function check(label: string, good: boolean, detail = ''): void {
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? `${detail} | ` : ''}${tokenRowsHint(label)}` : ''}`)
 }
 const usages = [
   { input_tokens: 1000, output_tokens: 400, cache_read_input_tokens: 10000, cache_creation_input_tokens: 2000 },

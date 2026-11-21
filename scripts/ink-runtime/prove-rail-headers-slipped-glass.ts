@@ -24,10 +24,11 @@ const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
 
 let checks = 0
 let failures = 0
+const railFixHint = 'fix: the Ink renderer class in src/ink/ink.tsx (how it writes a changed frame to stdout; a write must never print past the last column or carry CR or LF); the slipped-glass checks use scripts/ink-runtime/ansiEmulator.ts'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good ? `${detail ? ` — ${detail}` : ''} — ${railFixHint}` : ''}`)
 }
 
 class Output extends EventEmitter {
@@ -117,7 +118,7 @@ for (const [index, step] of turn.entries()) {
     return frame.includes(step.asked ? 'read ledger.py and' : 'no prompts sent yet') &&
       (step.spinner === null ? !frame.includes('Zero drag…') : frame.includes(step.spinner))
   }, 10_000)
-  if (!painted) throw new Error(`frame ${index} did not paint`)
+  if (!painted) throw new Error(`frame ${index} did not paint within 10s; the Cockpit frame never reached Ink lastFrameText, look at render and lastFrameText in src/ink/ink.tsx`)
   const writes = stdout.writes.slice(mark)
   mark = stdout.writes.length
   if (index === 1) slipped.feed(`\x1b[${ROWS};1H\n`)

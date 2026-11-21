@@ -223,7 +223,7 @@ function runCell(cell: Cell): void {
       MERCURY_LIVE_GLYPHS: '0',
     },
   })
-  check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}`)
+  check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}; scripts/ui/vshot.py could not run the resumed session, so read the stdout and stderr printed below and rebuild dist/mercury.mjs with bun run build.ts if it is stale`)
   if (res.status !== 0) {
     console.log(res.stdout?.slice(-1500) ?? '')
     console.error(res.stderr?.slice(-1500) ?? '')
@@ -247,20 +247,20 @@ function runCell(cell: Cell): void {
     const first = a.deltas[0]
     const second = a.deltas[2]
     console.log(`  flick ${cell.tag}: deltas [${a.deltas.join(',')}] unmeasured [${a.unmeasured.join(',')}] first ${first} second ${second}`)
-    check(`${cell.tag}: all sends delivered`, !undelivered, 'stuck sends')
-    check(`${cell.tag}: the flick moved the view up`, typeof second === 'number' && second < 0, `second ${second}`)
-    check(`${cell.tag}: the first flick from the tail, through rows never measured, travels as far as the second, to the row`, typeof first === 'number' && typeof second === 'number' && Math.abs(first - second) <= 1, `first ${first} rows, second ${second} rows`)
+    check(`${cell.tag}: all sends delivered`, !undelivered, 'stuck sends; vshot reported UNDELIVERED-SENDS, so a scripted key in sends of runCell never found its awaited text on screen')
+    check(`${cell.tag}: the flick moved the view up`, typeof second === 'number' && second < 0, `second ${second}; the wheel flick did not move the view up, so check the wheel handling in src/components/ScrollKeybindingHandler.tsx`)
+    check(`${cell.tag}: the first flick from the tail, through rows never measured, travels as far as the second, to the row`, typeof first === 'number' && typeof second === 'number' && Math.abs(first - second) <= 1, `first ${first} rows, second ${second} rows; the first flick from the tail must travel as far as the second, so check how the scroll request is sized in src/components/ScrollKeybindingHandler.tsx`)
     return
   }
   const shown = a.deltas.map(d => String(d)).join(',')
   const bounds = stepBounds(a.viewport)
   console.log(`  deltas: [${shown}] endDrift=${a.endDrift} · transcript region ${a.viewport} rows (press frames' mode) · viewports asked ${reqs.map(r => r.viewport).join(',')} · step bounds if the region were the viewport [${bounds.floor}, ${bounds.ceiling}]`)
   check(`${cell.tag}: all sends delivered`, !undelivered && a.delivered === cell.presses + 1,
-    `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}`)
-  check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}`)
-  check(`${cell.tag}: every paging observation has a usable position (no unmeasured mark)`, a.unmeasured.length === 0, `unmeasured: ${a.unmeasured.join(',') || '(none)'}`)
-  check(`${cell.tag}: exactly one measured delta per press`, a.deltas.length === cell.presses, `${a.deltas.length} deltas for ${cell.presses} presses`)
-  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses`)
+    `delivered ${a.delivered}/${cell.presses + 1}${undelivered ? ' (vshot reported stuck sends)' : ''}; a scripted key in sends of runCell never found its awaited text on screen`)
+  check(`${cell.tag}: the transcript region measured from the frames is a real pane (≥ 6 rows)`, a.viewport >= 6, `region ${a.viewport}; the transcript pane read from the p-mark grids is too short, so check the rows of this cell in STANDING and regionOf in scripts/scroll/paneRuler.ts`)
+  check(`${cell.tag}: every paging observation has a usable position (no unmeasured mark)`, a.unmeasured.length === 0, `unmeasured: ${a.unmeasured.join(',') || '(none)'}; the listed marks show no turn signature in the pane, so look at their grids in the kept captures and at paneSigs in scripts/scroll/paneRuler.ts`)
+  check(`${cell.tag}: exactly one measured delta per press`, a.deltas.length === cell.presses, `${a.deltas.length} deltas for ${cell.presses} presses; a press was not observed, see the unmeasured check above`)
+  check(`${cell.tag}: every press reached the scroller (requests = presses)`, reqs.length === cell.presses, `${reqs.length} requests for ${cell.presses} presses; a PageUp did not reach the scroller, so check the page-up binding in src/components/ScrollKeybindingHandler.tsx`)
   const pressFrames = (payload.marks ?? []).filter((m: { label: string }) => /^p\d+$/.test(m.label)).map((m: { grid: Grid }) => m.grid)
   for (let i = 0; i < a.deltas.length; i++) {
     const d = a.deltas[i]!
@@ -270,29 +270,29 @@ function runCell(cell: Cell): void {
       continue
     }
     check(`${cell.tag}: press ${i + 1} asked a page of its own viewport (${r.viewport} − ${OVERLAP_ROWS})`, -r.delta === r.viewport - OVERLAP_ROWS,
-      `asked ${-r.delta} rows at viewport ${r.viewport}`)
+      `asked ${-r.delta} rows at viewport ${r.viewport}; a PageUp must ask viewport minus OVERLAP_ROWS rows, so check the page size in src/components/ScrollKeybindingHandler.tsx`)
     const frame = pressFrames[i + 1] ?? pressFrames[pressFrames.length - 1]
     const paneNow = frame ? viewportRows(frame) : a.viewport
-    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}`)
+    check(`${cell.tag}: press ${i + 1} viewport never exceeds the pane on screen`, r.viewport <= paneNow + 1, `viewport ${r.viewport} vs pane ${paneNow}; the viewport height the scroller reports is taller than the pane painted, so check where it is measured for the scroll request in src/components/ScrollKeybindingHandler.tsx`)
     check(`${cell.tag}: press ${i + 1} row-exact (settled what it asked)`, Math.abs(-d - -r.delta) <= 1,
-      `settled ${-d} rows vs asked ${-r.delta}`)
-    check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}`)
+      `settled ${-d} rows vs asked ${-r.delta}; the view did not travel the rows the scroll request asked for`)
+    check(`${cell.tag}: press ${i + 1} monotone up`, d < 0, `delta ${d}; a PageUp moved the view down or not at all`)
   }
-  check(`${cell.tag}: no post-settle drift`, a.endDrift === 0, `endDrift ${a.endDrift}`)
+  check(`${cell.tag}: no post-settle drift`, a.endDrift === 0, `endDrift ${a.endDrift}; the view kept moving after the last press settled`)
   const entryGrid = (payload.marks ?? []).find((m: { label: string }) => m.label === 'p00')?.grid
   const entryMax = entryGrid !== undefined
     ? allSigs(entryGrid).reduce((best, s) => Math.max(best, s.turn), 0)
     : 0
   check(`${cell.tag}: the resumed transcript opens at the tail`,
-    entryMax >= 299, `max visible turn at entry ${entryMax} of 300`)
+    entryMax >= 299, `max visible turn at entry ${entryMax} of 300; a resumed session must open on its newest turn`)
   const endSigs = allSigs(payload.grid)
   const maxTurn = endSigs.reduce((best, s) => Math.max(best, s.turn), 0)
   check(`${cell.tag}: jump-to-bottom lands on the tail (newest turn visible)`,
-    maxTurn >= 299, `max visible turn ${maxTurn} of 300`)
+    maxTurn >= 299, `max visible turn ${maxTurn} of 300; the Ctrl+End jump (sent as the bottom mark) did not reach the newest turn`)
   const gaps = [...a.tickGaps].sort((x, y) => x - y)
   const gapP50 = gaps.length ? gaps[Math.floor(gaps.length / 2)]! : NaN
   console.log(`  settle ticks p50=${gapP50} (200ms ticks; report${FULL ? '+assert' : '-only in pooled runs'})`)
-  if (FULL) check(`${cell.tag}: settle p50 within budget`, gapP50 <= 30, `p50 ${gapP50} ticks`)
+  if (FULL) check(`${cell.tag}: settle p50 within budget`, gapP50 <= 30, `p50 ${gapP50} ticks; paging settled slower than 30 ticks of 200ms`)
 }
 
 mkdirSync(SCRATCH, { recursive: true })

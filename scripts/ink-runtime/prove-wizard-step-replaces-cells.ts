@@ -52,10 +52,12 @@ const WIDTH_PROBE_WRITE = /\x1b7.*\x1b\[6n/s
 
 let checks = 0
 let failures = 0
+const wizardPaintHint = 'the step did not appear within 20 s: look at the step flow in src/components/Onboarding.tsx (the key this walk sends: Enter for step 1 to 2, s for step 2 to 3)'
+const wizardGlassHint = 'the bytes the renderer wrote leave cells of the earlier step on the glass: fix the repaint that follows a step change in src/ink/ink.tsx and src/ink/frame-writer.ts (FrameWriter.render); the idle road is the same repaint after a gap over 30 s'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good ? ` — ${detail ? detail + ' · ' : ''}${/ paints$/.test(label) ? wizardPaintHint : wizardGlassHint}` : ''}`)
 }
 
 class Output extends EventEmitter {

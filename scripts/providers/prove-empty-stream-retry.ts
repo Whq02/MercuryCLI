@@ -23,13 +23,14 @@ const ANSWER = 'the readme holds one heading'
 const PARTIAL = 'the partial words'
 const MARKER = 'ended the stream before its first event'
 const TRIES = 3
+const EMPTY_STREAM_HINT = 'to fix, read the empty-stream retry in src/services/providers/emptyStreamRetry.ts and its notice wording; this proof runs the built bundle, so rebuild with bun run build.ts after a change, and rerun with --keep to keep the world'
 
 let checks = 0
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${EMPTY_STREAM_HINT}${detail ? ` | ${detail.slice(0, 900)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))

@@ -162,7 +162,7 @@ function runCell(cell: Cell): void {
     },
   })
   writeFileSync(join(SCRATCH, `${cell.tag}.engine.log`), `${res.stdout ?? ''}${res.stderr ?? ''}`)
-  check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}`)
+  check(`${cell.tag}: vshot exit 0`, res.status === 0, `status ${res.status}; scripts/ui/vshot.py could not run the resumed session, so read the engine log ${cell.tag}.engine.log in the kept captures folder and rebuild dist/mercury.mjs with bun run build.ts if it is stale`)
   if (res.status !== 0) {
     console.log(res.stdout ?? '')
     console.error(res.stderr ?? '')
@@ -177,12 +177,12 @@ function runCell(cell: Cell): void {
   const marks = new Map((payload.marks ?? []).map(m => [m.label, m]))
   const need = ['atRest', 'preResize', 'postResize', 'late', 'q01', 'q02', 'qEnd']
   check(`${cell.tag}: all sends delivered`, need.every(l => marks.has(l)),
-    `have ${[...marks.keys()].join(',')}`)
+    `have ${[...marks.keys()].join(',')}; a scripted send in sends of runCell never fired, so check that the awaited text (the prompt glyph or TURN-) is still painted by the resumed session before the mark`)
   if (!need.every(l => marks.has(l))) return
   const stage = payload.stages?.[0]
   check(`${cell.tag}: resize landed between rest and observation`,
     stage !== undefined && stage.untilTick >= marks.get('atRest')!.atTick && stage.untilTick < marks.get('postResize')!.atTick,
-    `resize@${stage?.untilTick} rest@${marks.get('atRest')!.atTick} obs@${marks.get('postResize')!.atTick}`)
+    `resize@${stage?.untilTick} rest@${marks.get('atRest')!.atTick} obs@${marks.get('postResize')!.atTick}; the resize did not land between the atRest and postResize marks, so adjust the afterPrevTicks spacing of those sends or the resizes afterMs in runCell`)
 
   const topOf = (g: Grid): Sig | null => allSigs(g)[0] ?? null
   const lineOf = (s: Sig | null): number => (s === null ? -99 : s.sig === 'u' ? 0 : Number(s.sig))
@@ -194,15 +194,15 @@ function runCell(cell: Cell): void {
     check(`${cell.tag}: pin holds the content through the reflow (strict)`,
       preTop !== null && postTop !== null && postTop.turn === preTop.turn &&
         Math.abs(lineOf(postTop) - lineOf(preTop)) <= 1,
-      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}`)
+      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the strict pin after the resize moved the content, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/hooks/useVirtualScroll.ts must keep the top row pinned`)
   } else {
     check(`${cell.tag}: reflow landing within three turns of the pinned content`,
       preTop !== null && postTop !== null && Math.abs(postTop.turn - preTop.turn) <= 3,
-      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}`)
+      `pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig}; the view landed more than three turns from the pinned content after the resize, so the column-change handling of the virtual scroll (prevColumnsRef and reflowHoldRef) in src/hooks/useVirtualScroll.ts must keep the pinned content in view`)
   }
   check(`${cell.tag}: no late drift`,
     postTop !== null && lateTop !== null && lateTop.turn === postTop.turn && lateTop.sig === postTop.sig,
-    `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}`)
+    `post=${postTop?.turn}:${postTop?.sig} late=${lateTop?.turn}:${lateTop?.sig}; the top row kept moving after the reflow settled, so the reflow hold (reflowHoldRef) in src/hooks/useVirtualScroll.ts is releasing into a second adjustment`)
   const postGrids = [marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid, payload.grid]
   const postRuler = positionRuler(postGrids)
   const region = regionOf([marks.get('q01')!.grid, marks.get('q02')!.grid, marks.get('qEnd')!.grid])
@@ -212,16 +212,16 @@ function runCell(cell: Cell): void {
   const pEnd = postRuler(marks.get('qEnd')!.grid)
   const step1 = pQ1 !== null && pQ2 !== null ? pQ1 - pQ2 : null
   const step2 = pQ2 !== null && pEnd !== null ? pQ2 - pEnd : null
-  check(`${cell.tag}: the post-resize transcript region is a real pane (≥ 6 rows)`, region >= 6, `region ${region}`)
+  check(`${cell.tag}: the post-resize transcript region is a real pane (≥ 6 rows)`, region >= 6, `region ${region}; the transcript pane read from the q01, q02 and qEnd grids is too short, so check the resize target rows in STANDING and FULL_EXTRA and regionOf in scripts/scroll/paneRuler.ts`)
   check(`${cell.tag}: post-reflow press 1 is a page (region − 4 ≤ step ≤ region + 1)`,
     step1 !== null && step1 >= bounds.floor && step1 <= bounds.ceiling,
-    `settled ${step1 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]`)
+    `settled ${step1 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the first PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/hooks/useVirtualScroll.ts at the new width`)
   check(`${cell.tag}: post-reflow press 2 is a page (region − 4 ≤ step ≤ region + 1)`,
     step2 !== null && step2 >= bounds.floor && step2 <= bounds.ceiling,
-    `settled ${step2 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]`)
+    `settled ${step2 ?? '—'} vs bounds [${bounds.floor}, ${bounds.ceiling}]; the second PageUp after the resize did not move one page, so check the page step of the virtual scroll in src/hooks/useVirtualScroll.ts at the new width`)
   check(`${cell.tag}: the two post-reflow presses are row-exact (equal within one row)`,
     step1 !== null && step2 !== null && Math.abs(step1 - step2) <= 1,
-    `presses ${step1 ?? '—'} and ${step2 ?? '—'}`)
+    `presses ${step1 ?? '—'} and ${step2 ?? '—'}; two PageUp presses after the resize moved by different amounts, so the page step in src/hooks/useVirtualScroll.ts must be the same for both`)
   console.log(`  reflow: pre=${preTop?.turn}:${preTop?.sig} post=${postTop?.turn}:${postTop?.sig} presses=[${step1 ?? '—'},${step2 ?? '—'}] region=${region} endReason=${payload.endReason}`)
 }
 

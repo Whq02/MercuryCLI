@@ -171,7 +171,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail?: string): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | to fix: the open-time list read is useCatalogueRefreshOnOpen and the per-family roads (DEEPSEEK_ROAD) in src/commands/model/picker/roads.ts; the DeepSeek list and pins are in src/services/providers/deepseek/deepseekCatalogue.ts (refreshDeepseekCatalogue, deepseekCatalogueRows); the rows are painted by the picker in src/commands/model/picker/ChoicePicker.tsx'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

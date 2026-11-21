@@ -16,8 +16,9 @@ delete process.env.MERCURY_HOME
 process.chdir(ROOT)
 
 let failures = 0
+let failHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}${!cond && failHint ? ` | to fix: ${failHint}` : ''}`)
   if (!cond) failures++
 }
 
@@ -87,6 +88,7 @@ const digestTree = (root: string): string => {
 const libraryBefore = digestTree(dir)
 
 console.log('\n[N] the facts are nodes with their first words, their marks and their counts')
+failHint = 'change memoryMesh in src/mneme/mnemeMeshPage.ts (node fields: firstWords, text, kind, pinned, stale, counts)'
 const model = mesh.memoryMesh(dir, { sessions, now })
 const node = (id: string) => model.nodes.find(n => n.id === id)
 {
@@ -101,6 +103,7 @@ const node = (id: string) => model.nodes.find(n => n.id === id)
 }
 
 console.log('\n[E] the links are edges: supersedes, ruling, session')
+failHint = 'change the edge building in memoryMesh in src/mneme/mnemeMeshPage.ts (kinds supersedes, ruling, session)'
 {
   const has = (from: string, to: string, kind: string): boolean => model.edges.some(e => e.from === from && e.to === to && e.kind === kind)
   const pendingId = model.nodes.find(n => n.kind === 'pending')!.id
@@ -113,6 +116,7 @@ console.log('\n[E] the links are edges: supersedes, ruling, session')
 }
 
 console.log('\n[P] the page draws every node and edge, opens each record, and fetches nothing')
+failHint = 'change renderMemoryMeshPage in src/mneme/mnemeMeshPage.ts (its data-node, data-edge, escaping and no-fetch output)'
 const html = mesh.renderMemoryMeshPage(model)
 {
   check('every node is drawn as a link to its record', model.nodes.every(n => html.includes(`data-node="${n.id}"`) && html.includes(`href="#${mesh.meshAnchor(n.id)}"`) && html.includes(`id="${mesh.meshAnchor(n.id)}"`)))
@@ -125,6 +129,7 @@ const html = mesh.renderMemoryMeshPage(model)
 }
 
 console.log('\n[S] /memory page keeps it through the Samples road, versioned, served on this machine')
+failHint = 'change openMemoryPage in src/commands/memory/memoryPage.ts, or the Samples store and listener it uses under src/services/samples'
 {
   const opened: string[] = []
   const first = await page.openMemoryPage({ dir, sessionId: current, sessions, now, open: async url => { opened.push(url); return true } })
@@ -154,6 +159,7 @@ console.log('\n[S] /memory page keeps it through the Samples road, versioned, se
 }
 
 console.log('\n[W] nothing is written to the library by the page')
+failHint = 'make memoryMesh, renderMemoryMeshPage and openMemoryPage read the library only, never write it'
 {
   check('the library folder is byte for byte what it was', digestTree(dir) === libraryBefore)
   check('the pinned rule is word for word in its page', readFileSync(join(dir, docs.docFileName('ops')), 'utf8').includes('Every rollout names its owner before it starts.'))

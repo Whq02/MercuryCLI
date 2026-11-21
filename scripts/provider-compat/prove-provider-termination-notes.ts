@@ -113,10 +113,12 @@ import type { Options } from '../../src/types/options.ts'
 
 let failures = 0
 let checks = 0
+let failHintWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const failText = cond ? detail : [detail, failHintWhere].filter(Boolean).join(' — ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${failText ? ` — ${failText}` : ''}`)
 }
 
 function callParams(model: string) {
@@ -168,6 +170,7 @@ function section(s: string): void {
 }
 
 section('§1 compat: insufficient_system_resource retries before the terminal fault tail')
+failHintWhere = 'to fix, change how the compat lane settles a finish reason in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts and the retry and fault tail in src/services/providers/openaicompat/compatChatCallModel.ts'
 {
   wire.scenario = 'insufficient'
   const { settled, errors } = await drain(
@@ -182,6 +185,7 @@ section('§1 compat: insufficient_system_resource retries before the terminal fa
 }
 
 section('§2 compat: content_filter settles a visible note')
+failHintWhere = 'to fix, change the termination note wording in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts'
 {
   wire.scenario = 'content-filter'
   const { settled } = await drain(
@@ -204,6 +208,7 @@ section("§3 compat: an unmapped finish word ('other') quotes the provider's raw
 }
 
 section('§4 compat: a plain stop settles clean (no note, no fault tail)')
+failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/services/providers/openaicompat/compatChatCallModel/attemptSettle.ts'
 {
   wire.scenario = 'plain-stop'
   const { settled, errors } = await drain(
@@ -217,6 +222,7 @@ section('§4 compat: a plain stop settles clean (no note, no fault tail)')
 }
 
 section("§5 zai: finish 'sensitive' settles a visible note + the fault tail")
+failHintWhere = 'to fix, change the termination note and fault tail in src/services/providers/zai/zaiCallModel.ts'
 {
   wire.scenario = 'zai-sensitive'
   const { settled, errors } = await drain(zaiCallModel(callParams('glm-4.7') as never))
@@ -228,6 +234,7 @@ section("§5 zai: finish 'sensitive' settles a visible note + the fault tail")
 }
 
 section('§6 zai: a plain stop settles clean')
+failHintWhere = 'to fix, stop a plain stop from producing a note or fault in src/services/providers/zai/zaiCallModel.ts'
 {
   wire.scenario = 'zai-stop'
   const { settled, errors } = await drain(zaiCallModel(callParams('glm-4.7') as never))
@@ -237,6 +244,7 @@ section('§6 zai: a plain stop settles clean')
   check('no fault tail', errors.length === 0)
 }
 
+failHintWhere = 'to fix, route the request through the fixture base URLs set at the top of this prover (MERCURY_DEEPSEEK_API_BASE, MERCURY_ZAI_API_BASE)'
 check('no unpinned URL ever reached the wire', wire.unpinned.length === 0, wire.unpinned.join(' '))
 
 console.log(

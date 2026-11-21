@@ -17,12 +17,12 @@ let failures = 0
 let checks = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${!ok ? ` — ${detail ? `${detail} — ` : ''}fix the MCP tool path in src/services/mcp/client.ts (connectToServer, fetchToolsForClient) or tool-name projection in wireSafeMcpToolName in src/utils/mcp/mcpStringUtils.ts` : ''}`)
   if (!ok) failures++
 }
 const section = (s: string): void => console.log(`\n── ${s} ──`)
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — mcp tool estate prover exceeded 120s')
+  console.log('\nTIMEOUT — mcp tool estate prover exceeded 120s; a connect or tool call to scripts/mcp/_fixture-estate-server.mjs never settled, look at connectToServer and fetchToolsForClient in src/services/mcp/client.ts')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

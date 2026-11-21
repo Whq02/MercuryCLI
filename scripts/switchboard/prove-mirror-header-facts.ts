@@ -23,9 +23,10 @@ const OUT_DIR = resolve(argAfter('--frames') ?? join(tmpdir(), `mirror-header-fa
 mkdirSync(OUT_DIR, { recursive: true })
 
 let failures = 0
+const headerFailHint = 'change mirrorHeaderFit in src/components/concourse/mirrorHeader.ts (how many facts and how many cells of the reply words fit beside the title); it is called from src/components/concourse/SessionMirror.tsx, which draws the header the board checks read, and the screens captured at each size are the mirror-header-*.txt files under the frames folder'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${headerFailHint}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 

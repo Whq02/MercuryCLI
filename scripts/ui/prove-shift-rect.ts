@@ -15,7 +15,7 @@ import {
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : cond ? '' : ' — change shiftRect in src/ink/cell-grid.ts so only the cells inside the column range [x0,x1) of the row band move, the exposed rows clear, and the softWrap flags of the band reset; the section number in the label says which case broke'}`)
 }
 
 const W = 40

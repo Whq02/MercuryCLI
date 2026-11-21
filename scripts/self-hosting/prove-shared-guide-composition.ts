@@ -58,9 +58,10 @@ type Drive = {
 
 let passed = 0
 let failed = 0
+const guideCompositionFailHint = 'fix the guide composition in src/services/instructions/engine.ts (getInstructionFiles, composeInstructionPrompt, getInstructionBundle, isInstructionFilePath), or the guide step in src/projectOnboardingState.ts (getSteps) and composedGuideFilesAt in src/services/instructions/adapters/index.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   ok ? passed++ : failed++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${ok ? '' : ` — ${guideCompositionFailHint}`}`)
 }
 
 let projects = 0

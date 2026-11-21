@@ -25,7 +25,8 @@ if (!(process.env.SHELL ?? '').includes('bash') && existsSync('/bin/bash')) proc
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const failHint = 'pipe rewriting is rearrangePipeCommand in src/utils/bash/bashPipeCommand.ts; quoting and the stdin redirect are quoteShellCommand and shouldAddStdinRedirect in src/utils/bash/shellQuoting.ts; running, cwd and timeout are exec in src/utils/Shell.ts; the never-background word is firstCommandWord in src/utils/shell/shellToolUtils.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
   if (!cond) failures++
 }
 const note = (text: string): void => console.log(`        note: ${text}`)

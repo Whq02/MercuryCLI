@@ -19,7 +19,7 @@ const { createFileStateCacheWithSizeLimit } = await import(`${SRC}/utils/fileSta
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — fix the rich-format read lane (archive, SQLite, document, bounds) behind FileReadTool in src/tools/FileReadTool/FileReadTool.ts` : ''}`)
 }
 
 function makeContext() {

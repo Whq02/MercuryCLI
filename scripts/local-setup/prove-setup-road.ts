@@ -20,11 +20,23 @@ const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
 
 let failures = 0
+let currentSectionTitle = ''
+function failureHintOf(title: string): string {
+  const dir = 'src/services/localSetup/'
+  if (title.startsWith('§1 ')) return `change ${dir}index.ts (its exports) or ${dir}setupTypes.ts and ${dir}setupChoose.ts (the constants and rows this check reads)`
+  if (title.startsWith('§2 ')) return `change ${dir}setupDetect.ts (detectLocalServers, probeWords) or ${dir}setupInstall.ts (findOllamaInstall, planInstall)`
+  if (title.startsWith('§3 ')) return `change ${dir}setupInstall.ts (findOllamaInstall) or ${dir}setupStart.ts (planStart, startServer, waitForOllama)`
+  if (title.startsWith('§4 ')) return `change ${dir}setupPull.ts (pullModel, modelListed, pullProgressLine)`
+  if (title.startsWith('§5 ')) return `change ${dir}setupWindow.ts (chooseWindow, chooseWindowFrom) or the memory module src/services/localServer/localServerMemory.ts`
+  if (title.startsWith('§6')) return `change ${dir}setupProve.ts (pickAndProve, switchSessionModel, proveWillRun)`
+  return `change ${dir}setupRoad.ts (runSetupRoad, the step order and consents) or the step file the failing label names in ${dir}`
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ` | to fix: ${failureHintOf(currentSectionTitle)}`}`)
 }
 function section(t: string): void {
+  currentSectionTitle = t
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 

@@ -21,7 +21,7 @@ if (childAt !== -1) {
     assert.equal(url.hostname, '127.0.0.1', 'all provider traffic stays on loopback')
     if (url.pathname === '/v1/chat/completions' && dialect !== 'lmstudio') {
       const body = JSON.parse(typeof init?.body === 'string' ? init.body : await (input as Request).clone().text())
-      assert.equal(validateEngineRequest(dialect, body), undefined)
+      assert.equal(validateEngineRequest(dialect, body), undefined, 'the chat-completions request sent for this dialect broke an engine rule; read the rule that validateEngineRequest names in scripts/provider-compat/fixtures/engineRules.mjs and change the request that was sent')
     }
     return originalFetch(input, init)
   }, originalFetch)
@@ -64,7 +64,7 @@ if (childAt !== -1) {
   let checks = 0
   let failures = 0
   let dialect = ''
-  const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`) }
+  const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${dialect}: ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}${!truth ? ' — hint: a crewmate launched and then resumed in a fresh process must keep its model, thinking, effort and structured-output spec; change runAgent in src/tools/AgentTool/runAgent.ts or resumeAgentBackground in src/tools/AgentTool/resumeAgent.ts' : ''}`) }
   const child = async (mode: string) => {
     const worker = spawn(process.execPath, [fileURLToPath(import.meta.url), '--child', mode, dialect], { cwd: f.home, env: { PATH: process.env.PATH, HOME: f.home, TMPDIR: f.home, MERCURY_CONFIG_DIR: f.home, MERCURY_CREDENTIAL_STORE: 'file', BROWSER: '/usr/bin/true', MERCURY_LOCAL_PROBE_TARGETS: 'none', ...(process.env.BUN_OPTIONS ? { BUN_OPTIONS: process.env.BUN_OPTIONS } : {}) }, stdio: ['ignore', 'pipe', 'pipe'] })
     let output = ''

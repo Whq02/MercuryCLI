@@ -43,8 +43,8 @@ function hintRowOf(rows: string[]): string | undefined {
 }
 
 let failures = 0
-function check(name: string, ok: boolean, detail = ''): void {
-  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+function check(name: string, ok: boolean, detail = '', hint = ''): void {
+  console.log(`  ${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` — ${detail}`}${!ok && hint ? ` — ${hint}` : ''}`)
   if (!ok) failures++
 }
 
@@ -223,8 +223,8 @@ try {
     })
     const { grid, text } = runCapture('l0', { argv: ['bash', sh], total: 25 })
     const stale = staleGradientCells(grid)
-    check('L0 control: the hold painter alone yields detectable gradient cells', stale > 4000, `${stale} cells`)
-    check('L0 control: the hold text is on screen pre-takeover', text.some(l => l.includes('starting…')))
+    check('L0 control: the hold painter alone yields detectable gradient cells', stale > 4000, `${stale} cells`, 'the proof fixture itself failed: holdScript in this file did not paint the gradient, so check the vshot capture before blaming Mercury')
+    check('L0 control: the hold text is on screen pre-takeover', text.some(l => l.includes('starting…')), '', 'the proof fixture itself failed: holdScript in this file did not paint the hold text, so check the vshot capture before blaming Mercury')
   }
 
   {
@@ -233,7 +233,7 @@ try {
     const { grid, text } = runCapture('l1', { argv: ['bash', sh], total: 70, readyText: ['Mercury · resume'] })
     check('L1 picker paints (Mercury · resume header present)', text.some(l => l.includes('Mercury · resume')))
     const stale = staleGradientCells(grid)
-    check('L1 ZERO stale hold-gradient cells after takeover', stale === 0, `${stale} cells still carry the hold bg`)
+    check('L1 ZERO stale hold-gradient cells after takeover', stale === 0, `${stale} cells still carry the hold bg`, 'the takeover from the launcher hold (MERCURY_ALT_HELD=1) must repaint every cell of the first frame; frames are kept with --frames <dir>')
     check('L1 no stale hold text beneath the picker', !text.some(l => l.includes('starting…')))
   }
 
@@ -248,7 +248,7 @@ try {
     })
     const stale = staleGradientCells(grid)
     check('L2 cockpit control: the composer is up', text.some(l => l.includes(COCKPIT_READY)))
-    check('L2 cockpit control: zero stale hold-gradient cells', stale === 0, `${stale} cells`)
+    check('L2 cockpit control: zero stale hold-gradient cells', stale === 0, `${stale} cells`, 'the takeover from the launcher hold (MERCURY_ALT_HELD=1) must repaint every cell before the cockpit; frames are kept with --frames <dir>')
     check('L2 cockpit control: no stale hold text', !text.some(l => l.includes('starting…')))
   }
 
@@ -274,6 +274,7 @@ try {
       'L3 direct picker paints no background BEYOND the selection band (≤1 color · ≤1 row)',
       bgColors.size <= 1 && bgRows.size <= 1,
       `${bgCells.length} bg cells · ${bgColors.size} colors · ${bgRows.size} rows`,
+      'the inline resume picker must paint a background only on its selected row; frames are kept with --frames <dir>',
     )
   }
 
@@ -297,15 +298,17 @@ try {
       'L4 the fake splash owns the ONLY alt entry (Mercury adds none)',
       count(raw, '\x1b[?1049h') === 1,
       `${count(raw, '\x1b[?1049h')} entries`,
+      'with MERCURY_ALT_HELD=1 Mercury must reuse the hold screen and write no alt-screen entry of its own',
     )
     check(
       'L4 no main-screen flash between picker and cockpit (zero ?1049l)',
       count(raw, '\x1b[?1049l') === 0,
       `${count(raw, '\x1b[?1049l')} exits`,
+      'Mercury must not leave the alt screen between the picker and the cockpit',
     )
     const erases = count(raw, '\x1b[2J')
     const wholeFrames = count(raw, '\x1b[H\x1b[0m')
-    check('L4 the takeover AND the nested swap each repaint the whole frame in place (≥2 whole frames; the fixture 2J is the only erase)', wholeFrames >= 2 && erases === 1, `${wholeFrames} whole frames, ${erases} erases`)
+    check('L4 the takeover AND the nested swap each repaint the whole frame in place (≥2 whole frames; the fixture 2J is the only erase)', wholeFrames >= 2 && erases === 1, `${wholeFrames} whole frames, ${erases} erases`, 'the takeover and the nested swap must each repaint the whole frame in place without a screen erase of their own')
     check('L4 no stale hold text in the final cockpit', !text.some(l => l.includes('starting…')))
   }
 } finally {

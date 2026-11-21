@@ -7,9 +7,10 @@ const { projectLocalPath } = await import('../../src/utils/projectLocal/paths.js
 const { MERCURY_PROJECT_DIR } = await import('../../src/utils/projectConfig.js')
 
 let failures = 0
+const writeHomeFixHint = 'fix: projectLocalPath (project .mercury write home, never reads .claude) in src/utils/projectConfig.ts, or getGlobalMercuryFile (global config file name) in src/utils/env.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} — ${writeHomeFixHint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

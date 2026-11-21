@@ -15,6 +15,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const SCREENGRAB = join(HERE, '..', 'streaming', 'screengrab.py')
 const t = checker()
 const DUMP = process.env.SINGLE_PAINT_DUMP === '1'
+const singlePaintHint = (ok: boolean, detail: string, hint: string): string => (ok ? detail : detail ? `${detail}; ${hint}` : hint)
 
 type Frame = { atMs: number; rows: string[] }
 
@@ -132,13 +133,13 @@ for (const scene of scenes) {
     keep: true,
   })
   t.section(scene.name)
-  t.check(`the journey ran whole (${scene.sends.length} sends delivered)`, run.sendLog.length === scene.sends.length, `${run.sendLog.length}/${scene.sends.length}`)
+  t.check(`the journey ran whole (${scene.sends.length} sends delivered)`, run.sendLog.length === scene.sends.length, singlePaintHint(run.sendLog.length === scene.sends.length, `${run.sendLog.length}/${scene.sends.length}`, 'a scripted send did not reach the arena; check that its after:<text> marker in scene.sends of this file is still painted on screen, and read the drive log under run.paths.drive'))
   const zero = driveZero(run.paths.drive)
   const probeOffs = scene.probes
     .map(p => sendOffOf(run.sendLog, p, zero))
     .filter((v): v is number => v !== null)
   if (probeOffs.length !== scene.probes.length) {
-    t.check('every probe send is in the drive log', false, `${probeOffs.length}/${scene.probes.length}`)
+    t.check('every probe send is in the drive log', false, `${probeOffs.length}/${scene.probes.length}; a probe text in scene.probes is missing from run.sendLog, so make it match the text typed by a scene.sends entry`)
     run.cleanup()
     continue
   }
@@ -153,7 +154,7 @@ for (const scene of scenes) {
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
-    t.check('screengrab ran', false, grab.stderr)
+    t.check('screengrab ran', false, `${grab.stderr}; scripts/streaming/screengrab.py could not replay the drive log, so run it by hand on the drive file and read its traceback`)
     run.cleanup()
     continue
   }
@@ -164,7 +165,7 @@ for (const scene of scenes) {
   for (const probe of scene.probes) {
     const frames = [...timed, final]
     const firstPaintIdx = frames.findIndex(f => transcriptHits(f.rows, probe).length > 0)
-    t.check(`「${probe}」 paints at all`, firstPaintIdx !== -1)
+    t.check(`「${probe}」 paints at all`, firstPaintIdx !== -1, firstPaintIdx !== -1 ? '' : 'the probe never reached a transcript row marked with the user sigil in any captured frame; replay with SINGLE_PAINT_DUMP=1 to list the frames, and check that the submit of this probe was accepted')
     if (firstPaintIdx === -1) continue
     let doubled: Frame | null = null
     let gap: Frame | null = null
@@ -183,12 +184,12 @@ for (const scene of scenes) {
         console.log(`      row${h}: ${doubled.rows[h]!.trimEnd()}`)
       }
     }
-    t.check(`「${probe}」 paints on EXACTLY ONE row in every frame from first paint to final`, doubled === null, doubled ? `doubled at ${doubled.atMs}ms` : '')
-    t.check(`「${probe}」 never vanishes after first paint (no gap frame)`, gap === null, gap ? `gone at ${gap.atMs}ms` : '')
+    t.check(`「${probe}」 paints on EXACTLY ONE row in every frame from first paint to final`, doubled === null, doubled ? `doubled at ${doubled.atMs}ms; the submitted user row is painted twice (the DOUBLED rows are printed above), so the pending copy and the transcript copy must not both render` : '')
+    t.check(`「${probe}」 never vanishes after first paint (no gap frame)`, gap === null, gap ? `gone at ${gap.atMs}ms; the submitted user row disappeared from the transcript after its first paint, so it must stay on screen until the transcript row replaces it` : '')
   }
   if (scene.composerHolds !== undefined) {
     const draft = new RegExp(`│❯ ${scene.composerHolds.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`)
-    t.check(`the composer holds 「${scene.composerHolds}」 as its draft after the wall (the auth-wall restore, not a transcript row)`, final.rows.some(r => draft.test(r)), final.rows.find(r => r.includes('│❯'))?.trimEnd() ?? '(no composer row)')
+    t.check(`the composer holds 「${scene.composerHolds}」 as its draft after the wall (the auth-wall restore, not a transcript row)`, final.rows.some(r => draft.test(r)), singlePaintHint(final.rows.some(r => draft.test(r)), final.rows.find(r => r.includes('│❯'))?.trimEnd() ?? '(no composer row)', 'after the 401 the unsent draft must be restored into the composer instead of being dropped'))
   }
   run.cleanup()
 }
@@ -208,7 +209,7 @@ for (const scene of scenes) {
     keep: true,
   })
   t.section('D menu-open slash Enter (one execution, no duplicate)')
-  t.check('the journey ran whole (3 sends delivered)', run.sendLog.length === 3, `${run.sendLog.length}/3`)
+  t.check('the journey ran whole (3 sends delivered)', run.sendLog.length === 3, singlePaintHint(run.sendLog.length === 3, `${run.sendLog.length}/3`, 'a scripted send did not reach the arena; check the after:<text> markers in the sends of scene D in this file, and read the drive log under run.paths.drive'))
   const dZero = driveZero(run.paths.drive)
   const acceptOff = sendOffOf(run.sendLog, '/mod', dZero)
   const dMid = acceptOff !== null ? String(Math.round(acceptOff + S(2800))) : '-1'
@@ -218,7 +219,7 @@ for (const scene of scenes) {
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
-    t.check('screengrab ran', false, grab.stderr)
+    t.check('screengrab ran', false, `${grab.stderr}; scripts/streaming/screengrab.py could not replay the drive log, so run it by hand on the drive file and read its traceback`)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     const anyFrameHas = (needle: string): boolean =>
@@ -226,10 +227,12 @@ for (const scene of scenes) {
     t.check(
       'the accepted command EXECUTED (the /model picker is on screen)',
       anyFrameHas('Mercury · model'),
+      anyFrameHas('Mercury · model') ? '' : 'Enter on an open slash menu must run the selected command; no model picker was painted, so check how the prompt input accepts a menu-open /mod',
     )
     t.check(
       'no junk raw-prefix execution painted (no Unknown-skill row)',
       !anyFrameHas('Unknown skill'),
+      anyFrameHas('Unknown skill') ? 'an Unknown skill row was painted, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/services/processUserInput/processSlashCommand.tsx' : '',
     )
   }
   let logText = ''
@@ -242,10 +245,11 @@ for (const scene of scenes) {
       }
     }
   }
-  t.check('the session log records no Unknown-skill execution', !logText.includes('Unknown skill'))
+  t.check('the session log records no Unknown-skill execution', !logText.includes('Unknown skill'), logText.includes('Unknown skill') ? 'the session jsonl holds an Unknown skill result, so the raw typed prefix was executed as a command; see UNKNOWN_COMMAND_PREFIX in src/services/processUserInput/processSlashCommand.tsx' : '')
   t.check(
     'the session log records no queued duplicate submission',
     !(logText.includes('"operation":"enqueue"') && logText.includes('/model')),
+    logText.includes('"operation":"enqueue"') && logText.includes('/model') ? 'the session jsonl shows /model queued as a message, so the accepted menu command was submitted a second time' : '',
   )
   run.cleanup()
 }
@@ -265,7 +269,7 @@ for (const scene of scenes) {
     keep: true,
   })
   t.section('E rail typing one-owner (tab-then-type)')
-  t.check('the journey ran whole (4 sends delivered)', run.sendLog.length === 4, `${run.sendLog.length}/4`)
+  t.check('the journey ran whole (4 sends delivered)', run.sendLog.length === 4, singlePaintHint(run.sendLog.length === 4, `${run.sendLog.length}/4`, 'a scripted send did not reach the arena; check the after:<text> markers in the sends of scene E in this file, and read the drive log under run.paths.drive'))
   const eZero = driveZero(run.paths.drive)
   const railOff = sendOffOf(run.sendLog, 'railprobe', eZero)
   const composerOff = sendOffOf(run.sendLog, 'composerprobe', eZero)
@@ -279,13 +283,13 @@ for (const scene of scenes) {
     { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
   )
   if (grab.status !== 0) {
-    t.check('screengrab ran', false, grab.stderr)
+    t.check('screengrab ran', false, `${grab.stderr}; scripts/streaming/screengrab.py could not replay the drive log, so run it by hand on the drive file and read its traceback`)
   } else {
     const { screens } = JSON.parse(grab.stdout) as { screens: Frame[] }
     const count = (f: Frame, needle: string): number =>
       f.rows.filter(r => r.includes(needle)).length
     const railFrames = screens.filter(f => count(f, 'railprobe') > 0)
-    t.check('the composer received the text typed with the rail focused', railFrames.length > 0)
+    t.check('the composer received the text typed with the rail focused', railFrames.length > 0, railFrames.length > 0 ? '' : 'the text typed after Tab never appeared on screen, so typing with the rail focused must hand the keystrokes to the composer')
     const railDoubled = railFrames.find(f => count(f, 'railprobe') > 1)
     if (railDoubled) {
       for (const r of railDoubled.rows) {
@@ -295,15 +299,15 @@ for (const scene of scenes) {
     t.check(
       'rail-focused keystrokes paint in EXACTLY ONE place (no rail leak)',
       railDoubled === undefined,
-      railDoubled ? `doubled at ${railDoubled.atMs}ms` : '',
+      railDoubled ? `doubled at ${railDoubled.atMs}ms; the leak rows are printed above, so the rail must not paint keystrokes the composer owns` : '',
     )
     const composerFrames = screens.filter(f => count(f, 'composerprobe') > 0)
-    t.check('the composer received the later typing', composerFrames.length > 0)
+    t.check('the composer received the later typing', composerFrames.length > 0, composerFrames.length > 0 ? '' : 'the second typed text never appeared on screen, so the composer must keep receiving keystrokes after the rail was typed into')
     const composerDoubled = composerFrames.find(f => count(f, 'composerprobe') > 1)
     t.check(
       'composer keystrokes paint in EXACTLY ONE place (no rail leak)',
       composerDoubled === undefined,
-      composerDoubled ? `doubled at ${composerDoubled.atMs}ms` : '',
+      composerDoubled ? `doubled at ${composerDoubled.atMs}ms; the typed text is painted in two places, so only the composer may render it` : '',
     )
   }
   run.cleanup()

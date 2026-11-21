@@ -23,7 +23,8 @@ let failures = 0
 const tag = JS_ROAD ? '[js-road] ' : ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${tag}${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = 'the clamp and its note are clampToolResultImageBlocks and createImageMetadataText in src/utils/imageResizer.ts; the MCP image checks exercise transformResultContent in src/services/mcp/client/results.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${tag}${label}${!cond ? ` — ${detail ? `${detail} — ` : ''}${failHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + tag + t)
 

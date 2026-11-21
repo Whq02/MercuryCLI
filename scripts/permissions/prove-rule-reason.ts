@@ -26,8 +26,9 @@ const frameDir = argAt('--frames')
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const ruleReasonHint = 'a rule reason from guardrails.reasons must reach every refusal sentence and the consent card, and no reason must leave the sentence unchanged: fix the road the label names, among src/utils/permissions/ruleReason.ts, permissionsLoader.ts and permissions.ts (hasPermissionsToUseTool) in src/utils/permissions, checkReadPermissionForTool and checkWritePermissionForTool in src/utils/permissions/filesystem.ts, src/tools/BashTool/bashPermissions.ts, and src/components/permissions/PermissionRuleExplanation.tsx'
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail} — ` : ''}${ruleReasonHint}` : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

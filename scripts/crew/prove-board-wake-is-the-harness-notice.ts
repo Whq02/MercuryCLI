@@ -30,7 +30,7 @@ const host = hostRunner({ dist: DIST, node: NODE, cwd: world.project, home: worl
 const until = async (label: string, test: () => boolean, timeoutMs = 90_000): Promise<void> => {
   const deadline = Date.now() + timeoutMs
   while (!test()) {
-    if (Date.now() > deadline) throw new Error(`${label}\n--- rows tail ---\n${raw.slice(-2000)}\n--- stderr tail ---\n${host.stderr().slice(-1500)}`)
+    if (Date.now() > deadline) throw new Error(`${label} (timed out; the runner never reached this answer, read the two tails below and, for a missing wake, enqueueBoardWake in src/services/crewBoard/seam.ts)\n--- rows tail ---\n${raw.slice(-2000)}\n--- stderr tail ---\n${host.stderr().slice(-1500)}`)
     await sleep(25)
   }
 }
@@ -111,11 +111,11 @@ try {
   const aloneWire = requestFor('ALONE-ASK')
   const shownFirstWire = requestFor('SHOWN-FIRST-ASK')
   const wakeFirstWire = requestFor('WAKE-FIRST-ASK')
-  tally.check('the scenes: each ask reached the model in its own request, and the two finished jobs rode with their asks', aloneWire.length > 0 && JSON.stringify(shownFirstWire).includes('job-one-done') && JSON.stringify(wakeFirstWire).includes('job-two-done'), `${aloneWire.length} · ${JSON.stringify(shownFirstWire).includes('job-one-done')} · ${JSON.stringify(wakeFirstWire).includes('job-two-done')}`)
-  tally.check('woken alone: the wake\'s advice reaches the model inside a system reminder, and the rule stands inside one, at the head of every packet', told(aloneWire), said(aloneWire))
-  tally.check('behind a finished job: the same', told(shownFirstWire), said(shownFirstWire))
-  tally.check('ahead of a finished job: the same', told(wakeFirstWire), said(wakeFirstWire))
-  tally.check('in each of the three turns the rule is read once, with its packet', [aloneWire, shownFirstWire, wakeFirstWire].every(wire => ruleInTurn(wire) === 1), JSON.stringify([aloneWire, shownFirstWire, wakeFirstWire].map(ruleInTurn)))
+  tally.check('the scenes: each ask reached the model in its own request, and the two finished jobs rode with their asks', aloneWire.length > 0 && JSON.stringify(shownFirstWire).includes('job-one-done') && JSON.stringify(wakeFirstWire).includes('job-two-done'), `${aloneWire.length} · ${JSON.stringify(shownFirstWire).includes('job-one-done')} · ${JSON.stringify(wakeFirstWire).includes('job-two-done')} — an ask or a finished job never reached the model request; see the rows tail in board-wake-notice-out.txt and watchSwarmLead in src/services/crewBoard/seam.ts`)
+  tally.check('woken alone: the wake\'s advice reaches the model inside a system reminder, and the rule stands inside one, at the head of every packet', told(aloneWire), said(aloneWire) + ' — enqueueBoardWake in src/services/crewBoard/seam.ts must wrap the wake advice in a system reminder, and the packet text from src/services/crewBoard/store/reading.ts must start with the rule inside one')
+  tally.check('behind a finished job: the same', told(shownFirstWire), said(shownFirstWire) + ' — enqueueBoardWake in src/services/crewBoard/seam.ts must keep the wake in its system reminder when a finished job is shown first')
+  tally.check('ahead of a finished job: the same', told(wakeFirstWire), said(wakeFirstWire) + ' — enqueueBoardWake in src/services/crewBoard/seam.ts must keep the wake in its system reminder when the wake comes first')
+  tally.check('in each of the three turns the rule is read once, with its packet', [aloneWire, shownFirstWire, wakeFirstWire].every(wire => ruleInTurn(wire) === 1), JSON.stringify([aloneWire, shownFirstWire, wakeFirstWire].map(ruleInTurn)) + ' — each turn must carry BOARD_PACKET_RULE exactly once; check enqueueBoardWake in src/services/crewBoard/seam.ts and the packet text in src/services/crewBoard/store/reading.ts')
 
   tally.section('§2 the record the screen paints from: one mark an item, so a hidden wake neither borrows a shown notice\'s face nor hides it')
   const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
@@ -130,9 +130,9 @@ try {
   const ofTheWake = (text: string): boolean => text.includes(WAKE_ADVICE) || text.includes(BOARD_PACKET_RULE)
   const jobOne = holding('job-one-done').filter(row => wordsOf(row).some(text => text.includes('<task-notification>')))
   const jobTwo = holding('job-two-done').filter(row => wordsOf(row).some(text => text.includes('<task-notification>')))
-  tally.check('every row that holds the wake\'s words is hidden', wakes.length >= 3 && wakes.every(row => row.isMeta === true), JSON.stringify(wakes.map(row => ({ meta: row.isMeta ?? false, head: wordsOf(row).map(text => text.slice(0, 60)) }))))
-  tally.check('the first finished job has one row, shown, and that row holds nothing of the wake', jobOne.length === 1 && jobOne[0]!.isMeta !== true && !wordsOf(jobOne[0]!).some(ofTheWake), JSON.stringify(jobOne.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
-  tally.check('the second finished job, queued behind the wake, has one row, shown: the wake\'s mark did not hide it', jobTwo.length === 1 && jobTwo[0]!.isMeta !== true && !wordsOf(jobTwo[0]!).some(ofTheWake), JSON.stringify(jobTwo.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))))
+  tally.check('every row that holds the wake\'s words is hidden', wakes.length >= 3 && wakes.every(row => row.isMeta === true), JSON.stringify(wakes.map(row => ({ meta: row.isMeta ?? false, head: wordsOf(row).map(text => text.slice(0, 60)) }))) + ' — the wake is enqueued with isMeta true in enqueueBoardWake (src/services/crewBoard/seam.ts); a row holding its words without isMeta, or fewer than three wake rows, breaks this')
+  tally.check('the first finished job has one row, shown, and that row holds nothing of the wake', jobOne.length === 1 && jobOne[0]!.isMeta !== true && !wordsOf(jobOne[0]!).some(ofTheWake), JSON.stringify(jobOne.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))) + ' — the job notification must be one shown row; the wake (isMeta, enqueueBoardWake in src/services/crewBoard/seam.ts) must not merge into it')
+  tally.check('the second finished job, queued behind the wake, has one row, shown: the wake\'s mark did not hide it', jobTwo.length === 1 && jobTwo[0]!.isMeta !== true && !wordsOf(jobTwo[0]!).some(ofTheWake), JSON.stringify(jobTwo.map(row => ({ meta: row.isMeta ?? false, blocks: wordsOf(row).map(text => text.slice(0, 60)) }))) + ' — the queued job notification must stay one shown row; the wake mark (isMeta, enqueueBoardWake in src/services/crewBoard/seam.ts) must not be applied to it')
 
   tally.section('§3 the frame: the rows of the two finished jobs, painted')
   const React = (await import('react')).default
@@ -156,7 +156,7 @@ try {
   }
   for (const [name, rows, word] of [['the first', jobOne, 'job-one-done'], ['the second', jobTwo, 'job-two-done']] as const) {
     const frame = rows.length === 1 ? await paint(rows[0]!) : ''
-    tally.check(`${name} finished job paints as its own notice, with none of the wake's words and no prompt caret`, frame.includes(`Print ${word} after a while`) && !frame.includes('Posts marked') && !frame.includes('Read reference-only') && !frame.includes('❯'), frame.slice(0, 300))
+    tally.check(`${name} finished job paints as its own notice, with none of the wake's words and no prompt caret`, frame.includes(`Print ${word} after a while`) && !frame.includes('Posts marked') && !frame.includes('Read reference-only') && !frame.includes('❯'), frame.slice(0, 300) + ' — UserTextMessage in src/components/messages/UserTextMessage.tsx must paint the task notification as its own notice; an empty frame means the row count above was not one')
   }
 } finally {
   record('board-wake-notice-out.txt', raw)

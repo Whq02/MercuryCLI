@@ -6,10 +6,12 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 let checks = 0
+let failHintWhere = 'to fix, change the wait wording in compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel/faults.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const failText = [detail, failHintWhere].filter(Boolean).join(' — ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && failText ? ` — ${failText}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -38,6 +40,7 @@ section('§2 a wait of a minute or more inside the retry budget: the sentence na
 }
 
 section('§3 a wait past the retry budget (the provider\'s window): the pause clause stands, the /model door follows it; the session\'s 78 h 18 m Gemini row')
+failHintWhere = 'to fix, change the wait wording in compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel/faults.ts, or the retry-after reading in mapCompatHttpFailure in src/services/providers/openaicompat/compatChatClient.ts'
 {
   const fault = mapCompatHttpFailure(429, { error: { code: 429, message: GEMINI_MESSAGE, status: 'RESOURCE_EXHAUSTED' } }, new Headers({ 'retry-after': '281900' }))
   const text = line(fault)
@@ -48,6 +51,7 @@ section('§3 a wait past the retry budget (the provider\'s window): the pause cl
 }
 
 section('§4 the Z.AI window: the reset the body states becomes the wait the row names; a reset the road cannot time is named in the provider\'s own words')
+failHintWhere = 'to fix, change the reset reading in zaiStatedResetWaitMs and mapZaiHttpFailure in src/services/providers/zai/zaiClient.ts, or the wait wording in compatTerminalFaultText in src/services/providers/openaicompat/compatChatCallModel/faults.ts'
 {
   const now = Date.UTC(2026, 9, 27, 8, 0, 0)
   const fault = mapZaiHttpFailure(429, { error: { code: 1308, message: ZAI_MESSAGE } }, undefined, now)

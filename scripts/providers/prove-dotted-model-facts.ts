@@ -11,19 +11,19 @@ for (const [dotted, dashed] of [['claude-opus-4.8', 'claude-opus-4-8'], ['claude
   for (const suffix of ['', '[1m]', '-20260101']) for (const upper of [false, true]) {
     const a = (upper ? dotted.toUpperCase() : dotted) + suffix
     const b = (upper ? dashed.toUpperCase() : dashed) + suffix
-    assert.equal(model.getCanonicalName(a), model.getCanonicalName(b), a)
-    assert.equal(caps.getContextWindowForModel(a), caps.getContextWindowForModel(b), a)
-    assert.deepEqual(caps.getModelMaxOutputTokens(a), caps.getModelMaxOutputTokens(b), a)
-    assert.deepEqual(caps.effortVocabularyFor(a), caps.effortVocabularyFor(b), a)
-    assert.equal(caps.modelSupportsAdaptiveThinking(a), caps.modelSupportsAdaptiveThinking(b), a)
-    assert.equal(caps.modelSupportsTemperature(a), caps.modelSupportsTemperature(b), a)
-    assert.deepEqual(cost.resolveModelPricing(a), cost.resolveModelPricing(b), a)
+    assert.equal(model.getCanonicalName(a), model.getCanonicalName(b), a + ' | the dotted and dashed spellings must give one canonical name; fix getCanonicalName in src/utils/model/modelNames.ts')
+    assert.equal(caps.getContextWindowForModel(a), caps.getContextWindowForModel(b), a + ' | the dotted and dashed spellings must give one context window; fix getContextWindowForModel in src/utils/model/capabilities.ts')
+    assert.deepEqual(caps.getModelMaxOutputTokens(a), caps.getModelMaxOutputTokens(b), a + ' | the dotted and dashed spellings must give the same output limits; fix getModelMaxOutputTokens in src/utils/model/capabilities.ts')
+    assert.deepEqual(caps.effortVocabularyFor(a), caps.effortVocabularyFor(b), a + ' | the dotted and dashed spellings must give the same effort vocabulary; fix effortVocabularyFor in src/utils/model/capabilities.ts')
+    assert.equal(caps.modelSupportsAdaptiveThinking(a), caps.modelSupportsAdaptiveThinking(b), a + ' | the dotted and dashed spellings must agree on adaptive thinking; fix modelSupportsAdaptiveThinking in src/utils/model/capabilities.ts')
+    assert.equal(caps.modelSupportsTemperature(a), caps.modelSupportsTemperature(b), a + ' | the dotted and dashed spellings must agree on temperature support; fix modelSupportsTemperature in src/utils/model/capabilities.ts')
+    assert.deepEqual(cost.resolveModelPricing(a), cost.resolveModelPricing(b), a + ' | the dotted and dashed spellings must resolve the same pricing; fix resolveModelPricing in src/services/usage/modelCost.ts')
     const dottedEffort = {}, dashedEffort = {}
     configureEffortParams('max', dottedEffort, {}, a)
     configureEffortParams('max', dashedEffort, {}, b)
-    assert.deepEqual(dottedEffort, dashedEffort, a)
-    assert.equal(model.normalizeModelStringForAPI(a), a.replace('[1m]', ''))
+    assert.deepEqual(dottedEffort, dashedEffort, a + ' | the dotted and dashed spellings must configure the same effort params; fix configureEffortParams in src/services/providers/anthropic/requestParams.ts')
+    assert.equal(model.normalizeModelStringForAPI(a), a.replace('[1m]', ''), a + ' | the API string must keep the dotted spelling and drop only the [1m] suffix; fix normalizeModelStringForAPI in src/utils/model/modelNames.ts')
   }
 }
-assert.equal(model.getCanonicalName('openrouter/anthropic/claude-opus-4.8'), 'openrouter/anthropic/claude-opus-4.8')
+assert.equal(model.getCanonicalName('openrouter/anthropic/claude-opus-4.8'), 'openrouter/anthropic/claude-opus-4.8', 'a gateway id must keep its dotted wire spelling; fix getCanonicalName in src/utils/model/modelNames.ts')
 console.log('P01 dotted gateway IDs retain their wire spelling and read the existing generation facts')
