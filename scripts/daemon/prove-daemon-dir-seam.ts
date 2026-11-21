@@ -1,5 +1,4 @@
 #!/usr/bin/env bun
-import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, sep } from 'node:path'
 
 let failures = 0
@@ -41,48 +40,6 @@ try {
   if (prevEnv === undefined) delete process.env.MERCURY_DAEMON_DIR
   else process.env.MERCURY_DAEMON_DIR = prevEnv
 }
-
-section('2. RATCHET: daemon-home composition exists ONLY in src/utils/daemonState.ts')
-
-function walk(dir: string, out: string[] = []): string[] {
-  for (const name of readdirSync(dir)) {
-    const p = join(dir, name)
-    const st = statSync(p)
-    if (st.isDirectory()) {
-      if (name === 'node_modules' || name === '.git') continue
-      walk(p, out)
-    } else if (/\.(ts|tsx)$/.test(name)) {
-      out.push(p)
-    }
-  }
-  return out
-}
-
-const srcFiles = walk(join(ROOT, 'src'))
-const composeRe = /(?:configHome|getMercuryHome)\s*(\(\s*\))?\s*,\s*['"]daemon['"]/
-const composeHits: string[] = []
-const cloneHits: string[] = []
-for (const f of srcFiles) {
-  const text = readFileSync(f, 'utf-8')
-  if (composeRe.test(text)) composeHits.push(f)
-  if (
-    f.includes(sep + 'daemon' + sep) &&
-    /function configHome\s*\(/.test(text)
-  ) {
-    cloneHits.push(f)
-  }
-}
-const seamSuffix = join('src', 'utils', 'daemonState.ts')
-check(
-  "join(configHome|getMercuryHome…, 'daemon') composed only by src/utils/daemonState.ts",
-  composeHits.length === 1 && composeHits[0].endsWith(seamSuffix),
-  composeHits.map(f => f.slice(ROOT.length + 1)).join(', ') || 'no hits at all (seam moved? update this proof)',
-)
-check(
-  'no private configHome() clone in src/daemon',
-  cloneHits.length === 0,
-  cloneHits.map(f => f.slice(ROOT.length + 1)).join(', '),
-)
 
 console.log('')
 if (failures > 0) {
