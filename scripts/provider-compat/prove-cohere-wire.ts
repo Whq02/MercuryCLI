@@ -32,7 +32,7 @@ const server = Bun.serve({ hostname: '127.0.0.1', port: 0, async fetch(req) {
   assert.equal(path, '/compatibility/v1/chat/completions')
   assert.equal(req.method, 'POST')
   const raw = await req.text()
-  assert.ok(!raw.includes(process.env.COHERE_API_KEY!))
+  assert.ok(!raw.includes(process.env.COHERE_API_KEY!), 'Cohere chat request body in src/services/providers/cohere/cohereCallModel.ts must never contain COHERE_API_KEY')
   const body = JSON.parse(raw)
   captures.push({ path, body, bearer })
   if (body.reasoning_effort !== undefined && body.reasoning_effort !== 'none' && body.reasoning_effort !== 'high') return Response.json({ message: `reasoning_effort '${body.reasoning_effort}' is not supported; only none and high are supported` }, { status: 400 })

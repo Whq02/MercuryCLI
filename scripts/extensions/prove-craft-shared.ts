@@ -42,7 +42,7 @@ try {
   await check('denied install writes and downloads nothing', async () => {
     const dataDir = join(temp, 'denied'); let asks = 0, downloads = 0
     await assert.rejects(shared.installPinned(adapter, { dataDir, authorize: () => { asks++; return false }, fetcher: () => { downloads++; throw new Error('unexpected network') } }), /declined/)
-    assert.equal(asks, 1); assert.equal(downloads, 0); assert(await absent(dataDir))
+    assert.equal(asks, 1); assert.equal(downloads, 0); assert(await absent(dataDir), 'src/extensions/bundled/shared/install.mjs denied install must not create dataDir')
   })
   await check('corrupt bytes fail before extraction and leave no active install', async () => {
     const dataDir = join(temp, 'corrupt'); let extracted = 0
@@ -70,11 +70,11 @@ try {
   })
   await check('same version reuse asks and downloads zero times', async () => {
     const reused = await shared.installPinned(adapter, { dataDir, authorize: () => { throw new Error('unexpected ask') }, fetcher: () => { throw new Error('unexpected network') } })
-    assert(reused.reused)
+    assert(reused.reused, 'src/extensions/bundled/shared/install.mjs same-version installPinned expected reused=true')
   })
   await check('different user version is never downgraded', async () => {
     await assert.rejects(shared.installPinned(adapter, { dataDir: join(temp, 'newer'), existingVersion: '2.0.0', authorize: () => { throw new Error('unexpected ask') } }), /was not changed/)
-    assert(await absent(join(temp, 'newer')))
+    assert(await absent(join(temp, 'newer')), 'src/extensions/bundled/shared/install.mjs refused downgrade must not create newer dataDir')
   })
   await check('offline validation detects modified files and link escapes', async () => {
     await writeFile(installation.cli, 'drift')
@@ -112,24 +112,24 @@ try {
   await check('ordinary mode asks once with app, version, exact size and destination', async () => {
     const { decision } = await decideToolPermission(tool, {}, context('default'))
     assert.equal(decision.behavior, 'ask')
-    assert.match(decision.message, /FilmCraft 0\.20\.1/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData))
-    assert(await absent(missingData))
+    assert.match(decision.message, /FilmCraft 0\.20\.1/); assert.match(decision.message, /bytes/); assert(decision.message.includes(missingData), `src/extensions/installConsent.ts ask message omitted destination ${missingData}: ${decision.message.slice(0, 140)}`)
+    assert(await absent(missingData), 'src/extensions/installConsent.ts ask decision must not create missingData')
   })
   await check('sovereign passes the same installation without an ask', async () => {
     const { decision } = await decideToolPermission(tool, {}, context('sovereign'))
     assert.equal(decision.behavior, 'allow')
-    assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'))
+    assert(!JSON.stringify(decision).includes('_mercuryInstallGrant'), 'src/extensions/installConsent.ts allow decision leaked _mercuryInstallGrant')
     await tool.call({}, context('sovereign'))
     grant = invokedInput._mercuryInstallGrant
-    assert(grant)
+    assert(grant, 'src/extensions/installConsent.ts sovereign tool.call did not attach _mercuryInstallGrant')
   })
   await check('grant binds exact destination, expires and cannot be replayed', async () => {
     const { adapter: film } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
     const plan = shared.planInstall(film, { dataDir: missingData }), used = new Set()
-    assert(!bootstrap.verifyInstallGrant(grant, { ...plan, digest: 'other' }, key, used))
-    assert(bootstrap.verifyInstallGrant(grant, plan, key, used))
-    assert(!bootstrap.verifyInstallGrant(grant, plan, key, used))
-    assert(!bootstrap.verifyInstallGrant('forged', plan, key))
+    assert(!bootstrap.verifyInstallGrant(grant, { ...plan, digest: 'other' }, key, used), 'src/extensions/bundled/shared/bootstrap.mjs verifyInstallGrant accepted mismatched plan digest')
+    assert(bootstrap.verifyInstallGrant(grant, plan, key, used), 'src/extensions/bundled/shared/bootstrap.mjs verifyInstallGrant rejected matching grant')
+    assert(!bootstrap.verifyInstallGrant(grant, plan, key, used), 'src/extensions/bundled/shared/bootstrap.mjs verifyInstallGrant accepted replayed grant')
+    assert(!bootstrap.verifyInstallGrant('forged', plan, key), 'src/extensions/bundled/shared/bootstrap.mjs verifyInstallGrant accepted forged grant')
   })
   await check('third-party names cannot claim the bundled install permission', async () => {
     assert.equal(await bundledAppInstallPermission({ ...tool, mcpInfo: { serverName: 'fake', toolName: 'craft_install' } }, {}), null)
@@ -143,16 +143,16 @@ try {
       assert.deepEqual(tools.tools.map(t => t.name), ['craft_status', 'craft_install', 'craft_connect'])
       const connect = tools.tools.find(t => t.name === 'craft_connect')!
       assert.deepEqual((connect.inputSchema.properties!.mode as { enum: string[] }).enum, ['attach', 'launch', 'headless'])
-      assert(!tools.tools.find(t => t.name === 'craft_install')!.description!.includes('bytes'))
-      const status = await client.callTool({ name: 'craft_status', arguments: {} }); assert(!status.isError)
+      assert(!tools.tools.find(t => t.name === 'craft_install')!.description!.includes('bytes'), 'src/extensions/bundled/shared/bootstrap.mjs craft_install description must omit hardcoded byte size')
+      const status = await client.callTool({ name: 'craft_status', arguments: {} }); assert(!status.isError, `src/extensions/bundled/shared/bootstrap.mjs craft_status returned error: ${JSON.stringify(status).slice(0, 140)}`)
       const { adapter: film } = await import(pathToFileURL(join(delivered, 'server/install.mjs')).href)
       const plan = shared.planInstall(film, { dataDir: missingData })
       assert.deepEqual(JSON.parse((status.content as Array<{ text: string }>)[0]!.text), { app: film.title, version: film.version, state: 'absent', destination: plan.destination, bytes: plan.bytes })
-      assert(await absent(missingData))
-      const denied = await client.callTool({ name: 'craft_install', arguments: {} }); assert(denied.isError)
-      assert(await absent(missingData))
-      const invalid = await client.callTool({ name: 'craft_connect', arguments: { mode: 'invalid' } }); assert(invalid.isError)
-      assert(await absent(missingData))
+      assert(await absent(missingData), 'src/extensions/bundled/shared/bootstrap.mjs craft_status must not create missingData')
+      const denied = await client.callTool({ name: 'craft_install', arguments: {} }); assert(denied.isError, 'src/extensions/bundled/shared/bootstrap.mjs ungranted craft_install must return isError=true')
+      assert(await absent(missingData), 'src/extensions/bundled/shared/bootstrap.mjs denied craft_install must not create missingData')
+      const invalid = await client.callTool({ name: 'craft_connect', arguments: { mode: 'invalid' } }); assert(invalid.isError, 'src/extensions/bundled/shared/bootstrap.mjs craft_connect(invalid) must return isError=true')
+      assert(await absent(missingData), 'src/extensions/bundled/shared/bootstrap.mjs invalid craft_connect must not create missingData')
     } finally { await client.close() }
   })
   await check('wrong listener is rejected before any application bytes', async () => {
@@ -200,7 +200,7 @@ try {
     const header = (name: string, type: string, size: number) => { const h = Buffer.alloc(512); h.write(name, 0, 100, 'utf8'); h.write('0000644\0', 100); h.write(size.toString(8).padStart(11, '0') + '\0', 124); h.write(type, 156); h.write('ustar\x0000', 257); return h }
     const block = (content: Buffer) => Buffer.concat([content, Buffer.alloc(Math.ceil(content.length / 512) * 512 - content.length)])
     const longPath = 'fixture-1.0.0-linux-x86_64/share/icons/hicolor/128x128/apps/ai.storyteller.fixture-long-name.png.attribution'
-    assert(longPath.length > 100)
+    assert(longPath.length > 100, `fixture GNU tar longPath must exceed 100-byte ustar limit, got ${longPath.length}`)
     const tar = Buffer.concat([header('fixture-1.0.0-linux-x86_64/', '5', 0), header('././@LongLink', 'L', longPath.length + 1), block(Buffer.from(longPath + '\0')), header(longPath.slice(0, 100), '0', 9), block(Buffer.from('long name')), header('fixture-1.0.0-linux-x86_64/short.txt', '0', 5), block(Buffer.from('short')), Buffer.alloc(1024)])
     const archive = join(temp, 'long-names-1.0.0.tar.gz'), unpack = join(temp, 'long-names')
     await writeFile(archive, gzipSync(tar)); await mkdir(unpack)
@@ -211,7 +211,7 @@ try {
     const escaping = Buffer.concat([header('././@LongLink', 'L', 14), block(Buffer.from('../escape.txt\0')), header('escape.txt', '0', 3), block(Buffer.from('out')), Buffer.alloc(1024)])
     await writeFile(join(temp, 'escape-1.0.0.tar.gz'), gzipSync(escaping)); await mkdir(join(temp, 'escape'))
     await assert.rejects(shared.extractArchive(join(temp, 'escape-1.0.0.tar.gz'), join(temp, 'escape')), /Unsafe archive path: "\.\.\/escape\.txt"/)
-    assert(await absent(join(temp, 'escape.txt')))
+    assert(await absent(join(temp, 'escape.txt')), 'src/extensions/bundled/shared/install.mjs rejected traversal tarball must not write ../escape.txt')
   })
   console.log(`Craft shared: ${passed} checks passed`)
 } finally { removeScratch(temp) }
