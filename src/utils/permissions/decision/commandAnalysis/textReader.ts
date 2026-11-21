@@ -26,7 +26,7 @@ function feedsShell(word: string): boolean {
   return POSIX_SHELL_WORDS.has(verb) || STDIN_SHELL_WORDS.has(verb)
 }
 
-function commentStart(text: string, at: number): boolean {
+export function commentStart(text: string, at: number): boolean {
   return text[at] === '#' && (at === 0 || COMMENT_PRECEDERS.has(text[at - 1]!))
 }
 
@@ -34,7 +34,7 @@ export function shellTextOutsideFileHeredocs(text: string): string {
   return dropHeredocBodies(text)
 }
 
-function dropHeredocBodies(text: string): string {
+export function dropHeredocBodies(text: string): string {
   const lines = text.split('\n')
   const out: string[] = []
   const bodies: Array<{ terminator: string; dashed: boolean; literal: boolean; commands: boolean }> = []
@@ -136,7 +136,7 @@ export function foldContinuations(text: string, dialect: ShellDialect): string {
   return out
 }
 
-function lexShellUnit(text: string, start: number, dialect: ShellDialect): ShellUnit {
+export function lexShellUnit(text: string, start: number, dialect: ShellDialect): ShellUnit {
   const runs: QuotedRun[] = []
   const words: ShellWord[] = []
   const escape = dialect === 'powershell' ? '`' : '\\'

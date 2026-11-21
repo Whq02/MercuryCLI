@@ -5,6 +5,7 @@ import { absolutePath, layersOf, moveOf, programOf, wordKnown } from './layers.j
 import { nestedScripts, type Pending } from './scripts.js'
 import { PosixWalk, READING_CAP } from './totalPosix.js'
 import { PowerShellWalk } from './totalPowerShell.js'
+import { TextWalk } from './textCommands.js'
 import type { ReadCommand, ReadWorld, ShellDialect, ShellRead, Stage } from './reading.js'
 
 const SCRIPT_DEPTH_CAP = 64
@@ -39,6 +40,7 @@ export class Reading {
   readonly aliases = new Map<string, string>()
   readonly expansions = new Map<string, number>()
   readonly bodies = new Map<string, { node: Node; source: string }>()
+  readonly textBodies = new Map<string, string>()
   readonly movers = new Set<string>()
   roots = new Map<string, Node>()
   walks = { left: LEAVE_COUNT_CAP }
@@ -132,11 +134,21 @@ export class Reading {
     else this.movers.delete(name)
   }
 
+  defineText(name: string, source: string, from: number): void {
+    this.textBodies.set(name, source)
+    if (this.commands.slice(from).some(command => moveOf(command) !== undefined)) this.movers.add(name)
+    else this.movers.delete(name)
+  }
+
   leave(command: ReadCommand, scripts: readonly Pending[]): void {
     if (command.background) return
     const head = command.argv[0]
     const called = head !== undefined && command.dialect === 'posix' && command.body === undefined && command.argv.length === 1 ? this.bodies.get(head) : undefined
     if (called !== undefined) this.walked(copy => new PosixWalk(copy, called.source).node(called.node, { background: false, stages: [], body: head, line: 1, dialect: 'posix', around: undefined }))
+    else if (head !== undefined && command.dialect === 'posix' && command.body === undefined && command.argv.length === 1) {
+      const textBody = this.textBodies.get(head)
+      if (textBody !== undefined) this.walked(copy => new TextWalk(copy, textBody).walk({ background: false, stages: [], body: head, line: 1, dialect: 'posix', around: undefined }))
+    }
     for (const script of scripts) {
       if (script.same !== true) continue
       const frame: Frame = { background: false, stages: [], body: script.body, line: 1, dialect: script.dialect, around: undefined, cmd: script.cmd }
@@ -144,6 +156,7 @@ export class Reading {
       else {
         const root = this.roots.get(script.text)
         if (root !== undefined) this.walked(copy => new PosixWalk(copy, script.text).node(walkable(root), frame))
+        else this.walked(copy => new TextWalk(copy, script.text).walk(frame))
       }
     }
   }
@@ -159,6 +172,7 @@ export class Reading {
     for (const [name, body] of this.functions) copy.functions.set(name, body)
     for (const [name, alias] of this.aliases) copy.aliases.set(name, alias)
     for (const [name, body] of this.bodies) copy.bodies.set(name, body)
+    for (const [name, body] of this.textBodies) copy.textBodies.set(name, body)
     copy.roots = this.roots
     copy.second = true
     copy.depth = this.depth + 1
@@ -183,11 +197,12 @@ async function readInto(reading: Reading, text: string, frame: Frame, depth: num
     const root = reading.roots.get(text) ?? (await parseCommandRaw(text))
     if (root === null || typeof root === 'symbol') {
       reading.markUnread(text.length > 10_000 ? 'it is longer than the shell parser reads' : 'the shell parser is not available', text)
-      return
+      new TextWalk(reading, text).walk(frame)
+    } else {
+      reading.roots.set(text, root)
+      if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
+      new PosixWalk(reading, text).node(walkable(root), frame)
     }
-    reading.roots.set(text, root)
-    if (root.type === 'ERROR') reading.markUnread(misreadWordList(root) === null ? 'the shell parser found incomplete or invalid syntax in it' : 'a line break stands between the words of one command in it', text)
-    new PosixWalk(reading, text).node(walkable(root), frame)
   }
   const scripts = reading.pending.splice(from)
   for (const script of scripts) {
