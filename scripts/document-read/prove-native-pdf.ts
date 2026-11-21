@@ -38,8 +38,8 @@ try {
   const openai = buildOpenaiResponsesRequest({ model: 'gpt-6-astra', messages, pdfSupported: true, reasoningEffort: 'max', maxOutputTokens: 8192 } as never)
   const events = []
   for await (const e of streamOpenaiResponses({ baseUrl: server.url.href, headers: {}, request: openai })) events.push(e)
-  assert.ok(events.some(e => e.type === 'finish'))
-  assert.ok(events.some(e => e.type === 'usage'))
+  assert.ok(events.some(e => e.type === 'finish'), `streamOpenaiResponses omitted finish event in src/services/providers/openai/openaiClient.ts: ${events.map(e => e.type).join(',')}`)
+  assert.ok(events.some(e => e.type === 'usage'), `streamOpenaiResponses omitted usage event in src/services/providers/openai/openaiClient.ts: ${events.map(e => e.type).join(',')}`)
   const openaiBody = hits.at(-1).body
   assert.equal(openaiBody.model, 'gpt-6-astra')
   assert.equal(openaiBody.input[0].content[1].file_data, `data:application/pdf;base64,${data}`)
@@ -52,7 +52,7 @@ try {
   assert.deepEqual(gemini.contents[0]?.parts[1]?.inlineData, { mimeType: 'application/pdf', data })
   const gEvents = []
   for await (const e of streamGeminiContent({ apiKey: 'fixture-key', url: `${server.url}models/gemini-3.8-flash:streamGenerateContent?alt=sse`, request, messages: [], onTurn: () => {} })) gEvents.push(e)
-  assert.ok(gEvents.some(e => e.type === 'finish'))
+  assert.ok(gEvents.some(e => e.type === 'finish'), `streamGeminiContent omitted finish event in src/services/providers/gemini/geminiClient.ts: ${gEvents.map(e => e.type).join(',')}`)
   assert.equal(hits.at(-1).body.contents[0].parts[1].inlineData.data, data)
   assert.equal(hits.at(-1).body.generationConfig.thinkingConfig.thinkingLevel, 'HIGH')
   assert.equal(hits.at(-1).body.generationConfig.maxOutputTokens, 8192)
@@ -77,10 +77,10 @@ try {
   refusal = true
   const fault = []
   for await (const e of streamOpenaiResponses({ baseUrl: server.url.href, headers: {}, request: openai })) fault.push(e)
-  assert.ok(fault.some(e => e.type === 'stream-fault'))
+  assert.ok(fault.some(e => e.type === 'stream-fault'), `streamOpenaiResponses did not emit stream-fault on HTTP 400 invalid_file in src/services/providers/openai/openaiClient.ts: ${fault.map(e => e.type).join(',')}`)
   refusal = false
   const recovered = []
   for await (const e of streamOpenaiResponses({ baseUrl: server.url.href, headers: {}, request: openai })) recovered.push(e)
-  assert.ok(recovered.some(e => e.type === 'finish'))
+  assert.ok(recovered.some(e => e.type === 'finish'), `streamOpenaiResponses did not recover with finish event after HTTP 400 in src/services/providers/openai/openaiClient.ts: ${recovered.map(e => e.type).join(',')}`)
   console.log('PASS native PDF on OpenAI Responses and Gemini generateContent: request bytes, capability negatives, effort, output limit, usage, completion and refusal recovery')
 } finally { server.stop(true); rmSync(home, { recursive: true, force: true }) }
