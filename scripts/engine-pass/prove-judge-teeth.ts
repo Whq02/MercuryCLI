@@ -10,8 +10,8 @@ assert.throws(() => fiveRunMedians(runs.map((run, index) => index ? run : { metr
 for (const value of [NaN, Infinity, -1]) {
   assert.throws(() => fiveRunMedians(runs.map((run, index) => index ? run : { metrics: { timeMs: value, bytes: 100 } })), /invalid measured/)
 }
-assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 100, timeMs: 3 }).every(row => row.pass))
-assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 99, timeMs: 2 }).every(row => row.pass))
+assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 100, timeMs: 3 }).every(row => row.pass), 'equal metrics must pass costRows in scripts/engine-pass/cost-comparison.ts')
+assert.ok(costRows({ bytes: 100, timeMs: 3 }, { bytes: 99, timeMs: 2 }).every(row => row.pass), 'improved metrics must pass costRows in scripts/engine-pass/cost-comparison.ts')
 assert.equal(costRows({ bytes: 100 }, { bytes: 101 })[0]!.pass, false)
 assert.equal(costRows({ timeMs: 3 }, { timeMs: 3.0000001 })[0]!.pass, false)
 assert.throws(() => costRows({ bytes: 100, timeMs: 3 }, { bytes: 100 }), /same metrics/)
@@ -36,14 +36,14 @@ assert.throws(() => costRows({ timeMs: 3 }, { timeMs: 3 }, { timeMs: -1 }), /noi
 assert.equal(RELATIVE_FLOOR, 0.15)
 const near = (a: number, b: number): boolean => Math.abs(a - b) < 1e-9
 const steadyFloor = boxFloors({ timeMs: 3, bytes: 100 }, steady, steady)
-assert.ok(Object.keys(steadyFloor).join() === 'timeMs' && steadyFloor.timeMs!.spread === 0 && near(steadyFloor.timeMs!.relative, 0.45) && near(steadyFloor.timeMs!.floor, 0.45))
+assert.ok(Object.keys(steadyFloor).join() === 'timeMs' && steadyFloor.timeMs!.spread === 0 && near(steadyFloor.timeMs!.relative, 0.45) && near(steadyFloor.timeMs!.floor, 0.45), `steadyFloor mismatch in scripts/engine-pass/cost-comparison.ts: ${JSON.stringify(steadyFloor)}`)
 const spreadFloor = boxFloors({ timeMs: 3, bytes: 100 }, runs, steady)
-assert.ok(spreadFloor.timeMs!.spread === 2 && near(spreadFloor.timeMs!.relative, 0.45) && spreadFloor.timeMs!.floor === 2)
+assert.ok(spreadFloor.timeMs!.spread === 2 && near(spreadFloor.timeMs!.relative, 0.45) && spreadFloor.timeMs!.floor === 2, `spreadFloor mismatch in scripts/engine-pass/cost-comparison.ts: ${JSON.stringify(spreadFloor)}`)
 assert.deepEqual(boxFloors({ timeMs: 0, bytes: 100 }, steady, steady), { timeMs: { spread: 0, relative: 0, floor: 0 } })
 assert.throws(() => boxFloors({ bytes: 100 }, steady, steady), /base reading/)
 const quiet = [0.44, 0.46, 0.45, 0.46, 0.45].map(ms => ({ metrics: { timeMs: ms, bytes: 100 } }))
 const quietFloor = boxFloors({ timeMs: 0.45, bytes: 100 }, quiet, quiet)
-assert.ok(near(quietFloor.timeMs!.spread, 0.01) && near(quietFloor.timeMs!.floor, 0.0675))
+assert.ok(near(quietFloor.timeMs!.spread, 0.01) && near(quietFloor.timeMs!.floor, 0.0675), `quietFloor mismatch in scripts/engine-pass/cost-comparison.ts: ${JSON.stringify(quietFloor)}`)
 const tenPercent = costRows({ timeMs: 0.45, bytes: 100 }, { timeMs: 0.495, bytes: 100 }, { timeMs: quietFloor.timeMs!.floor })
 assert.deepEqual(tenPercent.map(row => [row.metric, row.pass]), [['bytes', true], ['timeMs', true]])
 assert.equal(costRows({ timeMs: 0.45 }, { timeMs: 0.52 }, { timeMs: quietFloor.timeMs!.floor })[0]!.pass, false)

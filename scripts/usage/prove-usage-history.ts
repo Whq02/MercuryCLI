@@ -52,7 +52,7 @@ try {
   assert.equal(report.totals.unpricedTurns, 2)
   assert.equal(report.totals.inputTokens, 4_000_700)
   assert.equal(report.totals.outputTokens, 2_000_250)
-  assert.ok(Math.abs(report.totals.costUSD - 2.259) < 1e-9)
+  assert.ok(Math.abs(report.totals.costUSD - 2.259) < 1e-9, `usage --history totals.costUSD=${report.totals.costUSD}, expected 2.259; check usageHistory.ts/modelCost.ts`)
   assert.equal(report.byDay.length, 2)
   assert.equal(report.byModel.length, 3)
   assert.equal(report.byProject.length, 2)
@@ -74,11 +74,11 @@ try {
     assert.match(text.stdout, /By model/)
     assert.match(text.stdout, /By project/)
     assert.match(text.stdout, /^project-alpha +4,000,500/m)
-    assert.ok(!text.stdout.includes(project))
+    assert.ok(!text.stdout.includes(project), `usage --history CLI (width=${width}) leaked full project path instead of short label; check cli/handlers/usageHistory.ts`)
     assert.match(text.stdout, /\$2\.2590/)
     assert.match(text.stdout, /Unpriced = turns without a rate/)
     assert.ok(text.stdout.split('\n').every(line => line.length <= width), text.stdout)
-    assert.ok(!/\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)\b/i.test(text.stdout))
+    assert.ok(!/\b(door|road|seat|fold|lane|ladder|owner|law|pin|prover)\b/i.test(text.stdout), `usage --history CLI (width=${width}) emitted internal jargon word; check cli/handlers/usageHistory.ts`)
     if (process.env.USAGE_CAPTURE_DIR) {
       const captures = process.env.USAGE_CAPTURE_DIR
       mkdirSync(captures, { recursive: true })
@@ -97,7 +97,7 @@ try {
     console.log(`PASS CLI ${width} columns`)
   }
   assert.deepEqual([file, file2, agent].map(path => readFileSync(path, 'utf8')), before)
-  assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-private-text'))
+  assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-private-text'), 'usage-history.json persisted private transcript text; check usageHistory.ts')
   console.log('PASS cross-session totals, unpriced, cache reuse, project selection, read-only transcripts, zero network')
 
   const { formatUsageHistory } = await import('../../src/cli/handlers/usageHistory.ts')
@@ -107,7 +107,7 @@ try {
   ] }, 80)
   assert.match(collisions, /alpha\/project-x/)
   assert.match(collisions, /beta\/project-x/)
-  assert.ok(!collisions.includes('workspace'))
+  assert.ok(!collisions.includes('workspace'), `formatUsageHistory did not strip shared parent prefix (got=${collisions.slice(0, 160)}); check cli/handlers/usageHistory.ts`)
   console.log('PASS short project labels and shortest distinguishing parents')
   const { readUsageHistory, recordUsageObservations, boundUsageHistory, USAGE_HISTORY_MAX_ROWS, USAGE_OBSERVATION_MAX_ROWS, USAGE_HISTORY_MAX_FILES } = await import('../../src/services/usage/usageHistory.ts')
   globalThis.fetch = (() => { throw new Error('network forbidden') }) as typeof fetch
@@ -121,7 +121,8 @@ try {
   const price = (at: string, model = 'deepseek-flash') => calculateUSDCost(model, { ...usage, request_started_at_ms: Date.parse(at) })
   for (const at of ['2026-10-23T01:00:00Z', '2026-10-23T03:59:59Z', '2026-10-23T06:00:00Z', '2026-10-23T09:59:59Z']) assert.ok(Math.abs(price(at) - 1.506) < 1e-9, at)
   for (const at of ['2026-10-23T00:59:59Z', '2026-10-23T04:00:00Z', '2026-10-23T05:59:59Z', '2026-10-23T10:00:00Z', '2026-10-24T02:00:00Z', '2026-10-01T02:00:00Z', '2026-02-23T02:00:00Z']) assert.ok(Math.abs(price(at) - 0.753) < 1e-9, at)
-  assert.ok(Math.abs(price('2026-10-23T04:00:00Z', 'deepseek-v4-pro') - 2.662) < 1e-9)
+  const v4ProCost = price('2026-10-23T04:00:00Z', 'deepseek-v4-pro')
+  assert.ok(Math.abs(v4ProCost - 2.662) < 1e-9, `deepseek-v4-pro off-peak cost=${v4ProCost}, expected 2.662; check modelCost.ts/deepseekPins.ts`)
   assert.equal(resolveModelPricing('deepseek-flash', { startedAtMs: Date.parse('2027-01-04T02:00:00Z') }).basis, 'family-estimate')
   console.log('PASS peak boundaries, off-peak, weekend, public holidays, unknown-year estimate')
 
@@ -142,7 +143,7 @@ try {
   process.env.OPENROUTER_API_KEY = 'fixture-other-history-key'
   await refreshProviderUsage('openrouter', { force: true, now: () => at + 1000, fetchImpl: (async () => Response.json({ data: { limit: 100, usage: 40, limit_remaining: 60 } })) as typeof fetch })
   assert.equal((await readUsageHistory()).observations.filter(row => row.provider === 'openrouter').length, 2)
-  assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-other-history-key'))
+  assert.ok(!readFileSync(join(home, 'usage-history.json'), 'utf8').includes('fixture-other-history-key'), 'usage-history.json leaked raw provider API key; check providerUsage.ts/usageHistory.ts')
   console.log('PASS provider refresh records its observation; changed credentials stay separate and secret-free')
   await recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at, usedPct: 10, source: 'endpoint' }])
   await recordUsageObservations('fixture', 'account-a', [{ key: '5h', state: 'live', observedAtMs: at + 1000, usedPct: 20, source: 'endpoint' }])
@@ -150,7 +151,7 @@ try {
   const observed = (await readUsageHistory()).observations.filter(row => row.provider === 'fixture')
   assert.equal(observed.length, 2)
   assert.deepEqual(observed.map(row => row.usedPct).sort(), [20, 30])
-  assert.ok(!observed.some(row => row.account === 'account-a'))
+  assert.ok(!observed.some(row => row.account === 'account-a'), `usage-history stored raw account label instead of hashed scope (accounts=${observed.map(r => r.account).join(',')}); check usageHistory.ts`)
   const lots = Array.from({ length: USAGE_OBSERVATION_MAX_ROWS + 3 }, (_, i) => ({ ...observed[0]!, observedAtMs: at + i * 3_600_000, hour: new Date(at + i * 3_600_000).toISOString() }))
   assert.equal(await recordUsageObservations('fixture', 'account-c', lots.map(row => ({ ...row, key: row.window }))), true)
   assert.equal(JSON.parse(readFileSync(join(home, 'usage-history.json'), 'utf8')).observations.length, USAGE_OBSERVATION_MAX_ROWS)
@@ -163,7 +164,7 @@ try {
   assert.equal(Object.keys(boundUsageHistory({ revision: 1, files, observations: [] }).files).length, USAGE_HISTORY_MAX_FILES)
   console.log('PASS hourly downsampling, account separation, file/row/observation bounds')
   const concurrent = await Promise.all(Array.from({ length: 8 }, (_, i) => recordUsageObservations('concurrent', `account-${i}`, [{ key: '5h', state: 'live', observedAtMs: at + (USAGE_OBSERVATION_MAX_ROWS + i) * 3_600_000, usedPct: i }])))
-  assert.ok(concurrent.every(Boolean))
+  assert.ok(concurrent.every(Boolean), `concurrent recordUsageObservations dropped writes (${concurrent.filter(Boolean).length}/${concurrent.length} succeeded); check usageHistory.ts`)
   assert.equal((await readUsageHistory()).observations.filter(row => row.provider === 'concurrent').length, 8)
   if (process.platform !== 'win32') assert.equal(statSync(join(home, 'usage-history.json')).mode & 0o777, 0o600)
   console.log('PASS concurrent observations are serialized and the published history stays private')

@@ -53,7 +53,7 @@ try {
   const call = () => client.callTool({ name: 'status', arguments: {} })
   await Promise.all([call(), call()])
   const pid = transport.pid
-  assert.ok(pid)
+  assert.ok(pid, 'lazy stdio MCP transport did not spawn child process on first tool call (pid=null); check lazy stdio transport')
   await call()
   assert.equal(transport.pid, pid)
   assert.equal(readFileSync(starts, 'utf8').trim().split('\n').length, 1)

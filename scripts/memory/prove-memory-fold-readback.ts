@@ -46,7 +46,7 @@ try {
   const committed = retireFoldToMemory({ messages, owner, epoch: 2, records: messages.length, dir, sessions: [] })
   check('a successful write commits: the envelope carries a resolvable pending pointer, its item and the sha256 witness of the stored text', committed.state === 'committed' && 'pointer' in committed && committed.pointer.id.startsWith('pending:') && committed.item !== null && committed.contentWitness.digest === foldMemoryWitness(foldMemoryStoredText(committed.item)), JSON.stringify(committed).slice(0, 300))
   assert.equal(committed.state, 'committed')
-  assert.ok('pointer' in committed && committed.item !== null)
+  assert.ok('pointer' in committed && committed.item !== null, 'retireFoldToMemory in src/services/compact/foldRetirement.ts must return committed pointer and item')
   const stored = readBackStoredRow(committed.pointer.id, dir)
   check('the stored row read back through the shared read-back is the item byte for byte and its witness is the envelope\'s', stored !== null && stored.text === foldMemoryStoredText(committed.item) && foldMemoryWitness(stored.text) === committed.contentWitness.digest && !stored.pin, JSON.stringify(stored).slice(0, 200))
   const record = readMemoryRecord(committed.pointer.id, dir, { sessions: [] })

@@ -52,7 +52,7 @@ try {
     assert.deepEqual(result.data.annotations?.iq_color, { preview: 'Blue preview', notes: 'operator note' })
     assert.equal(result.data.outcome?.kind, outcome.kind)
     const text = String(AskUserQuestionTool.mapToolResultToToolResultBlockParam(result.data, 'proof').content)
-    assert.ok(text.includes(outcome.kind === 'discussion-requested' ? 'DISCUSS' : outcome.kind === 'cancelled' ? 'cancelled' : 'Blue'))
+    assert.ok(text.includes(outcome.kind === 'discussion-requested' ? 'DISCUSS' : outcome.kind === 'cancelled' ? 'cancelled' : 'Blue'), `AskUserQuestionTool result missing marker for outcome=${outcome.kind} (text=${text.slice(0, 120)}); check AskUserQuestionTool.tsx`)
   }
   console.log('PASS controller-supplied answers, notes, previews and all outcomes still reach the tool; metadata survives runtime parsing')
 } finally { store._resetInterviewForProofs() }

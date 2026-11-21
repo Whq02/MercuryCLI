@@ -95,7 +95,7 @@ try {
     installation = await installPinned(adapter, { dataDir: dirs.data, authorize: async (plan: any) => { asks++; writeFileSync(join(dirs.evidence, 'install-plan.json'), JSON.stringify(plan, null, 2)); return true } })
     assert.equal(asks, 1); assert.equal(installation.reused, false)
     passed('real clean-cache installation', installation.manifest.archives)
-    const reused = await installPinned(adapter, { dataDir: dirs.data, authorize: () => { throw new Error('Reused installation asked again') } }); assert(reused.reused)
+    const reused = await installPinned(adapter, { dataDir: dirs.data, authorize: () => { throw new Error('Reused installation asked again') } }); assert(reused.reused, 'photocraft second installPinned did not reuse existing installation in src/extensions/bundled/shared/install.mjs')
     passed('same-version offline reuse')
   }
   const checked = await checkInstall(adapter, { dataDir: dirs.data }); assert.equal(checked.state, 'installed', JSON.stringify(checked)); installation = checked.installation
@@ -120,10 +120,10 @@ try {
   async function discover(mcp: MCP, mode: string) {
     const listed = await mcp.request('tools/list')
     const names = listed.result.tools.map((t: any) => t.name)
-    assert.equal(names.length, 29); assert(names.includes('ui_screenshot')); assert(names.includes('doc_export_layers')); assert(names.includes('doc_replace_smart_object'))
-    const commands = await mcp.json('command_list'); assert(Array.isArray(commands)); assert(commands.length >= 1009)
-    assert(commands.some((c: any) => c.id === 'image.crop' && c.params.includes('width')))
-    const resources = await mcp.request('resources/list'); assert(resources.result.resources.some((r: any) => r.uri === 'photocraft://document'))
+    assert.equal(names.length, 29); assert(names.includes('ui_screenshot'), `photocraft ${mode} tools/list missing ui_screenshot`); assert(names.includes('doc_export_layers'), `photocraft ${mode} tools/list missing doc_export_layers`); assert(names.includes('doc_replace_smart_object'), `photocraft ${mode} tools/list missing doc_replace_smart_object`)
+    const commands = await mcp.json('command_list'); assert(Array.isArray(commands), `photocraft ${mode} command_list was not an array`); assert(commands.length >= 1009, `photocraft ${mode} command_list returned ${commands.length} commands (< 1009)`)
+    assert(commands.some((c: any) => c.id === 'image.crop' && c.params.includes('width')), `photocraft ${mode} command_list missing image.crop with width param`)
+    const resources = await mcp.request('resources/list'); assert(resources.result.resources.some((r: any) => r.uri === 'photocraft://document'), `photocraft ${mode} resources/list missing photocraft://document`)
     passed(`${mode} full upstream MCP discovery`, { upstreamTools: names.length - 3, bootstrapTools: 3, commands: commands.length })
   }
   if (process.argv.includes('--headless')) {
@@ -202,7 +202,7 @@ try {
       process.kill(guiPid, 0); passed('duplicate GUI launch refused without stopping the existing process')
       await discover(mcp, 'attached GUI')
       await mcp.json('doc_open', { path: 'fixture.png' }); await mcp.call('ui_set', { fields: { zoom: 64 } })
-      async function screenshot(name: string) { const shot = await mcp.call('ui_screenshot'); const image = shot.content.find((x: any) => x.type === 'image'); assert(image && image.mimeType === 'image/png'); const path = join(dirs.evidence, name); writeFileSync(path, Buffer.from(image.data, 'base64')); assert((await sharp(path).metadata()).width! > 100); report.frames.push(path); return path }
+      async function screenshot(name: string) { const shot = await mcp.call('ui_screenshot'); const image = shot.content.find((x: any) => x.type === 'image'); assert(image && image.mimeType === 'image/png', `photocraft ui_screenshot(${name}) missing image/png content`); const path = join(dirs.evidence, name); writeFileSync(path, Buffer.from(image.data, 'base64')); const width = (await sharp(path).metadata()).width; assert(width! > 100, `photocraft ui_screenshot(${name}) width ${width}px <= 100px`); report.frames.push(path); return path }
       await screenshot('gui-before.png')
       const before = await mcp.json('command_run', { id: 'document.pixel', params: { x: 0, y: 0 } })
       await mcp.call('ui_menu_invoke', { id: 'image.imageRotation.flipCanvasHorizontal' })

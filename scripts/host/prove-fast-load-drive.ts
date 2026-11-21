@@ -94,7 +94,7 @@ try {
   }
   const focus = select
   const choose = async (needle: string, key: string = KEY.down) => { await select(needle, key); m.push(KEY.enter) }
-  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)) }
+  const close = async () => { m.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), 'fast-load settings popup did not close within 5000ms after Esc; check host popup close handler') }
   const capture = async (name: string) => {
     check(name + ' renders without errors or secrets', !m.screen().includes('RENDER ERROR') && !m.screen().includes(rp.key))
     if (!frames) return

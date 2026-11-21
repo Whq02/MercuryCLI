@@ -23,7 +23,8 @@ for (const recipe of HOST_RECIPES.filter(row => row.engine === 'llamacpp')) {
   const manifest = weightManifest(recipe)
   assert.equal(manifest.files.find(file => file.path === projector.file)?.size, projector.size)
   assert.ok(weightCheckScript(manifest, '/fixture/kept', true).includes(projector.file), 'fast-load downloads and verifies the same projector')
-  assert.ok(recipe.diskGb * 1e9 > manifest.files.reduce((sum, file) => sum + file.size, 0))
+  const manifestBytes = manifest.files.reduce((sum, file) => sum + file.size, 0)
+  assert.ok(recipe.diskGb * 1e9 > manifestBytes, `${recipe.id}: diskGb=${recipe.diskGb}GB does not exceed manifest bytes=${manifestBytes}; check host recipes.ts`)
   for (const prebuilt of [true, false]) {
     commands.length = 0
     const launchRunner = { ...runner, async run(command: string, args: string[]) { await runner.run(command, args); return prebuilt ? 'MERCURY_PREBUILT_ENGINE yes' : '' } }
@@ -32,12 +33,13 @@ for (const recipe of HOST_RECIPES.filter(row => row.engine === 'llamacpp')) {
     const download = text.replaceAll("'\\''", "'").replaceAll('\\"', '"')
     assert.ok(download.includes(`--include '${recipe.include}' '${projector.file}'`), 'the download (inside the stall watchdog when guarded) names the projector beside the quant: ' + download)
     assert.ok(text.includes(`'--mmproj' '/workspace/mercury-host/${recipe.id}/weights/${projector.file}'`), text)
-    assert.ok(text.includes(prebuilt ? "'llama-server'" : "'/workspace/mercury-host/llama.cpp/build/bin/llama-server'"))
+    assert.ok(text.includes(prebuilt ? "'llama-server'" : "'/workspace/mercury-host/llama.cpp/build/bin/llama-server'"), `${recipe.id} (prebuilt=${prebuilt}): launch script missing expected llama-server binary path; check startHostEngine`)
   }
   commands.length = 0
   await startHostEngine({ host: 'fixture' }, recipe, runner, new AbortController().signal, false, true, undefined, '/fixture/kept')
-  assert.ok(script().includes(`'--mmproj' '/fixture/kept/${projector.file}'`))
-  assert.ok(!script().includes('hf download'))
+  const keptScript = script()
+  assert.ok(keptScript.includes(`'--mmproj' '/fixture/kept/${projector.file}'`), `${recipe.id}: kept-weights launch script missing --mmproj for ${projector.file}; check startHostEngine`)
+  assert.ok(!keptScript.includes('hf download'), `${recipe.id}: kept-weights launch script unexpectedly invoked hf download; check startHostEngine`)
   const bank = mkdtempSync(join(process.env.MERCURY_CONFIG_DIR!, 'bank-'))
   try {
     const count = Number(/-00001-of-(\d+)\.gguf$/.exec(recipe.weightFile!)![1])
@@ -49,6 +51,6 @@ for (const recipe of HOST_RECIPES.filter(row => row.engine === 'llamacpp')) {
   } finally { rmSync(bank, { recursive: true, force: true }) }
   commands.length = 0
   await startHostEngine({ host: 'fixture' }, { ...recipe, mmproj: undefined } as any, runner, new AbortController().signal, false, true)
-  assert.ok(!script().includes('--mmproj'))
+  assert.ok(!script().includes('--mmproj'), `${recipe.id}: text-only launch script without mmproj unexpectedly passed --mmproj; check startHostEngine`)
   console.log(`PASS ${recipe.id}: projector on download, prebuilt/source launch, kept weights, bank validation and recipe export; text-only has no --mmproj`)
 }

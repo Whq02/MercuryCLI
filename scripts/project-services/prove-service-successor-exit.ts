@@ -32,7 +32,7 @@ try {
   const stopped = await stopService(scratch, 'slot')
   check('stopping the name stops the successor, and its record reads stopped with no pid', 'record' in stopped && stopped.record.state === 'stopped' && stopped.record.pid === null && readRecord(scratch, 'slot')?.state === 'stopped')
   const crash = await startService({ sessionId: 'successor-proof', spec: { ...spec('third'), args: ['-e', 'setTimeout(() => process.exit(3), 150)'] } })
-  assert.ok('record' in crash)
+  assert.ok('record' in crash, `src/services/projectServices/serviceManager.ts startService(third) expected record, got ${JSON.stringify(crash).slice(0, 140)}`)
   await sleep(900)
   const crashed = readRecord(scratch, 'slot')
   check("a child that exits on its own still writes its own record: failed with its exit code (the guard keys on the record's start, not on a cleared pid)", crashed?.state === 'failed' && crashed.lastExitCode === 3 && crashed.pid === null, JSON.stringify({ state: crashed?.state, lastExitCode: crashed?.lastExitCode }))

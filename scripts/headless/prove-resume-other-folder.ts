@@ -34,7 +34,7 @@ try {
   const missing = crypto.randomUUID()
   const absent = await runDoor({ ...paths, cwd }, { hooks: {}, args: ['--resume', missing], turns: [{ kind: 'text', text: 'not called' }] })
   assert.equal(absent.code, 1)
-  assert.ok(JSON.stringify(absent.rows).includes(`No conversation found for session id ${missing}`))
+  assert.ok(JSON.stringify(absent.rows).includes(`No conversation found for session id ${missing}`), `headless --resume for absent id ${missing} must report "No conversation found for session id" (got ${JSON.stringify(absent.rows).slice(0, 240)})`)
 
   const posixModes = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
   if (posixModes) {

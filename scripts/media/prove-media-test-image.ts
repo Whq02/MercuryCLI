@@ -27,7 +27,7 @@ try {
   assert.equal(calls, 1)
   assert.equal(asks, 2)
   assert.equal(starts, 1)
-  assert.ok(result.png.equals(png))
+  assert.ok(result.png.equals(png), `generateMediaTestImage PNG bytes differed (got=${result.png.length}B, expected=${png.length}B); check generateMediaTestImage`)
   assert.equal(result.path, join(proofHome, 'test.png'))
   const controller = new AbortController()
   controller.abort()

@@ -33,12 +33,12 @@ for (const fixture of [
     assert.equal(row.fix, undefined)
   } else {
     assert.match(row.evidence, /^unavailable — /)
-    assert.ok(row.evidence.includes(row.fix))
+    assert.ok(row.evidence.includes(row.fix), `ocrReadinessCheck(${fixture.platform}) evidence omitted fix hint in src/services/health/healthReport.ts: evidence=${row.evidence} fix=${row.fix}`)
     if (!fixture.tesseract) assert.equal(row.fix, ocrInstallHint(fixture.platform))
     else assert.match(row.fix, /no installed recognition languages/)
   }
   const text = renderPlainCertificate({ sections: [{ title: 'INTERFACE', checks: [row] }], verdict: 'certified', durationMs: 0 })
-  assert.ok(text.includes(`OCR — ${row.evidence}`))
+  assert.ok(text.includes(`OCR — ${row.evidence}`), `renderPlainCertificate(${fixture.platform}) missing OCR row in src/cli/healthPresentation.ts: ${text.slice(0, 200)}`)
 }
 assert.equal(recognitions, 0)
 const { interfaceChecks } = await import('../../src/services/health/sections/interface.ts')

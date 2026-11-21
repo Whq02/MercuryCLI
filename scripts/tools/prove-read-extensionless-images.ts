@@ -33,7 +33,7 @@ try {
       assert.equal(cropped.newMessages?.length ?? 0, 0)
       assert.match(cropped.data.file.caption ?? '', /This image is the crop/)
       const mapped = FileReadTool.mapToolResultToToolResultBlockParam(cropped.data, 'image-proof')
-      assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'))
+      assert(Array.isArray(mapped.content) && mapped.content.some(block => block.type === 'image'), `FileReadTool.mapToolResultToToolResultBlockParam(${format}) did not emit an image block in src/tools/FileReadTool/FileReadTool.ts`)
     })
   }
   for (const text of ['ordinary text', 'GIF is not an image', '']) {

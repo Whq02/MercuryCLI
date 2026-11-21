@@ -25,7 +25,7 @@ try {
   writeFileSync(join(proofHome, 'other.safetensors'), embedding(1024))
   await client.connect(new StdioClientTransport({ command: 'node', args: [serverPath], cwd: proofHome, env: { ...process.env, MEDIA_ROOT: root, MEDIA_OUTPUT_DIR: join(root, 'outputs') } as Record<string, string>, stderr: 'pipe' }))
   const tools = await client.listTools(), schema = tools.tools.find(tool => tool.name === 'image_generate')!.inputSchema
-  assert.ok(schema.properties?.embeddings)
+  assert.ok(schema.properties?.embeddings, `image_generate inputSchema missing embeddings property (keys=${Object.keys(schema.properties ?? {}).join(',')}); check media server schema`)
   const generate = (args: Record<string, unknown>) => client.callTool({ name: 'image_generate', arguments: { model: 'image-one', prompt: 'fixture', width: 64, height: 64, cwd: proofHome, wait: true, seed: 123, ...args } })
   const wrongFamily = await generate({ embeddings: [{ path: 'other.safetensors' }] })
   assert.equal(wrongFamily.isError, true)

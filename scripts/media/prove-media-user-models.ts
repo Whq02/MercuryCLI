@@ -39,7 +39,8 @@ try {
   const pid = transport.pid
   const listedBefore = await client.callTool({ name: 'media_models', arguments: {} })
   assert.equal(listedBefore.isError, undefined)
-  assert.ok((await client.listTools()).tools.find(tool => tool.name === 'image_generate')!.inputSchema.properties!.loras)
+  const imgProps = (await client.listTools()).tools.find(tool => tool.name === 'image_generate')!.inputSchema.properties!
+  assert.ok(imgProps.loras, `image_generate inputSchema missing loras property (keys=${Object.keys(imgProps).join(',')}); check media server schema`)
   const progress: MediaProgress[] = []
   const run = (args: string[], report: (event: MediaProgress) => void, signal?: AbortSignal) => runMediaSetup(args, report, signal, { root, serverPath })
   const plan = await mediaAddPlan(file, root, run)

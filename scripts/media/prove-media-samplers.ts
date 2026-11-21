@@ -18,8 +18,8 @@ try {
   writeFileSync(join(root, 'catalog.json'), JSON.stringify(local))
   await client.connect(new StdioClientTransport({ command: 'node', args: [serverPath], cwd: proofHome, env: { ...process.env, MEDIA_ROOT: root, MEDIA_OUTPUT_DIR: join(root, 'outputs') } as Record<string, string>, stderr: 'pipe' }))
   const tools = await client.listTools(), schema = tools.tools.find(tool => tool.name === 'image_generate')!.inputSchema
-  assert.ok(schema.properties?.sampler)
-  assert.ok(schema.properties?.scheduler)
+  assert.ok(schema.properties?.sampler, `image_generate inputSchema missing sampler property (keys=${Object.keys(schema.properties ?? {}).join(',')}); check media server schema`)
+  assert.ok(schema.properties?.scheduler, `image_generate inputSchema missing scheduler property (keys=${Object.keys(schema.properties ?? {}).join(',')}); check media server schema`)
   const generate = (args: Record<string, unknown>) => client.callTool({ name: 'image_generate', arguments: { model: 'image-one', prompt: 'fixture', width: 64, height: 64, wait: true, seed: 123, ...args } })
   for (const args of [{ sampler: 'not-a-sampler' }, { scheduler: 'not-a-scheduler' }]) {
     const refused = await generate(args)

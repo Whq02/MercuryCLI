@@ -24,8 +24,8 @@ for (const background of [false, true]) {
     const captured = existsSync(events) ? readFileSync(events, 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)) : []
     assert.deepEqual(captured.map(row => row.event), ['crewmate.start', 'crewmate.end'], `background=${background}`)
     assert.equal(captured[0].prompt, 'say done')
-    assert.ok(captured[0].crewmate_id)
-    assert.ok(result.wire.some(request => JSON.stringify(request.body).includes('count the violet beans')))
+    assert.ok(captured[0].crewmate_id, `crewmate.start payload missing crewmate_id (background=${background}, keys=${Object.keys(captured[0] ?? {}).join(',')}); check crewmate hook payload`)
+    assert.ok(result.wire.some(request => JSON.stringify(request.body).includes('count the violet beans')), `crewmate.start hook context missing from wire requests (background=${background}, count=${result.wire.length}); check hook context injection`)
     console.log(`PASS crewmate start/end and returned context, background=${background}`)
   } finally {
     rmSync(paths.root, { recursive: true, force: true })

@@ -23,7 +23,7 @@ const spies = [
   spyOn(permissions, 'pathInAllowedWorkingPath').mockImplementation(() => allowed),
   spyOn(engine, 'getManagedAndUserConditionalInstructionRules').mockImplementation(async (_path, seen) => { events.push('managed'); ledgers.push(seen); return [entry('managed')] as never }),
   spyOn(engine, 'getInstructionFilesForNestedDirectory').mockImplementation(async (directory, _path, seen) => {
-    assert(context.readFileState.has(join(base, 'managed.md')))
+    assert(context.readFileState.has(join(base, 'managed.md')), 'managed instruction file was not admitted into readFileState before nested directory load in src/services/attachments/nestedMemory.ts')
     events.push('nested:' + directory); ledgers.push(seen)
     if (directory === failAt) throw new Error('fixture phase failure')
     return [entry('nested-' + events.length)] as never
@@ -35,7 +35,7 @@ try {
   const rows = await getNestedMemoryAttachmentsForFile(file, context as never, { toolPermissionContext: {} } as never)
   assert.deepEqual(events, ['managed', ...directories.nestedDirs.map((directory: string) => 'nested:' + directory), ...directories.cwdLevelDirs.map((directory: string) => 'root:' + directory)])
   assert.equal(rows.length, events.length)
-  assert(ledgers.every(seen => seen === ledgers[0]))
+  assert(ledgers.every(seen => seen === ledgers[0]), 'nested memory phases did not share one dedup ledger Set in src/services/attachments/nestedMemory.ts')
   assert.equal(context.readFileState.size, events.length)
   events.length = 0; ledgers.length = 0; context.readFileState.clear(); context.loadedNestedMemoryPaths.clear()
   failAt = directories.nestedDirs[0]!

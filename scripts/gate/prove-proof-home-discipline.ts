@@ -118,7 +118,7 @@ function pythonKeeps(text: string): number[] {
 
 {
   const kept = homeFacts("process.env['MERCURY_CONFIG_DIR'] ??= mkdtempSync(join(tmpdir(), 'x-'))\nconst m = await import('../../src/a.ts')\nwriteStoredZaiApiKey('k')\n")
-  assert.deepEqual(kept.kept, [1]); assert.equal(kept.pin, null); assert.equal(kept.dynamicImport, 2); assert.ok(kept.credentials)
+  assert.deepEqual(kept.kept, [1]); assert.equal(kept.pin, null); assert.equal(kept.dynamicImport, 2); assert.ok(kept.credentials, 'homeFacts must classify writeStoredZaiApiKey + dynamic product import as credential-writing')
   const pinned = homeFacts("import { x } from '../lib/kit.ts'\nprocess.env.MERCURY_CONFIG_DIR = mkdtempSync('p')\nconst m = await import('../../src/a.ts')\n")
   assert.deepEqual(pinned.kept, []); assert.equal(pinned.pin, 2); assert.equal(pinned.staticImport, null); assert.equal(pinned.dynamicImport, 3)
   const late = homeFacts("import { y } from '../../src/b.ts'\nprocess.env.MERCURY_CONFIG_DIR = process.env.MERCURY_CONFIG_DIR || '/tmp/x'\nif (!process.env.MERCURY_CONFIG_DIR) process.env.MERCURY_CONFIG_DIR = '/tmp/y'\n")
@@ -132,9 +132,9 @@ function pythonKeeps(text: string): number[] {
   const census = homeFacts("const text = readFileSync('x.ts', 'utf8')\ncheck(text.includes('writeStoredZaiApiKey('))\nconst paths = ['src/services/providers/providerSecrets.ts']\n")
   assert.equal(census.credentials, false)
   const branches = homeFacts("if (child) {\n  const a = await import('../../src/a.ts')\n} else {\n  process.env.MERCURY_CONFIG_DIR = mkdtempSync('p')\n  const b = await import('../../src/services/providers/providerSecrets.ts')\n}\n")
-  assert.equal(branches.importBeforePin, null); assert.ok(branches.credentials)
+  assert.equal(branches.importBeforePin, null); assert.ok(branches.credentials, 'homeFacts must classify providerSecrets dynamic import as credential-writing')
   const top = homeFacts("const env = await import('../../src/utils/envUtils.js')\n{\n  process.env.MERCURY_CONFIG_DIR = join(homedir(), '.mercury')\n}\n")
-  assert.equal(top.importBeforePin, 1); assert.ok(top.pinNamesAccountHome)
+  assert.equal(top.importBeforePin, 1); assert.ok(top.pinNamesAccountHome, 'homeFacts must flag join(homedir(), ".mercury") as naming the account home')
   assert.equal(homeFacts("process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'p-'))\n").pinNamesAccountHome, false)
   assert.deepEqual(pythonKeeps("os.environ.setdefault('MERCURY_CONFIG_DIR', home)\nhome = os.environ.get('MERCURY_CONFIG_DIR') or tmp\nprint('MERCURY_CONFIG_DIR')\n"), [1, 2])
   const cleanup = "import { rmSync as remove } from 'node:fs'\nconst scratch = mkdtempSync('x-')\nremove(scratch, { recursive: true })\n"

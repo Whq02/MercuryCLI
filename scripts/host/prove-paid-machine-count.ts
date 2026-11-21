@@ -49,7 +49,8 @@ try {
   assert.equal(count(await inspect()), 'Machines I’m paying for →', 'an incomplete account list offers the details, not an invented total')
   const unread = (await inspect(true)).find(row => row.step === 'paid-pods')!
   assert.ok(unread.found.includes('Vast.ai: no instances') && unread.found.includes('Runpod: none') && unread.found.includes('Hugging Face: unread'), unread.found)
-  assert.ok(!count(await inspect()).includes('last known'))
+  const countText = count(await inspect())
+  assert.ok(!countText.includes('last known'), `paid machine count label unexpectedly included 'last known' (got=${countText}); check runModelDoor paid-pods label`)
   rp.state.pods.set('live-one', { id: 'live-one', name: 'Live machine', status: 'RUNNING', cost: 2, createdAt: record.startedAt, startedAt: record.startedAt })
   assert.equal(count(await inspect()), 'Machines I’m paying for →')
   const fallback: LlmHostQuestion[] = []

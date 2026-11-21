@@ -43,9 +43,9 @@ for (const [kind, original] of Object.entries(capsuleFixtures)) {
     assert.equal(blocks(receipts).length, 0, 'receipts remain wire-silent')
     if (records) {
       const old = readFileSync(resolve(records, `${kind}.old.txt`), 'utf8')
-      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(old.includes(oldBlock.text))
+      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(old.includes(oldBlock.text), `${kind}.old.txt fixture missing frozen text block in scripts/attachments/prove-capsule-facts.ts`)
       const sectionText = capsule.sections.flatMap((section: any) => section.content).filter((block: any) => block.type === 'text').map((block: any) => block.text).join('\n\n')
-      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(sectionText.includes(body(oldBlock.text)))
+      for (const oldBlock of frozen[kind]) if (oldBlock.type === 'text') assert(sectionText.includes(body(oldBlock.text)), `contextCapsule(${kind}) dropped frozen fact in src/services/attachments/contextCapsule.ts`)
       writeFileSync(resolve(records, `${kind}.new.txt`), sectionText + '\n')
     }
   }

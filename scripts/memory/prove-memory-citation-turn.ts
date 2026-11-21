@@ -25,8 +25,8 @@ try {
     },
   })
   assert.equal(result.code, 0, result.stderr)
-  assert(result.rows.some(row => JSON.stringify(row).includes('[seq 1]')))
-  assert(Date.parse(readUsage(library)['1']?.last ?? '') > Date.parse(old))
+  assert(result.rows.some(row => JSON.stringify(row).includes('[seq 1]')), 'runDoor output rows must include assistant citation [seq 1]')
+  assert(Date.parse(readUsage(library)['1']?.last ?? '') > Date.parse(old), `confirmCitedFacts in src/mneme/mnemeFootnotes.ts must refresh usage.last past ${old} (got ${readUsage(library)['1']?.last ?? 'missing'})`)
   assert.equal(readUsage(library)['1']?.count, 0)
   console.log('PASS a real assistant answer confirms its citation without counting a memory open')
 } finally {

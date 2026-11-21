@@ -21,10 +21,10 @@ const pins: Record<string, () => Promise<void>> = {
     try {
       clearWebFetchCache()
       const result = await getURLMarkdownContent('https://fixture.example/identifiers', new AbortController())
-      assert.ok(!('type' in result))
+      assert.ok(!('type' in result), `getURLMarkdownContent returned non-markdown result ${JSON.stringify(result).slice(0, 160)} in src/tools/WebFetchTool/utils.ts`)
       for (const word of ['snake_case', 'DOCX_NEEDLE_1', 'café_été', '文字_数字', 'a__b']) assert.ok(result.content.includes(word), result.content)
       assert.ok(result.content.includes('\\_edge\\_'), result.content)
-      assert.ok(result.content.includes('code_name'))
+      assert.ok(result.content.includes('code_name'), `getURLMarkdownContent dropped code_name in src/tools/WebFetchTool/utils.ts: ${result.content.slice(0, 200)}`)
     } finally { axios.get = get; server.stop(true); clearWebFetchCache() }
   },
   '2': async () => {
@@ -116,7 +116,7 @@ const pins: Record<string, () => Promise<void>> = {
       for (const highlight of [undefined, { supportsLanguage: () => true, highlight: (text: string) => text.replace('example', '\u001b[32mexample\u001b[39m') }]) {
         const result = applyMarkdown('```js\n' + source + '\n```', 'dark', highlight as never)
         assert.ok(result.includes('\u001b]8;;https://example.com/a_(b)\u0007'), JSON.stringify(result))
-        assert.ok(result.includes('\u001b]8;;https://example.com/next\u0007'))
+        assert.ok(result.includes('\u001b]8;;https://example.com/next\u0007'), `applyMarkdown omitted OSC-8 link for second URL in src/utils/markdown.ts: ${JSON.stringify(result.slice(0, 200))}`)
         assert.equal(stripAnsi(result), source)
       }
       const { default: React } = await import('react')
@@ -216,7 +216,7 @@ const pins: Record<string, () => Promise<void>> = {
         assert.equal(errors.length, 1)
         assert.equal(errors[0].error, 'invalid_request', `${type} afterContent=${partial}: ${JSON.stringify(errors)}`)
         assert.ok(!JSON.stringify(errors).includes('The stream ended'), 'not a continuable stream cut')
-        if (partial) assert.ok(items.some(item => item.type === 'assistant' && item.message.content.some((block: any) => block.text === 'partial fixture answer')))
+        if (partial) assert.ok(items.some(item => item.type === 'assistant' && item.message.content.some((block: any) => block.text === 'partial fixture answer')), `${type} afterContent=true dropped partial fixture answer in src/services/providers/openai/openaiCallModel.ts`)
       }
     } finally {
       if (key === undefined) delete process.env.OPENAI_API_KEY; else process.env.OPENAI_API_KEY = key

@@ -135,7 +135,7 @@ try {
       writeFileSync(base + '.json', JSON.stringify({ grid, cols: width, rows: height }))
       await gridToPng(base + '.json', base + '.png')
     }
-    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000)); question = undefined }
+    const close = async () => { mounted!.push(KEY.esc); assert.ok(await waitFor(() => !popup.isSettingsPopupOpen(), 5000), `vast-screen-reads popup (${width}x${height}) did not close within 5000ms after Esc; check popup close`); question = undefined }
     const open = async () => { popup.openSettingsPopup(llmHostPopupRequest(driven)); await step('door-models') }
     fail('timeout')
     await open()

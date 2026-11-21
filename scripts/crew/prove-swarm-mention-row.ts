@@ -15,7 +15,7 @@ const { readSessionWorkers } = await import('../../src/daemon/concourseWorkers.t
 const text = '@main Please check the proposed law: ' + 'the parser keeps every word. '.repeat(8)
 const block = noticeOfText(crewBoardNotice('Poster', 'result', text), false)![0]!
 assert.equal(block.kind, 'crew-board')
-assert(isMutedNoticeBlock(block))
+assert(isMutedNoticeBlock(block), `src/utils/messages/noticeRows.ts isMutedNoticeBlock must classify crew-board notice as muted, got kind=${block.kind}`)
 assert.equal(noticePlate(block), `[Crewboard] Poster · result · ${text.trimEnd()}`)
 assert.equal(noticeOfText('<crew-board>not JSON</crew-board>', false), null)
 const arg = (name: string) => { const i = process.argv.indexOf(name); return i < 0 ? undefined : process.argv[i + 1] }
@@ -48,7 +48,8 @@ try {
       const sender = { author: { sessionId: SID, agentId: `poster-${cols}`, executionId: 'run' }, name: 'Poster' }
       try {
         board.enroll(sender)
-        assert(board.post(sender, { clientOpId: 'row', kind: 'result', text }).ok)
+        const postedRow = board.post(sender, { clientOpId: 'row', kind: 'result', text })
+        assert(postedRow.ok, `src/services/crewBoard/store.ts board.post(row) failed: ${JSON.stringify(postedRow).slice(0, 140)}`)
       } finally { board.close() }
     }, 100)
     let stderr = ''

@@ -25,7 +25,7 @@ setCwdState(root)
 try {
   assert.equal(typeof (globalThis as any).document, 'undefined')
   const docx = await Packer.toBuffer(new Document({ sections: [{ children: [new Paragraph('Library fixture')] }] }))
-  assert.ok(unzipSync(docx)['word/document.xml'])
+  assert.ok(unzipSync(docx)['word/document.xml'], 'docx Packer output missing word/document.xml under Bun without DOM')
   assert.match((await mammoth.convertToHtml({ buffer: docx })).value, /Library fixture/)
   const pdf = await PDFDocument.create()
   pdf.addPage().drawText('Library fixture')
@@ -38,7 +38,7 @@ try {
   assert.equal(reread.getWorksheet('Evidence')!.getCell('B1').value, 3)
   const slides = new PptxGenJS()
   slides.addSlide().addText('Library fixture', { x: 1, y: 1, w: 4, h: 1 })
-  assert.ok(unzipSync(await slides.write({ outputType: 'uint8array' }) as Uint8Array)['ppt/slides/slide1.xml'])
+  assert.ok(unzipSync(await slides.write({ outputType: 'uint8array' }) as Uint8Array)['ppt/slides/slide1.xml'], 'pptxgenjs output missing ppt/slides/slide1.xml under Bun without DOM')
   assert.match(marked.parse('# Library fixture') as string, /<h1>/)
   const lock = JSON.parse(readFileSync(new URL('../../vendor/document-libs.lock.json', import.meta.url), 'utf8'))
   for (const row of lock.packages) {

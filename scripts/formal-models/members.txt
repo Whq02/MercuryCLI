@@ -1,8 +1,10 @@
 prove-a2-class-ratchet.ts
 prove-flag-interactions.ts
+prove-major-flows.ts
 prove-model-filestore.ts
 prove-model-interview.ts
 prove-model-journal.ts
 prove-model-purecores.ts
+prove-screen-properties.ts
 prove-selection-budget-owner.ts
 prove-task-lock-stall.ts

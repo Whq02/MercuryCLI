@@ -32,8 +32,8 @@ assert.equal(localBudget('unlisted', '1000').budget, 2000)
 assert.equal(localBudget('ui-drives', '6000').budget, 12000)
 assert.equal(localBudget('ui-drives', '700', '45').budget, 45)
 assert.match(localBudget('ui-drives', '700').note, /11700 s suite grant from scripts\/gate\/suite-ceilings\.tsv/)
-assert.ok(pool.includes('. scripts/gate/suite-grants.sh') && ci.includes('. scripts/gate/suite-grants.sh'))
-assert.ok(pool.includes('CEILING_FILE=scripts/gate/suite-ceilings.tsv') && ci.includes('CEILING_FILE="${MERCURY_CI_SHARD_CEILING_FILE:-scripts/gate/suite-ceilings.tsv}"'))
+assert.ok(pool.includes('. scripts/gate/suite-grants.sh') && ci.includes('. scripts/gate/suite-grants.sh'), 'both scripts/run-all-suites.sh and scripts/gate/ci-shard.sh must source scripts/gate/suite-grants.sh')
+assert.ok(pool.includes('CEILING_FILE=scripts/gate/suite-ceilings.tsv') && ci.includes('CEILING_FILE="${MERCURY_CI_SHARD_CEILING_FILE:-scripts/gate/suite-ceilings.tsv}"'), 'both scripts/run-all-suites.sh and scripts/gate/ci-shard.sh must point CEILING_FILE at scripts/gate/suite-ceilings.tsv')
 console.log('[PASS] local budgets honor the measured suite grants, retain the unlisted default, and preserve the operator override')
 
 const scratch = mkdtempSync(join(tmpdir(), 'suite-grants-'))
@@ -78,7 +78,7 @@ try {
   const runs = (JSON.parse(readFileSync(verdict, 'utf8')) as { timeline: { runs: Array<{ suite: string; budgetS: number; rc: number }> } }).timeline.runs
   assert.equal(runs.find(run => run.suite === 'granted')?.budgetS, 1700)
   assert.equal(runs.find(run => run.suite === 'unlisted')?.budgetS, 600)
-  assert.ok(runs.length === 2 && runs.every(run => run.rc === 0))
+  assert.ok(runs.length === 2 && runs.every(run => run.rc === 0), `scripts/run-all-suites.sh expected 2 green suite runs in verdict timeline, got ${JSON.stringify(runs)}`)
   console.log('[PASS] the real local scheduler records the grant for its named suite and leaves the other suite at the default')
 } finally {
   rmSync(scratch, { recursive: true, force: true })

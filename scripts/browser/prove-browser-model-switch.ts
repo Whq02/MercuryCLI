@@ -21,7 +21,8 @@ const context = (agentId = 'switch-fixture') => ({ agentId, options: { engineMod
 const owner = ownerFromToolUseContext(context())
 try {
   assert.equal((await BrowserTool.checkPermissions({ op: 'open', url: page.url() }, context())).behavior, 'ask')
-  assert.ok(!('state' in await browser.ensureBrowserSession(owner)))
+  const ensured = await browser.ensureBrowserSession(owner)
+  assert.ok(!('state' in ensured), `ensureBrowserSession(${owner}) returned refusal in src/services/browser/browserSession.ts: ${JSON.stringify(ensured).slice(0, 160)}`)
   browser.approveWebOrigin(owner, 'https://example.test')
   const initial = browser.activeSession(owner)
   const changed = settleModelSelection(state, 'gpt-5.6-sol', { turnActive: false })

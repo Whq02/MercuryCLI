@@ -1,6 +1,8 @@
 import { exitChordNoticeText } from '../PromptInput/ExitChordNotice.js'
-import React from 'react'
+import React, { useRef } from 'react'
 import { Box, Text } from '../../ink.js'
+import { isTopOverlayNow, useRegisterOverlay } from '../../context/overlayContext.js'
+import { useKeybindings } from '../../keybindings/useKeybinding.js'
 import type { SessionListing } from '../../types/logs.js'
 import { SearchBox } from '../SearchBox.js'
 import { TagTabs } from '../TagTabs.js'
@@ -11,6 +13,35 @@ import type { useExitOnCtrlCDWithKeybindings } from '../../hooks/useExitOnCtrlCD
 import type { useSearchInput } from '../../hooks/useSearchInput.js'
 import { packFooter } from '../mercury-ui/footerHint.js'
 import type { MercuryThemeTokens } from '../../utils/mercuryTokens.js'
+
+function EmptyLogList({
+  emptyReasons,
+  isDisabled,
+  onCancel,
+}: {
+  emptyReasons: string[]
+  isDisabled: boolean
+  onCancel: (() => void) | undefined
+}): React.ReactNode {
+  const overlayToken = useRegisterOverlay('select', Boolean(onCancel), { ownsPageKeys: false })
+  const tokenRef = useRef(overlayToken)
+  tokenRef.current = overlayToken
+  useKeybindings(
+    {
+      'select:cancel': () => {
+        const token = tokenRef.current
+        if (token === null || !isTopOverlayNow(token)) return false
+        onCancel?.()
+      },
+    },
+    { context: 'Select', isActive: !isDisabled && Boolean(onCancel) },
+  )
+  return (
+    <Text dimColor>
+      no sessions match{emptyReasons.length > 0 ? ` — ${emptyReasons.join(' · ')}` : ''}
+    </Text>
+  )
+}
 
 export function logSelectorView({
   grouped,
@@ -84,9 +115,7 @@ export function logSelectorView({
   expandHint: string | null
 }): React.ReactNode {
   const listBody = grouped.length === 0 ? (
-    <Text dimColor>
-      no sessions match{emptyReasons.length > 0 ? ` — ${emptyReasons.join(' · ')}` : ''}
-    </Text>
+    <EmptyLogList emptyReasons={emptyReasons} isDisabled={searchMode} onCancel={onCancel} />
   ) : renaming ? (
     <TreeSelect<SessionListing>
       isDisabled={searchMode}

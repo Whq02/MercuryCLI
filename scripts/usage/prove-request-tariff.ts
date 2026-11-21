@@ -44,7 +44,7 @@ try {
     thinkingConfig: { type: 'enabled', budgetTokens: 1024 },
     options: { getToolPermissionContext: async () => getEmptyToolPermissionContext(), model: 'deepseek-flash', isNonInteractiveSession: true, querySource: 'agent:builtin:test', agents: [], hasAppendSystemPrompt: false, mcpTools: [] } as never,
   })) if (item.type === 'assistant' && !item.isApiErrorMessage) messages.push(item)
-  assert.ok(messages.length > 0)
+  assert.ok(messages.length > 0, 'compatChatCallModel yielded 0 non-error assistant messages for deepseek-flash fixture; check compatChatCallModel.ts')
   const last = messages.at(-1)!
   assert.equal((last.message.usage as unknown as Record<string, unknown>).request_started_at_ms, start)
   assert.ok(Math.abs(getTotalCost() - 0.753) < 1e-9, `live cost ${getTotalCost()}`)

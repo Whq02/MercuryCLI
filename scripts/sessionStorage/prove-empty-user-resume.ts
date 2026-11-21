@@ -27,10 +27,10 @@ try {
     const wire = result.wire[0]!.body as { messages: Array<{ role: string; content: Array<{ type: string; text?: string }> }> }
     assert.ok(wire.messages.every(message => message.content.length > 0 && message.content.every(block => block.type !== 'text' || (block.text ?? '').length > 0)), JSON.stringify(wire.messages))
     assert.equal(wire.messages[0]!.role, 'user')
-    assert.ok(JSON.stringify(wire.messages).includes('saved reply'))
-    assert.ok(JSON.stringify(wire.messages).includes('next question'))
-    if (Array.isArray(content) && content.length > 1) assert.ok(JSON.stringify(wire.messages).includes('keep these words'))
-    assert.ok(result.rows.some(row => row.type === 'outcome' && row.status === 'completed'))
+    assert.ok(JSON.stringify(wire.messages).includes('saved reply'), 'resumed wire messages must retain prior assistant "saved reply"')
+    assert.ok(JSON.stringify(wire.messages).includes('next question'), 'resumed wire messages must include new prompt "next question"')
+    if (Array.isArray(content) && content.length > 1) assert.ok(JSON.stringify(wire.messages).includes('keep these words'), 'resumed wire messages must preserve non-empty text block "keep these words"')
+    assert.ok(result.rows.some(row => row.type === 'outcome' && row.status === 'completed'), 'runDoor --resume must emit a completed outcome row')
     console.log(`PASS resumed empty user content ${JSON.stringify(content)}`)
   }
 } finally {

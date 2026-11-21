@@ -19,13 +19,13 @@ try {
   ssh = fakeSshRunner(f.baseUrl, hostRunner)
   const api = new VastClient(vast.key, vast.baseUrl)
   const offer = (await api.offers(new AbortController().signal)).find(row => row.recipe.id === 'qwen38-27b-rtx-pro-6000')!
-  assert.ok(offer)
+  assert.ok(offer, 'VastClient.offers missing qwen38-27b-rtx-pro-6000 offer; check vast fixture offers')
   vast.state.failNext = { route: 'GET /api/v0/ssh/', status: 503, times: 1 }
   const failure = await api.create(offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'before-create').catch(error => error)
   assert.equal(vast.state.creates, 0, 'a failed SSH-key read sends no rent')
   assert.ok(failure instanceof HostCreateError && failure.outcome === 'refused', 'the pre-create failure is definitively refused, not ambiguous')
   assert.match(failure.message, /no instance was created — the SSH key step failed: .*HTTP 503/)
-  assert.ok(!failure.message.includes(vast.key))
+  assert.ok(!failure.message.includes(vast.key), 'pre-create SSH key failure message leaked Vast API key; check VastClient error redaction')
   vast.state.failNext = { route: 'GET /api/v0/ssh/', status: 503, times: 1 }
   const road = createHostRoad({ rental: { client: api, offer }, vendorApiBaseUrls: { vast: vast.baseUrl }, runner: ssh.runner, sessionId: 'precreate-words', startJob: () => { throw new Error('No setup should start') } })
   const result = await rentDoorVendor(road, api, offer, async plan => {
@@ -38,7 +38,7 @@ try {
   vast.state.failNext = null
   vast.state.ambiguousCreate = true
   const ambiguous = await api.create(offer, 'ssh-ed25519 Zml4dHVyZQ== fixture', 'ambiguous-create').catch(error => error)
-  assert.ok(ambiguous instanceof HostCreateError && ambiguous.outcome === 'ambiguous')
+  assert.ok(ambiguous instanceof HostCreateError && ambiguous.outcome === 'ambiguous', `ambiguous Vast create did not throw HostCreateError(outcome=ambiguous) (got=${ambiguous instanceof HostCreateError ? ambiguous.outcome : String(ambiguous)}); check VastClient.create`)
   assert.match(ambiguous.message, /may exist/)
   assert.equal(vast.state.creates, 1, 'an ambiguous paid request is never retried')
   console.log('HOST PRECREATE WORDS GREEN — key failure names zero creation; popup never says may-exist; ambiguous paid create stays ambiguous and is sent once')

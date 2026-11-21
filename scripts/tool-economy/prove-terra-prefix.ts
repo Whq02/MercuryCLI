@@ -36,7 +36,7 @@ const server = createServer((req, res) => {
   })
 })
 await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
-const address = server.address(); assert.ok(address && typeof address === 'object')
+const address = server.address(); assert.ok(address && typeof address === 'object', 'loopback fixture server must bind an address object')
 const base = `http://127.0.0.1:${address.port}/v1`
 process.env.MERCURY_OPENAI_API_BASE = base
 process.env.MERCURY_OPENAI_CHATGPT_BASE = base
@@ -57,7 +57,7 @@ const permission = getEmptyToolPermissionContext()
 async function turn(messages: Message[], pool = tools): Promise<AssistantMessage[]> {
   const rows: AssistantMessage[] = []
   for await (const item of openaiCallModel({ messages, systemPrompt: ['Use the fixture tools.'] as never, tools: pool, thinkingConfig: { type: 'enabled', budgetTokens: 4096 }, signal: new AbortController().signal, options: { model, effortValue: 'max', ownerKey: 'terra-prefix', agents: [], mcpTools: [], hasAppendSystemPrompt: false, isNonInteractiveSession: true, querySource: 'sdk', getToolPermissionContext: async () => permission } as never })) if (item.type === 'assistant') rows.push(item)
-  assert.ok(rows.length > 0 && rows.every(row => !row.isApiErrorMessage))
+  assert.ok(rows.length > 0 && rows.every(row => !row.isApiErrorMessage), `openaiCallModel in src/services/providers/openai/openaiCallModel.js must yield non-error assistant rows (got ${rows.length})`)
   return rows
 }
 try {
@@ -66,12 +66,12 @@ try {
   const first = await turn([ask])
   assert.equal(first.at(-1)!.message.stop_reason, 'tool_use')
   const record = decodeOpenaiTurnRecord(JSON.parse(JSON.stringify(first.at(-1)!.apexProviderTurn)))
-  assert.ok(record)
+  assert.ok(record, 'decodeOpenaiTurnRecord in src/services/providers/openai/responsesBridge.js must decode apexProviderTurn')
   assert.deepEqual(record.items, [reasoning, searchCall, searchOutput, toolCall])
   assert.deepEqual(loadedToolNamesOf(record.items), ['WebFetch'])
   const initial = captures[0]!
   assert.deepEqual(initial.tools.map((t: any) => t.name ?? t.type), ['Read', 'WebFetch', 'Browser', 'tool_search'])
-  assert.ok(initial.tools.filter((t: any) => ['WebFetch', 'Browser'].includes(t.name)).every((t: any) => t.defer_loading === true))
+  assert.ok(initial.tools.filter((t: any) => ['WebFetch', 'Browser'].includes(t.name)).every((t: any) => t.defer_loading === true), 'initial Terra request in src/services/providers/openai/openaiCallModel.js must set defer_loading=true on WebFetch and Browser')
   const history = [ask, ...first, createUserMessage({ content: [{ type: 'tool_result', tool_use_id: toolCall.call_id, content: 'fixture' }] })]
   await turn(history, [...tools, makeTool('JoinedLater')])
   const next = captures[1]!
@@ -87,16 +87,16 @@ try {
   assert.deepEqual([...extractDiscoveredToolNames(compacted)], ['WebFetch'])
   const plan = await planToolPayload({ model, tools, messages: compacted, latchKey: 'terra-prefix', agents: [], getToolPermissionContext: async () => permission })
   assert.equal(plan.wireForm, 'openai-native')
-  assert.ok(!plan.deferredNames.has('WebFetch'))
-  assert.ok(plan.deferredNames.has('Browser'))
+  assert.ok(!plan.deferredNames.has('WebFetch'), 'planToolPayload in src/services/providers/toolEconomy.js must keep discovered WebFetch loaded in full after compaction')
+  assert.ok(plan.deferredNames.has('Browser'), 'planToolPayload in src/services/providers/toolEconomy.js must keep unopened Browser deferred after compaction')
   await turn(compacted)
   const after = captures[2]!
   assert.deepEqual(after.tools.map((t: any) => t.name ?? t.type), initial.tools.map((t: any) => t.name ?? t.type))
   assert.equal(after.tools.find((t: any) => t.name === 'WebFetch').defer_loading, undefined)
   assert.equal(after.tools.find((t: any) => t.name === 'Browser').defer_loading, true)
   assert.equal(after.prompt_cache_key, initial.prompt_cache_key)
-  assert.ok(plan.conversationKey && !plan.conversationKey.includes(ask.uuid))
-  assert.ok(after.input.every((i: any) => i.type !== 'reasoning'))
+  assert.ok(plan.conversationKey && !plan.conversationKey.includes(ask.uuid), `planToolPayload in src/services/providers/toolEconomy.js must mint a new post-compaction conversationKey (got ${plan.conversationKey})`)
+  assert.ok(after.input.every((i: any) => i.type !== 'reasoning'), 'post-compaction Terra request in src/services/providers/openai/openaiCallModel.js must drop prior reasoning items')
   assert.equal(after.reasoning.effort, 'max')
   console.log('PASS Terra native search and prefix: hosted load, frozen roster, ordered encrypted replay, new conversation at compaction, carried tool loaded in full and unopened tool still deferred')
 } finally {

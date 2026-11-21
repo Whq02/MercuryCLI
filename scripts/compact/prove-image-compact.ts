@@ -26,14 +26,16 @@ try {
   assert.ok(kept.length > 0 && kept.length < 9, 'the compact request keeps the newest images that fit, not an all-media strip')
   assert.equal(kept.at(-1).image_url.url.slice(-1), '8', 'latest image reaches the summariser')
   for (let i = 0; i < 9; i++) assert.ok(JSON.stringify(request.messages).includes(`/captures/${i}.png`), 'all path lines reach the summariser')
-  assert.ok(estimateRequestTokens(request, fixture.model) <= fixture.state.window)
+  const compactTokens = estimateRequestTokens(request, fixture.model)
+  assert.ok(compactTokens <= fixture.state.window, `compact request tokens=${compactTokens} exceeded window=${fixture.state.window}; check image compaction budget`)
   assert.equal(JSON.stringify(fixture.messages), before, 'source transcript stays intact')
   fixture.state.vision = false
   fixture.state.window = 262144
   await fixture.refresh()
   const textOnly = await compactConversation(fixture.messages, context as never, { systemPrompt: fixture.params.systemPrompt } as never, true)
   assert.ok(textOnly.summaryMessages.length > 0, 'the original text-only shape can compact')
-  assert.ok(estimateRequestTokens(fixture.requests.at(-1), fixture.model) < 10000)
+  const textOnlyTokens = estimateRequestTokens(fixture.requests.at(-1), fixture.model)
+  assert.ok(textOnlyTokens < 10000, `text-only compact request tokens=${textOnlyTokens}, expected <10000 after image placeholders; check image compaction`)
   await assert.rejects(compactConversation([], context as never, { systemPrompt: fixture.params.systemPrompt } as never, true), { message: ERROR_MESSAGE_NOT_ENOUGH_MESSAGES })
   console.log(`Manual compact succeeded with ${kept.length} newest images on the small window and with placeholders on the text-only window; empty-history words unchanged`)
 } finally {

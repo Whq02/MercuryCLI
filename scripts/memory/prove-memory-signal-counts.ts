@@ -77,7 +77,7 @@ if (process.argv.includes('--child')) {
       }
       assert.equal(result.status, 0, result.stderr)
       assert(lines.join('\n').includes(expected), `real memory detail must show the counts at ${cols}x${rows}\n${lines.join('\n')}`)
-      assert(lines.join('\n').includes('quartzalpha facts stay exactly as written'))
+      assert(lines.join('\n').includes('quartzalpha facts stay exactly as written'), `MemoryCentreView in src/components/memory/MemoryCentreView.tsx must preserve fact text verbatim at ${cols}x${rows}`)
       assert(lines.every(line => [...line].length <= cols), 'no row overflows the terminal')
       console.log(`PASS memory signal counts ${cols}x${rows}: real terminal, counts and unchanged fact text`)
     }

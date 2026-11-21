@@ -40,7 +40,7 @@ const override = () => {
 }
 const resetRecipes = () => { if (previousRecipes === undefined) delete process.env.MERCURY_HOST_RECIPES_FILE; else process.env.MERCURY_HOST_RECIPES_FILE = previousRecipes }
 const expectFailure = async (work: () => Promise<unknown>, pattern: RegExp): Promise<Error> => {
-  try { await work() } catch (error) { assert.ok(error instanceof Error); assert.match(error.message, pattern); return error }
+  try { await work() } catch (error) { assert.ok(error instanceof Error, `expected thrown Error matching ${pattern}, got ${typeof error}; check vendor client error wrapping`); assert.match(error.message, pattern); return error }
   throw new Error('Expected failure: ' + pattern)
 }
 try {
@@ -271,7 +271,7 @@ try {
       const client = new Client(fixture.key, fixture.baseUrl, { requestTimeoutMs: 1500, readyTimeoutMs: 1500, pollMs: 20 })
       try {
         const offer = (await client.offers(signal()))[0]!
-        assert.ok(offer)
+        assert.ok(offer, `${kind} (${mode}) returned empty offers list; check ${kind} client offers fixture`)
         if (kind === 'lambda') fixture.state.keys = [{ id: 'key-1', name: lambdaKeyName, public_key: key }]
         if (['disconnect', 'timeout', 'malformed', 'unreadable', 'server'].includes(mode)) fixture.state.ambiguousCreate = mode === 'server' ? true : mode
         if (mode === 'stockLoss') fixture.state.stockLoss = true

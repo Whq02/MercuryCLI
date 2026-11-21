@@ -111,9 +111,9 @@ assert.deepEqual(fixedFixturePorts("const PORT_BASE = Number(process.env.WF_CONT
 assert.deepEqual(unguardedLoopbackListens("await new Promise<void>(resolve => server.listen(port, '127.0.0.1', resolve))"), [1])
 assert.deepEqual(unguardedLoopbackListens("await new Promise<void>((resolve, reject) => { server.once('error', reject); server.listen(port, '127.0.0.1', () => resolve()) }); await new Promise<void>(r => server.listen(0, '127.0.0.1', r))"), [])
 const borrowed = historicalBuild("execFileSync('git', ['archive', sha]); symlinkSync(join(root, 'node_modules'), join(base, 'node_modules')); spawnSync(bun, ['run', 'build.ts'])")
-assert.ok(borrowed.builds && borrowed.lent.length === 1 && !borrowed.locked)
+assert.ok(borrowed.builds && borrowed.lent.length === 1 && !borrowed.locked, `historicalBuild detector must flag borrowed node_modules without --frozen-lockfile, got ${JSON.stringify(borrowed)}`)
 const own = historicalBuild("execFileSync('git', ['archive', sha]); spawnSync(bun, ['install', '--frozen-lockfile']); spawnSync(bun, ['run', 'build.ts'])")
-assert.ok(own.builds && own.locked && own.lent.length === 0)
+assert.ok(own.builds && own.locked && own.lent.length === 0, `historicalBuild detector must accept frozen-lock install without borrowed node_modules, got ${JSON.stringify(own)}`)
 assert.equal(historicalBuild("console.log('git archive and build.ts'); symlinkSync(join(root, 'node_modules'), target)").builds, false)
 console.log('PASS planted runner and historical-build defects are detected; comments and remedies are not builds')
 
