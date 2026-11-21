@@ -16,10 +16,10 @@ const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts
 const { declaredRouteOf, providerDisplayName, canonicalWireModelId } = await import('../../src/services/providers/routeLaw.ts')
 const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/utils/model/modelFamilies.ts')
 const { xaiCatalogueEntries } = await import('../../src/services/providers/xai/xaiAdapter.ts')
-const { keyLanePins, getModelOptions, XAI_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions, XAI_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor, modelSupportsThinking, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 let count = 0
 const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }
 let calls = 0

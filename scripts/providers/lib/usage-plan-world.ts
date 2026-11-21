@@ -142,7 +142,7 @@ export async function usagePlanWorld() {
   await stub('src/services/providers/providerUsage.ts', {
     providerFamilyPresences: () => ids.map(id => ({ id, available: id === 'moonshot' || id === 'zai', credentialed: id === 'moonshot' || id === 'zai', credentialLabel: id === 'zai' ? 'GLM Coding Plan key' : accounts.resolveMoonshotAccount()?.label })),
   })
-  await stub('src/utils/model/computedDefault.ts', { recentSignIns: () => [{ family: 'moonshot' }, { family: 'zai' }] })
+  await stub('src/services/model/computedDefault.ts', { recentSignIns: () => [{ family: 'moonshot' }, { family: 'zai' }] })
   await stub('src/keybindings/useKeybinding.ts', { useKeybinding: () => undefined, useKeybindings: () => undefined })
   await stub('src/hooks/useExitOnCtrlCD.ts', { useExitOnCtrlCD: () => undefined })
   await stub('src/context/notifications.tsx', { useNotifications: () => ({ addNotification() {}, removeNotification() {} }) })

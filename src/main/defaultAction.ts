@@ -100,7 +100,7 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
 
   let userSpecifiedModel = typedString(opts.model)
   if (userSpecifiedModel !== undefined && userSpecifiedModel !== 'default') {
-    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('../utils/model/modelNameRoad.js')
+    const { matchReachableModelName, modelNameHeadlessRefusal } = await import('../services/model/modelNameRoad.js')
     const matched = matchReachableModelName(userSpecifiedModel, 'pass')
     if (matched?.kind === 'match') {
       addBootNote('info', `--model ${matched.said}`)
@@ -122,7 +122,7 @@ export async function defaultAction(inputPromptArg: string | undefined, opts: Ro
   if (userSpecifiedModel) setEngineModelOverride(userSpecifiedModel)
   setInitialEngineModel(userSpecifiedModel ?? null)
   if (runMode) {
-    const { readComputedDefaultCatalogue } = await import('../utils/model/computedDefault.js')
+    const { readComputedDefaultCatalogue } = await import('../services/model/computedDefault.js')
     await readComputedDefaultCatalogue()
   }
   const resolvedInitialModel = getEngineModel()

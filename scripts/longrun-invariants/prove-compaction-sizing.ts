@@ -7,7 +7,7 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'compaction-sizing-h
 process.env.NODE_ENV = 'test'
 
 const { getAutoCompactThreshold } = await import('../../src/services/compact/autoCompact.js')
-const { getAgentModel } = await import('../../src/utils/model/agent.js')
+const { getAgentModel } = await import('../../src/services/model/agent.js')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

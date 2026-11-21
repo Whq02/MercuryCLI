@@ -56,7 +56,7 @@ async function until(cond: () => boolean, ms = 5_000): Promise<boolean> {
 
 const { enableConfigs } = await import('../../src/utils/config.js')
 enableConfigs()
-const { resetComputedDefaultMemo } = await import('../../src/utils/model/computedDefault.js')
+const { resetComputedDefaultMemo } = await import('../../src/services/model/computedDefault.js')
 const wav = await import('../../src/services/voice/wav.js')
 const session = await import('../../src/services/voice/voiceSession.js')
 const pendingInput = await import('../../src/input-core/pending-input.js')

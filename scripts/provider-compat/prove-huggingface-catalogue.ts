@@ -35,7 +35,7 @@ const {
   HUGGINGFACE_MODEL_GROUP,
   __resetHuggingfaceCatalogueForTest,
 } = catalogue
-const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
 const { HUGGINGFACE_DISPLAY_PINS, splitHuggingfaceSlug, huggingfaceDisplayPin } = await import(
   '../../src/utils/model/pins/huggingfacePins.ts'
 )
@@ -54,7 +54,7 @@ const { streamCompatChat, mapCompatHttpFailure } = await import(
 type CompatStreamEvent = import('../../src/services/providers/openaicompat/compatChatClient.ts').CompatStreamEvent
 const usageState = await import('../../src/services/providers/huggingface/huggingfaceUsageState.ts')
 const { recordHuggingfaceRateHeaders, huggingfaceLimitWindow, huggingfaceObservedRate, parseRateLimitHeader, __resetHuggingfaceUsageStateForTest } = usageState
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {

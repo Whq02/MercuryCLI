@@ -14,8 +14,8 @@ const { parseFamilyFocus } = await import('../../src/commands/login/login.tsx')
 const { parseDefaultProviderWord } = await import('../../src/commands/defaultprovider/defaultprovider.tsx')
 const { loginFamilyRows, keyPageLine } = await import('../../src/components/loginFamilyRows.ts')
 const { keyLegTitle, keyLegStoreLine, keyLegGuardOpts, keyPromptPaneLines, loginsFlowStatusOf } = await import('../../src/components/BootLoginsScreen.tsx')
-const { keyLaneProviderRows, keyConnectValue } = await import('../../src/utils/model/modelOptions.ts')
-const { subModelConnectHome } = await import('../../src/utils/model/subModelSlots.ts')
+const { keyLaneProviderRows, keyConnectValue } = await import('../../src/services/model/modelOptions.ts')
+const { subModelConnectHome } = await import('../../src/services/model/subModelSlots.ts')
 const { buildProviderSnapshot } = await import('../../src/services/providers/modelRegistry.ts')
 let count = 0
 const check = (name: string, value: unknown): void => { assert.ok(value, name); count++; console.log(`[PASS] ${name}`) }

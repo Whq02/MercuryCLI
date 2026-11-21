@@ -45,7 +45,7 @@ const {
   openrouterModelsForVendor,
   refreshOpenrouterCatalogue,
 } = catalogue
-const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/utils/model/modelOptions.js')
+const { isCatalogueDoorRow, isProviderActionRow } = await import('../../src/services/model/modelOptions.js')
 const {
   __resetOpenrouterUsageStateForTest,
   openrouterLimitWindow,

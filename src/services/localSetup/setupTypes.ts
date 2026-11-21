@@ -1,5 +1,5 @@
 import type { LocalServerKind } from '../providers/local/localDiscovery.js'
-import type { ModelTransitionReceipt } from '../../utils/model/modelTransition.js'
+import type { ModelTransitionReceipt } from '../model/modelTransition.js'
 import type { LocalServerTruth } from '../localServer/localServerTruth.js'
 import { LOCAL_WINDOW_LADDER, type LocalWindowFit } from '../localServer/localWindowFit.js'
 import type { KvGeometry } from '../localServer/localServerMemory.js'

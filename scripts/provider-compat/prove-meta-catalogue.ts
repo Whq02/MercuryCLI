@@ -16,10 +16,10 @@ const { parseUserSpecifiedModel, getCanonicalName } = await import('../../src/ut
 const { declaredRouteOf, providerDisplayName } = await import('../../src/services/providers/routeLaw.ts')
 const { modelFamilyWords, routeOfFamilyWord } = await import('../../src/utils/model/modelFamilies.ts')
 const { metaCatalogueEntries } = await import('../../src/services/providers/meta/metaAdapter.ts')
-const { keyLanePins, getModelOptions, META_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLanePins, getModelOptions, META_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
 const { resolveContextWindow, effortVocabularyFor, modelThinkingAlwaysOn, modelReceivesImageBlocks, getModelMaxOutputTokens } = await import('../../src/utils/model/capabilities.ts')
 const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { validateModel } = await import('../../src/services/providers/validateModel.ts')
 let count = 0
 const check = (name: string, ok: unknown): void => { assert.ok(ok, name); count++; console.log(`[PASS] ${name}`) }

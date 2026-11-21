@@ -39,7 +39,7 @@ const openai = await import('../../src/services/providers/openai/openaiCatalogue
 const moonshot = await import('../../src/services/providers/moonshot/moonshotCatalogue.ts')
 const anthropic = await import('../../src/services/providers/anthropic/anthropicCatalogue.ts')
 const { catalogueEpoch } = await import('../../src/services/providers/catalogueEpoch.ts')
-const { getModelOptions, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
 const stripAnsi = (await import('strip-ansi')).default
 const flush = (ms = 150): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const settle = async (seen: () => string, ok: (frame: string) => boolean, ms = 3000): Promise<void> => {

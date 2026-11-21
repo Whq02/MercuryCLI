@@ -6,7 +6,7 @@ import { isFileBacked, type StudioRow } from '../agents/studio/studioData.js';
 import type { FieldId } from '../agents/studio/studioEditorModel.js';
 import { AGENT_COLORS } from '../../tools/AgentTool/agentColorManager.js';
 import { EFFORT_LEVELS, resolveEffortTruth, type EffortValue } from '../../utils/effort.js';
-import { agentModelPickOutcome, getAgentModelPickerRows } from '../../utils/model/agentModelPicker.js';
+import { agentModelPickOutcome, getAgentModelPickerRows } from '../../services/model/agentModelPicker.js';
 import { bootBirthFacts } from '../../services/switchboard/bootBirthFacts.js';
 import { offeredDefinitionModes } from '../../tools/AgentTool/agentPermissionPosture.js';
 import { agentFormFieldKind } from './face.js';

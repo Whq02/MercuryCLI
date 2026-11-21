@@ -72,7 +72,7 @@ try {
   const { routedCallModel } = await import('../../src/services/providers/callModelRouter.ts')
   const { resolvePrimaryAgentBackend } = await import('../../src/services/providers/primaryBackend.ts')
   const catalogue = await import('../../src/services/providers/orcarouter/orcarouterCatalogue.ts')
-  const { getModelOptions, keyLaneListState } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions, keyLaneListState } = await import('../../src/services/model/modelOptions.ts')
   const { getContextWindowForModel, getModelMaxOutputTokens, modelReceivesImageBlocks } = await import('../../src/utils/model/capabilities.ts')
   const { resolveModelPricing } = await import('../../src/services/usage/modelCost.ts')
   const { usageForProvider, refreshProviderUsage } = await import('../../src/services/providers/providerUsage.ts')

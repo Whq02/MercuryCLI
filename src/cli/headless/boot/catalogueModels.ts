@@ -1,4 +1,4 @@
-import { getModelOptions } from '../../../utils/model/modelOptions.js'
+import { getModelOptions } from '../../../services/model/modelOptions.js'
 import { parseUserSpecifiedModel } from '../../../utils/model/model.js'
 import { modelSupportsEffort, modelSupportsAdaptiveThinking } from '../../../utils/model/capabilities.js'
 import { resolveEffortTruth } from '../../../utils/effort.js'

@@ -40,7 +40,7 @@ import { checkIssueAccess, fileIssue, issueRepoSlug, type IssueAccess } from '..
 import { provenanceLine, resolveInstallProvenance } from '../services/privateChannel/installProvenance.js'
 import { getEngineModel } from '../utils/model/model.js'
 import { focusedSessionModelFacts } from '../services/engine-connector/focusedConnector.js'
-import { providerFamilyOfSetting } from '../utils/model/modelTransition.js'
+import { providerFamilyOfSetting } from '../services/model/modelTransition.js'
 import { providerDisplayName } from '../services/providers/routeLaw.js'
 import { CREDENTIAL_VALUE_PASSES } from '../constants/credentialEnvSpellings.js'
 import { feedbackView, type Step } from './feedback/feedbackView.js'

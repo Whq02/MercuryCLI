@@ -90,7 +90,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const bootstrap = await import('../../src/bootstrap/state.ts')
 bootstrap.setIsInteractive(false)
-const transition = await import('../../src/utils/model/modelTransition.ts')
+const transition = await import('../../src/services/model/modelTransition.ts')
 const seatWithFold = (transition as Partial<typeof transition>).seatWithFold
 const { PROVIDER_ID_SPACES } = await import('../../src/services/providers/routeLaw.ts')
 const { getDefaultAppState } = await import('../../src/state/AppStateStore.ts')

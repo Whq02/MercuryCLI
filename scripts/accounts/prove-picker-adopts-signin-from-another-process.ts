@@ -72,7 +72,7 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')
 enableConfigs()
 const auth = await import('../../src/utils/auth.ts')
 const usage = await import('../../src/services/providers/providerUsage.ts')
-const { getModelOptions, ANTHROPIC_CONNECT_OPTION_VALUE } = await import('../../src/utils/model/modelOptions.ts')
+const { getModelOptions, ANTHROPIC_CONNECT_OPTION_VALUE } = await import('../../src/services/model/modelOptions.ts')
 const { deriveFamilySlotGroups } = await import('../../src/services/providers/accountSlots.ts')
 
 const anthropicRows = (): Array<{ value: string; unavailable?: string }> =>

@@ -45,8 +45,8 @@ function jsonResponse(status: number, body: unknown): Response {
 const pins = await import('../../src/utils/model/pins/deepseekPins.ts')
 const catalogue = await import('../../src/services/providers/deepseek/deepseekCatalogue.ts')
 const router = await import('../../src/services/providers/deepseek/deepseekAdapter.ts')
-const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/utils/model/modelOptions.ts')
-const { providerFrontierFact } = await import('../../src/utils/model/providerFrontier.ts')
+const { keyLanePins, getModelOptions, DEEPSEEK_MODEL_GROUP } = await import('../../src/services/model/modelOptions.ts')
+const { providerFrontierFact } = await import('../../src/services/model/providerFrontier.ts')
 const { writeStoredDeepseekApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const wire = await import('../../src/services/providers/openaicompat/compatWire.ts')
 

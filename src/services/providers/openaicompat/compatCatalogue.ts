@@ -79,7 +79,7 @@ export function compatCatalogueStatusWords(endpoint: CompatEndpoint): string {
   return `${endpoint.label} · ${snapshot ? 'no models listed' : 'reading models'} — ↵ retries · /llmhost checks it`
 }
 
-export function namedCompatModelOptions(): import('../../../utils/model/modelOptions.js').ModelOption[] {
+export function namedCompatModelOptions(): import('../../model/modelOptions.js').ModelOption[] {
   const endpoints = configuredCompatEndpoints().filter(endpoint => endpoint.named)
   if (endpoints.length === 0) return []
   void refreshCompatCatalogues()

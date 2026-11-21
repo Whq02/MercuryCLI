@@ -1,4 +1,4 @@
-import { parseUserSpecifiedModel } from './model.js'
+import { parseUserSpecifiedModel } from '../../utils/model/model.js'
 import {
   ANTHROPIC_MODEL_GROUP,
   getModelOptions,

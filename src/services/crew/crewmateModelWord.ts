@@ -1,5 +1,5 @@
-import { getAgentModel } from '../../utils/model/agent.js'
-import { matchReachableModelName, modelNameHeadlessRefusal } from '../../utils/model/modelNameRoad.js'
+import { getAgentModel } from '../model/agent.js'
+import { matchReachableModelName, modelNameHeadlessRefusal } from '../model/modelNameRoad.js'
 import { MODEL_LOOKUP_LADDER } from '../../utils/model/modelLookup.js'
 import { resolveEngineDispatch, unrecognisedModelWordRefusal } from './engineDispatch.js'
 

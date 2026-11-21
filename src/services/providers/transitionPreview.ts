@@ -13,7 +13,7 @@ import {
   type TransitionPlan,
   type TransitionPlanItem,
   type TransitionWindowFact,
-} from '../../utils/model/modelTransition.js'
+} from '../model/modelTransition.js'
 import { isUnsignedThinkingBlock } from '../../utils/messages.js'
 import { getMessagesAfterCompactBoundary } from '../../utils/messages/systemMessages.js'
 import { contextFill, usageAnchorModel } from '../context/tokens.js'

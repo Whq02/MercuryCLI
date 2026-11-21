@@ -32,7 +32,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 
 const { enableConfigs } = await import('../../src/utils/config.ts')
 enableConfigs()
-const computed = await import('../../src/utils/model/computedDefault.ts')
+const computed = await import('../../src/services/model/computedDefault.ts')
 const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts')
 recordSignIn('gemini', 'api-key')
 computed.resetComputedDefaultMemo()

@@ -24,7 +24,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const j = (v: unknown): string => JSON.stringify(v)
 
-type TransitionPlan = import('../../src/utils/model/modelTransition.ts').TransitionPlan
+type TransitionPlan = import('../../src/services/model/modelTransition.ts').TransitionPlan
 const { TransitionPreviewCard } = await import('../../src/components/TransitionPreviewCard.tsx')
 const previewModule = (await import('../../src/services/providers/transitionPreview.ts')) as Partial<typeof import('../../src/services/providers/transitionPreview.ts')> & { transitionPlanSummary: (plan: TransitionPlan) => string }
 const transitionLossRows = previewModule.transitionLossRows ?? ((): never[] => [])

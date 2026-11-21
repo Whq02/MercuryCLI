@@ -114,9 +114,9 @@ if (driver.kind !== 'posix-pty') {
   const FIXTURE_ROWS = (readFileSync(FIXTURE, 'utf8').match(/^\s+\{ id: '/gm) ?? []).length
   const { enableConfigs } = await import('../../src/utils/config.ts')
   enableConfigs()
-  const { getModelOptions } = await import('../../src/utils/model/modelOptions.ts')
+  const { getModelOptions } = await import('../../src/services/model/modelOptions.ts')
   const { OPENROUTER_MODEL_GROUP } = await import('../../src/services/providers/openrouter/openrouterCatalogue.ts')
-  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/utils/model/modelOptions.ts')
+  const { ANTHROPIC_MODEL_GROUP, isProviderActionRow } = await import('../../src/services/model/modelOptions.ts')
   const picker = await import('../../src/utils/model/modelPickerGroups.ts')
   const pickerRows = getModelOptions().map(row => ({
     id: row.value,

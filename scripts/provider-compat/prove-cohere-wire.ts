@@ -75,7 +75,7 @@ const { laneBillingState } = await import('../../src/services/providers/laneBill
 const { resolveEngineDispatch } = await import('../../src/services/crew/engineDispatch.ts')
 const { classifyModelRoute } = await import('../../src/services/providers/routeLaw.ts')
 const { parseUserSpecifiedModel } = await import('../../src/utils/model/model.ts')
-const { keyLaneListState, keyLanePins } = await import('../../src/utils/model/modelOptions.ts')
+const { keyLaneListState, keyLanePins } = await import('../../src/services/model/modelOptions.ts')
 const { readStoredCohereApiKey } = await import('../../src/services/providers/providerSecrets.ts')
 const { modelSupportsThinking, effortVocabularyFor, resolveContextWindow } = await import('../../src/utils/model/capabilities.ts')
 const tool = { name: 'FixtureEcho', description: async () => 'Echo fixture', prompt: async () => 'Echo fixture', inputSchema: z.object({ text: z.string() }), userFacingName: () => 'FixtureEcho', isEnabled: () => true, isConcurrencySafe: () => true, isReadOnly: () => true, isMcp: false, needsPermissions: () => false } as never

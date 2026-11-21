@@ -1,13 +1,13 @@
-import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../config.js'
+import { getGlobalConfig, isConfigReadingAllowed, saveGlobalConfig } from '../../utils/config.js'
 import {
   resolveSubModel,
   subModelDispatchEffort,
   subModelEnvVar,
   type SubModelResolution,
 } from '../model/subModelSlots.js'
-import type { EffortLevel } from '../effort.js'
-import { advisorMinutesWords } from '../messages/noticeRows.js'
-import { advisorSwitchOfSession } from '../sessionStorage/writer.js'
+import type { EffortLevel } from '../../utils/effort.js'
+import { advisorMinutesWords } from '../../utils/messages/noticeRows.js'
+import { advisorSwitchOfSession } from '../../utils/sessionStorage/writer.js'
 
 export type AdvisorSeat = 'main' | 'crewmate'
 

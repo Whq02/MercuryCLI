@@ -33,7 +33,7 @@ import {
   type LastCertSummary,
 } from '../../utils/healthCertCore.js'
 import { getUserSpecifiedModelSetting } from '../../utils/model/model.js'
-import { computedDefault } from '../../utils/model/computedDefault.js'
+import { computedDefault } from '../model/computedDefault.js'
 import { gitSnapshot } from '../../utils/cockpit/gitSnapshot.js'
 import { healthFixEnabled } from '../../utils/healthFix.js'
 import { sleep } from '../../utils/sleep.js'

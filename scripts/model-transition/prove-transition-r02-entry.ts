@@ -56,7 +56,7 @@ section('§A the ONE provider station — the /logins card mounted in the walk')
 
 section('§D the typed credentialless fallback — the computed default')
 {
-  const { evaluateComputedDefault } = await import('../../src/utils/model/computedDefault.ts')
+  const { evaluateComputedDefault } = await import('../../src/services/model/computedDefault.ts')
   type Verdict = { usable: true; setting: string; row: string; why: string } | { usable: false; why: string }
   const usable = (setting: string): Verdict => ({ usable: true, setting, row: setting, why: 'usable' })
   const REG = ['anthropic', 'openai', 'zai', 'openrouter', 'gemini', 'moonshot', 'deepseek', 'openai-compat', 'huggingface', 'local']

@@ -114,7 +114,7 @@ console.log('R6 the birth falls back to a signed-in family only on a settled ver
 console.log('R7 the one road from a /model pick to the next birth: the pick saves the default and sets the override the screen birth model reads (no chat open: the resting slot refuses, so the door is a chat)')
 {
   check("the resting slot's model door refuses (no chat open, nothing to switch)", (await new NoSessionConnector().setModel()).state === 'refused')
-  const { settleModelSelection } = await import('../../src/utils/model/modelTransition.js')
+  const { settleModelSelection } = await import('../../src/services/model/modelTransition.js')
   const settled = settleModelSelection({ engineModel: 'gemini', engineModelForSession: null, pendingModelSwitch: null, lastModelTransition: null } as never, 'claude-fable-5-1', { turnActive: false })
   check('the settle road applies the pick to the main-loop model at once when no turn runs', settled.kind === 'applied' && settled.patch !== null && (settled.patch as { engineModel?: string }).engineModel === 'claude-fable-5-1', JSON.stringify(settled))
 }

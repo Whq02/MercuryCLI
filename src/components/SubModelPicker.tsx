@@ -28,7 +28,7 @@ import {
   type SubModelEntry,
   type SubModelFamily,
   type SubModelRegistry,
-} from '../utils/model/subModelSlots.js'
+} from '../services/model/subModelSlots.js'
 
 
 type PickerRow =

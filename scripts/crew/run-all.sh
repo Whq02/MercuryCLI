@@ -15,7 +15,7 @@
 # gate-watch: src/tools/AgentTool/*
 # gate-watch: src/utils/*
 # gate-watch: src/utils/accounts/signInLedger.ts
-# gate-watch: src/utils/messages/* src/utils/model/computedDefault.ts
+# gate-watch: src/utils/messages/* src/services/model/computedDefault.ts
 # gate-watch: src/utils/model/configs.ts
 # gate-watch: src/utils/task/*
 # gate-watch: src/components/PromptInput/PromptInput.tsx
