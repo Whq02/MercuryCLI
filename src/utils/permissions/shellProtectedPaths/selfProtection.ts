@@ -17,7 +17,7 @@ const ATTRIBUTE_WRITERS = new Set(['chown', 'chgrp', 'chflags', 'xattr', 'touch'
 
 const PATTERN_READERS = new Set(['grep', 'egrep', 'fgrep', 'rg', 'awk', 'gawk', 'sed', 'pgrep', 'pidof'])
 const KILL_RECEIVERS = new Set(['kill', 'stop-process', 'spps'])
-const PS_NET_RUNTIME_WRITER = /\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
+const PS_NET_RUNTIME_WRITER = /(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi
 
 function valuesOf(argv: string[], ...names: string[]): string[] {
   const out: string[] = []
@@ -105,7 +105,7 @@ function withinMercuryRecords(word: string, cwd: string, homes: readonly string[
 async function namedSelfProtectionReason(command: string, powershell: boolean, cwd: string): Promise<string | null> {
   return walkShellCommands(command, powershell, async ({ argv, commands, operandEnds, cwd: here, text, powershell: ps }) => {
     if (ps) {
-      for (const call of text.matchAll(/(?:^|[;\n])\s*\[(?:System\.)?IO\.(?:File|Directory)\]::(?:WriteAllText|WriteAllBytes|AppendAllText|AppendAllLines|Delete|Move|Create|OpenWrite)\s*\(\s*(['"])([^'"\r\n]+)\1/gi)) {
+      for (const call of text.matchAll(PS_NET_RUNTIME_WRITER)) {
         const hit = runtimeWritePath(call[2]!, here, true)
         if (hit) return 'Changing ' + call[2] + ' is refused: ' + hit + ' is part of Mercury’s running runtime.'
       }
