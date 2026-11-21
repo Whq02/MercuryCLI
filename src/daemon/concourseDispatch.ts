@@ -4,6 +4,7 @@ import { readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { partiallySanitizeUnicode } from '../utils/sanitization.js'
 import { keepDamagedFileAsideSync, recordRefusedDurableFile } from '../substrate/storeRecovery.js'
+import { defineStore } from '../substrate/fileStore.js'
 import { daemonHomeStands, publishInDaemonHome } from './daemonHome.js'
 import { logForDebugging } from '../utils/debug.js'
 import { errorMessage, getErrnoCode, isENOENT } from '../utils/errors.js'
@@ -92,6 +93,26 @@ interface DispatchFileV1 {
 
 export function concourseDispatchesPath(dir: string = daemonDir()): string {
   return join(dir, 'concourse-dispatches.json')
+}
+
+const concourseDispatchesStore = defineStore<DispatchFileV1, [dir?: string]>({
+  name: 'concourse-dispatches',
+  path: (dir?: string) => concourseDispatchesPath(dir),
+  schemaVersion: 1,
+  decode: raw => {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+    const file = raw as Partial<DispatchFileV1>
+    if (file.version !== 1 || typeof file.dispatches !== 'object' || file.dispatches === null || Array.isArray(file.dispatches)) {
+      return null
+    }
+    return file as DispatchFileV1
+  },
+  empty: () => ({ version: 1, dispatches: {} }),
+  onReadFailure: 'empty',
+})
+
+export function subscribeConcourseDispatches(cb: () => void, dir?: string): () => void {
+  return concourseDispatchesStore(dir).subscribe(() => cb(), { immediate: false })
 }
 
 export type ConcourseHoldReason =
