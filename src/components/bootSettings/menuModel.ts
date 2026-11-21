@@ -13,6 +13,15 @@ import type { useGreetingShimmer } from '../mercury-ui/useGreetingShimmer.js';
 import type { useInteractiveList } from '../mercury-ui/useInteractiveList.js';
 import { backgroundLaunchBootDetailLines } from './detailLines.js';
 
+export const settingsEditors = [
+  { editor: 'kit', label: 'MCPs & Skills', summary: 'what the next session loads' },
+  { editor: 'agents', label: 'Agents', summary: 'create and edit agents' },
+] as const;
+
+type EditorRow = (typeof settingsEditors)[number];
+export type SettingsEditor = EditorRow['editor'];
+export type SettingsRow = MenuRow | EditorRow;
+
 export interface WorkerApplySummary {
   runnerId: string;
   sessionId: string;
@@ -25,8 +34,9 @@ export type ApplyState =
   | { phase: 'loading' }
   | { phase: 'ready'; workers: WorkerApplySummary[]; error?: string };
 
-export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow }: { apply: ApplyState; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; changed: number; chatBoot: ReturnType<typeof stripFacts>['chatBoot']; concourseLive: boolean; dirTail: string; effectiveByEnv: Map<string, ReturnType<typeof resolveEffectiveSettingsSnapshot>['rows'][number]>; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; jevDetailLines: string[]; jevSettings: ReturnType<typeof readJevSettings>; lastReceipt: string | null; list: ReturnType<typeof useInteractiveList<MenuRow>>; liveCount: number | null; mainModel: ReturnType<typeof useEngineModel>; menuRows: readonly MenuRow[]; motionSetting: ReturnType<typeof readMotionSetting>; plainWorld: ReturnType<typeof chatOnlyBoot>; profile: ReturnType<typeof readBootDefaultsProfile>; profileReadError?: string | null; saved: Record<string, string>; seatFacts: SeatCeilingFacts | null; wordGlow: ReturnType<typeof useGreetingShimmer> }) {
+export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot, concourseLive, dirTail, effectiveByEnv, isBackgroundLaunchRow, isJevRow, isMotionRow, isSeatsRow, jevDetailLines, jevSettings, lastReceipt, list, liveCount, mainModel, menuRows, motionSetting, plainWorld, profile, profileReadError, saved, seatFacts, wordGlow }: { apply: ApplyState; backgroundLaunchOn: ReturnType<typeof backgroundSessionsLaunchCrewmates>; changed: number; chatBoot: ReturnType<typeof stripFacts>['chatBoot']; concourseLive: boolean; dirTail: string; effectiveByEnv: Map<string, ReturnType<typeof resolveEffectiveSettingsSnapshot>['rows'][number]>; isBackgroundLaunchRow: (row: MenuRow) => boolean; isJevRow: (row: MenuRow) => boolean; isMotionRow: (row: MenuRow) => boolean; isSeatsRow: (row: MenuRow) => boolean; jevDetailLines: string[]; jevSettings: ReturnType<typeof readJevSettings>; lastReceipt: string | null; list: ReturnType<typeof useInteractiveList<SettingsRow>>; liveCount: number | null; mainModel: ReturnType<typeof useEngineModel>; menuRows: readonly SettingsRow[]; motionSetting: ReturnType<typeof readMotionSetting>; plainWorld: ReturnType<typeof chatOnlyBoot>; profile: ReturnType<typeof readBootDefaultsProfile>; profileReadError?: string | null; saved: Record<string, string>; seatFacts: SeatCeilingFacts | null; wordGlow: ReturnType<typeof useGreetingShimmer> }) {
   const entries = menuRows.map(row => {
+    if ('editor' in row) return { label: row.label, group: 'NEXT SESSION', summary: row.summary, valueLabel: '↵ open', valueIsDefault: true, pinnedVal: null, detail: null };
     if (isSeatsRow(row)) {
       return {
         label: row.label,
@@ -122,7 +132,7 @@ export function settingsMenuModel({ apply, backgroundLaunchOn, changed, chatBoot
     },
     statusRight,
     glowWord: wordGlow,
-    legend: `↑↓ move · ↵ change (saved) · ⌫ default · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,
+    legend: `↑↓ move · ${list.selectedRow && 'editor' in list.selectedRow ? '↵ open' : '↵ change (saved) · ⌫ default'} · a apply receipts${concourseLive && !chatBoot ? ` · o ${plainWorld ? 'live view' : 'concourse'}` : ''} · esc ${apply.phase === 'closed' ? 'back' : 'close receipts'}`,
     ...(apply.phase !== 'closed'
       ? {
           detailOverride:

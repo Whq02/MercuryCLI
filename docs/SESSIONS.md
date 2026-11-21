@@ -34,17 +34,11 @@ kept. Next, Mercury asks whether you trust the folder you opened; nothing
 requested by a workspace configuration runs before you grant that trust, which
 covers the whole repository ([TRUST.md](TRUST.md)).
 
-Running `mercury` with no arguments opens the home screen: the card of New
-Session · Continue Last Session · Boot Menu · MCPs & Skills · Agents ·
-Health Check · Saturn Scheduler · Logins · Session Concourse, and
-the merged Sessions · Projects picker, with no chat behind it. The
-Boot Menu, the MCPs & Skills menu ([KIT.md](KIT.md)), the agent studio, the health
-certificate, the scheduler board ([SATURN.md](SATURN.md)), the sign-in
-catalogue and the session-and-repository picker open in place on the home screen
-(`Esc` returns to the selected row without flashing chat chrome), while the Session
-Concourse row opens the board one screen to the right. Pressing `m` on the home
-screen (`m to select model-default`) opens the default model and effort picker
-in place whenever `engine.sessionDefaults` is not `false`. The Boot Menu displays six section headings in screen order: **TRUST COMBO**
+Running `mercury` with no arguments opens the home screen, with no chat behind it. The rows are **New Session**, **Continue Last Session** (once history exists), **Logins/Keys**, **Session Manager (Concourse)**, and **Boot Menu**. The line below shows the model and the current folder.
+
+In Boot Menu, **MCPs & Skills** and **Agents** set up the next session. Inside a chat, use `/mcp`, `/skills` or `/agents`. Use `/health` for diagnostics (`mercury health` also runs from a terminal) and `/saturn` for the [scheduler](SATURN.md). To reopen another folder’s chat before starting one, open Session Manager, press `Ctrl+G`, choose the folder, then open a parked chat or press `Enter` on **older chats** to browse. Inside a chat, `/sessions` opens the session picker.
+
+Pressing `m` on the home screen opens the default model and effort picker whenever `engine.sessionDefaults` is not `false`. Boot Menu starts with **NEXT SESSION** and the two editors, followed by **TRUST COMBO**
 (`Content-rule wards`, `Debug tool (real debugger)`, `C/C++ IDE lane (clangd)`,
 `Sovereign mode`), **COMPUTER USE** (`Computer use`, `Access type`),
 **SAMPLES** (`Samples`), **AGENTS** (`Crewmates`, `Crewmates while
@@ -53,13 +47,7 @@ lanes`, `Godot control surface (VULCAN)`, `Unity dev lanes`, `Blender dev
 lanes`, `Aseprite dev lanes`, `Cap failover posture`, `Session Concourse at
 boot`, `Seats`), and **PERFORMANCE** (`Motion`). The Boot Menu's Performance
 section includes a Motion setting: `auto`, `full`, `reduced` or `off`. It
-controls idle animation in the interface and is also available in `/config`. A chat exists
-only once you enter
-one: New Session, Continue, a pick on the Sessions · Projects screen, or a
-row on the concourse board. Until
-then the screen's chrome (the model chip, the mode readout, the folder row)
-reads the screen's own state, and a screen left
-with no chat returns to the home screen on its own.
+controls idle animation in the interface and is also available in `/config`. Browsing these screens does not create a chat. A chat opens when you choose New Session, Continue Last Session, or a session on the board.
 
 Where a boot lands is the home screen unless something outranks it: an
 explicit journey (`--continue`, `--resume`, a prompt argument), or the
@@ -141,7 +129,7 @@ goal armed. Your next message resumes a paused goal; a scheduled wake does not.
 
 Pressing `Enter` opens a chat immediately using a pre-warmed
 background runner. The new session loads the
-repository's MCPs & Skills selection (or the preset you selected on the home screen), and
+repository's MCPs & Skills selection (or the preset you selected in Boot Menu), and
 the launch receipt names which ([KIT.md](KIT.md)). The board's `+ new session · n`
 tab, at the right end of its SESSIONS title, starts a new session from the
 board in the project the board shows, focused at once.
@@ -194,7 +182,7 @@ stands, so the next chat returns to it the moment that family signs in;
 A claude.ai or ChatGPT sign-in is checked once when Mercury opens and
 whenever `/health` runs: a sign-in past its expiry is renewed through its
 refresh grant, and one the provider refuses shows as `<Family> sign-in
-expired` on the boot screen's Logins row and in `/health` before a first
+expired` in Logins/Keys and in `/health` before a first
 prompt is sent. A prompt that still meets an expired sign-in is not lost: the
 error line paints, its words come back to the composer, and they are sent
 again on their own once `/logins` lands a credential (or `/model` moves the
@@ -534,7 +522,7 @@ until the session is resumed from the screen.
 
 ## The concourse shows the project you are in
 
-`/concourse`, the home screen's Session Concourse row, or `Shift+→` from the
+`/concourse`, the home screen's Session Manager (Concourse) row, or `Shift+→` from the
 home screen opens the Session Concourse: the control board for the project
 you are in, and its resume screen. On the first visit to the Session Concourse,
 a one-time `"FIRST BOOT — capacity check"` dialog asks whether to probe the
@@ -544,17 +532,14 @@ reading decides"`, `"esc keeps the default · asked once, never again"`). The
 board is scoped to that project: its
 sessions that are running, waiting for a slot, or finished and waiting for a
 merge, and beneath them, PARKED, the project's chats with no running worker.
-When you pick another project (through the rail's REPO picker
-or the Sessions · Projects screen on the home screen), the board shows that project's
+When you pick another project through the REPO picker (`Ctrl+G`), the board shows that project's
 sessions instead, while every other project's sessions keep running. Activity
 in other repositories stays visible: each other project with activity
 paints one summary line under OTHER PROJECTS, between the live rows and
 PARKED (`"N running in foo"`, with its finished and needs-you counts and
 `"switch to see them"` in its NOW cell), and pressing `Enter` on it switches the view
 through the REPO picker's path; at most three lines paint, and a `"+N
-more projects with activity"` line opens the picker itself (also `Ctrl+G`). The
-home screen's Projects rows show the same counts (`"foo (3 running)"`)
-through the same running predicate. The chat you are in stays visible across a project
+more projects with activity"` line opens the picker itself. The chat you are in stays visible across a project
 switch: the board always includes the focused
 session, wherever it lives, marked with `✦ "from <its project>"` beside its
 title (among the live rows when running, or at the top of PARKED when stopped),
@@ -633,8 +618,7 @@ session (the row stays, marked stopped with the next step), the chord
 again parks it, and a third chord removes the board row. In the session list
 `x` stops the selected session and `a` archives it; in a message box typing is never a control,
 so a plain `x` lands in the composer like any other letter. The board's REPO picker
-changes the folder new sessions launch in, and the board updates to render
-the same list of projects as the home screen's Sessions · Projects view.
+changes the folder new sessions launch in and shows that folder's sessions.
 `/daemon halt` interrupts immediately while a
 turn runs, without routing through a session runner. The status strip's `⚑`
 badge counts what needs your attention. A session that finishes a turn while you are viewing another screen
@@ -645,17 +629,12 @@ switched into silently (the chat still opens, and a notice states that the proje
 
 ## The folder is the project
 
-Open a terminal in any folder and run `mercury`: that folder is the project,
-by its name, from the first frame (the home screen's card and its Dir chip
-name it, and a folder that is itself a `.mercury` directory is named after its
-parent folder). Nothing is written into the
+Open a terminal in any folder and run `mercury`: that folder is the project. The `Dir:` line names it; a `.mercury` folder takes its parent’s name. Nothing is written into the
 folder until a chat is started there: opening the home screen and
 exiting leaves the folder untouched. Starting the first chat in the
 folder initializes an empty
 `.mercury/` directory in the folder and a project record in Mercury's
-config home beside that folder's transcripts. From then on the folder appears in
-your project list across the home screen's Sessions · Projects view and the board's REPO
-picker. Mercury writes no ignore rules, never modifies `.gitignore`, and never
+config home beside that folder's transcripts. From then on the folder appears in the board's REPO picker. Mercury writes no ignore rules, never modifies `.gitignore`, and never
 deletes `.mercury/`. The project folder holds shared configuration (settings,
 command safety rules, Apollo specs, and custom agents)
 the way a crew commits its shared config; everything a
@@ -742,13 +721,7 @@ report (OS, what you tried, what broke, no health dump).
 
 ## Bringing a chat back
 
-Continue Last Session, the home screen's Sessions · Projects view (your sessions
-above, your repositories beneath, one highlight where `Tab` switches sections,
-highlighting a repository filters the sessions to it, `Enter` on a session resumes
-it and `Enter` on a repository opens its most recent chat; a repo with no
-history opens a new session there instead), `/sessions`, `-c`/`--continue`,
-`-r`/`--resume <id|title>`, and `Enter` on a parked row of the board all resume
-through one path. A
+Continue Last Session, `/sessions` (or `/resume`), `-c`/`--continue`, `-r`/`--resume <id|title>`, and `Enter` on a parked or older chat in Session Manager all resume through one path. A
 session live on the board is entered directly. Otherwise its transcript paints
 at once from its file and the daemon starts a runner for that session behind
 the paint; a session whose runner the daemon still holds (one mid-respawn
@@ -879,7 +852,7 @@ the current size and the limit in **State cleanup**. Pruned backups cannot be re
 ## `mercury --chat`
 
 Passing `--chat` opens only the home screen and the chat, without the Session
-Concourse board on the navigation strip or the Session Concourse row on the
+Concourse board on the navigation strip or the Session Manager (Concourse) row on the
 home screen (New Session is the entry point). A `--chat` launch
 opens on the home screen like a bare launch, and pressing `Enter` on New Session starts the chat.
 From the chat, `Shift+←` returns to the home screen directly and `Shift+→` moves nothing;
@@ -899,11 +872,7 @@ command line, the later one wins.
 With it off, the navigation strip has only the home screen and
 the chat, with no concourse stop (`Shift+→` walks only screens that exist). The
 live view of your sessions remains available through the
-home screen's concourse row (`"live view only — concourse off"`) or `/concourse`,
-showing the rows and their tiles with `Enter` to open one and no
-composer or new-session tab. The home screen keeps its
-repositories picker either way: selecting a repository on the Sessions · Projects
-screen still opens that repo's newest chat.
+home screen's Session Manager (Concourse) row or `/concourse`. It shows the rows and their tiles with `Enter` to open one and no composer or new-session tab.
 
 Both flags also accept single-dash spellings (`-chat`,
 `-concourse-off` and `-concourse-on`).
