@@ -23,9 +23,11 @@ export function sendToSession(deps: SubmitDeps, line: SubmitLine): Promise<void>
   repinToBottom();
   setSubmitCount(count => count + 1);
   if (seatCommand !== undefined && isLoadingRef.current) {
+    const name = getCommandName(seatCommand);
+    const when = name === 'compact' ? 'at the next step or when the turn ends' : 'when the current turn ends';
     addNotification({
       key: 'session-command-queued',
-      text: `/${getCommandName(seatCommand)} queued — runs when the current turn ends (esc interrupts the turn)`,
+      text: `/${name} queued — runs ${when} (esc interrupts the turn)`,
       priority: 'immediate',
       timeoutMs: RECEIPT_TIMEOUT_MS,
     });

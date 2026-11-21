@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { existsSync, lstatSync, readFileSync, readlinkSync, realpathSync, statSync, accessSync, constants as fsConstants } from 'node:fs'
 import { basename, dirname, isAbsolute, join, parse, resolve, sep } from 'node:path'
 
-import { memoize } from 'lodash-es'
+import { memoizeWithLRU } from './memoize.js'
 
 import type { GitUnavailable, GitWorktreeInfo } from '../services/gitGraph/contracts.js'
 import { getCwd } from './cwd.js'
@@ -65,13 +65,19 @@ export const findCanonicalGitRoot: CachedFinder = makeCachedFinder(startPath => 
 })
 
 
-export const getIsGit = memoize(async (): Promise<boolean> => {
-  const startedAt = Date.now()
-  logForDiagnosticsNoPII('debug', 'is_git_check_started')
-  const result = findGitRoot(getCwd()) !== null
-  logForDiagnosticsNoPII('debug', 'is_git_check_completed', { result, duration_ms: Date.now() - startedAt })
-  return result
-})
+const IS_GIT_CACHE_ENTRIES = 50
+
+export const getIsGit = memoizeWithLRU(
+  async (): Promise<boolean> => {
+    const startedAt = Date.now()
+    logForDiagnosticsNoPII('debug', 'is_git_check_started')
+    const result = findGitRoot(getCwd()) !== null
+    logForDiagnosticsNoPII('debug', 'is_git_check_completed', { result, duration_ms: Date.now() - startedAt })
+    return result
+  },
+  () => resolve(getCwd()),
+  IS_GIT_CACHE_ENTRIES,
+)
 
 export async function dirIsInGitRepo(cwd: string): Promise<boolean> {
   return findGitRoot(cwd) !== null

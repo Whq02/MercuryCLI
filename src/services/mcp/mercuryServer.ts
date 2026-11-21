@@ -1,4 +1,4 @@
-import { AsyncLocalStorage } from 'node:async_hooks'
+import { getOwnerContext, withOwnerContext } from '../../utils/run/ownerContext.js'
 import { flagEnabled } from '../../substrate/flagRegistry.js'
 import { serveStdio, type CallToolResult, type Transport } from '../../utils/mcp/sdk.js'
 import { z } from 'zod/v4'
@@ -9,14 +9,12 @@ import { renderTui } from './renderTuiTool.js'
 import { getOriginalCwd, getSessionProjectDir } from '../../bootstrap/state.js'
 import { describeProjectLeases, projectLeaseHolder, releaseProjectLeases, takeProjectLeases, type LeaseHolder } from '../vulcan/engine/leases.js'
 
-const invocationLeaseHolder = new AsyncLocalStorage<LeaseHolder>()
-
 export function withMercuryLeaseHolder<T>(agentId: string | undefined, invoke: () => T): T {
-  return invocationLeaseHolder.run(projectLeaseHolder(agentId), invoke)
+  return withOwnerContext({ leaseHolder: projectLeaseHolder(agentId) }, invoke)
 }
 
 function leaseHolder(): LeaseHolder {
-  return invocationLeaseHolder.getStore() ?? projectLeaseHolder()
+  return getOwnerContext()?.leaseHolder ?? projectLeaseHolder()
 }
 
 export const MERCURY_SERVER_NAME = 'mercury'
