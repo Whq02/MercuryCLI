@@ -9,6 +9,7 @@ import { whichSync } from '../../utils/which.js'
 import { flagEnv } from '../../substrate/flagRegistry.js'
 import { INSTALLED_NOT_DRIVEN } from './browserWords.js'
 import { passedOver } from '../../utils/passedOver.js'
+import { browserDiscoveryCandidates, chromeForTestingRelativePaths } from '../../utils/platform/vendors.js'
 
 type BrowserFamily = 'chrome' | 'edge' | 'chromium' | 'brave' | 'chrome-for-testing'
 
@@ -68,16 +69,16 @@ export function detectInstalledBrowsers(): InstalledBrowser[] {
   const platform = os.platform()
   const found: InstalledBrowser[] = []
   for (const fam of FAMILIES) {
-    if (platform === 'darwin' || platform === 'win32') {
-      const candidates = platform === 'darwin' ? fam.darwin : fam.win32
-      for (const p of candidates) {
+    const discovery = browserDiscoveryCandidates(fam, platform)
+    if (discovery.kind === 'paths') {
+      for (const p of discovery.candidates) {
         if (existsSync(p)) {
           found.push({ family: fam.family, label: fam.label, executablePath: p })
           break
         }
       }
     } else {
-      for (const bin of fam.linuxBinaries) {
+      for (const bin of discovery.binaries) {
         const p = whichSync(bin)
         if (p) {
           found.push({ family: fam.family, label: fam.label, executablePath: p })
@@ -147,16 +148,7 @@ function findChromeExecutable(cacheRoot: string, entryName: string, dir: string)
     }
   }
   const platform = os.platform()
-  const candidates =
-    platform === 'darwin'
-      ? [
-          'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-          'chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
-        ]
-      : platform === 'win32'
-        ? ['chrome-win64/chrome.exe', 'chrome-win32/chrome.exe']
-        : ['chrome-linux64/chrome', 'chrome-linux-arm64/chrome']
-  for (const rel of candidates) {
+  for (const rel of chromeForTestingRelativePaths(platform)) {
     const p = path.join(dir, rel)
     if (existsSync(p)) return p
   }

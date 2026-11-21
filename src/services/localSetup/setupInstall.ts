@@ -1,6 +1,7 @@
 import { join } from 'node:path'
 import { resolveSetupIo, seconds, shellArgv, type ResolvedSetupIo } from './setupIo.js'
 import { SETUP_EXEC_TIMEOUT_MS, SETUP_INSTALL_POLL_MS, type ExecResult, type InstallPlan, type InstallVia, type OllamaInstallFound, type SetupIo, type SetupPlatform } from './setupTypes.js'
+import { ollamaWindowsExeCandidate } from '../../utils/platform/vendors.js'
 
 export type InstallDoc = { platform: SetupPlatform; via: InstallVia; url: string; excerpt: string; command: string }
 
@@ -99,8 +100,8 @@ export async function findOllamaInstall(seam: SetupIo = {}): Promise<OllamaInsta
     const brewBin = await brewListing(io)
     if (brewBin) return done('brew', brewBin, `found the Homebrew formula (brew list --formula ollama): ${brewBin}`)
   }
-  if (io.platform === 'win32') {
-    const exe = windowsAppExe(io.env)
+  const exe = ollamaWindowsExeCandidate(io.env, windowsAppExe(io.env), io.platform)
+  if (exe !== null) {
     looked.push(exe)
     if (io.exists(exe)) return done('windows', exe, `found ${exe}`)
   }
