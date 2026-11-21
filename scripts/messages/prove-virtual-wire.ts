@@ -6,7 +6,7 @@ const root = resolve(process.argv[2] ?? new URL('../..', import.meta.url).pathna
 const source = (path: string) => import(`${root}/src/${path}.ts`)
 const { enableConfigs } = await source('utils/config')
 enableConfigs()
-const helpers = await source('utils/messages')
+const helpers = await source('services/messages')
 const params = await source('services/providers/anthropic/messageParams')
 const responses = await source('services/providers/openai/responsesBridge')
 const chat = await source('services/providers/zai/zaiCodec')
