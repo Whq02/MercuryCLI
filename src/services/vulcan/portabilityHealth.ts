@@ -15,6 +15,11 @@ import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
 import { pathModuleFor } from '../../utils/platform/paths.js'
 import { executableName, hostPathDelimiter } from '../../utils/platform/programs.js'
+import {
+  godotBinaryNeedsExeSuffix,
+  godotWellKnownRootsForPlatform,
+  isWinGetGodotPackageDir,
+} from '../../utils/platform/vendors.js'
 
 interface AbsolutePathFinding {
   skillFile: string
@@ -87,45 +92,7 @@ function joinerFor(platform: CensusPlatform): (...parts: string[]) => string {
 }
 
 export function godotWellKnownRoots(platform: CensusPlatform, env: NodeJS.ProcessEnv = hostEnv()): string[] {
-  const roots: string[] = []
-  const joinPath = joinerFor(platform)
-  const add = (...parts: Array<string | undefined>): void => {
-    if (parts.some(p => !p)) return
-    const root = joinPath(...(parts as string[]))
-    if (!roots.includes(root)) roots.push(root)
-  }
-  if (platform === 'win32') {
-    const home = env.USERPROFILE
-    add(env.LOCALAPPDATA, 'Programs', 'Godot')
-    add(env.ProgramFiles, 'Godot')
-    add(env['ProgramFiles(x86)'], 'Godot')
-    add(env['ProgramFiles(x86)'], 'Steam', 'steamapps', 'common', 'Godot Engine')
-    add(env.ProgramFiles, 'Steam', 'steamapps', 'common', 'Godot Engine')
-    add(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')
-    add(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Packages')
-    add(env.SCOOP ?? (home ? joinPath(home, 'scoop') : undefined), 'shims')
-    add(env.SCOOP ?? (home ? joinPath(home, 'scoop') : undefined), 'apps', 'godot', 'current')
-    add(env.ChocolateyInstall ?? (env.ProgramData ? joinPath(env.ProgramData, 'chocolatey') : undefined), 'bin')
-    return roots
-  }
-  const home = env.HOME
-  if (platform === 'darwin') {
-    add('/Applications')
-    add(home, 'Applications')
-    add(home, 'Library', 'Application Support', 'Steam', 'steamapps', 'common', 'Godot Engine')
-    add('/opt/homebrew/bin')
-    add('/usr/local/bin')
-    return roots
-  }
-  add(home, '.local', 'bin')
-  add('/usr/local/bin')
-  add('/usr/bin')
-  add('/var/lib/flatpak/exports/bin')
-  add(home, '.local', 'share', 'flatpak', 'exports', 'bin')
-  add(home, '.steam', 'steam', 'steamapps', 'common', 'Godot Engine')
-  add(home, '.local', 'share', 'Steam', 'steamapps', 'common', 'Godot Engine')
-  add(home, '.var', 'app', 'com.valvesoftware.Steam', '.local', 'share', 'Steam', 'steamapps', 'common', 'Godot Engine')
-  return roots
+  return godotWellKnownRootsForPlatform(platform, env)
 }
 
 interface RootWalkFs {
@@ -186,13 +153,13 @@ function findGodotInRoot(root: string, platform: CensusPlatform, fs: RootWalkFs 
       if (fs.executable(bin)) candidates.push({ name, path: bin })
       continue
     }
-    if (platform === 'win32' && lower.startsWith('godotengine.') && fs.isDir(full)) {
+    if (isWinGetGodotPackageDir(lower, platform) && fs.isDir(full)) {
       const inner = findGodotInRoot(full, platform, fs)
       if (inner) candidates.push({ name, path: inner })
       continue
     }
     if (!isGodotExecutable(name)) continue
-    if (platform === 'win32' && !lower.endsWith('.exe')) continue
+    if (godotBinaryNeedsExeSuffix(lower, platform)) continue
     if (fs.isDir(full)) continue
     if (fs.executable(full)) candidates.push({ name, path: full })
   }

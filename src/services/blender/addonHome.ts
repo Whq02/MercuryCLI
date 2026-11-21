@@ -6,6 +6,7 @@ import { blenderBridgeAddonDirOverride } from '../../utils/blender/bridgeGates.j
 import { locateBlender, probeBlenderVersion } from '../../utils/blender/blenderProject.js'
 import { passedOver } from '../../utils/passedOver.js'
 import { hostEnv } from '../../utils/hostEnv.js'
+import { blenderUserConfigBase } from '../../utils/platform/vendors.js'
 
 export const BLENDER_ADDON_MODULE = 'mercury_blender_bridge'
 
@@ -85,13 +86,6 @@ export function resolveBlenderAddonHome(testOpts?: {
   }
   const platform = testOpts?.platform ?? process.platform
   const home = testOpts?.home ?? homedir()
-  let base: string
-  if (platform === 'darwin') {
-    base = path.join(home, 'Library', 'Application Support', 'Blender', ver)
-  } else if (platform === 'win32') {
-    base = path.join(env.APPDATA ?? path.join(home, 'AppData', 'Roaming'), 'Blender Foundation', 'Blender', ver)
-  } else {
-    base = path.join(env.XDG_CONFIG_HOME ?? path.join(home, '.config'), 'blender', ver)
-  }
+  const base = blenderUserConfigBase(ver, home, env, platform)
   return { home: { path: path.join(base, 'scripts', 'addons'), source: 'default' } }
 }
