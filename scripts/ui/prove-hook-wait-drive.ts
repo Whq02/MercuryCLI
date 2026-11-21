@@ -44,6 +44,7 @@ if (!existsSync(BIN)) {
 const { seedFirstRun } = await import('../lib/firstRunSeed.ts')
 const { resolveCaptureDriver, vshotBudgetMs } = await import('../lib/captureDriver.ts')
 const { startFixtureApi } = await import('../lib/fixtureApi.ts')
+const { BOOT_FACE_READY } = await import('../lib/bootFace.ts')
 
 let failures = 0
 let checks = 0
@@ -68,7 +69,6 @@ writeFileSync(join(WORK, '.mercury', 'settings.json'), JSON.stringify({ events: 
 
 const COLS = 178
 const ROWS = 51
-const READY_LINE = '↵ start  ·  ↑↓ choose'
 const COMPOSER = 'Type a prompt'
 const PROMPT = 'read the readme'
 const CLOSING = 'Read it.'
@@ -97,8 +97,8 @@ async function capture(): Promise<Capture> {
       rows: ROWS,
       liveSeat: true,
       sends: [
-        { atTick: 120, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'face' },
-        { atTick: 160, awaitText: READY_LINE, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'enter' },
+        { atTick: 120, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: '', mark: 'face' },
+        { atTick: 160, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'enter' },
         { atTick: 400, awaitText: COMPOSER, minTick: 3, awaitSettleTicks: 3, requireAwait: true, data: PROMPT, mark: 'composer' },
         { atTick: 420, awaitText: `❯ ${PROMPT}`, minTick: 3, awaitSettleTicks: 2, requireAwait: true, data: '\r', mark: 'sent' },
         { atTick: 500, awaitText: WAITING, minTick: 3, awaitSettleTicks: 6, requireAwait: true, data: '', mark: 'waiting' },

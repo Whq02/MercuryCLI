@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { resolveCaptureDriver, vshotBudgetMs } from '../lib/captureDriver.ts'
 import { seedFirstRun } from '../lib/firstRunSeed.ts'
+import { BOOT_FACE_READY } from '../lib/bootFace.ts'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 process.chdir(ROOT)
@@ -157,7 +158,7 @@ const PICKER_REGION = [0, 0, 64, 40]
 const ESC = '\x1b'
 const DOWN = '\x1b[B'
 const openSends: unknown[] = [
-  { atTick: 40, awaitText: '↑↓ choose', minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
+  { atTick: 40, awaitText: '↑↓', awaitPattern: BOOT_FACE_READY, minTick: 3, requireAwait: true, awaitSettleTicks: 2, data: '\r' },
   { atTick: 60, data: '/model', awaitText: 'Type a prompt', minTick: 5, requireAwait: true, awaitSettleTicks: 2 },
   { requireAwait: true, awaitText: '❯ /model', awaitStableTicks: 2, data: '' },
   { afterPrevTicks: 2, data: '\r' },
