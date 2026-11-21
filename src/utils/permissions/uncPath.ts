@@ -4,8 +4,13 @@ type UncPathRisk = { risky: false } | { risky: true; host: string; form: string 
 
 export function uncPathRisk(input: string, opts: { command?: boolean } = {}): UncPathRisk {
   if (getPlatform() !== 'windows') return { risky: false }
-  const decoded = input.replace(/%(?:2f|5c|3a|40)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
-  const spelling = decoded.replace(/[`'"]/g, '').replace(/(^|[\s=(,;])([A-Za-z]:\S*)/g, (_m, lead: string, token: string) => lead + token.replace(/[\\/]{2,}/g, run => run[0]!))
+  const decoded = input.replace(/%(?:2f|5c|3a|40|7c)/gi, code => String.fromCharCode(parseInt(code.slice(1), 16)))
+  const spelling = decoded
+    .replace(/[`'"]/g, '')
+    .replace(/(^|[\s=(,;])((?:file:[\\/]{2,}[A-Za-z][:|]|[A-Za-z]:)[^\s|&;<>]*)/gi, (_m, lead: string, token: string) => {
+      const prefix = /^file:[\\/]{2,}/i.exec(token)?.[0] ?? ''
+      return lead + prefix + token.slice(prefix.length).replace(/[\\/]{2,}/g, run => run[0]!)
+    })
   const text = spelling.replace(/\\/g, '/')
   const namespace = /\/{1,2}(?:\?\?|[?.])\/(?:UNC\/|GLOBALROOT\/Device\/(?:Mup|LanmanRedirector)\/)([^\s/]+)/ig
   const extended = namespace.exec(text)
@@ -14,6 +19,7 @@ export function uncPathRisk(input: string, opts: { command?: boolean } = {}): Un
   for (const match of text.matchAll(paths)) {
     const host = match[1]!
     if (host === '?' || host === '.' || host === '??') continue
+    if (/^file:/i.test(match[0]) && /^[A-Za-z][:|]$/.test(host)) continue
     const before = text.slice(0, match.index)
     if (before.endsWith(':') && spelling[match.index] === '/' && spelling[match.index + 1] === '/') continue
     if (opts.command === true && !text.slice(match.index + match[0].length).startsWith('/') && !/[.:[\]]/.test(host)) continue
