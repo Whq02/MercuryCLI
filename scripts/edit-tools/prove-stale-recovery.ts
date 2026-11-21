@@ -10,9 +10,10 @@ process.env.MERCURY_ANCHOR_PATCH = '1'
 process.env.MERCURY_CHANGESET_DIR = mkdtempSync(join(tmpdir(), 'stale-rec-cs-'))
 
 let failures = 0
+const STALE_RECOVERY_FAIL_HINT = 'to fix, change when a stale anchor is recovered or refused in recoverStaleHunks (src/services/changeTransaction/stalePatchRecovery.ts) or how the apply op reports it in src/tools/ChangeSetTool/ChangeSetTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${STALE_RECOVERY_FAIL_HINT}` : ''}`)
 }
 
 const { ChangeSetTool } = await import('../../src/tools/ChangeSetTool/ChangeSetTool.ts')

@@ -19,7 +19,7 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}the cache-sharing fork rule is shouldRideCacheSharingFork in src/services/compact/compact/foldBound.ts, the marker placement is addCacheBreakpoints in src/services/providers/anthropic/cacheAndUsage.ts, the resume clock is lastAssistantTimestamp and restoreSessionStateFromLog in src/services/resume/sessionRestore.ts` : ''}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 for (const type of ['disabled', 'adaptive', 'enabled']) {

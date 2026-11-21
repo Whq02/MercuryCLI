@@ -11,7 +11,10 @@ import {
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  ${ok ? '✓' : '✗'} ${label}${ok || !detail ? '' : ` — ${detail}`}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('    fix src/constants/legalNotice.ts (composeNoticeStamp, stampNoticeOnSource, hasCurrentNoticeStamp, CURRENT_NOTICE_SLOTS); for a dist artifact rebuild with bun run build.ts; for THIRD_PARTY_NOTICES.md run bun run scripts/distribution/generate-third-party-notices.ts; for the build.ts check keep its stamp and self-check calls')
+  }
 }
 
 const ROOT = join(import.meta.dir, '..', '..')

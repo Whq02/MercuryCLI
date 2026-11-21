@@ -38,12 +38,14 @@ type PendingToolCall = import('../../src/utils/wards/wards.js').PendingToolCall
 const { AUTONOMOUS_WARDS, REFUSAL_WARDS, evaluateWards } = await import('../../src/utils/wards/wards.js')
 const { deleteWardActive, makeTargetResolver } = await import('../../src/guards/wardsGuard.js')
 
+const QUOTED_FAIL_HINT = 'fix: the no-home-recursive-delete rule (AUTONOMOUS_WARDS) and the no-root-recursive-delete rule (REFUSAL_WARDS) in src/utils/wards/wards.ts, and makeTargetResolver in src/guards/wardsGuard.ts for in-project paths'
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = `${detail}${detail ? ' | ' : ''}${QUOTED_FAIL_HINT}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 
 const home = homedir()

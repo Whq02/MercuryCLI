@@ -16,9 +16,11 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 process.env.BROWSER = '/usr/bin/true'
 
 let failures = 0
+const LATE_FOLDER_FAILURE_HINT =
+  'fix the settings file watching in src/utils/settings/changeDetector.ts (initialize, the watched roots) so a .mercury folder created after boot is watched, or the rule reload in src/utils/settings/settings.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${LATE_FOLDER_FAILURE_HINT}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 const waitMs = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

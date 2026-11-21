@@ -58,7 +58,7 @@ let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}${ok ? '' : ' | fix the Thinking row in src/components/Settings/config/configRowsEngine.tsx (engine.reasoning write, keys), its applicability in src/components/Settings/config/configRowFacts.ts (thinkingRowApplicability) or the default in src/utils/thinking.ts (shouldEnableThinkingByDefault); a stored frame mismatch is refreshed with bun scripts/ui/prove-config-thinking-row.ts --write'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

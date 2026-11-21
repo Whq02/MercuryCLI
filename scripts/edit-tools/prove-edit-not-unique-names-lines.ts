@@ -27,16 +27,18 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.ts')
 
 let failures = 0
 let checks = 0
+const NOT_UNIQUE_FAIL_HINT = 'to fix, change the not-unique refusal text in src/tools/FileEditTool/editResult.ts, the read law refusal in src/tools/FileEditTool/edit/readKnowledge.ts, or for the ledger checks the error-code recording in src/services/tools/toolExecution.ts and src/services/changeTransaction/editOutcomeLedger.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 900 ? `${detail.slice(0, 900)}…` : detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.length > 900 ? `${detail.slice(0, 900)}…` : detail}` : ''}${!cond ? ` — ${NOT_UNIQUE_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the not-unique proof exceeded 120s')
+  console.log('an Edit or Read call never returned; find the section that printed last and look at src/tools/FileEditTool/FileEditTool.ts')
   process.exit(1)
 }, 120_000)
 guard.unref?.()

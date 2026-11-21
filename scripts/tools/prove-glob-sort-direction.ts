@@ -39,13 +39,13 @@ console.log('§2 the engine, driven')
   check(
     '--sortr=modified answers newest first (the promise kept)',
     descending[0] === 'new.txt' && descending[2] === 'old.txt',
-    descending.join(','),
+    descending.join(',') + ' | the ripgrep binary found here does not honour --sortr=modified; check the rg this resolves to, and that src/utils/glob.ts still passes --sortr=modified (not --sort)',
   )
   const ascending = run('--sort=modified')
   check(
     "bare --sort=modified is ascending — the defect's mechanism (control)",
     ascending[0] === 'old.txt' && ascending[2] === 'new.txt',
-    ascending.join(','),
+    ascending.join(',') + ' | control only: this ripgrep sorts --sort=modified newest first, so the reason src/utils/glob.ts uses --sortr=modified no longer holds; re-check the ripgrep version',
   )
   rmSync(dir, { recursive: true, force: true })
 }

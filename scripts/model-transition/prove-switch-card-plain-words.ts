@@ -16,9 +16,11 @@ delete process.env.MERCURY_MODEL
 
 let checks = 0
 let failures = 0
+let switchWordsWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail.slice(0, 700) : ''}`)
+  const switchWordsHint = switchWordsWhere === '' ? '' : (detail === '' ? '' : ' | ') + switchWordsWhere
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || switchWordsHint) ? ' — ' + detail.slice(0, 700) + switchWordsHint : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -63,6 +65,7 @@ function planOf(counts: Partial<TransitionPlan['counts']>, extra: Partial<Transi
 }
 
 section('§1 the one owner of the loss words speaks plainly, counts in agreement, and the receipt line carries no plan id')
+switchWordsWhere = 'change the wording in transitionLossRows, transitionPlanSummary or TRANSITION_CARRIED_WORDS in src/services/providers/transitionPreview.ts'
 {
   const rows = transitionLossRows(planOf({ 'thinking-continuity-reset': 9 }), 'GPT-6 Luna')
   check('nine thinking blocks: the row says they stay behind and that the new model re-plans from the text (RED on the base: "thinking span(s) reset — reasoning never round-trips to the openai wire")', rows.length === 1 && rows[0]!.n === 9 && rows[0]!.words === 'thinking blocks stay behind — GPT-6 Luna never receives the earlier reasoning and re-plans from the text', j(rows))
@@ -122,6 +125,7 @@ const paint = async (plan: TransitionPlan, props: { refreshed?: boolean } = {}):
 const has = (lines: string[], text: string): boolean => lines.some(line => line.includes(text))
 
 section('§2 the switch card as the user reads it (the Windows frame 109 shape: Sonnet 5.5 ⇄ GPT-6 Luna, nine thinking blocks)')
+switchWordsWhere = 'change the card text in TransitionPreviewCard in src/components/TransitionPreviewCard.tsx (loss rows come from transitionLossRows in src/services/providers/transitionPreview.ts)'
 {
   const lines = await paint(planOf({ 'thinking-continuity-reset': 9 }, { itemsTruncated: true }), { refreshed: true })
   const text = lines.join('\n')

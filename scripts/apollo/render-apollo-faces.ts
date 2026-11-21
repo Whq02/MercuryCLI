@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : [detail, hint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
@@ -100,17 +101,19 @@ for (const cols of [80, 120]) {
   check(
     'the poll letters every authored option A–D ("A. label" — letters replace the numeric ordinals)',
     [/A\.\s+Top-down view/, /B\.\s+Side view/, /C\.\s+First person/, /D\.\s+Isometric/].every(re => re.test(poll)),
+    '',
+    'change apolloIndexLabel in src/tools/AskUserQuestionTool/apolloLetters.ts or the index label shown by src/components/CustomSelect; the text dump is in the tmp folder (apollo-poll-<cols>.txt)',
   )
-  check("the custom route is lettered E (E = type my own)", /E\.\s+(Other|Type something)/.test(poll))
-  check('no numeric ordinals leak beside the letters', !/[1-5]\.\s*(Top-down|Side|First|Isometric|Other|Type something)/.test(poll) && !poll.includes('5.'))
-  check('the poll ties the plain question to its technical bridge', poll.includes('camera'))
+  check("the custom route is lettered E (E = type my own)", /E\.\s+(Other|Type something)/.test(poll), '', 'change apolloCustomIndexLabel in src/tools/AskUserQuestionTool/apolloLetters.ts so the input option is lettered E')
+  check('no numeric ordinals leak beside the letters', !/[1-5]\.\s*(Top-down|Side|First|Isometric|Other|Type something)/.test(poll) && !poll.includes('5.'), '', 'a numeric ordinal still renders next to the poll options; check the indexLabel handling in src/components/CustomSelect')
+  check('the poll ties the plain question to its technical bridge', poll.includes('camera'), '', 'the poll text this script builds lost the word camera; see PollFace in this script')
 
-  check('the review card leads with the ◇ seal + title', clean.includes('◇ Apollo pre-flight review') && blocked.includes('◇ Apollo pre-flight review'))
-  check('the clean card says no blockers', clean.includes('No blockers'))
-  check('the clean card links the spec files', clean.includes('spec.md') && clean.includes('levels.md'))
-  check('the clean card says where to run', clean.includes('Run it:') && clean.includes('index.html'))
-  check('the blockered card counts its blockers', blocked.includes('2 blockers remain:'))
-  check('the blockered card lists each blocker', blocked.includes('Art direction') && blocked.includes('sound'))
+  check('the review card leads with the ◇ seal + title', clean.includes('◇ Apollo pre-flight review') && blocked.includes('◇ Apollo pre-flight review'), '', 'change ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx so the title line reads Apollo pre-flight review')
+  check('the clean card says no blockers', clean.includes('No blockers'), '', 'change the empty-blockers line of ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx')
+  check('the clean card links the spec files', clean.includes('spec.md') && clean.includes('levels.md'), '', 'change the specFiles list of ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx')
+  check('the clean card says where to run', clean.includes('Run it:') && clean.includes('index.html'), '', 'change the runNote line (Run it:) of ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx')
+  check('the blockered card counts its blockers', blocked.includes('2 blockers remain:'), '', 'change the blocker count line of ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx')
+  check('the blockered card lists each blocker', blocked.includes('Art direction') && blocked.includes('sound'), '', 'change the blocker list of ApolloReviewCard in src/tools/ApolloReviewTool/UI.tsx')
 }
 
 console.log(`\nText dumps: ${join(tmpdir(), 'apollo-{poll,review-clean,review-blocked}-{80,120}.txt')}`)

@@ -12,7 +12,7 @@ process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
 let failures = 0
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 200)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 200)}` : ''}${ok ? '' : ' — fix queuedRows in src/services/messages/attachmentText.ts (framing and queued marker) or requestConversationPlan in src/services/messages/apiPlan.ts (where the queued text rides)'}`)
 }
 
 const { normalizeAttachmentForAPI } = await import('../../src/services/messages/attachmentText.ts')

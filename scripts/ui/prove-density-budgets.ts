@@ -5,7 +5,7 @@ const BORDER = new Set('╭╮╰╯│─┈┃━║═▔▁'.split(''))
 
 let fail = 0
 const t = (name: string, ok: boolean, detail = ''): void => {
-  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}`)
+  console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}${detail ? ` — ${detail}` : ''}${ok ? '' : ' | that screen paints more border, red accent (dd4444) or bold cells than its CEILINGS entry in scripts/ui/prove-density-budgets.ts allows: thin the screen, or raise that entry if the density is intended'}`)
   if (!ok) fail = 1
 }
 
@@ -45,7 +45,7 @@ const baselineAt = process.argv.indexOf('--baseline')
 const baselineDir = baselineAt < 0 ? undefined : process.argv[baselineAt + 1]
 const manifest = readManifest(baselineDir)
 if (!manifest) {
-  console.log('FAIL  manifest present')
+  console.log('FAIL  manifest present — no manifest.json in the baseline directory (the --baseline value, else the live directory of scripts/ui/visualBaseline.ts); regenerate it with scripts/ui/generate-visual-baseline.ts')
   process.exit(1)
 }
 

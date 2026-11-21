@@ -12,6 +12,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(label.startsWith('every awaitText') ? '    hint: add requireAwait or an atTick or afterPrevTicks deadline to each send listed above as file:line under scripts/' : label.startsWith('exactly the bare') || label.startsWith('an observed-walk') ? '    hint: fix blindAwaitSends in this file (scripts/ui/prove-vshot-send-hygiene.ts) so it flags only a bare awaitText or awaitRaw literal' : '    hint: fix the LIVE-SEAT-STABILITY (exit 7) and BLIND-REPEAT (exit 8) refusals and the repeatEveryTicks hold in scripts/ui/vshot.py')
 }
 
 type Hit = { file: string; line: number; text: string }

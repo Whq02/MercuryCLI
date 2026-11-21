@@ -70,11 +70,12 @@ mock.module(managerPath, () => ({
 }))
 
 let failures = 0
+const lspCommandHint = 'change the call function of /lsp in src/commands/lsp/lsp.ts (the status lines come from serverStatusLines in src/tools/LSPTool/mercuryOps/serverStatus.ts)'
 function check(name: string, ok: boolean, detail?: string): void {
   if (ok) console.log(`  ok  ${name}`)
   else {
     failures++
-    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''}`)
+    console.error(`  FAIL ${name}${detail ? ` — ${detail}` : ''} | ${lspCommandHint}`)
   }
 }
 function section(title: string): void {

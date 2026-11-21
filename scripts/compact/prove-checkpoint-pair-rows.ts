@@ -12,7 +12,7 @@ process.env.NODE_ENV = 'test'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ' — ' + (detail ? detail + '; ' : '') + 'fix the tool in src/tools/CheckpointTool/CheckpointTool.tsx or src/tools/RewindTool/RewindTool.tsx (the shared contract is in src/tools/CheckpointTool/contextOnlyTool.tsx)' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

@@ -32,10 +32,12 @@ delete process.env.MERCURY_CREW_DIR
 
 let failures = 0
 let checks = 0
+let removedWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, removedWhere].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
@@ -98,6 +100,7 @@ async function main(): Promise<void> {
   const oneShot = ['run', '--model', MODEL, 'say the word']
 
   section('§1 the two flags are accepted, say one sentence and write nothing')
+  removedWhere = 'the flags are declared in src/main/rootOptions.ts and the one sentence is written in src/main/defaultAction.ts; rebuild dist/mercury.mjs if the source already reads right'
   {
     const plain = world('plain')
     const help = await mercury(plain, ['--help'])
@@ -129,6 +132,7 @@ async function main(): Promise<void> {
   }
 
   section('§2 a home that had the coordinator on starts clean and keeps every file it wrote')
+  removedWhere = ''
   {
     const w = world('had-it-on')
     giveKeys(w)
@@ -187,6 +191,7 @@ async function main(): Promise<void> {
   }
 
   section('§3 nothing advertises it')
+  removedWhere = 'remove the word coordinator from the surface that check names (the refusal text is backgroundedLaunchRefusal in src/services/switchboard/launchAuthority.ts, the boot menu is src/substrate/startupMenu.ts)'
   {
     const { MERCURY_CONSTITUTION, MERCURY_SUBAGENT_CONTRACT } = await import('../../src/prompt/mercuryContract.ts')
     const sizes = `crewmate contract ${MERCURY_SUBAGENT_CONTRACT.length} chars`
@@ -210,6 +215,7 @@ async function main(): Promise<void> {
   }
 
   section('§4 what carries the word and is not the coordinator stands')
+  removedWhere = ''
   {
     const { AGENT_ROLES } = await import('../../src/services/crew/identity.ts')
     check('the crew\'s role vocabulary goes on accepting coordinator', (AGENT_ROLES as readonly string[]).includes('coordinator'))

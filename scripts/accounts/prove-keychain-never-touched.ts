@@ -42,9 +42,10 @@ for (const name of [
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let keychainWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && keychainWhere ? `${detail ? '; ' : ' — '}${keychainWhere}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -55,11 +56,13 @@ const untouched = (label: string): void =>
   check(`${label}: the keychain tool was never reached`, invocations().length === 0, invocations().join(' | '))
 
 section('§1 — under the seam the store is the file store and the keychain is unreachable')
+keychainWhere = 'fix keychainReachable() and getSecureStorage() in src/utils/secureStorage/index.ts so MERCURY_CREDENTIAL_STORE=file makes the keychain unreachable and the store the plain file store'
 const store = await import('../../src/utils/secureStorage/index.ts')
 check('keychainReachable() is false under MERCURY_CREDENTIAL_STORE=file', store.keychainReachable() === false)
 check('getSecureStorage() is the file store itself', store.getSecureStorage() === store.plainTextStorage)
 
 section('§2 — every in-process credential road under the seam, reads and writes')
+keychainWhere = 'make the road this check names return before it spawns security when keychainReachable() is false: src/utils/secureStorage/keychainPrefetch.ts, src/utils/secureStorage/macOsKeychainStorage.ts, src/utils/auth.ts or src/services/browser/browserSecrets.ts'
 store.startKeychainPrefetch()
 await store.ensureKeychainPrefetchCompleted()
 untouched('the boot prefetch')
@@ -112,6 +115,7 @@ check('the browser TOTP resolves from the file under the pin', otp.state === 'ok
 untouched('browser password and TOTP resolution')
 
 section('§3 — the built artifact boots under the seam and never reaches the keychain tool')
+keychainWhere = 'run bun run build.ts to refresh dist/mercury.mjs, then find the security spawn the boot reached and guard it with keychainReachable() (the spawn sites are listed in section 5 of this test)'
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 const nodeBin = Bun.which('node')
 if (existsSync(DIST) && nodeBin) {
@@ -137,6 +141,7 @@ if (existsSync(DIST) && nodeBin) {
 }
 
 section('§4 — CONTROL: without the seam the prefetch reaches the shim (darwin); off darwin the rule is false regardless')
+keychainWhere = 'the control child must run src/utils/secureStorage/index.ts startKeychainPrefetch() without the seam; keychainReachable() there must be true on darwin and false elsewhere, and the prefetch in src/utils/secureStorage/keychainPrefetch.ts must call find-generic-password on darwin'
 const DRIVER = join(SCRATCH, 'control.ts')
 writeFileSync(
   DRIVER,
@@ -176,6 +181,7 @@ writeFileSync(
 }
 
 section('§5 — every `security` spawn site in src names the rule')
+keychainWhere = 'a file under src spawns security that is not in EXPECTED below, or lacks keychainReachable(); add the guard in that file, or update EXPECTED in this test if the road is new and guarded on purpose'
 {
   const listed = spawnSync('git', ['ls-files', '-z', '--', 'src'], { cwd: ROOT, encoding: 'utf8' })
   const files = (listed.stdout ?? '').split('\0').filter(f => /\.(ts|tsx)$/.test(f))

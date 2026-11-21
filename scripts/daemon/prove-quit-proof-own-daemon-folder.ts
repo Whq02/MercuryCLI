@@ -54,12 +54,12 @@ await new Promise<void>(resolve => door.close(() => resolve()))
 check(
   'run with a daemon folder handed in by its environment, where a daemon stands and answers, the proof never calls that daemon',
   calls.length === 0,
-  `the stand-in at ${handed} was called ${calls.length} time(s): ${calls.join(', ')}`,
+  `the stand-in at ${handed} was called ${calls.length} time(s): ${calls.join(', ')} · scripts/daemon/prove-quit-reaps-the-tree.ts must set MERCURY_DAEMON_DIR to its own scratch folder before it imports src/daemon/controlSocket.ts, so it never reaches a daemon the environment hands in`,
 )
 check(
   'and it reads there what it reads alone',
   code === 0,
-  `exit ${String(code)}: ${said.split('\n').filter(line => line.includes('[FAIL]')).map(line => line.trim().slice(0, 200)).join(' | ')}`,
+  `exit ${String(code)} · run scripts/daemon/prove-quit-reaps-the-tree.ts alone and fix the check it names, as it must pass when MERCURY_DAEMON_DIR is handed in: ${said.split('\n').filter(line => line.includes('[FAIL]')).map(line => line.trim().slice(0, 200)).join(' | ')}`,
 )
 
 rmSync(world, { recursive: true, force: true })

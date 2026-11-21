@@ -45,6 +45,7 @@ let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    hint: the calm line is painted in src/components/messages/SystemTextMessage.tsx, the continuation nudge text is in src/services/api/errors.ts, the forensics debug line is built in src/services/providers/openai/streamCutForensics.ts, and the reconstructed-continuation note in src/services/providers/openai/openaiCallModel/bridgeMessages.ts; rerun with --frames <dir> to keep the captured screens')
 }
 if (FRAMES !== undefined) mkdirSync(FRAMES, { recursive: true })
 

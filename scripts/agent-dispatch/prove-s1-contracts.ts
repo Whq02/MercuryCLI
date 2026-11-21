@@ -17,9 +17,10 @@ const { enableConfigs } = await import('../../src/utils/config/globalConfig.js')
 enableConfigs()
 
 let failures = 0
+let s1Where = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && s1Where ? `${detail ? '; ' : ' — '}${s1Where}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -31,6 +32,7 @@ console.log('============================================================')
 
 section('1 · ProviderAdapter — exactly the frozen member set')
 {
+  s1Where = 'change the adapter object so its members match the frozen list in this test: src/services/providers/anthropic/anthropicAdapter.ts, src/services/providers/openai/openaiAdapter.ts or src/services/providers/zai/zaiAdapter.ts (or update the list here if the surface was widened on purpose)'
   const FROZEN_MEMBERS = [
     'id',
     'transport',
@@ -52,6 +54,7 @@ section('1 · ProviderAdapter — exactly the frozen member set')
 
 section('2 · buildAgentLaunchPlan — decision laws')
 {
+  s1Where = 'change buildAgentLaunchPlan in src/services/crew/agentLaunchPlan.ts so the plan follows the law this check names'
   const mkDef = (over: Partial<CustomAgentDefinition> = {}): CustomAgentDefinition => ({
     agentType: 'orbit-probe',
     whenToUse: 'orbit s1 freeze probe',

@@ -10,6 +10,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+const RESTORE_OWNER = 'restorePreservedReads in src/services/compact/compact/attachments.ts, re-exported by src/services/compact/compact.ts'
 
 const compact = await import(join(SRC, 'services/compact/compact.ts'))
 const { createFileStateCacheWithSizeLimit } = await import(join(SRC, 'utils/fileStateCache.ts'))
@@ -20,7 +21,7 @@ type Entry = { content: string; timestamp: number; offset: number | undefined; l
 const restore = compact.restorePreservedReads as
   | ((context: unknown, ledger: Array<[string, Entry]>, preserved: unknown[]) => string[])
   | undefined
-check('the restore owner is exported', typeof restore === 'function')
+check('the restore owner is exported', typeof restore === 'function', 'export ' + RESTORE_OWNER)
 
 const readUse = (id: string, file_path: string): unknown =>
   createAssistantMessage({ content: [{ type: 'tool_use', id, name: 'Read', input: { file_path } }] as never })
@@ -50,16 +51,16 @@ const context = { readFileState } as unknown
 
 console.log('L1 a preserved read comes back whole')
 const restored = restore?.(context, ledger, preserved) ?? []
-check('the full read is re-registered', readFileState.get(A)?.content === 'alpha' && readFileState.get(A)?.timestamp === 111, JSON.stringify(readFileState.get(A)))
-check('…as a FULL read (offset 0, no limit)', readFileState.get(A)?.offset === 0 && readFileState.get(A)?.limit === undefined)
-check('the partial read is re-registered with its window intact', readFileState.get(B)?.offset === 5 && readFileState.get(B)?.limit === 3, JSON.stringify(readFileState.get(B)))
-check('the restore names what it restored', restored.length === 2 && restored.includes(A) && restored.includes(B), restored.join(','))
+check('the full read is re-registered', readFileState.get(A)?.content === 'alpha' && readFileState.get(A)?.timestamp === 111, JSON.stringify(readFileState.get(A)) + ' | ' + RESTORE_OWNER + ' must put the ledger entry of a preserved Read back into readFileState')
+check('…as a FULL read (offset 0, no limit)', readFileState.get(A)?.offset === 0 && readFileState.get(A)?.limit === undefined, JSON.stringify(readFileState.get(A)) + ' | ' + RESTORE_OWNER + ' must keep offset 0 and no limit for a full read')
+check('the partial read is re-registered with its window intact', readFileState.get(B)?.offset === 5 && readFileState.get(B)?.limit === 3, JSON.stringify(readFileState.get(B)) + ' | ' + RESTORE_OWNER + ' must keep the offset and limit of a partial read')
+check('the restore names what it restored', restored.length === 2 && restored.includes(A) && restored.includes(B), restored.join(',') + ' | ' + RESTORE_OWNER + ' must return the paths it re-registered, here the two preserved reads a.ts and b.ts')
 
 console.log('L2 a read the tail does not preserve is left to the re-attachment road')
-check('c.ts is not re-registered here', readFileState.get(C) === undefined)
+check('c.ts is not re-registered here', readFileState.get(C) === undefined, RESTORE_OWNER + ' must restore only files whose Read is in the preserved tail')
 
 console.log('L3 an unchanged-file stub is not a preserved read')
-check('d.ts (its content compacted away) is not re-registered here', readFileState.get(D) === undefined)
+check('d.ts (its content compacted away) is not re-registered here', readFileState.get(D) === undefined, RESTORE_OWNER + ' must skip a preserved Read whose result is the unchanged-file stub (FILE_UNCHANGED_STUB)')
 
 
 console.log(failures === 0 ? '\nprove-preserved-reads-reregistered: ALL PASS' : `\nprove-preserved-reads-reregistered: ${failures} FAIL`)

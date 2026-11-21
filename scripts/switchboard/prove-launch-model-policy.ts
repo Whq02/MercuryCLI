@@ -5,9 +5,11 @@ import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
 let failures = 0
+let fixWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures = 1
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = !ok && fixWhere ? `${detail ? `${detail} — ` : ''}fix: ${fixWhere}` : detail
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -48,6 +50,7 @@ type Entry = import('../../src/services/concourse/workerModels.ts').WorkerModelE
 
 section('§1 — the seed: the operator’s own row, or a visible one')
 {
+  fixWhere = 'change defaultWorkerModelId in src/services/concourse/workerModels.ts (operator row first, else first available row, never a refused default)'
   const reg = (entries: Entry[]) => ({ schema: 1 as const, entries })
   const available = { session: { availability: 'available' }, crew: { availability: 'available' } } as const
   const refusedBothArms = {
@@ -84,6 +87,7 @@ section('§1 — the seed: the operator’s own row, or a visible one')
 
 section('§2 — the live composition marks and seeds the operator’s default')
 {
+  fixWhere = 'change composeWorkerModelRegistry, canonicalWorkerModelId, defaultWorkerModelId or validateWorkerModelChoice in src/services/concourse/workerModels.ts (the registry must mark the engine default as the one isOperatorDefault row)'
   const { getEngineModel } = await import('../../src/services/model/model.ts')
   const operatorDefault = await wm.canonicalWorkerModelId(getEngineModel())
   const registry = await wm.composeWorkerModelRegistry()

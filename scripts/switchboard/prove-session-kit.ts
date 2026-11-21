@@ -23,15 +23,26 @@ delete process.env.CI
 
 
 let failures = 0
+const kitFailHints: Record<string, string> = {
+  W: 'fix the per-workspace menu store in src/services/mcp/kitStore.ts (kitDeltasForWorkspace and the set...ForWorkspace writers), src/utils/config/projectConfig.ts (projectConfigKeyForWorkspace) or src/services/mcp/disabledRecord.ts',
+  A: 'fix the admission stamp in src/daemon/concourseWorkers.ts (makeConcourseAdmitHandler, updateConcourseWorkers) or kitStampOf in src/daemon/sessionKit.ts',
+  M: 'fix validateSessionKit in src/daemon/sessionKit.ts so the malformed kit refuses with the reason this check names',
+  R: 'fix restampSessionKit in src/daemon/sessionKit.ts or reactivateConcourseSession in src/daemon/concourseWorkers.ts',
+  S: 'fix applyConcourseKitOp in src/daemon/sessionKitOp.ts or applyKitEdit and validateSessionKitEdit in src/daemon/sessionKit.ts',
+  C: 'fix the carrier in src/services/switchboard/bootBirthFacts.ts (bootBirthFacts, setNextSessionFacts, carriedKitOf)',
+  D: 'fix deriveSessionKitForWorkspace in src/daemon/sessionKit.ts, or the admit handler in src/daemon/concourseWorkers.ts for D5',
+  H: 'fix kitMembership in src/services/mcp/membership.ts',
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : kitFailHints[label.charAt(0)] ?? ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${hint ? `${detail ? ' | ' : ' — '}${hint}` : ''}`)
 }
 function note(label: string): void {
   console.log(`  [NOTE] ${label}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — the session-kit prover exceeded 60s')
+  console.log('\nTIMEOUT — the session-kit prover exceeded 60s: an await never returned; find the last check printed above and read the daemon or store code that section exercises (src/daemon/concourseWorkers.ts, src/daemon/sessionKit.ts, src/services/mcp/kitStore.ts)')
   process.exit(1)
 }, 60_000)
 watchdog.unref?.()

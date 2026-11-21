@@ -25,6 +25,8 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
 }
+const patternHint = ' | fix suspiciousWindowsPattern in src/utils/permissions/windowsPath.ts: dot-led POSIX paths must return null, the Windows shapes (trailing dot or space, a/.../b, DOS device names) must keep their reason'
+const verdictHint = ' | fix checkReadPermissionForTool or getResolvedWorkingDirPaths in src/utils/permissions/filesystem.ts: a relative path is read against the session folder (the Grep tool getPath hands it unexpanded), and only the Windows-pattern and outside-folder cases may ask'
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
@@ -61,10 +63,10 @@ section('§1 the pattern: a bare dot, a double dot and a dot-led relative path a
 for (const platform of ['linux', 'macos', 'windows', 'wsl'] as const) {
   withPlatform(platform, () => {
     for (const path of ['.', '..', './x', '../x', './src/a.ts', 'src/.', 'src/..', '.\\x', '..\\x']) {
-      check(`${platform}: '${path}' is not a suspicious Windows pattern`, suspiciousWindowsPattern(path) === null, String(suspiciousWindowsPattern(path)))
+      check(`${platform}: '${path}' is not a suspicious Windows pattern`, suspiciousWindowsPattern(path) === null, String(suspiciousWindowsPattern(path)) + patternHint)
     }
     for (const [path, expected] of [['file.', 'trailing dot or whitespace'], ['file ', 'trailing dot or whitespace'], ['src/name.', 'trailing dot or whitespace'], ['C:\\dir\\name.', 'trailing dot or whitespace'], ['src/... ', 'trailing dot or whitespace'], ['a/.../b', 'consecutive dots as a path component'], ['CON', 'DOS device name']] as const) {
-      check(`${platform}: '${path}' still refuses as ${expected}`, suspiciousWindowsPattern(path) === expected, String(suspiciousWindowsPattern(path)))
+      check(`${platform}: '${path}' still refuses as ${expected}`, suspiciousWindowsPattern(path) === expected, String(suspiciousWindowsPattern(path)) + patternHint)
     }
   })
 }
@@ -76,13 +78,13 @@ const verdict = (path: string) => { getResolvedWorkingDirPaths.clearCache(); ret
 const host = getPlatform()
 {
   const dot = verdict('.')
-  check(`${host}: Grep with path '.' is allowed (the starting folder itself)`, dot.behavior === 'allow', JSON.stringify(dot))
+  check(`${host}: Grep with path '.' is allowed (the starting folder itself)`, dot.behavior === 'allow', JSON.stringify(dot) + verdictHint)
   const dotSlash = verdict('./src')
-  check(`${host}: Grep with path './src' is allowed`, dotSlash.behavior === 'allow', JSON.stringify(dotSlash))
+  check(`${host}: Grep with path './src' is allowed`, dotSlash.behavior === 'allow', JSON.stringify(dotSlash) + verdictHint)
   const parent = verdict('src/..')
-  check(`${host}: Grep with path 'src/..' is allowed (it is the starting folder)`, parent.behavior === 'allow', JSON.stringify(parent))
+  check(`${host}: Grep with path 'src/..' is allowed (it is the starting folder)`, parent.behavior === 'allow', JSON.stringify(parent) + verdictHint)
   const trailing = verdict('src/name.')
-  check(`${host}: Grep with path 'src/name.' still asks with the Windows-pattern reason`, trailing.behavior === 'ask' && JSON.stringify(trailing).includes('suspicious Windows path pattern'), JSON.stringify(trailing))
+  check(`${host}: Grep with path 'src/name.' still asks with the Windows-pattern reason`, trailing.behavior === 'ask' && JSON.stringify(trailing).includes('suspicious Windows path pattern'), JSON.stringify(trailing) + verdictHint)
 }
 
 section("§3 a relative path is read against the session's folder, never the process's: the process sits elsewhere, a worktree crewmate carries an override, a Bash cd moves the logical folder")
@@ -96,21 +98,21 @@ section("§3 a relative path is read against the session's folder, never the pro
   for (const path of ['.', './src', 'src']) {
     const away = verdict(path)
     const forms = getResolvedWorkingDirPaths(path)
-    check(`process elsewhere: Grep with path '${path}' is allowed and its real form sits under the starting folder`, away.behavior === 'allow' && forms.slice(1).every(underProject) && forms.length >= 2, `${JSON.stringify(away)} forms ${JSON.stringify(forms)}`)
+    check(`process elsewhere: Grep with path '${path}' is allowed and its real form sits under the starting folder`, away.behavior === 'allow' && forms.slice(1).every(underProject) && forms.length >= 2, `${JSON.stringify(away)} forms ${JSON.stringify(forms)}` + verdictHint)
   }
   process.chdir(project)
   runWithCwdOverride(elsewhere, () => {
     const inWorktree = verdict('./src')
     const forms = getResolvedWorkingDirPaths('./src')
-    check("a cwd override (a worktree crewmate): './src' resolves under the override, which is that context's starting folder, and is allowed", inWorktree.behavior === 'allow' && forms.includes(join(elsewhere, 'src')) && !forms.includes(join(project, 'src')), `${JSON.stringify(inWorktree)} forms ${JSON.stringify(forms)}`)
+    check("a cwd override (a worktree crewmate): './src' resolves under the override, which is that context's starting folder, and is allowed", inWorktree.behavior === 'allow' && forms.includes(join(elsewhere, 'src')) && !forms.includes(join(project, 'src')), `${JSON.stringify(inWorktree)} forms ${JSON.stringify(forms)}` + verdictHint)
   })
   bootstrap.setCwdState(elsewhere)
   const moved = verdict('./src')
   const movedForms = getResolvedWorkingDirPaths('./src')
-  check("after a Bash cd out of the starting folder: './src' is the search's own root under the new folder, so it asks as outside the starting folder (process.cwd() still names the starting folder)", moved.behavior === 'ask' && JSON.stringify(moved).includes('the path is outside the starting folder') && movedForms.includes(join(elsewhere, 'src')) && !movedForms.includes(join(project, 'src')), `${JSON.stringify(moved)} forms ${JSON.stringify(movedForms)}`)
+  check("after a Bash cd out of the starting folder: './src' is the search's own root under the new folder, so it asks as outside the starting folder (process.cwd() still names the starting folder)", moved.behavior === 'ask' && JSON.stringify(moved).includes('the path is outside the starting folder') && movedForms.includes(join(elsewhere, 'src')) && !movedForms.includes(join(project, 'src')), `${JSON.stringify(moved)} forms ${JSON.stringify(movedForms)}` + verdictHint)
   bootstrap.setCwdState(project)
   const back = checkReadPermissionForTool(grepLike as never, { pattern: 'needle', path: './src' }, context)
-  check("cd back: './src' is allowed again without clearing the memo (the memo is keyed by the folder for a relative spelling)", back.behavior === 'allow' && getResolvedWorkingDirPaths('./src').includes(join(project, 'src')), JSON.stringify(back))
+  check("cd back: './src' is allowed again without clearing the memo (the memo is keyed by the folder for a relative spelling)", back.behavior === 'allow' && getResolvedWorkingDirPaths('./src').includes(join(project, 'src')), JSON.stringify(back) + verdictHint)
 }
 
 console.log(`\n${failures === 0 ? 'ALL PASS' : `${failures} FAIL`} — ${checks} checks`)

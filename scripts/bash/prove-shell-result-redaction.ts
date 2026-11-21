@@ -39,11 +39,18 @@ writeFileSync(join(PROJECT, '.env'), `DB_PASSWORD=${PLANTED_PASSWORD}\nexport AP
 writeFileSync(join(PROJECT, 'auth.ts'), "const token = form.password\nconst apiKey = process.env.OPENAI_API_KEY\n")
 
 let failures = 0
+const REDACTION_FIX = 'change the result redaction in BashTool in src/tools/BashTool/BashTool.tsx (it applies createShellResultRedactor to the result, the thrown text and the persisted copy) and the redactor in src/utils/redactSecrets.ts'
+const REDACTOR_FIX = 'change createShellResultRedactor in src/utils/redactSecrets.ts (the shapes it replaces and the ones it leaves)'
+let redactionFix = REDACTION_FIX
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = detail === '' ? redactionFix : `${detail} | ${redactionFix}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
+const section = (t: string): void => {
+  redactionFix = t.startsWith('§8 ') ? REDACTOR_FIX : REDACTION_FIX
+  console.log('\n' + '─'.repeat(72) + '\n' + t)
+}
 const MARKER = '[redacted]'
 
 const { BashTool } = await import('../../src/tools/BashTool/BashTool.tsx')

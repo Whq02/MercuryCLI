@@ -13,14 +13,14 @@ const parserOf = (flags: readonly string[]): string | undefined => { const at = 
 
 for (const [source, rows] of [['src/services/host/recipes.ts', HOST_RECIPES], ['assets/host/recipes.json', shipped.recipes]] as const) {
   const vllm = rows.filter(row => row.engine === 'vllm')
-  check(source + ' carries vLLM recipes to check', vllm.length >= 3, String(vllm.length))
+  check(source + ' carries vLLM recipes to check', vllm.length >= 3, String(vllm.length) + ' | at least 3 recipes with engine vllm must be listed in ' + source)
   for (const row of vllm) {
     const parser = parserOf(row.flags)
-    check(source + ' · ' + row.id + ' pins the served vLLM version', row.image === 'vllm/vllm-openai:v0.32.0', row.image)
-    check(source + ' · ' + row.id + ' declares a tool-call parser and auto tool choice', parser !== undefined && parser !== '' && !parser.startsWith('--') && row.flags.includes('--enable-auto-tool-choice'), JSON.stringify(row.flags))
+    check(source + ' · ' + row.id + ' pins the served vLLM version', row.image === 'vllm/vllm-openai:v0.32.0', row.image + ' | set the image of recipe ' + row.id + ' to vllm/vllm-openai:v0.32.0 in ' + source)
+    check(source + ' · ' + row.id + ' declares a tool-call parser and auto tool choice', parser !== undefined && parser !== '' && !parser.startsWith('--') && row.flags.includes('--enable-auto-tool-choice'), JSON.stringify(row.flags) + ' | add --tool-call-parser <name> and --enable-auto-tool-choice to the flags of recipe ' + row.id + ' in ' + source)
   }
   const gptOss = vllm.filter(row => row.model === 'openai/gpt-oss-120b')
-  check(source + ' · both gpt-oss-120b shapes parse tool calls with the openai parser', gptOss.length === 2 && gptOss.every(row => parserOf(row.flags) === 'openai'), gptOss.map(row => row.id + ':' + parserOf(row.flags)).join(','))
-  check(source + ' · the gpt-oss-120b shapes keep prefix caching on', gptOss.every(row => row.flags.includes('--enable-prefix-caching')))
+  check(source + ' · both gpt-oss-120b shapes parse tool calls with the openai parser', gptOss.length === 2 && gptOss.every(row => parserOf(row.flags) === 'openai'), gptOss.map(row => row.id + ':' + parserOf(row.flags)).join(',') + ' | both openai/gpt-oss-120b recipes in ' + source + ' need --tool-call-parser openai')
+  check(source + ' · the gpt-oss-120b shapes keep prefix caching on', gptOss.every(row => row.flags.includes('--enable-prefix-caching'), 'a gpt-oss-120b recipe in ' + source + ' lacks --enable-prefix-caching in its flags'))
 }
 console.log('RECIPE TOOL PARSERS GREEN — ' + checks + ' checks; the shipped source and the exported file, no network')

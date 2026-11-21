@@ -12,6 +12,7 @@ const work = mkdtempSync(join(tmpdir(), 'vshot-ready-'))
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  if (!cond) console.log('    hint: fix the ready, stable, send and refusal handling in scripts/ui/vshot.py (the readyText, stableTicks, sends and progressBudgetTicks settings); checks 13 also read captureExitDetail in scripts/lib/spawnCapture.ts')
   if (!cond) failures++
 }
 

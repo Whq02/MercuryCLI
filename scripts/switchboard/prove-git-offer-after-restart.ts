@@ -40,9 +40,11 @@ process.env.MERCURY_DAEMON_DIR = daemonDir
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const fixWhere = 'change mintGitInitAsk (sidecar git-init-asks.json) and answerPermissionAsk (an answer after a restart applies once and settles the row) in src/daemon/permissionAsks.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = !cond ? `${detail ? `${detail} — ` : ''}fix: ${fixWhere}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const asks = await import('../../src/daemon/permissionAsks.js')

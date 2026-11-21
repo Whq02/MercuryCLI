@@ -12,7 +12,10 @@ const VERSION = (JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok || !detail ? '' : ` — ${detail}`}`)
-  if (!ok) failures++
+  if (!ok) {
+    failures++
+    console.log('    for the image shape (platform, user, /work, ENTRYPOINT, CMD, payload files) change Dockerfile and .dockerignore at the repo root; for run output, exit codes, the lineage ledger and SIGTERM handling change the headless run path that the image CMD run starts (check it with node dist/mercury.mjs run)')
+  }
 }
 const skip = (why: string): never => {
   console.log(`  [SKIP] headless image drive: ${why}`)

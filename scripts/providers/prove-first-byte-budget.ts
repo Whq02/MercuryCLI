@@ -30,12 +30,12 @@ console.log('============================================================')
 
 section('B1 · the budget arithmetic')
 {
-  check('warm prefix: the idle budget itself (2 min default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 120_000 && budget.streamIdleTimeoutMs() === 120_000)
-  check('cold prefix, 26k tokens on a 60 s idle budget: 60 s + 31.2 s = 91.2 s', budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 }) === 91_200, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 })))
-  check('cold prefix never sits below the idle budget (a tiny prompt)', budget.firstByteBudgetMs({ cold: true, promptTokens: 10, idleMs: 60_000 }) === 60_012 && budget.firstByteBudgetMs({ cold: true, promptTokens: 0, idleMs: 60_000 }) === 60_000)
-  check('the ceiling: a 1M-token prompt caps at twice the idle budget or 300 s, the larger (300 s on a 60 s budget and on the 2 min default; 30 min on the 15 min road)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 }) === 1_800_000, `${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 })}`)
-  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · 300,000 ms · twice the idle budget)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2)
-  check('the send-time estimate is the body\'s bytes, four to a token (never below one)', budget.estimateRequestTokens({ system: 'x'.repeat(4000) }) === Math.ceil(JSON.stringify({ system: 'x'.repeat(4000) }).length / 4) && budget.estimateRequestTokens(undefined) === 1)
+  check('warm prefix: the idle budget itself (2 min default)', budget.firstByteBudgetMs({ cold: false, promptTokens: 26_000 }) === 120_000 && budget.streamIdleTimeoutMs() === 120_000, 'a warm prefix must get the idle budget: fix firstByteBudgetMs or streamIdleTimeoutMs in src/services/providers/streamIdleBudget.ts')
+  check('cold prefix, 26k tokens on a 60 s idle budget: 60 s + 31.2 s = 91.2 s', budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 }) === 91_200, String(budget.firstByteBudgetMs({ cold: true, promptTokens: 26_000, idleMs: 60_000 })) + ' — fix the cold branch of firstByteBudgetMs in src/services/providers/streamIdleBudget.ts')
+  check('cold prefix never sits below the idle budget (a tiny prompt)', budget.firstByteBudgetMs({ cold: true, promptTokens: 10, idleMs: 60_000 }) === 60_012 && budget.firstByteBudgetMs({ cold: true, promptTokens: 0, idleMs: 60_000 }) === 60_000, 'the cold budget must be idle plus the ingest allowance and never below idle: fix firstByteBudgetMs in src/services/providers/streamIdleBudget.ts')
+  check('the ceiling: a 1M-token prompt caps at twice the idle budget or 300 s, the larger (300 s on a 60 s budget and on the 2 min default; 30 min on the 15 min road)', budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 }) === 300_000 && budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 }) === 1_800_000, `${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 60_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000 })} · ${budget.firstByteBudgetMs({ cold: true, promptTokens: 1_000_000, idleMs: 900_000 })} — fix the ceiling in firstByteBudgetMs in src/services/providers/streamIdleBudget.ts`)
+  check('the allowance and the ceiling are the owner\'s constants (1,200 ms per 1k · 300,000 ms · twice the idle budget)', budget.COLD_INGEST_MS_PER_1K_TOKENS === 1_200 && budget.FIRST_BYTE_BUDGET_CEILING_MS === 300_000 && budget.FIRST_BYTE_BUDGET_CEILING_FACTOR === 2, 'restore the three constants COLD_INGEST_MS_PER_1K_TOKENS, FIRST_BYTE_BUDGET_CEILING_MS and FIRST_BYTE_BUDGET_CEILING_FACTOR in src/services/providers/streamIdleBudget.ts')
+  check('the send-time estimate is the body\'s bytes, four to a token (never below one)', budget.estimateRequestTokens({ system: 'x'.repeat(4000) }) === Math.ceil(JSON.stringify({ system: 'x'.repeat(4000) }).length / 4) && budget.estimateRequestTokens(undefined) === 1, 'fix estimateRequestTokens in src/services/providers/streamIdleBudget.ts: bytes of the JSON body divided by four, rounded up, at least one')
 }
 
 section('B2 · the cold predicate')
@@ -44,33 +44,33 @@ section('B2 · the cold predicate')
   const opus = { type: 'assistant', message: { model: 'claude-opus-5', role: 'assistant', content: [] } }
   const fable = { type: 'assistant', message: { model: 'claude-fable-5-1', role: 'assistant', content: [] } }
   const boundary = { type: 'system', subtype: 'compact_boundary' }
-  check('a fresh session (no response yet) is cold', budget.coldPrefixOf([user], 'claude-opus-5') === true)
-  check('the same model answered last: warm', budget.coldPrefixOf([user, opus, user], 'claude-opus-5') === false)
-  check('another model answered last (the switch): cold', budget.coldPrefixOf([user, fable, user], 'claude-opus-5') === true)
-  check('a compaction boundary after the last response: cold', budget.coldPrefixOf([user, opus, boundary, user], 'claude-opus-5') === true)
-  check('a synthetic stamp is transparent (the real response behind it decides)', budget.coldPrefixOf([user, opus, { type: 'assistant', message: { model: '<synthetic>' } }], 'claude-opus-5') === false)
+  check('a fresh session (no response yet) is cold', budget.coldPrefixOf([user], 'claude-opus-5') === true, 'fix coldPrefixOf in src/services/providers/streamIdleBudget.ts: no assistant response yet must read cold')
+  check('the same model answered last: warm', budget.coldPrefixOf([user, opus, user], 'claude-opus-5') === false, 'fix coldPrefixOf in src/services/providers/streamIdleBudget.ts: the same model answering last must read warm')
+  check('another model answered last (the switch): cold', budget.coldPrefixOf([user, fable, user], 'claude-opus-5') === true, 'fix coldPrefixOf in src/services/providers/streamIdleBudget.ts: a different model answering last must read cold')
+  check('a compaction boundary after the last response: cold', budget.coldPrefixOf([user, opus, boundary, user], 'claude-opus-5') === true, 'fix coldPrefixOf in src/services/providers/streamIdleBudget.ts: a compact_boundary after the last response must read cold')
+  check('a synthetic stamp is transparent (the real response behind it decides)', budget.coldPrefixOf([user, opus, { type: 'assistant', message: { model: '<synthetic>' } }], 'claude-opus-5') === false, 'fix coldPrefixOf in src/services/providers/streamIdleBudget.ts: skip synthetic-stamped assistant messages when finding the last response')
 }
 
 section('B3 · the words')
 {
   const cold = { kind: 'first-byte' as const, cold: true, promptTokens: 26_000, model: 'Opus 5', budgetMs: 91_200, sinceMs: 0, attempt: 1 }
-  check('the cold wait names the prompt, the model and the budget — minutes at or above sixty seconds', budget.requestWaitLine(cold) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 1m 31s', budget.requestWaitLine(cold))
-  check('a reissued attempt says which attempt', budget.requestWaitLine({ ...cold, attempt: 2 }).endsWith('(attempt 2)'))
-  check('the warm wait names the model and the idle budget', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 60_000 }) === 'waiting for the first byte from Opus 5 — within 1m', budget.requestWaitLine({ ...cold, cold: false, budgetMs: 60_000 }))
-  check('a budget under a minute keeps its seconds', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 45_000 }) === 'waiting for the first byte from Opus 5 — within 45 s' && budget.requestWaitLine({ ...cold, budgetMs: 120_000 }) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 2m', budget.requestWaitLine({ ...cold, budgetMs: 120_000 }))
-  check('the retry wait names the attempt, the cause and the delay', budget.requestWaitLine({ kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 0 }) === 'retrying — attempt 2 of 10 after a 529 · in 4 s')
-  check('the typed timeout line names the wait and its cause (cold)', budget.firstByteTimeoutLine(cold) === 'no first byte from Opus 5 after 1m 31s (a 26k-token prompt ingesting uncached)', budget.firstByteTimeoutLine(cold))
-  check('  and the warm cause', budget.firstByteTimeoutLine({ ...cold, cold: false, budgetMs: 60_000 }) === 'no first byte from Opus 5 after 1m (the request was accepted and nothing arrived)')
-  check('the retry cause words: a status, a first-byte timeout, a connection error', budget.retryReasonWords(529) === 'a 529' && budget.retryReasonWords(null, 'no first byte from Opus 5 after 91 s (…)') === 'a first-byte timeout' && budget.retryReasonWords(undefined, 'socket hang up') === 'a connection error')
+  check('the cold wait names the prompt, the model and the budget — minutes at or above sixty seconds', budget.requestWaitLine(cold) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 1m 31s', budget.requestWaitLine(cold) + ' — fix the cold first-byte branch of requestWaitLine in src/services/providers/streamIdleBudget.ts')
+  check('a reissued attempt says which attempt', budget.requestWaitLine({ ...cold, attempt: 2 }).endsWith('(attempt 2)'), 'fix requestWaitLine in src/services/providers/streamIdleBudget.ts: a first-byte wait with attempt above 1 must end with (attempt N)')
+  check('the warm wait names the model and the idle budget', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 60_000 }) === 'waiting for the first byte from Opus 5 — within 1m', budget.requestWaitLine({ ...cold, cold: false, budgetMs: 60_000 }) + ' — fix the warm first-byte branch of requestWaitLine in src/services/providers/streamIdleBudget.ts')
+  check('a budget under a minute keeps its seconds', budget.requestWaitLine({ ...cold, cold: false, promptTokens: 900, budgetMs: 45_000 }) === 'waiting for the first byte from Opus 5 — within 45 s' && budget.requestWaitLine({ ...cold, budgetMs: 120_000 }) === 'ingesting a 26k-token prompt on Opus 5 — first byte expected within 2m', budget.requestWaitLine({ ...cold, budgetMs: 120_000 }) + ' — fix the duration words in requestWaitLine in src/services/providers/streamIdleBudget.ts')
+  check('the retry wait names the attempt, the cause and the delay', budget.requestWaitLine({ kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 0 }) === 'retrying — attempt 2 of 10 after a 529 · in 4 s', 'fix the retry branch of requestWaitLine in src/services/providers/streamIdleBudget.ts')
+  check('the typed timeout line names the wait and its cause (cold)', budget.firstByteTimeoutLine(cold) === 'no first byte from Opus 5 after 1m 31s (a 26k-token prompt ingesting uncached)', budget.firstByteTimeoutLine(cold) + ' — fix firstByteTimeoutLine in src/services/providers/streamIdleBudget.ts')
+  check('  and the warm cause', budget.firstByteTimeoutLine({ ...cold, cold: false, budgetMs: 60_000 }) === 'no first byte from Opus 5 after 1m (the request was accepted and nothing arrived)', 'fix the warm cause in firstByteTimeoutLine in src/services/providers/streamIdleBudget.ts')
+  check('the retry cause words: a status, a first-byte timeout, a connection error', budget.retryReasonWords(529) === 'a 529' && budget.retryReasonWords(null, 'no first byte from Opus 5 after 91 s (…)') === 'a first-byte timeout' && budget.retryReasonWords(undefined, 'socket hang up') === 'a connection error', 'fix retryReasonWords in src/services/providers/streamIdleBudget.ts: a status gives a N, a first-byte timeout message gives a first-byte timeout, anything else a connection error')
 }
 
 section('B4 · the wire shape')
 {
   const cold = { kind: 'first-byte', cold: true, promptTokens: 26_000, model: 'Opus 5', budgetMs: 91_200, sinceMs: 5, attempt: 1 }
   const retry = { kind: 'retry', attempt: 2, of: 10, reason: 'a 529', delayMs: 4_000, sinceMs: 7 }
-  check('a first-byte wait round-trips', JSON.stringify(budget.decodeRequestWait(JSON.parse(JSON.stringify(cold)))) === JSON.stringify(cold))
-  check('a retry wait round-trips', JSON.stringify(budget.decodeRequestWait(JSON.parse(JSON.stringify(retry)))) === JSON.stringify(retry))
-  check('junk decodes to null, never a cast-through', budget.decodeRequestWait({ kind: 'first-byte' }) === null && budget.decodeRequestWait('x') === null && budget.decodeRequestWait(null) === null && budget.decodeRequestWait({ kind: 'retry', attempt: 'two' }) === null)
+  check('a first-byte wait round-trips', JSON.stringify(budget.decodeRequestWait(JSON.parse(JSON.stringify(cold)))) === JSON.stringify(cold), 'fix decodeRequestWait in src/services/providers/streamIdleBudget.ts: a first-byte wait must decode with every field intact')
+  check('a retry wait round-trips', JSON.stringify(budget.decodeRequestWait(JSON.parse(JSON.stringify(retry)))) === JSON.stringify(retry), 'fix decodeRequestWait in src/services/providers/streamIdleBudget.ts: a retry wait must decode with every field intact')
+  check('junk decodes to null, never a cast-through', budget.decodeRequestWait({ kind: 'first-byte' }) === null && budget.decodeRequestWait('x') === null && budget.decodeRequestWait(null) === null && budget.decodeRequestWait({ kind: 'retry', attempt: 'two' }) === null, 'fix decodeRequestWait in src/services/providers/streamIdleBudget.ts: malformed input must return null')
 }
 
 section('B5 · the wiring (structural)')
@@ -104,7 +104,7 @@ section('B5 · the wiring (structural)')
   const streaming = waiting.status(shown).watchdogMs
   const unbudgeted = liveWith()
   unbudgeted.recomputeLive()
-  check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", outstanding === 90_000 && streaming === 30_000 && unbudgeted.status(shown).watchdogMs === null, JSON.stringify({ outstanding, streaming, neither: unbudgeted.status(shown).watchdogMs }))
+  check("the connector's 'aborts at' reads the wait's budget while the first byte is outstanding", outstanding === 90_000 && streaming === 30_000 && unbudgeted.status(shown).watchdogMs === null, JSON.stringify({ outstanding, streaming, neither: unbudgeted.status(shown).watchdogMs }) + ' — fix the watchdogMs read in src/services/engine-connector/daemon/live.ts: it must use the outstanding first-byte wait budget until a tail without a wait arrives')
 }
 
 section('F · the status row keeps the budget word on a narrow terminal (100 · 110 · 120 columns)')
@@ -117,12 +117,12 @@ section('F · the status row keeps the budget word on a narrow terminal (100 · 
   for (const columns of [100, 110, 120]) {
     const fitted = fitStatusLine(line, columns, fixedWidth)
     const budget = columns - fixedWidth
-    check(`${columns} columns: the fitted words end with the budget clause and fit the row (${stringWidth(fitted)} ≤ ${budget})`, fitted.endsWith('— first byte expected within 61 s') && stringWidth(fitted) <= budget, fitted)
+    check(`${columns} columns: the fitted words end with the budget clause and fit the row (${stringWidth(fitted)} ≤ ${budget})`, fitted.endsWith('— first byte expected within 61 s') && stringWidth(fitted) <= budget, fitted + ' — fix fitStatusLine in src/components/SwitchboardTagBar.tsx')
   }
-  check('a wide row paints the whole line', fitStatusLine(line, 150, fixedWidth) === line)
-  check('the cut is in the middle: the head survives with an ellipsis, the clause follows whole — never an end cut', /^ingesting[^…]*… — first byte expected within 61 s$/.test(fitStatusLine(line, 100, fixedWidth)), fitStatusLine(line, 100, fixedWidth))
-  check('a line without a tail clause is left to the row (an end cut is honest there)', fitStatusLine('thinking for 12s', 30, 25) === 'thinking for 12s')
-  check('truncateKeepingTail: a short line is untouched; a long one keeps the tail clause under the budget; a requested tail width keeps exactly that tail', truncateKeepingTail('a — b', 40) === 'a — b' && truncateKeepingTail('a very long head that overflows — kept', 20) === 'a very long… — kept' && truncateKeepingTail('abcdefghij', 6, 3) === 'ab…hij', JSON.stringify([truncateKeepingTail('a very long head that overflows — kept', 20), truncateKeepingTail('abcdefghij', 6, 3)]))
+  check('a wide row paints the whole line', fitStatusLine(line, 150, fixedWidth) === line, 'fix fitStatusLine in src/components/SwitchboardTagBar.tsx: a line that fits must come back unchanged')
+  check('the cut is in the middle: the head survives with an ellipsis, the clause follows whole — never an end cut', /^ingesting[^…]*… — first byte expected within 61 s$/.test(fitStatusLine(line, 100, fixedWidth)), fitStatusLine(line, 100, fixedWidth) + ' — fix fitStatusLine in src/components/SwitchboardTagBar.tsx to cut the middle, not the end')
+  check('a line without a tail clause is left to the row (an end cut is honest there)', fitStatusLine('thinking for 12s', 30, 25) === 'thinking for 12s', 'fix fitStatusLine in src/components/SwitchboardTagBar.tsx: a line with no tail clause must be returned as is')
+  check('truncateKeepingTail: a short line is untouched; a long one keeps the tail clause under the budget; a requested tail width keeps exactly that tail', truncateKeepingTail('a — b', 40) === 'a — b' && truncateKeepingTail('a very long head that overflows — kept', 20) === 'a very long… — kept' && truncateKeepingTail('abcdefghij', 6, 3) === 'ab…hij', JSON.stringify([truncateKeepingTail('a very long head that overflows — kept', 20), truncateKeepingTail('abcdefghij', 6, 3)]) + ' — fix truncateKeepingTail in src/utils/truncate.ts')
 }
 
 console.log(failures === 0 ? '\n ✅ FIRST-BYTE BUDGET — one number for the request and the row; the wait speaks; the notice tells the truth' : `\n ❌ ${failures} FAILED`)

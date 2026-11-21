@@ -16,9 +16,11 @@ const frameDir = ((): string | undefined => {
 if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let failures = 0
+const LOCAL_SERVER_FAILURE_HINT =
+  'fix the row words and rows in src/components/Settings/LocalServer.tsx, the knobs, memory fit and apply plan in src/services/localServer/ (localServerKnobs.ts, localServerMemory.ts, localServerApply.ts), whichever this check names'
 function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${LOCAL_SERVER_FAILURE_HINT}${detail ? `; got: ${detail}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

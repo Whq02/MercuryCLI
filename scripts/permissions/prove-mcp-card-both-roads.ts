@@ -21,10 +21,11 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+let whereToLook = ''
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}${!ok && whereToLook ? ` | to fix: ${whereToLook}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)
@@ -109,6 +110,7 @@ async function paint(confirm: Confirm, needle: string, frame: string): Promise<C
 
 section("§1 the tool as the session's own MCP client builds it")
 {
+  whereToLook = 'the tool description and its untrusted-source line are built in src/utils/mcp/toolCard.ts and the tools by fetchToolsForClient in src/services/mcp/client.ts'
   check("the three fixture tools are built from the servers' own lists", echo !== undefined && post !== undefined && ping !== undefined, j([...fixtureTools, ...quietTools].map(tool => tool.name)))
   check("a read-only tool that reaches nothing outside is described by the untrusted-source line, then the server's own words", (await echo?.description()) === `${HEADER}\n\n${ECHO_WORDS}`, j(await echo?.description()))
   check('a tool that states it reaches the open world says so in that line', (await post?.description()) === `${HEADER_OPEN}\n\n${POST_WORDS}`, j(await post?.description()))
@@ -153,12 +155,14 @@ async function hosted(tool: ToolLike | undefined, input: Record<string, unknown>
 const hostedEcho = await hosted(echo, { value: 'from-model' }, '(value: "from-model")', 'hosted-echo')
 const hostedPost = await hosted(post, { text: 'hello' }, '(text: "hello")', 'hosted-post')
 const hostedPing = await hosted(ping, { value: 'x' }, '(value: "x")', 'hosted-ping')
+whereToLook = 'the runner puts the MCP tool description on its ask in src/cli/headless/runnerAsks.ts and the daemon publishes it in src/daemon/permissionAsks.ts; the printed value is what the ask or row carried'
 check("the ask carries the tool's own description, as the session's client built it", hostedEcho.ask?.description === `${HEADER}\n\n${ECHO_WORDS}` && hostedPost.ask?.description === `${HEADER_OPEN}\n\n${POST_WORDS}`, j([hostedEcho.ask?.description, hostedPost.ask?.description]))
 check('…an empty one too, so the window can tell "this tool has no words" from "this runner sent none"', hostedPing.ask !== undefined && hostedPing.ask.description === '', j(hostedPing.ask))
 check('the title, the name and the input ride as before', hostedEcho.ask?.title !== undefined && hostedEcho.ask.tool_name === 'mcp__fixture__popup_echo' && j(hostedEcho.ask.input) === j({ value: 'from-model' }), j(hostedEcho.ask))
 check("the daemon publishes the description with the session's ask", typeof hostedEcho.row?.description === 'string' && hostedEcho.row.description === hostedEcho.ask?.description && hostedEcho.row.toolName === 'mcp__fixture__popup_echo', j(hostedEcho.row))
 
 section("§3 the window's card of the hosted session")
+whereToLook = 'the card is painted by src/components/permissions/PermissionRequest.tsx from the ask the window reads in src/services/engine-connector/daemonConnector.ts; the printed value is the painted lines'
 check("the read-only tool: the untrusted-source line, a gap, the server's words, then the question", hostedEcho.card !== null && j(hostedEcho.card.described) === j([HEADER, '', ECHO_WORDS]), j(hostedEcho.card?.lines))
 check('the open-world tool: the line that says it reaches external systems', hostedPost.card !== null && j(hostedPost.card.described) === j([HEADER_OPEN, '', POST_WORDS]), j(hostedPost.card?.lines))
 check('the trusted tool without words: nothing between its name and the question', hostedPing.card !== null && j(hostedPing.card.described) === j([]), j(hostedPing.card?.lines))
@@ -167,6 +171,7 @@ check("the ask's message is the window's own sentence, not the description", hos
 
 section('§4 what stays as it was')
 {
+  whereToLook = 'an ask without a description keeps its old stand-in line, and a tool the window holds itself carries none (src/cli/headless/runnerAsks.ts decides which tools carry one); the editor bridge title comes from permissionAskWire in src/services/acp/acpServer.ts'
   daemonAsks.holdWorkerAsk(WORKER, { kind: 'tool', tool_use_id: 'toolu_older', tool_name: 'mcp__fixture__popup_echo', title: 'popup_echo', input: { value: 'from-model' } }, daemonDir, undefined, () => 'attached')
   window.readAsks()
   const confirm = window.asks()[0]?.confirm

@@ -4,9 +4,10 @@ import { parse } from 'yaml'
 
 const root = join(import.meta.dir, '..', '..')
 let failures = 0
+const TESTER_DOOR_FAIL_HINT = 'where to look: the short form in .github/ISSUE_TEMPLATE/tester_report.yml and .github/ISSUE_TEMPLATE/config.yml; the command form in src/commands/feedback/issueForms.ts; the /bug --short route in src/commands/feedback/feedback.tsx; the session door in src/commands/feedback/testerDoor.ts (takeTesterDoor, sessionSawFailure); the installation counts paragraph in README.md'
 function check(name: string, ok: boolean): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok ? '' : ` — ${TESTER_DOOR_FAIL_HINT}`}`)
 }
 const path = join(root, '.github/ISSUE_TEMPLATE/tester_report.yml')
 check('the short tester form exists', existsSync(path))

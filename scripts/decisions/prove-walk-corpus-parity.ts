@@ -156,7 +156,7 @@ if (RECORD) {
   console.log(`\n  [RECORDED] ${rows.length} commands and ${crafted.length} hand-built trees with ${readings.length} distinct readings, ${peeled.size} commands that peelWrappers changes → ${FIXTURE}`)
 } else {
   section(`(1) the corpus — ${fixture.rows.length} commands, ${fixture.readings.length} distinct readings`)
-  check('the recorded corpus exists beside the proof', fixture.rows.length > 0, FIXTURE)
+  check('the recorded corpus exists beside the proof', fixture.rows.length > 0, `${FIXTURE} is absent or holds no rows; restore scripts/decisions/walk-corpus.json or record it with bun ${SELF} --record`)
   const moved: string[] = []
   const kinds = new Map<string, number>()
   const nodeTypes = new Set<string>()
@@ -186,11 +186,11 @@ if (RECORD) {
   )
   for (const line of moved.slice(0, SHOWN)) console.log(`    ${line}`)
   if (moved.length > SHOWN) console.log(`    … ${moved.length - SHOWN} more`)
-  check('the tree a parse leaves prepared reads as the command itself does', unprepared === 0, `${unprepared} commands read differently through preparedSecurityParse`)
-  check('every command of a simple reading is found again by its own text', lost === 0, `${lost} commands hold a part that preparedSecurityParse does not find`)
-  check('nodeTypeId gives the recorded id for every recorded kind', JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) === JSON.stringify(fixture.kinds), JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))))
-  check('every refusal kind the corpus meets has a recorded id', [...nodeTypes].every(name => name in fixture.kinds), [...nodeTypes].filter(name => !(name in fixture.kinds)).join(' '))
-  check('the corpus reaches both verdict kinds', (kinds.get('simple') ?? 0) > 0 && (kinds.get('too-complex') ?? 0) > 0, [...kinds.keys()].join(','))
+  check('the tree a parse leaves prepared reads as the command itself does', unprepared === 0, `${unprepared} commands read differently through preparedSecurityParse; make preparedSecurityParse in src/utils/bash/ast.ts return what parseForSecurity returns for a command the parser held`)
+  check('every command of a simple reading is found again by its own text', lost === 0, `${lost} commands hold a part that preparedSecurityParse does not find; make preparedSecurityParse in src/utils/bash/ast.ts find the text of each command of a simple reading`)
+  check('nodeTypeId gives the recorded id for every recorded kind', JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) === JSON.stringify(fixture.kinds), JSON.stringify(kindTable(Object.keys(fixture.kinds).filter(name => name !== 'undefined'))) + ' — nodeTypeId in src/utils/permissions/decision/commandAnalysis/exact.ts no longer gives the ids recorded under kinds in scripts/decisions/walk-corpus.json; keep the old ids, or record again with bun ' + SELF + ' --record if they were meant to change')
+  check('every refusal kind the corpus meets has a recorded id', [...nodeTypes].every(name => name in fixture.kinds), [...nodeTypes].filter(name => !(name in fixture.kinds)).join(' ') + ' — a refusal kind the corpus meets has no recorded id; record again with bun ' + SELF + ' --record')
+  check('the corpus reaches both verdict kinds', (kinds.get('simple') ?? 0) > 0 && (kinds.get('too-complex') ?? 0) > 0, [...kinds.keys()].join(',') + ' — the corpus must hold both simple and too-complex commands; check parseForSecurity in src/utils/bash/ast.ts and the rows of scripts/decisions/walk-corpus.json')
 
   section(`(2) trees no parse builds — ${fixture.crafted.length} built by hand, walked as given`)
   const bent = fixture.crafted.flatMap(([label, tree, reading]) => (craftedReading(tree) === (recorded[reading] ?? '') ? [] : [`${label}\n      recorded: ${recorded[reading] ?? ''}\n      now:      ${craftedReading(tree)}`]))
@@ -204,10 +204,10 @@ if (RECORD) {
   for (const line of unpeeled.slice(0, SHOWN)) console.log(`    ${line}`)
 
   section('(4) the door beside the walk')
-  check('a parse that did not finish reads as recorded', abortedPlainly === JSON.stringify(fixture.aborted), abortedPlainly)
-  check(`startedCommandText spells the ${STARTED.length} recorded starts as recorded`, startedNow === JSON.stringify(fixture.started), startedNow)
-  check('a command longer than the parser reads has no reading, and no command at all reads as none', (await ast.parseForSecurity(LONGER_THAN_THE_PARSER_READS)).kind === 'parse-unavailable' && JSON.stringify(await ast.parseForSecurity('')) === '{"kind":"simple","commands":[]}')
-  check('a text no parse has met is not found prepared', ast.preparedSecurityParse('no parse has met this text').kind === 'parse-unavailable')
+  check('a parse that did not finish reads as recorded', abortedPlainly === JSON.stringify(fixture.aborted), abortedPlainly + ' — fix parseForSecurityFromAst in src/utils/permissions/decision/commandAnalysis/exact.ts for a parse that did not finish, or record again with bun ' + SELF + ' --record if that was meant to change')
+  check(`startedCommandText spells the ${STARTED.length} recorded starts as recorded`, startedNow === JSON.stringify(fixture.started), startedNow + ' — fix startedCommandText in src/utils/bash/ast.ts, or record again with bun ' + SELF + ' --record if the spelling was meant to change')
+  check('a command longer than the parser reads has no reading, and no command at all reads as none', (await ast.parseForSecurity(LONGER_THAN_THE_PARSER_READS)).kind === 'parse-unavailable' && JSON.stringify(await ast.parseForSecurity('')) === '{"kind":"simple","commands":[]}', 'fix parseForSecurity in src/utils/bash/ast.ts: a command longer than the parser reads must give parse-unavailable, and an empty command must give simple with no commands')
+  check('a text no parse has met is not found prepared', ast.preparedSecurityParse('no parse has met this text').kind === 'parse-unavailable', 'fix preparedSecurityParse in src/utils/bash/ast.ts to give parse-unavailable for a text no parse has met')
 }
 
 console.log('\n============================================================')

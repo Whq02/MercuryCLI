@@ -120,17 +120,17 @@ console.log(`  scanned ${scanned} files; ${hits.length} line(s) still spell a re
 check(
   'no line under src, scripts, docs or the design system spells the box switch, the box module, the title row module, the box label, the title row, the flip action, the box command, the vitals rail\'s old module, model, bus, hook, row id, paint mark or painted header, or the rail\'s console and trace sections (their row kinds, ids, compose verbs, text shapers, hints, scenario and painted headers), or the realms panel, registry, command folder or suite folder, or the console store, ask, text, hand-off and side-question modules, command folder or suite folders, outside the pins that prove their absence',
   hits.length === 0,
-  `${hits.length} found:` + hits.slice(0, 60).map(h => `\n      ${h.file}:${h.line} (${h.word}) ${h.text}`).join('') + (hits.length > 60 ? `\n      … and ${hits.length - 60} more` : ''),
+  `${hits.length} found (reword or delete each listed line in its file; a file that must keep a retired word on purpose is added to the PINS list in scripts/identity/prove-view-words-gone.ts with its reason):` + hits.slice(0, 60).map(h => `\n      ${h.file}:${h.line} (${h.word}) ${h.text}`).join('') + (hits.length > 60 ? `\n      … and ${hits.length - 60} more` : ''),
 )
 const productPins = PINS.filter(([p]) => p.startsWith('src/'))
-check('no product file is a pin: the product carries none of the words', productPins.length === 0, productPins.map(([p]) => p).join(', '))
+check('no product file is a pin: the product carries none of the words', productPins.length === 0, productPins.map(([p]) => p).join(', ') + ' (a src/ file is listed in PINS in scripts/identity/prove-view-words-gone.ts: remove the retired word from that file and drop it from PINS)')
 const missingPins = PINS.filter(([p]) => !files.includes(p)).map(([p]) => p)
-check('every pin exists', missingPins.length === 0, missingPins.join(', '))
+check('every pin exists', missingPins.length === 0, missingPins.join(', ') + ' (these PINS entries in scripts/identity/prove-view-words-gone.ts name a file git does not track: drop or correct the entry)')
 const idlePins = PINS.filter(([p]) => files.includes(p) && !pinned.has(p)).map(([p]) => p)
-check('every pin still names a retired word (a pin that names none is not a pin)', idlePins.length === 0, idlePins.join(', '))
+check('every pin still names a retired word (a pin that names none is not a pin)', idlePins.length === 0, idlePins.join(', ') + ' (these PINS entries in scripts/identity/prove-view-words-gone.ts no longer hold a retired word: drop the entry)')
 const modules = ['src/components/mercury-ui/SessionTabs.tsx', 'src/utils/cockpit/sessionsBar.ts', 'src/components/HelmCenterHeader.tsx', 'src/commands/view', 'src/commands/view.ts', J('src/components/HelmTele', 'metryRail.tsx'), J('src/state/tele', 'metryBus.ts'), J('src/utils/cockpit/helmTele', 'metryModel.ts'), J('src/commands/', 'realms'), J('src/utils/realm', 'Registry.ts'), J('src/components/mercury-ui/parity/Realms', 'View.tsx'), J('scripts/', 'realms'), J('src/commands/', 'console'), J('src/utils/cockpit/helm', 'Console.ts'), J('src/utils/cockpit/helm', 'ConsoleAsk.ts'), J('src/utils/cockpit/helm', 'ConsoleText.ts'), J('src/services/crew/console', 'Handoff.ts'), J('src/utils/side', 'Question.ts'), J('scripts/helm-', 'console'), J('scripts/helm-', 'console-drives')]
 const standing = modules.filter(p => existsSync(join(ROOT, p)))
-check('the box module, its switch, the title row module, the box command module, the vitals rail\'s old module, model and bus and the realms command, registry, panel and suite and the console command, store, ask, text, hand-off and side-question modules and suites are gone from the tree', standing.length === 0, standing.join(', '))
+check('the box module, its switch, the title row module, the box command module, the vitals rail\'s old module, model and bus and the realms command, registry, panel and suite and the console command, store, ask, text, hand-off and side-question modules and suites are gone from the tree', standing.length === 0, standing.join(', ') + ' (delete these paths from the tree, or remove the entry from the modules list in scripts/identity/prove-view-words-gone.ts if it is no longer a retired module)')
 
 if (REPORT) {
   for (const [p, why] of [...EXCLUDED_AREAS, ...PINS]) console.log(`  ${p} — ${why}`)

@@ -22,12 +22,14 @@ process.env.MERCURY_REDUCED_MOTION = '1'
 
 let failures = 0
 let checks = 0
+let sectionFixWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && sectionFixWhere ? ` — change: ${sectionFixWhere}` : ''}`)
 }
-const section = (title: string): void => {
+const section = (title: string, fixWhere = ''): void => {
+  sectionFixWhere = fixWhere
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
 }
 
@@ -67,7 +69,7 @@ async function main(): Promise<void> {
   const readTurn = [{ type: 'user', message: { role: 'user', content: 'read' } }, asst([toolUse('t3', 'Read', { file_path: '/a/live.ts' })])]
   const inFlight = new Set(['t2'])
 
-  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb')
+  section('W1 the law: a delegation call in flight paints the roster\'s wait words; any other tool keeps its verb', 'delegationWaitWords in src/services/engine-connector/workCounts.ts, activeToolCall and isDelegationToolName in src/utils/cockpit/toolVerb.ts, waitingStatusWords in src/components/SwitchboardTagBar.tsx')
   {
     check('the pieces exist (delegationWaitWords · activeToolCall · isDelegationToolName)', lawful)
     check('a foreground Crewmate with a crewmate and a shell running reads the background wait\'s words', wait('Crewmate', rows) === WORDS, String(wait('Crewmate', rows)))
@@ -82,7 +84,7 @@ async function main(): Promise<void> {
     check('the background wait keeps its own words', bar.waitingStatusWords({ ...IDLE_LIVE, inFlight: true, phase: 'waiting', agentsWaiting: 1, waitingOn: counts.workCounts(rows), inProgressToolUseIDs: new Set<string>(), turnStartedAtMs: t0 }) === WORDS)
   }
 
-  section('W2 the working strip paints both cases with the same words')
+  section('W2 the working strip paints both cases with the same words', 'SpinnerWithVerb in src/components/Spinner.tsx and activeToolVerb in src/utils/cockpit/toolVerb.ts')
   const settle = async (): Promise<void> => {
     for (let index = 0; index < 6; index++) {
       ink.flushPendingSyncWork()
@@ -148,7 +150,7 @@ async function main(): Promise<void> {
   console.log(`  a Read in flight:      ${JSON.stringify(readFrame.trim())}`)
   check('a Read in flight beside a running shell keeps its own verb', readFrame.includes('Reading live.ts…') && !readFrame.includes('waiting on'), readFrame.trim())
 
-  section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster')
+  section('W3 the wiring: the Chat composes the words as the proof did, over the focused roster', 'LivePart in src/services/engine-connector/daemon/live.ts (the phase) and statusLine and statusRowWarns in src/components/SwitchboardTagBar.tsx')
   {
     const { LivePart } = await import(src('services/engine-connector/daemon/live.ts'))
     const phaseOver = (transcript: SessionLiveV1): string => {

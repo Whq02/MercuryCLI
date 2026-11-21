@@ -139,8 +139,8 @@ await waitFor(() => composerRow(m).includes(PLACEHOLDER), 8000)
 await settle(300)
 
 section(`§0 the commands on this screen at ${COLS}x${ROWS}`)
-check('/mission is the interactive command, a dialog the screen runs', mission?.type === 'local-jsx' && commandSeat(mission) === 'screen', `type ${mission?.type}`)
-check('/general is a command the screen runs with its argument', general?.type === 'local' && commandSeat(general) === 'screen', `type ${general?.type}`)
+check('/mission is the interactive command, a dialog the screen runs', mission?.type === 'local-jsx' && commandSeat(mission) === 'screen', `the mission command must stay a local-jsx command whose commandSeat in src/commands.ts is screen, type ${mission?.type}`)
+check('/general is a command the screen runs with its argument', general?.type === 'local' && commandSeat(general) === 'screen', `the general command must stay a local command whose commandSeat in src/commands.ts is screen, type ${general?.type}`)
 
 section('§1 a landed session: /mission with a typed goal, then with a pasted one')
 {
@@ -150,7 +150,7 @@ section('§1 a landed session: /mission with a typed goal, then with a pasted on
   await settle(300)
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check('a typed goal reaches the session as typed, sent by the mission command', whole(handed[before], '/mission', 'a typed goal, no paste in it') && handed[before]!.metaFrom === 'mission', says(handed[before]))
+  check('a typed goal reaches the session as typed, sent by the mission command', whole(handed[before], '/mission', 'a typed goal, no paste in it') && handed[before]!.metaFrom === 'mission', 'a typed /mission goal must reach the session connector unchanged with metaFrom mission: ' + says(handed[before]))
   await emptyComposer(m)
 }
 for (const [label, text] of [['one line of 800 characters', body('Alder')], ['five lines', body('Birch', 5)]] as const) {
@@ -158,9 +158,9 @@ for (const [label, text] of [['one line of 800 characters', body('Alder')], ['fi
   const line = await typeThenPaste(m, '/mission ', text)
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check(`a pasted goal, ${label}: the composer showed its placeholder and the session is handed the whole goal`, /^\/mission \[Pasted text #\d+( \+\d+ lines)?\]$/.test(line) && whole(handed[before], '/mission', text), `composer ${JSON.stringify(line)}; ${says(handed[before])}`)
+  check(`a pasted goal, ${label}: the composer showed its placeholder and the session is handed the whole goal`, /^\/mission \[Pasted text #\d+( \+\d+ lines)?\]$/.test(line) && whole(handed[before], '/mission', text), `a pasted /mission goal must show a Pasted text placeholder in the composer and be handed to the session expanded to the whole text; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
   const set = await waitFor(() => m.screen().includes(`Mission set: ${text.slice(0, 30)}`), 3000)
-  check(`${label}: the command's own receipt names the goal it set, not a placeholder`, set && !m.screen().includes('Mission set: [Pasted text'), m.lines().filter(row => row.includes('Mission')).join(' | '))
+  check(`${label}: the command's own receipt names the goal it set, not a placeholder`, set && !m.screen().includes('Mission set: [Pasted text'), 'the /mission receipt must name the expanded goal, not the Pasted text placeholder: ' + m.lines().filter(row => row.includes('Mission')).join(' | '))
   await emptyComposer(m)
 }
 {
@@ -169,7 +169,7 @@ for (const [label, text] of [['one line of 800 characters', body('Alder')], ['fi
   const line = await typeThenPaste(m, '/mission first ', text, ' and last')
   m.push(KEY.enter)
   await waitFor(() => handed.length > before, 4000)
-  check('typed words around the paste keep their places', line.startsWith('/mission first [Pasted text #') && whole(handed[before], '/mission', `first ${text} and last`), `composer ${JSON.stringify(line)}; ${says(handed[before])}`)
+  check('typed words around the paste keep their places', line.startsWith('/mission first [Pasted text #') && whole(handed[before], '/mission', `first ${text} and last`), `words typed before and after a paste must stay in place around the expanded paste; composer ${JSON.stringify(line)}; ${says(handed[before])}`)
   await emptyComposer(m)
 }
 
@@ -184,13 +184,13 @@ section('§2 the same line sent while the session lands')
   await typeThenPaste(m, '/mission ', text)
   m.push(KEY.enter)
   const armed = await waitFor(() => m.screen().includes(LANDING_NOTICE) && pending.text() === '', 3000)
-  check('the line is taken and waits for the landing', armed && handed.length === before, `armed ${armed}; handed ${handed.length - before}`)
+  check('the line is taken and waits for the landing', armed && handed.length === before, `a /mission line sent while the session lands must be taken (landing notice shown, composer emptied) and held, not handed yet; armed ${armed}; handed ${handed.length - before}`)
   await settle(300)
   slot.setFocusedSessionConnector(recording)
   land()
   await landing
   await waitFor(() => handed.length > before, 5000)
-  check('when the session lands it is handed the whole goal', whole(handed[before], '/mission', text), says(handed[before]))
+  check('when the session lands it is handed the whole goal', whole(handed[before], '/mission', text), 'the line held during landing must be handed to the session with the whole expanded goal once it lands: ' + says(handed[before]))
   await emptyComposer(m)
 }
 
@@ -206,9 +206,9 @@ section('§3 a command queued behind another that has not settled')
   await typeThenPaste(m, '/mission ', text)
   m.push(KEY.enter)
   const queued = await waitFor(() => m.screen().includes('/mission queued'), 3000)
-  check('the second command is queued behind the first', queued && handed.length === before, `queued ${queued}; handed ${handed.length - before}`)
+  check('the second command is queued behind the first', queued && handed.length === before, `a second command sent before the first settles must show /mission queued and not be handed yet; queued ${queued}; handed ${handed.length - before}`)
   await waitFor(() => handed.length > before + 1, 8000)
-  check('the first is handed as typed, and the queued one with its whole goal', whole(handed[before], '/mission', 'a first goal, slow to be taken') && whole(handed[before + 1], '/mission', text), `${says(handed[before])}; ${says(handed[before + 1])}`)
+  check('the first is handed as typed, and the queued one with its whole goal', whole(handed[before], '/mission', 'a first goal, slow to be taken') && whole(handed[before + 1], '/mission', text), `the queued command must be handed after the first, with its whole expanded goal; ${says(handed[before])}; ${says(handed[before + 1])}`)
   await emptyComposer(m)
 }
 
@@ -219,7 +219,7 @@ section('§4 a command the screen runs itself: /general with a pasted text')
   const line = await typeThenPaste(m, '/general ', text)
   m.push(KEY.enter)
   await waitFor(() => channelArgs.length > before, 4000)
-  check('the command is called with the whole text', line.startsWith('/general [Pasted text #') && channelArgs[before] === text, `composer ${JSON.stringify(line)}; called with ${channelArgs[before]?.length ?? 0} characters: ${JSON.stringify((channelArgs[before] ?? '').slice(0, 70))}`)
+  check('the command is called with the whole text', line.startsWith('/general [Pasted text #') && channelArgs[before] === text, `a screen-run command must be called with the whole expanded paste as its argument; composer ${JSON.stringify(line)}; called with ${channelArgs[before]?.length ?? 0} characters: ${JSON.stringify((channelArgs[before] ?? '').slice(0, 70))}`)
   await emptyComposer(m)
 }
 {
@@ -229,7 +229,7 @@ section('§4 a command the screen runs itself: /general with a pasted text')
   await settle(300)
   m.push(KEY.enter)
   await waitFor(() => channelArgs.length > before, 4000)
-  check('a typed text reaches it as typed', channelArgs[before] === 'a typed note', JSON.stringify(channelArgs[before]))
+  check('a typed text reaches it as typed', channelArgs[before] === 'a typed note', 'a typed argument must reach the screen-run command unchanged: ' + JSON.stringify(channelArgs[before]))
   await emptyComposer(m)
 }
 

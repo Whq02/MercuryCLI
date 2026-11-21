@@ -47,6 +47,9 @@ function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
 }
 const j = (value: unknown): string => JSON.stringify(value) ?? ''
+const hintLoader = 'change detectInterruption or deserializeMessagesWithInterruptDetection in src/services/resume/conversationRecovery.ts (how the loader reads the turn-start and turn-end lines of the record). '
+const hintWriter = 'the record must carry the turn-start and turn-end lines; change the turn writer in src/utils/sessionStorage/writer.ts. '
+const hintWire = 'the resume request must say getResumePrompt() from src/services/resume/conversationRecovery.ts exactly once when the loader reads the turn as cut, and not otherwise. '
 
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — the proof exceeded 300s')
@@ -183,14 +186,14 @@ try {
       gateTheNextAnswerOnce(arena)
       await runUntilAskedAgainThenKill(arena, fixture, ['run', 'ASKED second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'], () => file)
       const rows = await recordOf(file)
-      check('A1 the scene: the first turn left its line, and the record ends on the row the run asked the model again with', first.exit === 0 && turnEndLines(file) === 1 && isTheAskAgain(lastSpoken(rows)), j({ exit: first.exit, lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta, text: j((lastSpoken(rows)?.message as { content?: unknown } | undefined)?.content).slice(0, 160) }))
+      check('A1 the scene: the first turn left its line, and the record ends on the row the run asked the model again with', first.exit === 0 && turnEndLines(file) === 1 && isTheAskAgain(lastSpoken(rows)), hintWriter + j({ exit: first.exit, lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta, text: j((lastSpoken(rows)?.message as { content?: unknown } | undefined)?.content).slice(0, 160) }))
       const read = await loaderOn(file, SID)
-      check('A2 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, j(read))
+      check('A2 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, hintLoader + j(read))
       const older = await asAnOlderBuildLeftIt(file, SID)
-      check('A3 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, j(older))
+      check('A3 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, hintLoader + j(older))
       const third = await run(arena, ['run', 'ASKED third prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
-      check('A4 a third process answers, and its request tells the model once that the previous run ended before its turn finished', third.exit === 0 && third.stdout.includes('ASKED-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${third.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${third.stderr.slice(-200)}`)
-      check('A5 …and that turn leaves its own line: the record reads as finished again', turnEndLines(file) === 2 && (await loaderOn(file, SID)).state === 'none', j({ lines: turnEndLines(file), read: await loaderOn(file, SID) }))
+      check('A4 a third process answers, and its request tells the model once that the previous run ended before its turn finished', third.exit === 0 && third.stdout.includes('ASKED-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `${hintWire}exit=${third.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${third.stderr.slice(-200)}`)
+      check('A5 …and that turn leaves its own line: the record reads as finished again', turnEndLines(file) === 2 && (await loaderOn(file, SID)).state === 'none', hintWriter + hintLoader + j({ lines: turnEndLines(file), read: await loaderOn(file, SID) }))
     } finally {
       await fixture.close()
     }
@@ -206,9 +209,9 @@ try {
       gateTheNextAnswerOnce(arena)
       const second = await run(arena, ['run', 'ANSWERED second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
       const file = transcriptOf(arena, SID)
-      check('B1 the run asks again, is answered and ends its turn: two turns, two lines, the ask-again in the record', first.exit === 0 && second.exit === 0 && second.stdout.includes('ANSWERED-AFTER-THE-ASK.') && turnEndLines(file) === 2 && readFileSync(file, 'utf8').includes(ASKED_AGAIN_WORDS), j({ first: first.exit, second: second.exit, lines: turnEndLines(file), err: second.stderr.slice(-200) }))
+      check('B1 the run asks again, is answered and ends its turn: two turns, two lines, the ask-again in the record', first.exit === 0 && second.exit === 0 && second.stdout.includes('ANSWERED-AFTER-THE-ASK.') && turnEndLines(file) === 2 && readFileSync(file, 'utf8').includes(ASKED_AGAIN_WORDS), 'a run whose turn.answer hook blocks once must ask again, be answered and end its turn with a turn-end line (src/utils/sessionStorage/writer.ts). ' + j({ first: first.exit, second: second.exit, lines: turnEndLines(file), err: second.stderr.slice(-200) }))
       const read = await loaderOn(file, SID)
-      check('B2 the loader reads a finished turn, no sentence', read.state === 'none' && read.sentence === 0, j(read))
+      check('B2 the loader reads a finished turn, no sentence', read.state === 'none' && read.sentence === 0, hintLoader + j(read))
     } finally {
       await fixture.close()
     }
@@ -225,15 +228,15 @@ try {
       const file = transcriptOf(arena, SID)
       const rows = await recordOf(file)
       const kinds = metaKindsOf(file)
-      check('C1 the scene: the same cut inside the first turn of a session: no turn ended in this record, and it ends on the row the run asked the model again with', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)), j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta }))
-      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), j(kinds))
+      check('C1 the scene: the same cut inside the first turn of a session: no turn ended in this record, and it ends on the row the run asked the model again with', turnEndLines(file) === 0 && isTheAskAgain(lastSpoken(rows)), hintWriter + j({ lines: turnEndLines(file), last: lastSpoken(rows)?.type, meta: lastSpoken(rows)?.isMeta }))
+      check('C2 the turn left one line that says it began, ahead of its first conversation row', kinds.filter(kind => kind === 'meta:turn-start').length === 1 && kinds.indexOf('meta:turn-start') < kinds.findIndex(kind => kind === 'input' || kind === 'output'), 'the first turn must write one turn-start line ahead of its first conversation row (src/utils/sessionStorage/writer.ts). ' + j(kinds))
       const read = await loaderOn(file, SID)
-      check('C3 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, j(read))
+      check('C3 the loader reads the turn as cut, and says so once', read.state === 'interrupted_prompt' && read.sentence === 1, hintLoader + j(read))
       const older = await asAnOlderBuildLeftIt(file, SID)
-      check('C4 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, j(older))
+      check('C4 control: the same conversation with no line anywhere (the record an older build leaves) is read as before, as a finished turn', older.state === 'none' && older.sentence === 0, hintLoader + j(older))
       const second = await run(arena, ['run', 'FIRST-TURN second prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
-      check('C5 a second process answers, and its request tells the model once that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('FIRST-TURN-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${second.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${second.stderr.slice(-200)}`)
-      check('C6 …and that turn leaves its own two lines: the record reads as finished again', turnEndLines(file) === 1 && metaKindsOf(file).filter(kind => kind === 'meta:turn-start').length === 2 && (await loaderOn(file, SID)).state === 'none', j({ kinds: metaKindsOf(file).filter(kind => kind.startsWith('meta:turn-')), read: await loaderOn(file, SID) }))
+      check('C5 a second process answers, and its request tells the model once that the previous run ended before its turn finished', second.exit === 0 && second.stdout.includes('FIRST-TURN-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `${hintWire}exit=${second.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${second.stderr.slice(-200)}`)
+      check('C6 …and that turn leaves its own two lines: the record reads as finished again', turnEndLines(file) === 1 && metaKindsOf(file).filter(kind => kind === 'meta:turn-start').length === 2 && (await loaderOn(file, SID)).state === 'none', hintWriter + hintLoader + j({ kinds: metaKindsOf(file).filter(kind => kind.startsWith('meta:turn-')), read: await loaderOn(file, SID) }))
     } finally {
       await fixture.close()
     }
@@ -270,13 +273,13 @@ try {
         const file = transcriptOf(arena, SID)
         const rows = await recordOf(file)
         const hiddenLast = rows.findLast(row => row.type === 'user')
-        check(`D ${scene.tag}: ${scene.says}: its turn ends with an outcome (${String(second?.status)}), and the runner ends when the window closes`, second !== null && typeof second.status === 'string' && code !== null, `outcome=${j(second).slice(0, 160)} exit=${code} ${host.stderr().slice(-200)}`)
-        check(`D ${scene.tag}: the record ends on a line: one for each of the two turns, the last behind every conversation row`, turnEndLines(file) === 2 && endsOnALine(file), j(kindsOf(file).slice(-6)))
-        if (scene.hidden) check(`D ${scene.tag}: the scene: the words stand in the record as a hidden user row that came from a screen command`, hiddenLast !== undefined && hiddenLast.isMeta === true && j(hiddenLast.origin).includes('screen-command'), j({ meta: hiddenLast?.isMeta, origin: hiddenLast?.origin }))
+        check(`D ${scene.tag}: ${scene.says}: its turn ends with an outcome (${String(second?.status)}), and the runner ends when the window closes`, second !== null && typeof second.status === 'string' && code !== null, `a hosted runner must end the turn with an outcome row and exit when its window closes (src/daemon/headlessRun.ts, buildRunnerInvocation). outcome=${j(second).slice(0, 160)} exit=${code} ${host.stderr().slice(-200)}`)
+        check(`D ${scene.tag}: the record ends on a line: one for each of the two turns, the last behind every conversation row`, turnEndLines(file) === 2 && endsOnALine(file), hintWriter + j(kindsOf(file).slice(-6)))
+        if (scene.hidden) check(`D ${scene.tag}: the scene: the words stand in the record as a hidden user row that came from a screen command`, hiddenLast !== undefined && hiddenLast.isMeta === true && j(hiddenLast.origin).includes('screen-command'), 'a screen-command prompt must be recorded as a hidden (isMeta) user row with origin screen-command. ' + j({ meta: hiddenLast?.isMeta, origin: hiddenLast?.origin }))
         const read = await loaderOn(file, SID)
-        check(`D ${scene.tag}: the loader reads a finished turn, no sentence`, read.state === 'none' && read.sentence === 0, j(read))
+        check(`D ${scene.tag}: the loader reads a finished turn, no sentence`, read.state === 'none' && read.sentence === 0, hintLoader + j(read))
         const later = await run(arena, ['run', 'HOSTED later prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
-        check(`D ${scene.tag}: a later process resumes by id and does not tell the model the run was stopped`, later.exit === 0 && wireSays(lastRequest(fixture), CONTINUATION) === 0, `exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
+        check(`D ${scene.tag}: a later process resumes by id and does not tell the model the run was stopped`, later.exit === 0 && wireSays(lastRequest(fixture), CONTINUATION) === 0, `${hintWire}exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
       } finally {
         await host.stop().catch(() => null)
         await fixture.close()
@@ -325,16 +328,16 @@ try {
       const boundaryAt = kinds.indexOf('boundary')
       const boundary = JSON.parse(readFileSync(copy, 'utf8').split('\n').find(line => line.includes('"kind":"boundary"')) ?? '{}') as { payload?: { fields?: { compactMetadata?: { preservedSegment?: unknown } } } }
       const startIds = readFileSync(copy, 'utf8').split('\n').filter(line => line.includes('"metaKind":"turn-start"')).map(line => (JSON.parse(line) as { payload: { fields: { turnId: string } } }).payload.fields.turnId)
-      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(copy).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(copy) === 1, j({ exit: first.exit, size: statSync(copy).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(copy) }))
-      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
+      check('E1 the scene: the record is past five mebibytes (a long session, here padded with queue rows of the kind every prompt leaves), its second turn folded the conversation and kept no tail, and it ends on the row the run asked the model again with', first.exit === 0 && statSync(copy).size > 5 * 1024 * 1024 && kinds.filter(kind => kind === 'boundary').length === 1 && !boundary.payload?.fields?.compactMetadata?.preservedSegment && isTheAskAgain(lastSpoken(await recordOf(file))) && turnEndLines(copy) === 1, 'the fixture record did not reach the cut-after-fold scene; check the compaction settings set on arena.env and the turn writer in src/utils/sessionStorage/writer.ts. ' + j({ exit: first.exit, size: statSync(copy).size, boundaries: kinds.filter(kind => kind === 'boundary').length, tail: kinds.slice(boundaryAt), ends: turnEndLines(copy) }))
+      check("E2 the folding turn said that it began ahead of its rows and says it again behind the boundary, under the one turn's id", startIds.length === 3 && startIds[1] === startIds[2] && startIds[0] !== startIds[1] && kinds.indexOf('meta:turn-start', boundaryAt) === boundaryAt + 1, 'a turn that folds the conversation must write turn-start again right behind the boundary under the same turn id (src/utils/sessionStorage/writer.ts, fold.ts). ' + j({ startIds, behind: kinds.slice(boundaryAt, boundaryAt + 3) }))
       const beside = readdirSync(dirname(copy)).filter(name => name !== `${SID}.jsonl`)
       const alone = await loaderOn(copy, SID)
-      check('E3 a copy of the record with nothing beside it (no snapshot of an earlier read) reads as cut, and says so once', beside.length === 0 && alone.state === 'interrupted_prompt' && alone.sentence === 1, j({ beside, alone }))
+      check('E3 a copy of the record with nothing beside it (no snapshot of an earlier read) reads as cut, and says so once', beside.length === 0 && alone.state === 'interrupted_prompt' && alone.sentence === 1, hintLoader + j({ beside, alone }))
       const later = await run(elsewhere, ['run', 'LONG third prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
-      check('E4 a later process that has only the copy answers, and its request tells the model once that the previous run ended before its turn finished', later.exit === 0 && later.stdout.includes('LONG-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
+      check('E4 a later process that has only the copy answers, and its request tells the model once that the previous run ended before its turn finished', later.exit === 0 && later.stdout.includes('LONG-RESUMED-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `${hintWire}exit=${later.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${later.stderr.slice(-200)}`)
       const snapshots = readdirSync(dirname(file)).filter(name => name.includes('resume-snapshot'))
       const inPlace = await run(arena, ['run', 'LONG fourth prompt.', '--model', MODEL, '--resume', SID, '--format', 'rows'])
-      check('E5 control: a later process where the record was written, beside the snapshot its own run left of an earlier read, is told once too', snapshots.length === 1 && inPlace.exit === 0 && inPlace.stdout.includes('LONG-IN-PLACE-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `snapshots=${j(snapshots)} exit=${inPlace.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${inPlace.stderr.slice(-200)}`)
+      check('E5 control: a later process where the record was written, beside the snapshot its own run left of an earlier read, is told once too', snapshots.length === 1 && inPlace.exit === 0 && inPlace.stdout.includes('LONG-IN-PLACE-REPLY.') && wireSays(lastRequest(fixture), CONTINUATION) === 1, `${hintWire}snapshots=${j(snapshots)} exit=${inPlace.exit} said=${wireSays(lastRequest(fixture), CONTINUATION)} ${inPlace.stderr.slice(-200)}`)
     } finally {
       await fixture.close()
     }

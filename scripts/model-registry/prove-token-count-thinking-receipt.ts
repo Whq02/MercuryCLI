@@ -10,7 +10,7 @@ const read = (path: string): string => readFileSync(join(ROOT, path), 'utf8')
 let failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}${condition ? '' : ' — the recorded receipt disagrees with this claim: restore scripts/model-registry/fixtures/sonnet-55-count-thinking-probe.json (sections 1 to 3) or scripts/model-registry/fixtures/sonnet-55-count-system-probe.json (section 4) to the wire answer it recorded'}`)
 }
 const show = (value: unknown): string => JSON.stringify(value)
 

@@ -61,9 +61,10 @@ const { isCurrentDirectoryBareGitRepo } = await import('../../src/utils/git.js')
 const { describeBashNotReadOnly } = await import('../../src/tools/BashTool/readOnlyValidation.js')
 
 let failures = 0
+let whereToLook = ''
 function check(label: string, ok: boolean, detail: unknown = ''): void {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${JSON.stringify(detail)} | to fix: ${whereToLook}`}`)
 }
 const prepare = (input: { command: string }) => BashTool.prepare!(input as never)
 const safe = (input: { command: string }) => BashTool.isReadOnly(input as never) && BashTool.isConcurrencySafe(input as never)
@@ -72,21 +73,24 @@ const cwd = (path: string) => {
   bootstrap.setCwdState(path)
 }
 const watchdog = setTimeout(() => {
-  console.error('linked-worktree-git-reads: timed out waiting for product marks')
+  console.error('linked-worktree-git-reads: timed out waiting for product marks; a step after the scratch repositories were built never returned, so look at BashTool.prepare in src/tools/BashTool/BashTool.tsx and describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts')
   process.exit(1)
 }, 60_000)
 
 try {
   console.log('§1 the gate reads a linked worktree as an ordinary repository, on every layout')
+  whereToLook = 'isCurrentDirectoryBareGitRepo in src/utils/git.ts must not call a main checkout or a linked worktree bare; the printed value is the verdict it returned'
   check('the main checkout of a repository that tracks refs/ and a file HEAD is not bare', isCurrentDirectoryBareGitRepo(repo) === false, isCurrentDirectoryBareGitRepo(repo))
   check('its linked worktree under .mercury/worktrees is not bare either', isCurrentDirectoryBareGitRepo(inside) === false, isCurrentDirectoryBareGitRepo(inside))
   check('its linked worktree outside the repository folder is not bare either', isCurrentDirectoryBareGitRepo(outside) === false, isCurrentDirectoryBareGitRepo(outside))
   check('a plain linked worktree (no bare-looking names in the tree) is not bare', isCurrentDirectoryBareGitRepo(plainLane) === false, isCurrentDirectoryBareGitRepo(plainLane))
   console.log('§2 a real bare repository and a planted redirect still go through the gate')
+  whereToLook = 'isCurrentDirectoryBareGitRepo in src/utils/git.ts must keep returning the bare-indicators and gitdir-redirect-plantable verdicts for these layouts; the printed value is what it returned'
   check('a real bare repository reads as bare structure', isCurrentDirectoryBareGitRepo(bare) === 'bare-indicators', isCurrentDirectoryBareGitRepo(bare))
   check('a .git file redirecting into its own folder is plantable', isCurrentDirectoryBareGitRepo(planted) === 'gitdir-redirect-plantable', isCurrentDirectoryBareGitRepo(planted))
   check('a planted worktree-shaped admin dir (commondir pointing back inside the folder) is plantable', isCurrentDirectoryBareGitRepo(plantedWorktree) === 'gitdir-redirect-plantable', isCurrentDirectoryBareGitRepo(plantedWorktree))
   console.log('§3 the read-only road: git ls-files and git status inside the linked worktree are read-only (a read-only crewmate runs them); the bare repository still asks')
+  whereToLook = 'the read-only verdict for git commands comes from describeBashNotReadOnly in src/tools/BashTool/readOnlyValidation.ts, which uses isCurrentDirectoryBareGitRepo in src/utils/git.ts; the printed value is the reason it gave'
   cwd(inside)
   const ls = { command: 'git ls-files | wc -l' }
   await prepare(ls)
@@ -104,6 +108,7 @@ try {
   const bareReason = await describeBashNotReadOnly(bareStatus.command)
   check('`git status` inside a real bare repository is not read-only and says why', !safe(bareStatus) && JSON.stringify(bareReason).includes('bare-repository structure'), bareReason)
   console.log('§4 a drive-letter gitdir pointer on Windows resolves (the hardened resolver keeps the root instead of walking from a bare separator)')
+  whereToLook = 'isCurrentDirectoryBareGitRepo in src/utils/git.ts must resolve a drive-letter gitdir pointer'
   if (process.platform === 'win32') {
     check('the linked worktree under .mercury/worktrees on this Windows box is not bare', isCurrentDirectoryBareGitRepo(inside) === false, isCurrentDirectoryBareGitRepo(inside))
     check('the plain linked worktree on this Windows box is not bare', isCurrentDirectoryBareGitRepo(plainLane) === false, isCurrentDirectoryBareGitRepo(plainLane))

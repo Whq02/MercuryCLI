@@ -222,10 +222,11 @@ if (process.argv[2] === 'child') {
 
 let failures = 0
 let checks = 0
+const failureHint = 'fix the update path (updateConcourseWorkers in src/daemon/concourseWorkers.ts; control-ops and dispatches in src/daemon/concourseDispatch.ts), then rerun with --keep to read the scratch folder'
 const check = (label: string, ok: boolean, detail: unknown = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${typeof detail === 'string' ? detail : JSON.stringify(detail)} · ${failureHint}`}`)
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))

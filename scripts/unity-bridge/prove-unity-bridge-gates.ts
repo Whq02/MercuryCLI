@@ -5,9 +5,11 @@ import { tmpdir } from 'node:os'
 import * as path from 'node:path'
 
 let failures = 0
+const GATES_FIX_HINT = 'change the gate in src/utils/unity/bridgeGates.ts (unityBridgeEnabled, unityBridgeToolCatalogEnabled, unityBridgePort, unityBridgeTokenOverride) or, for the registry rows in section 5, the MERCURY_UNITY flag rows read through getFlagSpec in src/substrate/flagRegistry.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${GATES_FIX_HINT}` : GATES_FIX_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

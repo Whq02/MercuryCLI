@@ -23,7 +23,10 @@ const { recordSignIn } = await import('../../src/utils/accounts/signInLedger.ts'
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
-  if (!cond) failures++
+  if (!cond) {
+    failures++
+    console.log('    fix geminiGeneration or newestGeminiGenerationFirst in src/services/providers/gemini/geminiCatalogue.ts (the sort), or computedDefault in src/services/model/computedDefault.ts (the default it picks from the sorted list)')
+  }
 }
 const defaultFor = async (list: string[]): Promise<{ setting?: string; why: string; source: string }> => {
   ids = list

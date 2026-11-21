@@ -49,6 +49,7 @@ function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  if (!ok) console.log(label.startsWith('lanes model') ? '    hint: fix the pointer built in buildLanesModel in src/services/cockpit/helmLanesModel.ts' : '    hint: fix the left rail pointer in src/services/cockpit/helmLanesModel.ts and the right rail pointer ("short height") in src/services/cockpit/helmVitalsModel.ts; rerun with --frames <dir> to write the frames')
 }
 
 const React = await import('react')

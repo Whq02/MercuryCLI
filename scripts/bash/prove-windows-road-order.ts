@@ -73,6 +73,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: make the road match this label in src/utils/shell/shellRecord.ts (startedBashVersion, shellRecord, shellRow) or src/utils/shell/windowsShellRoad.ts (armWindowsShellRoad, shellFollowsTheRecord, NO_SHELL_WAYS_OUT, PIN_WAYS_OUT)')
 }
 const section = (title: string): void => console.log(`\n${title}`)
 const source = (rel: string): string => join(ROOT, rel).replace(/\\/g, '\\\\')

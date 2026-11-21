@@ -14,7 +14,7 @@ for (const name of ['MERCURY_HOME', 'MERCURY_SEATS', 'MERCURY_CRITTER', 'MERCURY
 let failures = 0
 const check = (name: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${name}${ok || !detail ? '' : ` — ${detail}`}${ok ? '' : ' — the /localsetup popup (src/commands/localsetup/localsetup.tsx, shown by src/components/SettingsPopupSlot.tsx) painted something other than this check expects; compare its rows, keys and footer with the constants at the top of this proof'}`)
 }
 
 const COLS = 110

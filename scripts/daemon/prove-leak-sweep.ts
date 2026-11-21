@@ -7,9 +7,24 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'leak-sweep-home-'))
 delete process.env.MERCURY_HOME
 
 let failures = 0
+const leakFailureHints: Array<[string, string]> = [
+  ['A1a', 'fix subprocessEnv in src/utils/subprocessEnv.ts or pythonSpawnEnv in src/services/dap/debugpyResolver.ts'],
+  ['A2', 'fix execFileNoThrow in src/utils/execFileNoThrow.ts'],
+  ['A3', 'fix buildKernelEnv in src/services/eval/kernelEnv.ts'],
+  ['A4', 'fix the call of CronCreateTool (src/tools/ScheduleCronTool/CronCreateTool.ts) or ScheduleWakeupTool (src/tools/ScheduleWakeupTool/ScheduleWakeupTool.ts)'],
+  ['A5', 'fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts or saturnFactsOf in src/daemon/saturn.ts'],
+  ['A6', 'fix describeHeadersRedacted in src/utils/redactHeaders.ts'],
+  ['A7', 'fix validateSaturnSubmission or saturnSecretProseRefusal in src/daemon/saturn.ts, boxScheduleProblem in src/daemon/saturnBoxSchedules.ts, or the two schedule tools'],
+  ['B5', 'fix runHuggingfaceDeviceLogin in src/services/providers/huggingface/huggingfaceLogin.ts or runKimiDeviceLogin in src/services/providers/moonshot/moonshotLogin.ts'],
+  ['B4x', 'fix rearmWatchRoots or dispose in src/utils/skills/skillChangeDetector.ts'],
+]
+const leakHintOf = (label: string): string => {
+  const found = leakFailureHints.find(([prefix]) => label.startsWith(`${prefix} `))
+  return found ? ` · ${found[1]}` : ''
+}
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : `${detail ? '' : ' —'}${leakHintOf(label)}`}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

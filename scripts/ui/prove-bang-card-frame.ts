@@ -33,7 +33,7 @@ process.env.MERCURY_ENTRYPOINT = 'cli'
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change processBashCommand in src/services/processUserInput/processBashCommand.tsx (the card row and its stderr) or UserBashOutputMessage in src/components/messages/UserBashOutputMessage.tsx (the painted frame)' : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

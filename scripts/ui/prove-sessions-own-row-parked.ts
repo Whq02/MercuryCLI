@@ -10,6 +10,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  if (!cond) console.log('    hint: the words come from ownSessionStateWords in src/components/mercury-ui/screens/SessionManagerView.tsx; the park reason text is in src/daemon/run/shutdown.ts, so a record without parkedAt and parkReason after mercury daemon stop means the stop did not park the session')
 }
 const PARK_REASON = 'parked — the daemon was stopped'
 

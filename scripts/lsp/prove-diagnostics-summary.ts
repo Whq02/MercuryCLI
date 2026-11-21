@@ -5,7 +5,7 @@ import figures from 'figures'
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — change getSeveritySymbol or formatDiagnosticsSummary of DiagnosticTrackingService in src/utils/diagnosticTracking.ts so its output matches this check, or update the expected text in this proof'}`)
   if (!ok) failures++
 }
 const j = (v: unknown): string => JSON.stringify(v)

@@ -32,10 +32,11 @@ const frameDir = arg < 0 ? undefined : process.argv[arg + 1]
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let checks = 0
 let failures = 0
+let chipWhere = ''
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${!good && chipWhere ? `${detail ? '; ' : ' — '}${chipWhere}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -86,6 +87,7 @@ const leadModel = 'claude-fable-5-1'
 
 section("§0 the words: 'advisor · every N minutes' while the chat is effectively on; 'advisor · off in settings' when the chat is on but the settings are off; nothing when the chat's switch is off or the runner has not spoken")
 {
+  chipWhere = 'fix advisorChipWords in src/services/advisor/advisorSettings.ts so the chip words follow the facts this check names'
   const on: AdvisorFacts = { on: true, chat: true, settings: true, minutes: 10, model: MODEL }
   check('on · every 10 minutes', advisor.advisorChipWords(on) === 'advisor · every 10 minutes', j(advisor.advisorChipWords(on)))
   check('one minute reads singular', advisor.advisorChipWords({ ...on, minutes: 1 }) === 'advisor · every 1 minute')
@@ -97,6 +99,7 @@ section("§0 the words: 'advisor · every N minutes' while the chat is effective
 
 section("§1 the runner's own facts: advisorFacts() reads the effective test, the chat's switch, the settings, the minutes and the model, and rides the session facts answer under `advisor`")
 {
+  chipWhere = 'fix advisorFacts in src/services/advisor/advisorSettings.ts (or the connector that carries it: src/services/engine-connector/daemonConnector.ts, src/services/engine-connector/noSessionConnector.ts) so the facts match the expected object shown above'
   enableConfigs()
   const fresh = advisor.advisorFacts()
   check('a fresh runner: off, chat off, settings off, ten minutes, no model', j(fresh) === j({ on: false, chat: false, settings: false, minutes: 10, model: null }), j(fresh))
@@ -132,6 +135,7 @@ section("§1 the runner's own facts: advisorFacts() reads the effective test, th
 
 section("§2 the inline chat's statusline, rendered from source (the one surface that paints the frame's chips since the cockpit's sessions box left): the chip stands after the vitals while the chat is on, says off in settings when the settings are off, and is absent when the chat is off")
 {
+  chipWhere = 'fix how src/components/MercuryFrame.tsx paints the advisor chip on the status row from the focused connector advisorFacts() (the shown value is the status row as rendered)'
   process.env.MERCURY_FULLSCREEN = '0'
   let facts: AdvisorFacts | null = null
   const listeners = new Set<() => void>()

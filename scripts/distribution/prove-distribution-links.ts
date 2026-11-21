@@ -20,7 +20,7 @@ const ACTIVE = [
 for (const rel of ACTIVE) {
   const p = join(ROOT, rel)
   if (!existsSync(p)) {
-    check(`${rel} exists`, false)
+    check(`${rel} exists`, false, `restore ${rel} at the repo root, or remove it from ACTIVE in scripts/distribution/prove-distribution-links.ts if the page was retired on purpose`)
     continue
   }
   const text = readFileSync(p, 'utf8')
@@ -31,11 +31,11 @@ for (const rel of ACTIVE) {
     const abs = resolve(dirname(p), target)
     if (!existsSync(abs)) broken.push(target)
   }
-  check(`${rel}: all local links resolve`, broken.length === 0, broken.slice(0, 5).join(', '))
+  check(`${rel}: all local links resolve`, broken.length === 0, broken.slice(0, 5).join(', ') + ` — edit ${rel} so each of these link targets points at a file that exists (paths resolve from the folder of ${rel})`)
 }
 
 const readme = readFileSync(join(ROOT, 'README.md'), 'utf8')
-check('README carries the notices pointer', readme.includes('THIRD_PARTY_NOTICES.md'))
+check('README carries the notices pointer', readme.includes('THIRD_PARTY_NOTICES.md'), 'add a link to THIRD_PARTY_NOTICES.md in README.md')
 
 if (failures > 0) {
   console.log(`\nsignature links: RED (${failures})`)

@@ -29,16 +29,18 @@ const { TOOL_RESULT_CLEARED_MESSAGE } = await import('../../src/utils/toolResult
 
 let failures = 0
 let checks = 0
+let failureHint = 'to fix, change repeatedResultPointer in src/services/tools/loopGuard.ts, or REPEATED_RESULT_MIN_CHARS and REPEATED_RESULT_TAG in src/constants/toolLimits.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, failureHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
   if (!cond) failures++
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — repeated-result pointer prover exceeded 120s')
+  console.log('\nTIMEOUT — repeated-result pointer prover exceeded 120s; a scripted round never finished, look at query in src/query.ts and runToolUse in src/services/tools/toolExecution.ts for a tool call that never returns')
   process.exit(1)
 }, 120_000)
 watchdog.unref?.()

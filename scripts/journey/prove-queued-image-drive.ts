@@ -133,7 +133,7 @@ const childEnv: Record<string, string> = {
 const logFd = openSync(join(SCRATCH, 'daemon.log'), 'a')
 const daemon = spawn('node', [BIN, 'daemon', 'run', CWD], { cwd: CWD, env: childEnv, stdio: ['ignore', logFd, logFd] })
 const daemonLog = (): string => (existsSync(join(SCRATCH, 'daemon.log')) ? readFileSync(join(SCRATCH, 'daemon.log'), 'utf8') : '')
-check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), daemonLog().slice(-300))
+check('the daemon serves', await untilAsync(() => daemonLog().includes('control socket up'), 60_000), `${daemonLog().slice(-300)} — the daemon never printed control socket up; read the daemon log tail printed below and rebuild dist/mercury.mjs with bun run build.ts`)
 
 const ESC = String.fromCharCode(27)
 type Grid = { grid: { c: string }[][]; marks?: { label: string; grid: { c: string }[][] }[]; sendReceipts?: unknown; endReason?: string }
@@ -230,11 +230,11 @@ const leg1 = await capture(
   'Seen the image.',
   1150,
 )
-check('leg 1: the capture ran whole', leg1.status === 0 && leg1.payload !== null, `vshot exit ${leg1.status}: ${leg1.stderr.slice(-400)}`)
-check('leg 1: the first prompt started a turn the fixture holds open', markRows(leg1.payload, 'hold').some(r => r.includes(FIRST)) && markRows(leg1.payload, 'hold').some(r => r.includes('holding the turn open')), markRows(leg1.payload, 'hold').filter(r => /❯|holding/.test(r)).join(' | '))
-check('leg 1: the paste landed as [Image #1] while the turn ran', composer(markRows(leg1.payload, 'chip')).includes('[Image #1]'), composer(markRows(leg1.payload, 'chip')))
+check('leg 1: the capture ran whole', leg1.status === 0 && leg1.payload !== null, `vshot exit ${leg1.status}: ${leg1.stderr.slice(-400)} — scripts/ui/vshot.py did not finish or wrote no grid; read its stderr above`)
+check('leg 1: the first prompt started a turn the fixture holds open', markRows(leg1.payload, 'hold').some(r => r.includes(FIRST)) && markRows(leg1.payload, 'hold').some(r => r.includes('holding the turn open')), `${markRows(leg1.payload, 'hold').filter(r => /❯|holding/.test(r)).join(' | ')} — the first prompt did not start a held turn; check the fixture reply order in startFixtureApi above`)
+check('leg 1: the paste landed as [Image #1] while the turn ran', composer(markRows(leg1.payload, 'chip')).includes('[Image #1]'), `${composer(markRows(leg1.payload, 'chip'))} — the bracketed paste of the PNG path was not turned into an image chip in the composer`)
 const stored = storedFiles()
-check('leg 1: the paste is a file in the image store', stored.length === 1, stored.join(', '))
+check('leg 1: the paste is a file in the image store', stored.length === 1, `${stored.join(', ')} — expected exactly one file under image-cache in the config home; the paste is stored by storeImage in src/utils/imageStore.ts`)
 const storedSha = stored.length === 1 ? sha256(readFileSync(stored[0]!)) : ''
 console.log(`  store: ${stored.join(', ')} · sha256 ${storedSha.slice(0, 12)} · fixture sha256 ${sha256(pngBytes).slice(0, 12)}`)
 await untilAsync(() => requestsSaying(QUEUED).length >= 1, vshotBudgetMs(20_000))
@@ -247,18 +247,18 @@ const inputRow = records1.find(r => {
   const payload = r.payload as { kind?: string; content?: unknown } | undefined
   return payload?.kind === 'input' && JSON.stringify(payload.content ?? '').includes(QUEUED)
 })
-check('leg 1: the words folded into the running turn as a queued_command row (not a new turn)', queuedRow !== undefined && inputRow === undefined, `queued row ${queuedRow === undefined ? 'absent' : 'present'} · input row ${inputRow === undefined ? 'absent' : 'present'} · ${records1.length} records in ${transcriptFile() ?? 'no transcript'}`)
+check('leg 1: the words folded into the running turn as a queued_command row (not a new turn)', queuedRow !== undefined && inputRow === undefined, `queued row ${queuedRow === undefined ? 'absent' : 'present'} · input row ${inputRow === undefined ? 'absent' : 'present'} · ${records1.length} records in ${transcriptFile() ?? 'no transcript'} — a prompt sent while a turn runs must be recorded as a queued_command attachment, not as a new input turn`)
 const queuedPrompt = ((queuedRow?.payload as { fields?: { prompt?: unknown } } | undefined)?.fields?.prompt ?? null) as { type?: string; source?: { type?: string; data?: string } }[] | null
 const rowImage = Array.isArray(queuedPrompt) ? queuedPrompt.find(b => b.type === 'image') : undefined
 const rowImageSha = typeof rowImage?.source?.data === 'string' ? sha256(Buffer.from(rowImage.source.data, 'base64')) : ''
-check('leg 1: the transcript row keeps the image as the row carried it — the pasted bytes, never a store reference', rowImage !== undefined && rowImage.source?.type === 'base64' && rowImageSha === storedSha, JSON.stringify({ type: rowImage?.source?.type, sha256: rowImageSha.slice(0, 12) }))
+check('leg 1: the transcript row keeps the image as the row carried it — the pasted bytes, never a store reference', rowImage !== undefined && rowImage.source?.type === 'base64' && rowImageSha === storedSha, `${JSON.stringify({ type: rowImage?.source?.type, sha256: rowImageSha.slice(0, 12) })} — the queued_command row must carry the base64 bytes of the paste, not a mercury-stored-image reference; look at where the row is built from the pasted content`)
 const folded = requestsSaying(QUEUED)
-check('leg 1: the next request after the fold reached the wire', folded.length >= 1, `${api.messageRequests().length} message request(s)`)
+check('leg 1: the next request after the fold reached the wire', folded.length >= 1, `${api.messageRequests().length} message request(s) — no request carried the queued words; the folded prompt was never sent to the model after the running turn`)
 const foldedImages = folded.flatMap(r => imagesOf(r.body))
 console.log(`  leg 1 wire: request(s) ${folded.map(r => r.n).join(',')} · image blocks ${describe(foldedImages)}`)
-check('leg 1: the wire carries no store reference', foldedImages.length >= 1 && foldedImages.every(i => i.type !== STORED_IMAGE_SOURCE_TYPE), describe(foldedImages))
-check('leg 1: the wire carries the pasted bytes as base64', foldedImages.some(i => i.type === 'base64' && i.sha256 === storedSha), describe(foldedImages))
-check('leg 1: the fixture\'s reply landed on the glass', markRows(leg1.payload, 'reply').some(r => r.includes('Seen the image.')), markRows(leg1.payload, 'reply').filter(r => /Mercury\]/.test(r)).join(' | '))
+check('leg 1: the wire carries no store reference', foldedImages.length >= 1 && foldedImages.every(i => i.type !== STORED_IMAGE_SOURCE_TYPE), `${describe(foldedImages)} — a store reference reached the wire or no image did; references must be read back to base64 before the request, see readStoredImageRefsForRequest in src/utils/imageStore.ts`)
+check('leg 1: the wire carries the pasted bytes as base64', foldedImages.some(i => i.type === 'base64' && i.sha256 === storedSha), `${describe(foldedImages)} — the wire image must be base64 with the sha256 of the stored paste; see readStoredImageRef in src/utils/imageStore.ts`)
+check('leg 1: the fixture\'s reply landed on the glass', markRows(leg1.payload, 'reply').some(r => r.includes('Seen the image.')), `${markRows(leg1.payload, 'reply').filter(r => /Mercury\]/.test(r)).join(' | ')} — the fixture reply Seen the image. did not render; read the reply frame and the daemon log tail below`)
 
 console.log('\n── leg 2: the session brought back with the row in its history ──')
 const leg2 = await capture(
@@ -271,20 +271,20 @@ const leg2 = await capture(
   'Seen it again.',
   750,
 )
-check('leg 2: the capture ran whole', leg2.status === 0 && leg2.payload !== null, `vshot exit ${leg2.status}: ${leg2.stderr.slice(-400)}`)
-check('leg 2: the session came back with its history on the glass', markRows(leg2.payload, 'typed2').some(r => r.includes(FIRST)), markRows(leg2.payload, 'typed2').filter(r => /❯/.test(r)).join(' | '))
+check('leg 2: the capture ran whole', leg2.status === 0 && leg2.payload !== null, `vshot exit ${leg2.status}: ${leg2.stderr.slice(-400)} — scripts/ui/vshot.py did not finish or wrote no grid; read its stderr above`)
+check('leg 2: the session came back with its history on the glass', markRows(leg2.payload, 'typed2').some(r => r.includes(FIRST)), `${markRows(leg2.payload, 'typed2').filter(r => /❯/.test(r)).join(' | ')} — mercury --continue did not restore the first session history; check that the leg 1 transcript was written`)
 await untilAsync(() => requestsSaying(RESUMED).length >= 1, vshotBudgetMs(20_000))
 const resumed = requestsSaying(RESUMED)
-check('leg 2: the resumed session\'s send reached the wire', resumed.length >= 1, `${api.messageRequests().length} message request(s)`)
+check('leg 2: the resumed session\'s send reached the wire', resumed.length >= 1, `${api.messageRequests().length} message request(s) — the resumed session send never reached the fixture API; read the leg 2 frames below`)
 const resumedImages = resumed.flatMap(r => imagesOf(r.body))
 console.log(`  leg 2 wire: request(s) ${resumed.map(r => r.n).join(',')} · image blocks ${describe(resumedImages)}`)
-check('leg 2: the history\'s image reaches the wire as no store reference', resumedImages.length >= 1 && resumedImages.every(i => i.type !== STORED_IMAGE_SOURCE_TYPE), describe(resumedImages))
-check('leg 2: the history\'s image reaches the wire as the pasted bytes', resumedImages.some(i => i.type === 'base64' && i.sha256 === storedSha), describe(resumedImages))
-check('leg 2: the fixture\'s reply landed on the glass', markRows(leg2.payload, 'reply2').some(r => r.includes('Seen it again.')), markRows(leg2.payload, 'reply2').filter(r => /Mercury\]/.test(r)).join(' | '))
+check('leg 2: the history\'s image reaches the wire as no store reference', resumedImages.length >= 1 && resumedImages.every(i => i.type !== STORED_IMAGE_SOURCE_TYPE), `${describe(resumedImages)} — a store reference or no image reached the wire on resume; references must be read back before the request, see readStoredImageRefsForRequest in src/utils/imageStore.ts`)
+check('leg 2: the history\'s image reaches the wire as the pasted bytes', resumedImages.some(i => i.type === 'base64' && i.sha256 === storedSha), `${describe(resumedImages)} — the resumed history image must be base64 with the sha256 of the stored paste; see readStoredImageRef in src/utils/imageStore.ts`)
+check('leg 2: the fixture\'s reply landed on the glass', markRows(leg2.payload, 'reply2').some(r => r.includes('Seen it again.')), `${markRows(leg2.payload, 'reply2').filter(r => /Mercury\]/.test(r)).join(' | ')} — the fixture reply Seen it again. did not render; read the reply2 frame and the daemon log tail below`)
 const records2 = transcriptRecords()
 const referenceInTranscript = records2.some(r => JSON.stringify(r).includes(STORED_IMAGE_SOURCE_TYPE))
 const bytesRows = records2.filter(r => JSON.stringify(r).includes(pngBytes.toString('base64').slice(0, 64)))
-check('leg 2: the transcript keeps the one row with the bytes and no store reference', !referenceInTranscript && bytesRows.length === 1, `${records2.length} records · reference ${referenceInTranscript ? 'present' : 'absent'} · rows with the bytes ${bytesRows.length}`)
+check('leg 2: the transcript keeps the one row with the bytes and no store reference', !referenceInTranscript && bytesRows.length === 1, `${records2.length} records · reference ${referenceInTranscript ? 'present' : 'absent'} · rows with the bytes ${bytesRows.length} — the transcript must hold the paste bytes in exactly one row and never the mercury-stored-image reference; look at what is written to the session transcript for a queued image`)
 
 const evidence = [[leg1.payload, 'face'], [leg1.payload, 'typed'], [leg1.payload, 'hold'], [leg1.payload, 'chip'], [leg1.payload, 'sent'], [leg1.payload, 'reply'], [leg2.payload, 'typed2'], [leg2.payload, 'reply2']] as const
 if (FRAMES !== null) {

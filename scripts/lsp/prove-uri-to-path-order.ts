@@ -5,7 +5,7 @@ const { uriToPath } = await import('../../src/tools/LSPTool/formatters.ts')
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${cond ? '' : ' | change uriToPath in src/tools/LSPTool/formatters.ts: decode the percent escapes first, then strip the slash before a drive letter'}`)
   if (!cond) failures++
 }
 

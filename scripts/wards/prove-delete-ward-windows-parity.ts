@@ -1,9 +1,11 @@
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
+const PARITY_FAIL_HINT = 'fix: the rules no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS (src/utils/wards/wards.ts), and for the cd and lister cases refusalOfShellCommand in src/utils/wards/wardsRefusals.ts; the detail above is the rule that answered'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' | ' : ''}${PARITY_FAIL_HINT}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

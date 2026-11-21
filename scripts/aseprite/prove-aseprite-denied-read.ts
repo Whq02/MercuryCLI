@@ -74,7 +74,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + (detail ? detail + ' | ' : '') + 'the tool must refuse (and not list) a sprite file exactly when a direct Read of it is denied, and answer as before otherwise; change checkPermissions in src/tools/AsepriteTool/AsepriteTool.ts to use checkReadPermissionForTool from src/utils/permissions/filesystem.ts for every file the call names' : ''}`)
   if (!cond) failures++
 }
 

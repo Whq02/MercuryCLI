@@ -21,9 +21,12 @@ type Groups = ReturnType<typeof deriveFamilySlotGroups>
 type Slot = Groups[number]['slots'][number]
 
 let failures = 0
+const SLOT_FAILURE_HINT =
+  'fix the slot derivation in src/services/providers/accountSlots.ts (deriveFamilySlotGroups) or the routed removal in src/services/providers/accountSlots/removal.ts (executeSlotRemoval), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = detail ? `${detail}; ${SLOT_FAILURE_HINT}` : SLOT_FAILURE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

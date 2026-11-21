@@ -273,13 +273,13 @@ console.log('============================================================')
 
 try {
   bootDaemon()
-  check('daemon boots and answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+  check('daemon boots and answers ping', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), `the daemon never answered ping in 60s; read ${logPath} and the startup in src/daemon/main.ts`)
 
   const preAdmit = await admitSession({ model: 'compat/legacy-model' })
   check(
     'control before registration: unconfigured compat model is refused with no-credential:openai-compat',
     !preAdmit.ok && (preAdmit.error ?? '').includes('no-credential:openai-compat'),
-    preAdmit.ok ? 'unexpectedly admitted' : (preAdmit.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must refuse an unconfigured compat model with no-credential:openai-compat; ${preAdmit.ok ? 'unexpectedly admitted' : (preAdmit.error ?? '')}`,
   )
 
   writeUserSettings({
@@ -298,19 +298,19 @@ try {
   check(
     '(1a) screenBirthModel() preserves saved engine.model on a keyless named compat home',
     screenBirthModel() === FULL_MODEL,
-    `screenBirthModel=${String(screenBirthModel())}`,
+    `screenBirthModel in src/services/switchboard/bootBirthFacts.ts must keep the saved engine.model when a keyless named compat endpoint runs it; screenBirthModel=${String(screenBirthModel())}`,
   )
   const firstBirth = await admitSession({ model: FULL_MODEL })
   check(
     '(1b) new session on compat/llmhost/<model> is admitted by the daemon',
     firstBirth.ok === true && firstBirth.modelId === FULL_MODEL,
-    firstBirth.ok ? `admitted modelId=${firstBirth.modelId}` : (firstBirth.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must admit a keyless named compat model; ${firstBirth.ok ? `admitted modelId=${firstBirth.modelId}` : (firstBirth.error ?? '')}`,
   )
   const defaultBirth = await admitSession()
   check(
     '(1c) unnamed new session resolves engine.model = compat/llmhost/<model> and is admitted',
     defaultBirth.ok === true && defaultBirth.modelId === FULL_MODEL,
-    defaultBirth.ok ? `admitted modelId=${defaultBirth.modelId}` : (defaultBirth.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must resolve a model-less birth to the saved engine.model; ${defaultBirth.ok ? `admitted modelId=${defaultBirth.modelId}` : (defaultBirth.error ?? '')}`,
   )
   if (defaultBirth.ok) {
     await daemonControlRpc({ op: 'sessionRelease', runnerId: defaultBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
@@ -320,7 +320,7 @@ try {
   if (firstBirth.ok) {
     firstSessionId = firstBirth.sessionId
     const sent = await dispatchTurn(firstSessionId, 'Say hello from the keyless named compat fixture.')
-    check('(1d) first turn dispatches to the born session', sent.ok === true, JSON.stringify(sent))
+    check('(1d) first turn dispatches to the born session', sent.ok === true, `the sessionDispatch op in src/daemon/controlServer.ts must accept a turn for the born session; ${JSON.stringify(sent)}`)
     const settled = await untilAsync(
       () => turnSettled(firstSessionId) && transcriptText(firstSessionId).includes(FIXTURE_REPLY),
       60_000,
@@ -330,7 +330,7 @@ try {
       settled &&
         captures.some(c => c.path === '/v1/chat/completions' && c.model === WIRE_MODEL && c.auth === null) &&
         transcriptText(firstSessionId).includes(FIXTURE_REPLY),
-      JSON.stringify({ settled, captures, transcriptTail: transcriptText(firstSessionId).slice(-300) }),
+      `the keyless compat turn must reach the fixture with no Authorization header and settle in the transcript; read the daemon log at ${logPath}; ${JSON.stringify({ settled, captures, transcriptTail: transcriptText(firstSessionId).slice(-300) })}`,
     )
   } else {
     check('(1d) first turn dispatches to the born session', false, 'skipped — birth refused')
@@ -343,7 +343,7 @@ try {
     check(
       '(2a) /clear fresh-session admission succeeds on the same keyless named compat model',
       clearBirth.ok === true && clearBirth.sessionId !== firstSessionId && clearBirth.modelId === FULL_MODEL,
-      clearBirth.ok ? `sessionId=${clearBirth.sessionId} modelId=${clearBirth.modelId}` : (clearBirth.error ?? ''),
+      `the sessionAdmit op in src/daemon/controlServer.ts must admit a fresh session with vacatingSessionId on the same model; ${clearBirth.ok ? `sessionId=${clearBirth.sessionId} modelId=${clearBirth.modelId}` : (clearBirth.error ?? '')}`,
     )
     const parked = (await daemonControlRpc(
       { op: 'sessionControl', action: 'park', sessionId: firstSessionId, by: `operator:${process.pid}` } as never,
@@ -354,7 +354,7 @@ try {
       parked.ok === true &&
         readWorkerRec(firstSessionId)?.parkedAt !== undefined &&
         (clearBirth.ok ? readWorkerRec(clearBirth.sessionId)?.modelKey === FULL_MODEL : false),
-      JSON.stringify({ parked, oldRec: readWorkerRec(firstSessionId), newRec: clearBirth.ok ? readWorkerRec(clearBirth.sessionId) : null }),
+      `the sessionControl park action in src/daemon/controlServer.ts must park the vacated session and keep the fresh one live on the same model; ${JSON.stringify({ parked, oldRec: readWorkerRec(firstSessionId), newRec: clearBirth.ok ? readWorkerRec(clearBirth.sessionId) : null })}`,
     )
     if (clearBirth.ok) {
       const beforeCaptures = captures.length
@@ -366,7 +366,7 @@ try {
       check(
         '(2c) the fresh session born by /clear also answers from the fixture on the same model',
         clearTurn.ok === true && clearSettled && captures.length > beforeCaptures,
-        JSON.stringify({ clearTurn, clearSettled, newCaptures: captures.length - beforeCaptures }),
+        `the fresh session must answer a turn from the fixture; read the daemon log at ${logPath}; ${JSON.stringify({ clearTurn, clearSettled, newCaptures: captures.length - beforeCaptures })}`,
       )
       await daemonControlRpc({ op: 'sessionRelease', runnerId: clearBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
     } else {
@@ -399,7 +399,7 @@ try {
   check(
     '(3a) named endpoint with keyCommand and no key stored is refused with no-credential:openai-compat',
     !keyedRefusal.ok && keyedText.includes('no-credential:openai-compat'),
-    keyedText,
+    `the sessionAdmit op in src/daemon/controlServer.ts must refuse a keyCommand endpoint with no stored key as no-credential:openai-compat; got: ${keyedText}`,
   )
   check(
     "(3b) refusal words name the endpoint ('llmhost' needs a key: /logins compat/llmhost) instead of MERCURY_COMPAT_BASE_URL",
@@ -407,7 +407,7 @@ try {
       keyedText.includes(`the endpoint '${ENDPOINT_NAME}' needs a key: /logins compat/${ENDPOINT_NAME}`) &&
       keyedText.includes('MERCURY_COMPAT_LLMHOST_API_KEY') &&
       !keyedText.includes('MERCURY_COMPAT_BASE_URL'),
-    keyedText,
+    `the refusal for a named endpoint must name the endpoint, its /logins door and MERCURY_COMPAT_LLMHOST_API_KEY, never MERCURY_COMPAT_BASE_URL; got: ${keyedText}`,
   )
 
   section('§4 Legacy env endpoint without a key is still refused with today’s words')
@@ -427,14 +427,14 @@ try {
   check(
     '(4a) legacy compat/<model> without MERCURY_COMPAT_BASE_URL/key is refused even while a keyless named endpoint exists',
     !legacyUnconfigured.ok && legacyText.includes('no-credential:openai-compat'),
-    legacyText,
+    `the sessionAdmit op in src/daemon/controlServer.ts must still refuse a legacy compat model with no env endpoint; got: ${legacyText}`,
   )
   check(
     '(4b) legacy refusal names the product’s own doors, never an environment variable',
     !legacyUnconfigured.ok &&
       legacyText.includes('start an OpenAI-compatible endpoint with /llmhost, or pick another model with /model') && !legacyText.includes('MERCURY_COMPAT') &&
       legacyText.includes('the openai-compat family holds no credential on this account'),
-    legacyText,
+    `the legacy refusal must say to start an endpoint with /llmhost or pick another model with /model, without any MERCURY_COMPAT variable; got: ${legacyText}`,
   )
 
   section('§5 A keyCommand endpoint: each admission re-reads settings and never re-runs the key command')
@@ -468,12 +468,12 @@ try {
   check(
     '(5a) three births on the keyCommand endpoint are admitted on its model',
     keyedBirths.every(b => b.ok === true && b.modelId === FULL_MODEL),
-    JSON.stringify(keyedBirths.map(b => (b.ok ? b.modelId : b.error))),
+    `every admission on the keyCommand endpoint must succeed on its model; ${JSON.stringify(keyedBirths.map(b => (b.ok ? b.modelId : b.error)))}`,
   )
   check(
     '(5b) the daemon runs the key command once across the three admissions',
     daemonPid !== undefined && daemonKeyRuns === 1,
-    `daemon pid ${String(daemonPid)} ran it ${daemonKeyRuns} time(s); ${runLines.length} run(s) across every process`,
+    `the daemon must run the key command once and reuse the key for later admissions; daemon pid ${String(daemonPid)} ran it ${daemonKeyRuns} time(s); ${runLines.length} run(s) across every process`,
   )
 
   section('§6 A sign-out since: a saved engine.model nothing on the home can run births keyless, as before')
@@ -484,13 +484,13 @@ try {
   check(
     '(6a) the birth door carries no model when no credential on the home runs the saved engine.model',
     signedOutScreen === undefined,
-    `screenBirthModel=${String(signedOutScreen)}`,
+    `screenBirthModel in src/services/switchboard/bootBirthFacts.ts must return no model when no credential runs the saved engine.model; screenBirthModel=${String(signedOutScreen)}`,
   )
   const signedOutBirth = await admitSession()
   check(
     '(6b) the model-less birth the door sends is admitted keyless',
     signedOutBirth.ok === true && readWorkerRec(signedOutBirth.sessionId)?.keyless === true,
-    signedOutBirth.ok ? JSON.stringify(readWorkerRec(signedOutBirth.sessionId) ?? null) : (signedOutBirth.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must admit a model-less birth as keyless; ${signedOutBirth.ok ? JSON.stringify(readWorkerRec(signedOutBirth.sessionId) ?? null) : (signedOutBirth.error ?? '')}`,
   )
   if (signedOutBirth.ok) {
     await daemonControlRpc({ op: 'sessionRelease', runnerId: signedOutBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
@@ -499,7 +499,7 @@ try {
   check(
     '(6c) the saved model spelled out on that home is refused naming its family',
     !signedOutNamed.ok && (signedOutNamed.error ?? '').includes('no-credential:openai-compat'),
-    signedOutNamed.ok ? '(unexpectedly admitted)' : (signedOutNamed.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must refuse the spelled-out saved model with no-credential:openai-compat; ${signedOutNamed.ok ? '(unexpectedly admitted)' : (signedOutNamed.error ?? '')}`,
   )
   if (signedOutNamed.ok) {
     await daemonControlRpc({ op: 'sessionRelease', runnerId: signedOutNamed.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
@@ -511,11 +511,11 @@ try {
   writeUserSettings({ compatProvider: { [ENDPOINT_NAME]: { baseUrl, dialect: 'llamacpp' } } })
   try {
     const listed = compatSlotModelIds()
-    check('(7a) the env endpoint lists its model as compat/default/<id> beside the named endpoint', listed.includes('compat/default/env-slot-model'), JSON.stringify(listed))
+    check('(7a) the env endpoint lists its model as compat/default/<id> beside the named endpoint', listed.includes('compat/default/env-slot-model'), `compatSlotModelIds in src/services/providers/openaicompat/compatAccounts.ts must list the env endpoint models as compat/default/<id>; ${JSON.stringify(listed)}`)
     const resolvedDefault = compatModelEndpoint('compat/default/env-slot-model')
-    check('(7b) compat/default/<id> resolves to the env endpoint', resolvedDefault?.endpoint.name === 'default' && resolvedDefault.wireId === 'env-slot-model', JSON.stringify(resolvedDefault ?? null))
+    check('(7b) compat/default/<id> resolves to the env endpoint', resolvedDefault?.endpoint.name === 'default' && resolvedDefault.wireId === 'env-slot-model', `compatModelEndpoint in src/services/providers/openaicompat/compatAccounts.ts must resolve compat/default/<id> to the env endpoint; ${JSON.stringify(resolvedDefault ?? null)}`)
     const compatRows = loginFamilyRows({ engineLegs: true }).map(row => row.value).filter(value => value.startsWith('compat/'))
-    check('(7c) /logins offers the env endpoint its own key row (compat/default)', compatRows.includes('compat/default'), JSON.stringify(compatRows))
+    check('(7c) /logins offers the env endpoint its own key row (compat/default)', compatRows.includes('compat/default'), `loginFamilyRows in src/components/loginFamilyRows.ts must offer a compat/default row for the env endpoint; ${JSON.stringify(compatRows)}`)
   } finally {
     delete process.env.MERCURY_COMPAT_BASE_URL
     delete process.env.MERCURY_COMPAT_MODELS
@@ -533,12 +533,12 @@ try {
   const keyedDoor = "the endpoint 'keyed' needs a key: /logins compat/keyed"
   const keyedOptions = namedCompatModelOptions()
   const keyedRow = keyedOptions.find(option => option.value === '__mercury_connect__:compat/keyed')
-  check('(8a) the model picker offers the keyed endpoint its /logins door instead of a runnable model', keyedRow?.description?.toLowerCase() === keyedDoor && keyedRow.label.includes('/logins compat/keyed') && !keyedOptions.some(option => option.value === 'compat/keyed/keyed-model'), JSON.stringify(keyedRow ?? null))
+  check('(8a) the model picker offers the keyed endpoint its /logins door instead of a runnable model', keyedRow?.description?.toLowerCase() === keyedDoor && keyedRow.label.includes('/logins compat/keyed') && !keyedOptions.some(option => option.value === 'compat/keyed/keyed-model'), `namedCompatModelOptions in src/services/providers/openaicompat/compatCatalogue.ts must offer the /logins door row for a keyed endpoint without its key; ${JSON.stringify(keyedRow ?? null)}`)
   const modelsPage = await liveModelsReference({ engineModel: FULL_MODEL }, { boundMs: 1_000 })
   const keyedPage = modelsPage.providers.find(provider => provider.provider === 'openai-compat/keyed')
   const keylessPage = modelsPage.providers.find(provider => provider.provider === `openai-compat/${ENDPOINT_NAME}`)
-  check('(8b) mercury://models names the same door for the keyed endpoint, never "keyless"', keyedPage?.account === keyedDoor, JSON.stringify(keyedPage?.account ?? null))
-  check('(8c) the same page reads the keyless endpoint as keyless', keylessPage?.account?.endsWith('no key (local/auth-free endpoint)') === true, JSON.stringify(keylessPage?.account ?? null))
+  check('(8b) mercury://models names the same door for the keyed endpoint, never "keyless"', keyedPage?.account === keyedDoor, `liveModelsReference in src/services/resources/adapters/models.ts must give the keyed endpoint the /logins door as its account; ${JSON.stringify(keyedPage?.account ?? null)}`)
+  check('(8c) the same page reads the keyless endpoint as keyless', keylessPage?.account?.endsWith('no key (local/auth-free endpoint)') === true, `liveModelsReference in src/services/resources/adapters/models.ts must describe the keyless endpoint as no key (local/auth-free endpoint); ${JSON.stringify(keylessPage?.account ?? null)}`)
   const keyedEndpointBirth = await admitSession({ model: 'compat/keyed/keyed-model' })
   if (keyedEndpointBirth.ok) {
     await daemonControlRpc({ op: 'sessionRelease', runnerId: keyedEndpointBirth.runnerId } as never, { timeoutMs: 10_000 }).catch(() => undefined)
@@ -546,7 +546,7 @@ try {
   check(
     '(8d) the birth on the keyed endpoint is refused naming the same door',
     !keyedEndpointBirth.ok && (keyedEndpointBirth.error ?? '').includes(keyedDoor) && (keyedEndpointBirth.error ?? '').includes('MERCURY_COMPAT_KEYED_API_KEY'),
-    keyedEndpointBirth.ok ? '(unexpectedly admitted)' : (keyedEndpointBirth.error ?? ''),
+    `the sessionAdmit op in src/daemon/controlServer.ts must refuse a keyed endpoint without its key with the same /logins door and MERCURY_COMPAT_KEYED_API_KEY; ${keyedEndpointBirth.ok ? '(unexpectedly admitted)' : (keyedEndpointBirth.error ?? '')}`,
   )
 } finally {
   await stopDaemon()

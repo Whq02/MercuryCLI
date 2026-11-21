@@ -203,16 +203,16 @@ section('anthropic · Messages API')
   const o = await drive('claude-sonnet-5')
   const body = o.body ?? {}
   check('the turn settled clean on the fixture', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path === '/v1/messages', `threw=${String(o.threw)} errors=${o.errors.length} path=${o.path}`)
-  check('the operator system prompt rides the system field', text(body.system).includes(SYSTEM))
+  check('the operator system prompt rides the system field', text(body.system).includes(SYSTEM), 'the Anthropic request lost the system prompt; look at the request build reached through routedCallModel in src/services/providers/callModelRouter.ts')
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
-  check('tools ride as input_schema (the Anthropic spelling)', tools[0]?.name === BASH && typeof tools[0]?.input_schema === 'object')
+  check('tools ride as input_schema (the Anthropic spelling)', tools[0]?.name === BASH && typeof tools[0]?.input_schema === 'object', `first tool on the wire: ${text(tools[0]).slice(0, 200)}; the Anthropic request must carry the tool as name plus input_schema`)
   schemas.anthropic = tools[0]?.input_schema
   const messages = (body.messages as Array<Record<string, unknown>> | undefined) ?? []
   const toolUseMsg = messages.find(m => m.role === 'assistant' && text(m.content).includes('"call_bash_1"'))
   const toolResultMsg = messages.find(m => m.role === 'user' && text(m.content).includes('"tool_use_id":"call_bash_1"'))
   check('the tool_use block and its tool_result keep the id and the input', text(toolUseMsg?.content).includes('"input":{"command":"ls"}') && toolResultMsg !== undefined && messages.indexOf(toolResultMsg) === messages.indexOf(toolUseMsg!) + 1, `${messages.map(m => m.role).join(',')}`)
-  check('no unsigned (foreign) thinking reaches the Anthropic wire', !text(body).includes('"signature":""') && !text(body).includes('glm thought'))
-  check('the harness correction reaches the wire', text(body).includes(CORRECTION_HEAD))
+  check('no unsigned (foreign) thinking reaches the Anthropic wire', !text(body).includes('"signature":""') && !text(body).includes('glm thought'), 'the foreign glm thinking block was replayed to Anthropic; strip unsigned thinking from history before the Anthropic request is built')
+  check('the harness correction reaches the wire', text(body).includes(CORRECTION_HEAD), 'the refusal correction message was dropped from the Anthropic request; its text comes from toolCallRefusalCorrection in src/services/providers/toolCallGate.ts')
   usage.anthropic = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 
@@ -221,18 +221,18 @@ section('openai · Responses')
   const o = await drive('gpt-5.6-sol')
   const body = o.body ?? {}
   check('the turn settled clean on the fixture', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path?.endsWith('/responses') === true, `threw=${String(o.threw)} errors=${o.errors.length} path=${o.path}`)
-  check('the operator system prompt rides the instructions string', typeof body.instructions === 'string' && body.instructions.includes(SYSTEM))
+  check('the operator system prompt rides the instructions string', typeof body.instructions === 'string' && body.instructions.includes(SYSTEM), 'the Responses request has no instructions string holding the system prompt; the Responses wire is built in src/services/providers/openai/openaiWire.ts')
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
-  check('tools ride FLAT as function/parameters (the Responses spelling)', tools[0]?.type === 'function' && tools[0]?.name === BASH && typeof tools[0]?.parameters === 'object')
-  check('the Responses tool explicitly declares strict form', tools[0]?.strict === true)
+  check('tools ride FLAT as function/parameters (the Responses spelling)', tools[0]?.type === 'function' && tools[0]?.name === BASH && typeof tools[0]?.parameters === 'object', `first tool on the wire: ${text(tools[0]).slice(0, 200)}; a Responses tool is flat type/name/parameters`)
+  check('the Responses tool explicitly declares strict form', tools[0]?.strict === true, 'the tool lacks strict:true; strict form comes from toOpenaiStrictToolSchema in src/utils/messages/toolSchemaDialect.ts')
   schemas.openai = tools[0]?.parameters
   const input = (body.input as Array<Record<string, unknown>> | undefined) ?? []
   const call = input.findIndex(i => i.type === 'function_call' && i.call_id === 'call_bash_1')
   const output = input.findIndex(i => i.type === 'function_call_output' && i.call_id === 'call_bash_1')
   check('function_call carries the arguments JSON and its function_call_output answers it in order', call !== -1 && input[call]?.arguments === '{"command":"ls"}' && output === call + 1 && text(input[output]?.output).includes('a.ts'), input.map(i => `${i.type}:${i.call_id ?? ''}`).join(','))
-  check('a foreign turn derives from content: NO reasoning item replays cross-provider', !input.some(i => i.type === 'reasoning') && !text(body).includes('glm thought'))
-  check('the harness correction reaches the wire as a user item', input.some(i => i.type === 'message' && i.role === 'user' && text(i.content).includes(CORRECTION_HEAD)))
-  check('stateless replay: store:false with the encrypted-reasoning include', body.store === false && text(body.include).includes('reasoning.encrypted_content'))
+  check('a foreign turn derives from content: NO reasoning item replays cross-provider', !input.some(i => i.type === 'reasoning') && !text(body).includes('glm thought'), 'a reasoning item or the glm thought reached the Responses input; foreign reasoning must be dropped when history is replayed (src/services/providers/openai/openaiWire.ts)')
+  check('the harness correction reaches the wire as a user item', input.some(i => i.type === 'message' && i.role === 'user' && text(i.content).includes(CORRECTION_HEAD)), 'the refusal correction is missing from the Responses input as a user message item')
+  check('stateless replay: store:false with the encrypted-reasoning include', body.store === false && text(body.include).includes('reasoning.encrypted_content'), `store=${String(body.store)} include=${text(body.include)}; the Responses request must set store:false and include reasoning.encrypted_content`)
   usage.openai = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 
@@ -247,10 +247,10 @@ for (const { lane, model, preservesThinking } of [
   const body = o.body ?? {}
   check('the turn settled clean on the fixture', o.threw === undefined && o.errors.length === 0 && o.last?.message.stop_reason === 'end_turn' && o.path?.endsWith('/chat/completions') === true, `threw=${String(o.threw)} errors=${o.errors.length} path=${o.path}`)
   const messages = (body.messages as Array<Record<string, unknown>> | undefined) ?? []
-  check('the operator system prompt rides the leading system message', messages[0]?.role === 'system' && String(messages[0]?.content).includes(SYSTEM))
+  check('the operator system prompt rides the leading system message', messages[0]?.role === 'system' && String(messages[0]?.content).includes(SYSTEM), `first message role: ${String(messages[0]?.role)}; the chat-completions request must lead with the system message`)
   const tools = (body.tools as Array<Record<string, unknown>> | undefined) ?? []
   const fn = tools[0]?.function as Record<string, unknown> | undefined
-  check('tools ride NESTED as function.parameters (the chat-completions spelling)', tools[0]?.type === 'function' && fn?.name === BASH && typeof fn?.parameters === 'object')
+  check('tools ride NESTED as function.parameters (the chat-completions spelling)', tools[0]?.type === 'function' && fn?.name === BASH && typeof fn?.parameters === 'object', `first tool on the wire: ${text(tools[0]).slice(0, 200)}; a chat-completions tool is type function with name and parameters nested under function`)
   schemas[lane] = fn?.parameters
   const callIdx = messages.findIndex(m => m.role === 'assistant' && text(m.tool_calls).includes('"call_bash_1"'))
   const toolIdx = messages.findIndex(m => m.role === 'tool' && m.tool_call_id === 'call_bash_1')
@@ -258,12 +258,12 @@ for (const { lane, model, preservesThinking } of [
   const tc = ((callMsg?.tool_calls as Array<Record<string, unknown>> | undefined) ?? [])[0]
   check('assistant.tool_calls carries the id + arguments JSON; the role:tool answer follows it', callIdx !== -1 && (tc?.function as Record<string, unknown> | undefined)?.arguments === '{"command":"ls"}' && toolIdx === callIdx + 1 && String(messages[toolIdx]?.content).includes('a.ts'), messages.map(m => m.role).join(','))
   if (preservesThinking) {
-    check('the documented preserved-thinking model gets the historical reasoning back as reasoning_content', callMsg?.reasoning_content === 'glm thought')
+    check('the documented preserved-thinking model gets the historical reasoning back as reasoning_content', callMsg?.reasoning_content === 'glm thought', 'the preserved-thinking model must replay historical reasoning as reasoning_content on the assistant tool-call message (src/services/providers/openaicompat/kimiReplay.ts)')
   } else {
-    check('reasoning never rides this wire (no reasoning_content key anywhere)', !messages.some(m => 'reasoning_content' in m) && !text(body).includes('glm thought'))
+    check('reasoning never rides this wire (no reasoning_content key anywhere)', !messages.some(m => 'reasoning_content' in m) && !text(body).includes('glm thought'), 'reasoning_content or the glm thought reached a chat-completions lane that does not preserve thinking; drop reasoning when history is replayed to this lane')
   }
-  check('the harness correction reaches the wire verbatim as a user message', messages.some(m => m.role === 'user' && String(m.content).includes(CORRECTION_HEAD)))
-  check("a call-less assistant message never carries null content", messages.filter(m => m.role === 'assistant' && !('tool_calls' in m)).every(m => typeof m.content === 'string'))
+  check('the harness correction reaches the wire verbatim as a user message', messages.some(m => m.role === 'user' && String(m.content).includes(CORRECTION_HEAD)), 'the refusal correction is missing from the chat-completions messages as a user message; its text comes from toolCallRefusalCorrection in src/services/providers/toolCallGate.ts')
+  check("a call-less assistant message never carries null content", messages.filter(m => m.role === 'assistant' && !('tool_calls' in m)).every(m => typeof m.content === 'string'), 'an assistant message without tool_calls was sent with non-string (null) content; the chat-completions message builder must give it a string')
   usage[lane] = { input: o.last?.message.usage?.input_tokens ?? -1, cached: o.last?.message.usage?.cache_read_input_tokens ?? -1 }
 }
 

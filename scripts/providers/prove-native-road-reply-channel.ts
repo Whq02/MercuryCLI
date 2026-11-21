@@ -23,7 +23,7 @@ process.argv.push(`--log-file=${DEBUG_FILE}`)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ' | to fix: sections A-D read streamOllamaChat in src/services/providers/local/ollamaChatTransport.ts (thinking rows are reasoning deltas, content rows are text deltas, reasoningOnly on the finish event, the debug dump line); section E reads compatChatCallModel in src/services/providers/openaicompat/compatChatCallModel.ts with localLaneProfileFor in src/services/providers/local/localCallModel.ts' : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

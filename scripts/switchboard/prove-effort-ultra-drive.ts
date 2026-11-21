@@ -109,7 +109,7 @@ const run = await runArtifactArena({
   seedHome: async (configDir, cwd) => {
     seedFirstRun(configDir, [cwd, work])
     spawnDaemon(configDir)
-    check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000))
+    check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' } as never)).ok === true, 60_000), 'the daemon did not answer ping within 60 s; read daemon.log in the scratch folder')
     const a = (await daemonControlRpc({
       op: 'concourseDispatch',
       clientMessageId: 'effort-ultra',
@@ -119,10 +119,10 @@ const run = await runArtifactArena({
       modelKey: SEAT_MODEL,
       effort: SEAT_EFFORT,
     } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string; modelId?: string; effort?: string }
-    check(`the seat is born on the OpenAI row (${SEAT_MODEL}) at ${SEAT_EFFORT}`, a.ok === true && a.modelId === SEAT_MODEL && a.effort === SEAT_EFFORT, JSON.stringify(a))
+    check(`the seat is born on the OpenAI row (${SEAT_MODEL}) at ${SEAT_EFFORT}`, a.ok === true && a.modelId === SEAT_MODEL && a.effort === SEAT_EFFORT, `${JSON.stringify(a)} - the concourseDispatch op should answer with the seat's model and effort; read daemon.log in the scratch folder`)
     seatId = a.sessionId ?? ''
     transcript = join(paths.getProjectDir(cwd), `${seatId}.jsonl`)
-    check('the seat transcript is born', await untilAsync(() => existsSync(transcript) && statSync(transcript).size > 100, 30_000))
+    check('the seat transcript is born', await untilAsync(() => existsSync(transcript) && statSync(transcript).size > 100, 30_000), 'the seat wrote no transcript within 30 s; read daemon.log in the scratch folder')
   },
   extraEnv: {
     ...fixture.env,
@@ -156,16 +156,16 @@ try {
   check('the seat was entered from the board (its own body on screen)', entered, `frames: ${frames.length}`)
 
   const popupFrames = distinct.filter(f => f.text.includes('effort low…max') && f.text.includes('↑↓ move') && f.text.includes('esc or click outside closes'))
-  check('U1 the bare /effort opened its popup with the served ladder and exit hint', popupFrames.length > 0, 'distinct frames: ' + distinct.length)
+  check('U1 the bare /effort opened its popup with the served ladder and exit hint', popupFrames.length > 0, 'distinct frames: ' + distinct.length + ' - the bare /effort popup is src/commands/effort/EffortPopup.tsx; set EFFORT_ULTRA_KEEP=1 to print every frame')
   const tierRows = (frame: { text: string }): string[] => frame.text.split('\n').flatMap(row => { const match = /│\s*[❯ ]?\s*(low|medium|high|xhigh|max)\s{2,}/.exec(row); return match ? [match[1]!] : [] })
-  check('U1 the popup reads the five ladder words in order', popupFrames.some(frame => JSON.stringify(tierRows(frame)) === JSON.stringify(LADDER)), JSON.stringify(popupFrames.map(tierRows)))
-  check('U1 the list word above max paints nowhere in the popup', popupFrames.every(frame => !new RegExp('\\b' + LIST_WORD + '\\b').test(frame.text)))
+  check('U1 the popup reads the five ladder words in order', popupFrames.some(frame => JSON.stringify(tierRows(frame)) === JSON.stringify(LADDER)), JSON.stringify(popupFrames.map(tierRows)) + ' - the popup tiers come from src/commands/effort/EffortPopup.tsx')
+  check('U1 the list word above max paints nowhere in the popup', popupFrames.every(frame => !new RegExp('\\b' + LIST_WORD + '\\b').test(frame.text)), 'the popup must stop at max; look at the tier list in src/commands/effort/EffortPopup.tsx')
   check('U1 the popup carries auto beside five tiers and ends at max', popupFrames.some(frame => /│\s*auto\s{2,}/.test(frame.text) && tierRows(frame).length === 5 && tierRows(frame).at(-1) === TOP), JSON.stringify(popupFrames.map(tierRows)))
   check('U1 esc closed the slider with the running word (the seat runs the admission word, high)', anyFrame(`Effort unchanged (${SEAT_EFFORT})`), distinct.map(f => flat(f.text)).filter(t => t.includes('Effort unchanged')).map(t => t.slice(t.indexOf('Effort unchanged'), t.indexOf('Effort unchanged') + 60)).join(' | ').slice(0, 200))
 
   check(`U2 "/effort ${LIST_WORD}" is refused as not an effort option (the ladder leads, the refused word follows)`, anyFrame(`|max|auto — "${LIST_WORD}`), distinct.map(f => flat(f.text)).filter(t => t.includes('not an effort option')).map(t => t.slice(t.indexOf('"'), t.indexOf('"') + 120)).join(' | ').slice(0, 400))
   check('U2 the refusal names the ladder up to max and no further', anyFrame(`Valid options: ${LADDER.join('|')}|auto`), distinct.map(f => flat(f.text)).filter(t => t.includes('Valid options')).map(t => t.slice(t.indexOf('Valid options'), t.indexOf('Valid options') + 80)).join(' | ').slice(0, 300))
-  check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`))
+  check(`U2 no frame ever says the seat was set to the list's word`, !anyFrame(`Effort set to ${LIST_WORD}`), 'the refused word must never be applied; look at the option check in src/commands/effort/effort.tsx')
 
   const statusRows = (text: string): string[] => text.split('\n').filter(r => /(?:⇧|shift\+)← back/.test(r)).map(r => r.replace(/\s+/g, ' ').trim())
   const receiptText = (text: string): string => {
@@ -185,9 +185,9 @@ try {
   check(`U3 the turn's request rode the Responses wire with reasoning.effort ${TOP}`, seatHits.length >= 2 && lastEffort === TOP, `hits=${seatHits.length} last=${String(lastEffort)}`)
   check(`U3 no request ever carried the list's word (${LIST_WORD}) on the wire`, seatHits.every(h => (h.body as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort !== LIST_WORD), seatHits.map(h => String((h.body as { reasoning?: { effort?: string } } | undefined)?.reasoning?.effort)).join(','))
   const turnAnswered = anyFrame('gpt-done body') || anyFrame('gpt-landed body')
-  check('U3 the turn landed (the seat answered)', turnAnswered)
+  check('U3 the turn landed (the seat answered)', turnAnswered, 'no frame showed the seat answering the turn; read daemon.log in the scratch folder and the fixture hits')
   const rows = existsSync(transcript) ? readFileSync(transcript, 'utf8').split('\n').filter(l => l.trim() !== '') : []
-  check('U3 no downgrade receipt anywhere — the word was served as asked', !rows.some(l => l.includes('is not served on')) && !rows.some(l => l.includes('the wire refused it')) && !anyFrame('is not served on'))
+  check('U3 no downgrade receipt anywhere — the word was served as asked', !rows.some(l => l.includes('is not served on')) && !rows.some(l => l.includes('the wire refused it')) && !anyFrame('is not served on'), 'a downgrade receipt was written or painted although max is served; read the effort receipt in src/commands/effort/effort.tsx')
   const facts = projections.readSessionFacts(seatId)
   check(`U3 the record carries the one word twice — effort ${TOP} (asked), effortSent ${TOP} (sent)`, facts !== null && facts.effort === TOP && facts.effortSent === TOP, JSON.stringify({ effort: facts?.effort, effortSent: facts?.effortSent }))
 

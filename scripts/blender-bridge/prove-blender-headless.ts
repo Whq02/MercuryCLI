@@ -12,6 +12,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: make the headless road match this label in src/services/blender/headlessRunner.ts (runBlenderHeadlessOp, probeBlenderHeadlessRuntime, formatHeadlessWindowRefusal) or src/tools/BlenderTool/BlenderTool.ts (call, checkPermissions, validateInput)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

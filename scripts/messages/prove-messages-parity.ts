@@ -483,7 +483,7 @@ for (const [name, fn] of Object.entries(cases)) {
 }
 
 if (unaccounted.length) {
-  console.log(`  [FAIL] ${unaccounted.length} export(s) neither covered nor skip-listed:`);
+  console.log(`  [FAIL] ${unaccounted.length} export(s) neither covered nor skip-listed (add an add(...) case, or a SKIPPED entry with its reason, in scripts/messages/prove-messages-parity.ts, then re-record with --record):`);
   for (const k of unaccounted) console.log(`      - ${k}`);
   failures++;
 }
@@ -491,7 +491,7 @@ if (unaccounted.length) {
 {
   const boundary = CORPUS.boundaries![0] as unknown as { subtype?: string; compactMetadata?: { trigger?: unknown; preTokens?: unknown }; logicalParentUuid?: unknown; uuid?: string; timestamp?: string };
   const shape = (label: string, ok: boolean, detail: string): void => {
-    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail}`);
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] fixture shape: ${label}${ok ? '' : ' — ' + detail + ' — fix the fixture in scripts/messages/fixtures.ts, or the constructor or reader this label names in src/services/messages.ts'}`);
     if (!ok) failures++;
   };
   shape('the compact boundary carries a string trigger and a numeric token count', boundary.subtype === 'compact_boundary' && boundary.compactMetadata?.trigger === 'auto' && boundary.compactMetadata?.preTokens === 120_000, JSON.stringify(boundary.compactMetadata));
@@ -576,7 +576,7 @@ if (RECORD) {
     const currentKeys = Object.keys(results);
     for (const k of goldenKeys) {
       if (!(k in results)) {
-        console.log(`  [FAIL] golden case disappeared: ${k}`);
+        console.log(`  [FAIL] golden case disappeared: ${k} (restore the add(...) case in scripts/messages/prove-messages-parity.ts, or remove the key from scripts/messages/goldens.json on purpose)`);
         failures++;
         continue;
       }
@@ -584,7 +584,7 @@ if (RECORD) {
       const b = JSON.stringify(results[k]);
       if (a !== b) {
         failures++;
-        console.log(`  [FAIL] parity broke: ${k}`);
+        console.log(`  [FAIL] parity broke: ${k} (an unintended change: restore the behavior of this export in src/services/messages.ts; a deliberate one: re-record with --record-only=${k})`);
         let i = 0;
         while (i < Math.min(a.length, b.length) && a[i] === b[i]) i++;
         console.log(`      golden:  …${a.slice(Math.max(0, i - 60), i + 90)}…`);

@@ -3,9 +3,12 @@
 import { UNITY_BRIDGE_DIGEST, UNITY_BRIDGE_FILES } from '../../src/services/unity/bridgeFiles.generated.js'
 
 let failures = 0
+const PACKAGE_FIX_HINT =
+  'change the package source under assets/unity/bridge (Editor/*.cs, the asmdef, package.json), then run node scripts/unity-bridge/regen-bridge.mjs to rewrite src/services/unity/bridgeFiles.generated.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${PACKAGE_FIX_HINT}` : PACKAGE_FIX_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

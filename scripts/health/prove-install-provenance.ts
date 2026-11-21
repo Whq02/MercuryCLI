@@ -16,8 +16,9 @@ const {
 } = await import('../../src/services/privateChannel/installProvenance.ts')
 
 let failures = 0
+let failHint = ''
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}${!cond && failHint ? ` | ${failHint}` : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -45,6 +46,7 @@ const gather = (entry: string, versionsDir: string, platform: NodeJS.Platform = 
 
 section('§1 THE FIXTURE BATTERY (IP-15)')
 {
+  failHint = 'change classifyInstallProvenance (the kind, disagreements and evidence it returns) or gatherInstallProbeFacts (the paths it reads) in src/services/privateChannel/installProvenance.ts'
   const r1 = join(SCRATCH, 'managed-1')
   const e1 = makeManaged(r1, '1.5.3-beta.1')
   const p1 = gather(e1, join(r1, 'versions'))
@@ -115,6 +117,7 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
     check('the deployed build gets the deploy command, not the checkout rebuild command', provenanceGuidance(pDeployed) === 'redeploy with scripts/ops/deploy-runtime.sh', provenanceGuidance(pDeployed))
   }
 
+  failHint = 'change provenanceGuidance or classifyInstallProvenance in src/services/privateChannel/installProvenance.ts (the deployed-build branch)'
   const bare = join(SCRATCH, 'bare')
   mkdirSync(bare, { recursive: true })
   writeFileSync(join(bare, 'mercury.mjs'), '// bundle\n')
@@ -148,6 +151,7 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
     `${p9.kind} ${p9.disagreements.join(';')}`,
   )
 
+  failHint = 'change classifyInstallProvenance, gatherInstallProbeFacts or the Homebrew keg detector homebrewKegOf / npm detector npmPackageDirOf in src/services/privateChannel/installProvenance.ts'
   const keg = join(SCRATCH, 'brew', 'Cellar', 'mercury', '1.0.0-beta.4')
   mkdirSync(join(keg, 'libexec'), { recursive: true })
   writeFileSync(join(keg, 'libexec', 'mercury.mjs'), '// bundle\n')
@@ -196,6 +200,7 @@ section('§1 THE FIXTURE BATTERY (IP-15)')
 
 section('§2 GUIDANCE (IP-07/08/09)')
 {
+  failHint = 'change provenanceGuidance, foreignInstallerOf or provenanceLine in src/services/privateChannel/installProvenance.ts'
   const managed = gather(makeManaged(join(SCRATCH, 'g1'), '1.5.3-beta.1'), join(SCRATCH, 'g1', 'versions'))
   check(
     'managed guidance names mercury update / check / rollback — NEVER git pull (IP-07)',
@@ -237,6 +242,7 @@ section('§2 GUIDANCE (IP-07/08/09)')
 
 section('§3 WIRING (IP-01/10/12/16)')
 {
+  failHint = 'change the install-provenance row in identityChecks (src/services/health/sections/identity.ts) so it reads resolveInstallProvenance, provenanceLine and provenanceGuidance from src/services/privateChannel/installProvenance.ts'
   const { healthContext } = await import('../../src/services/health/healthReport.ts')
   const { identityChecks } = await import('../../src/services/health/sections/identity.ts')
   const provenance = await import('../../src/services/privateChannel/installProvenance.ts')

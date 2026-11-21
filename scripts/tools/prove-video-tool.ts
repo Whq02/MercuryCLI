@@ -41,7 +41,7 @@ trustTheProofFolder(true)
 const fixture = await startVideoFixture()
 let checked = 0
 function check(name: string, condition: unknown): void {
-  assert.ok(condition, name)
+  assert.ok(condition, `${name} | change src/tools/VideoTool/VideoTool.tsx, prepareVideo in src/services/video/generate.ts, withheldTools in src/services/tools/withheldTools.ts, or the videoProvider setting in src/utils/settings/types.ts`)
   checked++
   console.log(`PASS ${name}`)
 }
@@ -80,7 +80,7 @@ function image(): Buffer {
   header.writeUInt32BE(256); header.writeUInt32BE(256, 4); header[8] = 8; header[9] = 2
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(Buffer.alloc(256 * (1 + 256 * 3)))), chunk('IEND', Buffer.alloc(0))])
 }
-const guard = setTimeout(() => { console.error('Video proof exceeded 300s'); process.exit(1) }, 300_000)
+const guard = setTimeout(() => { console.error('Video proof exceeded 300s: a call to the fixture or the scripted model turn never finished; look at VideoTool.call in src/tools/VideoTool/VideoTool.tsx and the polling in src/services/video/generate.ts'); process.exit(1) }, 300_000)
 guard.unref()
 try {
   configure(false)

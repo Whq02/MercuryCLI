@@ -23,7 +23,7 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}compare the saved frame text under the frames folder, then fix the pane in src/components/concourse (layout/listPane.tsx for the session list, layout/livePane.tsx for the live view, NeedsYouRail.tsx for the NEEDS YOU block, ConcourseStrips.tsx for the message box)` : ''}`)
 }
 
 const scratch = join(tmpdir(), `concourse-two-panes-${process.pid}-home`)

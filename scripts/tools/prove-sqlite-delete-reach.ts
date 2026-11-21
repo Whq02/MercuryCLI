@@ -30,6 +30,8 @@ CREATE TABLE spoke_a(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE); CREATE T
 CREATE TABLE spoke_c(hub INTEGER REFERENCES hub(id) ON DELETE SET DEFAULT); CREATE TABLE spoke_d(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE);
 CREATE TABLE spoke_e(hub INTEGER REFERENCES hub(id) ON DELETE CASCADE);`)
 seed.close()
+const reachHint = ' | change sqliteDeletionReach in src/tools/FileWriteTool/structuredTargets.ts'
+const answerHint = ' | change the delete branch of mapToolResultToToolResultBlockParam in src/tools/FileWriteTool/FileWriteTool.ts and the deletion in src/tools/FileWriteTool/structuredTargets.ts'
 const NOTE = 'Not checkpointed: a rewind will not restore this row.'
 const stored = (sql: string): string => { const db = new Database(file, { readonly: true }); try { return JSON.stringify(db.query(sql).values()) } finally { db.close() } }
 const reach = (target: string): string => { try { return String(previewSqliteDeletion(`${file}:${target}#delete`).reach) } catch (error) { return String(error) } }
@@ -40,21 +42,21 @@ const remove = async (target: string): Promise<{ data: string; answer: string }>
   try { return { data, answer: String(FileWriteTool.mapToolResultToToolResultBlockParam(JSON.parse(data), 'row').content) } } catch { return { data, answer: data } }
 }
 try {
-  kit.check('the card names a cascade, a chained cascade and a SET NULL key, and no restricting one', reach('parent/1') === 'Other rows may change with it: foreign keys in child, notes and grandchild.', reach('parent/1'))
-  kit.check('the card names a DELETE trigger and no other trigger', reach('logged/1') === 'Other rows may change with it: trigger audit_delete.', reach('logged/1'))
-  kit.check('the card names three tables and counts the rest', reach('hub/1') === 'Other rows may change with it: foreign keys in spoke_a, spoke_b, spoke_c and 2 more.', reach('hub/1'))
-  kit.check('a table nothing hangs from adds no line to the card', reach('lonely/1') === '', reach('lonely/1'))
-  kit.check('a missing row adds no line to the card', reach('parent/99') === '', reach('parent/99'))
+  kit.check('the card names a cascade, a chained cascade and a SET NULL key, and no restricting one', reach('parent/1') === 'Other rows may change with it: foreign keys in child, notes and grandchild.', reach('parent/1') + reachHint)
+  kit.check('the card names a DELETE trigger and no other trigger', reach('logged/1') === 'Other rows may change with it: trigger audit_delete.', reach('logged/1') + reachHint)
+  kit.check('the card names three tables and counts the rest', reach('hub/1') === 'Other rows may change with it: foreign keys in spoke_a, spoke_b, spoke_c and 2 more.', reach('hub/1') + reachHint)
+  kit.check('a table nothing hangs from adds no line to the card', reach('lonely/1') === '', reach('lonely/1') + reachHint)
+  kit.check('a missing row adds no line to the card', reach('parent/99') === '', reach('parent/99') + reachHint)
   const cascade = await remove('parent/1')
-  kit.check('a cascade, its chain and a SET NULL key are counted in the answer', cascade.answer.startsWith(`Deleted one SQLite row at ${file}:parent/1; the row is absent on read-back. 6 other rows changed with it through foreign keys or triggers. ${NOTE} The row was:`), cascade.answer)
-  kit.check('exactly those rows changed', stored('SELECT id FROM child ORDER BY id') === '[[12],[13]]' && stored('SELECT id FROM grandchild') === '[[103]]' && stored('SELECT id, parent FROM notes ORDER BY id') === '[[20,null],[21,2]]' && stored('SELECT id FROM parent ORDER BY id') === '[[2],[3],[4]]', `${stored('SELECT id FROM child')} ${stored('SELECT id FROM grandchild')} ${stored('SELECT id, parent FROM notes')}`)
+  kit.check('a cascade, its chain and a SET NULL key are counted in the answer', cascade.answer.startsWith(`Deleted one SQLite row at ${file}:parent/1; the row is absent on read-back. 6 other rows changed with it through foreign keys or triggers. ${NOTE} The row was:`), cascade.answer + answerHint)
+  kit.check('exactly those rows changed', stored('SELECT id FROM child ORDER BY id') === '[[12],[13]]' && stored('SELECT id FROM grandchild') === '[[103]]' && stored('SELECT id, parent FROM notes ORDER BY id') === '[[20,null],[21,2]]' && stored('SELECT id FROM parent ORDER BY id') === '[[2],[3],[4]]', `${stored('SELECT id FROM child')} ${stored('SELECT id FROM grandchild')} ${stored('SELECT id, parent FROM notes')}${answerHint}`)
   const single = await remove('parent/4')
-  kit.check('one other row is said in the singular', single.answer.includes('read-back. 1 other row changed with it through foreign keys or triggers. '), single.answer)
+  kit.check('one other row is said in the singular', single.answer.includes('read-back. 1 other row changed with it through foreign keys or triggers. '), single.answer + answerHint)
   const trigger = await remove('logged/1')
-  kit.check("a trigger's rows are counted in the answer", trigger.answer.includes('read-back. 2 other rows changed with it through foreign keys or triggers. ') && stored('SELECT line FROM audit') === '[["deleted 1"]]' && stored('SELECT count(*) FROM spare') === '[[0]]', trigger.answer)
+  kit.check("a trigger's rows are counted in the answer", trigger.answer.includes('read-back. 2 other rows changed with it through foreign keys or triggers. ') && stored('SELECT line FROM audit') === '[["deleted 1"]]' && stored('SELECT count(*) FROM spare') === '[[0]]', trigger.answer + answerHint)
   const restricted = await remove('parent/3')
-  kit.check('a restricting key still refuses and rolls back', restricted.data === 'FOREIGN KEY constraint failed' && stored('SELECT id FROM parent ORDER BY id') === '[[2],[3]]' && stored('SELECT id FROM guarded') === '[[30]]', `${restricted.data} ${stored('SELECT id FROM parent')}`)
+  kit.check('a restricting key still refuses and rolls back', restricted.data === 'FOREIGN KEY constraint failed' && stored('SELECT id FROM parent ORDER BY id') === '[[2],[3]]' && stored('SELECT id FROM guarded') === '[[30]]', `${restricted.data} ${stored('SELECT id FROM parent')}${answerHint}`)
   const alone = await remove('lonely/1')
-  kit.check('a row nothing hangs from is answered with no count', alone.answer === `Deleted one SQLite row at ${file}:lonely/1; the row is absent on read-back. ${NOTE} The row was:\n{\n  "id": 1,\n  "value": "alone"\n}` && JSON.parse(alone.data).content === '', alone.answer)
+  kit.check('a row nothing hangs from is answered with no count', alone.answer === `Deleted one SQLite row at ${file}:lonely/1; the row is absent on read-back. ${NOTE} The row was:\n{\n  "id": 1,\n  "value": "alone"\n}` && JSON.parse(alone.data).content === '', alone.answer + answerHint)
 } finally { await client.close() }
 kit.finish()

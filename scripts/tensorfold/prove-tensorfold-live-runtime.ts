@@ -12,7 +12,7 @@ for (const statement of source.statements) {
     if (ts.isIdentifier(declaration.name) && declaration.name.text === 'node') expression = declaration.initializer?.getText(source)
   }
 }
-if (expression === undefined) throw new Error('The live adapter measure has no node runtime selection.')
+if (expression === undefined) throw new Error('The live adapter measure has no node runtime selection: declare a top-level const node in scripts/tensorfold/measure-tensorfold-adapter-live.ts.')
 const select = new Function('ROOT', 'process', 'join', 'existsSync', 'nodeBinPath', `return ${expression}`) as (root: string, proc: unknown, joinPath: typeof join, exists: (path: string) => boolean, resolve: () => string) => string | undefined
 let failures = 0
 for (const platform of ['win32', 'darwin', 'linux'] as const) {
@@ -23,10 +23,10 @@ for (const platform of ['win32', 'darwin', 'linux'] as const) {
   const selected = select(root, { platform, arch: 'x64', env }, paths.join, path => path === binary, () => binary)
   const ok = selected === binary
   if (!ok) failures++
-  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: the live measure reaches the Node executable on PATH${ok ? '' : ` — selected ${selected}`}`)
+  console.log(`[${ok ? 'PASS' : 'FAIL'}] ${platform}: the live measure reaches the Node executable on PATH${ok ? '' : ` — selected ${selected}; fix the top-level node constant in scripts/tensorfold/measure-tensorfold-adapter-live.ts so it takes nodeBinPath() from scripts/lib/nodeBin.ts`}`)
 }
 const shared = source.statements.some(statement => ts.isImportDeclaration(statement) && ts.isStringLiteral(statement.moduleSpecifier) && statement.moduleSpecifier.text === '../lib/nodeBin.ts' && statement.importClause?.namedBindings !== undefined && ts.isNamedImports(statement.importClause.namedBindings) && statement.importClause.namedBindings.elements.some(element => element.name.text === 'nodeBinPath'))
 if (!shared) failures++
-console.log(`[${shared ? 'PASS' : 'FAIL'}] the shared Node identity resolver owns the platform and MERCURY_NODE lookup`)
+console.log(`[${shared ? 'PASS' : 'FAIL'}] the shared Node identity resolver owns the platform and MERCURY_NODE lookup${shared ? '' : ' — import nodeBinPath from ../lib/nodeBin.ts in scripts/tensorfold/measure-tensorfold-adapter-live.ts and use it for the node constant'}`)
 console.log(`${4 - failures}/4 checks passed`)
 process.exit(failures === 0 ? 0 : 1)

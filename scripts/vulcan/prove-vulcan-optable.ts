@@ -13,10 +13,12 @@ import {
   vulcanCategories,
 } from '../../src/utils/vulcan/optable.generated.js'
 
+const OPTABLE_FAIL_HINT = 'fix: edit the op in assets/vulcan/optable.json, then run node scripts/vulcan/regen-optable.mjs to rewrite src/utils/vulcan/optable.generated.ts; or update the expected figure in this file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' | ' : ''}${OPTABLE_FAIL_HINT}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -104,7 +106,7 @@ try {
 } catch {
   checkOk = false
 }
-check('regen --check clean', checkOk)
+check('regen --check clean', checkOk, 'generated files differ from assets/vulcan/optable.json: run node scripts/vulcan/regen-optable.mjs and keep its output')
 
 section('5. the game-driving verbs — a press is an event; step mode rides the frontier')
 {
@@ -119,7 +121,7 @@ section('5. the game-driving verbs — a press is an event; step mode rides the 
   check('input_sequence steps accept step_frames and step_ms', /step_frames/.test(seq?.args.steps ?? '') && /step_ms/.test(seq?.args.steps ?? ''), seq?.args.steps)
   const jsonFigure = (JSON.parse(rawJson) as { step_wall_ms_per_frame?: unknown }).step_wall_ms_per_frame
   const gdFigure = Number(/^const STEP_WALL_MS_PER_FRAME := (\d+)$/m.exec(readFileSync(join(repo, 'assets', 'vulcan', 'addon', 'core', 'op_classes.gd'), 'utf8'))?.[1])
-  check('the stepped-frame budget is ONE figure: optable.json = the TS constant = op_classes.gd', Number.isInteger(jsonFigure) && jsonFigure === VULCAN_STEP_WALL_MS_PER_FRAME && gdFigure === VULCAN_STEP_WALL_MS_PER_FRAME && VULCAN_STEP_WALL_MS_PER_FRAME >= 1, `json=${String(jsonFigure)} ts=${VULCAN_STEP_WALL_MS_PER_FRAME} gd=${gdFigure}`)
+  check('the stepped-frame budget is ONE figure: optable.json = the TS constant = op_classes.gd', Number.isInteger(jsonFigure) && jsonFigure === VULCAN_STEP_WALL_MS_PER_FRAME && gdFigure === VULCAN_STEP_WALL_MS_PER_FRAME && VULCAN_STEP_WALL_MS_PER_FRAME >= 1, `json=${String(jsonFigure)} ts=${VULCAN_STEP_WALL_MS_PER_FRAME} gd=${gdFigure}; set step_wall_ms_per_frame in assets/vulcan/optable.json and rerun scripts/vulcan/regen-optable.mjs`)
 }
 
 console.log('\n' + (failures === 0 ? '✅ vulcan optable proof PASS' : `❌ ${failures} FAILURES`))

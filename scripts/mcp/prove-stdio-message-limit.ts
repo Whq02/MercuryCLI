@@ -15,10 +15,10 @@ const { connectToServer, callMCPToolWithUrlElicitationRetry, clearServerCache, m
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the stdio message limit (mcpStdioMaxMessageBytes, connectToServer, callMCPToolWithUrlElicitationRetry) in src/services/mcp/client.ts'}`)
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — stdio message limit prover exceeded 90s')
+  console.log('\nTIMEOUT — stdio message limit prover exceeded 90s; look for a hang in connectToServer or the call path in src/services/mcp/client.ts')
   process.exit(1)
 }, 90_000)
 watchdog.unref?.()

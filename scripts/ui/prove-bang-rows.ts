@@ -87,20 +87,20 @@ section('§1 SH-06 · a running ! command paints no model spinner (the live fold
 {
   const bangEcho = createUserMessage({ content: '<bash-input>sleep 200</bash-input>', timestamp: '2026-06-19T12:00:01.000Z' })
   const live = liveTurnStateOf([bangEcho])
-  check('a bash-mode echo opens NO in-flight model turn', live.inFlight === false, JSON.stringify({ inFlight: live.inFlight, phase: live.phase }))
-  check('the phase is idle while the shell runs', live.phase === 'idle', live.phase)
+  check('a bash-mode echo opens NO in-flight model turn', live.inFlight === false, 'change liveTurnStateOf in src/services/resume/conversationRecovery.ts so a bash-input echo opens no turn: ' + JSON.stringify({ inFlight: live.inFlight, phase: live.phase }))
+  check('the phase is idle while the shell runs', live.phase === 'idle', 'change liveTurnStateOf in src/services/resume/conversationRecovery.ts to report idle for a bash-input echo: ' + live.phase)
   const promptEcho = createUserMessage({ content: 'please count to three', timestamp: '2026-06-19T12:00:01.000Z' })
   const promptLive = liveTurnStateOf([promptEcho])
-  check('control: a real prompt with no answer yet IS in flight', promptLive.inFlight === true && promptLive.phase === 'thinking', JSON.stringify({ inFlight: promptLive.inFlight, phase: promptLive.phase }))
+  check('control: a real prompt with no answer yet IS in flight', promptLive.inFlight === true && promptLive.phase === 'thinking', 'liveTurnStateOf in src/services/resume/conversationRecovery.ts must keep a plain prompt in flight: ' + JSON.stringify({ inFlight: promptLive.inFlight, phase: promptLive.phase }))
   const withBlocks = createUserMessage({ content: [{ type: 'text', text: '<bash-input>seq 1 3</bash-input>' }], timestamp: '2026-06-19T12:00:02.000Z' })
-  check('the block-shaped echo opens no in-flight turn either', liveTurnStateOf([withBlocks]).inFlight === false)
+  check('the block-shaped echo opens no in-flight turn either', liveTurnStateOf([withBlocks]).inFlight === false, 'liveTurnStateOf in src/services/resume/conversationRecovery.ts must also read the block-shaped bash-input echo as no turn')
 }
 
 section('§2 SH-06 · the running row wears the ! glyph, not the prompt caret')
 {
   const frame = await paint(React.createElement(UserTextMessage, { addMargin: false, param: { type: 'text', text: '<bash-input>sleep 200</bash-input>' }, verbose: false }))
-  check('the row shows "! sleep 200"', frame.includes('! sleep 200'), frame)
-  check('the row never reads as a plain prompt caret line', !/\]\s*❯\s*sleep 200/.test(frame), frame)
+  check('the row shows "! sleep 200"', frame.includes('! sleep 200'), 'UserTextMessage in src/components/messages/UserTextMessage.tsx must paint a bash-input row with the ! glyph: ' + frame)
+  check('the row never reads as a plain prompt caret line', !/\]\s*❯\s*sleep 200/.test(frame), 'UserTextMessage in src/components/messages/UserTextMessage.tsx must not paint a bash-input row as a prompt caret line: ' + frame)
 }
 
 section('§3 SH-09 · the folded ! output keeps the truncation marker and its saved-file path')
@@ -111,18 +111,18 @@ section('§3 SH-09 · the folded ! output keeps the truncation marker and its sa
   const tail = lines.slice(-2000).join('\n')
   const stored = `${head}\n\n${marker}\n\n${tail}`
   const frame = await paint(React.createElement(OutputLine, { content: stored, verbose: false }))
-  check('the truncation marker is shown, not cut', frame.includes('truncated from the middle'), frame.slice(0, 200))
+  check('the truncation marker is shown, not cut', frame.includes('truncated from the middle'), 'OutputLine in src/components/shell/OutputLine.tsx must keep the truncation marker when it folds: ' + frame.slice(0, 200))
   const flatFrame = frame.split('\n').join(' ')
-  check('the saved-file path is on screen (wrap-tolerant)', /the\s+complete\s+output\s+is\s+saved\s+at/.test(flatFrame), flatFrame.slice(0, 300))
+  check('the saved-file path is on screen (wrap-tolerant)', /the\s+complete\s+output\s+is\s+saved\s+at/.test(flatFrame), 'OutputLine in src/components/shell/OutputLine.tsx must keep the saved-file path of the marker on screen: ' + flatFrame.slice(0, 300))
   const foldLine = frame.split('\n').find(line => line.includes('+') && line.includes('lines'))
-  check('the fold still names the lines not shown', foldLine !== undefined, foldLine ?? '(no fold line)')
+  check('the fold still names the lines not shown', foldLine !== undefined, 'OutputLine in src/components/shell/OutputLine.tsx must still print a fold line naming the lines not shown: ' + (foldLine ?? '(no fold line)'))
 }
 
 section('§4 SH-07 · ctrl+e with no explanation keeps the description, never "No explanation available"')
 {
   const frame = await paint(React.createElement(PermissionExplainerContent, { visible: true, promise: Promise.resolve(null), fallback: React.createElement(Text, { dimColor: true }, 'List Python files in current directory') }))
-  check('the description stays when the explainer answers nothing', frame.includes('List Python files in current directory'), frame)
-  check('the nothing-available line never replaces it', !frame.includes('No explanation available'), frame)
+  check('the description stays when the explainer answers nothing', frame.includes('List Python files in current directory'), 'PermissionExplainerContent in src/components/permissions/PermissionExplanation.tsx must render the fallback prop when the promise resolves null: ' + frame)
+  check('the nothing-available line never replaces it', !frame.includes('No explanation available'), 'PermissionExplainerContent in src/components/permissions/PermissionExplanation.tsx must show the fallback, not its default text, when one is given: ' + frame)
 }
 
 rmSync(HOME, { recursive: true, force: true })

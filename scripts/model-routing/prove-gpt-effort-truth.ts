@@ -9,7 +9,7 @@ import { join } from 'node:path'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' — fix resolveGptReasoningProfile in src/services/providers/openai/openaiCatalogue.ts, resolveEffortTruth and resolveAppliedEffort in src/utils/effort.ts, or the effort vocabulary functions in src/utils/model/capabilities.ts'}`)
 }
 
 console.log('============================================================')

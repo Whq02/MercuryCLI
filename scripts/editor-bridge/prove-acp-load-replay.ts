@@ -51,10 +51,11 @@ mkdirSync(storage, { recursive: true })
 
 let failures = 0
 let checks = 0
+const REPLAY_FAIL_HINT = 'to fix, change what session/load replays in replayUpdatesOf and sessionLineOf (src/services/acp/acpServer/replay.ts) or the session/load handler (src/services/acp/acpServer/sessionRequests.ts); withdrawn replies are dropped by withoutRetractedReplies (src/services/engine-connector/midTurnText.ts)'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 700)}` : ''}${!cond ? ` — ${REPLAY_FAIL_HINT}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)
@@ -64,6 +65,7 @@ const j = (value: unknown): string => JSON.stringify(value) ?? ''
 const servers: ChildProcess[] = []
 const guard = setTimeout(() => {
   console.log('\n❌ TIMEOUT — the ACP load replay proof exceeded 420s')
+  console.log('   a session/load or a stand-in run never settled; find which section (L1 to L7) printed last and look at runAcpServer in src/services/acp/acpServer.ts')
   for (const server of servers) endProcessGroup(server)
   process.exit(1)
 }, 420_000)

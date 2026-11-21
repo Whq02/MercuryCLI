@@ -21,10 +21,37 @@ const INHERITED_GATEWAY = 'https://gateway.example.invalid'
 const DEADLINE_BOUND_MS = 15_000
 const INVALID_KEY = /Invalid API key/
 
+const HS_FIX_HINTS: Array<[string, string]> = [
+  ['the synthetic shard', 'fix scripts/gate/ci-shard.sh so the shard ends with rc 0 whatever the suite reports'],
+  ['the runner exports', 'fix the pin in scripts/gate/ci-shard.sh so it exports ANTHROPIC_BASE_URL as one loopback address, http://127.0.0.1:<port>'],
+  ['an inherited gateway', 'fix scripts/gate/ci-shard.sh so it overwrites an inherited ANTHROPIC_BASE_URL with the box'],
+  ['every provider-family', 'fix scripts/gate/ci-shard.sh so every provider-family *_BASE row of src/substrate/flagRegistry.ts is exported at the box, and a seam that follows a parent when unset is left unset'],
+  ['the derived seams', 'fix the *_BASE rows in src/substrate/flagRegistry.ts or zaiApiBase in src/services/providers/zai/zaiClient.ts so only MERCURY_ZAI_CODING_API_BASE follows a parent and both Z.AI bases resolve to the box'],
+  ['the update channel', 'fix scripts/gate/ci-shard.sh so it exports MERCURY_UPDATE_API_BASE_URL at the box'],
+  ['MERCURY_', 'fix scripts/gate/ci-shard.sh so it leaves the compat and local base slots exactly as the runner found them'],
+  ['the sign-in endpoint', 'fix scripts/gate/ci-shard.sh so it exports MERCURY_ANTHROPIC_OAUTH_BASE at the box'],
+  ['the probe reached', 'the probe inside the suite could not reach the box: look at scripts/gate/dead-letter.py and the pin in scripts/gate/ci-shard.sh'],
+  ['a messages request', 'fix scripts/gate/dead-letter.py so POST /v1/messages answers 401 with an authentication_error body in under 2000 ms'],
+  ['the answer carries', 'fix scripts/gate/dead-letter.py so the 401 answer carries x-should-retry: false'],
+  ['the reachability probe', 'fix scripts/gate/dead-letter.py so GET / answers 200 in under 2000 ms'],
+  ['zero connections', 'a host outside the loopback was reached under the pin: route its base through the pin in scripts/gate/ci-shard.sh'],
+  ['the turn went to the box', 'fix the pin in scripts/gate/ci-shard.sh so the headless turn connects to the box port'],
+  ['the turn reports the invalid key', 'fix scripts/gate/dead-letter.py so the turn receives the Invalid API key answer; the turn report line below shows what it got'],
+  ['the turn ends inside', 'the headless turn ran past the bound: look at how fast scripts/gate/dead-letter.py answers and at the turn report line below'],
+  ['a box of this section', 'fix scripts/gate/dead-letter.py so it writes its port file within 10 s (it runs under /usr/bin/python3)'],
+  ['the census was taken', 'the refresh-road turn recorded no connection: see the report line above this check'],
+  ['the refresh road makes no', 'route the host named in the detail through the two pins ANTHROPIC_BASE_URL and MERCURY_ANTHROPIC_OAUTH_BASE'],
+  ['the refresh went to the box', 'the refresh-road turn must connect to the box port set by MERCURY_ANTHROPIC_OAUTH_BASE'],
+  ['the box answered the token', 'fix scripts/gate/dead-letter.py so it records POST /v1/oauth/token in its ledger'],
+  ['the shard pins the sign-in', 'add export MERCURY_ANTHROPIC_OAUTH_BASE="$HERMETIC_DEAD_BASE" to scripts/gate/ci-shard.sh'],
+]
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fix = cond ? undefined : HS_FIX_HINTS.find(([prefix]) => label.startsWith(prefix))?.[1]
+  const shown = !cond && (detail || fix) ? ` — ${[detail, fix].filter(Boolean).join(' | ')}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown}`)
 }
 function section(t: string): void {
   console.log(`\n${'─'.repeat(76)}\n${t}`)

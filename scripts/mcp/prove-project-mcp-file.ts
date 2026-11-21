@@ -23,13 +23,13 @@ await setCwd(PROJ)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the project scope in src/services/mcp/config.ts (getMercuryMcpConfigs, addMcpConfig, removeMcpConfig, projectMcpFilePath) or its labels in src/services/mcp/utils.ts; the dist legs also need dist rebuilt with bun run build.ts'}`)
 }
 const j = (v: unknown): string => JSON.stringify(v)
 const stdio = (cmd: string): Record<string, unknown> => ({ type: 'stdio', command: cmd, args: [], env: {} })
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — project mcp file proof exceeded 60s')
+  console.log('\n❌ TIMEOUT — project mcp file proof exceeded 60s; look for a hang in addMcpConfig or removeMcpConfig in src/services/mcp/config.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

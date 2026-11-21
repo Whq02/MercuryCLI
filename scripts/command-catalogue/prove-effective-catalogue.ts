@@ -28,13 +28,13 @@ const { effectiveCatalogue, normalSurfaces } = await import(
 )
 const registry = builtinCommands()
 const catalogue = effectiveCatalogue()
-check('registry loads (the excised roster, >70 built-ins)', registry.length > 70, String(registry.length))
-check('catalogue rows = registry rows', catalogue.length === registry.length)
+check('registry loads (the excised roster, >70 built-ins)', registry.length > 70, `${registry.length}; builtinCommands() in src/commands.ts returned too few commands, restore the dropped registrations there`)
+check('catalogue rows = registry rows', catalogue.length === registry.length, `catalogue ${catalogue.length} vs registry ${registry.length}; effectiveCatalogue() in src/commands/effectiveCatalogue.ts must return one row per builtinCommands() entry`)
 
 {
-  check('every route is a normal or a hidden route (no development-only class stands behind a flag)', catalogue.every(s => s.visibility === 'normal' || s.visibility === 'hidden'), catalogue.filter(s => s.visibility !== 'normal' && s.visibility !== 'hidden').map(s => s.name).join(', '))
+  check('every route is a normal or a hidden route (no development-only class stands behind a flag)', catalogue.every(s => s.visibility === 'normal' || s.visibility === 'hidden'), catalogue.filter(s => s.visibility !== 'normal' && s.visibility !== 'hidden').map(s => s.name).join(', ') + ' (visibilityOf in src/commands/effectiveCatalogue.ts may return only normal or hidden)')
   const normal = normalSurfaces()
-  check('normalSurfaces() holds enabled normal routes only', normal.every(s => s.visibility === 'normal' && s.enabled))
+  check('normalSurfaces() holds enabled normal routes only', normal.every(s => s.visibility === 'normal' && s.enabled), 'normalSurfaces() in src/commands/effectiveCatalogue.ts must filter on enabled and visibility normal')
 }
 
 {
@@ -47,14 +47,14 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
       names.set(n, s.name)
     }
   }
-  check('no alias/name collisions across the registry', collision === null, collision ?? '')
+  check('no alias/name collisions across the registry', collision === null, `${collision ?? ''} (rename one of the two commands or drop the alias in its definition under src/commands)`)
   const badCanonical = catalogue.filter(
     s => s.canonicalRoute !== s.name && !catalogue.some(t => t.name === s.canonicalRoute),
   )
   check('every canonicalRoute resolves to a registered command', badCanonical.length === 0,
-    badCanonical.map(s => `${s.name}→${s.canonicalRoute}`).join(', '))
+    badCanonical.map(s => `${s.name}→${s.canonicalRoute}`).join(', ') + ' (point the command canonicalRoute at a registered command name)')
   const memory = catalogue.find(s => s.name === 'memory')
-  check("'chronicle' reaches the Memory Centre as a /memory alias", memory?.aliases.includes('chronicle') === true)
+  check("'chronicle' reaches the Memory Centre as a /memory alias", memory?.aliases.includes('chronicle') === true, 'add chronicle to the aliases of the memory command in src/commands')
 }
 
 {
@@ -62,7 +62,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   check(
     'every normal surface maps to a curated /help domain (no “everything else”)',
     uncurated.length === 0,
-    uncurated.map(s => s.name).join(', '),
+    uncurated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/components/HelpV2/commandDomains.ts)',
   )
   const uncuratedGated = effectiveCatalogue().filter(
     s => s.visibility === 'normal' && s.category === 'other',
@@ -70,7 +70,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   check(
     'gated-off normal rows are curated too (the enabling session finds them organized)',
     uncuratedGated.length === 0,
-    uncuratedGated.map(s => s.name).join(', '),
+    uncuratedGated.map(s => s.name).join(', ') + ' (add each name to a domain in COMMAND_DOMAINS, src/components/HelpV2/commandDomains.ts)',
   )
 }
 
@@ -95,14 +95,14 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
   check(
     'the duplicate-name set equals the blessed pairs exactly',
     duplicateNames.join(',') === [...BLESSED_PAIRS].sort().join(','),
-    `found: ${duplicateNames.join(', ') || '(none)'}`,
+    `found: ${duplicateNames.join(', ') || '(none)'}; give each duplicate its own name in src/commands or update BLESSED_PAIRS here`,
   )
 
   const initialInteractive = getIsInteractive()
   try {
     for (const name of BLESSED_PAIRS) {
       const pair = byName.get(name) ?? []
-      check(`/${name}: exactly two registrations`, pair.length === 2, String(pair.length))
+      check(`/${name}: exactly two registrations`, pair.length === 2, `${pair.length}; builtinCommands() in src/commands.ts must register /${name} twice`)
       if (pair.length !== 2) continue
 
       setIsInteractive(true)
@@ -113,16 +113,18 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
       check(
         `/${name}: exactly one enabled member per posture`,
         enabledInteractive.length === 1 && enabledHeadless.length === 1,
-        `interactive=${enabledInteractive.length} nonInteractive=${enabledHeadless.length}`,
+        `interactive=${enabledInteractive.length} nonInteractive=${enabledHeadless.length}; check isEnabled of both /${name} registrations (isCommandEnabled in src/types/command.ts)`,
       )
       check(
         `/${name}: the enabled member SWAPS with the posture (exact complement)`,
         enabledInteractive[0] !== undefined && enabledInteractive[0] !== enabledHeadless[0],
+        `the two /${name} registrations must enable on opposite postures (check isEnabled in each)`,
       )
       setIsInteractive(true)
       check(
         `/${name}: the non-interactive member is hidden outside run`,
         enabledHeadless[0] !== undefined && enabledHeadless[0].isHidden === true,
+        `set isHidden on the non-interactive /${name} registration`,
       )
     }
 
@@ -133,7 +135,7 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
     check(
       'every non-pair name is registered exactly once',
       overRegistered.length === 0,
-      overRegistered.map(([name, list]) => `${name}×${list.length}`).join(', '),
+      overRegistered.map(([name, list]) => `${name}×${list.length}`).join(', ') + ' (remove the duplicate registration in builtinCommands, src/commands.ts)',
     )
   } finally {
     setIsInteractive(initialInteractive)
@@ -156,12 +158,12 @@ check('catalogue rows = registry rows', catalogue.length === registry.length)
     }
   }
   check('the default bindings carry command actions to resolve', commandActions.length > 0,
-    String(commandActions.length))
+    `${commandActions.length}; DEFAULT_BINDINGS in src/keybindings/defaultBindings.ts holds no command: actions`)
   const orphans = commandActions.filter(name => !known.has(name))
   check(
     'every command:<name> default binding resolves to a registered name/alias',
     orphans.length === 0,
-    orphans.join(', '),
+    orphans.join(', ') + ' (fix the command: action in src/keybindings/defaultBindings.ts or register the command)',
   )
 }
 

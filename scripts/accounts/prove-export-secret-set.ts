@@ -26,7 +26,8 @@ let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   total++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const fixHint = 'fix src/utils/redactSecrets.ts: sessionSecretValues and credentialStringsIn decide which stored strings are secrets (the STORED_WORDS_NOT_SECRET paths are left out), createSecretRedactor replaces them'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${fixHint}` : ''}`)
 }
 const section = (title: string): void => {
   console.log(`\n${'─'.repeat(76)}\n${title}\n${'─'.repeat(76)}`)

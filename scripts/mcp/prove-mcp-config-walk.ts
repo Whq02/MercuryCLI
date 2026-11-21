@@ -21,7 +21,7 @@ await setCwd(PROJ)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the scope walk getMercuryMcpConfigs in src/services/mcp/config.ts'}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -29,7 +29,7 @@ function section(t: string): void {
 const j = (v: unknown): string => JSON.stringify(v)
 
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — mcp config walk exceeded 60s')
+  console.log('\n❌ TIMEOUT — mcp config walk exceeded 60s; look for a hang in getMercuryMcpConfigs in src/services/mcp/config.ts')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

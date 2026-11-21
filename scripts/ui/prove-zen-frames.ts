@@ -80,10 +80,12 @@ const frameDir = arg('--frames')
 if (frameDir !== undefined) mkdirSync(frameDir, { recursive: true })
 let failures = 0
 let checks = 0
+const ZEN_FIX_HINT = 'the rails and chip layout come from src/utils/helmGeometry.ts (railPlan) and src/utils/cockpit/zenMode.ts; the /zen words from src/commands/zen/zen.tsx (executeZen); the /config row from src/components/Settings/Config.tsx; read the frames with --frames <dir>'
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  const shown = good ? '' : detail ? `${detail}; ${ZEN_FIX_HINT}` : ZEN_FIX_HINT
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

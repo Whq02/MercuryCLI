@@ -25,7 +25,8 @@ mkdirSync(OUT_DIR, { recursive: true })
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const wrapHint = 'fix the row-line wrapping in src/components/concourse/rowLine.ts (rowLineLines, rowLineRows, listColumns, rowNowCellWidth) or the hint text in closeChordHintOf in src/components/concourse/controlManifest.ts; when only the frame checks fail, compare the frame text files in the frames folder printed at the end'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${wrapHint}` : ''}`)
 }
 const j = (value: unknown): string => JSON.stringify(value)
 
@@ -151,7 +152,7 @@ function capture(cols: number, rows: number): Map<string, string[]> {
   })
   const marks = new Map<string, string[]>()
   if (res.status !== 0 || !existsSync(out)) {
-    console.log(`  the capture at ${cols}x${rows} ended ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+    console.log(`  the capture at ${cols}x${rows} ended ${res.status}: ${(res.stderr ?? '').slice(-400)} | the vshot capture (scripts/ui/vshot.py) did not finish: check that dist/mercury.mjs is built and read the stderr above`)
     return marks
   }
   const payload = JSON.parse(readFileSync(out, 'utf8')) as Grid & { marks?: ({ label: string } & Grid)[] }

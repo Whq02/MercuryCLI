@@ -19,12 +19,13 @@ const { WARDS_HOOK_ID, registerWardsGuard, resetWardsEngagedSessionsForTest } = 
 const { judgeToolCall } = await import('../../src/guards/guards.js')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.js')
 
+const QUOTED_TEXT_FAIL_HINT = 'fix: the delete rules in src/utils/wards/wards.ts (no-root-recursive-delete and no-other-user-delete in REFUSAL_WARDS, no-home-recursive-delete in AUTONOMOUS_WARDS) and how they read quotes, heredocs and inline shells; the hook road is registerWardsGuard in src/guards/wardsGuard.ts'
 let failures = 0
 let checks = 0
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail.slice(0, 300)}${detail ? ' | ' : ''}${QUOTED_TEXT_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

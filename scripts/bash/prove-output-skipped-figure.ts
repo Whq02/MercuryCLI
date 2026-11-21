@@ -26,10 +26,12 @@ mkdirSync(process.env.MERCURY_TMPDIR, { recursive: true })
 
 let failures = 0
 let checks = 0
+const SKIPPED_FIGURE_FIX = 'change generatePreview (the skipped figure) and buildLargeToolResultMessage (the notice) in src/utils/toolResultStorage.ts, and formatFileSize in src/utils/format.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = detail === '' ? SKIPPED_FIGURE_FIX : `${detail} | ${SKIPPED_FIGURE_FIX}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)
 

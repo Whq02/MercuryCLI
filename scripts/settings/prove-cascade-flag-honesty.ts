@@ -21,8 +21,11 @@ const { resetSettingsCache } = await import('../../src/utils/settings/settingsCa
 const { readSessionOption } = await import('../../src/utils/sessionArgs.ts')
 
 let failures = 0
+const CASCADE_FAILURE_HINT =
+  'fix the flag-file layer in src/utils/settings/settings.ts (getSettingsWithErrors, the flag path read through getFlagSettingsPath) or the flag spellings in src/utils/sessionArgs.ts (readSessionOption), whichever this check names'
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = detail ? `${detail}; ${CASCADE_FAILURE_HINT}` : CASCADE_FAILURE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + shown : ''}`)
   if (!cond) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)

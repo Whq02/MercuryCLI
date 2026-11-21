@@ -18,9 +18,11 @@ const contributions = await import('../../src/extensions/load/contributions.ts')
 const validate = await import('../../src/extensions/validate.ts')
 
 let failures = 0
+const contractHint = 'change the function this check exercises: manifest rules in src/extensions/manifest.ts (parseManifestValue, readManifest, resolveInsideRoot, contributionsHash), catalogue rules in src/extensions/catalogue.ts (parseCatalogueValue, readSourceRoot), report rules in src/extensions/validate.ts (validateExtensionFolder, validateSourceFolder, validatePath), resolution in src/extensions/load/contributions.ts (resolveContributions)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const said = [detail, contractHint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ' — ' + said : ''}`)
 }
 
 const FULL = {

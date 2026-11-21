@@ -46,9 +46,10 @@ const { readSessionFacts, sessionFactsPath } = await import('../../src/services/
 const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond && fixHint) console.log('         to change: ' + fixHint)
 }
 
 const driver = resolveCaptureDriver()
@@ -277,7 +278,7 @@ for (const run of RUNS) {
   homes[run.id] = home
   const argv = run.argv(homes)
   if (run.door === 'direct' && argv.includes('--resume') && argv[argv.length - 1] === '') {
-    check(`${run.id} a session to resume exists in the home`, false, 'no live record in the home — the earlier run birthed nothing')
+    check(`${run.id} a session to resume exists in the home`, false, 'no live record in the home — the earlier run birthed nothing', 'run the earlier run (r2) in the same invocation, without --only excluding it; read its frame and DAEMON lines above to see why no session was born')
     continue
   }
   const sends: Send[] =
@@ -288,10 +289,10 @@ for (const run of RUNS) {
   const first = markText(c, 'f00')
   if (first !== null) printFrame(`${run.id} @f00 (the first composer frame)`, first.split('\n'))
   printFrame(`${run.id} (the final frame)`, c.lines)
-  check(`${run.id} the chat is on screen (the first composer frame was captured)`, first !== null && first.includes(COMPOSER), c.tail.slice(-240))
+  check(`${run.id} the chat is on screen (the first composer frame was captured)`, first !== null && first.includes(COMPOSER), c.tail.slice(-240), 'the session never reached the composer: read the final frame above, and rebuild dist with bun run build.ts if dist/mercury.mjs is stale')
   if (run.door !== 'direct') {
     const reply = markText(c, 'reply')
-    check(`${run.id} the conversation landed (the scripted reply is on screen — the resume roads have a transcript)`, reply !== null && reply.includes(REPLY))
+    check(`${run.id} the conversation landed (the scripted reply is on screen — the resume roads have a transcript)`, reply !== null && reply.includes(REPLY), '', 'the scripted reply Spare. never reached the screen: read the final frame above for the stall (consent card, board, or the turn itself)')
   }
   const series: Array<{ label: string; atMs: number; mode: string }> = []
   for (const m of marksOf(c)) {
@@ -306,15 +307,15 @@ for (const run of RUNS) {
   const lastWord = words[words.length - 1] ?? '(no frame)'
   const settledAt = series.find(s => s.mode === run.born)
   console.log(`  [BEATS] ${run.id}: born=${run.born} · first=${firstWord} · last=${lastWord} · foreign beats=${foreign.length}${foreign.length > 0 ? ` (${[...new Set(foreign.map(f => f.mode))].join(', ')} at ${foreign.map(f => f.label).join(',')})` : ''}${settledAt !== undefined ? ` · the born word first at ${settledAt.label} (+${((settledAt.atMs - t0) / 1000).toFixed(1)}s)` : ''}`)
-  check(`${run.id} L1 no frame paints a mode word the runner never held`, foreign.length === 0, foreign.length > 0 ? `${foreign.length} foreign beat(s): ${[...new Set(foreign.map(f => f.mode))].join(', ')}` : '')
+  check(`${run.id} L1 no frame paints a mode word the runner never held`, foreign.length === 0, foreign.length > 0 ? `${foreign.length} foreign beat(s): ${[...new Set(foreign.map(f => f.mode))].join(', ')}` : '', 'the mode band painted a posture word other than the one the runner holds; compare the [FRAMES] and [TRUTH] lines above and make the band read the runner posture from its first frame')
   const firstMustName = run.door !== 'direct'
-  check(`${run.id} L2 the first frame reads the born posture${firstMustName ? ' (a birth paints it from the first frame)' : ' or nothing'} (${run.born})`, firstWord === run.born || (!firstMustName && firstWord === 'blank'), `first=${firstWord}`)
-  check(`${run.id} L3 the last frame reads the born posture (${run.born})`, lastWord === run.born, `last=${lastWord}`)
+  check(`${run.id} L2 the first frame reads the born posture${firstMustName ? ' (a birth paints it from the first frame)' : ' or nothing'} (${run.born})`, firstWord === run.born || (!firstMustName && firstWord === 'blank'), `first=${firstWord}`, 'the first composer frame must already show the born posture word: see the [FRAMES] line above for which frame first shows it')
+  check(`${run.id} L3 the last frame reads the born posture (${run.born})`, lastWord === run.born, `last=${lastWord}`, 'the band must settle on the born posture word by the last frame: see the [FRAMES] line above')
   const live = Object.values(liveRecords(home))
   const sessionId = live[0]?.sessionId
   const trueMode = sessionId !== undefined ? factsModeOf(await runnerTrueMode(home, sessionId)) : '(no session)'
   console.log(`  [TRUTH] ${run.id}: the runner's facts say=${trueMode} · records=${JSON.stringify(live.map(r => ({ short: r.runnerId, sessionId: r.sessionId, permissionMode: (r as { permissionMode?: string }).permissionMode ?? null })))}`)
-  check(`${run.id} L3 the runner's own facts agree with the band's last frame`, trueMode === lastWord, `facts=${trueMode} band=${lastWord}`)
+  check(`${run.id} L3 the runner's own facts agree with the band's last frame`, trueMode === lastWord, `facts=${trueMode} band=${lastWord}`, 'the band disagrees with the permissionMode the runner writes in its session facts (readSessionFacts in src/services/engine-connector/seatProjections.ts); make the band follow those facts')
   for (const l of daemonLogLines(home)) console.log(`  [DAEMON] ${l}`)
   summary.push(`${run.id}: first=${firstWord} last=${lastWord} foreign=${foreign.length}`)
   reapHome(home)

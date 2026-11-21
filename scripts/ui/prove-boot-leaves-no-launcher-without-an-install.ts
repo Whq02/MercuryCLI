@@ -53,11 +53,11 @@ async function boot(seed: (configDir: string) => void): Promise<Boot> {
 }
 
 function reachedTheNodes(b: Boot, name: string): void {
-  check(`${name}: the build booted to the chat`, firstPtyVisibility(b.run.ptyReads, squash(COMPOSER_READY), 0) !== undefined, unfired(b.run))
+  check(`${name}: the build booted to the chat`, firstPtyVisibility(b.run.ptyReads, squash(COMPOSER_READY), 0) !== undefined, 'the built dist/mercury.mjs never reached the chat composer in the arena, see the unfired sends: ' + unfired(b.run))
   check(
     `${name}: the boot ran its background work past the launcher step (the invocation record, written by the step registered after it, is on disk)`,
     existsSync(join(b.configDir, 'invocation-record.json')),
-    `nothing at ${join(b.configDir, 'invocation-record.json')} after ${SECONDS} s`,
+    `the boot background steps did not run to the invocation record, so a step before it stalled or threw; nothing at ${join(b.configDir, 'invocation-record.json')} after ${SECONDS} s`,
   )
 }
 
@@ -68,11 +68,12 @@ try {
   check(
     'no install: there is no versions pointer under the home, as on a Homebrew install',
     !existsSync(join(bare.configDir, 'versions', 'current.txt')),
+    'the fixture home must have no versions/current.txt pointer, the arena seeding wrote one or the boot created it',
   )
   check(
     'no install: the start wrote NO ~/.local/bin/mercury (the managed launcher can only fail there, and ahead of Homebrew on PATH it is the command the shell runs)',
     !existsSync(bare.launcher),
-    existsSync(bare.launcher) ? `${bare.launcher} exists: ${readFileSync(bare.launcher, 'utf8').split('\n').slice(0, 2).join(' | ')}` : '',
+    existsSync(bare.launcher) ? `change the boot launcher step so it writes no ~/.local/bin/mercury when no managed install (versions/current.txt) stands behind it; ${bare.launcher} exists: ${readFileSync(bare.launcher, 'utf8').split('\n').slice(0, 2).join(' | ')}` : '',
   )
 } finally {
   bare.run.cleanup()
@@ -90,7 +91,7 @@ try {
   check(
     'managed: the start wrote the stable launcher into ~/.local/bin, carrying the managed marker',
     existsSync(managed.launcher) && readFileSync(managed.launcher, 'utf8').includes(SHIM_MARKER),
-    existsSync(managed.launcher) ? 'the file lacks the marker' : `nothing at ${managed.launcher}`,
+    existsSync(managed.launcher) ? 'the boot launcher step must still write the launcher with the mercury-managed-shim marker (SHIM_MARKER_FAMILY in src/services/privateChannel/installLayout.ts); the file lacks the marker' : `the boot launcher step must write the launcher when a managed install exists; nothing at ${managed.launcher}`,
   )
 } finally {
   managed.run.cleanup()

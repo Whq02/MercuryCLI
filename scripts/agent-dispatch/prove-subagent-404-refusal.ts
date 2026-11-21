@@ -16,6 +16,8 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'agent-404-'))
 process.env.ANTHROPIC_API_KEY = 'fixture-key-agent-404'
 
 const MODEL = 'mercury-no-such-model'
+const routerWhere = 'what to change: the 404 handling behind routedCallModel in src/services/providers/callModelRouter.ts, which must end in one typed api-error assistant message and no retry storm'
+const seamWhere = 'what to change: deriveAgentTerminalOutcome or finalizeAgentTool in src/tools/AgentTool/agentToolUtils.ts, which must carry the full refusal text to the parent'
 const REQUEST_ID = 'req_fixture_404_evidence'
 
 let failures = 0
@@ -27,7 +29,7 @@ function check(label: string, cond: boolean, detail = ''): void {
 }
 
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — subagent 404 refusal prover exceeded 90s')
+  console.log('\nTIMEOUT — subagent 404 refusal prover exceeded 90s; it waited for routedCallModel (src/services/providers/callModelRouter.ts) to end its stream after the fixture 404, so look for a retry loop or a stream that never closes there')
   process.exit(1)
 }, 90_000)
 
@@ -88,34 +90,34 @@ try {
     collected.push(event as never)
   }
 } catch (error) {
-  check('routedCallModel never throws on a 404 (the honest-refusal contract)', false, String(error))
+  check('routedCallModel never throws on a 404 (the honest-refusal contract)', false, `${String(error)} | ${routerWhere}`)
 }
 
 const assistants = collected.filter(e => e.type === 'assistant')
 const last = assistants[assistants.length - 1] as { message?: { content?: Array<{ type: string; text?: string }> }; isApiErrorMessage?: boolean } | undefined
 const text = (last?.message?.content ?? []).map(b => b.text ?? '').join('\n')
 
-check('the stream ends in an assistant message', last !== undefined, JSON.stringify(collected.map(e => e.type)))
-check('the terminal message is the TYPED api-error refusal', last?.isApiErrorMessage === true)
-check('the refusal names the model', text.includes(MODEL), text)
-check('the refusal carries the HTTP status', text.includes('HTTP 404'), text)
-check('the refusal carries the request id', text.includes(REQUEST_ID), text)
-check('the refusal carries the action line', /--model|\/model/.test(text), text)
+check('the stream ends in an assistant message', last !== undefined, `${JSON.stringify(collected.map(e => e.type))} | ${routerWhere}`)
+check('the terminal message is the TYPED api-error refusal', last?.isApiErrorMessage === true, routerWhere)
+check('the refusal names the model', text.includes(MODEL), `${text} | ${routerWhere}`)
+check('the refusal carries the HTTP status', text.includes('HTTP 404'), `${text} | ${routerWhere}`)
+check('the refusal carries the request id', text.includes(REQUEST_ID), `${text} | ${routerWhere}`)
+check('the refusal carries the action line', /--model|\/model/.test(text), `${text} | ${routerWhere}`)
 check('the wire saw at most the stream/non-stream ladder (404 is never retry-stormed)',
-  hits.length >= 1 && hits.length <= 2, JSON.stringify(hits))
+  hits.length >= 1 && hits.length <= 2, `${JSON.stringify(hits)} | ${routerWhere}`)
 check('exactly one model id ever reached the wire — no silent substitution',
-  new Set(hits.map(h => h.model)).size === 1 && hits[0]?.model === MODEL, JSON.stringify(hits))
+  new Set(hits.map(h => h.model)).size === 1 && hits[0]?.model === MODEL, `${JSON.stringify(hits)} | ${routerWhere}`)
 
 console.log('\n§2 the parent seam receives the full refusal')
 const messageStream = assistants as never[]
 const outcome = deriveAgentTerminalOutcome(messageStream as never)
-check('outcome is the typed failure', outcome.status === 'failed', JSON.stringify(outcome))
+check('outcome is the typed failure', outcome.status === 'failed', `${JSON.stringify(outcome)} | ${seamWhere}`)
 check('the failure reason is provider-declined',
-  outcome.status === 'failed' && outcome.reason === 'provider-declined', JSON.stringify(outcome))
+  outcome.status === 'failed' && outcome.reason === 'provider-declined', `${JSON.stringify(outcome)} | ${seamWhere}`)
 check('the parent-visible error is the FULL refusal (status · request id · model)',
   outcome.status === 'failed' &&
     outcome.error.includes(MODEL) && outcome.error.includes('HTTP 404') && outcome.error.includes(REQUEST_ID),
-  JSON.stringify(outcome))
+  `${JSON.stringify(outcome)} | ${seamWhere}`)
 
 const finalized = finalizeAgentTool(messageStream as never, 'agent-404-probe', {
   prompt: 'begin the delegated task',
@@ -128,7 +130,7 @@ const finalized = finalizeAgentTool(messageStream as never, 'agent-404-probe', {
 check('finalizeAgentTool carries the failed outcome to the tool result',
   finalized.outcome?.status === 'failed' &&
     (finalized.outcome.status === 'failed' ? finalized.outcome.error.includes(REQUEST_ID) : false),
-  JSON.stringify(finalized.outcome))
+  `${JSON.stringify(finalized.outcome)} | ${seamWhere}`)
 
 server.close()
 clearTimeout(guard)

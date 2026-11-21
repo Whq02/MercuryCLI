@@ -15,7 +15,7 @@ const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — no-speed-tier prover exceeded 180s')
+  console.log('\nTIMEOUT — no-speed-tier prover exceeded 180s; a fixture request never settled, so look at which section header printed last and at the drive function in scripts/provider-compat/prove-no-speed-tier.ts')
   process.exit(1)
 }, 180_000)
 watchdog.unref?.()
@@ -168,13 +168,13 @@ function scanOptions(options: Record<string, unknown>): Hit[] {
 section('§0 the scanner trips on planted poison')
 {
   const poisonBody = scanRequest({ headers: {}, body: { model: 'x', speed: 'fast', messages: [] } })
-  check('a `speed` body field is flagged', poisonBody.some(h => h.where === 'body.speed'))
+  check('a `speed` body field is flagged', poisonBody.some(h => h.where === 'body.speed'), 'scanRequest in this file no longer flags a speed body key; fix FAST_WORDS or scanValue above, or the scanner proves nothing')
   const poisonNested = scanRequest({ headers: {}, body: { output_config: { service_tier: 'priority' } } })
-  check('a nested `service_tier` field is flagged', poisonNested.length === 1)
+  check('a nested `service_tier` field is flagged', poisonNested.length === 1, `${JSON.stringify(poisonNested)}; scanValue in this file must flag a nested service_tier key exactly once`)
   const poisonBetas = scanRequest({ headers: {}, body: { betas: ['context-1m-2025-08-07', 'fast-mode-2026-02-01'] } })
-  check('a fast-mode token in the body betas list is flagged', poisonBetas.some(h => h.where === 'body.betas[1]'))
+  check('a fast-mode token in the body betas list is flagged', poisonBetas.some(h => h.where === 'body.betas[1]'), `${JSON.stringify(poisonBetas)}; scanValue in this file must flag a fast-mode string inside an array`)
   const poisonHeader = scanRequest({ headers: { 'anthropic-beta': 'claude-code-20250219,fast-mode-2026-02-01' }, body: {} })
-  check('a fast-mode token in the anthropic-beta header is flagged', poisonHeader.length === 1)
+  check('a fast-mode token in the anthropic-beta header is flagged', poisonHeader.length === 1, `${JSON.stringify(poisonHeader)}; scanRequest in this file must flag a fast-mode token in the anthropic-beta header exactly once`)
   const clean = scanRequest({ headers: { 'anthropic-beta': 'claude-code-20250219', 'content-type': 'application/json' }, body: { model: 'x', messages: [{ role: 'user', content: 'a fast answer please' }], betas: ['context-1m-2025-08-07'] } })
   check('an ordinary request (prose may say "fast") is clean', clean.length === 0, JSON.stringify(clean))
   const poisonOptions = scanOptions({ model: 'x', fastMode: true, speed: 'fast', effortValue: 'high', querySource: 'sdk' })
@@ -279,11 +279,11 @@ for (const { lane, model, dialect } of LANES) {
   turnOptions.push(...r.handed)
   check('the turn completed through the fixture in exactly one request', r.threw === undefined && r.terminal.reason === 'completed' && r.wire.length === 1, `threw=${r.threw ?? 'no'} terminal=${JSON.stringify(r.terminal)} requests=${r.wire.length}`)
   const req = r.wire[0]
-  check('the request left on the expected dialect', req?.dialect === dialect, req?.path)
+  check('the request left on the expected dialect', req?.dialect === dialect, `${req?.path}; expected the ${dialect} dialect for ${model}, so the model routed to the wrong lane (src/services/providers/callModelRouter.ts)`)
   if (req === undefined) continue
   check('the request is a real model call (model + conversation present)', typeof req.body.model === 'string' && (Array.isArray(req.body.messages) || Array.isArray(req.body.input)), Object.keys(req.body).join(','))
   const hits = scanRequest(req)
-  check('no speed tier, service tier or fast-mode beta anywhere in the body or headers', hits.length === 0, hits.map(h => `${h.where}: ${h.what}`).join(' · '))
+  check('no speed tier, service tier or fast-mode beta anywhere in the body or headers', hits.length === 0, hits.map(h => `${h.where}: ${h.what}`).join(' · ') + `; remove that field or header from the ${lane} request build, since no speed or service tier may be sent`)
   if (dialect === 'anthropic') {
     const betas = Array.isArray(req.body.betas) ? (req.body.betas as string[]) : (req.headers['anthropic-beta'] ?? '').split(',').map(t => t.trim()).filter(Boolean)
     check('the Anthropic request still carries its ordinary beta set (the capture is not vacuous)', betas.length > 0, JSON.stringify(betas))

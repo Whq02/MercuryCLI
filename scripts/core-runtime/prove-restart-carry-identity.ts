@@ -17,10 +17,12 @@ process.chdir(cwd)
 
 let failures = 0
 let checks = 0
+let carryHint = ''
 function check(label: string, condition: boolean, detail = ''): void {
   checks++
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, carryHint].filter(Boolean).join(' | ')
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -55,6 +57,7 @@ try {
     lr.queueLogRows(await journalLines()).map(r => ({ operation: r.operation, ...(r.uuid !== undefined ? { uuid: r.uuid } : {}), ...(r.content !== undefined ? { content: r.content } : {}) }))
 
   section('R1 the journal of a line taken ahead of a waiting notice names the line it took')
+  carryHint = 'to fix, make dequeue in src/input-core/command-queue.ts write the dequeue journal row with the taken command uuid'
   const noticeUuid = randomUUID()
   const lineUuid = randomUUID()
   const sentAt = '2026-10-28T19:41:30.100Z'
@@ -69,6 +72,7 @@ try {
   check('the dequeue row names the identity it took', take !== undefined && take.uuid === lineUuid, j(rows))
 
   section('R2 the restart carry re-delivers nothing from that journal')
+  carryHint = 'to fix, change pendingQueueLogRows or undeliveredLines in src/tasks/LocalAgentTask/launchReceipts.ts, or requeueUndeliveredLines in src/cli/headless/restartCarry.ts'
   const lines = await journalLines()
   const pending = lr.pendingQueueLogRows(lr.queueLogRows(lines))
   check('the pending view holds the notice alone, never the taken line', pending.length === 1 && pending[0]!.uuid === noticeUuid, j(pending.map(r => r.uuid)))
@@ -80,6 +84,7 @@ try {
   check('a restart re-queues nothing: the taken line never runs a second time under its old clock', requeued === 0 && recovered.length === 0 && q.getCommandQueue().length === 0, j({ requeued, recovered, queue: q.getCommandQueue().map(c => c.uuid) }))
 
   section('R3 every taking road names what it took')
+  carryHint = 'to fix, make remove, dequeueAllMatching and dequeueAll in src/input-core/command-queue.ts journal the uuid of each line they take'
   q.resetCommandQueue()
   const ids = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
   q.enqueue({ value: 'one', mode: 'prompt', uuid: ids[0] as never })
@@ -99,6 +104,7 @@ try {
   check('the pending view of the whole journal holds only the notice no road ever took', pendingAll.map(r => r.uuid).join(',') === noticeUuid, j(pendingAll.map(r => r.uuid)))
 
   section('R4 an older journal (takes without identity) still folds by order')
+  carryHint = 'to fix, change pendingQueueLogRows in src/tasks/LocalAgentTask/launchReceipts.ts so a dequeue row without a uuid takes the oldest pending line'
   const envelope = (fields: Record<string, unknown>): string =>
     j({ type: 'queue-operation', timestamp: '2026-01-01T00:00:00.000Z', sessionId: 's', ...fields })
   const legacy = lr.pendingQueueLogRows(lr.queueLogRows([

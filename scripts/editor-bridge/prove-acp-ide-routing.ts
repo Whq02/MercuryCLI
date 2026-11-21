@@ -12,9 +12,10 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+const IDE_ROUTING_FAIL_HINT = 'to fix, change how Read, Write, Edit and Bash choose the editor or the disk from the capabilities the client advertised in src/services/acp/ideToolBridge.ts (ideReadTextAvailable, ideWriteTextAvailable, ideTerminalAvailable and the door it registers)'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ` — ${IDE_ROUTING_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

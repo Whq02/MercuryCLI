@@ -18,6 +18,10 @@ const { getEmptyToolPermissionContext } = await import('../../src/Tool.js')
 const { toolToAPISchema } = await import('../../src/services/messages/api.js')
 const { clearToolSchemaCache } = await import('../../src/utils/toolSchemaCache.js')
 const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.js')
+const manualHint = 'change the manual text in src/tools/EvalTool/prompt.ts (or the stored hash and byte count here if the change is intended): '
+const wireHint = 'change wireDescription or the input schema in src/tools/EvalTool/EvalTool.ts: '
+const constantsHint = 'change the timeoutSeconds description in src/tools/EvalTool/EvalTool.ts to read EVAL_DEFAULT_TIMEOUT_SECONDS and EVAL_MAX_TIMEOUT_SECONDS from src/services/eval/contracts.ts: '
+const catalogueHint = 'change src/tools.ts getAllBaseTools so only the Eval code tool is listed, and remove any retired code-tool spelling from it and from src/substrate/flagRegistry.ts'
 const expected = {
   type: 'object', properties: {
     language: { type: 'string', enum: ['py', 'js'], description: 'The retained runtime this cell runs in.' },
@@ -36,23 +40,23 @@ for (const [enabled, hash, manualBytes, bytes] of [
   clearToolSchemaCache()
   const manual = await EvalTool.prompt(options)
   const definition = await toolToAPISchema(EvalTool, options) as any
-  check(`samples=${enabled}: the complete manual matches the 1.0.5 text (the steering sentences gone, the helper reference whole; ${manualBytes} bytes)`, createHash('sha256').update(manual).digest('hex') === hash && Buffer.byteLength(manual) === manualBytes, `${Buffer.byteLength(manual)} bytes: ${manual}`)
-  check(`samples=${enabled}: the wire carries the Eval wire contract rendered from that manual (fold 46bh), the manual arriving on discovery or first use`, typeof EvalTool.wireDescription === 'function' && definition.description === EvalTool.wireDescription(manual) && definition.description.includes('their signatures arrive on first use') && !definition.description.includes('Bash/Read/Edit') && !definition.description.includes('never retry'), definition.description)
+  check(`samples=${enabled}: the complete manual matches the 1.0.5 text (the steering sentences gone, the helper reference whole; ${manualBytes} bytes)`, createHash('sha256').update(manual).digest('hex') === hash && Buffer.byteLength(manual) === manualBytes, `${manualHint}${Buffer.byteLength(manual)} bytes: ${manual}`)
+  check(`samples=${enabled}: the wire carries the Eval wire contract rendered from that manual (fold 46bh), the manual arriving on discovery or first use`, typeof EvalTool.wireDescription === 'function' && definition.description === EvalTool.wireDescription(manual) && definition.description.includes('their signatures arrive on first use') && !definition.description.includes('Bash/Read/Edit') && !definition.description.includes('never retry'), wireHint + definition.description)
   let same = true
   try { deepStrictEqual(definition.input_schema, expected) } catch { same = false }
-  check('five-field wire schema matches exactly', same, JSON.stringify(definition.input_schema))
-  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}; 0 disables; time inside tool calls and permission waits never counts.`, definition.input_schema.properties.timeoutSeconds.description)
+  check('five-field wire schema matches exactly', same, wireHint + JSON.stringify(definition.input_schema))
+  check(`samples=${enabled}: the timeoutSeconds field names the runtime constants (default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}) from contracts.ts`, definition.input_schema.properties.timeoutSeconds.description === `Runtime budget in seconds: default ${contracts.EVAL_DEFAULT_TIMEOUT_SECONDS}, at most ${contracts.EVAL_MAX_TIMEOUT_SECONDS}; 0 disables; time inside tool calls and permission waits never counts.`, constantsHint + definition.input_schema.properties.timeoutSeconds.description)
   const wire = JSON.stringify({ ...definition, eager_input_streaming: true })
-  check(`samples=${enabled}: the fold 46bh wire definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, String(Buffer.byteLength(wire)))
+  check(`samples=${enabled}: the fold 46bh wire definition with eager_input_streaming is ${bytes} bytes`, Buffer.byteLength(wire) === bytes, wireHint + String(Buffer.byteLength(wire)) + ' bytes')
 }
-check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.')
+check('the Fallback permission card prints Eval\'s description() whole (one line, so truncateToLines keeps all of it): unchanged from .36', (await EvalTool.description()) === 'Run one code cell in a retained Python or JavaScript runtime: state persists across cells, and code can call session tools, spawn crewmates, and make model completions from inside the cell.', 'change description() in src/tools/EvalTool/EvalTool.ts back to the .36 sentence')
 const noInspect = await EvalTool.prompt({ ...options, tools: [EvalTool] })
-check('Inspect is named only when available in the session pool', !noInspect.includes('tool.Inspect({ref})'))
-check('the tool remains loaded in full', EvalTool.shouldDefer !== true)
+check('Inspect is named only when available in the session pool', !noInspect.includes('tool.Inspect({ref})'), 'change prompt() in src/tools/EvalTool/EvalTool.ts (text in prompt.ts) to name Inspect only when options.tools holds it')
+check('the tool remains loaded in full', EvalTool.shouldDefer !== true, 'change the Eval tool definition so it is not deferred (shouldDefer must not be true)')
 if (!process.argv.includes('--contract-only')) {
   const names = getAllBaseTools().map(tool => tool.name)
-  check('the catalogue has only the retained code tool', names.includes('Eval') && !names.includes(CODE_TOOL_SPELLINGS[0]))
-  check('the retired runtime gate no longer exists', !FLAG_REGISTRY.some(flag => flag.env === CODE_TOOL_SPELLINGS[1]))
+  check('the catalogue has only the retained code tool', names.includes('Eval') && !names.includes(CODE_TOOL_SPELLINGS[0]), catalogueHint)
+  check('the retired runtime gate no longer exists', !FLAG_REGISTRY.some(flag => flag.env === CODE_TOOL_SPELLINGS[1]), catalogueHint)
 }
 cleanup()
 finish('EVAL SINGLE RUNTIME CATALOGUE')

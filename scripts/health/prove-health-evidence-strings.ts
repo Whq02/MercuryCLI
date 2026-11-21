@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` | ${hint}` : ''}`)
 }
 
 {
@@ -18,14 +18,15 @@ function check(label: string, cond: boolean, detail = ''): void {
   else process.env.MERCURY_LOCAL_PROBE_TARGETS = probeTargets
   const printed = cert.sections.flatMap(entry => entry.checks)
   const objects = printed.filter(row => /\[object [A-Za-z]+\]/.test(`${row.evidence} ${row.detail ?? ''} ${row.fix ?? ''}`)).map(row => row.id)
-  check(`no row of a fast certificate prints an object as [object …] (${printed.length} rows run here)`, printed.length > 100 && objects.length === 0, objects.join(', '))
+  check(`no row of a fast certificate prints an object as [object …] (${printed.length} rows run here)`, printed.length > 100 && objects.length === 0, objects.join(', '), 'the listed row ids interpolate an object into evidence, detail or fix; stringify it in that row of src/services/health/sections')
   const slots = printed.find(row => row.id === 'provider-slots')
   check(
     "FC-095: the router row's engine word is 'configured' (never LIVE without a probe)",
     slots?.evidence.startsWith('anthropic configured (') === true,
     slots?.evidence,
+    'change the provider-slots row in authChecks (src/services/health/sections/auth.ts)',
   )
-  check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence)
+  check('FC-095: the LIVE spelling is out of the router row', slots !== undefined && !/\bLIVE\b/.test(slots.evidence), slots?.evidence, 'change the provider-slots row in authChecks (src/services/health/sections/auth.ts)')
   const { authChecks } = await import('../../src/services/health/sections/auth.ts')
   const before = { key: process.env.ZAI_API_KEY, base: process.env.MERCURY_ZAI_API_BASE, targets: process.env.MERCURY_LOCAL_PROBE_TARGETS }
   process.env.ZAI_API_KEY = 'fixture-zai-key'
@@ -42,6 +43,7 @@ function check(label: string, cond: boolean, detail = ''): void {
     "FC-095: with a Z.AI key the engine reads available, and the row's word for it is 'configured' (no probe went out, so never LIVE)",
     keyed?.status === 'ok' && words.length === 1 && words[0]!.startsWith('configured ') && !/\bLIVE\b/.test(keyed.evidence),
     keyed?.evidence,
+    'change the engine word built in the provider-slots row in authChecks (src/services/health/sections/auth.ts)',
   )
 }
 

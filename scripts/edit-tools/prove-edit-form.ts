@@ -6,16 +6,18 @@ import { join } from 'node:path'
 
 let failures = 0
 let checks = 0
+const EDIT_FORM_FAIL_HINT = 'to fix, change how the MERCURY_EDIT_FORM flag picks the Edit definition in src/utils/editForm.ts (forcedShortForm, editFormCacheMark) or where the definition is built and cached in src/services/messages/api.ts (toolToAPISchema)'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.length > 400 ? `${detail.slice(0, 400)}…` : detail}` : ''}${!ok ? ` — ${EDIT_FORM_FAIL_HINT}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 const guard = setTimeout(() => {
   console.log('\nTIMEOUT — the edit form proof exceeded 240s')
+  console.log('a driven request never finished; find the section that printed last and look at routedCallModel in src/services/providers/callModelRouter.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

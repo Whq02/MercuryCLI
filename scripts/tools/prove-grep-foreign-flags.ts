@@ -12,7 +12,8 @@ delete process.env.MERCURY_HOME
 
 let failures = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  const standInHint = 'fix the stand-in table (parameterStandIn) and formatZodValidationError in src/utils/toolErrors.ts, or the Grep input schema in src/tools/GrepTool/GrepTool.ts'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail} | ` : ''}${standInHint}` : ''}`)
   if (!cond) failures++
 }
 

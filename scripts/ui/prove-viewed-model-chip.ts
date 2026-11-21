@@ -37,6 +37,7 @@ function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
   console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!good) console.log('    hint: the status row with the model chip, effort and main chat words is FocusedSessionStatusRow in src/components/SwitchboardTagBar.tsx, the crewmate in view comes from useViewedCrewmate in src/components/tasks/useCrewmateView.ts, and the chip label from renderModelChip in src/services/model/model.ts; rerun with --frames <dir> to write the frames')
 }
 async function until(predicate: () => boolean): Promise<boolean> {
   const deadline = Date.now() + 4000
@@ -151,7 +152,7 @@ function Harness(): React.ReactNode {
 const faults: string[] = []
 const originalError = console.error
 console.error = (...args: unknown[]): void => { faults.push(args.map(String).join(' ')); originalError(...args) }
-const deadline = setTimeout(() => { console.error('viewed-model-chip exceeded its deadline'); process.exit(1) }, 120_000)
+const deadline = setTimeout(() => { console.error('viewed-model-chip exceeded its 120s deadline; a status row step never painted, so check the last PASS line above and the FocusedSessionStatusRow render in src/components/SwitchboardTagBar.tsx'); process.exit(1) }, 120_000)
 deadline.unref()
 
 for (const [cols, rows] of [[178, 51], [120, 40]] as const) {

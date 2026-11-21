@@ -12,6 +12,7 @@ const source = join(root, 'source')
 const target = join(root, 'target')
 const platform = Object.getOwnPropertyDescriptor(process, 'platform')!
 const copied: string[] = []
+const copyFallbackWhere = 'what to change: linkCheckoutDirectories in src/services/worktree.ts, the copy fallback it takes when symlink is denied (EPERM), and the symlinkDirectories entries it reads'
 const copy = fs.cp
 const settings = await import('../../src/utils/settings/settings.js')
 mock.module('../../src/utils/settings/settings.js', () => ({
@@ -35,23 +36,23 @@ try {
   if (process.platform !== 'win32') symlinkSync(join(source, 'deps', 'marker'), join(source, 'deps', 'linked-marker'))
   Object.defineProperty(process, 'platform', { ...platform, value: 'win32' })
   await prepareWorktreeFiles(source, target)
-  assert.equal(readFileSync(join(target, 'deps', 'marker'), 'utf8'), 'source dependency')
-  assert.equal(readFileSync(join(target, 'vendor', 'pack', 'marker'), 'utf8'), 'source pack')
-  assert.equal(lstatSync(join(target, 'deps')).isSymbolicLink(), false)
-  if (existsSync(join(source, 'deps', 'linked-marker'))) assert.equal(lstatSync(join(target, 'deps', 'linked-marker')).isSymbolicLink(), false)
-  assert.deepEqual(copied.sort(), [join(target, 'deps'), join(target, 'vendor', 'pack')].sort())
-  assert.equal(readFileSync(join(target, 'exists', 'marker'), 'utf8'), 'keep target')
-  assert.equal(existsSync(join(root, 'outside')), false)
+  assert.equal(readFileSync(join(target, 'deps', 'marker'), 'utf8'), 'source dependency', `the denied link must fall back to a copy of deps; ${copyFallbackWhere}`)
+  assert.equal(readFileSync(join(target, 'vendor', 'pack', 'marker'), 'utf8'), 'source pack', `the nested vendor/pack entry must be copied; ${copyFallbackWhere}`)
+  assert.equal(lstatSync(join(target, 'deps')).isSymbolicLink(), false, `the fallback must leave a real directory, not a link; ${copyFallbackWhere}`)
+  if (existsSync(join(source, 'deps', 'linked-marker'))) assert.equal(lstatSync(join(target, 'deps', 'linked-marker')).isSymbolicLink(), false, `links inside the copied directory must be dereferenced (cp with dereference: true); ${copyFallbackWhere}`)
+  assert.deepEqual(copied.sort(), [join(target, 'deps'), join(target, 'vendor', 'pack')].sort(), `only deps and vendor/pack may be copied; ${copyFallbackWhere}`)
+  assert.equal(readFileSync(join(target, 'exists', 'marker'), 'utf8'), 'keep target', `an entry that already exists in the worktree must be kept, not overwritten; ${copyFallbackWhere}`)
+  assert.equal(existsSync(join(root, 'outside')), false, `a ../ entry must be skipped by the path-traversal check; ${copyFallbackWhere}`)
   writeFileSync(join(target, 'deps', 'marker'), 'worktree edit')
-  assert.equal(readFileSync(join(source, 'deps', 'marker'), 'utf8'), 'source dependency')
+  assert.equal(readFileSync(join(source, 'deps', 'marker'), 'utf8'), 'source dependency', `editing the copy must not change the source, so the copy must not alias it; ${copyFallbackWhere}`)
   rmSync(target, { recursive: true, force: true })
-  assert.equal(readFileSync(join(source, 'vendor', 'pack', 'marker'), 'utf8'), 'source pack')
+  assert.equal(readFileSync(join(source, 'vendor', 'pack', 'marker'), 'utf8'), 'source pack', `removing the worktree must leave the source intact; ${copyFallbackWhere}`)
   console.log('PASS denied Windows links copy dependencies without symlink privilege; edits and cleanup leave the source intact')
   Object.defineProperty(process, 'platform', { ...platform, value: 'linux' })
   copied.length = 0
   await prepareWorktreeFiles(source, target)
-  assert.equal(copied.length, 0)
-  assert.equal(existsSync(join(target, 'deps')), false)
+  assert.equal(copied.length, 0, `on a POSIX platform a refused link must not become a copy; ${copyFallbackWhere}`)
+  assert.equal(existsSync(join(target, 'deps')), false, `a refused link on a POSIX platform must leave no deps in the worktree; ${copyFallbackWhere}`)
   console.log('PASS existing targets, missing sources, traversal and POSIX refusals do not become copies')
 } finally {
   Object.defineProperty(process, 'platform', platform)

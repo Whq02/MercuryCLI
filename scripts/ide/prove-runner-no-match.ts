@@ -22,16 +22,17 @@ type TestRunRecord = import('../../src/services/ide/pythonTests.ts').TestRunReco
 
 let failures = 0
 let checks = 0
+const NO_MATCH_FAIL_HINT = 'where to look: the no-match verdict is set in runRunnerProfile in src/services/ide/projectRunners.ts (node runners) and runPythonTests in src/services/ide/pythonTests.ts (python); its wording and the no-change outcome come from src/tools/TestTool/TestTool.ts; go parsing is parseGoTestJson in src/services/ide/runnerReporters.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 400) + ' | ' : ''}${NO_MATCH_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runner no-match proof exceeded 300s')
+  console.log('\nTIMEOUT — runner no-match proof exceeded 300s; a runner run did not return: look at the last section printed above and at runRunnerProfile in src/services/ide/projectRunners.ts')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

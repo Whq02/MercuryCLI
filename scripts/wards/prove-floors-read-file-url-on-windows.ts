@@ -7,12 +7,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { removeScratch } from '../lib/removeScratch.ts'
 
+const FILE_URL_FAIL_HINT = 'fix: how src/utils/permissions/shellProtectedPaths.ts reads a file: URL naming a Windows drive path in shellMercurySecretPath (reads), shellCredentialWritePath (writes) and shellSelfProtectionReason (runtime files)'
 let failures = 0
 let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail}${detail ? ' | ' : ''}${FILE_URL_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

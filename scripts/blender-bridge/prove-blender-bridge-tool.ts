@@ -9,6 +9,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log('    what to change: make the tool match this label in src/tools/BlenderTool/BlenderTool.ts (call, checkPermissions, capability), src/tools/BlenderTool/prompt.ts (getBlenderToolDescription) or src/services/cockpit/harnessMap.ts (computeHarnessMapLines)')
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

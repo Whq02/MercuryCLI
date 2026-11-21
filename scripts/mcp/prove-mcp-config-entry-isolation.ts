@@ -19,7 +19,7 @@ process.chdir(cwd)
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : ' | change the per-entry validation in parseMcpConfig in src/services/mcp/config.ts; the built-product checks also need dist rebuilt with bun run build.ts'}`)
 }
 
 const document = {

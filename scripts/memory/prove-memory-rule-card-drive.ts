@@ -13,10 +13,10 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', hint = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && (detail || hint) ? ` — ${hint ? `${hint} | ` : ''}${detail.slice(0, 900)}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 
@@ -76,28 +76,28 @@ for (const scene of [
     keep: true,
   })
   const answer = run.sendLog.find(s => Buffer.from((s as { b64?: string }).b64 ?? '', 'base64').toString('latin1') === scene.key)
-  check(`${scene.id}: the card painted and was answered with ${scene.key}`, answer !== undefined, run.driverOut.slice(-400))
+  check(`${scene.id}: the card painted and was answered with ${scene.key}`, answer !== undefined, run.driverOut.slice(-400), 'the Correct retract must raise the Memory rule permission card and take the key; check src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx and src/tools/MemoryTools/ruleCard.ts, and that dist is built')
   if (answer !== undefined) {
     const [atCard] = grabScreens(run, COLS, ROWS, [Math.max(0, sendStamp(run, answer) - 80)])
     const card = cardRows(atCard!.rows)
     if (frameDir) writeFileSync(join(frameDir, `rule-card-drive-${scene.id}.txt`), `${atCard!.rows.map(r => r.replace(/\s+$/, '')).join('\n')}\n`)
     const joined = card.join('\n')
-    check(`${scene.id}: the card is the memory card, titled Memory rule`, joined.includes('⦿ Memory rule'), atCard!.rows.join('\n').slice(-1800))
-    check(`${scene.id}: the card shows the rule's words verbatim`, joined.includes(`seq 1: "${RULE}"`), joined)
-    check(`${scene.id}: the card says what will happen and gives Mercury's reason as Mercury's`, joined.includes('It will be unpinned and struck; its wording is kept in history.') && joined.includes("Mercury's reason: the user said it is not a rule"), joined)
-    check(`${scene.id}: the card offers exactly Yes and No, keep the rule`, joined.includes('1. Yes') && joined.includes('2. No, keep the rule') && !joined.includes('3.') && !joined.includes("don't ask again"), joined)
+    check(`${scene.id}: the card is the memory card, titled Memory rule`, joined.includes('⦿ Memory rule'), atCard!.rows.join('\n').slice(-1800), 'the card title comes from src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx and the card body from src/tools/MemoryTools/ruleCard.ts')
+    check(`${scene.id}: the card shows the rule's words verbatim`, joined.includes(`seq 1: "${RULE}"`), joined, 'the card must quote the rule text verbatim; check the line that names the seq and its words in src/tools/MemoryTools/ruleCard.ts')
+    check(`${scene.id}: the card says what will happen and gives Mercury's reason as Mercury's`, joined.includes('It will be unpinned and struck; its wording is kept in history.') && joined.includes("Mercury's reason: the user said it is not a rule"), joined, 'the card must state the effect and the reason as Mercury; check the effect line and the reason line in src/tools/MemoryTools/ruleCard.ts')
+    check(`${scene.id}: the card offers exactly Yes and No, keep the rule`, joined.includes('1. Yes') && joined.includes('2. No, keep the rule') && !joined.includes('3.') && !joined.includes("don't ask again"), joined, 'the card must offer only Yes and No, keep the rule; check the options in src/components/permissions/MemoryRulePermissionRequest/MemoryRulePermissionRequest.tsx')
   }
   const [final] = grabScreens(run, COLS, ROWS, [-1])
   const rows = final!.rows.map(r => r.replace(/\s+$/, ''))
   if (frameDir) writeFileSync(join(frameDir, `rule-card-drive-${scene.id}-final.txt`), `${rows.join('\n')}\n`)
-  check(`${scene.id}: the turn went on to its end (the answer never interrupted it)`, rows.some(r => r.includes('Done.')), rows.slice(-14).join('\n'))
-  check(`${scene.id}: the transcript row reads "${scene.row}"`, rows.some(r => r.includes(scene.row)), rows.filter(r => r.includes('retract') || r.includes('kept')).join(' | ') || rows.slice(-14).join('\n'))
-  if (scene.id === 'no') check('no: the kept answer is never drawn as an error row', !rows.some(r => r.includes('▲ Error') && r.includes('kept')), rows.filter(r => r.includes('▲')).join(' | '))
-  check(`${scene.id}: the model was told: ${scene.said}`, toolResults(run).some(r => r.includes(scene.said)), toolResults(run).join(' | ').slice(0, 900))
+  check(`${scene.id}: the turn went on to its end (the answer never interrupted it)`, rows.some(r => r.includes('Done.')), rows.slice(-14).join('\n'), 'answering the card must let the tool call finish and the turn continue; check how src/tools/MemoryTools/MemoryTools.ts handles the card answer')
+  check(`${scene.id}: the transcript row reads "${scene.row}"`, rows.some(r => r.includes(scene.row)), rows.filter(r => r.includes('retract') || r.includes('kept')).join(' | ') || rows.slice(-14).join('\n'), 'the transcript row for the Correct call is drawn in src/tools/MemoryTools/UI.tsx')
+  if (scene.id === 'no') check('no: the kept answer is never drawn as an error row', !rows.some(r => r.includes('▲ Error') && r.includes('kept')), rows.filter(r => r.includes('▲')).join(' | '), 'a kept answer must render as a plain row, not an error; check the kept branch in src/tools/MemoryTools/UI.tsx and the result in src/tools/MemoryTools/MemoryTools.ts')
+  check(`${scene.id}: the model was told: ${scene.said}`, toolResults(run).some(r => r.includes(scene.said)), toolResults(run).join(' | ').slice(0, 900), 'the tool result sent back to the model carries the sentence for the answer given; check the card-answer text in src/tools/MemoryTools/MemoryTools.ts')
   const lib = libraryOf(run.paths.home)
   const pinned = lib === null ? [] : pinsOf(lib)
-  if (scene.id === 'yes') check('yes: the rule left the shelf', lib !== null && !pinned.some(p => p.seq === 1), JSON.stringify(pinned))
-  else check('no: the rule is still pinned and asked for by the user', lib !== null && pinned.some(p => p.seq === 1 && p.asked === true), JSON.stringify(pinned))
+  if (scene.id === 'yes') check('yes: the rule left the shelf', lib !== null && !pinned.some(p => p.seq === 1), JSON.stringify(pinned), 'Yes on the card must run the retract and remove the pin from pins.json; check the Correct retract in src/mneme/memoryVerbs.ts')
+  else check('no: the rule is still pinned and asked for by the user', lib !== null && pinned.some(p => p.seq === 1 && p.asked === true), JSON.stringify(pinned), 'No on the card must leave the owner-asked pin in pins.json untouched; check the card-answer path in src/tools/MemoryTools/MemoryTools.ts')
   run.cleanup()
 }
 

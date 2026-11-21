@@ -32,7 +32,7 @@ Math.random = () => 0.5
 let failures = 0
 function check(label: string, condition: boolean, detail?: unknown): void {
   if (!condition) failures++
-  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}`)
+  console.log(`  [${condition ? 'PASS' : 'FAIL'}] ${label}${!condition && detail !== undefined ? ` — ${JSON.stringify(detail)}` : ''}${condition ? '' : ' — fix the retry ladder in src/services/providers/busyRetry.ts (openBusyRetryLadder, nextBusyRetryWithinBudget) or the count paths countMessagesTokensWithAPI and countTokensViaHaikuFallback in src/services/tokenEstimation.ts'}`)
 }
 const show = (value: unknown): string => JSON.stringify(value)
 

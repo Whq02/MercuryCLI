@@ -17,9 +17,22 @@ delete process.env.MERCURY_HOME
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
 let failures = 0
+const faultHints: Array<[string, string]> = [
+  ['conflictRegionStore-', 'change readConflictRegions in src/services/gitGraph/conflictRegionStore.ts to treat only ENOENT as an empty result and rethrow other read errors'],
+  ['observe-config-', 'change commitIdentityLine in src/services/gitGraph/observe.ts to report unset only when git config reads cleanly and let a corrupt config throw'],
+  ['plan-headsha-', 'change applyPlan in src/services/gitGraph/plan.ts to treat only an unborn HEAD (rev-parse exit 1) as empty and refuse with code io on any other rev-parse error'],
+  ['idle-sweep-', 'change sweepHostIdle in src/services/host/idle.ts to emit one unread-use notice per run of failing rounds and never release on an unreadable last use'],
+  ['idle-', 'change hostIdleVerdict in src/services/host/idle.ts to return undefined when the last-turn mark or activity.json cannot be read, and idle only when the mark is absent'],
+  ['repoFolder-', 'change resolveRepoFolder in src/services/gitGraph/repoFolder.ts to refuse with the EACCES note when the folder cannot be statted or listed'],
+  ['reliability-', 'change noteHostLink in src/services/host/reliability.ts to start fresh on corrupt JSON but keep an unreadable history file untouched'],
+  ['bankManifest-', 'change bankManifest in src/services/host/bankManifest.ts to report the bank cannot be read on EACCES and not banked only when the folder is absent'],
+  ['bank-', 'change the matching function in src/services/host/bank.ts (bankFiles, bankFolder, bankModelPath, bankState, verifyBank or sealBank, named in the label) to throw or answer as the label says on a corrupt or unreadable file'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : (faultHints.find(([prefix]) => label.startsWith(prefix))?.[1] ?? '')
+  const said = [detail, hint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

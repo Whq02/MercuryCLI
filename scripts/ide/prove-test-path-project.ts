@@ -20,16 +20,17 @@ type ToolAnswer = { data: { outcome: string; result: string; record?: TestRunRec
 
 let failures = 0
 let checks = 0
+const TEST_PATH_FAIL_HINT = 'where to look: how the Test tool reads the path input (anchorOf and the op handlers) in src/tools/TestTool/TestTool.ts; runner discovery and runs in src/services/ide/projectRunners.ts; python lanes in src/services/ide/pythonTests.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail.slice(0, 600) + ' | ' : ''}${TEST_PATH_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — test-path-project proof exceeded 300s')
+  console.log('\nTIMEOUT — test-path-project proof exceeded 300s; a Test tool call did not return: look at the last section printed above and at src/tools/TestTool/TestTool.ts')
   process.exit(1)
 }, 300_000)
 guard.unref?.()

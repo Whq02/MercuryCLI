@@ -22,9 +22,10 @@ if (process.platform === 'win32') {
 const NODE = existsSync(PACK_NODE) ? PACK_NODE : nodeBinPath()
 const KEEP = process.env.FRESH_FOLDER_KEEP === '1'
 let failures = 0
+const failureHint = 'fix scripts/ops/deploy-runtime.sh (how it lays out runtime/builds, runtime/current and runtime/dist beside a live daemon), then rerun; FRESH_FOLDER_KEEP=1 keeps the scratch folder'
 const check = (label: string, cond: boolean, detail = ''): void => {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? `${detail ? ` — ${detail}` : ''} · ${failureHint}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
@@ -39,7 +40,7 @@ const untilAsync = async (pred: () => Promise<boolean> | boolean, ms: number, ev
   return false
 }
 const guard = setTimeout(() => {
-  console.log('\n❌ TIMEOUT — prove-install-fresh-folder exceeded 240s')
+  console.log('\n❌ TIMEOUT — prove-install-fresh-folder exceeded 240s; it waits for the fixture daemon log to say control socket up and for the deploy to finish, so read the scratch folder daemon.log and scripts/ops/deploy-runtime.sh')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -4,7 +4,7 @@ const { channelTargetCandidates, findChannelTargetQuery, generateCommandSuggesti
 
 let passed = 0
 function check(label: string, ok: boolean, detail = ''): void {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}sections 1 to 3 exercise findChannelTargetQuery, channelTargetCandidates and rankChannelTargets in src/utils/suggestions/commandSuggestions.ts, section 5 the swarmchat, general, team and whisper commands under src/commands (description, argumentHint, aliases)` : ''}`)
   if (!ok) {
     console.log(`\nprove-swarm-channel-completion: FAILED at check ${passed + 1}`)
     process.exit(1)

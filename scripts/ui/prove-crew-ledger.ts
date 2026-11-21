@@ -66,7 +66,7 @@ let checks = 0
 function check(label: string, good: boolean, detail = ''): void {
   checks++
   if (!good) failures++
-  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}`)
+  console.log(`[${good ? 'PASS' : 'FAIL'}] ${label}${!good && detail ? ` — ${detail}` : ''}${good ? '' : ' | fix the CREW box rows in src/services/cockpit/helmLanesModel/sections.ts, the state words and receipts in src/utils/cockpit/crewmateWords.ts or the crew view in src/utils/cockpit/crewView.ts; rerun with --frames <dir> --size <cols>x<rows> to read the painted frames'}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

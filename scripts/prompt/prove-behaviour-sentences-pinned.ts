@@ -23,10 +23,10 @@ const FIXTURES = join(import.meta.dir, 'fixtures', 'prompt-ablation')
 const j = (v: unknown): string => JSON.stringify(v)
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -97,45 +97,45 @@ try {
   const library = mnemeLibraryDir()
   retainItems([{ content: 'the proof home holds one fact so the index renders', topic: 'proof' }], { session: 'sentences-pinned' }, library)
   const landed = maybeConsolidate({ force: true, dir: library, now: new Date('2026-10-16T12:00:00.000Z') })
-  check('the scratch library holds one consolidated fact', landed.consolidated && landed.entries === 1, landed.reason)
+  check('the scratch library holds one consolidated fact', landed.consolidated && landed.entries === 1, landed.reason, 'retainItems in src/mneme/memoryVerbs.ts or maybeConsolidate in src/mneme/mnemeConsolidate.ts no longer lands one fact in a fresh library')
   const seats: Record<string, string> = { main: await assemble('interactive'), headless: await assemble('headless'), crewmate: await crewmate() }
   for (const [seat, text] of Object.entries(seats)) {
-    check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render')
+    check(`${seat}: the memory index sentence is present, verbatim, once`, text.split(M026).length === 2, text.includes('# Memory') ? 'the memory page rides without the sentence' : 'no memory page in the render', 'the sentence is written in renderFrontPage in src/mneme/mnemeFrontPage.ts and must appear once in every seat prompt; restore it there, or update M026 in this file if it was reworded on purpose')
   }
   const pinsOnly = renderFrontPage({ dir: library, topics: [], archives: [], pins: [{ seq: 1, at: '2026-10-16T12:00:00.000Z' }], usage: {}, now: new Date('2026-10-16T12:00:00.000Z') }).text
-  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly)
+  check('a pins-only library (pins, no topics, no archives) renders the sentence and its referent: the ## Index heading, the empty-index line beneath it', pinsOnly.includes(M026) && pinsOnly.includes('\n## Index\n(nothing saved yet — memory is written only when the user asks for something to be remembered)\n'), pinsOnly, 'renderFrontPage in src/mneme/mnemeFrontPage.ts must print the M026 sentence, the ## Index heading and the empty-index line when only pins exist')
 
   section('§2 every sentence the study cut is absent from the seats it rode in')
   const rows = tsv('cut-rows.tsv')
-  check('the fixture names the twenty cut rows', rows.length === 20 && rows.every(r => r.id && r.seats && r.sentence && r.carrier), j(rows.map(r => r.id)))
+  check('the fixture names the twenty cut rows', rows.length === 20 && rows.every(r => r.id && r.seats && r.sentence && r.carrier), j(rows.map(r => r.id)), 'scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv must hold exactly twenty rows, each with id, seats, sentence and carrier filled')
   for (const row of rows) {
     const sentence = fill(row.sentence!)
     const present = row.seats!.split(' ').filter(seat => seats[seat]!.includes(sentence))
-    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`)
+    check(`${row.id} is absent from ${row.seats} (carrier: ${row.carrier})`, present.length === 0, `still rides the ${present.join(' and ')} seat`, 'a sentence the study cut is back in a seat prompt; find its row in scripts/prompt/fixtures/prompt-ablation/cut-rows.tsv, then remove the sentence from the source named in its carrier column (the seats are assembled in src/constants/prompts.ts and src/constants/subagentDoctrine.ts)')
   }
 
 
   section('§4 the replay fixture: the flip is a recorded fact, read, never re-run')
   const flips = tsv('replay-flip.tsv')
   const questions = tsv('questions.tsv')
-  check('two closed questions, one per turn, each judged by a grep', questions.length === 2 && questions.every(q => q.judge === 'grep' && q.grep_yes) && j(questions.map(q => q.turn)) === j(['T05', 'T10']))
-  check('four recorded replies: the whole prompt and the one-row confirm arm, per turn', flips.length === 4 && j(flips.map(f => `${f.turn}.${f.arm}`)) === j(['T05.A0', 'T05.CT05-A2', 'T10.A0', 'T10.CT10-A2']))
+  check('two closed questions, one per turn, each judged by a grep', questions.length === 2 && questions.every(q => q.judge === 'grep' && q.grep_yes) && j(questions.map(q => q.turn)) === j(['T05', 'T10']), '', 'scripts/prompt/fixtures/prompt-ablation/questions.tsv must hold the two rows T05 and T10, each with judge grep and a grep_yes pattern')
+  check('four recorded replies: the whole prompt and the one-row confirm arm, per turn', flips.length === 4 && j(flips.map(f => `${f.turn}.${f.arm}`)) === j(['T05.A0', 'T05.CT05-A2', 'T10.A0', 'T10.CT10-A2']), '', 'scripts/prompt/fixtures/prompt-ablation/replay-flip.tsv must hold exactly those four turn and arm rows, in that order')
   for (const turn of ['T05', 'T10']) {
     const question = questions.find(q => q.turn === turn)!
     const whole = flips.find(f => f.turn === turn && f.arm === 'A0')!
     const confirm = flips.find(f => f.turn === turn && f.arm !== 'A0')!
     const re = new RegExp(question.grep_yes!, 'i')
-    check(`${turn}: the fixture's pattern is the question's judge`, whole.pattern === question.grep_yes && confirm.pattern === question.grep_yes)
-    check(`${turn}: the whole-prompt arm removed no row and the judge matched nothing in it`, whole.rows_removed === '' && whole.matched_excerpt === '' && whole.answer === 'no')
-    check(`${turn}: with M026 alone removed the judged answer differs from the whole-prompt answer, and the recorded excerpt is what the judge matched`, confirm.rows_removed === 'M026' && confirm.answer !== whole.answer && confirm.answer === 'yes' && re.test(confirm.matched_excerpt!), j(confirm.matched_excerpt))
-    for (const f of [whole, confirm]) check(`${turn}.${f.arm}: the recorded reply is pinned by digest and size`, /^[0-9a-f]{64}$/.test(f.reply_sha256!) && Number(f.reply_bytes) > 0)
+    check(`${turn}: the fixture's pattern is the question's judge`, whole.pattern === question.grep_yes && confirm.pattern === question.grep_yes, '', 'the pattern column of both rows of this turn in scripts/prompt/fixtures/prompt-ablation/replay-flip.tsv must equal grep_yes in questions.tsv')
+    check(`${turn}: the whole-prompt arm removed no row and the judge matched nothing in it`, whole.rows_removed === '' && whole.matched_excerpt === '' && whole.answer === 'no', '', 'the A0 row of this turn in scripts/prompt/fixtures/prompt-ablation/replay-flip.tsv is a recorded fact: rows_removed and matched_excerpt empty, answer no')
+    check(`${turn}: with M026 alone removed the judged answer differs from the whole-prompt answer, and the recorded excerpt is what the judge matched`, confirm.rows_removed === 'M026' && confirm.answer !== whole.answer && confirm.answer === 'yes' && re.test(confirm.matched_excerpt!), j(confirm.matched_excerpt), 'the confirm row of this turn in scripts/prompt/fixtures/prompt-ablation/replay-flip.tsv is a recorded fact: rows_removed M026, answer yes, and matched_excerpt must match grep_yes in questions.tsv')
+    for (const f of [whole, confirm]) check(`${turn}.${f.arm}: the recorded reply is pinned by digest and size`, /^[0-9a-f]{64}$/.test(f.reply_sha256!) && Number(f.reply_bytes) > 0, '', 'reply_sha256 must be a 64-digit hex digest and reply_bytes a positive number in this row of scripts/prompt/fixtures/prompt-ablation/replay-flip.tsv')
   }
   const t05 = questions.find(q => q.turn === 'T05')!
-  check('T05: the recorded whole-prompt answer is the expected one (no stale plan adopted); the study\'s resamples found that baseline itself unstable, so the pair carries no signal of its own', t05.expected_A0 === 'no' && flips.find(f => f.turn === 'T05' && f.arm === 'A0')!.answer === 'no')
+  check('T05: the recorded whole-prompt answer is the expected one (no stale plan adopted); the study\'s resamples found that baseline itself unstable, so the pair carries no signal of its own', t05.expected_A0 === 'no' && flips.find(f => f.turn === 'T05' && f.arm === 'A0')!.answer === 'no', '', 'expected_A0 in scripts/prompt/fixtures/prompt-ablation/questions.tsv and the T05 A0 answer in replay-flip.tsv must both read no')
   const t10 = questions.find(q => q.turn === 'T10')!
-  check('T10: the recorded whole-prompt answer differs from the expected one (its reply grades its claims in words the grep does not match); the study\'s resamples held the one-row difference, 3 of 4 against 0 of 5', t10.expected_A0 === 'yes' && flips.find(f => f.turn === 'T10' && f.arm === 'A0')!.answer === 'no')
+  check('T10: the recorded whole-prompt answer differs from the expected one (its reply grades its claims in words the grep does not match); the study\'s resamples held the one-row difference, 3 of 4 against 0 of 5', t10.expected_A0 === 'yes' && flips.find(f => f.turn === 'T10' && f.arm === 'A0')!.answer === 'no', '', 'expected_A0 in scripts/prompt/fixtures/prompt-ablation/questions.tsv must read yes and the T10 A0 answer in replay-flip.tsv must read no')
   const readme = readFileSync(join(FIXTURES, 'README.md'), 'utf8')
-  check('the README names the study and the door (thinking off)', readme.includes('prompt-ablation study') && readme.includes('thinking off') && readme.includes('M026'))
+  check('the README names the study and the door (thinking off)', readme.includes('prompt-ablation study') && readme.includes('thinking off') && readme.includes('M026'), '', 'scripts/prompt/fixtures/prompt-ablation/README.md must name the prompt-ablation study, thinking off and M026')
 } finally {
   clearSystemPromptSections()
   resetRuntimePostureForTest()

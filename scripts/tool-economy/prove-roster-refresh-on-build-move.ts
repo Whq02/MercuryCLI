@@ -17,7 +17,8 @@ let count = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   count++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 400)}` : ''}`)
+  const rosterHint = ' | fix the roster replay in planToolPayload in src/services/providers/toolEconomy.ts, restoreBoundPrefixFromMessages in src/services/providers/anthropic/boundPrefixRecord.ts, or the recorded definition in toolToAPISchema in src/services/messages/api.ts'
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? `${detail ? ` — ${detail.slice(0, 400)}` : ''}${rosterHint}` : ''}`)
 }
 const section = (t: string): void => {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -55,7 +55,7 @@ const persisted = (): boolean => {
 }
 const idle = async (): Promise<void> => {
   await new Promise<void>((done, reject) => {
-    const timer = setTimeout(() => { unsubscribe(); reject(new Error('voice did not settle')) }, 90_000)
+    const timer = setTimeout(() => { unsubscribe(); reject(new Error('voice did not settle; the voice phase must return to idle after a take, fix the phase handling in src/services/voice/voiceSession.ts')) }, 90_000)
     const unsubscribe = session.subscribeVoice(() => {
       if (session.voiceSnapshot().phase === 'idle') { clearTimeout(timer); unsubscribe(); done() }
     })
@@ -164,6 +164,9 @@ try {
   assert.equal(persisted(), false, 'off during setup must not be undone by the completed download')
   assert.doesNotMatch(words.join('\n'), /API key|\/logins|openai|gemini/i, 'voice words have no cloud door')
   console.log('prove-voice-on-off: green — first on, verified fixture download, real decode, restart persistence, off, absent pack, load failure, download failures, no cloud words')
+} catch (error) {
+  console.error('prove-voice-on-off failed; the assertion above names the step. The /voice on, off and capture answers come from call in src/commands/voice/voice.ts, the on and off state and phases from src/services/voice/voiceSession.ts, the model download from src/services/voice/transcribe.ts and src/services/voice/whisperModels.ts, and the pack load from src/services/voice/whisperPack.ts')
+  throw error
 } finally {
   globalThis.fetch = originalFetch
   transcribe.unloadLocalModels()

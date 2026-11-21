@@ -10,10 +10,10 @@ process.env.MERCURY_CONFIG_DIR = mkdtempSync(join(tmpdir(), 'stillpoint-mine-hom
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | fix: mineTranscript in scripts/mission-runner/live/runner.ts must count this field from the fixture transcript written above (M checks read the classic transcript shape, V checks the vNext record shape)' : ''}`)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runner-mining proof exceeded 60s')
+  console.log('\nTIMEOUT — runner-mining proof exceeded 60s; mineTranscript in scripts/mission-runner/live/runner.ts did not return, or the import of that file hung')
   process.exit(1)
 }, 60_000)
 guard.unref?.()

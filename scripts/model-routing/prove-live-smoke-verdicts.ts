@@ -5,7 +5,7 @@ import { agenticVerdict, carriesNumber, imageVerdict, latchVerdict, turnAnswerVe
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ' — ' + detail : ''}${ok ? '' : ' — fix the verdict function this label names in scripts/model-routing/live/smokeVerdicts.ts (agenticVerdict, imageVerdict, turnAnswerVerdict, latchVerdict, carriesNumber), or for section 5 the call site in scripts/model-routing/live/smoke-agentic.ts, smoke-image.ts or smoke-turn.ts'}`)
   if (!ok) failures++
 }
 const reason = (v: { ok: boolean; reason?: string }): string => (v.ok ? 'ok' : v.reason ?? '')

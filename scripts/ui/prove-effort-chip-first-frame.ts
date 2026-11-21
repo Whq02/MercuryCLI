@@ -2,7 +2,7 @@
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 300)}` : ''}${cond ? '' : ' | fix focusedEffortLabelOf in src/components/mercury-ui/EffortChip.tsx (the asked mark, the sent word and the born word)'}`)
 }
 const { focusedEffortLabelOf } = await import('../../src/components/mercury-ui/EffortChip.tsx')
 const model = 'claude-opus-5'

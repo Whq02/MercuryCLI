@@ -6,16 +6,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { godotPrerequisiteFailure, resolveProofGodot } from './proofGodot.ts'
 
-assert.equal(godotPrerequisiteFailure({ status: 0, stdout: 'Godot Engine 4\n', stderr: '' }), null)
-assert.match(godotPrerequisiteFailure({ status: null, signal: 'SIGKILL', stderr: 'ERROR: sh: dotnet: command not found\n' })!, /dotnet: command not found/)
-assert.match(godotPrerequisiteFailure({ status: 0, stderr: 'ERROR: .NET: One of the dependent libraries is missing.' })!, /dependent libraries/)
-assert.match(godotPrerequisiteFailure({ status: null, error: new Error('spawn failed: executable missing') })!, /executable missing/)
-assert.match(godotPrerequisiteFailure({ status: null, signal: 'SIGKILL' })!, /SIGKILL/)
-assert.match(godotPrerequisiteFailure({ status: 2, stderr: 'ERROR: cannot initialize engine' })!, /cannot initialize engine/)
+assert.equal(godotPrerequisiteFailure({ status: 0, stdout: 'Godot Engine 4\n', stderr: '' }), null, 'a clean version probe must read as available: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
+assert.match(godotPrerequisiteFailure({ status: null, signal: 'SIGKILL', stderr: 'ERROR: sh: dotnet: command not found\n' })!, /dotnet: command not found/, 'a missing dotnet must be named from the probe output: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
+assert.match(godotPrerequisiteFailure({ status: 0, stderr: 'ERROR: .NET: One of the dependent libraries is missing.' })!, /dependent libraries/, 'a .NET dependent-libraries error must fail the prerequisite even at status 0: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
+assert.match(godotPrerequisiteFailure({ status: null, error: new Error('spawn failed: executable missing') })!, /executable missing/, 'a spawn error message must be returned as the reason: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
+assert.match(godotPrerequisiteFailure({ status: null, signal: 'SIGKILL' })!, /SIGKILL/, 'a killed probe must name its signal: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
+assert.match(godotPrerequisiteFailure({ status: 2, stderr: 'ERROR: cannot initialize engine' })!, /cannot initialize engine/, 'a nonzero exit must return the first ERROR line of stderr: fix godotPrerequisiteFailure in scripts/vulcan/proofGodot.ts')
 for (const name of ['check', 'debugger', 'instances', 'media', 'query-boot', 'scene-tree', 'service']) {
   const source = readFileSync(join(import.meta.dir, `prove-engine-${name}.ts`), 'utf8')
-  assert.ok(source.includes("import('./proofGodot.ts')") && source.includes('resolveProofGodot()'), `${name} must probe the engine before its live legs`)
-  assert.ok(source.includes('[SKIP]') && source.includes('.reason}'), `${name} must name why its live leg did not run`)
+  assert.ok(source.includes("import('./proofGodot.ts')") && source.includes('resolveProofGodot()'), `${name} must probe the engine before its live legs: make scripts/vulcan/prove-engine-${name}.ts import ./proofGodot.ts and call resolveProofGodot()`)
+  assert.ok(source.includes('[SKIP]') && source.includes('.reason}'), `${name} must name why its live leg did not run: make scripts/vulcan/prove-engine-${name}.ts print [SKIP] with the resolveProofGodot reason`)
 }
 if (process.platform === 'win32') {
   console.log('not read on Windows: godot stub script uses POSIX #!/bin/sh')
@@ -33,9 +33,9 @@ if (process.platform === 'win32') {
       process.env.PATH = `${scratch}:/usr/bin:/bin`
       const found = await resolveProofGodot()
       const firstWords = readFileSync(calls, 'utf8').split('\n').filter(Boolean)
-      if (wanted === null) assert.deepEqual([found.resolved, found.reason], [stub, null], `a standard build that opens an empty project is taken: ${found.reason}`)
-      else assert.ok(found.resolved === null && wanted.test(found.reason ?? ''), `a .NET build with no dotnet on the path is skipped by name: ${found.reason}`)
-      assert.deepEqual(firstWords, launched, `the engine was started with ${firstWords.join(' then ')}; a .NET build with no dotnet is asked its version and never opened`)
+      if (wanted === null) assert.deepEqual([found.resolved, found.reason], [stub, null], `a standard build that opens an empty project is taken: ${found.reason}; fix resolveProofGodot in scripts/vulcan/proofGodot.ts`)
+      else assert.ok(found.resolved === null && wanted.test(found.reason ?? ''), `a .NET build with no dotnet on the path is skipped by name: ${found.reason}; fix resolveProofGodot in scripts/vulcan/proofGodot.ts`)
+      assert.deepEqual(firstWords, launched, `the engine was started with ${firstWords.join(' then ')}; a .NET build with no dotnet is asked its version and never opened; fix resolveProofGodot in scripts/vulcan/proofGodot.ts`)
     }
   } finally {
     if (kept.bin === undefined) delete process.env.GODOT_BIN

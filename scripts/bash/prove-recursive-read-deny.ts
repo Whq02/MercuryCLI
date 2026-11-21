@@ -44,10 +44,12 @@ const { bashToolHasPermission } = await import('../../src/tools/BashTool/bashPer
 
 let failures = 0
 let checks = 0
+const RECURSIVE_DENY_FIX = 'change the recursive and git readers in src/tools/BashTool/pathValidation.ts (RECURSIVE_READERS, extractPatternCommand, gitPrintedPaths) and the tree ceiling in src/utils/verification/scanCeiling.ts'
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = detail === '' ? RECURSIVE_DENY_FIX : `${detail} | ${RECURSIVE_DENY_FIX}`
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${shown}` : ''}`)
 }
 const section = (title: string): void => console.log(`\n${title}`)
 

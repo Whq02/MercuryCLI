@@ -6,9 +6,24 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 let failures = 0
+const faultHints: Array<[string, string]> = [
+  ['tensorfoldHelper-', 'change helperServedRecord or stopHelperServing in src/services/providers/local/tensorfoldHelper.ts to reject on a failed served read or stop and keep helperProcess so a retry stops it'],
+  ['tensorfoldHosts-', 'change rememberTensorFoldHost or rememberTensorFoldPort in src/services/providers/local/tensorfoldHosts.ts to refuse, and leave the file untouched, when tensorfold-hosts.json is corrupt or unreadable'],
+  ['tensorfoldState-', 'change readTensorFoldState or tensorFoldPresenceCached in src/services/providers/local/tensorfoldState.ts to reject or throw when a served, discovery or presence read fails'],
+  ['tensorfoldUsage-', 'change tensorFoldServing in src/services/providers/local/tensorfoldUsage.ts to answer undefined when a served or hosts read throws'],
+  ['localLiveness-', 'change recordLocalIngestPace in src/services/providers/localLiveness.ts to remove its temp file when the rename fails'],
+  ['metaAccounts-', 'change readMetaMuseCodeGrant in src/services/providers/meta/metaAccounts.ts to call logError with the reason when .meta-auth.json is corrupt or unreadable, and log nothing when absent'],
+  ['minimaxUsageState-', 'change fetchMinimaxPlanUsage in src/services/providers/minimax/minimaxUsageState.ts to report invalid on an HTTP 200 body that is not JSON'],
+  ['moonshotUsageState-', 'change refreshKimiManagedUsage in src/services/providers/moonshot/moonshotUsageState.ts to record the thrown credential error for kimiManagedUsageError'],
+  ['nousCallModel-', 'change nousLaneProfile.resolveCredential in src/services/providers/nous/nousCallModel.ts to reject on a credential read error and return undefined only when absent'],
+  ['nousClientContract-', 'change peekNousClient in src/services/providers/nous/nousClientContract.ts to heal torn JSON, keep an unreadable file byte-identical, and return learned false when it cannot write'],
+  ['nousUsageState-', 'change refreshNousAccount in src/services/providers/nous/nousUsageState.ts to record an unreachable failure carrying the thrown credential error'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : (faultHints.find(([prefix]) => label.startsWith(prefix))?.[1] ?? '')
+  const said = [detail, hint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

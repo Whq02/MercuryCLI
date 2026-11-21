@@ -15,8 +15,8 @@ const { FLAG_REGISTRY } = await import('../../src/substrate/flagRegistry.ts')
 
 const gitBash = FLAG_REGISTRY.find(s => s.env === 'MERCURY_GIT_BASH_PATH')
 const psTool = FLAG_REGISTRY.find(s => s.env === 'MERCURY_USE_POWERSHELL_TOOL')
-check('§A MERCURY_GIT_BASH_PATH registered', gitBash !== undefined)
-check('§A MERCURY_USE_POWERSHELL_TOOL registered', psTool !== undefined)
+check('§A MERCURY_GIT_BASH_PATH registered', gitBash !== undefined, 'add a MERCURY_GIT_BASH_PATH entry to the flag list in src/substrate/flags/tools.ts')
+check('§A MERCURY_USE_POWERSHELL_TOOL registered', psTool !== undefined, 'add a MERCURY_USE_POWERSHELL_TOOL entry to the flag list in src/substrate/flags/tools.ts')
 
 import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -46,6 +46,7 @@ function resolveBashWith(env: Record<string, string | undefined>): string {
 check(
   '§B the MERCURY_GIT_BASH_PATH override resolves',
   resolveBashWith({ MERCURY_GIT_BASH_PATH: '/bin/bash' }) === '/bin/bash',
+  'findGitBashPath in src/utils/windowsPaths.ts must return the MERCURY_GIT_BASH_PATH value when it names an existing file',
 )
 
 
@@ -53,6 +54,7 @@ const { GIT_BASH_REMEDY } = await import('../../src/utils/windowsPaths.ts')
 check(
   '§D the message a machine with no bash is given names MERCURY_GIT_BASH_PATH',
   GIT_BASH_REMEDY.includes('MERCURY_GIT_BASH_PATH='),
+  'put MERCURY_GIT_BASH_PATH= back into GIT_BASH_REMEDY in src/utils/windowsPaths.ts',
 )
 
 console.log(

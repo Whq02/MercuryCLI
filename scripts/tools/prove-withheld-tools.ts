@@ -37,7 +37,7 @@ godot._resetGodotExecutablePresenceForTesting()
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond ? ' | change withheldTools or withheldToolsLine in src/services/tools/withheldTools.ts, the catalog in getAllBaseTools (src/tools.ts), collectReadiness in src/services/health/readiness.ts, or the row in src/services/health/sections/tool-capability-fast.ts' : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title)

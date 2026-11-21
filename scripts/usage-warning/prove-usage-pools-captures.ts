@@ -145,6 +145,9 @@ const FACE_THEN_COMPOSER: Send[] = [
   { data: '\r', atTick: 999, awaitText: 'New Session', requireAwait: true, minTick: 8, awaitSettleTicks: 4, awaitStableTicks: 3 },
 ]
 const BAR = '[█░▰▱]{2,4}'
+const POOLS_SEND_HINT = 'a scripted send never became due, so its awaitText did not show on screen; set USAGE_POOLS_SHOT_DIR to keep the captured frames and read the last one'
+const POOLS_RAIL_HINT = 'change usageRows in src/services/cockpit/helmVitalsModel.ts (the USAGE panel rows) or the fixture payload in baseEnv above'
+const POOLS_WARNING_HINT = 'the strip warning text is built in src/services/providers/limitWarning.ts (warningFacts, anthropicWarning)'
 
 console.log('============================================================')
 console.log(' usage pool captures — the rail at 160 cols · the band at 120 cols')
@@ -174,21 +177,21 @@ console.log('============================================================')
     baseEnv(home),
   )
   console.log('\nthe rail · 160 cols')
-  check('every send became due', sends > 0 && receipts === sends)
+  check('every send became due', sends > 0 && receipts === sends, `${receipts}/${sends} sends; ${POOLS_SEND_HINT}`)
   const frame = marks.pools ?? ''
   const lines = frame.split('\n').map(l => l.replace(/\s+/g, ' '))
   const row = (re: RegExp): string | undefined => lines.find(l => re.test(l))
-  check('the USAGE panel is on the rail', /USAGE/.test(frame), frame.slice(0, 200) || '(no frame)')
-  check(`the shared pair paints first — 5h 36%`, row(new RegExp(`5h ${BAR} 36%`)) !== undefined, lines.filter(l => /5h/.test(l)).join(' | '))
-  check(`…and 7d 44%`, row(new RegExp(`7d ${BAR} 44%`)) !== undefined, lines.filter(l => /7d/.test(l)).join(' | '))
-  check(`the Fable pool paints under the pair at 61%`, row(new RegExp(`Fable ${BAR} 61%`)) !== undefined, lines.filter(l => /Fable/.test(l)).join(' | '))
-  check(`the Opus pool paints at 87% with its coarse reset (22h)`, row(new RegExp(`Opus ${BAR} 87% 22h`)) !== undefined, lines.filter(l => /Opus/.test(l)).join(' | '))
-  check(`the Sonnet pool paints at 20%`, row(new RegExp(`Sonnet ${BAR} 20%`)) !== undefined, lines.filter(l => /Sonnet/.test(l)).join(' | '))
+  check('the USAGE panel is on the rail', /USAGE/.test(frame), `${frame.slice(0, 200) || '(no frame)'}; ${POOLS_RAIL_HINT}`)
+  check(`the shared pair paints first — 5h 36%`, row(new RegExp(`5h ${BAR} 36%`)) !== undefined, `${lines.filter(l => /5h/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
+  check(`…and 7d 44%`, row(new RegExp(`7d ${BAR} 44%`)) !== undefined, `${lines.filter(l => /7d/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
+  check(`the Fable pool paints under the pair at 61%`, row(new RegExp(`Fable ${BAR} 61%`)) !== undefined, `${lines.filter(l => /Fable/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
+  check(`the Opus pool paints at 87% with its coarse reset (22h)`, row(new RegExp(`Opus ${BAR} 87% 22h`)) !== undefined, `${lines.filter(l => /Opus/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
+  check(`the Sonnet pool paints at 20%`, row(new RegExp(`Sonnet ${BAR} 20%`)) !== undefined, `${lines.filter(l => /Sonnet/.test(l)).join(' | ')}; ${POOLS_RAIL_HINT}`)
   const order = ['5h ', '7d ', 'Fable ', 'Opus ', 'Sonnet '].map(k => lines.findIndex(l => l.includes(k) && new RegExp(`${k.trim()} ${BAR}`).test(l)))
-  check('the block reads pair then pools, top to bottom', order.every(i => i >= 0) && order.every((i, n) => n === 0 || i > order[n - 1]!), order.join(','))
+  check('the block reads pair then pools, top to bottom', order.every(i => i >= 0) && order.every((i, n) => n === 0 || i > order[n - 1]!), `${order.join(',')}; ${POOLS_RAIL_HINT}`)
   const warning = marks.warning ?? ''
-  check("the strip warning names the session model's OWN pool — the Opus week at 87% — never the Fable week", /87% of the Opus limit used/.test(warning) && !/of the Fable limit used/.test(warning), warning.split('\n').filter(l => /limit used/.test(l)).join(' | ') || '(no warning frame)')
-  check('the hints return once the notice clears', text.includes('? for shortcuts') && !text.includes('limit used'), text.slice(-200))
+  check("the strip warning names the session model's OWN pool — the Opus week at 87% — never the Fable week", /87% of the Opus limit used/.test(warning) && !/of the Fable limit used/.test(warning), `${warning.split('\n').filter(l => /limit used/.test(l)).join(' | ') || '(no warning frame)'}; ${POOLS_WARNING_HINT}`)
+  check('the hints return once the notice clears', text.includes('? for shortcuts') && !text.includes('limit used'), `${text.slice(-200)}; the warning notice must clear and the shortcut hints return in the last frame`)
 }
 
 {
@@ -218,12 +221,12 @@ console.log('============================================================')
     },
   )
   console.log('\nthe band · 120 cols')
-  check('every send became due', sends > 0 && receipts === sends)
+  check('every send became due', sends > 0 && receipts === sends, `${receipts}/${sends} sends; ${POOLS_SEND_HINT}`)
   const frame = marks.band ?? ''
   const flat = frame.replace(/\s+/g, ' ')
-  check(`the band keeps the 5h chip (5h … 36%)`, new RegExp(`5h ${BAR} 36%`).test(flat), flat.slice(-400) || '(no frame)')
-  check(`the band's second chip is the BINDING window — Opus 87%, not the 7d at 44%`, new RegExp(`Opus ${BAR} 87%`).test(flat), flat.slice(-400))
-  check('…so the 7d chip yields the cell to the pool that binds', !new RegExp(`7d ${BAR} 44%`).test(flat), flat.slice(-400))
+  check(`the band keeps the 5h chip (5h … 36%)`, new RegExp(`5h ${BAR} 36%`).test(flat), `${flat.slice(-400) || '(no frame)'}; the 120-col band must show the 5h chip`)
+  check(`the band's second chip is the BINDING window — Opus 87%, not the 7d at 44%`, new RegExp(`Opus ${BAR} 87%`).test(flat), `${flat.slice(-400)}; the band second chip must be the binding window (Opus 87%)`)
+  check('…so the 7d chip yields the cell to the pool that binds', !new RegExp(`7d ${BAR} 44%`).test(flat), `${flat.slice(-400)}; the 7d chip must not show while a pool binds`)
 }
 
 {
@@ -250,13 +253,13 @@ console.log('============================================================')
     baseEnv(home),
   )
   console.log('\nthe click above the panel · 178 cols')
-  check('every send became due (the panel closed on the click)', sends > 0 && receipts === sends, `${receipts}/${sends}`)
+  check('every send became due (the panel closed on the click)', sends > 0 && receipts === sends, `${receipts}/${sends} sends; ${POOLS_SEND_HINT}`)
   const open = marks.open ?? ''
   const closed = marks.closed ?? ''
   const openRows = open.split('\n')
   const titleRow = (rows: string[]): number => rows.findIndex(l => l.includes('Mercury · usage'))
-  check('the panel stood under the cockpit: its title row below row 5, the pane\'s top border and the lanes label above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => /\blanes\b[^\n]*╭/.test(l)), `title at row ${titleRow(openRows)}`)
-  check('the click on the cockpit above the panel closed it: the title and the meters are gone, the hints are back', titleRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), closed.split('\n').filter(l => l.includes('usage') || l.includes('Current week')).join(' | ') || '(no such rows)')
+  check('the panel stood under the cockpit: its title row below row 5, the pane\'s top border and the lanes label above it', titleRow(openRows) > 5 && openRows.slice(0, 5).some(l => /\blanes\b[^\n]*╭/.test(l)), `title at row ${titleRow(openRows)}; the panel must open under the cockpit with the pane top border above it`)
+  check('the click on the cockpit above the panel closed it: the title and the meters are gone, the hints are back', titleRow(closed.split('\n')) === -1 && !closed.includes('Current week (Opus)') && closed.includes('? for shortcuts'), `${closed.split('\n').filter(l => l.includes('usage') || l.includes('Current week')).join(' | ') || '(no such rows)'}; a click on the cockpit above the panel must close it`)
 }
 
 console.log(failures === 0 ? '\n✅ prove-usage-pools-captures — all checks pass' : '\n❌ prove-usage-pools-captures — check(s) failed')

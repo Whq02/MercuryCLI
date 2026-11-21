@@ -13,6 +13,7 @@ const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  if (!ok) console.log('    fix scripts/release/winget-manifest.mjs (the manifest text, the --check, --zip and --nested handling and the refusals it prints); the schemas it must satisfy are the copies in scripts/distribution/fixtures/winget')
 }
 const section = (title: string): void => console.log(`\n${'─'.repeat(76)}\n${title}`)
 const j = (value: unknown): string => JSON.stringify(value)

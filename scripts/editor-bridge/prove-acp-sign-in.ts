@@ -12,11 +12,13 @@ const ROOT = resolve(import.meta.dir, '..', '..')
 const DIST = join(ROOT, 'dist', 'mercury.mjs')
 
 let failures = 0
+let sectionFixWhere = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${!cond && sectionFixWhere ? ` — change: ${sectionFixWhere}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, fixWhere = ''): void {
+  sectionFixWhere = fixWhere
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const j = (v: unknown): string => JSON.stringify(v)
@@ -140,7 +142,7 @@ const roads: NonNullable<Roads> = {
   },
 }
 
-section('§1 initialize: the methods carry the spec field names, and the terminal method rides the client capability')
+section('§1 initialize: the methods carry the spec field names, and the terminal method rides the client capability', 'acpClientAuthFacts and acpAuthMethods in src/services/acp/acpSignIn.ts, and the initialize handler in src/services/acp/acpServer/sessionRequests.ts')
 let elicitationAnswer: unknown = { action: 'accept' }
 const h = host(roads, () => elicitationAnswer)
 {
@@ -159,7 +161,7 @@ const h = host(roads, () => elicitationAnswer)
   check('agentInfo still names mercury', init.agentInfo?.name === 'mercury')
 }
 
-section('§2 session/new and session/load before any sign-in answer auth_required (-32000) naming the methods')
+section('§2 session/new and session/load before any sign-in answer auth_required (-32000) naming the methods', 'acpAuthRequiredError in src/services/acp/acpSignIn.ts and the session/new and session/load handlers in src/services/acp/acpServer/sessionRequests.ts')
 {
   const err = await errorOf(h.agent.request('session/new', { cwd: projDir, mcpServers: [] }))
   check('session/new is refused with -32000', err?.code === -32000, j(err))
@@ -168,7 +170,7 @@ section('§2 session/new and session/load before any sign-in answer auth_require
   check('session/load is refused the same way', load?.code === -32000, j(load))
 }
 
-section('§3 authenticate: the terminal method is refused with the one line (the editor runs the agent with --login), an unknown id names the methods')
+section('§3 authenticate: the terminal method is refused with the one line (the editor runs the agent with --login), an unknown id names the methods', 'acpAuthenticate in src/services/acp/acpSignIn.ts and the authenticate handler in src/services/acp/acpServer/sessionRequests.ts')
 {
   const terminal = await errorOf(h.agent.request('authenticate', { methodId: 'terminal' }))
   check('authenticate(terminal) answers -32602 and names the --login road', terminal?.code === -32602 && (terminal.message ?? '').includes(`mercury acp ${ACP_LOGIN_FLAG}`), j(terminal))
@@ -177,7 +179,7 @@ section('§3 authenticate: the terminal method is refused with the one line (the
   check('neither refusal ran a sign-in road', calls.length === 0, j(calls))
 }
 
-section('§4 authenticate(claude) runs the browser road, shows the link through a url elicitation, and answers {}')
+section('§4 authenticate(claude) runs the browser road, shows the link through a url elicitation, and answers {}', 'acpAuthenticate in src/services/acp/acpSignIn.ts (the claude road and its url elicitation)')
 {
   const result = await h.agent.request('authenticate', { methodId: 'claude' })
   check('authenticate answers an empty result', j(result) === j({}), j(result))
@@ -187,14 +189,14 @@ section('§4 authenticate(claude) runs the browser road, shows the link through 
   check('elicitation/complete followed', await until(() => h.completes.length === 1 && h.completes[0]?.elicitationId === shown?.elicitationId, 15_000), j(h.completes))
 }
 
-section('§5 after the sign-in, session/new opens')
+section('§5 after the sign-in, session/new opens', 'acpSignInRequired in src/services/acp/acpSignIn.ts (a credential must lift the session/new refusal)')
 {
   const created = await h.agent.request('session/new', { cwd: projDir, mcpServers: [] })
   check('session/new answers a session id once a credential is present', typeof created.sessionId === 'string' && created.sessionId.length >= 8, j(created))
   await h.agent.request('session/close', { sessionId: created.sessionId } as never)
 }
 
-section('§6 authenticate(<device family>): the code rides the url elicitation; accept completes, decline cancels the poll')
+section('§6 authenticate(<device family>): the code rides the url elicitation; accept completes, decline cancels the poll', 'acpAuthenticate in src/services/acp/acpSignIn.ts (the device-code family road, its elicitation and decline handling)')
 {
   const okResult = await h.agent.request('authenticate', { methodId: 'moonshot' })
   const shown = h.elicitations[1]
@@ -207,7 +209,7 @@ section('§6 authenticate(<device family>): the code rides the url elicitation; 
 }
 await h.close()
 
-section('§7 a client without the terminal capability or url elicitation gets the agent method alone; the registry validator\'s _meta spelling counts as the terminal capability')
+section('§7 a client without the terminal capability or url elicitation gets the agent method alone; the registry validator\'s _meta spelling counts as the terminal capability', 'acpClientAuthFacts and acpAuthMethods in src/services/acp/acpSignIn.ts')
 {
   const plain = host(roads, () => ({ action: 'cancel' }))
   const init = await plain.agent.request('initialize', { protocolVersion: acp.PROTOCOL_VERSION, clientCapabilities: { fs: { readTextFile: false, writeTextFile: false } } })
@@ -225,7 +227,7 @@ section('§7 a client without the terminal capability or url elicitation gets th
   await registry.close()
 }
 
-section('§8 the built product: the registry handshake, mercury acp --login without a terminal, and the help line')
+section('§8 the built product: the registry handshake, mercury acp --login without a terminal, and the help line', 'the acp verb in src/entrypoints/cli.tsx (rebuild dist with bun run build.ts if the source is already right)')
 {
   const dist = spawn(node, [DIST, 'acp'], { cwd: projDir, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, MERCURY_CONFIG_DIR: configHome, TERM: 'dumb' } })
   children.push(dist)
@@ -247,7 +249,7 @@ section('§8 the built product: the registry handshake, mercury acp --login with
   check('dist: a stray argument beside --login is the unknown option named', stray.status === 2 && stray.stderr.startsWith("error: unknown option 'extra'"), j({ status: stray.status, err: stray.stderr.slice(0, 120) }))
 }
 
-section('§9 the sign-in screen fits the window: the method list and its pointer are in view at 120×30 and 80×24, the card enters the alternate screen before it paints, and Esc leaves the main screen as it was')
+section('§9 the sign-in screen fits the window: the method list and its pointer are in view at 120×30 and 80×24, the card enters the alternate screen before it paints, and Esc leaves the main screen as it was', 'acpLoginElement and the ACP_LOGIN_* texts in src/services/acp/acpLoginScreen.tsx, the method list in src/components/ConsoleOAuthFlow.tsx and src/components/loginFamilyRows.ts')
 {
   const ENTER_ALT = '\x1b[?1049h'
   const EXIT_ALT = '\x1b[?1049l'
@@ -330,7 +332,7 @@ section('§9 the sign-in screen fits the window: the method list and its pointer
   }
 }
 
-section('§10 the built product in a 120×30 pty: the method list is in view, Esc exits 1, and after the alternate screen closes the terminal holds the one receipt line')
+section('§10 the built product in a 120×30 pty: the method list is in view, Esc exits 1, and after the alternate screen closes the terminal holds the one receipt line', 'runAcpLoginScreen in src/services/acp/acpLoginScreen.tsx and the acp --login branch in src/entrypoints/cli.tsx (rebuild dist with bun run build.ts if the source is already right)')
 if (process.platform === 'win32') {
   console.log('  (skip) a POSIX pty is needed for this leg; on Windows the ConPTY look is driven by hand: PowerShell 7 at 120×30, `mercury acp --login`, then Esc')
 } else {

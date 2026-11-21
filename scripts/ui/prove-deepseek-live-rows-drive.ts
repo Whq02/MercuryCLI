@@ -21,7 +21,7 @@ const FIXTURE = join(import.meta.dir, 'deepseek-catalogue-fixture-server.ts')
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail.slice(0, 400) : ''}${cond ? '' : ' | fix the DeepSeek live list in src/services/providers/deepseek/deepseekAccounts.ts or the pins and the retired alias in src/utils/model/pins/deepseekPins.ts; if a drive did not exit 0, rebuild dist with bun run build.ts and rerun with --out <dir> to read the marked screens'}`)
 }
 
 const driver = resolveCaptureDriver()

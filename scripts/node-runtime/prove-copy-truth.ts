@@ -24,7 +24,7 @@ const LIVE: Array<[string, (t: string) => boolean, string]> = [
   ['.github/workflows/private-release.yml', t => t.includes('carries its own Node 24 LTS runtime'), 'generated release notes'],
 ]
 for (const [rel, ok, what] of LIVE) {
-  check(`${rel}: ${what}`, ok(read(rel)))
+  check(`${rel}: ${what}`, ok(read(rel)), `edit ${rel} so it carries ${what} from NODE_SUPPORT in src/utils/runtime/nodePolicy.ts`)
 }
 
 section('(2) the stale-claim ratchet (reviewed allowlist, never a rewrite)')
@@ -61,8 +61,8 @@ for (const rel of tracked) {
     }
   }
 }
-check('no live tracked surface claims Node 18/20', offenders.length === 0, offenders.slice(0, 8).join(' · '))
-check('the allowlist is itself reviewed (every entry carries a reason)', ALLOW.every(([, reason]) => reason.length > 10))
+check('no live tracked surface claims Node 18/20', offenders.length === 0, offenders.slice(0, 8).join(' · ') + ' | reword each file listed to the Node range in NODE_SUPPORT (src/utils/runtime/nodePolicy.ts), or add a reviewed entry to ALLOW in this proof')
+check('the allowlist is itself reviewed (every entry carries a reason)', ALLOW.every(([, reason]) => reason.length > 10), 'give each ALLOW entry in this proof a reason longer than 10 characters')
 
 section('(3) never "Node 24+" — the unqualified-major claim is banned in live copy')
 const PLUS_ALLOW = new Set(['scripts/node-runtime/prove-copy-truth.ts'])
@@ -78,7 +78,7 @@ for (const rel of tracked) {
   }
   if (/\bNode(\.js)?\s*24\s*\+/.test(text)) plusOffenders.push(rel)
 }
-check('no live surface says "Node 24+"', plusOffenders.length === 0, plusOffenders.slice(0, 5).join(', '))
+check('no live surface says "Node 24+"', plusOffenders.length === 0, plusOffenders.slice(0, 5).join(', ') + ' | reword Node 24+ to the qualified range in NODE_SUPPORT (src/utils/runtime/nodePolicy.ts) in each file listed')
 
 console.log('\n============================================================')
 if (failures === 0) {

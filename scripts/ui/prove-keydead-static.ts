@@ -232,18 +232,18 @@ function hasBinding(text: string, token: string, file: string): boolean {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && fixHint ? ` — ${fixHint}` : ''}`)
 }
 
 console.log('============================================================')
 console.log(' keydead-static — advertised keys must have a binder in scope')
 console.log('============================================================')
 
-check('semantic paging follows the decoded variable, not a fixed variable-name list', ['nav', 'navigation', 'pageAction'].every(name => hasBinding(`const ${name} = decodeNavKey(input, key, { pageKeys: true }); if (${name} === 'pageNext') scroll();`, 'paging', 'fixture.tsx')))
-check('a decoded navigation value without a paging arm does not bind paging', !hasBinding("const nav = decodeNavKey(input, key); if (nav === 'moveNext') move();", 'paging', 'fixture.tsx'))
-check('a paging comparison on another value cannot borrow the decoder binding', !hasBinding("const nav = decodeNavKey(input, key); if (other === 'pageNext') scroll();", 'paging', 'fixture.tsx'))
+check('semantic paging follows the decoded variable, not a fixed variable-name list', ['nav', 'navigation', 'pageAction'].every(name => hasBinding(`const ${name} = decodeNavKey(input, key, { pageKeys: true }); if (${name} === 'pageNext') scroll();`, 'paging', 'fixture.tsx')), '', 'change the acts and paging case of hasBinding in scripts/ui/prove-keydead-static.ts so the paging token follows the variable assigned from decodeNavKey')
+check('a decoded navigation value without a paging arm does not bind paging', !hasBinding("const nav = decodeNavKey(input, key); if (nav === 'moveNext') move();", 'paging', 'fixture.tsx'), '', 'change the paging case of hasBinding in scripts/ui/prove-keydead-static.ts so a decoded value without a pageNext or pagePrevious arm does not bind paging')
+check('a paging comparison on another value cannot borrow the decoder binding', !hasBinding("const nav = decodeNavKey(input, key); if (other === 'pageNext') scroll();", 'paging', 'fixture.tsx'), '', 'change the acts helper of hasBinding in scripts/ui/prove-keydead-static.ts so it matches only variables assigned from decodeNavKey')
 {
   const scratchHome = pinScratchHome('keydead-console-oauth')
   process.env.MERCURY_LOCAL_PROBE_TARGETS = 'none'
@@ -277,17 +277,17 @@ check('a paging comparison on another value cannot borrow the decoder binding', 
     const ignoredModified = skipped === 0
     mounted.push('s')
     const fired = await waitFor(() => skipped === 1, 2000)
-    check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', rendered && ignoredModified && fired && skipped === 1 && done === 0, `rendered=${rendered} ignoredModified=${ignoredModified} skipped=${skipped} done=${done}`)
+    check('ConsoleOAuthFlow binds plain s on its menu to the sign-in-later callback', rendered && ignoredModified && fired && skipped === 1 && done === 0, `rendered=${rendered} ignoredModified=${ignoredModified} skipped=${skipped} done=${done}`, 'change the plain s binding of the sign-in menu in src/components/ConsoleOAuthFlow.tsx so it calls onSkip once, ignores a modified s, and never calls onDone')
   } finally {
     mounted.unmount()
     await releaseScratchHome(scratchHome)
   }
 }
-check('a ConsoleOAuthFlow onSkip callback binds the advertised s through the child', hasBinding('<ConsoleOAuthFlow onDone={() => done()} onSkip={advance} />', 'letter:s', 'fixture.tsx'))
-check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding('<ConsoleOAuthFlow onDone={done} />', 'letter:s', 'fixture.tsx'))
-check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'))
-check('a similarly named component cannot claim the ConsoleOAuthFlow binding', !hasBinding('<ConsoleOAuthFlowOther onSkip={advance} />', 'letter:s', 'fixture.tsx'))
-check("an apostrophe inside a word opens no string: prose like Mercury's in a template literal is never read as a hint rail", hintStrings("  warning: `a local model for Mercury's own small jobs whatever the main model · ${choices.filter(choice => choice.size !== 'off')}`,").length === 0 && hintStrings("  hint: 'esc back · s skips',").length === 1)
+check('a ConsoleOAuthFlow onSkip callback binds the advertised s through the child', hasBinding('<ConsoleOAuthFlow onDone={() => done()} onSkip={advance} />', 'letter:s', 'fixture.tsx'), '', 'change consoleOAuthBindsSkip and the letter case of hasBinding in scripts/ui/prove-keydead-static.ts so an onSkip prop on ConsoleOAuthFlow binds s')
+check('a ConsoleOAuthFlow without onSkip cannot claim the skip key', !hasBinding('<ConsoleOAuthFlow onDone={done} />', 'letter:s', 'fixture.tsx'), '', 'change consoleOAuthBindsSkip in scripts/ui/prove-keydead-static.ts so a ConsoleOAuthFlow tag without onSkip does not bind s')
+check('another component cannot lend its onSkip callback to ConsoleOAuthFlow', !hasBinding('<ConsoleOAuthFlow onDone={done} /><Other onSkip={advance} />', 'letter:s', 'fixture.tsx'), '', 'change consoleOAuthBindsSkip in scripts/ui/prove-keydead-static.ts so it reads onSkip only inside the ConsoleOAuthFlow tag span')
+check('a similarly named component cannot claim the ConsoleOAuthFlow binding', !hasBinding('<ConsoleOAuthFlowOther onSkip={advance} />', 'letter:s', 'fixture.tsx'), '', 'change consoleOAuthBindsSkip in scripts/ui/prove-keydead-static.ts so only the exact ConsoleOAuthFlow tag name counts')
+check("an apostrophe inside a word opens no string: prose like Mercury's in a template literal is never read as a hint rail", hintStrings("  warning: `a local model for Mercury's own small jobs whatever the main model · ${choices.filter(choice => choice.size !== 'off')}`,").length === 0 && hintStrings("  hint: 'esc back · s skips',").length === 1, '', 'change the quote pattern in hintStrings in scripts/ui/prove-keydead-static.ts so an apostrophe inside a word opens no string while a quoted rail is still read')
 const units = doorUnits(ROOT, 'src', TREES)
 
 const offenders: Site[] = []
@@ -331,10 +331,11 @@ check(
   offenders.length
     ? `offenders:\n      - ${offenders.map(o => `${o.file}:${o.line} [${o.token}] "${o.hint}"`).join('\n      - ')}`
     : 'clean',
+  'bind each listed key in the listed file (or its parts), or remove it from that hint string; add an ALLOW row in scripts/ui/prove-keydead-static.ts only when the binder lives out of file',
 )
 
 const unmet = Object.keys(ALLOW).filter(row => !allowed.has(row))
-check('every allowed row stands for a hint the scan meets and finds no binder for', unmet.length === 0, unmet.length ? `rows to take out of ALLOW:\n      - ${unmet.join('\n      - ')}` : 'clean')
+check('every allowed row stands for a hint the scan meets and finds no binder for', unmet.length === 0, unmet.length ? `rows to take out of ALLOW:\n      - ${unmet.join('\n      - ')}` : 'clean', 'delete the listed rows from ALLOW in scripts/ui/prove-keydead-static.ts, since the scan now finds a binder for them or no longer meets the hint')
 
 console.log(failures === 0 ? '\nALL keydead-STATIC PROOFS PASS' : `\n${failures} PROOF(S) FAILED`)
 process.exit(failures === 0 ? 0 : 1)

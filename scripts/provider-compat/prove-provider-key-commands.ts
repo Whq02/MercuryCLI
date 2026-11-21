@@ -82,10 +82,10 @@ setSessionTrustAccepted(true)
 
 let checks = 0
 let failures = 0
-function check(name: string, pass: unknown) {
+function check(name: string, pass: unknown, detail = '') {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && detail ? ` — ${detail}` : ''}`)
 }
 
 const countFile = join(scratch, 'exec-count')
@@ -182,6 +182,7 @@ try {
     check(
       `${family}: keyCommand runs in project dir with user env, caches in process, wins over stored key, and yields to ${envName}`,
       resolvedCmd === `cmd-${family}` && cachedSecond === `cmd-${family}` && countAfterTwo === 1 && resolvedEnv === envVal && resolvedStored === `stored-${family}`,
+      `keyCommand ${JSON.stringify(resolvedCmd)}, cached ${JSON.stringify(cachedSecond)}, runs ${countAfterTwo} (want 1), env ${JSON.stringify(resolvedEnv)}, stored ${JSON.stringify(resolvedStored)}; the ${family} resolver in src/services/providers/${family}/${family}Accounts.ts must read the command through resolveProviderKeyCommand in src/services/providers/providerKeyCommand.ts, ahead of the stored key and behind the env var`,
     )
   }
 
@@ -197,7 +198,7 @@ try {
   })
   const compatAccounts = await import(`${root}/src/services/providers/openaicompat/compatAccounts.ts`)
   const providerDiscovery = await import(`${root}/src/services/providers/providerDiscovery.ts`)
-  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && providerDiscovery.primeZaiDiscovery()?.keyPresent === true && executions() === 2)
+  check('named custom endpoint resolves its own keyCommand and caches it', compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && compatAccounts.resolveCompatApiKey(process.env, 'east')?.key === 'cmd-compat-east' && providerDiscovery.primeZaiDiscovery()?.keyPresent === true && executions() === 2, `runs ${executions()} (want 2); resolveCompatApiKey in src/services/providers/openaicompat/compatAccounts.ts and primeZaiDiscovery in src/services/providers/providerDiscovery.ts must each read the command through src/services/providers/providerKeyCommand.ts and cache it`)
 
   clearExecutions()
   nextKey = 'cmd-deepseek-expired'
@@ -205,12 +206,13 @@ try {
   setHelperState({ key: nextKey })
   setSettings({ credentials: { keyCommands: { deepseek: cmdLine } } })
   const firstPrime = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()?.key
-  check('deepseek primes the first command key before the turn', firstPrime === 'cmd-deepseek-expired' && executions() === 1)
+  check('deepseek primes the first command key before the turn', firstPrime === 'cmd-deepseek-expired' && executions() === 1, `key ${JSON.stringify(firstPrime)}, runs ${executions()} (want 1); resolveDeepseekApiKey in src/services/providers/deepseek/deepseekAccounts.ts must run the configured keyCommand once through src/services/providers/providerKeyCommand.ts`)
   setHelperState({ key: 'cmd-deepseek-rotated' })
   const rowsAfter401 = await run('deepseek-v4-pro')
   check(
     'a 401 invalidates the cached command key, re-runs keyCommand once, and settles on the rotated key',
     executions() === 2 && seenAuth.at(-1)?.auth === 'Bearer cmd-deepseek-rotated' && rowsAfter401.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'KEY-COMMAND-SETTLED')),
+    `runs ${executions()} (want 2), last auth ${JSON.stringify(seenAuth.at(-1)?.auth)}; a 401 must call recoverProviderKeyCommand in src/services/providers/providerKeyCommand.ts and retry once with the rotated key`,
   )
   rejectKey = null
 
@@ -229,6 +231,7 @@ try {
     check(
       `${family}: a 401 invalidates the cached command key, re-runs keyCommand once, and settles on the rotated key`,
       primed === `cmd-${family}-expired` && executions() === 2 && seenAuth.at(-1)?.path === `/${family}/chat/completions` && seenAuth.at(-1)?.auth === `Bearer cmd-${family}-rotated` && rows.some(r => !r.isApiErrorMessage && r.message.content.some((b: any) => b.text === 'KEY-COMMAND-SETTLED')),
+      `primed ${JSON.stringify(primed)}, runs ${executions()} (want 2), last ${JSON.stringify(seenAuth.at(-1))}; a 401 on the ${family} road must call recoverProviderKeyCommand in src/services/providers/providerKeyCommand.ts and retry once with the rotated key`,
     )
     rejectKey = null
   }
@@ -246,16 +249,16 @@ try {
     require(`${root}/src/services/providers/cerebras/cerebrasAccounts.ts`).resolveCerebrasApiKey(),
     require(`${root}/src/services/providers/fireworks/fireworksAccounts.ts`).resolveFireworksApiKey(),
   ]
-  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && failedFastResolves.every(key => key === undefined) && executions() === 6)
+  check('a failing keyCommand leaves the family with no key and backs off without re-running immediately', failedResolve === undefined && backoffResolve === undefined && failedOpenrouterResolve === undefined && failedOpenaiResolve === undefined && failedFastResolves.every(key => key === undefined) && executions() === 6, `runs ${executions()} (want 6, one per family); a failing command must leave no key and back off, see resolveProviderKeyCommand and providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts`)
   const failedTurn = await run('deepseek-v4-pro')
   const failedOpenrouter = JSON.stringify(await run('openrouter/openai/gpt-5.6-terra'))
   const failedOpenai = JSON.stringify(await run('gpt-6-astra'))
   const failedText = JSON.stringify(failedTurn)
-  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'))
+  check('a turn on a failed keyCommand names the command exit once and sends no request', failedText.includes('exited with code 7') && failedText.includes('vault sealed') && failedOpenrouter.includes('exited with code 7') && failedOpenai.includes('exited with code 7'), 'the turn must name the command exit and send no request; the failure text comes from providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts')
   const requestsBefore = seenAuth.length
   for (const [family, model] of [['groq', 'groq/llama-3.3-70b-versatile'], ['cerebras', 'cerebras/gpt-oss-120b'], ['fireworks', 'fireworks/accounts/fireworks/models/gpt-oss-120b']]) {
     const failed = JSON.stringify(await run(model!))
-    check(`${family}: a turn on a failed keyCommand names credentials.keyCommands.${family} and its exit, and sends no request`, failed.includes(`credentials.keyCommands.${family} exited with code 7`) && failed.includes('vault sealed') && seenAuth.length === requestsBefore)
+    check(`${family}: a turn on a failed keyCommand names credentials.keyCommands.${family} and its exit, and sends no request`, failed.includes(`credentials.keyCommands.${family} exited with code 7`) && failed.includes('vault sealed') && seenAuth.length === requestsBefore, `requests sent ${seenAuth.length - requestsBefore} (want 0); the ${family} turn must refuse with credentials.keyCommands.${family} and the exit, see providerKeyCommandFailure in src/services/providers/providerKeyCommand.ts`)
   }
 
   clearExecutions()
@@ -274,14 +277,14 @@ try {
   const untrustedInteractive = require(`${root}/src/services/providers/deepseek/deepseekAccounts.ts`).resolveDeepseekApiKey()
   const untrustedConfigured = keyCommandOwner?.configuredProviderKeyCommand('deepseek')
   setIsInteractive(false)
-  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && untrustedInteractive === undefined && untrustedConfigured === undefined && !existsSync(marker))
+  check('an untrusted project-scope keyCommand is refused and never executed', untrustedKey === undefined && untrustedInteractive === undefined && untrustedConfigured === undefined && !existsSync(marker), 'a project-scope keyCommand must be ignored until the project is trusted; see configuredProviderKeyCommand in src/services/providers/providerKeyCommand.ts')
   rmSync(join(project, '.mercury'), { recursive: true, force: true })
   setSessionTrustAccepted(true)
   resetTrustDialogAcceptedCacheForTesting()
 
   for (const bad of [{ credentials: { keyCommands: 'not-a-map' } }, { credentials: { keyCommands: { openai: 123 } } }, { compatProvider: { east: { baseUrl: 'https://example.com/v1', keyCommand: 42 } } }]) {
     const verdict = SettingsSchema().safeParse(bad)
-    check(`malformed keyCommand setting is refused: ${JSON.stringify(bad)}`, !verdict.success)
+    check(`malformed keyCommand setting is refused: ${JSON.stringify(bad)}`, !verdict.success, 'SettingsSchema in src/utils/settings/types.ts must reject this keyCommand shape (credentials.keyCommands is a map of strings, compatProvider keyCommand a string)')
   }
 
   console.log(`${failures ? 'PROVIDER KEY COMMANDS RED' : 'PROVIDER KEY COMMANDS GREEN'} (${checks} checks, ${failures} failures; loopback only)`)

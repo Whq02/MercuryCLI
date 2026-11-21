@@ -17,15 +17,16 @@ const runners = await import('../../src/services/ide/projectRunners.ts')
 const { runWithCwdOverride } = await import('../../src/utils/cwd.ts')
 
 let failures = 0
+const RUNNER_DEBUG_FAIL_HINT = 'where to look: buildNodeRunnerDebugShim, buildGoTestDebugPlan and buildCargoTestDebugPlan in src/services/ide/testDebugPlans.ts; buildNodeTestDebugShim and runRunnerProfile in src/services/ide/projectRunners.ts; the debug op in src/tools/TestTool/TestTool.ts'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? detail + ' | ' : ''}${RUNNER_DEBUG_FAIL_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
 }
 const guard = setTimeout(() => {
-  console.log('\nTIMEOUT — runner debug proof exceeded 240s')
+  console.log('\nTIMEOUT — runner debug proof exceeded 240s; a live leg (E, F, H or I) is waiting on a debugger stop: look at the last section printed above and at src/services/dap/dapClient.ts')
   process.exit(1)
 }, 240_000)
 guard.unref?.()

@@ -32,9 +32,11 @@ const arg = (name: string): string | undefined => {
   return index < 0 ? undefined : process.argv[index + 1]
 }
 let failures = 0
+const USAGE_AGREE_FAILURE_HINT =
+  'fix the shared usage read in src/services/providers/providerUsage.ts (windowSourceUsages, openaiObservedWindowViews, usageViewIsStale) and the age words in src/services/providers/usageFreshness.ts (usageSourceWords, usageAgeTail), so the card rows and the /usage popup in src/components/Settings/Usage.tsx read the same record, whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${USAGE_AGREE_FAILURE_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

@@ -5,9 +5,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 let failures = 0
+const UNREADABLE_FAILURE_HINT =
+  'fix the failed-read handling in src/utils/config/globalConfig.ts (enableConfigs, getGlobalConfig, saveGlobalConfig, which raise ConfigReadError) or src/utils/config/projectConfig.ts (saveCurrentProjectConfig), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond ? detail : detail ? `${detail}; ${UNREADABLE_FAILURE_HINT}` : UNREADABLE_FAILURE_HINT
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 const HERE = import.meta.dir
 const BUN = process.execPath.includes('bun') ? process.execPath : join(process.env.HOME ?? '', '.bun/bin/bun')

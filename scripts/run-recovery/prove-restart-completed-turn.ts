@@ -78,6 +78,7 @@ function countOf(hay: string, needle: string): number {
   return n
 }
 
+const hintResume = 'a resumed run must rebuild the finished turn once from the record: look at loadConversationForResume in src/services/resume/conversationRecovery.ts. '
 console.log('============================================================')
 console.log(' S16 — restart after a COMPLETED turn (no duplication)')
 console.log('============================================================')
@@ -100,8 +101,8 @@ const target = join(arena.cwd, 's16-effect.txt')
 const r1 = await run(arena, ['run', 'write the file', '--model', 'claude-opus-4-8', '--session-id', SID, '--mode', 'implement'])
 check('turn 1 exit 0', r1.exit === 0, `exit=${r1.exit} stderr=${r1.stderr.slice(0, 300)}`)
 check('turn 1 completed with the scripted text', r1.stdout.includes(MARKER), JSON.stringify(r1.stdout.slice(0, 160)))
-check('the tool effect landed', existsSync(target))
-check('…with the exact content, once', existsSync(target) && readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE')
+check('the tool effect landed', existsSync(target), 'the scripted Write tool call did not create ' + target + '; run the first turn by hand and read its stderr: ' + r1.stderr.slice(0, 200))
+check('…with the exact content, once', existsSync(target) && readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE', 'the Write tool must leave exactly the scripted content in ' + target)
 
 const projectDirRoot = join(arena.home, '.mercury', 'projects')
 function transcriptFiles(): Array<{ path: string; text: string }> {
@@ -119,23 +120,23 @@ function transcriptFiles(): Array<{ path: string; text: string }> {
   return out
 }
 const t1Files = transcriptFiles()
-check('turn 1 persisted: the user prompt is in a transcript', t1Files.some(f => countOf(f.text, 'write the file') >= 1))
-check('turn 1 persisted: the completion is in a transcript', t1Files.some(f => countOf(f.text, MARKER) >= 1))
+check('turn 1 persisted: the user prompt is in a transcript', t1Files.some(f => countOf(f.text, 'write the file') >= 1), 'no transcript under ' + projectDirRoot + ' holds the first prompt; the session writer in src/utils/sessionStorage/writer.ts did not record the turn')
+check('turn 1 persisted: the completion is in a transcript', t1Files.some(f => countOf(f.text, MARKER) >= 1), 'no transcript under ' + projectDirRoot + ' holds the first completion; the session writer in src/utils/sessionStorage/writer.ts did not record the reply')
 
 const r2 = await run(arena, ['run', 'second prompt', '--model', 'claude-opus-4-8', '--resume', SID])
 check('resume exit 0', r2.exit === 0, `exit=${r2.exit} stderr=${r2.stderr.slice(0, 300)}`)
 check('turn 2 completed', r2.stdout.includes('S16-SECOND-REPLY'), JSON.stringify(r2.stdout.slice(0, 160)))
 
-check('the effect did NOT replay across restart', readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE')
+check('the effect did NOT replay across restart', readFileSync(target, 'utf-8') === 'S16-EFFECT-ONCE', hintResume + 'the resume must not run the finished tool call again')
 
 const allRequests = fixture.messageRequests()
-check('no marked closing ask rides either process (an unattended run leaves no note; the fixture\'s note turn stayed unserved)', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, false]), JSON.stringify(allRequests.map(isHandoffRequest)))
+check('no marked closing ask rides either process (an unattended run leaves no note; the fixture\'s note turn stayed unserved)', JSON.stringify(allRequests.map(isHandoffRequest)) === JSON.stringify([false, false, false]), 'a closing-note request was sent although the runs were unattended; ' + JSON.stringify(allRequests.map(isHandoffRequest)))
 const msgs = allRequests.filter(q => !isHandoffRequest(q))
-check('three model calls total (tool round = 2, resume = 1)', msgs.length === 3, String(msgs.length))
+check('three model calls total (tool round = 2, resume = 1)', msgs.length === 3, hintResume + 'model calls seen: ' + String(msgs.length))
 const resumeBody = JSON.stringify(msgs[2]?.body ?? {})
-check('the resume request carries the turn-1 prompt exactly once', countOf(resumeBody, 'write the file') === 1, `count=${countOf(resumeBody, 'write the file')}`)
-check('the resume request carries the turn-1 completion exactly once', countOf(resumeBody, MARKER) === 1, `count=${countOf(resumeBody, MARKER)}`)
-check('the resume request carries the tool effect exactly once', countOf(resumeBody, 'S16-EFFECT-ONCE') >= 1 && countOf(resumeBody, '"tool_use_id"') >= 1)
+check('the resume request carries the turn-1 prompt exactly once', countOf(resumeBody, 'write the file') === 1, `${hintResume}count=${countOf(resumeBody, 'write the file')}`)
+check('the resume request carries the turn-1 completion exactly once', countOf(resumeBody, MARKER) === 1, `${hintResume}count=${countOf(resumeBody, MARKER)}`)
+check('the resume request carries the tool effect exactly once', countOf(resumeBody, 'S16-EFFECT-ONCE') >= 1 && countOf(resumeBody, '"tool_use_id"') >= 1, hintResume + 'the resume request lost the tool call or its result')
 
 for (const f of transcriptFiles()) {
   const userN = f.text
@@ -144,8 +145,8 @@ for (const f of transcriptFiles()) {
   const markerN = f.text
     .split('\n')
     .filter(l => (l.includes('"type":"assistant"') || l.includes('"kind":"output"')) && l.includes(MARKER)).length
-  check(`no in-file duplication of the turn-1 user message (${f.path.split('/').pop()})`, userN <= 1, `count=${userN}`)
-  check(`turn-1 completion appears once or as publish+settle (${f.path.split('/').pop()})`, markerN >= 1 && markerN <= 2, `count=${markerN}`)
+  check(`no in-file duplication of the turn-1 user message (${f.path.split('/').pop()})`, userN <= 1, `${hintResume}count=${userN}`)
+  check(`turn-1 completion appears once or as publish+settle (${f.path.split('/').pop()})`, markerN >= 1 && markerN <= 2, `${hintResume}count=${markerN}`)
 }
 
 const sidecarText = (() => {

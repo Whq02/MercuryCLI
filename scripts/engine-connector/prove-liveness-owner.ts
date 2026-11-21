@@ -12,11 +12,15 @@ process.env.MERCURY_DAEMON_DIR = join(scratch, 'daemon')
 mkdirSync(process.env.MERCURY_DAEMON_DIR, { recursive: true })
 
 let failures = 0
+let sectionFixWhere = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok && sectionFixWhere ? ` — change: ${sectionFixWhere}` : ''}`)
 }
-const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
+const section = (t: string, fixWhere = ''): void => {
+  sectionFixWhere = fixWhere
+  console.log('\n' + '─'.repeat(76) + '\n' + t)
+}
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms))
 const settle = (): Promise<void> => sleep(750)
 const until = async (pred: () => boolean, ms: number): Promise<boolean> => {
@@ -78,7 +82,7 @@ await settle()
 const words = (): string => statusLine(c.live(), c.status())
 const show = (): string => JSON.stringify({ live: { inFlight: c.live().inFlight, phase: c.live().phase }, status: { ...c.status(), title: undefined } })
 
-section('§1 an old daemon (no stamp, no budget): the row states a duration and never accuses')
+section('§1 an old daemon (no stamp, no budget): the row states a duration and never accuses', 'status() and live() in src/services/engine-connector/daemonConnector.ts (the quiet, watchdog and phase clocks) and statusLine in src/components/SwitchboardTagBar.tsx')
 {
   const s = c.status()
   check('the turn is in flight (the facts busy edge) and the phase is the dispatch wait', c.live().inFlight && c.live().phase === 'thinking', show())
@@ -87,7 +91,7 @@ section('§1 an old daemon (no stamp, no budget): the row states a duration and 
   check("the clock is the turn's own age (the prompt row's timestamp, ~20s) — a fact of the seat; the row repeats no main-agent clock", s.phaseMs !== null && s.phaseMs >= 19_000 && s.phaseMs < 40_000 && words() === '', `${words()} · ${show()}`)
 }
 
-section('§2 a long think with the runner speaking = alive: "thinking for 2m"')
+section('§2 a long think with the runner speaking = alive: "thinking for 2m"', 'status() and live() in src/services/engine-connector/daemonConnector.ts (phase from the tail streamBlock, quietMs from lastEventAtMs, watchdogMs from the facts streamIdleTimeoutMs)')
 {
   facts({ streamIdleTimeoutMs: 120_000 })
   tail({ lastEventAtMs: Date.now(), streamBlock: 'thinking', blockSinceMs: Date.now() - 125_000 })
@@ -99,7 +103,7 @@ section('§2 a long think with the runner speaking = alive: "thinking for 2m"')
   check('the words: none — the transcript and the card narrate the think, the row does not', words() === '', words())
 }
 
-section('§3 words flowing = "replying"')
+section('§3 words flowing = "replying"', 'live() in src/services/engine-connector/daemonConnector.ts (phase from the tail streamBlock) and statusLine in src/components/SwitchboardTagBar.tsx')
 {
   tail({ lastEventAtMs: Date.now(), streamBlock: 'text', blockSinceMs: Date.now() - 3_000, text: 'Hello, ' })
   await settle()
@@ -107,7 +111,7 @@ section('§3 words flowing = "replying"')
   check('the words: none (the tail paints the words; the row repeats no phase)', words() === '', words())
 }
 
-section('§4 no stream events past the watchdog’s warning point = stuck, naming what it saw — and nothing before it')
+section('§4 no stream events past the watchdog’s warning point = stuck, naming what it saw — and nothing before it', 'streamIdleWarningMsOf in src/services/providers/streamIdleBudget.ts, status() in src/services/engine-connector/daemonConnector.ts (stuck), statusLine in src/components/SwitchboardTagBar.tsx (the words)')
 {
   const points = [streamIdleWarningMsOf(4_000), streamIdleWarningMsOf(120_000), streamIdleWarningMsOf(300_000), streamIdleWarningMsOf(600_000), streamIdleWarningMsOf(900_000)]
   check('the warning point is the one owner’s rule: half, never before five minutes, never after the budget (4s→4s · 2m→2m · 5m→5m · 10m→5m · 15m→7m 30s)', points[0] === 4_000 && points[1] === 120_000 && points[2] === 300_000 && points[3] === 300_000 && points[4] === 450_000, JSON.stringify(points))
@@ -130,7 +134,7 @@ section('§4 no stream events past the watchdog’s warning point = stuck, namin
   check('…and the row states no main-agent clock either', words() === '', words())
 }
 
-section('§5 a tool running under its deadline = alive, whatever the stream’s silence')
+section('§5 a tool running under its deadline = alive, whatever the stream’s silence', 'status() and live() in src/services/engine-connector/daemonConnector.ts (tool phase, stuck and toolBudgetMs from the tool progress budget)')
 {
   land({
     parentUuid: USER_UUID,
@@ -156,7 +160,7 @@ section('§5 a tool running under its deadline = alive, whatever the stream’s 
   check('the words: none — the tool\'s own card narrates it, the row repeats no tool clock', words() === '', words())
 }
 
-section('§6 interrupting wins over every other sentence')
+section('§6 interrupting wins over every other sentence', 'statusLine in src/components/SwitchboardTagBar.tsx (the order of its sentences) and crewClockOf in the same file')
 {
   const live: SessionLiveV1 = { inFlight: true, phase: 'thinking', inProgressToolUseIDs: new Set(), turnStartedAtMs: Date.now() - 1000 }
   const stuck: SeatStatusV1 = { title: 't', projectLabel: 'p', interrupting: true, hardStopping: false, quietMs: 125_000, watchdogMs: 120_000, phaseMs: 125_000, toolBudgetMs: null, stuck: true, wait: null }
@@ -181,7 +185,7 @@ section('§6 interrupting wins over every other sentence')
   check('no crew line ⇒ the plain words', statusLine(idle, young, { active: false, line: null }) === 'ready' && statusLine(live, young, { active: false, line: null }) === '')
 }
 
-section('§7 the turn settles: "ready", no clocks')
+section('§7 the turn settles: "ready", no clocks', 'status() and live() in src/services/engine-connector/daemonConnector.ts (the clocks must be null once the turn settles) and statusLine in src/components/SwitchboardTagBar.tsx')
 {
   land({ parentUuid: TOOL_ROW_UUID, type: 'user', uuid: '00000000-0000-4000-8000-0000000000u2', timestamp: stamp(1_000), message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_live_1', content: 'done' }] } })
   land({ parentUuid: '00000000-0000-4000-8000-0000000000u2', type: 'assistant', uuid: '00000000-0000-4000-8000-0000000000a2', timestamp: stamp(500), message: { id: 'msg_done', role: 'assistant', model: 'claude-opus-5', content: [{ type: 'text', text: 'done.' }], stop_reason: 'end_turn' } })
@@ -196,7 +200,7 @@ section('§7 the turn settles: "ready", no clocks')
   check('the words: "ready"', words() === 'ready', words())
 }
 
-section('§8 the live channel ticks once a second only while a turn is in flight')
+section('§8 the live channel ticks once a second only while a turn is in flight', 'subscribeLive and detach in src/services/engine-connector/daemonConnector.ts and syncLivenessTicker in LivePart, src/services/engine-connector/daemon/live.ts')
 {
   let idleEmits = 0
   const offIdle = c.subscribeLive(() => idleEmits++)
@@ -219,7 +223,7 @@ section('§8 the live channel ticks once a second only while a turn is in flight
   check('detach stops the tick (the slot no longer holds the session)', detachedEmits === 0, `${detachedEmits} emit(s)`)
 }
 
-section('§9 the liveness ticker runs only in flight and only while attached')
+section('§9 the liveness ticker runs only in flight and only while attached', 'syncLivenessTicker and recomputeLive in LivePart, src/services/engine-connector/daemon/live.ts')
 {
   const { LivePart } = await import('../../src/services/engine-connector/daemon/live.ts')
   const { IDLE_LIVE } = await import('../../src/services/engine-connector/seatLive.ts')

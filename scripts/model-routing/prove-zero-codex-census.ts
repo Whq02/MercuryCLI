@@ -40,14 +40,16 @@ console.log('============================================================')
 check(
   'the runtime directory is gone (src/services/providers/codex)',
   !existsSync(join(ROOT, 'src', 'services', 'providers', 'codex')),
+  'delete the directory src/services/providers/codex and everything that imports it',
 )
 
 const importHits = hits(['src', 'scripts'], /providers\/codex/)
-check('no import/path reference to providers/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', '))
+check('no import/path reference to providers/codex anywhere in src or scripts', importHits.length === 0, importHits.join(', ') + ' | remove the providers/codex import or path in each file listed')
 
 check(
   'the running-work census has no codex domain',
   EXECUTION_DOMAIN_CENSUS.every(entry => !/codex/i.test(entry.domain) && !/codex/i.test(entry.kind ?? '')),
+  'remove the codex entry from EXECUTION_DOMAIN_CENSUS in src/services/primitives/executionCensus.ts',
 )
 
 const spawnHitsAll = hits(['src'], /(spawn|execFile)[^\n]*codex|['"]codex['"]/)
@@ -58,13 +60,13 @@ const spawnHits = spawnHitsAll.filter(f => !CREW_SEAT_ESTATE.test(f) && !CAPACIT
 check(
   'no codex executable spawn/lookup survives in src outside the adjudicated estates (crew seat + capacity observer + foreign-harness recognizer)',
   spawnHits.length === 0,
-  spawnHits.join(', '),
+  spawnHits.join(', ') + ' | remove the codex spawn/lookup from each file listed, or move it into one of the three named estates in this proof',
 )
 
 const dist = join(ROOT, 'dist', 'mercury.mjs')
 if (existsSync(dist)) {
   const bundle = readFileSync(dist, 'utf8')
-  check('dist carries no App Server sentinel residue', !bundle.includes('codex-app-server-default'))
+  check('dist carries no App Server sentinel residue', !bundle.includes('codex-app-server-default'), 'dist/mercury.mjs is stale or still built from a source that carries codex-app-server-default: remove that string from src and rebuild')
 } else {
   console.log('  [SKIP] dist/mercury.mjs absent — artifact residue rows run under the gate (prebuilt)')
 }

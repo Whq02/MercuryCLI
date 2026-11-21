@@ -24,9 +24,9 @@ if (driver.kind !== 'posix-pty') {
 }
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${!cond && hint ? ` — ${hint}` : ''}`)
 }
 
 const FIXTURE_API_KEY = 'fixture-key-000'
@@ -412,7 +412,7 @@ try {
     240_000,
   )
 } catch (error) {
-  check('the capture ran', false, String(error).slice(0, 400))
+  check('the capture ran', false, String(error).slice(0, 400), 'scripts/ui/vshot.py wrote no grid or the drive threw; read the error above and rebuild dist/mercury.mjs with bun run build.ts')
 }
 await fixture.close()
 
@@ -430,6 +430,7 @@ if (cap !== null) {
     `D1 the gauge after the alpha reply reads the reply's context (${contextOf(USAGE.alpha)} = input + cached prefix + output, thinking inside) — ${alphaPct}`,
     gaugeRows.some(r => r.includes(`ctx ${alphaPct}`) || r.includes(`context ${alphaPct}`)),
     gaugeRows.map(flat).join(' | ').slice(0, 300),
+    'the chat gauge must show the last reply context percent (input plus cached prefix plus output) of the parent, so the figure the gauge paints is not that sum; compare the gauge rows above with the fixture usage',
   )
 
   console.log('\n— D2 the live sub-agent card —')
@@ -442,12 +443,14 @@ if (cap !== null) {
     `D2 the live card names the seat's CONTEXT with the word — "${(seatLiveContext / 1000).toFixed(1)}k context"`,
     liveRows.some(r => r.includes(`${(seatLiveContext / 1000).toFixed(1)}k context`)),
     liveRows.map(flat).join(' | ').slice(0, 300),
+    'the running sub-agent card must print the seat latest context size followed by the word context; none of the card rows above carries that figure',
   )
   const bareTokens = /(?<!↓ )\b\d[\d.]*k? tokens\b/
   check(
     'D2 no surface paints a bare "tokens" figure — a sum beside a size without the words',
     !liveRows.some(r => bareTokens.test(r)),
     liveRows.map(flat).join(' | ').slice(0, 300),
+    'a live card row paints a number followed by the word tokens; name it context or spent instead',
   )
 
   console.log('\n— D3 the settled card and the parent gauge beside it —')
@@ -460,16 +463,19 @@ if (cap !== null) {
     `D3 the settled card names the seat's context — "${(seatContext / 1000).toFixed(1)}k context"`,
     doneRows.some(r => r.includes(`${(seatContext / 1000).toFixed(1)}k context`)),
     doneRows.map(flat).join(' | ').slice(0, 300),
+    'the settled sub-agent card must print the seat final context size followed by the word context; none of the rows above carries it',
   )
   check(
     `D3 the settled card names the seat's spend beside it — "${(seatSpend / 1000).toFixed(1)}k spent"`,
     doneRows.some(r => r.includes(`${(seatSpend / 1000).toFixed(1)}k spent`)),
     doneRows.map(flat).join(' | ').slice(0, 300),
+    'the settled sub-agent card must print the sum of every seat request as spent; none of the rows above carries that figure',
   )
   check(
     'D3 the settled card paints no bare "tokens" figure',
     !doneRows.some(r => bareTokens.test(r)),
     doneRows.map(flat).join(' | ').slice(0, 300),
+    'a settled card row paints a number followed by the word tokens; name it context or spent instead',
   )
   const backPct = `${Math.round((contextOf(USAGE.scoutBack) / WINDOW) * 100)}%`
   const gaugeAfter = rowsWith(m['scout-done'], /\b(ctx|context)\b/)
@@ -477,6 +483,7 @@ if (cap !== null) {
     `D3 the parent's gauge beside it is the parent's own context (${contextOf(USAGE.scoutBack)}) — ${backPct}, never the seat's figure`,
     gaugeAfter.some(r => r.includes(`ctx ${backPct}`) || r.includes(`context ${backPct}`)),
     gaugeAfter.map(flat).join(' | ').slice(0, 300),
+    'the parent gauge after the sub-agent settled must show the parent own last-request context, not the seat figure; compare the gauge rows above with the fixture usage',
   )
 
   console.log('\n— the ring —')
@@ -486,22 +493,23 @@ if (cap !== null) {
   const rings = codes.filter(c => c === 3).length
   const clears = codes.filter(c => c === 0).length
   const alternates = codes.every((c, i) => i === 0 || c !== codes[i - 1])
-  check('R1 the ring alternates — one indeterminate per turn, a clear before the next', events.length > 0 && alternates && codes[0] === 3, codes.join(''))
-  check(`R1 four turns ⇒ four rings and four clears (got ${rings} rings, ${clears} clears)`, rings === 4 && clears === 4, codes.join(''))
-  check('R2 the last sequence is a clear — nothing rings at idle', codes.length > 0 && codes[codes.length - 1] === 0, codes.join(''))
+  check('R1 the ring alternates — one indeterminate per turn, a clear before the next', events.length > 0 && alternates && codes[0] === 3, codes.join(''), 'the OSC 9;4 progress codes must go 3 then 0 for each turn; a repeated code means a ring was set twice or a clear was missed, so read the codes printed above')
+  check(`R1 four turns ⇒ four rings and four clears (got ${rings} rings, ${clears} clears)`, rings === 4 && clears === 4, codes.join(''), 'the drive runs four turns (alpha, scout, shell, sleep); each must set the ring once and clear it once, so compare the code string above with that')
+  check('R2 the last sequence is a clear — nothing rings at idle', codes.length > 0 && codes[codes.length - 1] === 0, codes.join(''), 'the session ended idle with the ring still on; the last OSC 9;4 sequence must be a clear (code 0)')
   const idleTick = cap.markTicks['after-interrupt'] ?? Number.POSITIVE_INFINITY
   const afterIdle = events.filter(e => e.tick >= idleTick)
-  check(`R2 no ring bytes after the idle mark (tick ${Number.isFinite(idleTick) ? idleTick : '?'})`, Number.isFinite(idleTick) && afterIdle.every(e => e.code === 0), afterIdle.map(e => `${e.tick}:${e.code}`).join(' '))
+  check(`R2 no ring bytes after the idle mark (tick ${Number.isFinite(idleTick) ? idleTick : '?'})`, Number.isFinite(idleTick) && afterIdle.every(e => e.code === 0), afterIdle.map(e => `${e.tick}:${e.code}`).join(' '), 'a ring was set after the interrupt left the session idle; only clears may follow the after-interrupt mark')
   const census = unansweredToolUses(home)
   console.log(`  transcript: ${census.calls} fixture tool calls, unanswered: ${census.unanswered.join(',') || 'none'}`)
   check(
     'R3 an unanswered tool_use in the records never keeps the ring on (the clear landed regardless)',
     codes.length > 0 && codes[codes.length - 1] === 0,
     `unanswered=${census.unanswered.length}`,
+    'the ring stayed on at the end although a tool_use had no result; the ring must clear when the turn ends whether or not every tool call was answered',
   )
   const restRows = rowsWith(m['after-interrupt'], keyHintLabel('⇧← back'))
   const atRest = (r: string): boolean => (/ ready · /.test(r) || /\b(?:agents?|workflows?) thought for \d+[smh]\b/.test(r)) && !/interrupting|stopping|thinking|replying|running a tool|waiting on/.test(r)
-  check("R3 the face is at rest after the interrupt (the status row reads ready, or the crew's settled clock in the past tense)", restRows.length > 0 && restRows.every(atRest), restRows.map(flat).join(' | ').slice(0, 200) || 'no status row')
+  check("R3 the face is at rest after the interrupt (the status row reads ready, or the crew's settled clock in the past tense)", restRows.length > 0 && restRows.every(atRest), restRows.map(flat).join(' | ').slice(0, 200) || 'no status row', 'after the interrupt the status row must read ready, not a busy word like interrupting or thinking; the row holding the back hint did not settle')
 }
 
 if (!KEEP) {

@@ -77,7 +77,7 @@ if (!existsSync(DIST)) {
 } else {
   const nodeBin = Bun.which('node')
   if (!nodeBin) {
-    check('a node binary on PATH', false)
+    check('a node binary on PATH', false, 'install Node (>=24.20.0) or put it on PATH before running this proof')
   } else {
     const turns: ScriptedTurn[] = [...Array.from({ length: 40 }, () => ({ kind: 'text' as const, text: 'seven' })), ...Array.from({ length: 40 }, () => handoffTurn())]
     const fixture = await startFixtureApi(turns)
@@ -115,25 +115,25 @@ if (!existsSync(DIST)) {
       const before = fixture.messageRequests().length
       const config = mkdtempSync(join(home, 'config-'))
       const r = await run(['run', promptFor(word), ...common], { MERCURY_CONFIG_DIR: config })
-      check(`"${word}": the turn runs and the fixture answers`, r.exit === 0 && r.stdout.includes('seven'), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)}`)
+      check(`"${word}": the turn runs and the fixture answers`, r.exit === 0 && r.stdout.includes('seven'), `exit=${r.exit} stderr=${r.stderr.slice(0, 300)} | the headless run failed or never reached the fixture API; rebuild dist/mercury.mjs (bun run build.ts) and run node dist/mercury.mjs run with the same flags to see the error`)
       const fresh = fixture.messageRequests().slice(before)
       const main = fresh.find(req => {
         const body = req.body as Body
         return body.model === 'claude-opus-4-8' && JSON.stringify(body).includes(PHRASE)
       })
-      check(`"${word}": one main request carries the prompt`, main !== undefined, `${fresh.length} fresh requests`)
+      check(`"${word}": one main request carries the prompt`, main !== undefined, `${fresh.length} fresh requests | no request to claude-opus-4-8 carried the prompt; the run sent a different model or dropped the prompt, see the files named in the gate-watch lines of this script`)
       return main ? (JSON.parse(JSON.stringify(main.body).replaceAll(config, '<config>')) as Body) : null
     }
 
     const control = await mainRequestFor(CONTROL)
     const controlAgain = await mainRequestFor(CONTROL)
     if (control && controlAgain) {
-      check('two runs of the control prompt send the same request (the comparison is sound)', normalised(control, CONTROL) === normalised(controlAgain, CONTROL))
+      check('two runs of the control prompt send the same request (the comparison is sound)', normalised(control, CONTROL) === normalised(controlAgain, CONTROL), 'two identical runs differ; a new per-run value (a time, id or path) entered the request and needs to be normalised in steady() or removed from the request')
     }
     if (control) {
       const systemText = JSON.stringify(control.system ?? '').toLowerCase()
       const carried = WORDS.filter(word => systemText.includes(word.toLowerCase()))
-      check('the system prompt of the control request names none of the typed words (the words are no lever by Mercury\'s own instruction either)', carried.length === 0, `the system block carries: ${carried.join(', ')}`)
+      check('the system prompt of the control request names none of the typed words (the words are no lever by Mercury\'s own instruction either)', carried.length === 0, `the system block carries: ${carried.join(', ')} | remove these words from the system prompt text; they must not act as a lever`)
     }
     for (const word of WORDS) {
       const body = await mainRequestFor(word)
@@ -144,15 +144,15 @@ if (!existsSync(DIST)) {
         const b = normalised(control, CONTROL)
         let i = 0
         while (i < a.length && i < b.length && a[i] === b[i]) i++
-        return `first difference at ${i}: …${a.slice(Math.max(0, i - 80), i + 200)}…`
+        return `first difference at ${i}: …${a.slice(Math.max(0, i - 80), i + 200)}… | a typed word must change only its own letters; find what reacts to it in the files named in the gate-watch lines of this script (attachment, thinking and effort code)`
       })())
       const texts = userTexts(body)
-      check(`"${word}" rides the user text as plain words`, texts.some(t => t.includes(promptFor(word))))
+      check(`"${word}" rides the user text as plain words`, texts.some(t => t.includes(promptFor(word))), 'the prompt did not reach the model as plain user text; see the attachment and message code in the files named in the gate-watch lines of this script')
       const carrying = texts.filter(t => t.toLowerCase().includes(word.toLowerCase()))
-      check(`"${word}" appears in the user turn once — the prompt — and in no reminder`, carrying.length === 1, `${carrying.length} texts carry it: ${carrying.map(t => t.slice(0, 120)).join(' | ')}`)
+      check(`"${word}" appears in the user turn once — the prompt — and in no reminder`, carrying.length === 1, `${carrying.length} texts carry it: ${carrying.map(t => t.slice(0, 120)).join(' | ')} | the word must appear only in the prompt; a reminder or attachment is repeating it, see the attachment code in the files named in the gate-watch lines of this script`)
       const systemOf = (b: Body): string => steady(JSON.stringify(b.system))
-      check(`"${word}": the system prompt and the tools are the control's`, systemOf(body) === systemOf(control) && JSON.stringify(body.tools) === JSON.stringify(control.tools))
-      check(`"${word}": the thinking and effort fields are the control's`, JSON.stringify(body.thinking) === JSON.stringify(control.thinking) && JSON.stringify(body.output_config) === JSON.stringify(control.output_config))
+      check(`"${word}": the system prompt and the tools are the control's`, systemOf(body) === systemOf(control) && JSON.stringify(body.tools) === JSON.stringify(control.tools), 'the typed word changed the system prompt or the tool list; remove whatever keys on the word in the files named in the gate-watch lines of this script')
+      check(`"${word}": the thinking and effort fields are the control's`, JSON.stringify(body.thinking) === JSON.stringify(control.thinking) && JSON.stringify(body.output_config) === JSON.stringify(control.output_config), 'the typed word changed thinking or effort; look in src/utils/thinking.ts and src/utils/effort.ts for logic that reads the prompt text')
     }
     await fixture.close()
   }

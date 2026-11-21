@@ -29,14 +29,14 @@ const modelsModule = existsSync(`${root}/src/cli/handlers/models.ts`)
 
 let checks = 0
 let failures = 0
-function check(name: string, pass: unknown) {
+function check(name: string, pass: unknown, detail = '') {
   checks++
   if (!pass) failures++
-  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}`)
+  console.log(`[${pass ? 'PASS' : 'FAIL'}] ${name}${!pass && detail ? ` — ${detail}` : ''}`)
 }
 
 try {
-  check('models CLI handler exists', modelsModule !== undefined)
+  check('models CLI handler exists', modelsModule !== undefined, `${root}/src/cli/handlers/models.ts is missing; the mercury models verb needs modelsCli exported from it`)
 
   secrets.writeStoredDeepseekApiKey('sk-deepseek-models-proof')
   secrets.writeStoredZaiApiKey('sk-zai-models-proof')
@@ -45,25 +45,25 @@ try {
   await modelsModule?.modelsCli({ json: false }, { writeOut: (t: string) => { textOut += t } })
   const page = await liveModelsReference({ engineModel: getEngineModel() })
   const pageText = liveModelsReferenceText(page)
-  check('mercury models prints the exact mercury://models text format', textOut.trim().split('\n').slice(1).join('\n') === pageText.trim().split('\n').slice(1).join('\n') && textOut.includes('deepseek-v4-pro') && textOut.includes('glm-5.3'))
+  check('mercury models prints the exact mercury://models text format', textOut.trim().split('\n').slice(1).join('\n') === pageText.trim().split('\n').slice(1).join('\n') && textOut.includes('deepseek-v4-pro') && textOut.includes('glm-5.3'), `modelsCli in src/cli/handlers/models.ts must print the lines of liveModelsReferenceText (src/services/resources/adapters/models.ts) after its first line, listing deepseek-v4-pro and glm-5.3; printed: ${JSON.stringify(textOut.slice(0, 300))}`)
 
   let jsonOut = ''
   await modelsModule?.modelsCli({ json: true }, { writeOut: (t: string) => { jsonOut += t } })
   let parsed: any = null
   try { parsed = JSON.parse(jsonOut) } catch { parsed = null }
-  check('mercury models --json emits valid JSON with the exact mercury://models providers and notSignedIn facts', parsed !== null && JSON.stringify(parsed.providers) === JSON.stringify(page.providers) && JSON.stringify(parsed.notSignedIn) === JSON.stringify(page.notSignedIn))
+  check('mercury models --json emits valid JSON with the exact mercury://models providers and notSignedIn facts', parsed !== null && JSON.stringify(parsed.providers) === JSON.stringify(page.providers) && JSON.stringify(parsed.notSignedIn) === JSON.stringify(page.notSignedIn), `modelsCli with json:true in src/cli/handlers/models.ts must print the providers and notSignedIn of liveModelsReference (src/services/resources/adapters/models.ts) as JSON; printed: ${JSON.stringify(jsonOut.slice(0, 300))}`)
 
   console.log('refusals')
   secrets.writeStoredDeepseekApiKey(null)
   secrets.writeStoredZaiApiKey(null)
   let signedOutText = ''
   await modelsModule?.modelsCli({ json: false }, { writeOut: (t: string) => { signedOutText += t } })
-  check('with no signed-in provider, mercury models reports no provider is signed in and names /logins', signedOutText.includes('no provider is signed in'))
+  check('with no signed-in provider, mercury models reports no provider is signed in and names /logins', signedOutText.includes('no provider is signed in'), `modelsCli in src/cli/handlers/models.ts must print the no provider is signed in line that liveModelsReferenceText (src/services/resources/adapters/models.ts) writes when no provider is signed in; printed: ${JSON.stringify(signedOutText.slice(0, 300))}`)
 
   let signedOutJson = ''
   await modelsModule?.modelsCli({ json: true }, { writeOut: (t: string) => { signedOutJson += t } })
   const parsedSignedOut = signedOutJson ? JSON.parse(signedOutJson) : null
-  check('with no signed-in provider, mercury models --json returns an empty providers array', Array.isArray(parsedSignedOut?.providers) && parsedSignedOut.providers.length === 0)
+  check('with no signed-in provider, mercury models --json returns an empty providers array', Array.isArray(parsedSignedOut?.providers) && parsedSignedOut.providers.length === 0, `modelsCli with json:true in src/cli/handlers/models.ts must print providers as an empty array when nothing is signed in; printed: ${JSON.stringify(signedOutJson.slice(0, 300))}`)
 
   console.log(`${failures ? 'TERMINAL MODELS RED' : 'TERMINAL MODELS GREEN'} (${checks} checks, ${failures} failures)`)
 } finally {

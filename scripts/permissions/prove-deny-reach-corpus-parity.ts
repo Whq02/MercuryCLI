@@ -302,8 +302,8 @@ if (RECORD) {
   console.log(`\n  [SKIP] the recording was taken on ${fixture.platform} and reads a scratch tree as that platform lists and spells it; on ${process.platform} nothing of it is compared`)
 } else {
   section(`(1) the corpus — ${fixture.rows.length} commands, ${fixture.readings.length} distinct readings`)
-  check('the recorded corpus exists beside the proof', fixture.rows.length > 0, FIXTURE)
-  check('the settings and the doors are the recorded ones, in their order', JSON.stringify(fixture.settings) === JSON.stringify(SETTINGS.map(setting => setting.name)) && JSON.stringify(fixture.doors) === JSON.stringify(DOORS.map(door => door.name)), `${JSON.stringify(fixture.settings)} ${JSON.stringify(fixture.doors)}`)
+  check('the recorded corpus exists beside the proof', fixture.rows.length > 0, `${FIXTURE} has no rows; record it with bun ${SELF} --record`)
+  check('the settings and the doors are the recorded ones, in their order', JSON.stringify(fixture.settings) === JSON.stringify(SETTINGS.map(setting => setting.name)) && JSON.stringify(fixture.doors) === JSON.stringify(DOORS.map(door => door.name)), `${JSON.stringify(fixture.settings)} ${JSON.stringify(fixture.doors)}; the SETTINGS or DOORS list in ${SELF} no longer matches the fixture, so restore the list or record again with bun ${SELF} --record`)
   const moved: string[] = []
   const traced: string[] = []
   const outcomes = new Map<string, number>()
@@ -339,9 +339,9 @@ if (RECORD) {
     `${read < fixture.rows.length ? `${moved.length} moved among the first ${read} commands, and the run stopped there` : `${moved.length} moved`}. If a decision was meant to change, record again with \`bun ${SELF} --record\` and read the diff of scripts/permissions/fixtures/deny-reach-corpus.json; if it was not, the change to src/tools/BashTool/denyRuleReach.ts or to what it reads altered what a deny rule reaches`,
   )
   for (const line of moved.slice(0, SHOWN)) console.log(`    ${line}`)
-  check('with no deny rule and no estate the reach answers nothing, for every command read', quiet === read, `${read - quiet} commands were answered`)
-  check('no program and an empty program name are no shell', !startedProgramIsShell(undefined) && !startedProgramIsShell('', ['-c', 'sh']))
-  check('the corpus reaches a denial, a hidden rule, an unread rule and nothing', read < fixture.rows.length || ['denied', 'hidden', 'unread', 'nothing'].every(outcome => (outcomes.get(outcome) ?? 0) > 0), [...outcomes.keys()].join(','))
+  check('with no deny rule and no estate the reach answers nothing, for every command read', quiet === read, `${read - quiet} commands were answered; with an empty deny list denyRuleReach in src/tools/BashTool/denyRuleReach.ts must return no denied, hidden or unread answer`)
+  check('no program and an empty program name are no shell', !startedProgramIsShell(undefined) && !startedProgramIsShell('', ['-c', 'sh']), 'startedProgramIsShell in src/tools/BashTool/denyRuleReach.ts must return false for an undefined or empty program name')
+  check('the corpus reaches a denial, a hidden rule, an unread rule and nothing', read < fixture.rows.length || ['denied', 'hidden', 'unread', 'nothing'].every(outcome => (outcomes.get(outcome) ?? 0) > 0), `${[...outcomes.keys()].join(',')}; the recorded corpus in scripts/permissions/fixtures/deny-reach-corpus.json lacks a command for each outcome, so add one and record again with bun ${SELF} --record`)
 }
 
 console.log('\n============================================================')

@@ -36,7 +36,7 @@ let failures = 0
 const check = (label: string, condition: boolean, detail = ''): void => {
   checks++
   if (!condition) failures++
-  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition || !detail ? '' : `: ${detail}`}`)
+  console.log(`[${condition ? 'PASS' : 'FAIL'}] ${label}${condition ? '' : `: ${detail ? `${detail}; ` : ''}the landing line is foldLandingCeiling in src/services/compact/verbatimTail.ts, the fold that keeps rounds and folds large results is compactConversation in src/services/compact/compact.ts, the receipt words are foldReceiptWords in src/services/compact/foldReceipt.ts`}`)
 }
 
 let clock = Date.UTC(2026, 9, 17)

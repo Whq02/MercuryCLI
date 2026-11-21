@@ -21,10 +21,10 @@ if (row !== 'tui-03') {
   ] as const) {
     const { ctx, state } = context(text, offset)
     executeIndent(dir, 1, ctx)
-    assert.deepEqual(state, { text: expected, offset: cursor }, `indent ${JSON.stringify(text)}`)
+    assert.deepEqual(state, { text: expected, offset: cursor }, `indent ${JSON.stringify(text)}; fix executeIndent in src/vim/operators.ts so the text and cursor stay on the current line`)
     if (expected) {
       executeX(1, ctx)
-      assert.notEqual(state.text, expected, 'x after indent acts on a character')
+      assert.notEqual(state.text, expected, 'x after indent acts on a character; fix executeIndent in src/vim/operators.ts so the cursor lands on a character that executeX can delete')
     }
   }
 }
@@ -37,7 +37,7 @@ if (row !== 'tui-04') {
   ] as const) {
     const { ctx, state } = context(text, offset)
     executeToggleCase(count, ctx)
-    assert.deepEqual(state, { text: expected, offset: cursor }, `toggle ${JSON.stringify(text)}`)
+    assert.deepEqual(state, { text: expected, offset: cursor }, `toggle ${JSON.stringify(text)}; fix executeToggleCase in src/vim/operators.ts so the text and cursor stay on the current line`)
   }
 }
 console.log(`PASS ${row ?? 'tui-03 tui-04'} normal-mode case and indent cursors stay on the current line`)

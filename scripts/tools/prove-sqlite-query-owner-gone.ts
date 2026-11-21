@@ -52,6 +52,7 @@ function under(rows: Row[], root: number): Row[] {
 const isQueryChild = (row: Row): boolean => row.command.includes('--input-type=module') && row.command.includes('node:sqlite')
 let listedUnder: Row[] = []
 const unseen = (): string => `no query child was seen under the owner (listed under it: ${listedUnder.length === 0 ? 'nothing' : listedUnder.map(row => JSON.stringify(row.command.slice(0, 120))).join(' · ')})`
+const queryChildHint = ' | change runSqliteQuery and its child (the disconnect handler and the bound set by MERCURY_SQLITE_QUERY_BOUND_MS) in src/tools/FileReadTool/sqliteQueryProcess.ts'
 async function queryChildUnder(root: number, withinMs: number): Promise<{ child: Row; family: Row[] } | null> {
   const until = Date.now() + withinMs
   while (Date.now() < until) {
@@ -104,7 +105,7 @@ if (process.argv[2] === '--owner') {
   const ready = existsSync(dist) && existsSync(node)
   check('the built bundle and its release Node are there to read', ready, `${dist} or ${node} is missing — run bun run build.ts first`)
   const asWindowsLists = listedRows('4\t0\t\r\n700\t4\tC:\\tools\\bun.exe prove-sqlite-query-owner-gone.ts --owner endless\r\n812\t700\t"C:\\dist\\vendor\\node\\node.exe" --input-type=module -e "(async function sqliteQueryChild(work) {\n  const load = Function(\\"name\\", \\"return import(name)\\");\n})(\\"await load(\\\\\\"node:sqlite\\\\\\")\\")"\r\n900\t812\tconhost.exe 0x4\r\n')
-  check('a command line that spans lines, as Windows lists the query child of the source road, is read as one row with its whole command and the child is seen under its owner (the Windows box read its first line alone and saw no query child)', asWindowsLists.length === 4 && under(asWindowsLists, 700).length === 2 && under(asWindowsLists, 700).filter(isQueryChild).map(row => row.pid).join() === '812', JSON.stringify(asWindowsLists))
+  check('a command line that spans lines, as Windows lists the query child of the source road, is read as one row with its whole command and the child is seen under its owner (the Windows box read its first line alone and saw no query child)', asWindowsLists.length === 4 && under(asWindowsLists, 700).length === 2 && under(asWindowsLists, 700).filter(isQueryChild).map(row => row.pid).join() === '812', JSON.stringify(asWindowsLists) + ' | change listedRows, under or isQueryChild in this proof so a command line that spans lines is one row')
   const owner = (scenario: string, extra: Record<string, string> = {}): ChildProcess =>
     fork(script, ['--owner', scenario, file, join(config, 'tmp', 'query-results')], { execPath: process.execPath, execArgv: [], stdio: ['ignore', 'ignore', 'pipe', 'ipc'], env: { ...process.env, HOME: home, USERPROFILE: home, MERCURY_CONFIG_DIR: config, MERCURY_TMPDIR: join(config, 'tmp'), ...extra } })
   const told = (proc: ChildProcess, key: string, withinMs: number): Promise<Record<string, unknown> | null> =>
@@ -121,7 +122,7 @@ if (process.argv[2] === '--owner') {
       proc.stderr?.on('data', chunk => { stderr += String(chunk) })
       const said = await told(proc, 'answered', 20_000)
       const answered = said?.answered as { rows?: string[]; error?: string } | undefined
-      check('control: a statement that ends answers its rows through the child as before (holds on the parent)', answered?.rows?.join('|') === '1\t["one"]|2\t["two"]', `${JSON.stringify(said)} ${stderr.slice(-400)}`)
+      check('control: a statement that ends answers its rows through the child as before (holds on the parent)', answered?.rows?.join('|') === '1\t["one"]|2\t["two"]', `${JSON.stringify(said)} ${stderr.slice(-400)}${queryChildHint}`)
       end(proc.pid)
     }
     {
@@ -130,7 +131,7 @@ if (process.argv[2] === '--owner') {
       const seen = started === null || proc.pid === undefined ? null : await queryChildUnder(proc.pid, 8000)
       end(proc.pid)
       const gone = seen === null ? -1 : await goneWithin(seen.child.pid, 3000)
-      check('a Mercury ended hard in mid-statement leaves no query child: it is gone within three seconds (RED on the parent: the child ran on with no parent)', seen !== null && gone !== -1, seen === null ? unseen() : `child ${seen.child.pid} still runs three seconds after its parent was ended`)
+      check('a Mercury ended hard in mid-statement leaves no query child: it is gone within three seconds (RED on the parent: the child ran on with no parent)', seen !== null && gone !== -1, (seen === null ? unseen() : `child ${seen.child.pid} still runs three seconds after its parent was ended`) + queryChildHint)
       if (seen !== null && gone === -1) end(seen.child.pid)
     }
     {
@@ -140,7 +141,7 @@ if (process.argv[2] === '--owner') {
       proc.send({ leave: true })
       await new Promise<void>(done => { const timer = setTimeout(done, 5000); proc.once('exit', () => { clearTimeout(timer); done() }) })
       const gone = seen === null ? -1 : await goneWithin(seen.child.pid, 3000)
-      check('control: an orderly exit in mid-statement leaves no query child (holds on the parent)', seen !== null && gone !== -1, seen === null ? unseen() : `child ${seen.child.pid} still runs`)
+      check('control: an orderly exit in mid-statement leaves no query child (holds on the parent)', seen !== null && gone !== -1, (seen === null ? unseen() : `child ${seen.child.pid} still runs`) + queryChildHint)
       end(proc.pid)
       if (seen !== null && gone === -1) end(seen.child.pid)
     }
@@ -152,7 +153,7 @@ if (process.argv[2] === '--owner') {
       await sleep(1000)
       if (proc.pid !== undefined) { try { process.kill(proc.pid, 'SIGSTOP') } catch {} }
       const gone = seen === null ? -1 : await goneWithin(seen.child.pid, 12_000)
-      check('a Mercury that is stopped in mid-statement, neither ended nor able to end its child, cannot keep the statement past its bound: the child ends itself (RED on the parent)', seen !== null && gone !== -1, seen === null ? unseen() : `child ${seen.child.pid} still runs twelve seconds after its owner was stopped, under a bound of three`)
+      check('a Mercury that is stopped in mid-statement, neither ended nor able to end its child, cannot keep the statement past its bound: the child ends itself (RED on the parent)', seen !== null && gone !== -1, (seen === null ? unseen() : `child ${seen.child.pid} still runs twelve seconds after its owner was stopped, under a bound of three`) + queryChildHint)
       if (proc.pid !== undefined) { try { process.kill(proc.pid, 'SIGCONT') } catch {} }
       end(proc.pid)
       if (seen !== null && gone === -1) end(seen.child.pid)
@@ -179,7 +180,7 @@ if (process.argv[2] === '--owner') {
       const seen = run.pid === undefined ? null : await queryChildUnder(run.pid, 60_000)
       if (seen !== null) end(seen.child.ppid)
       const gone = seen === null ? -1 : await goneWithin(seen.child.pid, 3000)
-      check('the run’s process ended hard in mid-statement leaves no query child (RED on the parent)', seen !== null && gone !== -1, seen === null ? `no query child was seen under the run: ${printed.slice(-600)}` : `child ${seen.child.pid} still runs three seconds after pid ${seen.child.ppid} was ended`)
+      check('the run’s process ended hard in mid-statement leaves no query child (RED on the parent)', seen !== null && gone !== -1, (seen === null ? `no query child was seen under the run: ${printed.slice(-600)}` : `child ${seen.child.pid} still runs three seconds after pid ${seen.child.ppid} was ended`) + queryChildHint)
       if (seen !== null && gone === -1) end(seen.child.pid)
       end(run.pid)
       for (const row of seen?.family ?? []) if (row.pid !== seen!.child.pid) end(row.pid)

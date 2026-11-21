@@ -35,11 +35,11 @@ section('§A the exact SDK-importer allowlist (B01)')
   const actual = sdkImporters()
   const extra = actual.filter(f => !ALLOWLIST.includes(f))
   const gone = ALLOWLIST.filter(f => !actual.includes(f))
-  check('no SDK importer outside the named transport leaves', extra.length === 0, extra.join(', '))
+  check('no SDK importer outside the named transport leaves', extra.length === 0, extra.join(', ') + ' (each listed file under src/ imports @anthropic-ai/sdk: remove that import and use the Mercury types; adding it to ALLOWLIST in scripts/idiom/prove-import-fence.ts is not the fix)')
   check(
     'the allowlist is exact (a file leaving it must be removed here — shrink-only)',
     gone.length === 0,
-    `stale rows: ${gone.join(', ')}`,
+    `stale rows: ${gone.join(', ')} (these ALLOWLIST entries in scripts/idiom/prove-import-fence.ts no longer import the SDK: delete them from ALLOWLIST)`,
   )
   console.log(`  fence population: ${actual.length} leaf file(s)`)
 }
@@ -54,12 +54,12 @@ section('§B provider lanes are direct codecs (B03/B04)')
     .split('\n')
     .filter(Boolean)
   const routed = hits.filter(f => !f.startsWith(ANTHROPIC_HOME))
-  check('zero SDK references under src/services/providers/** outside the Anthropic transport', routed.length === 0, routed.join(', '))
+  check('zero SDK references under src/services/providers/** outside the Anthropic transport', routed.length === 0, routed.join(', ') + ' (each listed file under src/services/providers mentions @anthropic-ai/sdk: remove the reference and use a direct codec)')
   const transport = hits.filter(f => f.startsWith(ANTHROPIC_HOME))
   check(
     'the Anthropic transport also has zero SDK references',
     transport.length === 0,
-    transport.join(', '),
+    transport.join(', ') + ' (each listed file under src/services/providers/anthropic mentions @anthropic-ai/sdk: remove the reference and use a direct codec)',
   )
 }
 
@@ -71,7 +71,7 @@ section('§C renderers consume Mercury types only (E01)')
   )
     .split('\n')
     .filter(Boolean)
-  check('zero SDK imports under src/components/** + src/screens/**', hits.length === 0, hits.join(', '))
+  check('zero SDK imports under src/components/** + src/screens/**', hits.length === 0, hits.join(', ') + ' (each listed file under src/components or src/screens imports @anthropic-ai/sdk: import the Mercury type instead)')
 }
 
 section('§F the versioned machine contract + the named projection (E03/E04), on the live homes')
@@ -81,8 +81,8 @@ section('§F the versioned machine contract + the named projection (E03/E04), on
   const { RUNNER_PROTOCOL } = await import('../../src/runner/wire/methods.ts')
   const { itemRowsOf, outcomeRow } = await import('../../src/rows/project.ts')
   const { parseRow } = await import('../../src/rows/read.ts')
-  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', typeof ROWS_SCHEMA === 'number' && Number.isInteger(ROWS_SCHEMA) && ROWS_SCHEMA >= 1, String(ROWS_SCHEMA))
-  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', typeof RUNNER_PROTOCOL === 'number' && Number.isInteger(RUNNER_PROTOCOL) && RUNNER_PROTOCOL >= 1, String(RUNNER_PROTOCOL))
+  check('the row contract is VERSIONED (ROWS_SCHEMA exported as a literal)', typeof ROWS_SCHEMA === 'number' && Number.isInteger(ROWS_SCHEMA) && ROWS_SCHEMA >= 1, String(ROWS_SCHEMA) + ' (export ROWS_SCHEMA as an integer of at least 1 from src/rows/vocabulary.ts)')
+  check('the wire contract is VERSIONED (RUNNER_PROTOCOL exported as a literal)', typeof RUNNER_PROTOCOL === 'number' && Number.isInteger(RUNNER_PROTOCOL) && RUNNER_PROTOCOL >= 1, String(RUNNER_PROTOCOL) + ' (export RUNNER_PROTOCOL as an integer of at least 1 from src/runner/wire/methods.ts)')
   const projected = itemRowsOf({ session_id: 's1', turn: 1 }, 'm1', 'hello')
   const parsedItem = projected.length === 1 ? parseRow(JSON.stringify(projected[0])) : null
   const out = outcomeRow({ session_id: 's1', turn: 1 }, {
@@ -99,6 +99,7 @@ section('§F the versioned machine contract + the named projection (E03/E04), on
   check(
     'the row stream is a NAMED projection both ways (project.ts emits the rows, read.ts parses them)',
     parsedItem?.type === 'text' && parsedItem.text === 'hello' && parsedOutcome?.type === 'outcome' && parsedOutcome.schema === ROWS_SCHEMA,
+    'itemRowsOf and outcomeRow in src/rows/project.ts must emit rows that parseRow in src/rows/read.ts reads back: a text row of hello and an outcome row stamped with ROWS_SCHEMA',
   )
   const sdkHits = execSync(
     `grep -rln "from '@anthropic-ai/sdk" src/rows src/runner/wire --include='*.ts' || true`,
@@ -106,7 +107,7 @@ section('§F the versioned machine contract + the named projection (E03/E04), on
   )
     .split('\n')
     .filter(Boolean)
-  check('the machine surface imports no provider SDK (Mercury-native)', sdkHits.length === 0, sdkHits.join(', '))
+  check('the machine surface imports no provider SDK (Mercury-native)', sdkHits.length === 0, sdkHits.join(', ') + ' (each listed file under src/rows or src/runner/wire mentions @anthropic-ai/sdk: remove the reference)')
 }
 
 console.log(failures === 0 ? '\n ✅ IMPORT FENCE HOLDS' : `\n ❌ ${failures} FENCE BREAK(S)`)

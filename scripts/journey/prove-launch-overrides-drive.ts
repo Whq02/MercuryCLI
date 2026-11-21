@@ -63,7 +63,7 @@ const fixture: ChildProcess = spawn(BUN, ['run', path.join(import.meta.dir, 'mis
   env: { ...process.env, MISSION_FIXTURE_REPLY_DELAY_MS: '300' },
 })
 const port = await new Promise<number>((resolve, reject) => {
-  const killer = setTimeout(() => reject(new Error('fixture server never printed PORT')), 15_000)
+  const killer = setTimeout(() => reject(new Error('fixture server never printed PORT — run scripts/journey/mission-fixture-server.ts by hand and fix what it prints on stderr')), 15_000)
   let buffer = ''
   fixture.stdout!.on('data', (chunk: Buffer) => {
     buffer += chunk.toString('utf8')
@@ -181,7 +181,7 @@ function drive(
     env: { ...worldEnv(world), ...(envExtra ?? {}) },
   })
   if (!existsSync(out)) {
-    check(`${name}: capture produced a grid`, false, `vshot: ${String(res.stderr).slice(0, 300)}`)
+    check(`${name}: capture produced a grid`, false, `vshot: ${String(res.stderr).slice(0, 300)} — scripts/ui/vshot.py wrote no grid to ${out}; read its stderr here and the debug log under ${world.home}`)
     return { grid: '', marks: {} }
   }
   const payload = JSON.parse(readFileSync(out, 'utf8')) as { grid: Grid; marks?: Array<{ label: string; grid: Grid }> }
@@ -271,11 +271,11 @@ const a = drive(
   300,
   { cols: 110, rows: 44 },
 )
-check('the seed turn settled (its reply painted)', a.grid.includes('reply to [[launch turn one') || (a.marks.seeded ?? '').includes('reply to [[launch turn one'), a.grid.slice(-400))
-check(`the strip read Sonnet 5 · high while the session ran`, /Sonnet 5/.test(stripLine(a.marks.seeded ?? '', 'Sonnet 5')) && /\bhigh\b/.test(stripLine(a.marks.seeded ?? '', 'Sonnet 5')), stripLine(a.marks.seeded ?? '', 'Sonnet').trim() || '(no strip line)')
+check('the seed turn settled (its reply painted)', a.grid.includes('reply to [[launch turn one') || (a.marks.seeded ?? '').includes('reply to [[launch turn one'), `${a.grid.slice(-400)}\n — the seed turn got no reply from the mission fixture; check ANTHROPIC_BASE_URL in worldEnv and the capture file ${capture}`)
+check(`the strip read Sonnet 5 · high while the session ran`, /Sonnet 5/.test(stripLine(a.marks.seeded ?? '', 'Sonnet 5')) && /\bhigh\b/.test(stripLine(a.marks.seeded ?? '', 'Sonnet 5')), `${stripLine(a.marks.seeded ?? '', 'Sonnet').trim() || '(no strip line)'} — the status strip of a session born on --model ${SEED_MODEL} must show the model and its effort`)
 const seeded = newestRecord(world)
-check(`the session record saved the model ${SEED_MODEL}`, seeded?.modelKey === SEED_MODEL, JSON.stringify(seeded))
-check("the session record saved the effort 'high'", seeded?.effort === 'high', JSON.stringify(seeded))
+check(`the session record saved the model ${SEED_MODEL}`, seeded?.modelKey === SEED_MODEL, `${JSON.stringify(seeded)} — the worker record in daemon/concourse-workers.json (src/daemon/concourseWorkers/store.ts) must hold the launch model of the seed session`)
+check("the session record saved the effort 'high'", seeded?.effort === 'high', `${JSON.stringify(seeded)} — the worker record in daemon/concourse-workers.json (src/daemon/concourseWorkers/store.ts) must hold the effort of the seed session`)
 const seedRequests = wireRequests().length
 
 section(`stage B — --continue --model ${LAUNCH_MODEL} --effort ${LAUNCH_EFFORT} (${GEOMETRY.cols}x${GEOMETRY.rows})`)
@@ -297,23 +297,23 @@ if (FRAMES !== undefined) {
   writeFileSync(path.join(FRAMES, `resume-card-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), card)
   writeFileSync(path.join(FRAMES, `resume-final-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), b.grid)
 }
-check('the prior turn painted after --continue', card.includes('alpha-goose') || b.grid.includes('alpha-goose'), b.grid.slice(-400))
-check('the resume card painted', /resumed/.test(card), card.split('\n').filter(l => l.trim()).slice(-12).join('\n'))
+check('the prior turn painted after --continue', card.includes('alpha-goose') || b.grid.includes('alpha-goose'), `${b.grid.slice(-400)}\n — --continue did not reopen the seeded session; the saved turn must paint before the resume card`)
+check('the resume card painted', /resumed/.test(card), `${card.split('\n').filter(l => l.trim()).slice(-12).join('\n')}\n — the resume card did not paint; see src/components/messages/ResumeRecapCard.tsx`)
 const stripB = stripLine(card, 'Opus 5')
-check(`the strip reads Opus 5 · ${LAUNCH_EFFORT} on the resumed chat (the launch's model and effort, not the saved ones)`, /Opus 5/.test(stripB) && new RegExp(`\\b${LAUNCH_EFFORT}\\b`).test(stripB), (stripLine(card, 'Sonnet 5') || stripLine(card, 'Opus 5') || '(no strip line)').trim())
-check('the resume card names which won: the --model flag over the saved Sonnet 5', /--model Opus 5 wins over the session's Sonnet 5/.test(card.replace(/\s+/g, ' ')), card.split('\n').filter(l => /wins|resumed/.test(l)).join(' | ').trim() || '(no winner row)')
-check("the resume card names which won: the --effort flag over the saved high", /--effort max wins over the session's high/.test(card.replace(/\s+/g, ' ')), card.split('\n').filter(l => /wins|resumed/.test(l)).join(' | ').trim() || '(no winner row)')
+check(`the strip reads Opus 5 · ${LAUNCH_EFFORT} on the resumed chat (the launch's model and effort, not the saved ones)`, /Opus 5/.test(stripB) && new RegExp(`\\b${LAUNCH_EFFORT}\\b`).test(stripB), `${(stripLine(card, 'Sonnet 5') || stripLine(card, 'Opus 5') || '(no strip line)').trim()} — the resumed chat must take --model and --effort from the launch, not from the saved session; see src/utils/sessionArgs.ts and src/main/sessionDoors.ts`)
+check('the resume card names which won: the --model flag over the saved Sonnet 5', /--model Opus 5 wins over the session's Sonnet 5/.test(card.replace(/\s+/g, ' ')), `${card.split('\n').filter(l => /wins|resumed/.test(l)).join(' | ').trim() || '(no winner row)'} — the winner row is built in src/components/messages/ResumeRecapCard.tsx`)
+check("the resume card names which won: the --effort flag over the saved high", /--effort max wins over the session's high/.test(card.replace(/\s+/g, ' ')), `${card.split('\n').filter(l => /wins|resumed/.test(l)).join(' | ').trim() || '(no winner row)'} — the winner row is built in src/components/messages/ResumeRecapCard.tsx`)
 const resumed = newestRecord(world)
-check(`the session record is re-stamped with ${LAUNCH_MODEL}`, resumed?.modelKey === LAUNCH_MODEL, JSON.stringify(resumed))
-check(`the session record is re-stamped with effort ${LAUNCH_EFFORT}`, resumed?.effort === LAUNCH_EFFORT, JSON.stringify(resumed))
-check('the resumed turn answered (its reply painted)', b.grid.includes('reply to [[launch turn two'), b.grid.slice(-400))
+check(`the session record is re-stamped with ${LAUNCH_MODEL}`, resumed?.modelKey === LAUNCH_MODEL, `${JSON.stringify(resumed)} — the worker record in daemon/concourse-workers.json (src/daemon/concourseWorkers/store.ts) was not re-stamped with the launch model on resume`)
+check(`the session record is re-stamped with effort ${LAUNCH_EFFORT}`, resumed?.effort === LAUNCH_EFFORT, `${JSON.stringify(resumed)} — the worker record in daemon/concourse-workers.json (src/daemon/concourseWorkers/store.ts) was not re-stamped with the launch effort on resume`)
+check('the resumed turn answered (its reply painted)', b.grid.includes('reply to [[launch turn two'), `${b.grid.slice(-400)}\n — the resumed turn got no reply painted; compare with the requests in ${capture}`)
 const resumedRequests = wireRequests().slice(seedRequests)
 const carrying = resumedRequests.filter(r => JSON.stringify(r.body ?? null).includes(TURN_TWO))
-check('the resumed request reached the wire', carrying.length > 0, `${resumedRequests.length} request(s) after the seed`)
+check('the resumed request reached the wire', carrying.length > 0, `${resumedRequests.length} request(s) after the seed — the turn typed after --continue never reached the fixture; see ${capture}`)
 const last = carrying[carrying.length - 1]?.body ?? null
-check(`the resumed request carries model ${LAUNCH_MODEL}`, last?.model === LAUNCH_MODEL, `model=${String(last?.model)}`)
+check(`the resumed request carries model ${LAUNCH_MODEL}`, last?.model === LAUNCH_MODEL, `model=${String(last?.model)} — the wire request used the saved model, not the --model flag of the launch; see src/utils/sessionArgs.ts`)
 const wireEffort = (last?.output_config as { effort?: string } | undefined)?.effort
-check(`the resumed request carries effort ${LAUNCH_EFFORT}`, wireEffort === LAUNCH_EFFORT, `output_config.effort=${String(wireEffort)}`)
+check(`the resumed request carries effort ${LAUNCH_EFFORT}`, wireEffort === LAUNCH_EFFORT, `output_config.effort=${String(wireEffort)} — the wire request used the saved effort, not the --effort flag of the launch; see src/utils/sessionArgs.ts`)
 
 if (FRAMES !== undefined) {
   console.log('\n' + '='.repeat(60))
@@ -338,7 +338,7 @@ for (let waited = 0; waited < 60_000 && !live; waited += 500) {
   } catch {
   }
 }
-check('the first screen holds the session live (its runner alive, the record focused)', live, JSON.stringify(newestRecord(world)).slice(0, 300))
+check('the first screen holds the session live (its runner alive, the record focused)', live, `${JSON.stringify(newestRecord(world)).slice(0, 300)} — the held first screen (vshot ${holdOut}) never took the session live with a focused record; read that grid and daemon/concourse-workers.json`)
 const requestsBeforeHop = wireRequests().length
 const HOP_SAMPLES = Array.from({ length: 12 }, (_, i) => ({ afterPrevTicks: 3, data: '', mark: `s${i + 1}` }))
 const c = drive(
@@ -369,15 +369,15 @@ try {
 } catch {
 }
 const hopped = c.marks.hopped ?? c.grid
-check('the second screen entered the live session (the prior turns painted)', hopped.includes('alpha-goose') || c.grid.includes('alpha-goose'), c.grid.slice(-400))
-check(`the receipt row names which won: --model Sonnet 5 over the session's Opus 5`, /--model Sonnet 5 wins over the session's Opus 5/.test(hopped.replace(/\s+/g, ' ')), hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)')
-check(`the receipt row names which won: --effort high over the session's max`, /--effort high wins over the session's max/.test(hopped.replace(/\s+/g, ' ')), hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)')
+check('the second screen entered the live session (the prior turns painted)', hopped.includes('alpha-goose') || c.grid.includes('alpha-goose'), `${c.grid.slice(-400)}\n — the second screen did not enter the live session; see src/services/switchboard/hopIntoSession.ts`)
+check(`the receipt row names which won: --model Sonnet 5 over the session's Opus 5`, /--model Sonnet 5 wins over the session's Opus 5/.test(hopped.replace(/\s+/g, ' ')), `${hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)'} — the receipt row is built in src/services/switchboard/hopIntoSession.ts`)
+check(`the receipt row names which won: --effort high over the session's max`, /--effort high wins over the session's max/.test(hopped.replace(/\s+/g, ' ')), `${hopped.split('\n').filter(l => /wins|refused/.test(l)).join(' | ').trim() || '(no receipt row)'} — the receipt row is built in src/services/switchboard/hopIntoSession.ts`)
 const stripFrame = c.marks.strip ?? hopped
 const stripC = stripLine(stripFrame, 'Sonnet 5')
-check(`the strip reads Sonnet 5 · ${HOP_EFFORT} on the hopped chat`, /Sonnet 5/.test(stripC) && new RegExp(`\\b${HOP_EFFORT}\\b`).test(stripC), (stripLine(stripFrame, 'Opus 5') || stripLine(stripFrame, 'Sonnet 5') || '(no strip line)').trim())
+check(`the strip reads Sonnet 5 · ${HOP_EFFORT} on the hopped chat`, /Sonnet 5/.test(stripC) && new RegExp(`\\b${HOP_EFFORT}\\b`).test(stripC), `${(stripLine(stripFrame, 'Opus 5') || stripLine(stripFrame, 'Sonnet 5') || '(no strip line)').trim()} — the hop switched the live session but the strip did not follow; see src/services/switchboard/hopIntoSession.ts`)
 const conv = convergenceLatencyMs(world, 'hop', 'Sonnet 5', HOP_EFFORT)
 console.log(`  [note] with the facts watch silenced (the FSEvents reschedule drop, forced), the strip converged to ${HOP_EFFORT} ${conv.ms === undefined ? 'NOT within the sampled window — it waited the idle floor' : `${conv.ms} ms (${conv.label})`} after the receipt; the seat-verb settle nudge bounds this at ${SEAT_VERB_SETTLE_MS} ms, the old build without it waits IDLE_PROJECTION_FLOOR_MS`)
-check(`the strip converges to the hop's effort within SEAT_VERB_SETTLE_MS (${SEAT_VERB_SETTLE_MS} ms) of the receipt, not the idle floor`, conv.ms !== undefined && conv.ms < SEAT_VERB_SETTLE_MS, `latency=${conv.ms === undefined ? 'never in samples (idle-floor lag)' : `${conv.ms} ms`} bound=${SEAT_VERB_SETTLE_MS} ms`)
+check(`the strip converges to the hop's effort within SEAT_VERB_SETTLE_MS (${SEAT_VERB_SETTLE_MS} ms) of the receipt, not the idle floor`, conv.ms !== undefined && conv.ms < SEAT_VERB_SETTLE_MS, `latency=${conv.ms === undefined ? 'never in samples (idle-floor lag)' : `${conv.ms} ms`} bound=${SEAT_VERB_SETTLE_MS} ms — the seat-verb settle nudge (SEAT_VERB_SETTLE_MS in src/services/engine-connector/daemon/dials.ts) did not refresh the facts after the hop`)
 if (HOP_FRAMES !== undefined) {
   mkdirSync(HOP_FRAMES, { recursive: true })
   const base = conv.hoppedAtMs ?? conv.sampleGrids[0]?.atMs ?? 0
@@ -387,12 +387,12 @@ if (HOP_FRAMES !== undefined) {
   if (boundSample !== undefined) writeFileSync(path.join(HOP_FRAMES, `effort-chip-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), boundSample.text)
   writeFileSync(path.join(HOP_FRAMES, `effort-chip-strip-${GEOMETRY.cols}x${GEOMETRY.rows}.txt`), c.marks.strip ?? c.grid)
 }
-check('the turn after the hop answered', c.grid.includes('reply to [[launch turn three'), c.grid.slice(-400))
+check('the turn after the hop answered', c.grid.includes('reply to [[launch turn three'), `${c.grid.slice(-400)}\n — the turn typed after the hop got no reply painted; compare with the requests in ${capture}`)
 const hopBodies = wireRequests().slice(requestsBeforeHop).filter(r => JSON.stringify(r.body ?? null).includes(TURN_THREE))
 const lastHop = hopBodies[hopBodies.length - 1]?.body ?? null
-check(`the request after the hop carries model ${HOP_MODEL}`, lastHop?.model === HOP_MODEL, `model=${String(lastHop?.model)}`)
+check(`the request after the hop carries model ${HOP_MODEL}`, lastHop?.model === HOP_MODEL, `model=${String(lastHop?.model)} — the request after the hop did not use the hop's --model; see src/services/switchboard/hopIntoSession.ts`)
 const hopEffort = (lastHop?.output_config as { effort?: string } | undefined)?.effort
-check(`the request after the hop carries effort ${HOP_EFFORT}`, hopEffort === HOP_EFFORT, `output_config.effort=${String(hopEffort)}`)
+check(`the request after the hop carries effort ${HOP_EFFORT}`, hopEffort === HOP_EFFORT, `output_config.effort=${String(hopEffort)} — the request after the hop did not use the hop's --effort; see src/services/switchboard/hopIntoSession.ts`)
 
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

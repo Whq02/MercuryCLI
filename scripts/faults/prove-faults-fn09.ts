@@ -6,9 +6,17 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 let failures = 0
+const faultHints: Array<[string, string]> = [
+  ['changeSetPlan-', 'change planChangeSet in src/services/changeTransaction/changeSetPlan.ts to refuse (code io or destination) on an unreadable path and plan a truly missing destination directory'],
+  ['changeSetCommit-', 'change runTextChangeSetCommit or recoverChangeSetJournal in src/services/changeTransaction/changeSetCommit.ts so an unreadable target is never treated as absent'],
+  ['concourseSnapshot-', 'change readHarnessGround in src/services/concourse/concourseSnapshot.ts to answer the current folder with a reason, and no throw, when the draft is corrupt or unreadable'],
+  ['launchControls-', 'change newSession in src/components/concourse/route/launchControls.ts to start the session in the answered ground and note the unread repo choice once'],
+]
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const hint = cond ? '' : (faultHints.find(([prefix]) => label.startsWith(prefix))?.[1] ?? '')
+  const said = [detail, hint].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && said ? ` — ${said}` : ''}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

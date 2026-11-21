@@ -17,7 +17,7 @@ delete process.env.CI
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | change the path checker made by createPathChecker in src/tools/BashTool/pathValidation.ts (its ask message for a create inside or outside the starting folder)' : ''}`)
 }
 
 const { enableConfigs } = await import('../../src/utils/config/globalConfig.ts')

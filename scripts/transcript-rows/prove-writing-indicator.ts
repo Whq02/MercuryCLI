@@ -7,7 +7,7 @@ const { liveTurnStateOf } = await import('../../src/services/resume/conversation
 
 let failures = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' | W1: change liveTurnStateOf in src/services/resume/conversationRecovery.ts; W2: change live() of DaemonSessionConnector in src/services/engine-connector/daemonConnector.ts; W3 and W4: change what the Chat hands the spinner (its mode) and the hold row (the response length ref)' : ''}`)
   if (!ok) failures++
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(72) + '\n' + t)

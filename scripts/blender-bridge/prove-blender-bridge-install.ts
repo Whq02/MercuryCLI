@@ -8,6 +8,7 @@ let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond) console.log(`    what to change: make the function behind this label match it, in src/services/blender/bridgeInstaller.ts (applyBlenderBridgeInstall, applyBlenderBridgeUninstall, blenderBridgeInstallStatus, describeBlenderBridgeStatus) or src/services/blender/bridgeClient.ts (getBlenderBridgeClient)`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))

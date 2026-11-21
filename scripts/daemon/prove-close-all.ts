@@ -60,49 +60,49 @@ console.log('Q1 the quit story: the screen dies, the estate parks, the next boot
   ])
   killed.length = 0
   const receipt = sup.parkAllConcourseSessions('daemon:owner-orphaned', roster, dir)
-  check('idle ⇒ parked at once (killed; the focus stamp of the dead screen ends with the close)', receipt.parked.includes('concourse-w1') && killed.includes('concourse-w1') && rec('concourse-w1')?.parkedAt !== undefined && rec('concourse-w1')?.focusedAt === undefined)
-  check('mid-turn ⇒ a park request, NO kill (the runner finishes its own turn)', receipt.draining.sort().join(',') === 'concourse-w2,concourse-w5' && !killed.includes('concourse-w2') && !killed.includes('concourse-w5') && rec('concourse-w2')?.parkRequestedAt !== undefined && rec('concourse-w2')?.parkedAt === undefined)
-  check('newborn ⇒ released (nothing to bring back)', receipt.released.join(',') === 'concourse-w3' && rec('concourse-w3')?.endedAt !== undefined)
-  check("stopped ⇒ untouched (the operator's own state)", receipt.skipped.join(',') === 'concourse-w4' && rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w4')?.parkedAt === undefined)
-  check('the drain set names the mid-turn runners', sup.pendingParkRequests(dir).sort().join(',') === 'concourse-w2,concourse-w5')
+  check('idle ⇒ parked at once (killed; the focus stamp of the dead screen ends with the close)', receipt.parked.includes('concourse-w1') && killed.includes('concourse-w1') && rec('concourse-w1')?.parkedAt !== undefined && rec('concourse-w1')?.focusedAt === undefined, 'fix parkAllConcourseSessions in src/daemon/concourseWorkers.ts so an idle runner is killed and parked and its focus stamp cleared')
+  check('mid-turn ⇒ a park request, NO kill (the runner finishes its own turn)', receipt.draining.sort().join(',') === 'concourse-w2,concourse-w5' && !killed.includes('concourse-w2') && !killed.includes('concourse-w5') && rec('concourse-w2')?.parkRequestedAt !== undefined && rec('concourse-w2')?.parkedAt === undefined, `fix parkAllConcourseSessions in src/daemon/concourseWorkers.ts so a mid-turn runner gets a park request and no kill; draining ${receipt.draining.join(',')}`)
+  check('newborn ⇒ released (nothing to bring back)', receipt.released.join(',') === 'concourse-w3' && rec('concourse-w3')?.endedAt !== undefined, `fix parkAllConcourseSessions in src/daemon/concourseWorkers.ts so a newborn runner is released and its row ended; released ${receipt.released.join(',')}`)
+  check("stopped ⇒ untouched (the operator's own state)", receipt.skipped.join(',') === 'concourse-w4' && rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w4')?.parkedAt === undefined, `fix parkAllConcourseSessions in src/daemon/concourseWorkers.ts so an operator-stopped row is left untouched; skipped ${receipt.skipped.join(',')}`)
+  check('the drain set names the mid-turn runners', sup.pendingParkRequests(dir).sort().join(',') === 'concourse-w2,concourse-w5', `fix pendingParkRequests in src/daemon/concourseWorkers.ts to list the runners with a standing park request; got ${sup.pendingParkRequests(dir).sort().join(',')}`)
   sup.updateConcourseWorkers(ws => { ws['concourse-w2']!.lastTurnSettledAt = now }, dir)
   const retiring = retiringRunners(sup, dir, DEAD_PID)
   retiring.seat('concourse-w2')
-  check("the runner's own turn-settled edge completes the park: the runner retires by its own leave (asked, never killed), parked, the request cleared", !sup.completeRequestedPark('concourse-w2', roster, dir) && (await sup.retireRequestedPark('concourse-w2', retiring.roster, dir, { exitWaitMs: 2_000 })) && retiring.askedOf('concourse-w2') === 'prepare,commit' && !killed.includes('concourse-w2') && retiring.killed.length === 0 && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.parkRequestedAt === undefined)
+  check("the runner's own turn-settled edge completes the park: the runner retires by its own leave (asked, never killed), parked, the request cleared", !sup.completeRequestedPark('concourse-w2', roster, dir) && (await sup.retireRequestedPark('concourse-w2', retiring.roster, dir, { exitWaitMs: 2_000 })) && retiring.askedOf('concourse-w2') === 'prepare,commit' && !killed.includes('concourse-w2') && retiring.killed.length === 0 && rec('concourse-w2')?.parkedAt !== undefined && rec('concourse-w2')?.parkRequestedAt === undefined, 'fix completeRequestedPark and retireRequestedPark in src/daemon/concourseWorkers.ts so a settled turn retires the runner by its own leave, parks the row and clears the request')
   retiring.close()
-  check('the drain set shrinks to the one still working', sup.pendingParkRequests(dir).join(',') === 'concourse-w5')
+  check('the drain set shrinks to the one still working', sup.pendingParkRequests(dir).join(',') === 'concourse-w5', `fix pendingParkRequests in src/daemon/concourseWorkers.ts to drop a request once the runner is parked; got ${sup.pendingParkRequests(dir).join(',')}`)
   const cut = sup.parkConcourseSession(sid('5'), 'daemon:owner-orphaned', roster, dir, { afterTurn: false, reason: sup.PARK_DRAIN_CUT_REASON })
-  check('a request still standing at the ceiling is cut: parked now, the row says so', cut.outcome === 'applied' && killed.includes('concourse-w5') && rec('concourse-w5')?.parkReason === 'parked — turn cut at the drain ceiling' && sup.pendingParkRequests(dir).length === 0)
+  check('a request still standing at the ceiling is cut: parked now, the row says so', cut.outcome === 'applied' && killed.includes('concourse-w5') && rec('concourse-w5')?.parkReason === 'parked — turn cut at the drain ceiling' && sup.pendingParkRequests(dir).length === 0, `fix parkConcourseSession and PARK_DRAIN_CUT_REASON in src/daemon/concourseWorkers.ts so a cut park kills the runner and writes the cut reason; outcome ${cut.outcome}`)
   sup.updateConcourseWorkers(ws => { for (const w of Object.values(ws)) if (w.endedAt === undefined) w.pid = DEAD_PID }, dir)
   const reconcile = sup.reconcileConcourseWorkers(new Set(), dir)
   const onBoard = Object.values(sup.readSessionWorkers(dir)).filter(r => r.endedAt === undefined)
-  check('the next boot finds every closed chat PARKED — no crash rows, nothing released', reconcile.settled.length === 0 && reconcile.parked.sort().join(',') === 'concourse-w1,concourse-w2,concourse-w5' && onBoard.every(r => r.crash === undefined), JSON.stringify(reconcile))
-  check("the stopped row keeps the operator's stop; the newborn stays released", rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w3')?.endedAt !== undefined)
+  check('the next boot finds every closed chat PARKED — no crash rows, nothing released', reconcile.settled.length === 0 && reconcile.parked.sort().join(',') === 'concourse-w1,concourse-w2,concourse-w5' && onBoard.every(r => r.crash === undefined), `fix reconcileConcourseWorkers in src/daemon/concourseWorkers.ts so a parked row is reported parked and given no crash row; ${JSON.stringify(reconcile)}`)
+  check("the stopped row keeps the operator's stop; the newborn stays released", rec('concourse-w4')?.stoppedAt !== undefined && rec('concourse-w3')?.endedAt !== undefined, 'fix reconcileConcourseWorkers in src/daemon/concourseWorkers.ts so it keeps the stoppedAt of a stopped row and the endedAt of a released one')
   seed([{ runnerId: 'concourse-w9', sessionId: sid('9'), pid: DEAD_PID, lastDeliveryAt: now - T, lastTurnSettledAt: now - T + 5 }])
   const hard = sup.reconcileConcourseWorkers(new Set(), dir)
-  check("POISON CONTROL: a hard death (no park written) still paints the crash row — the crash-row law stands", hard.settled.includes('concourse-w9') && rec('concourse-w9')?.crash !== undefined && rec('concourse-w9')?.parkedAt === undefined)
+  check("POISON CONTROL: a hard death (no park written) still paints the crash row — the crash-row law stands", hard.settled.includes('concourse-w9') && rec('concourse-w9')?.crash !== undefined && rec('concourse-w9')?.parkedAt === undefined, 'fix reconcileConcourseWorkers in src/daemon/concourseWorkers.ts so a dead pid with no park written settles as a crash row')
 }
 
 console.log('Q2 the drain ceiling knob')
 {
-  check('the default is 10 minutes', idle.sessionParkDrainMs() === 10 * 60_000, String(idle.sessionParkDrainMs()))
+  check('the default is 10 minutes', idle.sessionParkDrainMs() === 10 * 60_000, `fix sessionParkDrainMs in src/daemon/idleRetirement.ts so the default ceiling is 10 minutes; got ${idle.sessionParkDrainMs()}`)
   process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES = '3'
-  check('the knob reads minutes', idle.sessionParkDrainMs() === 3 * 60_000)
+  check('the knob reads minutes', idle.sessionParkDrainMs() === 3 * 60_000, `fix sessionParkDrainMs in src/daemon/idleRetirement.ts to read MERCURY_SESSION_PARK_DRAIN_MINUTES as minutes; got ${idle.sessionParkDrainMs()}`)
   process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES = '0'
-  check('0 ⇒ no wait', idle.sessionParkDrainMs() === 0)
+  check('0 ⇒ no wait', idle.sessionParkDrainMs() === 0, `fix sessionParkDrainMs in src/daemon/idleRetirement.ts so MERCURY_SESSION_PARK_DRAIN_MINUTES=0 means no wait; got ${idle.sessionParkDrainMs()}`)
   delete process.env.MERCURY_SESSION_PARK_DRAIN_MINUTES
   const knob = getFlagSpec('MERCURY_SESSION_PARK_DRAIN_MINUTES')
-  check('the knob is a registered row naming its consumer and the cut wording', knob !== undefined && knob.consumer.includes('sessionParkDrainMs') && knob.summary.includes("'parked — turn cut at the drain ceiling'"))
-  check('the cut reason has ONE owner', sup.PARK_DRAIN_CUT_REASON === 'parked — turn cut at the drain ceiling')
+  check('the knob is a registered row naming its consumer and the cut wording', knob !== undefined && knob.consumer.includes('sessionParkDrainMs') && knob.summary.includes("'parked — turn cut at the drain ceiling'"), 'fix the MERCURY_SESSION_PARK_DRAIN_MINUTES row in src/substrate/flagRegistry.ts so its consumer names sessionParkDrainMs and its summary quotes the cut wording')
+  check('the cut reason has ONE owner', sup.PARK_DRAIN_CUT_REASON === 'parked — turn cut at the drain ceiling', 'PARK_DRAIN_CUT_REASON in src/daemon/concourseWorkers.ts must keep this wording; change the flag row summary and this check together if you rename it')
 }
 
 
 console.log('Q6 a refused chat-forward birth lands the face directly')
 {
   handover.markExplicitBootJourney()
-  check('an explicit journey is marked', handover.bootJourneyIsExplicit())
+  check('an explicit journey is marked', handover.bootJourneyIsExplicit(), 'fix markExplicitBootJourney and bootJourneyIsExplicit in src/substrate/splashHandover.ts')
   handover.retractExplicitBootJourney()
-  check('the retraction clears it (the resolver lands the Boot face)', !handover.bootJourneyIsExplicit())
+  check('the retraction clears it (the resolver lands the Boot face)', !handover.bootJourneyIsExplicit(), 'fix retractExplicitBootJourney in src/substrate/splashHandover.ts so it clears the explicit-journey mark')
 }
 
 rmSync(SCRATCH, { recursive: true, force: true })

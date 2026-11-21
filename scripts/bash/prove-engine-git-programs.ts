@@ -149,12 +149,30 @@ for (const name of Object.keys(process.env)) {
 
 let failures = 0
 let checks = 0
+const SECTION_FIXES: Array<[string, string]> = [
+  ['§1 ', 'change toolPrograms and withGitPrograms in src/utils/shell/windowsShellRoad.ts'],
+  ['§2 ', 'change withGitPrograms and withRoadPrograms in src/utils/shell/windowsShellRoad.ts (the path the shell is given), or resolveShellEngine in src/utils/shell/engineSession.ts (the engine arm)'],
+  ['§3 ', 'change withGitPrograms and withRoadPrograms in src/utils/shell/windowsShellRoad.ts (an ls already on the path must leave the path as it was)'],
+  ['§4 ', 'change withRoadPrograms in src/utils/shell/windowsShellRoad.ts (the roads the rule leaves alone), or resolveShellEngine in src/utils/shell/engineSession.ts (the engine arm)'],
+  ['§4b ', 'change withRoadPrograms in src/utils/shell/windowsShellRoad.ts'],
+  ['§5 ', 'change describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts or shellEngineArmWords in src/utils/shell/shellEngineArm.ts'],
+  ['§6 ', 'change checkReadOnlyConstraints in src/tools/BashTool/readOnlyValidation.ts, or shellSelfProtectionReason and shellMercurySecretPath in src/utils/permissions/shellProtectedPaths.ts'],
+  ['§7 ', 'change getSimplePrompt in src/tools/BashTool/prompt.ts so the manual does not depend on the rule'],
+  ['§8 ', 'rebuild dist/mercury.mjs, then change describeWindowsShellRoad in src/utils/shell/windowsShellRoad.ts (read by src/services/health/readiness.ts)'],
+  ['§9 ', 'rebuild dist/mercury.mjs, then change withRoadPrograms in src/utils/shell/windowsShellRoad.ts (called from src/utils/Shell.ts)'],
+  ['§10 ', 'remove the reference to withGitPrograms or toolPrograms from the files listed'],
+]
+let sectionFix = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, sectionFix].filter(part => part !== '').join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n── ${title} ──`)
+const section = (title: string): void => {
+  sectionFix = SECTION_FIXES.find(([prefix]) => title.startsWith(prefix))?.[1] ?? ''
+  console.log(`\n── ${title} ──`)
+}
 
 type Programs = { from: string; dir?: string; key?: string; path?: string }
 const WIN = process.platform === 'win32'

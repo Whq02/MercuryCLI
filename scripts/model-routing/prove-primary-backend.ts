@@ -7,9 +7,11 @@ import { tmpdir } from 'node:os'
 import { join as joinPath } from 'node:path'
 
 let failures = 0
+let proofWhereToLook = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, proofWhereToLook].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -50,6 +52,7 @@ const { mapOpenaiHttpFailure } = await import('../../src/services/providers/open
 const { providerWaitWords } = await import('../../src/services/api/recoveryBudget.js')
 
 section('1 · routing agreement across id shapes')
+proofWhereToLook = 'fix the id-prefix to provider mapping: declaredRouteOf in src/services/providers/routeLaw.ts, resolvePrimaryAgentBackend in src/services/providers/primaryBackend.ts'
 {
   const cases: Array<[string, string]> = [
     ['gpt-5.6-sol', 'openai'],
@@ -83,6 +86,7 @@ section('1 · routing agreement across id shapes')
 }
 
 section('2 · typed refs are total')
+proofWhereToLook = 'fix describeAgentRuntimeRef (family, backend, route, provider of the ref) in src/services/providers/primaryBackend.ts'
 {
   const sol = describeAgentRuntimeRef('gpt-5.6-sol')
   check(
@@ -119,6 +123,7 @@ section('2 · typed refs are total')
 }
 
 section('3 · readiness honesty')
+proofWhereToLook = 'fix the readiness() receipt of that backend (state, reason, detail) in src/services/providers/primaryBackend.ts'
 {
   check('anthropic ready by construction', resolvePrimaryAgentBackend('claude-opus-4-8').readiness().state === 'ready')
 
@@ -158,6 +163,7 @@ section('3 · readiness honesty')
 }
 
 section('4 · the /health rows PROJECT the backend receipts')
+proofWhereToLook = 'fix backendRecords (the engine:backend rows built from each backend readiness receipt) in src/services/health/readiness.ts'
 {
   const report = collectReadiness()
   const openaiRow = report.records.find(r => r.id === 'engine:backend:openai-responses')
@@ -213,6 +219,7 @@ section('4 · the /health rows PROJECT the backend receipts')
 }
 
 section('5 · A7 — usage-limit honesty (typed facts, no invented resets)')
+proofWhereToLook = 'fix mapOpenaiHttpFailure (429 kind, retryAfterMs, message) in src/services/providers/openai/openaiWire.ts'
 {
   const fault = mapOpenaiHttpFailure(
     429,

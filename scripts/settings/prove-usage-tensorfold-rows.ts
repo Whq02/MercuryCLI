@@ -28,9 +28,9 @@ const { pinSourceRef } = await import('../lib/settingsPopupHarness.ts')
 pinSourceRef()
 
 let failures = 0
-const check = (label: string, ok: boolean, detail = ''): void => {
+const check = (label: string, ok: boolean, detail = '', fix = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && fix ? ` — ${fix}` : ''}${!ok && detail ? ` — ${detail.slice(0, 900)}` : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
@@ -194,7 +194,7 @@ const turnsOn = (address: string): never => [{ model: MODEL, address }] as never
 
 await refreshLocalDiscovery({ force: true })
 const record = localRecordFor(SESSION_MODEL)
-check('the fixture is discovered as a TensorFold record with its served window, beside an Ollama server', record?.server === 'tensorfold' && record.contextWindow?.tokens === WINDOW && localRecordFor(`local/${OLLAMA_MODEL}`)?.server === 'ollama', j(record))
+check('the fixture is discovered as a TensorFold record with its served window, beside an Ollama server', record?.server === 'tensorfold' && record.contextWindow?.tokens === WINDOW && localRecordFor(`local/${OLLAMA_MODEL}`)?.server === 'ollama', j(record), 'fix the TensorFold probe in src/services/providers/local/localDiscovery.ts')
 check('the local family is present for the panel (a server answers)', providerFamilyPresences().some(family => family.id === 'local' && family.credentialed))
 if (record === undefined) {
   tensorfold.server.close()
@@ -208,9 +208,9 @@ focus(SESSION_MODEL)
   const board = await mountPopup(116, 40, 1)
   const local = localRuns(board.runs())
   const slot = local.indexOf('TensorFold')
-  check('the local section carries a TensorFold slot after the Servers slot', slot > local.indexOf('Servers') && slot > 0, j(local))
-  check(`its first row is the serving row: "${SERVING_IDLE}"`, local[slot + 1] === SERVING_IDLE, j(local.slice(slot)))
-  check('no turn yet: the serving row is the only TensorFold row (no last-turn or session line invented)', slot > 0 && local[slot + 2]?.startsWith('local · no metering') === true, j(local.slice(slot)))
+  check('the local section carries a TensorFold slot after the Servers slot', slot > local.indexOf('Servers') && slot > 0, j(local), 'the TensorFold slot is painted in src/components/Settings/usage/sections.tsx')
+  check(`its first row is the serving row: "${SERVING_IDLE}"`, local[slot + 1] === SERVING_IDLE, j(local.slice(slot)), 'the serving row comes from tensorFoldServingLine in src/services/providers/local/tensorfoldUsage.ts')
+  check('no turn yet: the serving row is the only TensorFold row (no last-turn or session line invented)', slot > 0 && local[slot + 2]?.startsWith('local · no metering') === true, j(local.slice(slot)), 'with no turn, tensorFoldUsageLines in src/services/providers/local/tensorfoldUsage.ts must add no last-turn or session line')
   check('the Servers slot keeps its rows: the two server rows and "This session: 0 tokens."', local.some(run => run.startsWith(`TensorFold 1.2.2 · TensorFold at ${tensorfold.root} · 1 model`)) && local.some(run => run.startsWith(`Ollama 0.40.5 · Ollama at ${ollama.root} · 1 model`)) && local.includes('This session: 0 tokens.'), j(local))
   check('the section ends with the unchanged footer, and no dollar figure anywhere in it (a local road is not priced)', local.at(-1) === 'local · no metering — keyless.' && !local.some(run => run.includes('$')), j(local))
   check('the frame paints the slot heading and the serving row as their own lines', board.frame().split('\n').some(line => line.trim() === 'TensorFold') && board.frame().split('\n').some(line => line.trim() === SERVING_IDLE), board.frame())
@@ -230,11 +230,11 @@ section('§2 two turns through the local lane: the serving row drops idle, the l
       options: { model: SESSION_MODEL, querySource: 'user', effortValue: 'high', getToolPermissionContext: async () => ({ mode: 'default' }) as never } as never,
     })) { void _item }
   }
-  check('the ledger holds the two turns', usageLedger.tensorFoldTurnReadings().length === 2, String(usageLedger.tensorFoldTurnReadings().length))
+  check('the ledger holds the two turns', usageLedger.tensorFoldTurnReadings().length === 2, String(usageLedger.tensorFoldTurnReadings().length), 'the local lane must record one reading per turn; see tensorFoldTurnReadings in src/services/providers/local/tensorfoldUsage.ts')
   const board = await mountPopup(116, 40, 2)
   const local = localRuns(board.runs())
   const slot = local.indexOf('TensorFold')
-  check(`the TensorFold slot reads, in order: the serving row without idle, the last turn, the session`, slot > 0 && local[slot + 1] === SERVING && local[slot + 2] === LAST_TURN && local[slot + 3] === THIS_SESSION, j(local.slice(slot)))
+  check(`the TensorFold slot reads, in order: the serving row without idle, the last turn, the session`, slot > 0 && local[slot + 1] === SERVING && local[slot + 2] === LAST_TURN && local[slot + 3] === THIS_SESSION, j(local.slice(slot)), 'the rows come from tensorFoldServingLine and tensorFoldUsageLines in src/services/providers/local/tensorfoldUsage.ts')
   check('the Servers slot keeps the session tally and its per-model row (the tokens the session sent and received)', local.some(run => run.startsWith('This session: 1,280 input · 6 output tokens')) && local.some(run => run.includes(`${SESSION_MODEL}: 1,280 input · 6 output tokens`)), j(local))
   check('the ledger lines are no longer under the Servers slot', local.findIndex(run => run.startsWith('last turn ·')) > slot, j(local))
   check('the footer still closes the section', local.at(-1) === 'local · no metering — keyless.', j(local))
@@ -243,7 +243,7 @@ section('§2 two turns through the local lane: the serving row drops idle, the l
 
 section('§3 the facts behind the row, from the tensorfold service\'s own readers (injected): serving, draining, keyed, loading, absent, and not TensorFold at all')
 if (serving === undefined || servingLine === undefined) {
-  check('tensorFoldServing and tensorFoldServingLine exist in the ledger module', false, Object.keys(usageLedger).join(','))
+  check('tensorFoldServing and tensorFoldServingLine exist in the ledger module', false, Object.keys(usageLedger).join(','), 'export both from src/services/providers/local/tensorfoldUsage.ts')
 } else {
   const snapshotWith = (engine: Record<string, unknown>, models: Array<Record<string, unknown>> = [{ id: MODEL, server: 'tensorfold', baseUrl: 'http://127.0.0.1:8080/v1', contextWindow: { tokens: 65536, source: 'served' }, loaded: true }]): Snapshot => ({ probedAtMs: 0, targetCount: 1, servers: [{ kind: 'tensorfold', root: 'http://127.0.0.1:8080', baseUrl: 'http://127.0.0.1:8080/v1', label: 'TensorFold 1.2.2', version: '1.2.2', models: models as never, engine: engine as never }] })
   const none = { snapshot: () => null, served: () => [], hosts: () => [], turns: () => [] as never }
@@ -300,7 +300,7 @@ await refreshLocalDiscovery({ force: true })
   const board = await mountPopup(116, 40, 4)
   const local = localRuns(board.runs())
   const slot = local.indexOf('TensorFold')
-  check(`the TensorFold slot reads "${ABSENT}", then the session's ledger lines`, slot > 0 && local[slot + 1] === ABSENT && local[slot + 2] === LAST_TURN && local[slot + 3] === THIS_SESSION, j(local.slice(slot)))
+  check(`the TensorFold slot reads "${ABSENT}", then the session's ledger lines`, slot > 0 && local[slot + 1] === ABSENT && local[slot + 2] === LAST_TURN && local[slot + 3] === THIS_SESSION, j(local.slice(slot)), 'an absent server must read as ABSENT in tensorFoldServingLine, src/services/providers/local/tensorfoldUsage.ts')
   check('the Servers slot lists Ollama alone', local.some(run => run.startsWith('Ollama 0.40.5 · Ollama at')) && !local.some(run => run.startsWith('TensorFold 1.2.2 · TensorFold at')), j(local))
   board.close()
 }

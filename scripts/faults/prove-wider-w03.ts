@@ -20,10 +20,34 @@ const engine = await import('../../src/services/tensorfold/engine.ts')
 const receipts = await import('../../src/utils/model/seatReceipts.ts')
 const POSIX_MODES = process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
+const W03_FIX_HINTS: Array<[string, string]> = [
+  ['clean start', 'fix startTensorFold in src/services/tensorfold/serve.ts so a start with no side-step failure returns an empty warnings list'],
+  ['clean stop', 'fix stopTensorFold in src/services/tensorfold/serve.ts so a stop with no side-step failure returns an empty warnings list'],
+  ['start side-step failures', 'fix serveTensorFoldRow in src/commands/tensorfold/road.ts and startTensorFold in src/services/tensorfold/serve.ts so a failing rememberPort, rememberWindow or announce is returned as a warning and put in the road notice while the start succeeds'],
+  ['stop side-step failures', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx and stopTensorFold in src/services/tensorfold/serve.ts so a failing pairing stop, forgetPort or forgetHost reaches the notice while the stop succeeds'],
+  ['share act', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx so the share notice keeps the pairing code and the start warnings'],
+  ['stopTensorFold on', 'fix stopTensorFold in src/services/tensorfold/serve.ts so an unreadable or damaged served file resolves with readError and is left as it is, and an absent file has no readError'],
+  ['stopTensorFoldRow', 'fix stopTensorFoldRow in src/commands/tensorfold/road.ts so a served record that cannot be read answers the read-error sentence and mints no stopped receipt'],
+  ['onTensorFoldAct stop', 'fix onTensorFoldAct in src/commands/tensorfold/tensorfold.tsx so the read-error sentence from the stop reaches the panel notice'],
+  ['ENOENT cache folder', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a missing cache folder sets no readNotice'],
+  ['unreadable models folder', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so an unreadable cache folder sets a readNotice naming the path and the error'],
+  ['unreadable config.json', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so an unreadable config.json sets a readNotice naming that file'],
+  ['helperModelChoices', 'fix helperModelChoices in src/services/providers/local/tensorfoldHelper.ts so an unreadable 2B config gives the could-not-be-read reason, not the not-pulled reason'],
+  ['unreadable file stat', 'fix readHfSnapshot in src/services/tensorfold/inventory.ts (onReadError) and readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a file whose stat fails is reported and set in the readNotice'],
+  ['absent hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a missing hosts store sets no readNotice'],
+  ['non-object hosts store keeps', 'fix tensorFoldHosts, tensorFoldHostRecords and tensorFoldPorts in src/services/providers/local/tensorfoldHosts.ts so a hosts store that is not an object reads as empty and does not throw'],
+  ['non-object hosts store puts', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and the strict reader in src/services/providers/local/tensorfoldHosts.ts so the not-a-JSON-object message reaches readNotice once'],
+  ['TensorFoldPanel renders', 'fix TensorFoldPanel in src/commands/tensorfold/tensorfold.tsx so the hosts store error shows in its notice exactly once'],
+  ['torn JSON hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts so a torn hosts store names its path and the read error in readNotice'],
+  ['EACCES hosts store', 'fix readTensorFoldPanelFacts in src/commands/tensorfold/scene.ts and src/services/providers/local/tensorfoldHosts.ts so an unreadable hosts store reads as empty and names its path and the read error in readNotice'],
+]
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail.slice(0, 600)}` : ''}`)
+  const fix = cond ? undefined : W03_FIX_HINTS.find(([prefix]) => label.startsWith(prefix))?.[1]
+  const shown = !cond && (detail || fix) ? ` — ${[detail.slice(0, 600), fix].filter(Boolean).join(' | ')}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown}`)
 }
 function freePort(): Promise<number> {
   return new Promise((resolve, reject) => {

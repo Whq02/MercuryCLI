@@ -23,7 +23,10 @@ let checks = 0
 function check(label: string, cond: boolean, detail = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const failHint = label.startsWith('sovereign')
+    ? ' | fix the sovereign allowance in src/services/tools/toolExecution.ts (the bypassed_ask attachment) and its row in src/components/messages/AttachmentMessage.tsx'
+    : ' | fix the card body cut and its ctrl+f chord in src/components/permissions/ConsentBodyText.tsx, src/components/FileEditToolDiff.tsx or src/components/permissions/FileWritePermissionRequest/FileWriteToolDiff.tsx; rerun one scene with --only=<id> --keep and MERCURY_CARD_FIT_CAPTURE_DIR=<dir> to read the frames'
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}${cond ? '' : failHint}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

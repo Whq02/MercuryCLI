@@ -116,15 +116,15 @@ section('§0 the receipt law (pure) — a switch is the row that last answered c
   const synthetic = (id: string) => ({ ...reply('<synthetic>', id), isApiErrorMessage: true })
   const history = [user('u1'), reply(FABLE, 'f1'), user('u2'), reply(FABLE, 'f2'), user('u3')] as never[]
   const atSwitch = modelSwitchReceipt('main', history, OPUS)
-  check('the first request after the switch earns the receipt, naming the writer and the model the request carries', atSwitch !== null && atSwitch.text === `Preserved thinking: 2 thinking blocks written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD} (the conversation switched models); the model re-plans without them.`, j(atSwitch))
-  check('the key names the owner, the row that last answered and the model', atSwitch !== null && atSwitch.key === `main|f2|${OPUS}`, j(atSwitch?.key))
+  check('the first request after the switch earns the receipt, naming the writer and the model the request carries', atSwitch !== null && atSwitch.text === `Preserved thinking: 2 thinking blocks written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD} (the conversation switched models); the model re-plans without them.`, `fix the receipt text or switch detection in modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(atSwitch)}`)
+  check('the key names the owner, the row that last answered and the model', atSwitch !== null && atSwitch.key === `main|f2|${OPUS}`, `the key is built in modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(atSwitch?.key)}`)
   const answered = [...history, reply(OPUS, 'o1'), user('u4')] as never[]
   check('once the new model has answered, the next request to it paints nothing (the resume, the daemon respawn, the next turn)', modelSwitchReceipt('main', answered, OPUS) === null)
   const back = modelSwitchReceipt('main', answered, FABLE)
-  check('a switch back is a real switch: the receipt names the other writer and the returning model, one block in the singular', back !== null && back.text === `Preserved thinking: 1 thinking block written by ${OPUS_WORD} stays out of the requests to ${FABLE_WORD} (the conversation switched models); the model re-plans without it.` && back.key === `main|o1|${FABLE}`, j(back))
+  check('a switch back is a real switch: the receipt names the other writer and the returning model, one block in the singular', back !== null && back.text === `Preserved thinking: 1 thinking block written by ${OPUS_WORD} stays out of the requests to ${FABLE_WORD} (the conversation switched models); the model re-plans without it.` && back.key === `main|o1|${FABLE}`, `a switch back must name the other writer, see modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(back)}`)
   const errored = [...history, synthetic('e1'), user('u4')] as never[]
   const afterError = modelSwitchReceipt('main', errored, OPUS)
-  check('a synthetic row (an API error stand-in) is not an answer: the switch still stands and its key is unchanged', afterError !== null && afterError.key === `main|f2|${OPUS}`, j(afterError))
+  check('a synthetic row (an API error stand-in) is not an answer: the switch still stands and its key is unchanged', afterError !== null && afterError.key === `main|f2|${OPUS}`, `synthetic error rows must be skipped, see lastServedRow in src/services/providers/anthropic/thinkingBinding.ts; got ${j(afterError)}`)
   check('no answer yet ⇒ no switch, whatever the model', modelSwitchReceipt('main', [user('u1')] as never[], OPUS) === null && lastServedRow([user('u1'), synthetic('e1')] as never[]) === null)
   check('the same model under another spelling is no switch', modelSwitchReceipt('main', history, `${FABLE}[1m]`) === null)
 }
@@ -237,7 +237,7 @@ if (!existsSync(DIST)) {
     clearTimeout(killer)
     host.peer.close('the turns ended')
     const seat = { exit: seatExit, stdout: seatStdout, stderr: host.stderr() }
-    check('§1 the six-turn process exits 0, every switch applied', seat.exit === 0 && seatError === '' && switchErrors.length === 0, `exit=${seat.exit} ${seatError} ${j(switchErrors)} stderr=${seat.stderr.slice(0, 400)}`)
+    check('§1 the six-turn process exits 0, every switch applied', seat.exit === 0 && seatError === '' && switchErrors.length === 0, `the daemon seat failed a turn or a session/set_model switch; read seatError and stderr; exit=${seat.exit} ${seatError} ${j(switchErrors)} stderr=${seat.stderr.slice(0, 400)}`)
     check('§1 every turn answered', ['SN-F1', 'SN-F2', 'SN-F3', 'SN-O1', 'SN-O2', 'SN-F4'].every(t => seat.stdout.includes(t)), seat.stdout.slice(0, 300))
     const allRequests = fixture.messageRequests()
     check('§1 the marked closing ask follows the sixth turn exactly once', allRequests.filter(isHandoffRequest).length === 1 && isHandoffRequest(allRequests[6]!), j(allRequests.map(isHandoffRequest)))
@@ -250,7 +250,7 @@ if (!existsSync(DIST)) {
     check('§1 the debug log carries exactly two receipts, one per real switch', seatReceipts.length === 2, j(seatReceipts))
     const records = readRecords(arena.home, SID)
     const receipts = receiptsOf(records)
-    check('§1 RED ON THE BASE: the session file holds exactly two switch receipts (the base holds the first one — written when the next turn began — and loses the second with the process)', receipts.length === 2, `${receipts.length}: ${receipts.map(describe).join(' | ')}`)
+    check('§1 RED ON THE BASE: the session file holds exactly two switch receipts (the base holds the first one — written when the next turn began — and loses the second with the process)', receipts.length === 2, `each real model switch must write one receipt into the session file inside its own turn; ${receipts.length}: ${receipts.map(describe).join(' | ')}`)
     const toOpus = receipts.find(r => r.content.includes(`requests to ${OPUS_WORD}`))
     const toFable = receipts.find(r => r.content.includes(`requests to ${FABLE_WORD}`))
     check(`§1 the first receipt names the three Fable blocks and the model the wire carried (${OPUS_WORD})`, toOpus !== undefined && toOpus.content.includes(`3 thinking blocks written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD}`), describe(toOpus))
@@ -263,7 +263,7 @@ if (!existsSync(DIST)) {
       const prompt = promptOf(records, leg.prompt)
       const answer = firstOutputAfter(records, prompt)
       const r = leg.receipt
-      check(`§1 RED ON THE BASE: ${leg.label} — the receipt sits in the file between its own prompt and that turn's first answer (file order)`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.line < r.line && r.line < answer.line, `prompt ${describe(prompt)} · receipt ${describe(r)} · answer ${describe(answer)}`)
+      check(`§1 RED ON THE BASE: ${leg.label} — the receipt sits in the file between its own prompt and that turn's first answer (file order)`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.line < r.line && r.line < answer.line, `the receipt must be recorded in the turn that sent the switched request, not later; prompt ${describe(prompt)} · receipt ${describe(r)} · answer ${describe(answer)}`)
       check(`§1 ${leg.label} — the receipt's stamp sits between the prompt's and the answer's`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.at <= r.at && r.at <= answer.at, `${prompt?.at} ≤ ${r?.at} ≤ ${answer?.at}`)
       check(`§1 ${leg.label} — the receipt's ordinal follows the prompt's and precedes the answer's (written in the turn, never re-recorded later)`, prompt !== undefined && answer !== undefined && r !== undefined && prompt.ordinal < r.ordinal && r.ordinal < answer.ordinal, `${prompt?.ordinal} < ${r?.ordinal} < ${answer?.ordinal}`)
     }
@@ -282,12 +282,12 @@ if (!existsSync(DIST)) {
     const debug7 = join(arena.home, 'resume-same.debug.log')
     const r7 = await run(arena, ['run', 'still on fable after a resume', '--model', FABLE, '--allowed-tools', 'Read', '--resume', SID, '--log-file', debug7])
     check('§2 the resumed turn on Fable exits 0 and is answered', r7.exit === 0 && r7.stdout.includes('SN-F5'), `exit=${r7.exit} ${r7.stderr.slice(0, 200)}`)
-    check('§2 RED ON THE BASE: the resumed process paints NO receipt — the switch was announced once, when it happened', debugReceipts(debug7).length === 0, j(debugReceipts(debug7)))
+    check('§2 RED ON THE BASE: the resumed process paints NO receipt — the switch was announced once, when it happened', debugReceipts(debug7).length === 0, `a resume on the model that last answered must not paint a receipt, see modelSwitchReceipt in src/services/providers/anthropic/thinkingBinding.ts; got ${j(debugReceipts(debug7))}`)
     const after7 = receiptsOf(readRecords(arena.home, SID))
     check('§2 RED ON THE BASE: the session file still holds exactly the two receipts', after7.length === 2, `${after7.length}: ${after7.map(describe).join(' | ')}`)
     const debug8 = join(arena.home, 'resume-switch.debug.log')
     const r8 = await run(arena, ['run', 'opus once more after a resume', '--model', OPUS, '--allowed-tools', 'Read', '--resume', SID, '--log-file', debug8])
-    check('§2 the resumed turn that switches to Opus exits 0 and is answered', r8.exit === 0 && r8.stdout.includes('SN-O3'), `exit=${r8.exit} ${r8.stderr.slice(0, 200)}`)
+    check('§2 the resumed turn that switches to Opus exits 0 and is answered', r8.exit === 0 && r8.stdout.includes('SN-O3'), `the resumed run on Opus failed; read stderr; exit=${r8.exit} ${r8.stderr.slice(0, 200)}`)
     const receipts8 = debugReceipts(debug8)
     check(`§2 a real switch across a resume paints exactly one receipt, naming the Fable blocks and ${OPUS_WORD}`, receipts8.length === 1 && receipts8[0]!.includes(`written by ${FABLE_WORD} stay out of the requests to ${OPUS_WORD}`), j(receipts8))
     const records8 = readRecords(arena.home, SID)

@@ -8,9 +8,10 @@ import { modelPickerFooter } from '../../src/utils/model/modelPickerFooter.js'
 import { MODEL_PICKER_HINT, MODEL_PICKER_PANEL } from '../../src/utils/model/modelPickerGroups.js'
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', fixHint = ''): void {
   if (!cond) failures++
   console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  if (!cond && fixHint) console.log('         to change: ' + fixHint)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
@@ -33,19 +34,19 @@ const stress = { gated: true, enableFlag: 'MERCURY_ASEPRITE' }
 for (const cols of [50, 56, 64, 80, 100, 120]) {
   const inner = innerOf(cols)
   const f = modelPickerFooter(stress, inner)
-  check(`@${cols} footer len ${f.length} ≤ inner ${inner} — no wrap`, f.length <= Math.max(inner, FLOOR), `"${f}"`)
-  check(`@${cols} keeps the ↑↓ select … esc closes floor`, f.startsWith('↑↓ select') && /esc (?:or click outside )?closes$/.test(f))
+  check(`@${cols} footer len ${f.length} ≤ inner ${inner} — no wrap`, f.length <= Math.max(inner, FLOOR), `"${f}"`, 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must shed segments until the footer fits the width it is given')
+  check(`@${cols} keeps the ↑↓ select … esc closes floor`, f.startsWith('↑↓ select') && /esc (?:or click outside )?closes$/.test(f), '', 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must keep the select and esc-closes segments however far it sheds')
 }
 const wideSegs = modelPickerFooter(stress, innerOf(120)).split(' · ').length
 const narrowSegs = modelPickerFooter(stress, innerOf(50)).split(' · ').length
-check('wide footer shows more segments than narrow (shedding actually fires)', wideSegs > narrowSegs, `wide=${wideSegs} narrow=${narrowSegs}`)
+check('wide footer shows more segments than narrow (shedding actually fires)', wideSegs > narrowSegs, `wide=${wideSegs} narrow=${narrowSegs}`, 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must drop segments when the width given is small')
 const mid = modelPickerFooter(stress, 60)
-check('sheds "tab to search" before "ctrl+w context" (the chord stays named while the box already says to type)', !mid.includes('tab to search') || mid.includes('ctrl+w context'), `"${mid}"`)
+check('sheds "tab to search" before "ctrl+w context" (the chord stays named while the box already says to type)', !mid.includes('tab to search') || mid.includes('ctrl+w context'), `"${mid}"`, 'fix the shedding order in modelPickerFooter, src/utils/model/modelPickerFooter.ts')
 const home = modelPickerFooter({ gated: false }, innerOf(120))
-check('the home footer is the ratified hint row, whole', home === MODEL_PICKER_HINT, `"${home}"`)
-check('on a heading the action word follows the fold', modelPickerFooter({ gated: false, heading: { fold: 'folded' } }, innerOf(120)).includes('↵ unfold') && modelPickerFooter({ gated: false, heading: { fold: 'open' } }, innerOf(120)).includes('↵ fold'))
-check('while the search box has focus the legend swaps: type to search · ↵ switch · tab back to the rows · esc clears the search', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, innerOf(120)) === '↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search' && modelPickerFooter({ gated: false, filterFocus: true, filtering: false }, innerOf(120)).endsWith('tab back to the rows · esc or click outside closes'))
-check('a search kept while the rows have focus still says esc clears it', modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, innerOf(120)) === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc clears the search')
+check('the home footer is the ratified hint row, whole', home === MODEL_PICKER_HINT, `"${home}"`, 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must return MODEL_PICKER_HINT (src/utils/model/modelPickerGroups.ts) unshed when it fits')
+check('on a heading the action word follows the fold', modelPickerFooter({ gated: false, heading: { fold: 'folded' } }, innerOf(120)).includes('↵ unfold') && modelPickerFooter({ gated: false, heading: { fold: 'open' } }, innerOf(120)).includes('↵ fold'), '', 'fix the heading.fold branch of modelPickerFooter in src/utils/model/modelPickerFooter.ts')
+check('while the search box has focus the legend swaps: type to search · ↵ switch · tab back to the rows · esc clears the search', modelPickerFooter({ gated: false, filterFocus: true, filtering: true }, innerOf(120)) === '↑↓ select · type to search · ↵ switch · tab back to the rows · esc clears the search' && modelPickerFooter({ gated: false, filterFocus: true, filtering: false }, innerOf(120)).endsWith('tab back to the rows · esc or click outside closes'), '', 'fix the filterFocus branch of modelPickerFooter in src/utils/model/modelPickerFooter.ts')
+check('a search kept while the rows have focus still says esc clears it', modelPickerFooter({ gated: false, filterFocus: false, filtering: true }, innerOf(120)) === '↑↓ select · ↵ switch · ctrl+w context · → ← fold · tab to search · esc clears the search', '', 'fix the filtering branch (rows focused) of modelPickerFooter in src/utils/model/modelPickerFooter.ts')
 
 
 section('rendered frames: the crewmate-view picker shares the main /model picker\'s panel geometry at the same terminal size')
@@ -213,7 +214,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   const mainFrame = lines()
   save('main-picker', mainFrame)
   const main = panelOf(mainFrame)
-  check(`${size}: the main /model picker paints its panel inside the centre column, within the panel contract's cap`, mainPainted && main !== null && main.width <= MODEL_PICKER_PANEL.cap && main.width >= MODEL_PICKER_PANEL.min, describe(main))
+  check(`${size}: the main /model picker paints its panel inside the centre column, within the panel contract's cap`, mainPainted && main !== null && main.width <= MODEL_PICKER_PANEL.cap && main.width >= MODEL_PICKER_PANEL.min, describe(main), 'the main picker call in src/commands/model/mercuryModel.tsx opens it; check its panel width against MODEL_PICKER_PANEL in src/utils/model/modelPickerGroups.ts and the width logic in src/components/MercuryModelPicker.tsx and src/components/ModelPickerPopupSlot.tsx')
   setModal(null)
   await until(() => !lines().some(line => line.includes('Mercury · model')))
   enterCrewmateView(taskId, store!.setState)
@@ -224,10 +225,10 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   const crewFrame = lines()
   save('crewmate-picker', crewFrame)
   const crew = panelOf(crewFrame)
-  check(`${size}: the crewmate-view picker paints its panel over the viewed crewmate`, crewPainted && crew !== null && crewFrame.some(line => line.includes('↵ picks · esc keeps')), describe(crew))
-  check(`${size}: the crewmate-view picker's panel has the main picker's width and columns`, main !== null && crew !== null && crew.width === main.width && crew.left === main.left && crew.right === main.right, `main ${describe(main)} · crewmate ${describe(crew)}`)
-  check(`${size}: the crewmate-view picker's popup hugs its panel as the main picker's does — one ground column each side, never a wide gutter`, main !== null && crew !== null && crew.gutterLeft === main.gutterLeft && crew.gutterRight === main.gutterRight, `main ${main?.gutterLeft}/${main?.gutterRight} · crewmate ${crew?.gutterLeft}/${crew?.gutterRight} blank columns beside the panel`)
-  check(`${size}: both pickers frame the selected row the same way (the product's own band, not an annotation)`, main !== null && crew !== null && main.selectedFramed === crew.selectedFramed, `main ${main?.selectedFramed ? 'framed' : 'unframed'} · crewmate ${crew?.selectedFramed ? 'framed' : 'unframed'}`)
+  check(`${size}: the crewmate-view picker paints its panel over the viewed crewmate`, crewPainted && crew !== null && crewFrame.some(line => line.includes('↵ picks · esc keeps')), describe(crew), 'openCrewmateModelPickerFor in src/components/PromptInput/crewmateCommands.tsx must open the crewmate picker panel with the keeps footer')
+  check(`${size}: the crewmate-view picker's panel has the main picker's width and columns`, main !== null && crew !== null && crew.width === main.width && crew.left === main.left && crew.right === main.right, `main ${describe(main)} · crewmate ${describe(crew)}`, 'the width and position of the crewmate picker (width entry near line 148 of src/components/PromptInput/crewmateCommands.tsx) must match the main picker (src/components/ModelPickerPopupSlot.tsx, MODEL_PICKER_PANEL in src/utils/model/modelPickerGroups.ts)')
+  check(`${size}: the crewmate-view picker's popup hugs its panel as the main picker's does — one ground column each side, never a wide gutter`, main !== null && crew !== null && crew.gutterLeft === main.gutterLeft && crew.gutterRight === main.gutterRight, `main ${main?.gutterLeft}/${main?.gutterRight} · crewmate ${crew?.gutterLeft}/${crew?.gutterRight} blank columns beside the panel`, 'the crewmate picker popup in src/components/PromptInput/crewmateCommands.tsx must leave the same ground columns beside the panel as src/components/ModelPickerPopupSlot.tsx')
+  check(`${size}: both pickers frame the selected row the same way (the product's own band, not an annotation)`, main !== null && crew !== null && main.selectedFramed === crew.selectedFramed, `main ${main?.selectedFramed ? 'framed' : 'unframed'} · crewmate ${crew?.selectedFramed ? 'framed' : 'unframed'}`, 'the crewmate picker (src/components/PromptInput/crewmateCommands.tsx) must frame the selected row the way src/components/MercuryModelPicker.tsx does')
   console.log(`  ${size} main picker:     ${describe(main)}`)
   console.log(`  ${size} crewmate picker: ${describe(crew)}`)
   closeSettingsPopup()
@@ -236,7 +237,7 @@ for (const [cols, rows] of [[178, 51], [120, 40]] as const) {
   instances.delete(stdout as never)
 }
 console.error = originalError
-check('no render or hook-order faults while the pickers painted', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 500))
+check('no render or hook-order faults while the pickers painted', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error|RENDER ERROR/.test(line)), faults.join('\n').slice(0, 500), 'a console.error during the picker render: read the fault text above and fix the component it names (src/components/MercuryModelPicker.tsx or src/components/ModelPickerPopupSlot.tsx)')
 rmSync(proofHome, { recursive: true, force: true })
 console.log('\n' + '='.repeat(60))
 if (failures === 0) {

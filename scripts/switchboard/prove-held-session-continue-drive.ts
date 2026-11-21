@@ -39,9 +39,11 @@ const { daemonControlRpc } = await import('../../src/daemon/controlSocket.ts')
 const paths = await import('../../src/utils/sessionStorage/paths.ts')
 
 let failures = 0
+const fixWhere = 'the footer and receipt words come from src/services/switchboard/hopIntoSession.ts (the held-runner and no-live-runner sentences) and the refusal from src/daemon/concourseDispatch.ts; rebuild dist/mercury.mjs with bun run build.ts before rerunning'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = !cond ? `${detail ? `${detail} — ` : ''}fix: ${fixWhere}` : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 
 const driver = resolveCaptureDriver()

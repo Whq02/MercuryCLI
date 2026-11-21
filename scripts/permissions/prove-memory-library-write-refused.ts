@@ -20,9 +20,10 @@ delete process.env.CI
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
 let failures = 0
+let whereToLook = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 500)}` : ''}${!ok && whereToLook ? ` | to fix: ${whereToLook}` : ''}`)
 }
 const section = (t: string): void => console.log('\n' + '─'.repeat(76) + '\n' + t)
 
@@ -71,6 +72,7 @@ const sentence = (path: string): string => `${path} is Mercury's memory: save wi
 
 try {
   section('§1 the write ladder: a write under the memory library is no longer carved out as allowed; the read carve-out stays')
+  whereToLook = 'the write and read carve-outs for the memory library are in isPathAllowed in src/utils/permissions/pathValidation.ts and checkEditableInternalPath and checkReadableInternalPath in src/utils/permissions/filesystem.ts'
   const ctx = { ...getEmptyToolPermissionContext(), mode: 'default' as const }
   for (const file of ['pins.json', 'topic-project.md', 'front-page.md', 'current.jsonl']) {
     const target = join(lib, file)
@@ -86,6 +88,7 @@ try {
   check('a write inside the project is untouched by this (default mode falls through to the ladder as before)', (isPathAllowed(inProject, { ...ctx, mode: 'implement' as const }, 'write') as { allowed: boolean }).allowed === true)
 
   section('§2 the call road: Write and Edit refuse a memory-library target with one sentence naming the verbs, whatever the mode')
+  whereToLook = 'the refusal sentence comes from memoryWriteRefusal in src/utils/memoryFileDetection.ts, called by validateInput in src/tools/FileWriteTool/FileWriteTool.ts and src/tools/FileEditTool/FileEditTool.ts'
   const w = await validateWrite(join(lib, 'pins.json'))
   check('Write to library/pins.json is refused before any permission ask', w.result === false, JSON.stringify(w))
   check('the sentence names Retain and Correct and the path', w.message === sentence(join(lib, 'pins.json')), w.message ?? '')
@@ -103,6 +106,7 @@ try {
   check('Edit inside the project passes validation', eProject.result === true, JSON.stringify(eProject))
 
   section('§3 the transcript: a write aimed at the library is never collapsed into a memory-write row')
+  whereToLook = 'getToolSearchOrReadInfo in src/components/messages/collapseReadSearch.ts decides isMemoryWrite and isCollapsible'
   const writeInfo = getToolSearchOrReadInfo('Write', { file_path: join(lib, 'pins.json'), content: 'x' }, [] as never) as { isMemoryWrite: boolean; isCollapsible: boolean }
   check('Write to library/pins.json: not a memory write, not collapsible', writeInfo.isMemoryWrite === false && writeInfo.isCollapsible === false, JSON.stringify(writeInfo))
   const editInfo = getToolSearchOrReadInfo('Edit', { file_path: join(lib, 'topic-project.md'), old_string: 'a', new_string: 'b' }, [] as never) as { isMemoryWrite: boolean }
@@ -111,6 +115,7 @@ try {
   check('a session-memory file still collapses as before (the control)', sessionInfo.isMemoryWrite === true, JSON.stringify(sessionInfo))
 
   section('§4 memory off: no refusal sentence — the path is an ordinary file under the home')
+  whereToLook = 'with MERCURY_BARE set, memoryWriteRefusal in src/utils/memoryFileDetection.ts must return null and the Write validateInput in src/tools/FileWriteTool/FileWriteTool.ts must pass'
   process.env.MERCURY_BARE = '1'
   check('with memory off the sentence is null', memoryWriteRefusal(join(lib, 'pins.json')) === null)
   const wOff = await validateWrite(join(lib, 'pins.json'))

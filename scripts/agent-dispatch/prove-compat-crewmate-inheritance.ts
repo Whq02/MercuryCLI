@@ -57,7 +57,8 @@ const crewmate = async (prompt: string, opts: { model?: string; effort: string }
 }
 let checks = 0
 let failures = 0
-const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${label}${!truth && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`) }
+const inheritanceHint = 'change how a crewmate inherits the parent model and effort: getAgentModel in src/services/model/agent.ts, resolveEngineDispatch in src/services/crew/engineDispatch.ts, and the model, effort and thinking handling in runAgent in src/tools/AgentTool/runAgent.ts'
+const check = (label: string, truth: unknown, detail?: unknown) => { checks++; if (!truth) failures++; console.log(`${truth ? 'PASS' : 'FAIL'} ${label}${!truth ? ' — ' + (detail !== undefined ? JSON.stringify(detail) + '; ' : '') + inheritanceHint : ''}`) }
 try {
   const resolved = await resolveEngineDispatch(getAgentModel(undefined, model, 'compat'))
   check('the Crewmate resolver keeps the context parent endpoint rather than global state', resolved?.model === model, resolved)

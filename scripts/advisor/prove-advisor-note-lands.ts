@@ -31,21 +31,21 @@ let checks = 0
 const check = (label: string, ok: boolean, detail = ''): void => {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}${!ok ? ' — fix the advisor service under src/services/advisor (when a note is composed and queued) or how the chat reads and paints advisor rows (src/utils/messages/noticeRows.ts, src/utils/messages/text.ts); the check label names the law, and the run needs a fresh dist (bun run build.ts)' : ''}`)
 }
 const section = (t: string): void => console.log(`\n${'─'.repeat(76)}\n${t}`)
 const j = (v: unknown): string => JSON.stringify(v)
 type Raw = Record<string, unknown>
 const sleep = (ms: number): Promise<void> => new Promise(r => setTimeout(r, ms))
 const watchdog = setTimeout(() => {
-  console.log('\nTIMEOUT — advisor note-lands prover exceeded 300s')
+  console.log('\nTIMEOUT — advisor note-lands prover exceeded 300s; a headless run or a wait for the advisor note on disk never finished, so read the last section printed above and the stderr shown by its first failing check')
   process.exit(1)
 }, 300_000)
 watchdog.unref?.()
 
 const nodeBin = Bun.which('node')
 if (!existsSync(DIST) || !nodeBin) {
-  check('the bundle under proof and a node binary are present', false, `${DIST} node=${String(nodeBin)}`)
+  check('the bundle under proof and a node binary are present', false, `${DIST} node=${String(nodeBin)}; build dist/mercury.mjs with bun run build.ts and put node on PATH`)
   process.exit(1)
 }
 console.log(`bundle under proof: ${DIST}`)

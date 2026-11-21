@@ -80,7 +80,7 @@ try {
     seedHome: async (configDir: string, cwd: string) => {
       seedFirstRun(configDir, [cwd, work])
       spawnDaemonWithHome(configDir)
-      check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000))
+      check('the daemon serves', await untilAsync(async () => (await daemonControlRpc({ op: 'ping' })).ok, 60_000), 'the daemon did not answer ping within 60 s; read daemon.log in the scratch folder (kept with DOOR_TRUST_KEEP=1) and the daemon run verb in src/daemon')
       const dispatched = (await daemonControlRpc({
         op: 'concourseDispatch',
         clientMessageId: 'door-trust-1',
@@ -90,9 +90,9 @@ try {
         modelKey: 'claude-opus-5',
         effort: 'xhigh',
       } as never, { timeoutMs: 15_000 })) as { ok?: boolean; sessionId?: string }
-      check('the foreign session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, JSON.stringify(dispatched))
+      check('the foreign session dispatched (working)', dispatched.ok === true && dispatched.sessionId !== undefined, `${JSON.stringify(dispatched)} - the concourseDispatch op was refused or returned no session id; read the daemon control handler in src/daemon and daemon.log in the scratch folder`)
       const transcript = join(paths.getProjectDir(work), `${dispatched.sessionId ?? ''}.jsonl`)
-      check('the worker transcript was born in the foreign project home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), transcript)
+      check('the worker transcript was born in the foreign project home', await untilAsync(async () => existsSync(transcript) && statSync(transcript).size > 200, 30_000), `${transcript} - the worker wrote no transcript there within 30 s; read daemon.log in the scratch folder`)
     },
     extraEnv: {
       MERCURY_CONCOURSE: 'always',
@@ -107,17 +107,17 @@ try {
     const grabs = grabScreens(run, 140, 40, offsets)
     const text = (g: { rows: string[] }): string => g.rows.join('\n')
     const doorFrames = grabs.filter(g => text(g).includes('running in') && text(g).includes('OTHER PROJECTS'))
-    check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'}`)
+    check('§1 the OTHER-PROJECTS door row paints for the foreign running session', doorFrames.length > 0, `door frames: ${doorFrames.map(g => g.atMs).join(',') || 'none'} - the board should paint an OTHER PROJECTS group with a running-in line for the foreign session; the group is built in src/services/concourse/concourseSnapshot.ts`)
     const rescoped = grabs.filter(
       g => text(g).includes('Door probe session') && text(g).includes('repo → work') && !text(g).includes('UNTRUSTED FOLDER'),
     )
     check(
       '§2 door ↵ → trust y → the board RE-SCOPES (session row live, ground note painted, modal settled) — never a silent nothing',
       rescoped.length > 0,
-      `re-scoped frames: ${rescoped.map(g => g.atMs).join(',') || 'none'}`,
+      `re-scoped frames: ${rescoped.map(g => g.atMs).join(',') || 'none'} - after enter on the door and y on the UNTRUSTED FOLDER modal the board should show the session row and the ground note; the modal is src/components/concourse/screen/modals.tsx`,
     )
     const late = grabs[grabs.length - 1]
-    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('OTHER PROJECTS'), late ? `late frame @${late.atMs}` : 'no late frame')
+    check('§2 …and the door row is gone from the re-scoped board (the sessions are no longer elsewhere)', late !== undefined && !text(late).includes('OTHER PROJECTS'), late ? `late frame @${late.atMs} - once the board is re-scoped the OTHER PROJECTS group should be gone; see src/services/concourse/concourseSnapshot.ts` : 'no late frame - no screen was grabbed; check the artifact arena run output')
   } finally {
     run.cleanup()
   }

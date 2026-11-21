@@ -188,16 +188,16 @@ if (existsSync(out)) {
 check(
   'S1 the steered line never paints twice across consecutive ticks (no steady double)',
   worstDoubleRun >= 0 && worstDoubleRun <= 1,
-  `doubled-tick run=${worstDoubleRun} vshot status=${res.status} census='${(census.stdout ?? census.stderr ?? '').trim()}'`,
+  `doubled-tick run=${worstDoubleRun} vshot status=${res.status} census='${(census.stdout ?? census.stderr ?? '').trim()}' — the steered line /acc/sessions was painted on two or more consecutive frames; the composer echo and the transcript echo of a mid-turn message must not show together, and a census of -1 means the python census or the vshot capture did not run (read vshot status)`,
 )
 check(
   'S2 the steered line painted (echo continuity — no vanishing line)',
   framesWithLine > 0,
-  `frames with the line=${framesWithLine}`,
+  `frames with the line=${framesWithLine} — the steered line never showed on screen; the mid-turn message must stay visible from send to the end of the turn, and -1 means the census did not run`,
 )
-check('S3 the drive completed (both turns settled to the final text)', gridText.includes('re-arm it instantly'), gridText.split('\n').slice(-10).join('\n'))
+check('S3 the drive completed (both turns settled to the final text)', gridText.includes('re-arm it instantly'), `${gridText.split('\n').slice(-10).join('\n')}\n— the final grid does not hold re-arm it instantly; the fixture turns did not both finish, so read the last rows above and the vshot status (empty means vshot wrote no grid.json)`)
 
-check('S4 no frame ever paints the pen vocabulary (steering strip / hold copy — poison)', penFrames === 0, `pen frames=${penFrames}`)
+check('S4 no frame ever paints the pen vocabulary (steering strip / hold copy — poison)', penFrames === 0, `pen frames=${penFrames} — a frame showed the steering strip or hold copy while the message was steered; that strip text must not paint on a steered mid-turn message`)
 
 {
   const { readdirSync } = await import('node:fs')
@@ -224,7 +224,7 @@ check('S4 no frame ever paints the pen vocabulary (steering strip / hold copy �
     }
   } catch {
   }
-  check('S5 the transcript store carries the mid-turn message exactly once', files > 0 && inputRows === 1, `files=${files} rows=${inputRows}`)
+  check('S5 the transcript store carries the mid-turn message exactly once', files > 0 && inputRows === 1, `files=${files} rows=${inputRows} — files=0 means no transcript was written under the run home projects folder; rows other than 1 means the steered message was recorded zero or several times as an input or attachment row`)
 }
 
 console.log(failures === 0 ? '\nprove-steer-echo-single: ALL LAWS HOLD' : `\nprove-steer-echo-single: ${failures} FAILURE(S)`)

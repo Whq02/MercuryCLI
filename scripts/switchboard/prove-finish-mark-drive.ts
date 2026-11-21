@@ -340,25 +340,25 @@ const c = await capture({
   total: 700,
 })
 for (const label of ['face', 'p-board-finished', ...MARK_SIZES, 'mark-restored', 'chat-opened', 'chat-replied', ...AFTER_SIZES, 'after-restored']) writeFrame(c, label)
-check('the capture ran whole', c.status === 0 && (c.payload.marks ?? []).length > 0, `vshot exit ${c.status}: ${c.tail.slice(-400)}`)
+check('the capture ran whole', c.status === 0 && (c.payload.marks ?? []).length > 0, `vshot exit ${c.status}: ${c.tail.slice(-400)} — the drive did not complete; read the vshot tail above, rebuild dist/mercury.mjs with bun run build.ts, and rerun`)
 
 const pBoard = markText(c, 'p-board-finished')
 printFrame("P's board once Z settled in Q (the view elsewhere)", pBoard)
 check('P\'s board is on screen once Z\'s turn settled elsewhere', isBoard(pBoard), firstRows(pBoard))
-check('Z rides P\'s board as the ✦ carry-over from Q, settled (● ready), not working', pBoard.split('\n').some(l => starRow(l) && l.includes(TITLE_Z) && l.includes(GLYPH.ok)), rowsWith(pBoard, GLYPH.sparkBright))
-check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !/NEEDS YOU · [1-9]/.test(pBoard), rowsWith(pBoard, 'need') || rowsWith(pBoard, 'NEEDS') || rowsWith(pBoard, 'finished'))
+check('Z rides P\'s board as the ✦ carry-over from Q, settled (● ready), not working', pBoard.split('\n').some(l => starRow(l) && l.includes(TITLE_Z) && l.includes(GLYPH.ok)), `${rowsWith(pBoard, GLYPH.sparkBright)} — a settled turn elsewhere should show as ready; see state mapping in src/services/concourse/concourseSnapshot.ts`)
+check('nothing was minted for the finish: no "needs you" count, no "switch to · finished" row on P\'s board', !/[1-9]\d* needs? you/.test(pBoard) && !pBoard.includes('· finished') && !/NEEDS YOU · [1-9]/.test(pBoard), `${rowsWith(pBoard, 'need') || rowsWith(pBoard, 'NEEDS') || rowsWith(pBoard, 'finished')} — a finish must not be minted as a need or a finished row; the amber mark is only the finishedUnseen flag set in src/services/concourse/concourseSnapshot.ts`)
 const starInk = rowInk(markGrid(c, 'p-board-finished'), TITLE_Z, starRow)
-check(`the carried row is ready (${GLYPH.ok}) and its state glyph wears the board's amber (#${WARNING}) while the finish stands unseen`, starInk?.glyph === GLYPH.ok && starInk.glyphFg === WARNING, inkWord(starInk))
+check(`the carried row is ready (${GLYPH.ok}) and its state glyph wears the board's amber (#${WARNING}) while the finish stands unseen`, starInk?.glyph === GLYPH.ok && starInk.glyphFg === WARNING, `${inkWord(starInk)} — an unseen finish should colour the state glyph with the warning theme colour; see finishedUnseen in src/components/concourse/layout/listPane.tsx`)
 const xInk = rowInk(markGrid(c, 'p-board-finished'), 'new session', line => line.includes(basename(CWD)) && !line.includes('running in'))
-check(`X, the wordless newborn of P, stays ready in the green (#${SUCCESS}) — no finish, no mark`, xInk?.glyph === GLYPH.ok && xInk.glyphFg === SUCCESS, inkWord(xInk))
+check(`X, the wordless newborn of P, stays ready in the green (#${SUCCESS}) — no finish, no mark`, xInk?.glyph === GLYPH.ok && xInk.glyphFg === SUCCESS, `${inkWord(xInk)} — only a row with finishedUnseen (set in src/services/concourse/concourseSnapshot.ts) may wear amber; this newborn row must stay green`)
 
 for (const label of MARK_SIZES) {
   const text = markText(c, label)
   const ink = rowInk(markGrid(c, label), TITLE_Z, listRow)
   if (label === 'mark-120x40') printFrame("Q's board with the unseen finish", text)
-  check(`${label}: Q's board shows Z ready (${GLYPH.ok}) with the state glyph in amber (#${WARNING})`, ink?.glyph === GLYPH.ok && ink.glyphFg === WARNING, inkWord(ink))
-  if (label === 'mark-82x17') check(`${label}: the selected row's state word 'ready' wears the same amber`, ink?.wordFg === WARNING, `word #${ink?.wordFg ?? 'absent'}`)
-  check(`${label}: no ⚑ count and no finished note anywhere on the frame`, !/[1-9]\d* needs? you/.test(text) && !text.includes('· finished'), rowsWith(text, 'need'))
+  check(`${label}: Q's board shows Z ready (${GLYPH.ok}) with the state glyph in amber (#${WARNING})`, ink?.glyph === GLYPH.ok && ink.glyphFg === WARNING, `${inkWord(ink)} — see finishedUnseen in src/components/concourse/layout/listPane.tsx and src/components/concourse/CompactConcourse.tsx`)
+  if (label === 'mark-82x17') check(`${label}: the selected row's state word 'ready' wears the same amber`, ink?.wordFg === WARNING, `word #${ink?.wordFg ?? 'absent'} — the selected row's state word should wear the warning colour like its glyph; see src/components/concourse/layout/listPane.tsx`)
+  check(`${label}: no ⚑ count and no finished note anywhere on the frame`, !/[1-9]\d* needs? you/.test(text) && !text.includes('· finished'), `${rowsWith(text, 'need')} — an unseen finish must not add a needs-you count or a finished note to the board`)
 }
 
 const replied = markText(c, 'chat-replied')
@@ -370,8 +370,8 @@ for (const label of AFTER_SIZES) {
   const text = markText(c, label)
   const ink = rowInk(markGrid(c, label), TITLE_Z, listRow)
   if (label === 'after-120x40') printFrame("Q's board after the open and a settle watched in the chat", text)
-  check(`${label}: after the open, and a turn watched to its settle then ⇧←, Z is ready (${GLYPH.ok}) in the green again (#${SUCCESS})`, ink?.glyph === GLYPH.ok && ink.glyphFg === SUCCESS, inkWord(ink))
-  if (label === 'after-82x17') check(`${label}: the selected row's state word is green too`, ink?.wordFg === SUCCESS, `word #${ink?.wordFg ?? 'absent'}`)
+  check(`${label}: after the open, and a turn watched to its settle then ⇧←, Z is ready (${GLYPH.ok}) in the green again (#${SUCCESS})`, ink?.glyph === GLYPH.ok && ink.glyphFg === SUCCESS, `${inkWord(ink)} — once the session is opened the mark should clear; check how seenAt clears finishedUnseen in src/services/concourse/concourseSnapshot.ts`)
+  if (label === 'after-82x17') check(`${label}: the selected row's state word is green too`, ink?.wordFg === SUCCESS, `word #${ink?.wordFg ?? 'absent'} — the state word should return to green once the finish is seen; see src/components/concourse/layout/listPane.tsx`)
 }
 
 const ledgerPath = join(home, 'daemon', 'concourse-dispatches.json')
@@ -385,7 +385,7 @@ try {
 const answers = ledgerRows.filter(r => String(r.clientMessageId).startsWith('obl-answer:'))
 const plain = ledgerRows.filter(r => /^[0-9a-f-]{36}$/.test(String(r.clientMessageId)) && (r.state === 'delivered' || r.state === 'working' || r.state === 'settled' || r.state === 'done'))
 console.log(`  dispatch ledger: ${ledgerRows.length} rows, ${plain.length} plain-id deliveries, ${answers.length} obligation answers`)
-check('the words typed after the finish rode the ledger as plain prompts — no obligation answer anywhere', answers.length === 0 && ledgerRows.length >= 2, ledgerRows.map(r => `${String(r.clientMessageId).slice(0, 18)}:${r.state}`).join(', '))
+check('the words typed after the finish rode the ledger as plain prompts — no obligation answer anywhere', answers.length === 0 && ledgerRows.length >= 2, ledgerRows.map(r => `${String(r.clientMessageId).slice(0, 18)}:${r.state}`).join(', ') + ' — words typed after a finish must go out as plain prompts, not as obl-answer: dispatches')
 
 const oblPath = join(home, 'crew', 'obligations-switchboard.json')
 let oblRows: Array<{ obligationId: string; ref?: string; status?: string; settlement?: { by?: string; kind?: string } }> = []
@@ -396,9 +396,9 @@ try {
   oblRows = []
 }
 console.log(`  obligations: ${oblRows.length} rows`)
-check('no finish was minted as an obligation during the run', oblRows.length === 0, oblRows.map(r => `${r.status}:${r.ref ?? r.obligationId}`).join(', '))
+check('no finish was minted as an obligation during the run', oblRows.length === 0, oblRows.map(r => `${r.status}:${r.ref ?? r.obligationId}`).join(', ') + ' — a finish must not write a row to crew/obligations-switchboard.json')
 const face = markText(c, 'face')
-check('the boot face showed no need before any turn', !/[1-9]\d* needs? you/.test(face), rowsWith(face, 'need'))
+check('the boot face showed no need before any turn', !/[1-9]\d* needs? you/.test(face), `${rowsWith(face, 'need')} — the boot face should show no needs-you count before any turn`)
 
 const live = Object.values(recordsOf(home)).filter(r => r.endedAt === undefined)
 check('both sessions are live at the end — one in P, one in Q — none paused, parked, stopped or released by the mark', live.length === 2 && live.some(r => r.workspaceId === CWD) && live.some(r => r.workspaceId === OTHER) && live.every(r => r.pausedAt === undefined && r.stoppedAt === undefined && r.parkedAt === undefined), JSON.stringify(live.map(r => basename(r.workspaceId))))

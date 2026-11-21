@@ -24,10 +24,11 @@ const ROWS = 30
 
 let failures = 0
 let checks = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   checks++
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = !cond && hint ? (detail ? `${detail} — ${hint}` : hint) : detail
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)
@@ -83,7 +84,7 @@ section('§1 the first key on a fresh composer: sent at once, it lands on the se
   const t0 = reads[0]?.ts ?? 0
   const paint = firstPaint(reads, 'Typeaprompt')
   const send = run.sendLog[0] as SendRecord | undefined
-  check('the composer painted and the first key was sent', paint !== undefined && send !== undefined, `paint ${paint === undefined ? 'never' : `+${paint.ts - t0}ms`} · driver: ${run.driverOut.trim().slice(-200)}`)
+  check('the composer painted and the first key was sent', paint !== undefined && send !== undefined, `paint ${paint === undefined ? 'never' : `+${paint.ts - t0}ms`} · driver: ${run.driverOut.trim().slice(-200)}`, 'the arena run must paint the composer and fire the after: send; see the --send handling in scripts/streaming/ptydrive.py and the dist build')
   if (paint !== undefined && send !== undefined) {
     const before = lastReadBefore(reads, send.sent)
     const quietBefore = before === undefined ? -1 : send.sent - before.ts
@@ -93,9 +94,9 @@ section('§1 the first key on a fresh composer: sent at once, it lands on the se
     const settleGap = typeof send.settledAt === 'number' && typeof send.paintAt === 'number' ? Math.round(send.settledAt - send.paintAt) : -1
     console.log(`  the composer's placeholder painted at +${paint.ts - t0}ms; the key was sent at +${send.sent - t0}ms (${send.sent - paint.ts}ms after the paint); the output had been still for ${quietBefore}ms; echo ${echo === undefined ? 'never' : `+${echo.ts - send.sent}ms after the send`}`)
     console.log(`  the driver's receipt: ${JSON.stringify({ paintAt: send.paintAt, settledAt: send.settledAt, stillMs: send.stillMs, ceiling: send.ceiling })} · frame settled ${settleGap < 0 ? '(no receipt)' : `${settleGap}ms after its first paint`}`)
-    check(`the key went only once the output had held still for ${PTYDRIVE_STILL_MS}ms after the placeholder painted`, quietBefore >= PTYDRIVE_STILL_MS - 1, `still for ${quietBefore}ms before the send`)
-    check('the send record carries the settled-paint receipt (paintAt, settledAt, stillMs) and no ceiling', typeof send.paintAt === 'number' && typeof send.settledAt === 'number' && typeof send.stillMs === 'number' && send.stillMs >= PTYDRIVE_STILL_MS - 1 && send.ceiling === false, JSON.stringify(send))
-    check('the key landed: the typed word echoed in the composer and stands on the final frame', echo !== undefined && composerRow.includes(WORD), composerRow.trim() || '(the word is on no row)')
+    check(`the key went only once the output had held still for ${PTYDRIVE_STILL_MS}ms after the placeholder painted`, quietBefore >= PTYDRIVE_STILL_MS - 1, `still for ${quietBefore}ms before the send`, 'ptydrive.py in scripts/streaming must wait for STILL_MS of quiet output after the needle paints before it sends an after: key')
+    check('the send record carries the settled-paint receipt (paintAt, settledAt, stillMs) and no ceiling', typeof send.paintAt === 'number' && typeof send.settledAt === 'number' && typeof send.stillMs === 'number' && send.stillMs >= PTYDRIVE_STILL_MS - 1 && send.ceiling === false, JSON.stringify(send), 'the send record written by scripts/streaming/ptydrive.py must carry paintAt, settledAt and stillMs, with ceiling false when the output settled')
+    check('the key landed: the typed word echoed in the composer and stands on the final frame', echo !== undefined && composerRow.includes(WORD), composerRow.trim() || '(the word is on no row)', 'the key was sent but did not reach the composer; see the send timing in scripts/streaming/ptydrive.py')
   }
   run.cleanup()
 }
@@ -116,15 +117,15 @@ section('§2 the state anchor arms on the settled composer, so a fixed-ms rider 
   const reads = run.ptyReads
   const send = run.sendLog[0] as SendRecord | undefined
   const paint = firstPaint(reads, 'Typeaprompt')
-  check('the anchor armed and the rider fired', anchor !== undefined && send !== undefined && paint !== undefined, `anchor ${JSON.stringify(anchor)} · driver: ${run.driverOut.trim().slice(-200)}`)
+  check('the anchor armed and the rider fired', anchor !== undefined && send !== undefined && paint !== undefined, `anchor ${JSON.stringify(anchor)} · driver: ${run.driverOut.trim().slice(-200)}`, 'the state anchor row should be written to the drive file by scripts/streaming/ptydrive.py once the composer settles')
   if (anchor !== undefined && send !== undefined && paint !== undefined) {
     const before = lastReadBefore(reads, send.sent)
     const quietBefore = before === undefined ? -1 : send.sent - before.ts
     console.log(`  the anchor's receipt: ${JSON.stringify({ paintAt: anchor.paintAt, stillMs: anchor.stillMs, ceiling: anchor.ceiling, shiftMs: anchor.shiftMs })}; the rider went ${send.sent - paint.ts}ms after the placeholder painted, ${quietBefore}ms after the last output`)
-    check(`the anchor record carries the settled-paint receipt (stillMs ≥ ${PTYDRIVE_STILL_MS}, no ceiling)`, typeof anchor.paintAt === 'number' && typeof anchor.stillMs === 'number' && anchor.stillMs >= PTYDRIVE_STILL_MS - 1 && anchor.ceiling === false, JSON.stringify(anchor))
-    check(`the rider typed ${500 * SCALE}ms after the SETTLED composer, never that soon after its first paint`, send.sent - paint.ts >= PTYDRIVE_STILL_MS + 500 * SCALE - 60, `${send.sent - paint.ts}ms after the paint`)
+    check(`the anchor record carries the settled-paint receipt (stillMs ≥ ${PTYDRIVE_STILL_MS}, no ceiling)`, typeof anchor.paintAt === 'number' && typeof anchor.stillMs === 'number' && anchor.stillMs >= PTYDRIVE_STILL_MS - 1 && anchor.ceiling === false, JSON.stringify(anchor), 'the anchor record in scripts/streaming/ptydrive.py must carry paintAt and stillMs of the settled frame')
+    check(`the rider typed ${500 * SCALE}ms after the SETTLED composer, never that soon after its first paint`, send.sent - paint.ts >= PTYDRIVE_STILL_MS + 500 * SCALE - 60, `${send.sent - paint.ts}ms after the paint`, 'a fixed-ms send must count from the settled anchor in scripts/streaming/ptydrive.py, not from the first paint')
     const echo = echoAfter(reads, send.sent, WORD)
-    check('the rider landed (its word echoed)', echo !== undefined)
+    check('the rider landed (its word echoed)', echo !== undefined, '', 'the rider send did not reach the composer; see scripts/streaming/ptydrive.py')
   }
   run.cleanup()
 }
@@ -147,8 +148,8 @@ section(`§3 the driver alone: a needle whose output never holds still fires at 
   const report = (res.stdout ?? '').trim().split('\n').filter(l => l.startsWith('{')).pop() ?? '{}'
   const parsed = JSON.parse(report) as { sends?: number; unfired?: string[] }
   console.log(`  the chatty child (${chatterTicks} paints 100ms apart, the wall ${wallSeconds}s × ${SCALE}): X sent ${sent === undefined ? 'never' : `+${sent.sent! - t0}ms`} · ${JSON.stringify({ stillMs: sent?.stillMs, ceiling: sent?.ceiling })} · unfired ${JSON.stringify(parsed.unfired)}`)
-  check(`a needle whose output never holds still fires at the ceiling (${ceilingMs}ms after its paint: ${PTYDRIVE_SETTLE_CEILING_MS} × the scale), recorded as such`, sent !== undefined && sent.ceiling === true && typeof sent.settledAt === 'number' && typeof sent.paintAt === 'number' && sent.settledAt - sent.paintAt >= ceilingMs - 60, JSON.stringify(sent))
-  check('a needle that never paints never fires, and the closing report names it', parsed.sends === 1 && Array.isArray(parsed.unfired) && parsed.unfired.length === 1 && /'absent'.*never painted/.test(parsed.unfired[0] ?? ''), report)
+  check(`a needle whose output never holds still fires at the ceiling (${ceilingMs}ms after its paint: ${PTYDRIVE_SETTLE_CEILING_MS} × the scale), recorded as such`, sent !== undefined && sent.ceiling === true && typeof sent.settledAt === 'number' && typeof sent.paintAt === 'number' && sent.settledAt - sent.paintAt >= ceilingMs - 60, JSON.stringify(sent), 'the settle ceiling in scripts/streaming/ptydrive.py (SETTLE_CEILING_MS times the budget scale) must fire a send and set ceiling true')
+  check('a needle that never paints never fires, and the closing report names it', parsed.sends === 1 && Array.isArray(parsed.unfired) && parsed.unfired.length === 1 && /'absent'.*never painted/.test(parsed.unfired[0] ?? ''), report, 'the closing report printed by scripts/streaming/ptydrive.py must list a needle that never painted under unfired')
   rmSync(scratch, { recursive: true, force: true })
 }
 
@@ -164,8 +165,8 @@ section('§4 under the hosted capture profile the still window stays authored; t
   const rows = driveRows(out)
   const sent = rows.find(r => typeof r.sent === 'number')
   console.log(`  scale 2: ${JSON.stringify({ paintAt: sent?.paintAt, settledAt: sent?.settledAt, stillMs: sent?.stillMs, atMs: sent?.atMs })} · rc ${res.status}`)
-  check('the still window is the authored 400ms at scale 2 (a state criterion never stretches)', sent !== undefined && typeof sent.stillMs === 'number' && sent.stillMs >= PTYDRIVE_STILL_MS - 1 && sent.stillMs < PTYDRIVE_STILL_MS * 2, JSON.stringify(sent))
-  check('the delay after the settle rides the profile (100ms authored → 200ms)', sent !== undefined && typeof sent.settledAt === 'number' && typeof sent.atMs === 'number' && Math.round(sent.atMs - sent.settledAt) === 200, JSON.stringify(sent))
+  check('the still window is the authored 400ms at scale 2 (a state criterion never stretches)', sent !== undefined && typeof sent.stillMs === 'number' && sent.stillMs >= PTYDRIVE_STILL_MS - 1 && sent.stillMs < PTYDRIVE_STILL_MS * 2, JSON.stringify(sent), 'ptydrive.py in scripts/streaming must keep still_ms fixed when MERCURY_VSHOT_BUDGET_SCALE is set')
+  check('the delay after the settle rides the profile (100ms authored → 200ms)', sent !== undefined && typeof sent.settledAt === 'number' && typeof sent.atMs === 'number' && Math.round(sent.atMs - sent.settledAt) === 200, JSON.stringify(sent), 'ptydrive.py in scripts/streaming must scale the after-settle delay by MERCURY_VSHOT_BUDGET_SCALE')
   rmSync(scratch, { recursive: true, force: true })
 }
 
@@ -188,10 +189,10 @@ section("§5 the driver's proof hygiene is named in its closing report: a child 
   const unset = { ...process.env }
   delete unset.MERCURY_LOCAL_PROBE_TARGETS
   const defaulted = drive(unset)
-  check('with the variable unset in the caller, the child sees none (nothing on this box is discovered)', defaulted.child.includes('probe=none'), defaulted.child.slice(-80))
-  check('the closing report says so: probe_targets none, defaulted true, the note naming the variable', defaulted.report.probe_targets?.value === 'none' && defaulted.report.probe_targets?.defaulted === true && (defaulted.report.probe_targets?.note ?? '').includes('MERCURY_LOCAL_PROBE_TARGETS'), JSON.stringify(defaulted.report.probe_targets))
+  check('with the variable unset in the caller, the child sees none (nothing on this box is discovered)', defaulted.child.includes('probe=none'), defaulted.child.slice(-80), 'scripts/streaming/ptydrive.py must set MERCURY_LOCAL_PROBE_TARGETS to none for its child when the caller left it unset')
+  check('the closing report says so: probe_targets none, defaulted true, the note naming the variable', defaulted.report.probe_targets?.value === 'none' && defaulted.report.probe_targets?.defaulted === true && (defaulted.report.probe_targets?.note ?? '').includes('MERCURY_LOCAL_PROBE_TARGETS'), JSON.stringify(defaulted.report.probe_targets), 'the probe_targets entry of the closing report in scripts/streaming/ptydrive.py must carry value none, defaulted true and a note naming the variable')
   const pinned = drive({ ...process.env, MERCURY_LOCAL_PROBE_TARGETS: 'ollama=http://127.0.0.1:9' })
-  check("a caller's own value rides through to the child and the report reads it as not defaulted", pinned.child.includes('probe=ollama=http://127.0.0.1:9') && pinned.report.probe_targets?.value === 'ollama=http://127.0.0.1:9' && pinned.report.probe_targets?.defaulted === false, `${pinned.child.slice(-80)} · ${JSON.stringify(pinned.report.probe_targets)}`)
+  check("a caller's own value rides through to the child and the report reads it as not defaulted", pinned.child.includes('probe=ollama=http://127.0.0.1:9') && pinned.report.probe_targets?.value === 'ollama=http://127.0.0.1:9' && pinned.report.probe_targets?.defaulted === false, `${pinned.child.slice(-80)} · ${JSON.stringify(pinned.report.probe_targets)}`, 'scripts/streaming/ptydrive.py must pass a caller-set MERCURY_LOCAL_PROBE_TARGETS through and report defaulted false')
 }
 
 console.log(`\n${checks} checks, ${failures} failures`)

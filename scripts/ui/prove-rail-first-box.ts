@@ -185,7 +185,7 @@ async function renderAt(columns: number, rows: number): Promise<string[]> {
   try {
     const text = (): string => stripAnsi(ink.lastFrameText())
     const painted = await until(() => insertRef.current !== null && text().includes('Type a prompt'))
-    check(`${columns}x${rows}: the layout paints its composer placeholder`, painted, text().slice(0, 400))
+    check(`${columns}x${rows}: the layout paints its composer placeholder`, painted, text().slice(0, 400) + ' | the layout never painted the Type a prompt placeholder within 15 s; check the composer in src/components/PromptInput/PromptInput.tsx and the FullscreenLayout mount')
     let last = ''
     let stable = 0
     const deadline = Date.now() + 8000
@@ -213,21 +213,21 @@ for (const [columns, rows] of SIZES) {
   const lines = await renderAt(columns, rows)
   if (frameDir !== undefined) writeFileSync(join(frameDir, `rail-first-box-${columns}x${rows}.txt`), `${lines.join('\n')}\n`)
   const frame = lines.join('\n')
-  check(`${columns}x${rows}: no SEAT box paints anywhere`, !/SEAT ·/.test(frame) && !/\bSEAT\b/.test(frame))
-  check(`${columns}x${rows}: no seat self row paints (no "(you)" row, no peer count)`, !/\(you\)/.test(frame) && !/\d+ peers?\b/.test(frame))
+  check(`${columns}x${rows}: no SEAT box paints anywhere`, !/SEAT ·/.test(frame) && !/\bSEAT\b/.test(frame), 'a SEAT box still paints in the rail; remove it from the sections built in src/services/cockpit/helmLanesModel/sections.ts')
+  check(`${columns}x${rows}: no seat self row paints (no "(you)" row, no peer count)`, !/\(you\)/.test(frame) && !/\d+ peers?\b/.test(frame), 'a seat self row or peer count still paints; remove it from the rail rows in src/services/cockpit/helmLanesModel/sections.ts')
   if (columns >= 150) {
     const lanesW = railPlanAt(columns, true).lanesW
     const headers = railHeaders(lines, lanesW)
-    check(`${columns}x${rows}: the lanes rail paints with its banner on the first row`, (lines[0] ?? '').includes('lanes'), lines[0] ?? '')
-    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'CREW', `boxes: ${headers.join(' › ') || 'none'}`)
-    check(`${columns}x${rows}: the crew rows stand in the CREW box`, /✶ Mercury Lead/.test(frame) && /atlas/.test(frame) && /fjord/.test(frame))
+    check(`${columns}x${rows}: the lanes rail paints with its banner on the first row`, (lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | the first row has no lanes banner; check that railPlanAt in src/utils/helmGeometry.ts gives a lanes width at this size and that the rail is mounted in FullscreenLayout')
+    check(`${columns}x${rows}: the rail's first box is CREW`, headers[0] === 'CREW', `boxes: ${headers.join(' › ') || 'none'} | put the CREW section (crewSection area in src/services/cockpit/helmLanesModel/sections.ts) first in the rail order`)
+    check(`${columns}x${rows}: the crew rows stand in the CREW box`, /✶ Mercury Lead/.test(frame) && /atlas/.test(frame) && /fjord/.test(frame), 'the roster rows (Mercury Lead, atlas, fjord) are missing from the CREW box; check the crew rows built in src/services/cockpit/helmLanesModel/sections.ts')
   } else {
-    check(`${columns}x${rows}: the narrow layout paints no lanes rail`, !(lines[0] ?? '').includes('lanes'), lines[0] ?? '')
+    check(`${columns}x${rows}: the narrow layout paints no lanes rail`, !(lines[0] ?? '').includes('lanes'), (lines[0] ?? '') + ' | a lanes rail paints at this narrow width; check railPlanAt in src/utils/helmGeometry.ts so it returns no lanes width below 150 columns')
   }
 }
 console.error = originalError
 clearTimeout(hardLimit)
-check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n'))
+check('no render or hook-order fault occurred', !faults.some(line => /render fault|Rendered (?:more|fewer) hooks|Minified React error/.test(line)), faults.join('\n') + '\nconsole.error printed a render or hook-order fault; read the fault text above and fix the component it names')
 rmSync(HOME, { recursive: true, force: true })
 console.log(`rail-first-box: ${checks} checks, ${failures} failed`)
 process.exit(failures === 0 ? 0 : 1)

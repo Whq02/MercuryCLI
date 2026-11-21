@@ -19,9 +19,11 @@ const { configProviderRows, mainLoopPointerText } = await import(
 )
 
 let failures = 0
+const NEUTRAL_FAILURE_HINT =
+  'fix the family enumeration in src/services/providers/providerUsage.ts (providerFamilyPresences, anyProviderCredentialed), the /usage sections in src/components/Settings/usage/plan.ts (usageSectionPlan), the /config rows in src/components/Settings/config/configRowFacts.ts (configProviderRows, mainLoopPointerText), or the availability gate in src/commands.ts (meetsAvailabilityRequirement), whichever this check names'
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond ? ` — ${detail ? `${detail}; ` : ''}${NEUTRAL_FAILURE_HINT}` : ''}`)
 }
 function section(t: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + t)

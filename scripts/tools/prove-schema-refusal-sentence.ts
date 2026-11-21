@@ -13,6 +13,8 @@ function check(label: string, ok: boolean, detail = ''): void {
   if (!ok) failures++
   console.log(`[${ok ? 'PASS' : 'FAIL'}] ${label}${ok ? '' : ` — ${detail}`}`)
 }
+const refusalHint = ' | change formatZodValidationError in src/utils/toolErrors.ts or refuseInvalidInput in src/services/tools/toolExecution.ts'
+const cardHint = ' | change deriveDisplayedError or isToolErrorResultTruncated in src/components/FallbackToolUseErrorMessage.tsx'
 let calls = 0
 const tool = {
   name: 'SchemaSentenceProbe',
@@ -40,16 +42,16 @@ for (const input of [{ count: 'two' }, {}]) {
     ? u.message.message.content.filter(b => b.type === 'tool_result') : [])
   const result = results[0]
   const text = String(result?.content ?? '')
-  check('the refusal is one error result', results.length === 1 && result?.is_error === true, text)
-  check('the refusal starts with its sentence', text.startsWith(`<tool_use_error>${tool.name} failed (`), text)
-  check('the refusal names the count field', text.includes('`count`'), text)
-  check('the refusal explains the expected shape', 'count' in input ? text.includes('number') : text.includes('missing'), text)
+  check('the refusal is one error result', results.length === 1 && result?.is_error === true, text + refusalHint)
+  check('the refusal starts with its sentence', text.startsWith(`<tool_use_error>${tool.name} failed (`), text + refusalHint)
+  check('the refusal names the count field', text.includes('`count`'), text + refusalHint)
+  check('the refusal explains the expected shape', 'count' in input ? text.includes('number') : text.includes('missing'), text + refusalHint)
   const row = updates.find(u => u.message.type === 'user')?.message
-  check('the saved result carries the same sentence, not raw schema JSON', row?.type === 'user' && row.toolUseResult === text.replace(/^<tool_use_error>|<\/tool_use_error>$/g, ''), JSON.stringify(row))
-  check('a short schema sentence stays visible in the collapsed card', !isToolErrorResultTruncated(text), text)
+  check('the saved result carries the same sentence, not raw schema JSON', row?.type === 'user' && row.toolUseResult === text.replace(/^<tool_use_error>|<\/tool_use_error>$/g, ''), JSON.stringify(row) + ' | make the saved toolUseResult in refuseInvalidInput (src/services/tools/toolExecution.ts) equal the sentence text')
+  check('a short schema sentence stays visible in the collapsed card', !isToolErrorResultTruncated(text), text + cardHint)
   for (const verbose of [false, true]) {
     const frame = await renderToString(React.createElement(FallbackToolUseErrorMessage, { result: text, verbose }), 120)
-    check(`the ${verbose ? 'expanded' : 'collapsed'} card shows the field and shape`, frame.includes('count') && frame.includes('count' in input ? 'number' : 'missing'), frame)
+    check(`the ${verbose ? 'expanded' : 'collapsed'} card shows the field and shape`, frame.includes('count') && frame.includes('count' in input ? 'number' : 'missing'), frame + cardHint)
     console.log(frame)
   }
 }

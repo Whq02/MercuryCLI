@@ -2,11 +2,14 @@
 
 
 let failures = 0
+let sectionSource = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  const shown = cond || !sectionSource ? detail : [detail, `change the code in ${sectionSource}`].filter(Boolean).join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ` — ${shown}` : ''}`)
 }
-function section(t: string): void {
+function section(t: string, source = ''): void {
+  sectionSource = source
   console.log('\n' + '─'.repeat(76) + '\n' + t + '\n' + '─'.repeat(76))
 }
 
@@ -16,7 +19,7 @@ console.log('============================================================')
 
 ;(globalThis as Record<string, unknown>).MACRO = { VERSION: '1.0.0' }
 
-section('the carousel: default → implement → APOLLO → flow|sovereign|default')
+section('the carousel: default → implement → APOLLO → flow|sovereign|default', 'getNextPermissionMode in src/utils/permissions/getNextPermissionMode.ts')
 let carouselLoadable = true
 try {
   const { getNextPermissionMode } = (await import(
@@ -39,7 +42,7 @@ try {
   console.log(`  [info] carousel not loadable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
 }
 
-section("the vocabulary: 'apollo' joins the mode lists; seal + title from the ONE config")
+section("the vocabulary: 'apollo' joins the mode lists; seal + title from the ONE config", 'src/types/permissions.ts (mode lists), src/utils/permissions/PermissionMode.ts (title, symbol, colour) and src/utils/glyphs.ts (GLYPH.modeApollo)')
 try {
   const types = (await import('../../src/types/permissions.js')) as typeof import('../../src/types/permissions.js')
   check("PERMISSION_MODES includes 'apollo' (user-addressable)", (types.PERMISSION_MODES as readonly string[]).includes('apollo'))
@@ -56,7 +59,7 @@ try {
   check('vocabulary modules loadable', false, String(e).split('\n')[0])
 }
 
-section("the pack: mode-apollo composes ONLY while the mode is 'apollo'")
+section("the pack: mode-apollo composes ONLY while the mode is 'apollo'", 'getApolloModeSections in src/prompt/apolloMode.ts')
 try {
   const pack = (await import('../../src/prompt/apolloMode.js')) as typeof import('../../src/prompt/apolloMode.js')
   const on = pack.getApolloModeSections('apollo')
@@ -85,7 +88,7 @@ try {
   check('apolloMode.ts loadable', false, String(e).split('\n')[0])
 }
 
-section('the poll letters: A–D + E = custom, one owner, ordinal-channel display')
+section('the poll letters: A–D + E = custom, one owner, ordinal-channel display', 'apolloIndexLabel and apolloCustomIndexLabel in src/tools/AskUserQuestionTool/apolloLetters.ts')
 try {
   const letters = (await import('../../src/tools/AskUserQuestionTool/apolloLetters.js')) as typeof import('../../src/tools/AskUserQuestionTool/apolloLetters.js')
   check('apolloIndexLabel letters A–D by index', letters.apolloIndexLabel(0) === 'A.' && letters.apolloIndexLabel(1) === 'B.' && letters.apolloIndexLabel(2) === 'C.' && letters.apolloIndexLabel(3) === 'D.')
@@ -95,7 +98,7 @@ try {
   check('apolloLetters.ts loadable', false, String(e).split('\n')[0])
 }
 
-section('the setting: apollo.preflightQuestions, default 7')
+section('the setting: apollo.preflightQuestions, default 7', 'getApolloPreflightQuestions in src/utils/settings/settings.ts')
 try {
   const settings = (await import('../../src/utils/settings/settings.js')) as typeof import('../../src/utils/settings/settings.js')
   check('getApolloPreflightQuestions() defaults to 7', settings.getApolloPreflightQuestions() === 7)
@@ -103,7 +106,7 @@ try {
   check('settings module loadable', false, String(e).split('\n')[0])
 }
 
-section('ApolloReview: apollo-only, ask-on-clean, guarded handoff to flow|implement')
+section('ApolloReview: apollo-only, ask-on-clean, guarded handoff to flow|implement', 'src/tools/ApolloReviewTool/ApolloReviewTool.tsx')
 try {
   const { ApolloReviewTool } = (await import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')) as typeof import('../../src/tools/ApolloReviewTool/ApolloReviewTool.js')
   const mkContext = (mode: string) => {
@@ -194,7 +197,7 @@ try {
   console.log(`  [info] tool not loadable/drivable under bun-run (${String(e).split('\n')[0]}) — structural assertions`)
 }
 
-section('the runner accepts Apollo for every host')
+section('the runner accepts Apollo for every host', 'resolvePermissionModeTransition in src/cli/headless/controlHandlers.ts')
 {
   const priorMarker = process.env.MERCURY_CONCOURSE_WORKER
   try {
@@ -251,7 +254,7 @@ section('the runner accepts Apollo for every host')
 
 }
 
-section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list")
+section("the seat's initial posture: a carried 'apollo' crosses the admission; the env road keeps the strict list", 'seatInitialPermissionMode in src/daemon/concourseWorkers.ts and getHeadlessPermissionMode in src/daemon/headlessRun.ts')
 {
   const { seatInitialPermissionMode } = (await import('../../src/daemon/concourseWorkers.js')) as typeof import('../../src/daemon/concourseWorkers.js')
   const { getHeadlessPermissionMode, headlessPermissionArgv, HEADLESS_PERMISSION_MODES } = (await import('../../src/daemon/headlessRun.js')) as typeof import('../../src/daemon/headlessRun.js')

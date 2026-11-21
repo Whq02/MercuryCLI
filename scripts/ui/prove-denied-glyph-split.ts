@@ -21,7 +21,7 @@ import { vshotBudgetMs } from '../lib/captureDriver.ts'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail}` : ''}${cond ? '' : ' | fix isDenialResultText in src/utils/messages/rejectionText.ts for the denial checks, or the denied mark of the tool row in src/components/messages/AssistantToolUseMessage.tsx (fed by deniedToolUseIDs in src/services/messages/lookups.ts) and the colours in src/components/mercuryPalette.ts for the render checks'}`)
 }
 const hexEq = (a: string | undefined, hex: string) =>
   (a ?? '').replace('#', '').toLowerCase() === hex.replace('#', '').toLowerCase()

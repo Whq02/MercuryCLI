@@ -21,10 +21,11 @@ if (frameDir) mkdirSync(frameDir, { recursive: true })
 
 let checks = 0
 let failures = 0
+const MEMORY_SCREEN_HINT = 'change the /memory screen: its words, footers and key rules are in src/components/memory/memoryCentreLayout.ts, its views and key handling in src/components/memory/MemoryCentreView.tsx, the search rows in src/mneme/memoryRefs.ts'
 function check(label: string, ok: boolean, detail = ''): void {
   checks++
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${MEMORY_SCREEN_HINT}${detail ? ` | ${detail.slice(0, 700)}` : ''}` : ''}`)
 }
 function section(title: string): void {
   console.log(`\n${title}`)

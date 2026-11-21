@@ -10,9 +10,11 @@ delete process.env.NODE_ENV
 const SRC = process.env.PROVE_SRC ?? join(import.meta.dir, '../../src')
 
 let failures = 0
+const BACKUP_FAILURE_HINT =
+  'fix findMostRecentBackup or restoreConfigFromBackup in src/utils/config/globalConfig.ts, whichever this check names'
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok ? ` — ${detail ? `${detail}; ` : ''}${BACKUP_FAILURE_HINT}` : ''}`)
 }
 
 const config = await import(join(SRC, 'utils/config/globalConfig.ts'))

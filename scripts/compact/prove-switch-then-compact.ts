@@ -151,33 +151,33 @@ for (const target of TARGETS) {
     error = err as Error
   }
   const hits = fixture.captured.slice(before)
-  check('M1 the fold RESOLVES over the mixed shapes', result !== undefined && error === undefined, (error?.stack ?? '').slice(0, 500))
-  check(`M1 every hit rode the current family's lane (${target.lane})`, hits.length >= 1 && hits.every(h => h.lane === target.lane), hits.map(h => h.lane).join(', '))
+  check('M1 the fold RESOLVES over the mixed shapes', result !== undefined && error === undefined, (error?.stack ?? '').slice(0, 500) + ' | compactConversation in src/services/compact/compact.ts must resolve over a history mixed from several model families')
+  check(`M1 every hit rode the current family's lane (${target.lane})`, hits.length >= 1 && hits.every(h => h.lane === target.lane), hits.map(h => h.lane).join(', ') + ' | the summary request of compactConversation in src/services/compact/compact.ts must go through the lane of the current model, not the model of older messages')
   if (result === undefined) continue
 
   const summaries = (result.summaryMessages ?? []) as Array<{ message?: { content?: unknown } }>
   const summaryContent = summaries[0]?.message?.content
-  check('M2 the summary is ONE plain text user message (no block array)', typeof summaryContent === 'string', typeof summaryContent)
+  check('M2 the summary is ONE plain text user message (no block array)', typeof summaryContent === 'string', typeof summaryContent + ' | compactConversation in src/services/compact/compact.ts must return the summary as one user message whose content is a string')
   const summaryJson = j(summaries)
   check(
     'M2 no vendor block vocabulary rides the summary',
     VENDOR_BLOCK_WORDS.every(word => !summaryJson.includes(word)),
-    VENDOR_BLOCK_WORDS.filter(word => summaryJson.includes(word)).join(', '),
+    VENDOR_BLOCK_WORDS.filter(word => summaryJson.includes(word)).join(', ') + ' | these words leaked into the summary; strip vendor blocks from the history before it is summarised in src/services/compact/compact.ts',
   )
 
   const boundary = result.boundaryMarker as { compactMetadata?: { preTokens?: number } }
-  check('M3 the boundary records the real pre-fold weight', boundary.compactMetadata?.preTokens === preWeight, j({ preTokens: boundary.compactMetadata?.preTokens, preWeight }))
+  check('M3 the boundary records the real pre-fold weight', boundary.compactMetadata?.preTokens === preWeight, j({ preTokens: boundary.compactMetadata?.preTokens, preWeight }) + ' | the boundary marker built in compactConversation (src/services/compact/compact.ts) must record the tokenCountWithEstimation weight of the unfolded messages')
   const kept = (result.messagesToKeep as unknown[] | undefined)?.length ?? 0
-  check('M3 the verbatim tail survived the fold', kept > 0, `kept=${kept}`)
+  check('M3 the verbatim tail survived the fold', kept > 0, `kept=${kept}; compactConversation in src/services/compact/compact.ts must keep a verbatim tail in messagesToKeep (this prover sets MERCURY_COMPACT_KEEP_TAIL=1)`)
 
   const post = buildPostCompactMessages(result as never)
   const postFill = contextFill(post as never)
   check(
     'M4 the gauge over the post-fold projection reads the folded truth (estimate, not the dead anchor)',
     postFill.source === 'estimate' && postFill.tokens < Math.max(2000, preWeight * 0.05),
-    j({ postFill, preWeight }),
+    j({ postFill, preWeight }) + ' | contextFill in src/services/context/tokens.ts must estimate from the post-fold messages and ignore the usage numbers of messages that were folded away',
   )
-  check('M4 …and never the pre-fold weight', postFill.tokens !== preWeight, j(postFill))
+  check('M4 …and never the pre-fold weight', postFill.tokens !== preWeight, j(postFill) + ' | contextFill in src/services/context/tokens.ts must not report the pre-fold weight after a fold')
 
   const fresh = {
     type: 'assistant',
@@ -199,7 +199,7 @@ for (const target of TARGETS) {
   check(
     'M5 the counter follows the switch: the new turn’s wire usage anchors the gauge',
     freshFill.source === 'usage' && freshFill.tokens >= 12_400 && freshFill.tokens < 13_500,
-    j(freshFill),
+    j(freshFill) + ' | contextFill in src/services/context/tokens.ts must anchor on the usage of the first assistant reply after the fold',
   )
 }
 
@@ -207,7 +207,7 @@ section('M6 poison control — an UN-folded transcript anchors on its live usage
 {
   const messages = makeMixedMessages()
   const fill = contextFill(messages as never)
-  check('the live anchor stands (source usage, the last round’s weight)', fill.source === 'usage' && fill.tokens >= 129_000, j(fill))
+  check('the live anchor stands (source usage, the last round’s weight)', fill.source === 'usage' && fill.tokens >= 129_000, j(fill) + ' | contextFill in src/services/context/tokens.ts must anchor an unfolded transcript on the usage of its last assistant reply')
 }
 
 await fixture.close()

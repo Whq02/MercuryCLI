@@ -33,7 +33,7 @@ async function reconcileUnlinkRefused(): Promise<void> {
     } catch (error) {
       outcome = `rejected ${(error as NodeJS.ErrnoException).code ?? String(error)}`
     }
-    check(label, outcome === 'rejected EACCES', outcome)
+    check(label, outcome === 'rejected EACCES', outcome + ' | fix reconcileDaemonRecords in src/daemon/reconcileRecords.ts so a stale record it cannot remove rejects with the unlink error')
   } finally {
     chmodSync(dir, 0o755)
     delete process.env.MERCURY_DAEMON_DIR
@@ -53,8 +53,8 @@ async function sweepRegistrationUnreadable(): Promise<void> {
   try {
     const strict = await m.readCockpitRegistrations(home, 'strict')
     const loose = await m.readCockpitRegistrations(home)
-    check(label, strict === null, `strict read answered ${JSON.stringify(strict)}`)
-    check('readCockpitRegistrations keeps its answer for outside callers', Array.isArray(loose) && loose.length === 0, JSON.stringify(loose))
+    check(label, strict === null, `strict read answered ${JSON.stringify(strict)} | fix readCockpitRegistrations in src/daemon/processSweepRun.ts so the strict mode answers null when a registration file cannot be read`)
+    check('readCockpitRegistrations keeps its answer for outside callers', Array.isArray(loose) && loose.length === 0, JSON.stringify(loose) + ' | fix readCockpitRegistrations in src/daemon/processSweepRun.ts so the call without the strict mode still answers an empty list for an unreadable registration')
   } finally {
     chmodSync(file, 0o644)
   }
@@ -63,9 +63,9 @@ async function sweepRegistrationUnreadable(): Promise<void> {
 async function scheduleSignInUnread(): Promise<void> {
   const { deriveScheduleAccountForModel } = await import(join(SRC, 'daemon/saturnAccount.ts'))
   const unread = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none', unread: 'EACCES: permission denied' }) })
-  check('schedule account: a sign-in that could not be read is refused as unread, not as no credential', !unread.ok && unread.reason === 'unread:anthropic — the sign-in could not be read (EACCES: permission denied)', JSON.stringify(unread))
+  check('schedule account: a sign-in that could not be read is refused as unread, not as no credential', !unread.ok && unread.reason === 'unread:anthropic — the sign-in could not be read (EACCES: permission denied)', JSON.stringify(unread) + ' | fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts so a presence with unread set is refused with the unread reason')
   const absent = deriveScheduleAccountForModel('fixture-model', { familyOf: () => 'anthropic', presenceOf: () => ({ credentialed: false, kind: 'none' }) })
-  check('schedule account: an absent sign-in still reads no-credential', !absent.ok && absent.reason.startsWith('no-credential:anthropic'), JSON.stringify(absent))
+  check('schedule account: an absent sign-in still reads no-credential', !absent.ok && absent.reason.startsWith('no-credential:anthropic'), JSON.stringify(absent) + ' | fix deriveScheduleAccountForModel in src/daemon/saturnAccount.ts so a presence without a credential and without unread is refused as no-credential')
 }
 
 await reconcileUnlinkRefused()

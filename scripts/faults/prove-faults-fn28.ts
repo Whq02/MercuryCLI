@@ -16,10 +16,23 @@ process.env.NODE_ENV = 'test'
 const POSIX_MODES =
   process.platform !== 'win32' && (typeof process.getuid !== 'function' || process.getuid() !== 0)
 
+const FN28_FIX_HINTS: Array<[string, string]> = [
+  ['artifactIdentity-', 'fix describeArtifactIdentity in src/utils/artifactIdentity.ts so a manifest that is corrupt or unreadable keeps the distribution the entry location implies'],
+  ['reviewStore-', 'fix the journal read path in src/services/artifacts/reviewStore.ts (setReviewArtifactStatus, listReviewArtifactHeadsSource, readReviewArtifactJournal) so an unreadable journal is reported, never answered as absent or empty'],
+  ['artifacts-', 'fix listArtifacts and getArtifact in src/utils/artifacts/store.ts so only ENOENT means absent and every other read or parse error rejects'],
+  ['astSearch-', 'fix searchAstPattern in src/services/structure/astPatterns/search.ts so an unreadable file is recorded in parseFailures with the word unreadable'],
+  ['fileAttachments-', 'fix generateFileAttachment in src/services/attachments/fileAttachments.ts so a stat failure other than ENOENT returns the refused dropped_image_file row, and a missing file returns null'],
+  ['mentionResolvers-', 'fix processAtMentionedFiles and processMcpResourceAttachments in src/services/attachments/mentionResolvers.ts so an unreadable directory is reported and a lookup bug is thrown'],
+  ['bootCardFacts-', 'fix workspaceRecognizedByGround, parkedSessionsOf and projectChatCount in src/utils/bootCardFacts.ts so an unreadable store fails closed or throws, and an absent store stays empty'],
+  ['boxLock-', 'fix readBoxLockState and boxReading in src/utils/boxLock.ts so an unreadable lock dir, holder or queue throws and is reported as not readable, and an absent dir answers null'],
+]
+
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const fix = cond ? undefined : FN28_FIX_HINTS.find(([prefix]) => label.startsWith(prefix))?.[1]
+  const shown = !cond && (detail || fix) ? ` — ${[detail, fix].filter(Boolean).join(' | ')}` : ''
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown}`)
 }
 function skip(label: string, why: string): void {
   console.log(`  [SKIP] ${label} — ${why}`)

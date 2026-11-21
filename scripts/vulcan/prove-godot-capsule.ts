@@ -15,10 +15,12 @@ const UNBRIDGED = derivePresence(
   '/fixture',
 )
 
+const FAIL_HINT = 'fix: staticGodotCapsule in src/services/vulcan/godotCapsule.ts (editor state comes from derivePresence in src/services/vulcan/editorPresence.ts), or the fixture in this file'
 let failures = 0
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ' — ' + detail : ''}`)
+  const shown = cond ? detail : `${detail}${detail ? ' | ' : ''}${FAIL_HINT}`
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${shown ? ' — ' + shown : ''}`)
 }
 
 console.log('============================================================')

@@ -57,10 +57,11 @@ if (write) mkdirSync(stills, { recursive: true })
 
 let checks = 0
 let failures = 0
-function check(label: string, ok: boolean, detail = ''): void {
+function check(label: string, ok: boolean, detail = '', fixHint = ''): void {
   checks++
   if (!ok) failures++
   console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail.slice(0, 700)}` : ''}`)
+  if (!ok && fixHint) console.log('         to change: ' + fixHint)
 }
 function section(title: string): void {
   console.log(`\n${title}`)
@@ -70,7 +71,7 @@ const save = (name: string, lines: string[]): void => {
   if (frameDir) writeFileSync(join(frameDir, `${name}.txt`), frame)
   if (write) writeFileSync(join(stills, `${name}.txt`), frame)
   else if (!frameDir && sourceRef === undefined && process.platform === 'darwin' && existsSync(join(stills, `${name}.txt`))) {
-    check(`${name}: the stored frame matches the source render`, readFileSync(join(stills, `${name}.txt`), 'utf8') === frame)
+    check(`${name}: the stored frame matches the source render`, readFileSync(join(stills, `${name}.txt`), 'utf8') === frame, '', 'if the picker change is intended, regenerate the stored frames with: bun scripts/ui/prove-model-picker-typed-letters.ts --write (fixtures in scripts/ui/fixtures/model-picker-typed); otherwise fix the render in src/components/MercuryModelPicker.tsx')
   }
 }
 
@@ -85,14 +86,14 @@ saveGlobalConfig(c => ({ ...c, prStatusFooterEnabled: false }))
 section('§1 the words: no bare letter is a key in the picker; the chords are named where they act')
 {
   const hint: string = words.MODEL_PICKER_HINT
-  check('the rows’ hint names the context chord and no bare letter', hint.includes('ctrl+w context') && !/ c context/.test(hint) && hint.includes('tab to search'), hint)
-  check('the effort strip names its chord', (words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS === 'ctrl+e changes it', String((words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS))
-  check('the box at rest says to type', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'type to search by name or id', words.MODEL_PICKER_FILTER_PLACEHOLDER)
-  check('the local offer names the command, not a letter', LOCAL_SETUP_PICKER_OFFER.includes('/localsetup') && !/\bs sets/.test(LOCAL_SETUP_PICKER_OFFER), LOCAL_SETUP_PICKER_OFFER)
-  check('the legend at width carries the chord', modelPickerFooter({ gated: false }, 120).includes('ctrl+w context') && !modelPickerFooter({ gated: false }, 120).includes(' c context'), modelPickerFooter({ gated: false }, 120))
+  check('the rows’ hint names the context chord and no bare letter', hint.includes('ctrl+w context') && !/ c context/.test(hint) && hint.includes('tab to search'), hint, 'MODEL_PICKER_HINT in src/utils/model/modelPickerGroups.ts must name ctrl+w context and tab to search, with no bare letter key')
+  check('the effort strip names its chord', (words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS === 'ctrl+e changes it', String((words as Record<string, unknown>).MODEL_PICKER_EFFORT_WORDS), 'MODEL_PICKER_EFFORT_WORDS in src/utils/model/modelPickerGroups.ts must read ctrl+e changes it')
+  check('the box at rest says to type', words.MODEL_PICKER_FILTER_PLACEHOLDER === 'type to search by name or id', words.MODEL_PICKER_FILTER_PLACEHOLDER, 'MODEL_PICKER_FILTER_PLACEHOLDER in src/utils/model/modelPickerGroups.ts must say type to search by name or id')
+  check('the local offer names the command, not a letter', LOCAL_SETUP_PICKER_OFFER.includes('/localsetup') && !/\bs sets/.test(LOCAL_SETUP_PICKER_OFFER), LOCAL_SETUP_PICKER_OFFER, 'LOCAL_SETUP_PICKER_OFFER in src/commands/localsetup/words.ts must name the /localsetup command and no bare letter')
+  check('the legend at width carries the chord', modelPickerFooter({ gated: false }, 120).includes('ctrl+w context') && !modelPickerFooter({ gated: false }, 120).includes(' c context'), modelPickerFooter({ gated: false }, 120), 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must carry ctrl+w context at width 120')
   const search = (words as Record<string, unknown>).isSearchCharacter as ((input: string, key: { ctrl: boolean; meta: boolean; tab: boolean }) => boolean) | undefined
   const plain = { ctrl: false, meta: false, tab: false }
-  check('a letter, a digit, a dot and a space are search characters; control bytes, chords, tab and delete are not', search !== undefined && ['s', 'S', '5', '.', ' ', '-'].every(c => search(c, plain)) && !search('\x1b', plain) && !search('\r', plain) && !search('\x7f', plain) && !search('e', { ...plain, ctrl: true }) && !search('e', { ...plain, meta: true }) && !search('\t', { ...plain, tab: true }) && !search('', plain))
+  check('a letter, a digit, a dot and a space are search characters; control bytes, chords, tab and delete are not', search !== undefined && ['s', 'S', '5', '.', ' ', '-'].every(c => search(c, plain)) && !search('\x1b', plain) && !search('\r', plain) && !search('\x7f', plain) && !search('e', { ...plain, ctrl: true }) && !search('e', { ...plain, meta: true }) && !search('\t', { ...plain, tab: true }) && !search('', plain), '', 'isSearchCharacter in src/utils/model/modelPickerGroups.ts must accept printable characters and refuse control bytes, chords, tab and delete (and it must be exported)')
 }
 
 const React = await import('react')
@@ -148,10 +149,10 @@ async function openPicker(columns: number, rows: number, typed = ''): Promise<Sc
   resetChromeModeLatchForTests()
   const done: unknown[][] = []
   const element = await modelCommand.call((...call: unknown[]) => { done.push(call) }, { messages: [], options: {} } as never, typed)
-  check(`${columns}x${rows}: /model hands the session a picker to mount`, element !== null && element !== undefined)
+  check(`${columns}x${rows}: /model hands the session a picker to mount`, element !== null && element !== undefined, '', 'the call in src/commands/model/mercuryModel.tsx must return the picker element')
   const m = await mountOffscreen(wrap(h(Harness, { columns, element })), columns, rows)
   const painted = await waitFor(() => m.screen().includes(TITLE) && m.screen().includes('↑↓ select'), 10000)
-  check(`${columns}x${rows}: the picker painted its title and legend`, painted, m.lines().filter(l => l.trim()).slice(0, 8).join(' | '))
+  check(`${columns}x${rows}: the picker painted its title and legend`, painted, m.lines().filter(l => l.trim()).slice(0, 8).join(' | '), 'the picker in src/components/MercuryModelPicker.tsx did not paint its title and the select legend within 10 seconds; read the frame above')
   await settle(400)
   return { m, done, columns, rows }
 }
@@ -193,23 +194,23 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   const scene = await openPicker(120, 40)
   const before = JSON.stringify(engineOf())
   const effortBefore = effortRow(scene.m)
-  check('the opened picker shows the effort strip with its chord', effortBefore.includes('[') && effortBefore.endsWith('ctrl+e changes it'), effortBefore)
-  check('the box at rest invites typing', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
-  check('the legend names the context chord at this width', rowOf(scene.m, '↑↓ select').includes('ctrl+w context'), rowOf(scene.m, '↑↓ select').trim())
+  check('the opened picker shows the effort strip with its chord', effortBefore.includes('[') && effortBefore.endsWith('ctrl+e changes it'), effortBefore, 'the effort strip in src/components/MercuryModelPicker.tsx must end with MODEL_PICKER_EFFORT_WORDS')
+  check('the box at rest invites typing', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m), 'the search box in src/components/MercuryModelPicker.tsx must show MODEL_PICKER_FILTER_PLACEHOLDER at rest')
+  check('the legend names the context chord at this width', rowOf(scene.m, '↑↓ select').includes('ctrl+w context'), rowOf(scene.m, '↑↓ select').trim(), 'modelPickerFooter in src/utils/model/modelPickerFooter.ts must keep ctrl+w context at 120 columns')
   await typeSlowly(scene.m, 'sonnet')
   const searched = await waitFor(() => boxText(scene.m) === '/ sonnet' && /Mercury · model · \d+ of \d+ match/.test(scene.m.screen()), 6000)
-  check('typing sonnet with the rows focused lands in the search box and the title counts the matches', searched, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`)
-  check('the picker stays open: no local-model wizard, no server probe', scene.m.screen().includes(TITLE) && !scene.m.screen().includes('localsetup ') && !scene.m.screen().includes('Find a server') && scene.done.length === 0, scene.m.lines().filter(l => /Find a server|Kept model/.test(l)).join(' | '))
-  check('only Sonnet rows remain listed', scene.m.screen().includes('claude-sonnet-5-5') && !scene.m.screen().includes('claude-fable-5-1'), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '))
-  check('nothing was saved: the engine settings are as they were', JSON.stringify(engineOf()) === before, `${before} → ${JSON.stringify(engineOf())}`)
-  check('the effort bracket did not move on the e in sonnet', effortRow(scene.m) === effortBefore, `${effortBefore} → ${effortRow(scene.m)}`)
+  check('typing sonnet with the rows focused lands in the search box and the title counts the matches', searched, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`, 'a letter typed with the rows focused must land in the search box: see src/components/modelPicker/keys.ts and isSearchCharacter in src/utils/model/modelPickerGroups.ts')
+  check('the picker stays open: no local-model wizard, no server probe', scene.m.screen().includes(TITLE) && !scene.m.screen().includes('localsetup ') && !scene.m.screen().includes('Find a server') && scene.done.length === 0, scene.m.lines().filter(l => /Find a server|Kept model/.test(l)).join(' | '), 'typed letters must not run picker actions: see src/components/modelPicker/keys.ts')
+  check('only Sonnet rows remain listed', scene.m.screen().includes('claude-sonnet-5-5') && !scene.m.screen().includes('claude-fable-5-1'), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '), 'the search filter in src/components/MercuryModelPicker.tsx must match the typed name against model ids')
+  check('nothing was saved: the engine settings are as they were', JSON.stringify(engineOf()) === before, `${before} → ${JSON.stringify(engineOf())}`, 'typing in the picker must not write engine settings: see src/components/modelPicker/keys.ts')
+  check('the effort bracket did not move on the e in sonnet', effortRow(scene.m) === effortBefore, `${effortBefore} → ${effortRow(scene.m)}`, 'the letter e typed with the rows focused must search, not change effort: see src/components/modelPicker/keys.ts')
   save('typed-sonnet-120x40', scene.m.lines())
   scene.m.push(KEY.esc)
   const cleared = await waitFor(() => boxText(scene.m) === '/ search by name or id' && scene.m.screen().includes(TITLE) && !/ of \d+ match/.test(scene.m.screen()), 6000)
-  check('esc clears the search and keeps the picker', cleared, boxText(scene.m))
+  check('esc clears the search and keeps the picker', cleared, boxText(scene.m), 'esc with a search typed must clear it and keep the picker open: see src/components/modelPicker/keys.ts')
   scene.m.push(KEY.esc)
   const closed = await waitFor(() => kept(scene.done), 6000)
-  check('esc on the empty box closes the picker once, the model kept', closed, JSON.stringify(scene.done))
+  check('esc on the empty box closes the picker once, the model kept', closed, JSON.stringify(scene.done), 'esc on an empty box must close the picker with a Kept model as message, once: see src/commands/model/mercuryModel.tsx and src/components/modelPicker/keys.ts')
   await closeScene(scene)
 }
 {
@@ -218,7 +219,7 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   const effortBefore = effortRow(scene.m)
   await typeSlowly(scene.m, 'claude')
   const typed = await waitFor(() => boxText(scene.m) === '/ claude', 6000)
-  check('typing claude from the rows searches: its c and e are letters, not keys', typed && !scene.m.screen().includes('not a toggle') && effortRow(scene.m) === effortBefore && JSON.stringify(engineOf()) === before, `${boxText(scene.m)} · ${effortRow(scene.m)} · ${JSON.stringify(engineOf())}`)
+  check('typing claude from the rows searches: its c and e are letters, not keys', typed && !scene.m.screen().includes('not a toggle') && effortRow(scene.m) === effortBefore && JSON.stringify(engineOf()) === before, `${boxText(scene.m)} · ${effortRow(scene.m)} · ${JSON.stringify(engineOf())}`, 'typed c and e must be search letters, not keys: see src/components/modelPicker/keys.ts')
   check('every Anthropic row matches claude', /Mercury · model · 13 of \d+ match/.test(scene.m.screen()), rowOf(scene.m, TITLE).trim())
   scene.m.push(KEY.esc)
   await waitFor(() => !/ of \d+ match/.test(scene.m.screen()), 4000)
@@ -231,17 +232,17 @@ section('§2 the chat picker at 120x40: a typed name searches, saves nothing and
   check('no effort is saved before the chord', engineOf().effort === undefined, JSON.stringify(engineOf()))
   scene.m.push(CTRL_W)
   const contextAnswered = await waitFor(() => popupLines(scene.m).some(l => /ctx · no alternate window/.test(l)), 6000)
-  check('ctrl+w is the context key: the focused row answers with its window', contextAnswered, popupLines(scene.m).filter(l => l.includes('ctx')).join(' | '))
+  check('ctrl+w is the context key: the focused row answers with its window', contextAnswered, popupLines(scene.m).filter(l => l.includes('ctx')).join(' | '), 'ctrl+w must answer the focused row context window: see src/components/modelPicker/keys.ts')
   check('ctrl+w typed nothing into the search', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   scene.m.push(CTRL_E)
   const saved = await waitFor(() => engineOf().effort !== undefined, 6000)
-  check('ctrl+e changes it the effort and that choice is saved as the default', saved, JSON.stringify(engineOf()))
+  check('ctrl+e changes it the effort and that choice is saved as the default', saved, JSON.stringify(engineOf()), 'ctrl+e must cycle and save the effort default: see src/components/modelPicker/keys.ts')
   check('ctrl+e typed nothing into the search', boxText(scene.m) === '/ type to search by name or id', boxText(scene.m))
   await settle(300)
   save('chords-120x40', scene.m.lines())
   scene.m.push(KEY.esc)
   const closed = await waitFor(() => kept(scene.done), 6000)
-  check('esc with no search closes the picker once, the model kept', closed, JSON.stringify(scene.done))
+  check('esc with no search closes the picker once, the model kept', closed, JSON.stringify(scene.done), 'esc with no search must close the picker once with a Kept model as message: see src/commands/model/mercuryModel.tsx and src/components/modelPicker/keys.ts')
   await closeScene(scene)
 }
 
@@ -251,8 +252,8 @@ section('§3 the compact picker at 80x24: the same letters search')
   const before = JSON.stringify(engineOf())
   await typeSlowly(scene.m, 'opus')
   const searched = await waitFor(() => boxText(scene.m) === '/ opus' && /\d+ of \d+ match/.test(scene.m.screen()), 6000)
-  check('typing opus searches at 80x24', searched, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`)
-  check('nothing saved, nothing launched', JSON.stringify(engineOf()) === before && !scene.m.screen().includes('localsetup') && scene.done.length === 0)
+  check('typing opus searches at 80x24', searched, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`, 'the compact picker must route typed letters to search like the wide one: see src/components/modelPicker/keys.ts')
+  check('nothing saved, nothing launched', JSON.stringify(engineOf()) === before && !scene.m.screen().includes('localsetup') && scene.done.length === 0, '', 'typing at 80x24 must not save settings or launch the local setup: see src/components/modelPicker/keys.ts')
   save('typed-opus-80x24', scene.m.lines())
   await closeScene(scene)
 }
@@ -262,10 +263,10 @@ section('§4 /model with words that name no listed model: the words become the p
   const scene = await openPicker(120, 40, 'gpt 6 luna')
   const before = JSON.stringify(engineOf())
   const carried = await waitFor(() => boxText(scene.m) === '/ gpt 6 luna', 6000)
-  check('the typed words are the search box\'s text when the picker opens', carried, boxText(scene.m))
+  check('the typed words are the search box\'s text when the picker opens', carried, boxText(scene.m), 'the words passed to the call in src/commands/model/mercuryModel.tsx must become the picker search text')
   check('the title counts the matches for those words (none in a home with no GPT rows)', /Mercury · model · 0 of \d+ match/.test(scene.m.screen()), rowOf(scene.m, TITLE).trim())
-  check('the notice says the words name no listed model', popupLines(scene.m).some(l => l.includes("'gpt 6 luna' names no listed model")), popupLines(scene.m).filter(l => l.includes('listed')).join(' | '))
-  check('nothing was saved and nothing launched', JSON.stringify(engineOf()) === before && scene.done.length === 0 && !scene.m.screen().includes('localsetup'), JSON.stringify(engineOf()))
+  check('the notice says the words name no listed model', popupLines(scene.m).some(l => l.includes("'gpt 6 luna' names no listed model")), popupLines(scene.m).filter(l => l.includes('listed')).join(' | '), 'the names no listed model notice comes from the call in src/commands/model/mercuryModel.tsx or the picker in src/components/MercuryModelPicker.tsx')
+  check('nothing was saved and nothing launched', JSON.stringify(engineOf()) === before && scene.done.length === 0 && !scene.m.screen().includes('localsetup'), JSON.stringify(engineOf()), 'carried search words must not save settings or close the picker: see src/commands/model/mercuryModel.tsx')
   save('typed-words-gpt-6-luna-120x40', scene.m.lines())
   scene.m.push(KEY.esc)
   const cleared = await waitFor(() => boxText(scene.m) === '/ search by name or id' && scene.m.screen().includes(TITLE), 6000)
@@ -277,9 +278,9 @@ section('§4 /model with words that name no listed model: the words become the p
 {
   const scene = await openPicker(120, 40, 'claude 5')
   const carried = await waitFor(() => boxText(scene.m) === '/ claude 5' && /Mercury · model · \d+ of \d+ match/.test(scene.m.screen()), 6000)
-  check('words that match rows open the picker filtered to them, the title counting the matches', carried, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`)
+  check('words that match rows open the picker filtered to them, the title counting the matches', carried, `${boxText(scene.m)} · ${rowOf(scene.m, TITLE).trim()}`, 'the words passed to the call in src/commands/model/mercuryModel.tsx must open the picker filtered to matching rows')
   const matched = Number(/Mercury · model · (\d+) of \d+ match/.exec(scene.m.screen())?.[1] ?? '0')
-  check('a row of the filtered list is the focused one (boxed)', matched > 0 && popupLines(scene.m).some(l => /│ │ │ .*claude-/.test(l)), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '))
+  check('a row of the filtered list is the focused one (boxed)', matched > 0 && popupLines(scene.m).some(l => /│ │ │ .*claude-/.test(l)), popupLines(scene.m).filter(l => l.includes('claude-')).join(' | '), 'the filtered picker in src/components/MercuryModelPicker.tsx must focus a matching row')
   save('typed-words-claude-5-120x40', scene.m.lines())
   scene.m.push(KEY.esc)
   await waitFor(() => !/ of \d+ match/.test(scene.m.screen()), 4000)

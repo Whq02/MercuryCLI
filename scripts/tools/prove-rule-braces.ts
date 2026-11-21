@@ -55,7 +55,7 @@ let failures = 0
 let checks = 0
 const check = (label: string, cond: boolean, detail = ''): void => {
   checks++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ' — ' + detail : ''}${!cond ? ' | change expandRuleBraces in src/utils/permissions/ruleBraces.ts, the rule matching in src/utils/permissions/filesystem.ts, or validatePermissionRule in src/utils/settings/permissionValidation.ts and filterInvalidPermissionRules in src/utils/settings/validation.ts' : ''}`)
   if (!cond) failures++
 }
 

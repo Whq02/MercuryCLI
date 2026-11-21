@@ -4,6 +4,7 @@ import { posix as pathPosix, win32 as pathWin32 } from 'node:path'
 import { realTargetPath } from '../../src/guards/wardsGuard.js'
 import { splitPathFromRoot } from '../../src/utils/platform/paths.js'
 
+const TARGET_ROOT_FAIL_HINT = 'fix: splitPathFromRoot in src/utils/platform/paths.ts (root, segments and separator per path grammar) or realTargetPath in src/guards/wardsGuard.ts (host resolution of the deepest existing ancestor)'
 let passed = 0
 let failed = 0
 
@@ -13,7 +14,7 @@ function check(label: string, ok: boolean, detail = ''): void {
     console.log(`  [PASS] ${label}`)
   } else {
     failed++
-    console.log(`  [FAIL] ${label}${detail ? ` — ${detail}` : ''}`)
+    console.log(`  [FAIL] ${label} — ${detail}${detail ? ' | ' : ''}${TARGET_ROOT_FAIL_HINT}`)
   }
 }
 

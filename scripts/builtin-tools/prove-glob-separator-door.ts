@@ -22,6 +22,8 @@ type Door = {
   normalizeGlobPattern: (pattern: string, platform?: NodeJS.Platform) => string
   splitGrepGlobField: (field: string, platform?: NodeJS.Platform) => string[]
 }
+const normHint = 'change normalizeGlobPattern in src/utils/globPattern.ts'
+const splitHint = 'change splitGrepGlobField in src/utils/globPattern.ts'
 let door: Door | null = null
 try {
   door = (await import('../../src/utils/globPattern.ts')) as Door
@@ -30,17 +32,17 @@ try {
 }
 
 section('§1 normalizeGlobPattern — win32 rewrites separators, POSIX is a no-op')
-check('the door module exists', door !== null)
+check('the door module exists', door !== null, 'src/utils/globPattern.ts must exist and export normalizeGlobPattern and splitGrepGlobField')
 if (door) {
   const n = door.normalizeGlobPattern
-  check("win32: 'src\\**\\*.ts' → 'src/**/*.ts'", n('src\\**\\*.ts', 'win32') === 'src/**/*.ts', n('src\\**\\*.ts', 'win32'))
-  check("win32: 'src\\utils\\path.ts' → 'src/utils/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/utils/path.ts')
-  check("win32: a mixed spelling 'src\\utils/*.ts' → 'src/utils/*.ts'", n('src\\utils/*.ts', 'win32') === 'src/utils/*.ts')
-  check("win32: an already-forward pattern is unchanged", n('src/**/*.ts', 'win32') === 'src/**/*.ts')
-  check("win32: a brace group keeps its braces", n('src\\**\\*.{ts,tsx}', 'win32') === 'src/**/*.{ts,tsx}')
-  check("linux: 'src\\**\\*.ts' is untouched (a backslash is the glob escape on POSIX)", n('src\\**\\*.ts', 'linux') === 'src\\**\\*.ts')
-  check("darwin: 'a\\[1\\].ts' is untouched", n('a\\[1\\].ts', 'darwin') === 'a\\[1\\].ts')
-  check('the platform default is the live process platform', n('x\\y', process.platform) === n('x\\y'))
+  check("win32: 'src\\**\\*.ts' → 'src/**/*.ts'", n('src\\**\\*.ts', 'win32') === 'src/**/*.ts', `${n('src\\**\\*.ts', 'win32')} | ${normHint}`)
+  check("win32: 'src\\utils\\path.ts' → 'src/utils/path.ts'", n('src\\utils\\path.ts', 'win32') === 'src/utils/path.ts', normHint)
+  check("win32: a mixed spelling 'src\\utils/*.ts' → 'src/utils/*.ts'", n('src\\utils/*.ts', 'win32') === 'src/utils/*.ts', normHint)
+  check("win32: an already-forward pattern is unchanged", n('src/**/*.ts', 'win32') === 'src/**/*.ts', normHint)
+  check("win32: a brace group keeps its braces", n('src\\**\\*.{ts,tsx}', 'win32') === 'src/**/*.{ts,tsx}', normHint)
+  check("linux: 'src\\**\\*.ts' is untouched (a backslash is the glob escape on POSIX)", n('src\\**\\*.ts', 'linux') === 'src\\**\\*.ts', normHint)
+  check("darwin: 'a\\[1\\].ts' is untouched", n('a\\[1\\].ts', 'darwin') === 'a\\[1\\].ts', normHint)
+  check('the platform default is the live process platform', n('x\\y', process.platform) === n('x\\y'), `${normHint} so its platform default is process.platform`)
 }
 
 
@@ -48,13 +50,13 @@ section('§3 Grep — every --glob token rides the door')
 {
   if (door) {
     const s = door.splitGrepGlobField
-    check("win32: 'src\\**\\*.ts' → ['src/**/*.ts']", JSON.stringify(s('src\\**\\*.ts', 'win32')) === JSON.stringify(['src/**/*.ts']), JSON.stringify(s('src\\**\\*.ts', 'win32')))
-    check("win32: 'src\\**\\*.ts *.md' splits on whitespace and normalises each", JSON.stringify(s('src\\**\\*.ts *.md', 'win32')) === JSON.stringify(['src/**/*.ts', '*.md']))
-    check("win32: 'a\\*.ts,b\\*.ts' splits on commas and normalises each", JSON.stringify(s('a\\*.ts,b\\*.ts', 'win32')) === JSON.stringify(['a/*.ts', 'b/*.ts']))
-    check("win32: a brace token 'src\\**\\*.{ts,tsx}' passes whole (no comma split inside braces)", JSON.stringify(s('src\\**\\*.{ts,tsx}', 'win32')) === JSON.stringify(['src/**/*.{ts,tsx}']))
-    check("linux: '*.{ts,tsx} *.md,*.txt' keeps the shipped split rules", JSON.stringify(s('*.{ts,tsx} *.md,*.txt', 'linux')) === JSON.stringify(['*.{ts,tsx}', '*.md', '*.txt']))
-    check("linux: 'src\\**\\*.ts' is untouched", JSON.stringify(s('src\\**\\*.ts', 'linux')) === JSON.stringify(['src\\**\\*.ts']))
-    check('empty and whitespace-only fields yield no tokens', s('', 'win32').length === 0 && s('   ', 'linux').length === 0)
+    check("win32: 'src\\**\\*.ts' → ['src/**/*.ts']", JSON.stringify(s('src\\**\\*.ts', 'win32')) === JSON.stringify(['src/**/*.ts']), `${JSON.stringify(s('src\\**\\*.ts', 'win32'))} | ${splitHint}`)
+    check("win32: 'src\\**\\*.ts *.md' splits on whitespace and normalises each", JSON.stringify(s('src\\**\\*.ts *.md', 'win32')) === JSON.stringify(['src/**/*.ts', '*.md']), splitHint)
+    check("win32: 'a\\*.ts,b\\*.ts' splits on commas and normalises each", JSON.stringify(s('a\\*.ts,b\\*.ts', 'win32')) === JSON.stringify(['a/*.ts', 'b/*.ts']), splitHint)
+    check("win32: a brace token 'src\\**\\*.{ts,tsx}' passes whole (no comma split inside braces)", JSON.stringify(s('src\\**\\*.{ts,tsx}', 'win32')) === JSON.stringify(['src/**/*.{ts,tsx}']), splitHint)
+    check("linux: '*.{ts,tsx} *.md,*.txt' keeps the shipped split rules", JSON.stringify(s('*.{ts,tsx} *.md,*.txt', 'linux')) === JSON.stringify(['*.{ts,tsx}', '*.md', '*.txt']), splitHint)
+    check("linux: 'src\\**\\*.ts' is untouched", JSON.stringify(s('src\\**\\*.ts', 'linux')) === JSON.stringify(['src\\**\\*.ts']), splitHint)
+    check('empty and whitespace-only fields yield no tokens', s('', 'win32').length === 0 && s('   ', 'linux').length === 0, splitHint)
   }
 }
 
@@ -73,9 +75,9 @@ if (process.platform === 'win32') {
     const { ripGrep } = await import('../../src/utils/ripgrep.ts')
     const escaped = door.normalizeGlobPattern('a\\[1\\].ts')
     const hits = await ripGrep(['--files', '--glob', escaped], fixture, new AbortController().signal)
-    check("'a\\[1\\].ts' still names the literal file a[1].ts (escape kept)", hits.length === 1 && /a\[1\]\.ts$/.test(hits[0] ?? ''), JSON.stringify(hits))
+    check("'a\\[1\\].ts' still names the literal file a[1].ts (escape kept)", hits.length === 1 && /a\[1\]\.ts$/.test(hits[0] ?? ''), `${JSON.stringify(hits)} | ${normHint} so it leaves backslashes alone off win32`)
     const deep = await ripGrep(['--files', '--glob', door.normalizeGlobPattern('**/sub/**/*.ts')], fixture, new AbortController().signal)
-    check("'**/sub/**/*.ts' finds sub/c.ts through the door", deep.length === 1 && /sub\/c\.ts$/.test(deep[0] ?? ''), JSON.stringify(deep))
+    check("'**/sub/**/*.ts' finds sub/c.ts through the door", deep.length === 1 && /sub\/c\.ts$/.test(deep[0] ?? ''), `${JSON.stringify(deep)} | ${normHint}`)
   } catch (e) {
     check('the live ripgrep arm ran', false, e instanceof Error ? e.message.split('\n')[0] : String(e))
   } finally {

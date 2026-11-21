@@ -451,17 +451,17 @@ function scanMarkdownIntegrity(file: string, text: string, baseText?: string): I
 function selfTest(): void {
   const glued = scanMarkdownIntegrity('fixture.md', 'A paragraph line.\n## A glued heading\n')
   if (!glued.some(h => h.kind === 'glued-heading')) {
-    console.error('self-test FAILED: glued heading was not caught')
+    console.error('self-test FAILED: glued heading was not caught; the glued-heading rule in scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const dupLine = scanMarkdownIntegrity('fixture.md', '# Title\n\nSame line twice.\nSame line twice.\n')
   if (!dupLine.some(h => h.kind === 'repeated-line-or-clause')) {
-    console.error('self-test FAILED: duplicate line was not caught')
+    console.error('self-test FAILED: duplicate line was not caught; the duplicate-line rule in scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const dupTail = scanMarkdownIntegrity('fixture.md', '# Title\n\nMercury never updates Aseprite for you.\nfor you.\n')
   if (!dupTail.some(h => h.kind === 'repeated-line-or-clause')) {
-    console.error('self-test FAILED: duplicate line tail was not caught')
+    console.error('self-test FAILED: duplicate line tail was not caught; the duplicate-line-tail rule in scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const dupTenWords = scanMarkdownIntegrity(
@@ -469,7 +469,7 @@ function selfTest(): void {
     '# Title\n\nA crewmate continues from where its transcript ends on disk and a crewmate continues from where its transcript ends on disk.\n',
   )
   if (!dupTenWords.some(h => h.kind === 'repeated-line-or-clause')) {
-    console.error('self-test FAILED: 10-word repeated clause was not caught')
+    console.error('self-test FAILED: 10-word repeated clause was not caught; the repeated-clause rule in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const enumeration = scanMarkdownIntegrity(
@@ -477,22 +477,22 @@ function selfTest(): void {
     '# Title\n\nRoutes announce the remaining tools (among them `Crewmate`,\n`Skill`, `Test`, `LspRead`, `AstSearch`, `JevEval`, `Debug`, `Git`, `AstEdit`, `LspRename`,\n`LspFormat`) with a one-line purpose each.\n',
   )
   if (enumeration.some(h => h.kind === 'repeated-line-or-clause')) {
-    console.error('self-test FAILED: a comma-separated run of code spans is an enumeration, not a repeated clause')
+    console.error('self-test FAILED: a comma-separated run of code spans is an enumeration, not a repeated clause; the enumeration stripping in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts is too loose or missing, restore it')
     process.exit(1)
   }
   const cutParen = scanMarkdownIntegrity('fixture.md', '# Title\n\nPages (`Retain`, `Recall`,\nRecall fuses the model.\n')
   if (!cutParen.some(h => h.kind === 'cut-or-spliced-sentence')) {
-    console.error('self-test FAILED: unbalanced parenthesis cut was not caught')
+    console.error('self-test FAILED: unbalanced parenthesis cut was not caught; the parenthesis count in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const lowercaseAfterStop = scanMarkdownIntegrity('fixture.md', '# Title\n\nThe turn finishes.\nanswer leaves it completed.\n')
   if (!lowercaseAfterStop.some(h => h.kind === 'cut-or-spliced-sentence')) {
-    console.error('self-test FAILED: lowercase start after sentence end was not caught')
+    console.error('self-test FAILED: lowercase start after sentence end was not caught; the lowercase-start rule in scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
   const mixedQuotes = scanMarkdownIntegrity('fixture.md', '# Title\n\nThe hint row says `"held until compaction lands”`.\n')
   if (!mixedQuotes.some(h => h.kind === 'mixed-quote-marks')) {
-    console.error('self-test FAILED: mixed quote marks were not caught')
+    console.error('self-test FAILED: mixed quote marks were not caught; the mixed-quote rules in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore them')
     process.exit(1)
   }
   const splitSpan = scanMarkdownIntegrity(
@@ -500,12 +500,12 @@ function selfTest(): void {
     '# Title\n\n`mercury update` asks `"This Mercury was installed by Homebrew. Run `brew upgrade` now? [y/N]"`.\n',
   )
   if (!splitSpan.some(h => h.kind === 'unbalanced-code-span')) {
-    console.error('self-test FAILED: split quoted code span was not caught')
+    console.error('self-test FAILED: split quoted code span was not caught; the code-span rules in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore them')
     process.exit(1)
   }
   const oddBacktick = scanMarkdownIntegrity('fixture.md', '# Title\n\nA paragraph with an `unclosed code span.\n')
   if (!oddBacktick.some(h => h.kind === 'unbalanced-code-span')) {
-    console.error('self-test FAILED: odd backtick count was not caught')
+    console.error('self-test FAILED: odd backtick count was not caught; the leftover-backtick rule in flushPara inside scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it')
     process.exit(1)
   }
 
@@ -595,7 +595,7 @@ function selfTest(): void {
   for (const [id, baseFixture, brokenFixture] of sectionACutFixtures) {
     const found = scanMarkdownIntegrity('fixture.md', brokenFixture, baseFixture)
     if (!found.some(h => h.kind === 'cut-or-spliced-sentence')) {
-      console.error(`self-test FAILED: section A cut fixture ${id} was not caught`)
+      console.error(`self-test FAILED: section A cut fixture ${id} was not caught; the base-revision tail scan scanBaseRevisionTails in scripts/identity/prove-docs-integrity.ts stopped catching it, restore it`)
       process.exit(1)
     }
   }
@@ -606,7 +606,7 @@ function selfTest(): void {
     '# Title\n\nFirst paragraph is whole.\n\n## Section\n\nSecond paragraph is whole (with balanced parens).\n',
   )
   if (clean.length > 0) {
-    console.error('self-test FAILED: clean text was flagged:', clean)
+    console.error('self-test FAILED: clean text was flagged (a rule in scanMarkdownIntegrity in scripts/identity/prove-docs-integrity.ts is too strict, loosen the rule named by the kind below):', clean)
     process.exit(1)
   }
 }
@@ -626,7 +626,7 @@ console.log(
   `docs-integrity${REV ? ` (rev=${REV})` : ''}${BASE_REV ? ` (base=${BASE_REV})` : ''}: ${files.length} surfaces scanned, ${allHits.length} hit(s)`,
 )
 if (allHits.length > 0) {
-  console.error('❌ docs-integrity: broken sentences, repeated lines/clauses, mixed quotes, unbalanced code spans, or glued headings found')
+  console.error('❌ docs-integrity: broken sentences, repeated lines/clauses, mixed quotes, unbalanced code spans, or glued headings found; open each file:line printed above (README.md or docs/*.md) and repair that text, reading the kind and excerpt shown there')
   process.exit(1)
 }
 console.log('✅ docs-integrity: clean')

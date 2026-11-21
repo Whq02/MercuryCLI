@@ -7,11 +7,23 @@ import { basename, join, resolve } from 'node:path'
 
 const ROOT = resolve(import.meta.dir, '..', '..')
 let failures = 0
+const RECORD_FIXES: Array<[string, string]> = [
+  ['(1)', 'change systemShellRecord in src/utils/shell/shellRecord.ts, or the provider getShellConfig returns in src/utils/Shell.ts'],
+  ['(2)', 'change shellRecordWords and describeShellRecord in src/utils/shell/shellRecord.ts, or the Shell line of computeEnvInfo and computeSimpleEnvInfo in src/constants/prompts.ts, or getSimplePrompt in src/tools/BashTool/prompt.ts'],
+  ['(3)', 'change completionDialect in src/utils/shell/shellRecord.ts, or createAndSaveSnapshot in src/utils/bash/ShellSnapshot.ts (the snapshot must be taken with the shell the record names)'],
+  ['(4)', 'change OLD_BASH_SENTENCE in src/utils/shell/shellRecord.ts'],
+  ['(5)', 'change restrictReviewerTools in src/tools/AgentTool/reviewerPolicy.ts (the shell that runs the wrapped line)'],
+]
+let recordFix = ''
 function check(label: string, cond: boolean, detail = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, recordFix].filter(part => part !== '').join(' | ')
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${!cond && shown ? ` — ${shown}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n${title}`)
+const section = (title: string): void => {
+  recordFix = RECORD_FIXES.find(([prefix]) => title.startsWith(prefix))?.[1] ?? ''
+  console.log(`\n${title}`)
+}
 
 const scratch = realpathSync(mkdtempSync(join(tmpdir(), 'shell-record-')))
 const userHome = join(scratch, 'user-home')

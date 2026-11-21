@@ -156,11 +156,25 @@ for (const name of Object.keys(process.env)) {
 }
 
 let failures = 0
+const ROAD_FIXES: Array<[string, string]> = [
+  ['§1 ', 'change exec in src/utils/Shell.ts (which shell each call rides) or armWindowsShellRoad in src/utils/shell/windowsShellRoad.ts and resolveShellEngine in src/utils/shell/engineSession.ts'],
+  ['§1b ', 'change exec in src/utils/Shell.ts or the engine start in src/utils/shell/engineSession.ts (BASH_ENV must not reach the engine)'],
+  ['§2 ', 'change exec in src/utils/Shell.ts or resolveShellEngine in src/utils/shell/engineSession.ts (off the Windows road the system shell serves)'],
+  ['§3 ', 'change exec in src/utils/Shell.ts or resolveShellEngine in src/utils/shell/engineSession.ts (the pinned engine serves only the plain call)'],
+  ['§4 ', 'change exec in src/utils/Shell.ts or armWindowsShellRoad in src/utils/shell/windowsShellRoad.ts (the located bash serves the three paths beside the engine)'],
+  ['§6 ', 'change createWatchMailbox, BURST_WINDOW_MS or DELIVERY_INTERVAL_MS in src/tools/MonitorTool/watchMailbox.ts'],
+  ['§7 ', 'rebuild dist/mercury.mjs (bun run build.ts), then change exec in src/utils/Shell.ts or the Monitor tool under src/tools/MonitorTool'],
+]
+let roadFix = ''
 const check = (label: string, ok: boolean, detail = ''): void => {
   if (!ok) failures++
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && detail ? ` — ${detail}` : ''}`)
+  const shown = [detail, roadFix].filter(part => part !== '').join(' | ')
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}${!ok && shown ? ` — ${shown}` : ''}`)
 }
-const section = (title: string): void => console.log(`\n── ${title} ──`)
+const section = (title: string): void => {
+  roadFix = ROAD_FIXES.find(([prefix]) => title.startsWith(prefix))?.[1] ?? ''
+  console.log(`\n── ${title} ──`)
+}
 
 const scratchRoot = realpathSync(mkdtempSync(join(tmpdir(), 'engine-roads-')))
 const legEnvBase = (): NodeJS.ProcessEnv => {

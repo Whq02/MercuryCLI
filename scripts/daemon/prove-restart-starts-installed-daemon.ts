@@ -56,14 +56,14 @@ const { sameBuildTree } = await import('../../src/daemon/planeBoot.ts')
 
 try {
   const before = await handshakeDaemon({ timeoutMs: 500 })
-  check('no daemon serves before the restart road runs', before.state === 'absent', before.state)
+  check('no daemon serves before the restart road runs', before.state === 'absent', `${before.state} · a daemon already serves this proof's daemon folder; stop it, then rerun`)
   const installed = { script: join(build, 'mercury.mjs'), buildTree: TREE, dir: build, node: NODE, layout: 'source' as const, version: null }
   const verdict = await runWithCwdOverride(work, () => restart.startInstalledDaemon(installed))
   const pid = verdict.daemon?.pid ?? null
-  check('a daemon answers the handshake within the wait', verdict.daemon !== null && verdict.state !== 'starting' && verdict.state !== 'absent', `${verdict.state} · ${verdict.line ?? ''}`)
-  check('…and it is the installed build (its tree), not another', verdict.daemon !== null && sameBuildTree(verdict.daemon.buildTree, TREE), String(verdict.daemon?.buildTree))
+  check('a daemon answers the handshake within the wait', verdict.daemon !== null && verdict.state !== 'starting' && verdict.state !== 'absent', `${verdict.state} · ${verdict.line ?? ''} · startInstalledDaemon in src/commands/restart/restart.ts must spawn the installed script (spawnOwnedDaemon) and wait for a handshake from it`)
+  check('…and it is the installed build (its tree), not another', verdict.daemon !== null && sameBuildTree(verdict.daemon.buildTree, TREE), `${String(verdict.daemon?.buildTree)} · startInstalledDaemon in src/commands/restart/restart.ts must start the daemon from installed.script, whose manifest carries the buildTree ${TREE}`)
   const command = pid === null ? '' : commandLineOf(pid)
-  check('…its process runs the installed bundle, not the calling process\'s script', command.includes(join(build, 'mercury.mjs')) && !command.includes('prove-restart-starts-installed-daemon'), command.slice(0, 200))
+  check('…its process runs the installed bundle, not the calling process\'s script', command.includes(join(build, 'mercury.mjs')) && !command.includes('prove-restart-starts-installed-daemon'), `startInstalledDaemon in src/commands/restart/restart.ts must pass installed.script to spawnOwnedDaemon, not the caller's own script · ${command.slice(0, 200)}`)
 } finally {
   try {
     await daemonControlRpc({ op: 'shutdown', reapWorkers: true } as never, { timeoutMs: 8_000 })

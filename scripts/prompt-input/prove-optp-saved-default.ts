@@ -16,9 +16,9 @@ const argument = (name: string): string | undefined => {
 const DIST = resolve(argument('--dist') ?? join(ROOT, 'dist', 'mercury.mjs'))
 
 let failures = 0
-function check(label: string, cond: boolean, detail = ''): void {
+function check(label: string, cond: boolean, detail = '', hint = ''): void {
   if (!cond) failures++
-  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}`)
+  console.log(`  [${cond ? 'PASS' : 'FAIL'}] ${label}${detail ? ` — ${detail.slice(0, 300)}` : ''}${!cond && hint ? ` — to fix: ${hint}` : ''}`)
 }
 function section(title: string): void {
   console.log('\n' + '─'.repeat(76) + '\n' + title + '\n' + '─'.repeat(76))
@@ -133,7 +133,7 @@ if (driver.kind !== 'posix-pty') {
     encoding: 'utf8',
     timeout: vshotBudgetMs(150_000),
   })
-  check('the capture ran', res.status === 0 && existsSync(gridPath), `status ${res.status}: ${(res.stderr ?? '').slice(-400)}`)
+  check('the capture ran', res.status === 0 && existsSync(gridPath), `status ${res.status}: ${(res.stderr ?? '').slice(-400)}`, 'run bun run build.ts so dist/mercury.mjs exists, then read the stderr above for why the pty capture driver failed')
   if (res.status === 0 && existsSync(gridPath)) {
     const payload = JSON.parse(readFileSync(gridPath, 'utf8')) as { marks?: Mark[] }
     const marks = new Map((payload.marks ?? []).map(m => [m.label, m]))
@@ -141,15 +141,15 @@ if (driver.kind !== 'posix-pty') {
     const idle = marks.get('idle')
     const picker = marks.get('picker')
     const switched = marks.get('switched')
-    check('the hosted chat is admitted before the picker opens', idle !== undefined && rows(idle.grid).some(r => READY_ROW.test(r)), idle ? rows(idle.grid).filter(r => r.includes('ready')).join(' | ') : 'no mark')
+    check('the hosted chat is admitted before the picker opens', idle !== undefined && rows(idle.grid).some(r => READY_ROW.test(r)), idle ? rows(idle.grid).filter(r => r.includes('ready')).join(' | ') : 'no mark', 'the chat never showed its ready row (ready · model · effort) before opt+p was sent; check the boot and chat start-up path in the built dist/mercury.mjs')
     const pickedRow = picker === undefined ? undefined : rows(picker.grid).find(r => /❯\s+(?:\d+\.\s+)?claude-/.test(r))
     const pickedId = pickedRow === undefined ? undefined : /❯\s+(?:\d+\.\s+)?(\S+)/.exec(pickedRow)?.[1]
-    check('the picker opened on opt+p and ↓ moved the cursor to a model row', pickedId !== undefined && pickedId.startsWith('claude-'), pickedRow ?? 'no ❯ row')
+    check('the picker opened on opt+p and ↓ moved the cursor to a model row', pickedId !== undefined && pickedId.startsWith('claude-'), pickedRow ?? 'no ❯ row', 'opt+p should open the model picker (src/components/ModelPicker.tsx, opened through modelDoorsSurfaceOf in src/components/PromptInput/composerModelDoorsParts.tsx) and the down key should land on a claude- row')
     const receipts = switched === undefined ? [] : rows(switched.grid).filter(r => r.includes('Set model to'))
-    check('the receipt names the pick as the saved default, as /model does (the transcript ack row beside it carries the plain words)', receipts.some(r => r.includes(SAVED)), receipts.join(' | ') || 'no receipt')
+    check('the receipt names the pick as the saved default, as /model does (the transcript ack row beside it carries the plain words)', receipts.some(r => r.includes(SAVED)), receipts.join(' | ') || 'no receipt', 'the Set model to notice is built in applyModelSelectionOf in src/components/PromptInput/composerModelDoorsParts.tsx and takes its saved wording from persistModelChoice in src/commands/model/persistModelChoice.ts; make the opt+p pick call it with persist true')
     const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, 'utf8')) as { engine?: { model?: string; effort?: string } }) : {}
-    check('the settings carry the pick as the default model', pickedId !== undefined && settings.engine?.model === pickedId, `settings ${JSON.stringify(settings)} picked ${JSON.stringify(pickedId)}`)
-    check('the saved effort is untouched by a model pick', settings.engine?.effort === 'max', JSON.stringify(settings))
+    check('the settings carry the pick as the default model', pickedId !== undefined && settings.engine?.model === pickedId, `settings ${JSON.stringify(settings)} picked ${JSON.stringify(pickedId)}`, 'the opt+p pick must write engine.model through persistModelChoice in src/commands/model/persistModelChoice.ts, as /model does')
+    check('the saved effort is untouched by a model pick', settings.engine?.effort === 'max', JSON.stringify(settings), 'a model pick must change engine.model only; persistModelChoice in src/commands/model/persistModelChoice.ts should not write engine.effort')
     writeFileSync(join(scratch, 'switched.txt'), switched ? rows(switched.grid).join('\n') : '')
     console.log(`  frames: ${scratch}`)
   }
