@@ -26,7 +26,8 @@ let asks = 0
 const installation = await installPinned(adapter, { dataDir, authorize: async (plan: unknown) => { asks++; console.log(JSON.stringify(plan)); return true }, onProgress: (received: number, total: number, archive: string) => { if (received === total) console.log(`${archive}: ${received} bytes downloaded`) } })
 console.log(`Installed: ${installation.cli}`)
 assert.equal((await checkInstall(adapter, { dataDir })).state, 'installed')
-assert((await installPinned(adapter, { dataDir, authorize: () => { throw new Error('Reuse must not ask') } })).reused)
+const reused = await installPinned(adapter, { dataDir, authorize: () => { throw new Error('Reuse must not ask') } })
+assert(reused.reused, 'filmcraft second installPinned did not reuse existing installation in src/extensions/bundled/shared/install.mjs')
 const environment = { ...process.env, HOME: join(scratch, 'home'), USERPROFILE: join(scratch, 'home'), XDG_CONFIG_HOME: join(scratch, 'config'), FILMCRAFT_DATA_DIR: join(scratch, 'app-data'), TMPDIR: join(scratch, 'tmp'), TMP: join(scratch, 'tmp'), TEMP: join(scratch, 'tmp') }
 for (const key of ['HOME', 'XDG_CONFIG_HOME', 'FILMCRAFT_DATA_DIR', 'TMPDIR'] as const) await mkdir(environment[key]!, { recursive: true })
 const version = await exec(installation.cli, ['--version'], { env: environment })
@@ -39,7 +40,7 @@ try {
   const tools = await client.listTools()
   assert.equal(tools.tools.length, 17)
   const commands = await client.callTool({ name: 'command_list', arguments: {} })
-  assert(!commands.isError)
+  assert(!commands.isError, `filmcraft command_list returned error: ${JSON.stringify(commands).slice(0, 200)}`)
   const texts = commands.content.filter((c: { type: string }) => c.type === 'text').map((c: { text?: string }) => c.text).join('\n')
   const parsed = JSON.parse(texts)
   const entries = Array.isArray(parsed) ? parsed : parsed.commands
@@ -84,12 +85,15 @@ try {
   await command('file.saveAs', { path: join(scratch, 'edited.fcproj') })
   const output = join(scratch, 'edited.mp4')
   await command('file.exportMedia', { path: output, format: 'h264', width: 320, height: 180, fps: 24, audio: false, hardwareEncoding: 'off', wait: true })
-  assert((await readFile(output)).byteLength > 100)
+  const exportBytes = (await readFile(output)).byteLength
+  assert(exportBytes > 100, `filmcraft exported MP4 size ${exportBytes}B <= 100B at ${output}`)
   const media = await exec('ffprobe', ['-v', 'error', '-show_format', '-show_streams', '-of', 'json', output], { env: environment })
   const info = JSON.parse(media.stdout), video = info.streams.find((s: any) => s.codec_type === 'video')
-  assert.equal(video.width, 320); assert.equal(video.height, 180); assert(Math.abs(Number(info.format.duration) - 2) < 0.15)
+  assert.equal(video.width, 320); assert.equal(video.height, 180)
+  assert(Math.abs(Number(info.format.duration) - 2) < 0.15, `filmcraft exported duration ${info.format.duration}s outside 2s +/- 0.15s tolerance`)
   const decoded = await exec('ffmpeg', ['-v', 'error', '-i', output, '-frames:v', '2', '-f', 'framemd5', '-'], { env: environment })
-  assert(decoded.stdout.split('\n').filter(line => /^0,/.test(line)).length === 2)
+  const frameCount = decoded.stdout.split('\n').filter(line => /^0,/.test(line)).length
+  assert(frameCount === 2, `filmcraft ffmpeg framemd5 decoded ${frameCount} frames (expected 2)`)
   await writeFile(join(scratch, 'export-inspection.json'), media.stdout)
   await writeFile(join(scratch, 'decoded-frames.txt'), decoded.stdout)
   console.log('PASS: real import, timeline placement, cut, native save and inspected two-second MP4 export')

@@ -29,7 +29,7 @@ function contract(root: string): Record<string, unknown> {
     const source = program.getSourceFile(join(root, entry))
     assert.ok(source, `missing ${entry}`)
     const module = checker.getSymbolAtLocation(source)
-    assert.ok(module)
+    assert.ok(module, `no module symbol resolved for ${entry} in scripts/engine-pass/prove-engine-contract.ts`)
     for (const item of checker.getExportsOfModule(module)) {
       const target = item.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(item) : item
       const at = target.valueDeclaration ?? target.declarations?.[0]

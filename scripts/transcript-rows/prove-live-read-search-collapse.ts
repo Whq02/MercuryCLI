@@ -102,8 +102,8 @@ check('a failed result stays in the live and settled group for its existing mark
   const failed = result(0, true)
   const group = oneGroup(collapseReadSearchGroups([use(0), failed, use(1)], tools, new Set(['call-1'])))
   assert.equal(group.readCount, 2)
-  assert.ok(group.messages.includes(failed))
-  assert.ok(oneGroup(collapseReadSearchGroups([use(0), failed, use(1), result(1)], tools)).messages.includes(failed))
+  assert.ok(group.messages.includes(failed), 'live collapsed_read_search group dropped failed tool_result in src/components/messages/collapseReadSearch.ts')
+  assert.ok(oneGroup(collapseReadSearchGroups([use(0), failed, use(1), result(1)], tools)).messages.includes(failed), 'settled collapsed_read_search group dropped failed tool_result in src/components/messages/collapseReadSearch.ts')
 })
 
 check('assistant text separates two runs without changing their order', () => {
